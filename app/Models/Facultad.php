@@ -10,7 +10,7 @@ class Facultad extends Model
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'facultad';
+    protected $table = 'facultades';
     public $timestamps = false;
     protected $primaryKey = 'id';
 

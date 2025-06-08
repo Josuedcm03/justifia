@@ -10,7 +10,7 @@ class Carrera extends Model
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'carrera';
+    protected $table = 'carreras';
     public $timestamps = false;
     protected $primaryKey = 'id';
 
