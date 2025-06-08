@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('docente_asignaturas', function (Blueprint $table) {
             $table->id();
+            $table->string('grupo');
+            $table->foreignId('docente_id')->constrained('docentes');
+            $table->foreignId('asignatura_id')->constrained('asignaturas');
             $table->timestamps();
         });
     }

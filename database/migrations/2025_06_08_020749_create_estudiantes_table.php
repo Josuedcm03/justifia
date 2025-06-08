@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('estudiantes', function (Blueprint $table) {
             $table->id();
+            $table->string('cif');
+            $table->foreignId('usuario_id')->constrained('users');
+            $table->foreignId('carrera_id')->constrained('carreras');
             $table->timestamps();
         });
     }
