@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class DocenteAsignatura extends Model
 {
-     use HasFactory, Notifiable;
+    use HasFactory, Notifiable;
 
-    protected $table = 'docente_asignatura';
+    protected $table = 'docente_asignaturas';
     public $timestamps = false;
     protected $primaryKey = 'id';
 

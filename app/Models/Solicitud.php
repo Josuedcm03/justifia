@@ -10,7 +10,7 @@ class Solicitud extends Model
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'solicitud';
+    protected $table = 'solicitudes';
     public $timestamps = false;
     protected $primaryKey = 'id';
 

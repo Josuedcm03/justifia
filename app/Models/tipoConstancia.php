@@ -10,7 +10,7 @@ class tipoConstancia extends Model
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'tipo_constancia';
+    protected $table = 'tipo_constancias';
     public $timestamps = false;
     protected $primaryKey = 'id';
 

@@ -10,7 +10,7 @@ class Asignatura extends Model
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'asignatura';
+    protected $table = 'asignaturas';
     public $timestamps = false;
     protected $primaryKey = 'id';
 

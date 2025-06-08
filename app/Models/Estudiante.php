@@ -9,7 +9,7 @@ class Estudiante extends Model
     use \Illuminate\Database\Eloquent\Factories\HasFactory;
 
 
-    protected $table = 'estudiante';
+    protected $table = 'estudiantes';
     public $timestamps = false;
     protected $primaryKey = 'id';
 
