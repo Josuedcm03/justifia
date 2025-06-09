@@ -3,7 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Solicitud;
+use App\Models\Docente;
+use App\Models\DocenteAsignatura;
+use App\Models\tipoConstancia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class SolicitudController extends Controller
 {
@@ -12,7 +17,9 @@ class SolicitudController extends Controller
      */
     public function index()
     {
-        //
+        $solicitudes = Solicitud::latest()->paginate(15);
+
+        return view('solicitudes.index', compact('solicitudes'));
     }
 
     /**
@@ -20,7 +27,13 @@ class SolicitudController extends Controller
      */
     public function create()
     {
-        //
+        $docentes = Docente::with('usuario')->get();
+        $tiposConstancia = tipoConstancia::all();
+
+        return view('solicitudes.create', [
+            'docentes' => $docentes,
+            'tiposConstancia' => $tiposConstancia,
+        ]);
     }
 
     /**
@@ -28,7 +41,28 @@ class SolicitudController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'fecha_ausencia' => ['required', 'date'],
+            'constancia' => ['required', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
+            'observaciones' => ['nullable', 'string'],
+            'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
+            'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
+        ]);
+
+        $estudiante = Auth::user()->estudiante;
+        abort_unless($estudiante, 403);
+
+        $filePath = $request->file('constancia')->store('constancias', 'public');
+
+        $validated['constancia'] = $filePath;
+        $validated['estado'] = 'pendiente';
+        $validated['estudiante_id'] = $estudiante->id;
+
+        Solicitud::create($validated);
+
+        return redirect()
+            ->route('solicitudes.index')
+            ->with('success', 'Solicitud creada correctamente.');
     }
 
     /**
@@ -36,7 +70,7 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        //
+        return view('solicitudes.show', compact('solicitud'));
     }
 
     /**
@@ -44,7 +78,7 @@ class SolicitudController extends Controller
      */
     public function edit(Solicitud $solicitud)
     {
-        //
+        return view('solicitudes.edit', compact('solicitud'));
     }
 
     /**
@@ -52,7 +86,46 @@ class SolicitudController extends Controller
      */
     public function update(Request $request, Solicitud $solicitud)
     {
-        //
+                $validated = $request->validate([
+            'fecha_ausencia' => ['required', 'date'],
+            'constancia' => ['nullable', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
+            'observaciones' => ['nullable', 'string'],
+            'estado' => ['required', 'in:pendiente,aprobada,rechazada'],
+            'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
+            'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
+        ]);
+
+        if ($request->hasFile('constancia')) {
+            if ($solicitud->constancia) {
+                Storage::disk('public')->delete($solicitud->constancia);
+            }
+            $filePath = $request->file('constancia')->store('constancias', 'public');
+            $validated['constancia'] = $filePath;
+        }
+
+        $solicitud->update($validated);
+
+        return redirect()
+            ->route('solicitudes.show', $solicitud)
+            ->with('success', 'Solicitud actualizada correctamente.');
+    }
+
+    /**
+     * Return asignaturas linked to a docente.
+     */
+    public function asignaturasPorDocente(Docente $docente)
+    {
+        $asignaturas = $docente->asignaturas()
+            ->with('asignatura')
+            ->get()
+            ->map(function (DocenteAsignatura $da) {
+                return [
+                    'id' => $da->id,
+                    'nombre' => $da->asignatura->nombre . ' - Grupo ' . $da->grupo,
+                ];
+            });
+
+        return response()->json($asignaturas);
     }
 
     /**
@@ -60,6 +133,14 @@ class SolicitudController extends Controller
      */
     public function destroy(Solicitud $solicitud)
     {
-        //
+                if ($solicitud->constancia) {
+            Storage::disk('public')->delete($solicitud->constancia);
+        }
+
+        $solicitud->delete();
+
+        return redirect()
+            ->route('solicitudes.index')
+            ->with('success', 'Solicitud eliminada correctamente.');
     }
 }
