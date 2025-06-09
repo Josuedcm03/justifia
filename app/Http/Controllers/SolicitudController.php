@@ -7,7 +7,6 @@ use App\Models\Docente;
 use App\Models\DocenteAsignatura;
 use App\Models\tipoConstancia;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class SolicitudController extends Controller
@@ -49,14 +48,12 @@ class SolicitudController extends Controller
             'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
         ]);
 
-        $estudiante = Auth::user()->estudiante;
-        abort_unless($estudiante, 403);
-
         $filePath = $request->file('constancia')->store('constancias', 'public');
 
         $validated['constancia'] = $filePath;
         $validated['estado'] = 'pendiente';
-        $validated['estudiante_id'] = $estudiante->id;
+        // TODO: replace with the authenticated student's ID when users are implemented
+        $validated['estudiante_id'] = 1;
 
         Solicitud::create($validated);
 
