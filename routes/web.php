@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SolicitudController;
 
 // During testing we skip the authentication screens and go straight to the
 // dashboard. The root URL and `/dashboard` both render the dashboard view
@@ -26,3 +27,7 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+Route::get('docentes/{docente}/asignaturas', [SolicitudController::class, 'asignaturasPorDocente'])
+    ->name('docentes.asignaturas');
+Route::resource('solicitudes', SolicitudController::class);
