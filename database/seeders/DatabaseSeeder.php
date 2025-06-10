@@ -7,6 +7,9 @@ use App\Models\User;
 use Database\Seeders\FacultadesSeeder;
 use Database\Seeders\AsignaturasSeeder;
 use Database\Seeders\DocentesSeeder;
+use App\Models\Estudiante;
+use App\Models\Carrera;
+use App\Models\Facultad;
 use Database\Seeders\DocenteAsignaturasSeeder;
 use Illuminate\Database\Seeder;
 
@@ -19,10 +22,24 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
+
+                $facultad = Facultad::firstOrCreate(['nombre' => 'Facultad']);
+        $carrera = Carrera::firstOrCreate([
+            'nombre' => 'Carrera',
+            'facultad_id' => $facultad->id,
+        ]);
+        
+        $estudianteUser = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+                Estudiante::create([
+            'cif' => '22010116',
+            'usuario_id' => $estudianteUser->id,
+            'carrera_id' => $carrera->id,
+        ]);
+
 
                 $this->call([
             FacultadesSeeder::class,
