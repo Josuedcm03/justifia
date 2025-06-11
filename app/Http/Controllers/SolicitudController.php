@@ -16,9 +16,21 @@ class SolicitudController extends Controller
      */
     public function index()
     {
-        $solicitudes = Solicitud::latest()->paginate(15);
+        $pendientes = Solicitud::where('estado', 'pendiente')
+            ->latest()
+            ->get();
+        $aprobadas = Solicitud::where('estado', 'aprobada')
+            ->latest()
+            ->get();
+        $rechazadas = Solicitud::where('estado', 'rechazada')
+            ->latest()
+            ->get();
 
-        return view('solicitudes.index', compact('solicitudes'));
+        return view('solicitudes.index', [
+            'pendientes' => $pendientes,
+            'aprobadas' => $aprobadas,
+            'rechazadas' => $rechazadas,
+        ]);
     }
 
     /**

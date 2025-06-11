@@ -84,13 +84,13 @@
             function cargarAsignaturas(docenteId) {
                 asignaturaSelect.innerHTML = '<option value="">Cargando...</option>';
                 if (!docenteId) {
-                    asignaturaSelect.innerHTML = '<option value="">Seleccione una asignatura</option>';
+                    asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
                     return;
                 }
                 fetch(`{{ url('docentes') }}/${docenteId}/asignaturas`)
                     .then(r => r.json())
                     .then(data => {
-                        asignaturaSelect.innerHTML = '<option value="">Seleccione una asignatura</option>';
+                        asignaturaSelect.innerHTML = '<option value="">Seleccionar signatura</option>';
                         data.forEach(item => {
                             const option = document.createElement('option');
                             option.value = item.id;
