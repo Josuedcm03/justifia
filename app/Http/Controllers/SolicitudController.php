@@ -16,9 +16,21 @@ class SolicitudController extends Controller
      */
     public function index()
     {
-        $solicitudes = Solicitud::latest()->paginate(15);
+        $pendientes = Solicitud::where('estado', 'pendiente')
+            ->latest()
+            ->get();
+        $aprobadas = Solicitud::where('estado', 'aprobada')
+            ->latest()
+            ->get();
+        $rechazadas = Solicitud::where('estado', 'rechazada')
+            ->latest()
+            ->get();
 
-        return view('solicitudes.index', compact('solicitudes'));
+        return view('solicitudes.index', [
+            'pendientes' => $pendientes,
+            'aprobadas' => $aprobadas,
+            'rechazadas' => $rechazadas,
+        ]);
     }
 
     /**
@@ -41,7 +53,7 @@ class SolicitudController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date'],
+            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
             'constancia' => ['required', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
             'observaciones' => ['nullable', 'string'],
             'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
@@ -75,7 +87,14 @@ class SolicitudController extends Controller
      */
     public function edit(Solicitud $solicitud)
     {
-        return view('solicitudes.edit', compact('solicitud'));
+        $docentes = Docente::with('usuario')->get();
+        $tiposConstancia = tipoConstancia::all();
+
+        return view('solicitudes.edit', [
+            'solicitud' => $solicitud,
+            'docentes' => $docentes,
+            'tiposConstancia' => $tiposConstancia,
+        ]);
     }
 
     /**
@@ -83,11 +102,10 @@ class SolicitudController extends Controller
      */
     public function update(Request $request, Solicitud $solicitud)
     {
-                $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date'],
+            $validated = $request->validate([
+            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
             'constancia' => ['nullable', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
             'observaciones' => ['nullable', 'string'],
-            'estado' => ['required', 'in:pendiente,aprobada,rechazada'],
             'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
             'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
         ]);
@@ -103,7 +121,7 @@ class SolicitudController extends Controller
         $solicitud->update($validated);
 
         return redirect()
-            ->route('solicitudes.show', $solicitud)
+            ->route('solicitudes.index')
             ->with('success', 'Solicitud actualizada correctamente.');
     }
 

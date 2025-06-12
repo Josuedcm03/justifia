@@ -30,4 +30,6 @@ require __DIR__.'/auth.php';
 
 Route::get('docentes/{docente}/asignaturas', [SolicitudController::class, 'asignaturasPorDocente'])
     ->name('docentes.asignaturas');
-Route::resource('solicitudes', SolicitudController::class);
+Route::resource('solicitudes', SolicitudController::class)->parameters([
+    'solicitudes' => 'solicitud'
+]);
