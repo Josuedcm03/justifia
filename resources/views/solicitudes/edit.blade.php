@@ -63,12 +63,37 @@
 
                     <div class="space-y-2">
                         <label class="block font-medium">Constancia adjunta</label>
-                        @php $ext = pathinfo($solicitud->constancia, PATHINFO_EXTENSION); @endphp
-                        @if (in_array(strtolower($ext), ['jpg','jpeg','png','gif','webp']))
-                            <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-40 rounded">
+                        @php $ext = strtolower(pathinfo($solicitud->constancia, PATHINFO_EXTENSION)); @endphp
+                        @if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']))
+                            <img
+                                src="{{ Storage::url($solicitud->constancia) }}"
+                                alt="Constancia"
+                                class="max-h-40 rounded cursor-pointer"
+                                x-data
+                                x-on:click="$dispatch('open-modal', 'ver-constancia')"
+                            >
                         @else
-                            <a href="{{ Storage::url($solicitud->constancia) }}" target="_blank" class="text-[#0099a8] underline">Ver constancia</a>
+                            <button
+                                type="button"
+                                class="text-[#0099a8] underline"
+                                x-data
+                                x-on:click="$dispatch('open-modal', 'ver-constancia')"
+                            >Ver constancia</button>
                         @endif
+                        <x-modal name="ver-constancia" focusable>
+                            <div class="p-4">
+                                @if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']))
+                                    <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-[80vh] mx-auto">
+                                @elseif ($ext === 'pdf')
+                                    <iframe src="{{ Storage::url($solicitud->constancia) }}" class="w-full h-[80vh]"></iframe>
+                                @else
+                                    <a href="{{ Storage::url($solicitud->constancia) }}" target="_blank" class="text-[#0099a8] underline">Abrir archivo</a>
+                                @endif
+                                <div class="mt-4 text-right">
+                                    <x-secondary-button x-on:click="$dispatch('close')">Cerrar</x-secondary-button>
+                                </div>
+                            </div>
+                        </x-modal>
                     </div>
 
                     <div>
@@ -82,7 +107,7 @@
                         <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] transition font-semibold">
                             {{ __('Guardar Cambios') }}
                         </button>
-                        <button type="button" id="eliminar-btn" class="bg-red-600 text-white px-6 py-2 rounded-md shadow hover:bg-red-500 transition font-semibold">
+                        <button type="button" id="eliminar-btn" class="bg-[#0b545b] text-white px-6 py-2 rounded-md shadow hover:bg-[#094b51] transition font-semibold">
                             {{ __('Eliminar') }}
                         </button>
                     </div>
