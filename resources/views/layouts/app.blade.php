@@ -37,11 +37,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             Swal.fire({
+                theme: 'auto',
                 title: 'Éxito',
                 text: @js(session('success')),
                 icon: 'success',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#0b545b'
+                
             });
         });
     </script>
@@ -51,6 +53,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             Swal.fire({
+                theme: 'auto',
                 title: 'Error',
                 text: 'Hubo errores al procesar la solicitud.',
                 icon: 'error',

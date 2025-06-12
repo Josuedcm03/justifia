@@ -61,10 +61,14 @@
                         <x-input-error class="mt-2" :messages="$errors->get('tipo_constancia_id')" />
                     </div>
 
-                    <div>
-                        <label for="constancia" class="block font-medium mb-1">Cargar constancia (PDF, JPG, PNG)</label>
-                        <input id="constancia" name="constancia" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white">
-                        <x-input-error class="mt-2" :messages="$errors->get('constancia')" />
+                    <div class="space-y-2">
+                        <label class="block font-medium">Constancia adjunta</label>
+                        @php $ext = pathinfo($solicitud->constancia, PATHINFO_EXTENSION); @endphp
+                        @if (in_array(strtolower($ext), ['jpg','jpeg','png','gif','webp']))
+                            <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-40 rounded">
+                        @else
+                            <a href="{{ Storage::url($solicitud->constancia) }}" target="_blank" class="text-[#0099a8] underline">Ver constancia</a>
+                        @endif
                     </div>
 
                     <div>
@@ -73,21 +77,12 @@
                         <x-input-error class="mt-2" :messages="$errors->get('observaciones')" />
                     </div>
 
-                    <div>
-                        <label for="estado" class="block font-medium mb-1">Estado</label>
-                        <select id="estado" name="estado" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                            <option value="pendiente" @selected(old('estado', $solicitud->estado) == 'pendiente')>Pendiente</option>
-                            <option value="aprobada" @selected(old('estado', $solicitud->estado) == 'aprobada')>Aprobada</option>
-                            <option value="rechazada" @selected(old('estado', $solicitud->estado) == 'rechazada')>Rechazada</option>
-                        </select>
-                        <x-input-error class="mt-2" :messages="$errors->get('estado')" />
-                    </div>
 
                     <div class="flex justify-between pt-4">
                         <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] transition font-semibold">
                             {{ __('Guardar Cambios') }}
                         </button>
-                        <button type="button" id="eliminar-btn" class="bg-[#0b545b] text-white px-6 py-2 rounded-md shadow hover:bg-[#094b51] transition font-semibold">
+                        <button type="button" id="eliminar-btn" class="bg-red-600 text-white px-6 py-2 rounded-md shadow hover:bg-red-500 transition font-semibold">
                             {{ __('Eliminar') }}
                         </button>
                     </div>
@@ -138,6 +133,7 @@
 
             document.getElementById('eliminar-btn').addEventListener('click', () => {
                 Swal.fire({
+                    theme: 'auto',
                     title: '¿Eliminar?',
                     text: 'Esta acción no se puede deshacer.',
                     icon: 'warning',

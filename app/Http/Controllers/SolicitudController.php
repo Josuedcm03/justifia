@@ -104,25 +104,15 @@ class SolicitudController extends Controller
     {
             $validated = $request->validate([
             'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
-            'constancia' => ['nullable', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
             'observaciones' => ['nullable', 'string'],
-            'estado' => ['required', 'in:pendiente,aprobada,rechazada'],
             'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
             'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
         ]);
 
-        if ($request->hasFile('constancia')) {
-            if ($solicitud->constancia) {
-                Storage::disk('public')->delete($solicitud->constancia);
-            }
-            $filePath = $request->file('constancia')->store('constancias', 'public');
-            $validated['constancia'] = $filePath;
-        }
-
         $solicitud->update($validated);
 
         return redirect()
-            ->route('solicitudes.show', $solicitud)
+            ->route('solicitudes.index')
             ->with('success', 'Solicitud actualizada correctamente.');
     }
 
