@@ -13,6 +13,7 @@
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -32,5 +33,33 @@
                 {{ $slot }}
             </main>
         </div>
+        @if (session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            Swal.fire({
+                title: 'Éxito',
+                text: @js(session('success')),
+                icon: 'success',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#0b545b'
+            });
+        });
+    </script>
+@endif
+
+@if ($errors->any())
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            Swal.fire({
+                title: 'Error',
+                text: 'Hubo errores al procesar la solicitud.',
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#0b545b'
+            });
+        });
+    </script>
+@endif
+
     </body>
 </html>

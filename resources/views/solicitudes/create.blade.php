@@ -55,7 +55,7 @@
                     </div>
 
                     <div>
-                      <label for="constancia" class="block font-medium mb-1">Cargar constancia (PDF, JPG, PNG)</label>
+                      <label for="constancia" class="block font-medium mb-1">Cargar constancia (PDF, JPG, JPEG)</label>
                         <input id="constancia" name="constancia" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white">
                         <x-input-error class="mt-2" :messages="$errors->get('constancia')" />
                     </div>

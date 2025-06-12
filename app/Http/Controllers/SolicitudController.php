@@ -53,7 +53,7 @@ class SolicitudController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date'],
+            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
             'constancia' => ['required', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
             'observaciones' => ['nullable', 'string'],
             'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
@@ -87,7 +87,14 @@ class SolicitudController extends Controller
      */
     public function edit(Solicitud $solicitud)
     {
-        return view('solicitudes.edit', compact('solicitud'));
+        $docentes = Docente::with('usuario')->get();
+        $tiposConstancia = tipoConstancia::all();
+
+        return view('solicitudes.edit', [
+            'solicitud' => $solicitud,
+            'docentes' => $docentes,
+            'tiposConstancia' => $tiposConstancia,
+        ]);
     }
 
     /**
@@ -95,8 +102,8 @@ class SolicitudController extends Controller
      */
     public function update(Request $request, Solicitud $solicitud)
     {
-                $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date'],
+            $validated = $request->validate([
+            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
             'constancia' => ['nullable', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
             'observaciones' => ['nullable', 'string'],
             'estado' => ['required', 'in:pendiente,aprobada,rechazada'],

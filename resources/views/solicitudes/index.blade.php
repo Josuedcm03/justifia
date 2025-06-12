@@ -12,16 +12,16 @@
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-12">
                 <div class="flex justify-between flex-wrap mb-6">
-                    <div class="relative" x-data="{open:false}">
-                        <button @click="open = !open" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
-                            <x-heroicon-o-funnel class="w-4 h-4 mr-2" /> Filtrar
-                    </button>
-                    <div x-show="open" @click.away="open=false" class="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border rounded shadow z-10 text-sm text-black dark:text-white" x-cloak>
-                        <button class="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700" @click="estado='pendiente';open=false">Pendientes</button>
-                        <button class="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700" @click="estado='aprobada';open=false">Aprobadas</button>
-                        <button class="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700" @click="estado='rechazada';open=false">Rechazadas</button>
-                    </div>
-                </div>
+<div class="relative" x-data="{open:false}">
+    <button @click="open = !open" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
+        <x-heroicon-o-funnel class="w-4 h-4 mr-2" /> Filtrar
+        </button>
+                    <div x-show="open" x-transition.origin.top.right @click.away="open=false" class="absolute right-0 top-full mt-2 w-40 bg-white dark:bg-gray-800 border border-[#0099a8] rounded shadow-lg z-20 text-sm text-black dark:text-white" x-cloak>
+                        <button class="block w-full text-left px-4 py-2 hover:bg-[#0099a8]/10 dark:hover:bg-[#40c4d0]/10" @click="estado='pendiente';open=false">Pendientes</button>
+                        <button class="block w-full text-left px-4 py-2 hover:bg-[#0099a8]/10 dark:hover:bg-[#40c4d0]/10" @click="estado='aprobada';open=false">Aprobadas</button>
+                        <button class="block w-full text-left px-4 py-2 hover:bg-[#0099a8]/10 dark:hover:bg-[#40c4d0]/10" @click="estado='rechazada';open=false">Rechazadas</button>
+    </div>
+</div>
                 <div class="mt-4 sm:mt-0">
                     <a href="{{ route('solicitudes.create') }}" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
                         {{ __('Crear Solicitud') }}
@@ -33,7 +33,7 @@
             <div x-show="estado=='pendiente'" x-cloak>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
                     @forelse($pendientes as $solicitud)
-                        <a href="#" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0099a8]">
+                        <a href="{{ route('solicitudes.edit', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0099a8]">
                             <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
                                 <x-heroicon-o-pencil-square class="w-5 h-5 text-[#0099a8]" />
                                 <span class="text-xs text-[#0099a8] hidden sm:inline">Modificar solicitud</span>
