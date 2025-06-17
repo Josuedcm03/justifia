@@ -39,11 +39,11 @@ class SolicitudController extends Controller
     public function create()
     {
         $docentes = Docente::with('usuario')->get();
-        $tiposConstancia = tipoConstancia::all();
+        $TiposConstancia = TipoConstancia::all();
 
         return view('solicitudes.create', [
             'docentes' => $docentes,
-            'tiposConstancia' => $tiposConstancia,
+            'TiposConstancia' => $TiposConstancia,
         ]);
     }
 
@@ -88,12 +88,12 @@ class SolicitudController extends Controller
     public function edit(Solicitud $solicitud)
     {
         $docentes = Docente::with('usuario')->get();
-        $tiposConstancia = tipoConstancia::all();
+        $TiposConstancia = TipoConstancia::all();
 
         return view('solicitudes.edit', [
             'solicitud' => $solicitud,
             'docentes' => $docentes,
-            'tiposConstancia' => $tiposConstancia,
+            'TiposConstancia' => $TiposConstancia,
         ]);
     }
 

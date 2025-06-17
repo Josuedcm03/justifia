@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\tipoConstancia;
+use App\Models\TipoConstancia;
 use Illuminate\Database\Seeder;
 
 class TipoConstanciaSeeder extends Seeder
@@ -12,7 +12,7 @@ class TipoConstanciaSeeder extends Seeder
         $tipos = ['Médica', 'Cultural','Deportiva','Otros'];
 
         foreach ($tipos as $nombre) {
-            tipoConstancia::firstOrCreate(['nombre' => $nombre]);
+            TipoConstancia::firstOrCreate(['nombre' => $nombre]);
         }
     }
 }
