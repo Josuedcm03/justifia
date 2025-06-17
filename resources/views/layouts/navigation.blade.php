@@ -15,8 +15,6 @@
                     <x-nav-link :href="route('estudiante.solicitudes.index')" :active="request()->routeIs('estudiante.solicitudes.*')">
                         {{ __('Ver Solicitudes') }}
                     </x-nav-link>
-                </div>
-                <div class="hidden space-x-8 sm:-my-px sm:flex">
                     <x-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                         {{ __('Gestionar Solicitudes') }}
                     </x-nav-link>
@@ -78,6 +76,12 @@
         <div class="pt-2 pb-3 space-y-1 ">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('estudiante.solicitudes.index')" :active="request()->routeIs('estudiante.solicitudes.*')">
+                {{ __('Ver Solicitudes') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
+                {{ __('Gestionar Solicitudes') }}
             </x-responsive-nav-link>
         </div>
 

@@ -16,8 +16,8 @@
                 <h3 class="text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">
                     {{ __('Formulario de Apelación') }}
                 </h3>
-
-                <form method="POST" action="{{ route('estudiante.apelaciones.store', $solicitud) }}" class="space-y-4">
+                
+                <form method="POST" action="{{ route('estudiante.solicitudes.apelaciones.store', $solicitud) }}" class="space-y-4">
                     @csrf
                     <div>
                         <label for="observacion_estudiante" class="block font-medium mb-1">{{ __('Observación') }}</label>

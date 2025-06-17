@@ -31,14 +31,18 @@ class EstudianteApelacionController extends Controller
             'apelacion_id' => ['nullable', 'exists:apelaciones,id'],
         ]);
 
-        $validated['estado'] = 'pendiente';
-        $validated['solicitud_id'] = $solicitud->id;
-        $validated['respuesta_secretaria'] = null;
+        $data = [
+            'observacion' => $validated['observacion_estudiante'],
+            'estado' => 'pendiente',
+            'solicitud_id' => $solicitud->id,
+            'apelacion_id' => $validated['apelacion_id'] ?? null,
+            'respuesta' => null,
+        ];
 
-        Apelacion::create($validated);
+        Apelacion::create($data);
 
         return redirect()
-            ->route('solicitudes.index')
+            ->route('estudiante.solicitudes.index')
             ->with('success', 'Apelación enviada correctamente.');
     }
 
