@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SolicitudController;
+use App\Http\Controllers\ApelacionController;
 
 // During testing we skip the authentication screens and go straight to the
 // dashboard. The root URL and `/dashboard` both render the dashboard view
@@ -33,3 +34,7 @@ Route::get('docentes/{docente}/asignaturas', [SolicitudController::class, 'asign
 Route::resource('solicitudes', SolicitudController::class)->parameters([
     'solicitudes' => 'solicitud'
 ]);
+Route::get('solicitudes/{solicitud}/apelar', [ApelacionController::class, 'create'])
+    ->name('solicitudes.apelaciones.create');
+Route::post('solicitudes/{solicitud}/apelar', [ApelacionController::class, 'store'])
+    ->name('solicitudes.apelaciones.store');

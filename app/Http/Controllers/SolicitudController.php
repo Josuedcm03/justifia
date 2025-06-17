@@ -8,6 +8,8 @@ use App\Models\DocenteAsignatura;
 use App\Models\tipoConstancia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Requests\Solicitudes\StoreSolicitudRequest;
+use App\Http\Requests\Solicitudes\UpdateSolicitudRequest;
 
 class SolicitudController extends Controller
 {
@@ -50,15 +52,9 @@ class SolicitudController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreSolicitudRequest $request)
     {
-        $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
-            'constancia' => ['required', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
-            'observaciones' => ['nullable', 'string'],
-            'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
-            'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
-        ]);
+        $validated = $request->validated();
 
         $filePath = $request->file('constancia')->store('constancias', 'public');
 
@@ -100,15 +96,9 @@ class SolicitudController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Solicitud $solicitud)
+    public function update(UpdateSolicitudRequest $request, Solicitud $solicitud)
     {
-            $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
-            'constancia' => ['nullable', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
-            'observaciones' => ['nullable', 'string'],
-            'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
-            'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
-        ]);
+            $validated = $request->validated();
 
         if ($request->hasFile('constancia')) {
             if ($solicitud->constancia) {

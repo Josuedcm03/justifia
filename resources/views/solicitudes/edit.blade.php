@@ -1,13 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
-                {{ __('Modificar Solicitud') }}
-            </h2>
+
             <a href="{{ route('solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
+                <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
+                {{ __('Modificar Solicitud') }}
+            </h2>
         </div>
     </x-slot>
 
