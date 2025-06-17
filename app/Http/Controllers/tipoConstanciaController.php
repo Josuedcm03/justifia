@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\tipoConstancia;
+use App\Models\TipoConstancia;
 use Illuminate\Http\Request;
 
-class tipoConstanciaController extends Controller
+class TipoConstanciaController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -34,7 +34,7 @@ class tipoConstanciaController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(tipoConstancia $tipoConstancia)
+    public function show(TipoConstancia $TipoConstancia)
     {
         //
     }
@@ -42,7 +42,7 @@ class tipoConstanciaController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(tipoConstancia $tipoConstancia)
+    public function edit(TipoConstancia $TipoConstancia)
     {
         //
     }
@@ -50,7 +50,7 @@ class tipoConstanciaController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, tipoConstancia $tipoConstancia)
+    public function update(Request $request, TipoConstancia $TipoConstancia)
     {
         //
     }
@@ -58,7 +58,7 @@ class tipoConstanciaController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(tipoConstancia $tipoConstancia)
+    public function destroy(TipoConstancia $TipoConstancia)
     {
         //
     }

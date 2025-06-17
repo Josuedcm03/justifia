@@ -90,7 +90,7 @@
                 fetch(`{{ url('docentes') }}/${docenteId}/asignaturas`)
                     .then(r => r.json())
                     .then(data => {
-                        asignaturaSelect.innerHTML = '<option value="">Seleccionar signatura</option>';
+                        asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
                         data.forEach(item => {
                             const option = document.createElement('option');
                             option.value = item.id;

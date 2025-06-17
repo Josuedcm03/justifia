@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
             FacultadesSeeder::class,
             AsignaturasSeeder::class,
             DocentesSeeder::class,
-            tipoConstanciaSeeder::class,
+            TipoConstanciaSeeder::class,
             DocenteAsignaturasSeeder::class,
         ]);
     }
