@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <a href="{{ route('solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
+            <a href="{{ route('estudiante.solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
@@ -18,7 +18,7 @@
                     Formulario de Justificación
                 </h3>
 
-                <form method="POST" action="{{ route('solicitudes.store') }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('estudiante.solicitudes.store') }}" enctype="multipart/form-data" class="space-y-4">
                     @csrf
                     <div>
                         <label for="fecha_ausencia" class="block font-medium mb-1">Fecha de la ausencia</label>
@@ -27,7 +27,7 @@
                     </div>
 
                     <div>
-                         <label for="docente_id" class="block font-medium mb-1">Docente</label>
+                        <label for="docente_id" class="block font-medium mb-1">Docente</label>
 <select id="docente_id" name="docente_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                             <option value="">Seleccionar Docente</option>
                             @foreach ($docentes as $docente)
@@ -93,7 +93,7 @@
                     asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
                     return;
                 }
-                fetch(`{{ url('docentes') }}/${docenteId}/asignaturas`)
+                fetch(`{{ url('estudiante/docentes') }}/${docenteId}/asignaturas`)
                     .then(r => r.json())
                     .then(data => {
                         asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';

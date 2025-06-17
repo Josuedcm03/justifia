@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Solicitudes\StoreSolicitudRequest;
 use App\Http\Requests\Solicitudes\UpdateSolicitudRequest;
 
-class SolicitudController extends Controller
+class EstudianteSolicitudController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -28,7 +28,7 @@ class SolicitudController extends Controller
             ->latest()
             ->get();
 
-        return view('solicitudes.index', [
+        return view('estudiante.solicitudes.index', [
             'pendientes' => $pendientes,
             'aprobadas' => $aprobadas,
             'rechazadas' => $rechazadas,
@@ -43,7 +43,7 @@ class SolicitudController extends Controller
         $docentes = Docente::with('usuario')->get();
         $TiposConstancia = TipoConstancia::all();
 
-        return view('solicitudes.create', [
+        return view('estudiante.solicitudes.create', [
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
         ]);
@@ -66,7 +66,7 @@ class SolicitudController extends Controller
         Solicitud::create($validated);
 
         return redirect()
-            ->route('solicitudes.index')
+            ->route('estudiante.solicitudes.index')
             ->with('success', 'Solicitud creada correctamente.');
     }
 
@@ -75,7 +75,7 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        return view('solicitudes.show', compact('solicitud'));
+        return view('estudiante.solicitudes.show', compact('solicitud'));
     }
 
     /**
@@ -86,7 +86,7 @@ class SolicitudController extends Controller
         $docentes = Docente::with('usuario')->get();
         $TiposConstancia = TipoConstancia::all();
 
-        return view('solicitudes.edit', [
+        return view('estudiante.solicitudes.edit', [
             'solicitud' => $solicitud,
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
@@ -111,7 +111,7 @@ class SolicitudController extends Controller
         $solicitud->update($validated);
 
         return redirect()
-            ->route('solicitudes.index')
+            ->route('estudiante.solicitudes.index')
             ->with('success', 'Solicitud actualizada correctamente.');
     }
 
@@ -145,7 +145,7 @@ class SolicitudController extends Controller
         $solicitud->delete();
 
         return redirect()
-            ->route('solicitudes.index')
+            ->route('estudiante.solicitudes.index')
             ->with('success', 'Solicitud eliminada correctamente.');
     }
 }

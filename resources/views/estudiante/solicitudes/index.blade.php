@@ -23,7 +23,7 @@
     </div>
 </div>
                 <div class="mt-4 sm:mt-0">
-                    <a href="{{ route('solicitudes.create') }}" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
+                    <a href="{{ route('estudiante.solicitudes.create') }}" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
                         {{ __('Crear Solicitud') }}
                     </a>
                 </div>
@@ -33,7 +33,7 @@
             <div x-show="estado=='pendiente'" x-cloak>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
                     @forelse($pendientes as $solicitud)
-                        <a href="{{ route('solicitudes.edit', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0099a8]">
+                        <a href="{{ route('estudiante.solicitudes.edit', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0099a8]">
                             <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
                                 <x-heroicon-o-pencil-square class="w-5 h-5 text-[#0099a8]" />
                                 <span class="text-xs text-[#0099a8] hidden sm:inline">Modificar solicitud</span>
@@ -75,7 +75,7 @@
             <div x-show="estado=='rechazada'" x-cloak>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
                     @forelse($rechazadas as $solicitud)
-                        <a href="{{ route('solicitudes.apelaciones.create', $solicitud) }}" tabindex="0" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400 ">
+                        <a href="{{ route('estudiante.apelaciones.create', $solicitud) }}" tabindex="0" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400 ">
                             <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
                                 <x-heroicon-o-arrow-path class="w-5 h-5 text-red-600" />
                                 <span class="text-xs text-red-600 hidden sm:inline">Apelar solicitud</span>

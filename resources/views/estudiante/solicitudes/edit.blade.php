@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
 
-            <a href="{{ route('solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
+            <a href="{{ route('estudiante.solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
@@ -19,7 +19,7 @@
                     {{ __('Editar Justificación') }}
                 </h3>
 
-                <form method="POST" action="{{ route('solicitudes.update', $solicitud) }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('estudiante.solicitudes.update', $solicitud) }}" enctype="multipart/form-data" class="space-y-4">
                     @csrf
                     @method('PUT')
                     <div>
@@ -114,7 +114,7 @@
                     </div>
                 </form>
 
-                <form id="eliminar-form" method="POST" action="{{ route('solicitudes.destroy', $solicitud) }}" class="hidden">
+                <form id="eliminar-form" method="POST" action="{{ route('estudiante.solicitudes.destroy', $solicitud) }}" class="hidden">
                     @csrf
                     @method('DELETE')
                 </form>
@@ -133,7 +133,7 @@
                     asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
                     return;
                 }
-                fetch(`{{ url('docentes') }}/${docenteId}/asignaturas`)
+                fetch(`{{ url('estudiante/docentes') }}/${docenteId}/asignaturas`)
                     .then(r => r.json())
                     .then(data => {
                         asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
