@@ -16,6 +16,13 @@
                 <h3 class="text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">
                     {{ __('Formulario de Apelación') }}
                 </h3>
+
+                <p class="mb-4"><strong>{{ __('Respuesta de la Secretaría:') }}</strong> {{ $solicitud->respuesta }}</p>
+                <div class="mb-4 space-y-1">
+                    <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
+                    <p><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
+                    <p><strong>Fecha de ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
+                </div>
                 
                 <form method="POST" action="{{ route('estudiante.solicitudes.apelaciones.store', $solicitud) }}" class="space-y-4">
                     @csrf

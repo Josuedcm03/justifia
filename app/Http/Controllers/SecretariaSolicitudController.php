@@ -38,9 +38,13 @@ class SecretariaSolicitudController extends Controller
     {
         $validated = $request->validate([
             'estado' => ['required', 'in:aprobada,rechazada'],
+            'respuesta' => ['nullable', 'string'],
         ]);
 
         $solicitud->estado = $validated['estado'];
+        $solicitud->respuesta = $validated['estado'] === 'rechazada'
+        ? $validated['respuesta']
+        : null;
         $solicitud->save();
 
         return redirect()

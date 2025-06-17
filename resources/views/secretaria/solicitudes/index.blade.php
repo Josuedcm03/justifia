@@ -24,7 +24,20 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 @forelse($solicitudes as $solicitud)
-                    <a href="{{ route('secretaria.solicitudes.show', $solicitud) }}" class="block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition">
+                    <a href="{{ route('secretaria.solicitudes.show', $solicitud) }}"
+                    class="{{
+                        match($solicitud->estado) {
+                        'pendiente' => 'relative group bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                        'aprobada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                        'rechazada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                        }
+                    }}">
+                        @if ($solicitud->estado === 'pendiente')
+                            <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
+                                <x-heroicon-o-clipboard-document-check class="w-5 h-5 text-[#0099a8]" />
+                                <span class="text-xs text-[#0099a8] hidden sm:inline">Procesar solicitud</span>
+                            </div>
+                        @endif
                         <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
                         <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                         <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>

@@ -18,6 +18,7 @@ class Solicitud extends Model
         'fecha_ausencia',
         'constancia',             // "jpg" | "pdf"
         'observaciones',
+        'respuesta',
         'estado',                 // "pendiente" | "aprobada" | "rechazada"
         'estudiante_id',
         'docente_asignatura_id',

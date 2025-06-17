@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
-                {{ __('Resolver Solicitud') }}
+            {{ $solicitud->estado === 'pendiente' ? __('Resolver Solicitud') : __('Detalle de la Solicitud') }}
             </h2>
             <a href="{{ route('secretaria.solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
@@ -23,6 +23,9 @@
                 <p><strong>Fecha de ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
                 <p><strong>Tipo de constancia:</strong> {{ $solicitud->tipoConstancia->nombre }}</p>
                 <p><strong>Observaciones:</strong> {{ $solicitud->observaciones ?? '-' }}</p>
+                @if ($solicitud->respuesta)
+                    <p><strong>Respuesta:</strong> {{ $solicitud->respuesta }}</p>
+                @endif
                 <div class="space-y-2">
                     <label class="block font-medium">Constancia adjunta</label>
                     @php $ext = strtolower(pathinfo($solicitud->constancia, PATHINFO_EXTENSION)); @endphp
@@ -35,21 +38,50 @@
                     @endif
                 </div>
 
-                <div class="flex justify-end gap-2 pt-4">
-                    <form method="POST" action="{{ route('secretaria.solicitudes.update', $solicitud) }}">
-                        @csrf
-                        @method('PATCH')
-                        <input type="hidden" name="estado" value="aprobada">
-                        <x-primary-button>{{ __('Aprobar') }}</x-primary-button>
-                    </form>
-                    <form method="POST" action="{{ route('secretaria.solicitudes.update', $solicitud) }}">
-                        @csrf
-                        @method('PATCH')
-                        <input type="hidden" name="estado" value="rechazada">
-                        <x-danger-button>{{ __('Rechazar') }}</x-danger-button>
-                    </form>
-                </div>
+                @if ($solicitud->estado === 'pendiente')
+                    <div class="flex justify-end gap-2 pt-4">
+                        <form method="POST" action="{{ route('secretaria.solicitudes.update', $solicitud) }}" id="aprobar-form">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="estado" value="aprobada">
+                            <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] transition font-semibold">
+                                {{ __('Aprobar') }}
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('secretaria.solicitudes.update', $solicitud) }}" id="rechazar-form">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="estado" value="rechazada">
+                            <input type="hidden" name="respuesta" id="respuesta-input">
+                            <button type="button" id="rechazar-btn" class="bg-[#0b545b] text-white px-6 py-2 rounded-md shadow hover:bg-[#094b51] transition font-semibold">
+                                {{ __('Rechazar') }}
+                            </button>
+                        </form>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
+    @if ($solicitud->estado === 'pendiente')
+        <script>
+            document.getElementById('rechazar-btn').addEventListener('click', () => {
+                Swal.fire({
+                    theme: 'auto',
+                    title: 'Rechazar solicitud',
+                    input: 'textarea',
+                    inputLabel: 'Respuesta',
+                    inputPlaceholder: 'Escribe el motivo del rechazo',
+                    showCancelButton: true,
+                    confirmButtonColor: '#0b545b',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonText: 'Rechazar'
+                }).then(result => {
+                    if (result.isConfirmed && result.value) {
+                        document.getElementById('respuesta-input').value = result.value;
+                        document.getElementById('rechazar-form').submit();
+                    }
+                });
+            });
+        </script>
+    @endif
 </x-app-layout>
