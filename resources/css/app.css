@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.color-2 {
+color: #31c0d3;
+}
+.color-3 {
+color: #0b545b;
+}
+.color-4 {
+color: #231f20;
+}
+.color-5 {
+color: #ffffff;
+}
+
+:root {
+--color-2: #31c0d3;
+--color-3: #0b545b;
+--color-4: #231f20;
+--color-5: #ffffff;
+}
