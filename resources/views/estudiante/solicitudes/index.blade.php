@@ -16,7 +16,7 @@
     <button @click="open = !open" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
         <x-heroicon-o-funnel class="w-4 h-4 mr-2" /> Filtrar
         </button>
-                    <div x-show="open" x-transition.origin.top.right @click.away="open=false" class="absolute right-0 top-full mt-2 w-40 bg-white dark:bg-gray-800 border border-[#0099a8] rounded shadow-lg z-20 text-sm text-black dark:text-white" x-cloak>
+                    <div x-show="open" x-transition.origin.top.left @click.away="open=false" class="absolute left-0 top-full mt-2 w-40 bg-white dark:bg-gray-800 border border-[#0099a8] rounded shadow-lg z-20 text-sm text-black dark:text-white" x-cloak>
                         <button class="block w-full text-left px-4 py-2 hover:bg-[#0099a8]/10 dark:hover:bg-[#40c4d0]/10" @click="estado='pendiente';open=false">Pendientes</button>
                         <button class="block w-full text-left px-4 py-2 hover:bg-[#0099a8]/10 dark:hover:bg-[#40c4d0]/10" @click="estado='aprobada';open=false">Aprobadas</button>
                         <button class="block w-full text-left px-4 py-2 hover:bg-[#0099a8]/10 dark:hover:bg-[#40c4d0]/10" @click="estado='rechazada';open=false">Rechazadas</button>
