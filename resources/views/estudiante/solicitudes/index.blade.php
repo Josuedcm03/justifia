@@ -24,7 +24,7 @@
 </div>
                 <div class="mt-4 sm:mt-0">
                     <a href="{{ route('estudiante.solicitudes.create') }}" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
-                        {{ __('Crear Solicitud') }}
+                        {{ __('Crear Solicitud de Justificación') }}
                     </a>
                 </div>
             </div>
@@ -36,7 +36,7 @@
                         <a href="{{ route('estudiante.solicitudes.edit', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0099a8]">
                             <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
                                 <x-heroicon-o-pencil-square class="w-5 h-5 text-[#0099a8]" />
-                                <span class="text-xs text-[#0099a8] hidden sm:inline">Modificar solicitud</span>
+                                <span class="text-xs text-[#0099a8] hidden sm:inline">Modificar Solicitud</span>
                             </div>
                             <p class="mb-1"><strong>Clase:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                             <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>

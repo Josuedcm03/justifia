@@ -5,16 +5,13 @@
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
-            <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
-                {{ __('Apelar Solicitud') }}
-            </h2>
         </div>
     </x-slot>
     <div class="py-12">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8 text-[#212121] dark:text-white space-y-6">
-                <h3 class="text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">
-                    {{ __('Formulario de Apelación') }}
+                <h3 class="flex justify-center text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">
+                    {{ __('Apelar Solicitud de Justificación') }}
                 </h3>
 
                 <p class="mb-4"><strong>{{ __('Respuesta de la Secretaría:') }}</strong> {{ $solicitud->respuesta }}</p>

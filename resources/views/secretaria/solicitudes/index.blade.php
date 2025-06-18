@@ -8,7 +8,7 @@
     </x-slot>
 
     <div class="py-12" x-data="{estado: '{{ $estado }}'}">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-12">
             <div class="flex justify-between flex-wrap mb-6">
                 <div class="relative" x-data="{open:false}">
                     <button @click="open = !open" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">

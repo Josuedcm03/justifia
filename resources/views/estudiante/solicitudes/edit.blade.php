@@ -6,17 +6,15 @@
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
-                <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
-                {{ __('Modificar Solicitud') }}
-            </h2>
+
         </div>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8 text-[#212121] dark:text-white space-y-6">
-                <h3 class="text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">
-                    {{ __('Editar Justificación') }}
+                <h3 class=" flex justify-center text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">
+                    {{ __('Modificar Solicitud') }}
                 </h3>
 
                 <form method="POST" action="{{ route('estudiante.solicitudes.update', $solicitud) }}" enctype="multipart/form-data" class="space-y-4">
@@ -105,11 +103,11 @@
 
 
                     <div class="flex justify-between pt-4">
+                        <button type="button" id="eliminar-btn" class="bg-[#0b545b] text-white px-6 py-2 rounded-md shadow hover:bg-[#094b51] transition font-semibold">
+                            {{ __('Eliminar Solicitud') }}
+                        </button>
                         <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] transition font-semibold">
                             {{ __('Guardar Cambios') }}
-                        </button>
-                        <button type="button" id="eliminar-btn" class="bg-[#0b545b] text-white px-6 py-2 rounded-md shadow hover:bg-[#094b51] transition font-semibold">
-                            {{ __('Eliminar') }}
                         </button>
                     </div>
                 </form>
@@ -160,8 +158,8 @@
             document.getElementById('eliminar-btn').addEventListener('click', () => {
                 Swal.fire({
                     theme: 'auto',
-                    title: '¿Eliminar?',
-                    text: 'Esta acción no se puede deshacer.',
+                    title: '¿Deseas Eliminar la Solicitud?',
+                    text: 'Esta acción no se puede deshacer',
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#0b545b',
