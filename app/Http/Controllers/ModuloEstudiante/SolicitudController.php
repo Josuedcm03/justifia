@@ -1,17 +1,20 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ModuloEstudiante;
 
-use App\Models\Solicitud;
-use App\Models\Docente;
-use App\Models\DocenteAsignatura;
-use App\Models\tipoConstancia;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\Solicitudes\StoreSolicitudRequest;
 use App\Http\Requests\Solicitudes\UpdateSolicitudRequest;
 
-class EstudianteSolicitudController extends Controller
+// Models
+use App\Models\ModuloEstudiante\Solicitud;
+use App\Models\ModuloSecretaria\Docente;
+use App\Models\ModuloSecretaria\DocenteAsignatura;
+use App\Models\ModuloSecretaria\TipoConstancia;
+
+class SolicitudController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -28,7 +31,7 @@ class EstudianteSolicitudController extends Controller
             ->latest()
             ->get();
 
-        return view('estudiante.solicitudes.index', [
+        return view('ModuloEstudiante.solicitudes.index', [
             'pendientes' => $pendientes,
             'aprobadas' => $aprobadas,
             'rechazadas' => $rechazadas,
@@ -43,7 +46,7 @@ class EstudianteSolicitudController extends Controller
         $docentes = Docente::with('usuario')->get();
         $TiposConstancia = TipoConstancia::all();
 
-        return view('estudiante.solicitudes.create', [
+        return view('ModuloEstudiante.solicitudes.create', [
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
         ]);
@@ -75,7 +78,7 @@ class EstudianteSolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        return view('estudiante.solicitudes.show', compact('solicitud'));
+        return view('ModuloEstudiante.solicitudes.show', compact('solicitud'));
     }
 
     /**
@@ -86,7 +89,7 @@ class EstudianteSolicitudController extends Controller
         $docentes = Docente::with('usuario')->get();
         $TiposConstancia = TipoConstancia::all();
 
-        return view('estudiante.solicitudes.edit', [
+        return view('ModuloEstudiante.solicitudes.edit', [
             'solicitud' => $solicitud,
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
@@ -145,7 +148,7 @@ class EstudianteSolicitudController extends Controller
         $solicitud->delete();
 
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('ModuloEstudiante.solicitudes.index')
             ->with('success', 'Solicitud eliminada correctamente.');
     }
 }

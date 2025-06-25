@@ -2,9 +2,10 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\EstudianteSolicitudController;
-use App\Http\Controllers\EstudianteApelacionController;
-use App\Http\Controllers\SecretariaSolicitudController;
+
+use App\Http\Controllers\ModuloEstudiante\SolicitudController as EstudianteSolicitudController;
+use App\Http\Controllers\ModuloEstudiante\ApelacionController as EstudianteApelacionController;
+use App\Http\Controllers\ModuloSecretaria\SolicitudController as SecretariaSolicitudController;
 
 // During testing we skip the authentication screens and go straight to the
 // dashboard. The root URL and `/dashboard` both render the dashboard view

@@ -1,10 +1,13 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ModuloSecretaria;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
+
+// Models
+use App\Models\ModuloSecretaria\Carrera;
 
 class Facultad extends Model
 {

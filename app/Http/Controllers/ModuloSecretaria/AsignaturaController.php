@@ -1,11 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Models\Facultad;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-class FacultadController extends Controller
+// Models
+use App\Models\ModuloSecretaria\Asignatura;
+
+class AsignaturaController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -34,7 +37,7 @@ class FacultadController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Facultad $facultad)
+    public function show(Asignatura $asignatura)
     {
         //
     }
@@ -42,7 +45,7 @@ class FacultadController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Facultad $facultad)
+    public function edit(Asignatura $asignatura)
     {
         //
     }
@@ -50,7 +53,7 @@ class FacultadController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Facultad $facultad)
+    public function update(Request $request, Asignatura $asignatura)
     {
         //
     }
@@ -58,7 +61,7 @@ class FacultadController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Facultad $facultad)
+    public function destroy(Asignatura $asignatura)
     {
         //
     }

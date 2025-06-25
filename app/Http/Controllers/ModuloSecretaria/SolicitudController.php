@@ -1,11 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Models\Solicitud;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-class SecretariaSolicitudController extends Controller
+// Models
+use App\Models\ModuloEstudiante\Solicitud;
+
+class SolicitudController extends Controller
 {
     /**
      * Display a listing of the resource filtered by status.
@@ -17,7 +20,7 @@ class SecretariaSolicitudController extends Controller
             ->latest()
             ->paginate(9);
 
-        return view('secretaria.solicitudes.index', [
+        return view('ModuloSecretaria.solicitudes.index', [
             'solicitudes' => $solicitudes,
             'estado' => $estado,
         ]);
@@ -28,7 +31,7 @@ class SecretariaSolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        return view('secretaria.solicitudes.show', compact('solicitud'));
+        return view('ModuloSecretaria.solicitudes.show', compact('solicitud'));
     }
 
     /**

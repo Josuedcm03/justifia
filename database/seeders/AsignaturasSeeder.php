@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Asignatura;
+use App\Models\ModuloSecretaria\Asignatura;
 
 class AsignaturasSeeder extends Seeder
 {

@@ -1,19 +1,22 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ModuloEstudiante;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Apelacion;
-use App\Models\Solicitud;
 
-class EstudianteApelacionController extends Controller
+// Models
+use App\Models\ModuloEstudiante\Apelacion;
+use App\Models\ModuloEstudiante\Solicitud;
+
+class ApelacionController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return view('estudiante.apelaciones.index');
+        return view('ModuloEstudiante.apelaciones.index');
     }
 
     /**
@@ -21,7 +24,7 @@ class EstudianteApelacionController extends Controller
      */
     public function create(Solicitud $solicitud)
     {
-        return view('estudiante.apelaciones.create', compact('solicitud'));
+        return view('ModuloEstudiante.apelaciones.create', compact('solicitud'));
     }
 
     public function store(Request $request, Solicitud $solicitud)
@@ -51,7 +54,7 @@ class EstudianteApelacionController extends Controller
      */
     public function show(int $apelacion)
     {
-        return view('estudiante.apelaciones.show');
+        return view('ModuloEstudiante.apelaciones.show');
     }
 
     /**
@@ -59,7 +62,7 @@ class EstudianteApelacionController extends Controller
      */
     public function edit(int $apelacion)
     {
-        return view('estudiante.apelaciones.edit');
+        return view('ModuloEstudiante.apelaciones.edit');
     }
 
     /**

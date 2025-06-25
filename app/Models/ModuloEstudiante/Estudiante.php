@@ -1,8 +1,13 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ModuloEstudiante;
 
 use Illuminate\Database\Eloquent\Model;
+
+// Models
+use App\Models\User;
+use App\Models\ModuloSecretaria\Carrera;
+use App\Models\ModuloEstudiante\Solicitud;
 
 class Estudiante extends Model
 {

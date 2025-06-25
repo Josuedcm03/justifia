@@ -7,9 +7,9 @@ use App\Models\User;
 use Database\Seeders\FacultadesSeeder;
 use Database\Seeders\AsignaturasSeeder;
 use Database\Seeders\DocentesSeeder;
-use App\Models\Estudiante;
-use App\Models\Carrera;
-use App\Models\Facultad;
+use App\Models\ModuloEstudiante\Estudiante;
+use App\Models\ModuloSecretaria\Carrera;
+use App\Models\ModuloSecretaria\Facultad;
 use Database\Seeders\DocenteAsignaturasSeeder;
 use Illuminate\Database\Seeder;
 

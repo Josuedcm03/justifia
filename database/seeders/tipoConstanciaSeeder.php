@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\TipoConstancia;
+use App\Models\ModuloSecretaria\TipoConstancia;
 use Illuminate\Database\Seeder;
 
 class TipoConstanciaSeeder extends Seeder

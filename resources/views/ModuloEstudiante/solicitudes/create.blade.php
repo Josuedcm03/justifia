@@ -37,7 +37,7 @@
                     </div>
 
                     <div>
- <label for="docente_asignatura_id" class="block font-medium mb-1">Asignatura</label>
+<label for="docente_asignatura_id" class="block font-medium mb-1">Asignatura</label>
                         <select id="docente_asignatura_id" name="docente_asignatura_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                             <option value="">Seleccionar Asignatura</option>
                         </select>
