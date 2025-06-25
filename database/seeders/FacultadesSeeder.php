@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Facultad;
-use App\Models\Carrera;
+use App\Models\ModuloSecretaria\Facultad;
+use App\Models\ModuloSecretaria\Carrera;
 
 class FacultadesSeeder extends Seeder
 {

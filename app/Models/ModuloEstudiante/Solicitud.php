@@ -1,10 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ModuloEstudiante;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+// Models
+use App\Models\ModuloEstudiante\Estudiante;
+use App\Models\ModuloSecretaria\DocenteAsignatura;
+use App\Models\ModuloSecretaria\TipoConstancia;
 
 class Solicitud extends Model
 {
@@ -18,6 +23,7 @@ class Solicitud extends Model
         'fecha_ausencia',
         'constancia',             // "jpg" | "pdf"
         'observaciones',
+        'respuesta',
         'estado',                 // "pendiente" | "aprobada" | "rechazada"
         'estudiante_id',
         'docente_asignatura_id',
@@ -42,6 +48,6 @@ class Solicitud extends Model
 
     public function tipoConstancia()
     {
-        return $this->belongsTo(tipoConstancia::class, 'tipo_constancia_id', 'id');
+        return $this->belongsTo(TipoConstancia::class, 'tipo_constancia_id', 'id');
     }
 }

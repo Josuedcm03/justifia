@@ -1,13 +1,18 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ModuloEstudiante;
 
-use App\Models\Solicitud;
-use App\Models\Docente;
-use App\Models\DocenteAsignatura;
-use App\Models\tipoConstancia;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Requests\Solicitudes\StoreSolicitudRequest;
+use App\Http\Requests\Solicitudes\UpdateSolicitudRequest;
+
+// Models
+use App\Models\ModuloEstudiante\Solicitud;
+use App\Models\ModuloSecretaria\Docente;
+use App\Models\ModuloSecretaria\DocenteAsignatura;
+use App\Models\ModuloSecretaria\TipoConstancia;
 
 class SolicitudController extends Controller
 {
@@ -26,7 +31,7 @@ class SolicitudController extends Controller
             ->latest()
             ->get();
 
-        return view('solicitudes.index', [
+        return view('ModuloEstudiante.solicitudes.index', [
             'pendientes' => $pendientes,
             'aprobadas' => $aprobadas,
             'rechazadas' => $rechazadas,
@@ -41,7 +46,7 @@ class SolicitudController extends Controller
         $docentes = Docente::with('usuario')->get();
         $TiposConstancia = TipoConstancia::all();
 
-        return view('solicitudes.create', [
+        return view('ModuloEstudiante.solicitudes.create', [
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
         ]);
@@ -50,15 +55,9 @@ class SolicitudController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreSolicitudRequest $request)
     {
-        $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
-            'constancia' => ['required', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
-            'observaciones' => ['nullable', 'string'],
-            'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
-            'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
-        ]);
+        $validated = $request->validated();
 
         $filePath = $request->file('constancia')->store('constancias', 'public');
 
@@ -70,7 +69,7 @@ class SolicitudController extends Controller
         Solicitud::create($validated);
 
         return redirect()
-            ->route('solicitudes.index')
+            ->route('estudiante.solicitudes.index')
             ->with('success', 'Solicitud creada correctamente.');
     }
 
@@ -79,7 +78,7 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        return view('solicitudes.show', compact('solicitud'));
+        return view('ModuloEstudiante.solicitudes.show', compact('solicitud'));
     }
 
     /**
@@ -90,7 +89,7 @@ class SolicitudController extends Controller
         $docentes = Docente::with('usuario')->get();
         $TiposConstancia = TipoConstancia::all();
 
-        return view('solicitudes.edit', [
+        return view('ModuloEstudiante.solicitudes.edit', [
             'solicitud' => $solicitud,
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
@@ -100,15 +99,9 @@ class SolicitudController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Solicitud $solicitud)
+    public function update(UpdateSolicitudRequest $request, Solicitud $solicitud)
     {
-            $validated = $request->validate([
-            'fecha_ausencia' => ['required', 'date', 'before_or_equal:today'],
-            'constancia' => ['nullable', 'file', 'mimes:jpg,jpeg,pdf', 'max:2048'],
-            'observaciones' => ['nullable', 'string'],
-            'docente_asignatura_id' => ['required', 'exists:docente_asignaturas,id'],
-            'tipo_constancia_id' => ['required', 'exists:tipo_constancias,id'],
-        ]);
+            $validated = $request->validated();
 
         if ($request->hasFile('constancia')) {
             if ($solicitud->constancia) {
@@ -121,7 +114,7 @@ class SolicitudController extends Controller
         $solicitud->update($validated);
 
         return redirect()
-            ->route('solicitudes.index')
+            ->route('estudiante.solicitudes.index')
             ->with('success', 'Solicitud actualizada correctamente.');
     }
 
@@ -155,7 +148,7 @@ class SolicitudController extends Controller
         $solicitud->delete();
 
         return redirect()
-            ->route('solicitudes.index')
+            ->route('ModuloEstudiante.solicitudes.index')
             ->with('success', 'Solicitud eliminada correctamente.');
     }
 }

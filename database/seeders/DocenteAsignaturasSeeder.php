@@ -3,9 +3,9 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Docente;
-use App\Models\Asignatura;
-use App\Models\DocenteAsignatura;
+use App\Models\ModuloSecretaria\Docente;
+use App\Models\ModuloSecretaria\Asignatura;
+use App\Models\ModuloSecretaria\DocenteAsignatura;
 
 class DocenteAsignaturasSeeder extends Seeder
 {

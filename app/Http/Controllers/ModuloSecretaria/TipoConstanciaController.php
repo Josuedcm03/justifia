@@ -1,9 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Models\TipoConstancia;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+
+// Models
+use App\Models\ModuloSecretaria\TipoConstancia;
 
 class TipoConstanciaController extends Controller
 {

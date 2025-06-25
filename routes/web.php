@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\SolicitudController;
+
+use App\Http\Controllers\ModuloEstudiante\SolicitudController as EstudianteSolicitudController;
+use App\Http\Controllers\ModuloEstudiante\ApelacionController as EstudianteApelacionController;
+use App\Http\Controllers\ModuloSecretaria\SolicitudController as SecretariaSolicitudController;
 
 // During testing we skip the authentication screens and go straight to the
 // dashboard. The root URL and `/dashboard` both render the dashboard view
@@ -28,8 +31,23 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/auth.php';
 
-Route::get('docentes/{docente}/asignaturas', [SolicitudController::class, 'asignaturasPorDocente'])
-    ->name('docentes.asignaturas');
-Route::resource('solicitudes', SolicitudController::class)->parameters([
-    'solicitudes' => 'solicitud'
-]);
+Route::prefix('estudiante')->name('estudiante.')->group(function () {
+    Route::get('docentes/{docente}/asignaturas', [EstudianteSolicitudController::class, 'asignaturasPorDocente'])
+        ->name('docentes.asignaturas');
+    Route::resource('solicitudes', EstudianteSolicitudController::class)->parameters([
+        'solicitudes' => 'solicitud'
+    ]);
+    Route::resource('solicitudes.apelaciones', EstudianteApelacionController::class)
+        ->parameters([
+            'solicitudes' => 'solicitud',
+            'apelaciones' => 'apelacion'
+        ]);
+});
+
+Route::prefix('secretaria')->name('secretaria.')->group(function () {
+    Route::resource('solicitudes', SecretariaSolicitudController::class)
+        ->only(['index', 'show', 'update'])
+        ->parameters([
+            'solicitudes' => 'solicitud'
+        ]);
+});

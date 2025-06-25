@@ -1,9 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Models\Docente;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+
+// Models
+use App\Models\ModuloSecretaria\Docente;
 
 class DocenteController extends Controller
 {

@@ -1,10 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\ModuloSecretaria;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+// Models
+use App\Models\ModuloSecretaria\Docente;
+use App\Models\ModuloSecretaria\Asignatura;
+use App\Models\ModuloEstudiante\Solicitud;
 
 class DocenteAsignatura extends Model
 {
