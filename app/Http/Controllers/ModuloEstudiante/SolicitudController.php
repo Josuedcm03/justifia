@@ -110,6 +110,11 @@ class SolicitudController extends Controller
                 Storage::disk('public')->delete($solicitud->constancia);
             }
             $data['constancia'] = $request->file('constancia')->store('constancias', 'public');
+            } elseif ($request->boolean('delete_constancia')) {
+            if ($solicitud->constancia) {
+                Storage::disk('public')->delete($solicitud->constancia);
+            }
+            $data['constancia'] = null;
         }
 
         $solicitud->update($data);
@@ -142,7 +147,7 @@ class SolicitudController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Solicitud $solicitud)
+    public function destroy(Request $request, Solicitud $solicitud)
     {
                 if ($solicitud->constancia) {
             Storage::disk('public')->delete($solicitud->constancia);

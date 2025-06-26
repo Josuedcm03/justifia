@@ -42,7 +42,15 @@
                         <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                         <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
                         <p class="mb-1"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
-                        <p><strong>Estado:</strong> <span class="capitalize">{{ $solicitud->estado }}</span></p>
+                        <p><strong>Estado:</strong>
+                        @if ($solicitud->estado === 'pendiente')
+                        <span class="bg-[#0099a8] text-white text-xs px-2 py-1 rounded font-semibold">{{ ucfirst($solicitud->estado) }}</span>
+                        @elseif ($solicitud->estado === 'aprobada')
+                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold">{{ ucfirst($solicitud->estado) }}</span>
+                        @elseif ($solicitud->estado === 'rechazada')
+                        <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-semibold">{{ ucfirst($solicitud->estado) }}</span>
+                        @endif
+                            </p>
                     </a>
                 @empty
                     <p class="col-span-full text-gray-600 dark:text-gray-400">{{ __('No hay solicitudes.') }}</p>

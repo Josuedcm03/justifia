@@ -30,15 +30,21 @@
                 <div class="space-y-2">
                     <label class="block font-medium">Constancia adjunta</label>
                     @php $ext = strtolower(pathinfo($solicitud->constancia, PATHINFO_EXTENSION)); @endphp
-                    @if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']))
+                    @if (in_array($ext, ['jpg', 'jpeg', 'png']))
                         <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-52 rounded cursor-pointer" x-data x-on:click="$dispatch('open-modal', 'ver-constancia')">
                     @else
                         <button type="button" class="text-[#0099a8] underline" x-data x-on:click="$dispatch('open-modal', 'ver-constancia')">Ver constancia</button>
                     @endif
                     <x-modal name="ver-constancia" focusable>
-                        <div class="p-4">
-                            @if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']))
-                                <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-[80vh] mx-auto">
+                        <div class="p-4" x-data="{ zoom: 2 }">
+                            @if (in_array($ext, ['jpg', 'jpeg', 'png']))
+                                <div class="relative overflow-auto">
+                                    <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-[80vh] mx-auto transition-transform" :style="`transform: scale(${zoom})`">
+                                    <button type="button" class="absolute top-2 right-2 bg-white dark:bg-gray-700 p-1 rounded-full shadow" x-on:click="zoom = zoom === 1 ? 2 : 1">
+                                        <x-heroicon-o-magnifying-glass-plus class="w-5 h-5" x-show="zoom === 1" />
+                                        <x-heroicon-o-magnifying-glass-minus class="w-5 h-5" x-show="zoom > 1" />
+                                    </button>
+                                </div>
                             @elseif ($ext === 'pdf')
                                 <iframe src="{{ Storage::url($solicitud->constancia) }}" class="w-full h-[80vh]"></iframe>
                             @else

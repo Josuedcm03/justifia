@@ -66,7 +66,7 @@
                     <div class="space-y-2">
                         <label class="block font-medium">Constancia adjunta</label>
                         @php $ext = strtolower(pathinfo($solicitud->constancia, PATHINFO_EXTENSION)); @endphp
-                        @if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']))
+                        @if (in_array($ext, ['jpg', 'jpeg', 'png']))
                             <img
                                 src="{{ Storage::url($solicitud->constancia) }}"
                                 alt="Constancia"
@@ -83,9 +83,15 @@
                             >Ver constancia</button>
                         @endif
                         <x-modal name="ver-constancia" focusable>
-                            <div class="p-4">
-                                @if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']))
-                                    <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-[80vh] mx-auto">
+                            <div class="p-4" x-data="{ zoom: 2 }">
+                                @if (in_array($ext, ['jpg', 'jpeg', 'png']))
+                                    <div class="relative overflow-auto">
+                                        <img src="{{ Storage::url($solicitud->constancia) }}" alt="Constancia" class="max-h-[80vh] mx-auto transition-transform" :style="`transform: scale(${zoom})`">
+                                        <button type="button" class="absolute top-2 right-2 bg-white dark:bg-gray-700 p-1 rounded-full shadow" x-on:click="zoom = zoom === 1 ? 2 : 1">
+                                            <x-heroicon-o-magnifying-glass-plus class="w-5 h-5" x-show="zoom === 1" />
+                                            <x-heroicon-o-magnifying-glass-minus class="w-5 h-5" x-show="zoom > 1" />
+                                        </button>
+                                    </div>
                                 @elseif ($ext === 'pdf')
                                     <iframe src="{{ Storage::url($solicitud->constancia) }}" class="w-full h-[80vh]"></iframe>
                                 @else
@@ -96,6 +102,14 @@
                                 </div>
                             </div>
                         </x-modal>
+                    </div>
+
+                    <div x-data="{ fileName: '', remove: false }" class="space-y-2">
+                        <label for="constancia" class="inline-flex items-center px-4 py-2 bg-[#6E7881] hover:bg-[#007e8b] text-white rounded-md shadow cursor-pointer">
+                            <x-heroicon-o-arrow-up-tray class="w-5 h-5 mr-2" />
+                            <span x-text="fileName || 'Actualizar Constancia'"></span>
+                        </label>
+                        <input id="constancia" name="constancia" type="file" accept=".pdf,.jpg,.jpeg" class="hidden" x-on:change="fileName = $event.target.files[0]?.name">
                     </div>
 
                     <div>
