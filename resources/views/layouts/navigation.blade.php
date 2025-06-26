@@ -18,6 +18,9 @@
                     <x-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                         {{ __('Gestionar Solicitudes') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('secretaria.apelaciones.index')" :active="request()->routeIs('secretaria.apelaciones.*')">
+                        {{ __('Gestionar Apelaciones') }}
+                    </x-nav-link>
                 </div>  
             </div>
 
@@ -82,6 +85,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                 {{ __('Gestionar Solicitudes') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('secretaria.apelaciones.index')" :active="request()->routeIs('secretaria.apelaciones.*')">
+                {{ __('Gestionar Apelaciones') }}
             </x-responsive-nav-link>
         </div>
 

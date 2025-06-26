@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
-                {{ __('Gestionar Solicitudes') }}
+                {{ __('Gestionar Apelaciones') }}
             </h2>
         </div>
     </x-slot>
@@ -23,34 +23,33 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                @forelse($solicitudes as $solicitud)
-                    <a href="{{ route('secretaria.solicitudes.show', ['solicitud' => $solicitud, 'estado' => $estado]) }}"
-                    class="{{
-                        match($solicitud->estado) {
-                        'pendiente' => 'relative group bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
-                        'aprobada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
-                        'rechazada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
-                        }
-                    }}">
-                        @if ($solicitud->estado === 'pendiente')
+                @forelse($apelaciones as $apelacion)
+                    <a href="{{ route('secretaria.apelaciones.show', ['apelacion' => $apelacion, 'estado' => $estado]) }}"
+                        class="{{
+                            match($apelacion->estado) {
+                                'pendiente' => 'relative group bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                                'aprobada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                                'rechazada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                            }
+                        }}">
+                        @if ($apelacion->estado === 'pendiente')
                             <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
                                 <x-heroicon-o-clipboard-document-check class="w-5 h-5 text-[#0099a8]" />
-                                <span class="text-xs text-[#0099a8] hidden sm:inline">Procesar solicitud</span>
+                                <span class="text-xs text-[#0099a8] hidden sm:inline">Procesar apelación</span>
                             </div>
                         @endif
-                        <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
-                        <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
-                        <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
-                        <p class="mb-1"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
-                        <p><strong>Estado:</strong> <span class="capitalize">{{ $solicitud->estado }}</span></p>
+                        <p class="mb-1"><strong>Estudiante:</strong> {{ $apelacion->solicitud->estudiante->usuario->name }}</p>
+                        <p class="mb-1"><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }}</p>
+                        <p class="mb-1"><strong>Fecha:</strong> {{ $apelacion->solicitud->fecha_ausencia }}</p>
+                        <p><strong>Estado:</strong> <span class="capitalize">{{ $apelacion->estado }}</span></p>
                     </a>
                 @empty
-                    <p class="col-span-full text-gray-600 dark:text-gray-400">{{ __('No hay solicitudes.') }}</p>
+                    <p class="col-span-full text-gray-600 dark:text-gray-400">{{ __('No hay apelaciones.') }}</p>
                 @endforelse
             </div>
 
             <div>
-                {{ $solicitudes->appends(['estado' => $estado])->links() }}
+                {{ $apelaciones->appends(['estado' => $estado])->links() }}
             </div>
         </div>
     </div>

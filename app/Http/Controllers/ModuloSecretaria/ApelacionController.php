@@ -5,10 +5,9 @@ namespace App\Http\Controllers\ModuloSecretaria;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-// Models
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Models\ModuloEstudiante\Apelacion;
 
-class SolicitudController extends Controller
+class ApelacionController extends Controller
 {
     /**
      * Display a listing of the resource filtered by status.
@@ -16,12 +15,12 @@ class SolicitudController extends Controller
     public function index(Request $request)
     {
         $estado = $request->query('estado', 'pendiente');
-        $solicitudes = Solicitud::where('estado', $estado)
+        $apelaciones = Apelacion::where('estado', $estado)
             ->latest()
             ->paginate(9);
 
-        return view('ModuloSecretaria.solicitudes.index', [
-            'solicitudes' => $solicitudes,
+        return view('ModuloSecretaria.apelaciones.index', [
+            'apelaciones' => $apelaciones,
             'estado' => $estado,
         ]);
     }
@@ -29,32 +28,30 @@ class SolicitudController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Solicitud $solicitud)
+    public function show(Apelacion $apelacion)
     {
         $estado = request()->query('estado', 'pendiente');
-        return view('ModuloSecretaria.solicitudes.show', compact('solicitud', 'estado'));
+        return view('ModuloSecretaria.apelaciones.show', compact('apelacion', 'estado'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Solicitud $solicitud)
+    public function update(Request $request, Apelacion $apelacion)
     {
         $validated = $request->validate([
             'estado' => ['required', 'in:aprobada,rechazada'],
             'respuesta' => ['nullable', 'string'],
         ]);
 
-        $solicitud->estado = $validated['estado'];
-        $solicitud->respuesta = $validated['estado'] === 'rechazada'
-        ? $validated['respuesta']
-        : null;
-        $solicitud->save();
+        $apelacion->estado = $validated['estado'];
+        $apelacion->respuesta = $validated['respuesta'];
+        $apelacion->save();
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
         return redirect()
-            ->route('secretaria.solicitudes.index', ['estado' => $redirectEstado])
-            ->with('success', 'Solicitud actualizada correctamente.');
+            ->route('secretaria.apelaciones.index', ['estado' => $redirectEstado])
+            ->with('success', 'Apelación actualizada correctamente.');
     }
 }

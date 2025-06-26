@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <a href="{{ route('estudiante.solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
+            <a href="{{ route('estudiante.solicitudes.index', ['estado' => request()->query('estado', 'pendiente')]) }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
@@ -15,7 +15,7 @@
                     {{ __('Crear Solicitud de Justificación') }}
                 </h3>
 
-                <form method="POST" action="{{ route('estudiante.solicitudes.store') }}" enctype="multipart/form-data" class="space-y-4"
+                <form method="POST" action="{{ route('estudiante.solicitudes.store', ['estado' => request()->query('estado', 'pendiente')]) }}" enctype="multipart/form-data" class="space-y-4"
                     data-solicitud-estudiante-frontera
                     data-asignaturas-url="{{ url('estudiante/docentes') }}"
                     data-old-asignatura="{{ old('docente_asignatura_id') }}">

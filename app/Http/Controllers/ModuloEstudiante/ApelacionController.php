@@ -43,9 +43,11 @@ class ApelacionController extends Controller
         ];
 
         Apelacion::create($data);
+        
+        $redirectEstado = $request->query('estado', 'rechazada');
 
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Apelación enviada correctamente.');
     }
 

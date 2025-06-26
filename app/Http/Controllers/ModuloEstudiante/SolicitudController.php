@@ -67,8 +67,10 @@ class SolicitudController extends Controller
 
         Solicitud::create($data);
 
+        $redirectEstado = $request->query('estado', 'pendiente');
+
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud creada correctamente.');
     }
 
@@ -77,7 +79,8 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        return view('ModuloEstudiante.solicitudes.show', compact('solicitud'));
+        $estado = request()->query('estado', 'pendiente');
+        return view('ModuloEstudiante.solicitudes.show', compact('solicitud', 'estado'));
     }
 
     /**
@@ -111,8 +114,10 @@ class SolicitudController extends Controller
 
         $solicitud->update($data);
 
+        $redirectEstado = $request->query('estado', 'pendiente');
+
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud actualizada correctamente.');
     }
 
@@ -145,8 +150,10 @@ class SolicitudController extends Controller
 
         $solicitud->delete();
 
+        $redirectEstado = $request->query('estado', 'pendiente');
+
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud eliminada correctamente.');
     }
 }

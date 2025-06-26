@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ModuloEstudiante\SolicitudController as EstudianteSolicitudController;
 use App\Http\Controllers\ModuloEstudiante\ApelacionController as EstudianteApelacionController;
 use App\Http\Controllers\ModuloSecretaria\SolicitudController as SecretariaSolicitudController;
+use App\Http\Controllers\ModuloSecretaria\ApelacionController as SecretariaApelacionController;
 
 // During testing we skip the authentication screens and go straight to the
 // dashboard. The root URL and `/dashboard` both render the dashboard view
@@ -49,5 +50,11 @@ Route::prefix('secretaria')->name('secretaria.')->group(function () {
         ->only(['index', 'show', 'update'])
         ->parameters([
             'solicitudes' => 'solicitud'
+        ]);
+
+        Route::resource('apelaciones', SecretariaApelacionController::class)
+        ->only(['index', 'show', 'update'])
+        ->parameters([
+            'apelaciones' => 'apelacion'
         ]);
 });

@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <a href="{{ route('estudiante.solicitudes.index') }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
+            <a href="{{ route('estudiante.solicitudes.index', ['estado' => request()->query('estado', 'rechazada')]) }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
@@ -21,7 +21,7 @@
                     <p><strong>Fecha de ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
                 </div>
                 
-                <form method="POST" action="{{ route('estudiante.solicitudes.apelaciones.store', $solicitud) }}" class="space-y-4" data-apelacion-estudiante-frontera>
+                <form method="POST" action="{{ route('estudiante.solicitudes.apelaciones.store', ['solicitud' => $solicitud, 'estado' => request()->query('estado', 'rechazada')]) }}" class="space-y-4" data-apelacion-estudiante-frontera>
                     @csrf
                     <div>
                         <label for="observacion_estudiante" class="block font-medium mb-1">{{ __('Observación') }}</label>
