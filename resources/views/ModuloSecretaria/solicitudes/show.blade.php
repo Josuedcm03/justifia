@@ -8,7 +8,7 @@
         </div>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-12" data-solicitud-secretaria-frontera>
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8 text-[#212121] dark:text-white space-y-4">
                 @if ($solicitud->estado === 'pendiente')
@@ -63,26 +63,4 @@
             </div>
         </div>
     </div>
-    @if ($solicitud->estado === 'pendiente')
-        <script>
-            document.getElementById('rechazar-btn').addEventListener('click', () => {
-                Swal.fire({
-                    theme: 'auto',
-                    title: 'Rechazar solicitud',
-                    input: 'textarea',
-                    inputLabel: 'Respuesta',
-                    inputPlaceholder: 'Escribe el motivo del rechazo',
-                    showCancelButton: true,
-                    confirmButtonColor: '#0b545b',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonText: 'Rechazar'
-                }).then(result => {
-                    if (result.isConfirmed && result.value) {
-                        document.getElementById('respuesta-input').value = result.value;
-                        document.getElementById('rechazar-form').submit();
-                    }
-                });
-            });
-        </script>
-    @endif
 </x-app-layout>

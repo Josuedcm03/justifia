@@ -5,8 +5,6 @@ namespace App\Http\Controllers\ModuloEstudiante;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use App\Http\Requests\Solicitudes\StoreSolicitudRequest;
-use App\Http\Requests\Solicitudes\UpdateSolicitudRequest;
 
 // Models
 use App\Models\ModuloEstudiante\Solicitud;
@@ -55,18 +53,19 @@ class SolicitudController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreSolicitudRequest $request)
+    public function store(Request $request)
     {
-        $validated = $request->validated();
+        $data = $request->all();
 
-        $filePath = $request->file('constancia')->store('constancias', 'public');
+        if ($request->hasFile('constancia')) {
+            $data['constancia'] = $request->file('constancia')->store('constancias', 'public');
+        }
 
-        $validated['constancia'] = $filePath;
-        $validated['estado'] = 'pendiente';
-        // TODO: replace with the authenticated student's ID when users are implemented
-        $validated['estudiante_id'] = 1;
+        $data['estado'] = 'pendiente';
 
-        Solicitud::create($validated);
+        $data['estudiante_id'] = 1;
+
+        Solicitud::create($data);
 
         return redirect()
             ->route('estudiante.solicitudes.index')
@@ -99,19 +98,18 @@ class SolicitudController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateSolicitudRequest $request, Solicitud $solicitud)
+    public function update(Request $request, Solicitud $solicitud)
     {
-            $validated = $request->validated();
+            $data = $request->all();
 
         if ($request->hasFile('constancia')) {
             if ($solicitud->constancia) {
                 Storage::disk('public')->delete($solicitud->constancia);
             }
-            $filePath = $request->file('constancia')->store('constancias', 'public');
-            $validated['constancia'] = $filePath;
+            $data['constancia'] = $request->file('constancia')->store('constancias', 'public');
         }
 
-        $solicitud->update($validated);
+        $solicitud->update($data);
 
         return redirect()
             ->route('estudiante.solicitudes.index')
@@ -148,7 +146,7 @@ class SolicitudController extends Controller
         $solicitud->delete();
 
         return redirect()
-            ->route('ModuloEstudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index')
             ->with('success', 'Solicitud eliminada correctamente.');
     }
 }

@@ -21,7 +21,7 @@
                     <p><strong>Fecha de ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
                 </div>
                 
-                <form method="POST" action="{{ route('estudiante.solicitudes.apelaciones.store', $solicitud) }}" class="space-y-4">
+                <form method="POST" action="{{ route('estudiante.solicitudes.apelaciones.store', $solicitud) }}" class="space-y-4" data-apelacion-estudiante-frontera>
                     @csrf
                     <div>
                         <label for="observacion_estudiante" class="block font-medium mb-1">{{ __('Observación') }}</label>

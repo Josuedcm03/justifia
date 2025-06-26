@@ -1,6 +1,9 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import SolicitudEstudianteFrontera from './ModuloEstudiante/SolicitudFrontera';
+import ApelacionEstudianteFrontera from './ModuloEstudiante/ApelacionFrontera';
+import SolicitudSecretariaFrontera from './ModuloSecretaria/SolicitudFrontera';
 
 window.Alpine = Alpine;
 
@@ -25,3 +28,20 @@ document.addEventListener('alpine:init', () => {
 });
 
 Alpine.start();
+
+document.addEventListener('DOMContentLoaded', () => {
+    const solicitudFormEl = document.querySelector('[data-solicitud-estudiante-frontera]');
+    if (solicitudFormEl) {
+        new SolicitudEstudianteFrontera(solicitudFormEl, { isUpdate: solicitudFormEl.dataset.update === 'true' });
+    }
+
+    const apelacionFormEl = document.querySelector('[data-apelacion-estudiante-frontera]');
+    if (apelacionFormEl) {
+        new ApelacionEstudianteFrontera(apelacionFormEl);
+    }
+
+    const resolverEl = document.querySelector('[data-solicitud-secretaria-frontera]');
+    if (resolverEl) {
+        new SolicitudSecretariaFrontera(resolverEl);
+    }
+});

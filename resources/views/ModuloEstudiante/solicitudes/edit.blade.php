@@ -17,7 +17,10 @@
                     {{ __('Modificar Solicitud') }}
                 </h3>
 
-                <form method="POST" action="{{ route('estudiante.solicitudes.update', $solicitud) }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('estudiante.solicitudes.update', $solicitud) }}" enctype="multipart/form-data" class="space-y-4"
+                    data-solicitud-estudiante-frontera data-update="true"
+                    data-asignaturas-url="{{ url('estudiante/docentes') }}"
+                    data-old-asignatura="{{ old('docente_asignatura_id', $solicitud->docente_asignatura_id) }}">
                     @csrf
                     @method('PUT')
                     <div>
@@ -119,58 +122,4 @@
             </div>
         </div>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const docenteSelect = document.getElementById('docente_id');
-            const asignaturaSelect = document.getElementById('docente_asignatura_id');
-
-            function cargarAsignaturas(docenteId, selected = null) {
-                asignaturaSelect.innerHTML = '<option value="">Cargando...</option>';
-                if (!docenteId) {
-                    asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-                    return;
-                }
-                fetch(`{{ url('estudiante/docentes') }}/${docenteId}/asignaturas`)
-                    .then(r => r.json())
-                    .then(data => {
-                        asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-                        data.forEach(item => {
-                            const option = document.createElement('option');
-                            option.value = item.id;
-                            option.textContent = item.nombre;
-                            if (selected == item.id) {
-                                option.selected = true;
-                            }
-                            asignaturaSelect.appendChild(option);
-                        });
-                    });
-            }
-
-            docenteSelect.addEventListener('change', e => {
-                cargarAsignaturas(e.target.value);
-            });
-
-            if (docenteSelect.value) {
-                cargarAsignaturas(docenteSelect.value, '{{ $solicitud->docente_asignatura_id }}');
-            }
-
-            document.getElementById('eliminar-btn').addEventListener('click', () => {
-                Swal.fire({
-                    theme: 'auto',
-                    title: '¿Deseas Eliminar la Solicitud?',
-                    text: 'Esta acción no se puede deshacer',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#0b545b',
-                    confirmButtonText: 'Sí, eliminar',
-                    cancelButtonText: 'Cancelar'
-                }).then(result => {
-                    if (result.isConfirmed) {
-                        document.getElementById('eliminar-form').submit();
-                    }
-                });
-            });
-        });
-    </script>
 </x-app-layout>
