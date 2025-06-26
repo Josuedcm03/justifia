@@ -15,7 +15,10 @@
                     {{ __('Crear Solicitud de Justificación') }}
                 </h3>
 
-                <form method="POST" action="{{ route('estudiante.solicitudes.store') }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('estudiante.solicitudes.store') }}" enctype="multipart/form-data" class="space-y-4"
+                    data-solicitud-estudiante-frontera
+                    data-asignaturas-url="{{ url('estudiante/docentes') }}"
+                    data-old-asignatura="{{ old('docente_asignatura_id') }}">
                     @csrf
                     <div>
                         <label for="fecha_ausencia" class="block font-medium mb-1">Fecha de la ausencia</label>
@@ -80,41 +83,4 @@
             </div>
         </div>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const docenteSelect = document.getElementById('docente_id');
-            const asignaturaSelect = document.getElementById('docente_asignatura_id');
-
-            function cargarAsignaturas(docenteId) {
-                asignaturaSelect.innerHTML = '<option value="">Cargando...</option>';
-                if (!docenteId) {
-                    asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-                    return;
-                }
-                fetch(`{{ url('estudiante/docentes') }}/${docenteId}/asignaturas`)
-                    .then(r => r.json())
-                    .then(data => {
-                        asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-                        data.forEach(item => {
-                            const option = document.createElement('option');
-                            option.value = item.id;
-                            option.textContent = item.nombre;
-                            if ('{{ old('docente_asignatura_id') }}' == item.id) {
-                                option.selected = true;
-                            }
-                            asignaturaSelect.appendChild(option);
-                        });
-                    });
-            }
-
-            docenteSelect.addEventListener('change', (e) => {
-                cargarAsignaturas(e.target.value);
-            });
-
-            if (docenteSelect.value) {
-                cargarAsignaturas(docenteSelect.value);
-            }
-        });
-    </script>
 </x-app-layout>
