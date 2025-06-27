@@ -28,8 +28,8 @@
                     class="{{
                         match($solicitud->estado) {
                         'pendiente' => 'relative group bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
-                        'aprobada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
-                        'rechazada' => 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                        'aprobada' => 'relative group bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
+                        'rechazada' => 'relative group bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
                         }
                     }}">
                         @if ($solicitud->estado === 'pendiente')
@@ -37,11 +37,20 @@
                                 <x-heroicon-o-clipboard-document-check class="w-5 h-5 text-[#0099a8]" />
                                 <span class="text-xs text-[#0099a8] hidden sm:inline">Procesar solicitud</span>
                             </div>
+                        @elseif ($solicitud->estado === 'aprobada')
+                        <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
+                                <x-heroicon-o-eye class="w-5 h-5 text-green-600" />
+                                <span class="text-xs text-green-600 hidden sm:inline">Ver detalles</span>
+                            </div>
+                        @elseif ($solicitud->estado === 'rechazada')
+                        <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
+                                <x-heroicon-o-eye class="w-5 h-5 text-red-600" />
+                                <span class="text-xs text-red-600 hidden sm:inline">Ver detalles</span>
+                            </div>
                         @endif
                         <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
-                        <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
-                        <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
-                        <p class="mb-1"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
+                        <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
+                        <p class="mb-2"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
                         <p><strong>Estado:</strong>
                         @if ($solicitud->estado === 'pendiente')
                         <span class="bg-[#0099a8] text-white text-xs px-2 py-1 rounded font-semibold">{{ ucfirst($solicitud->estado) }}</span>

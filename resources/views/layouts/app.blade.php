@@ -43,7 +43,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             Swal.fire({
-                theme: 'auto',
+                theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
                 title: 'Éxito',
                 text: @js(session('success')),
                 icon: 'success',
@@ -59,7 +59,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             Swal.fire({
-                theme: 'auto',
+                theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
                 title: 'Error',
                 text: 'Hubo errores al procesar la solicitud.',
                 icon: 'error',

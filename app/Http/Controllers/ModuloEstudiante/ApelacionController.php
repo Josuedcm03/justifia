@@ -14,9 +14,17 @@ class ApelacionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return view('ModuloEstudiante.apelaciones.index');
+        $estado = $request->query('estado', 'pendiente');
+        $apelaciones = Apelacion::where('estado', $estado)
+            ->latest()
+            ->get();
+
+        return view('ModuloEstudiante.apelaciones.index', [
+            'apelaciones' => $apelaciones,
+            'estado' => $estado,
+        ]);
     }
 
     /**
@@ -64,9 +72,10 @@ class ApelacionController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(int $apelacion)
+    public function show(Apelacion $apelacion)
     {
-        return view('ModuloEstudiante.apelaciones.show');
+        $estado = request()->query('estado', 'pendiente');
+        return view('ModuloEstudiante.apelaciones.show', compact('apelacion', 'estado'));
     }
 
     /**

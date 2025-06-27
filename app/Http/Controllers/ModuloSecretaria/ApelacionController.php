@@ -48,6 +48,13 @@ class ApelacionController extends Controller
         $apelacion->respuesta = $validated['respuesta'];
         $apelacion->save();
 
+        if ($validated['estado'] === 'aprobada') {
+            $solicitud = $apelacion->solicitud;
+            $solicitud->estado = 'aprobada';
+            $solicitud->respuesta = 'Solicitud aprobada automáticamente mediante la resolución de su apelación.';
+            $solicitud->save();
+        }
+
         $redirectEstado = $request->query('estado', 'pendiente');
 
         return redirect()

@@ -15,6 +15,9 @@
                     <x-nav-link :href="route('estudiante.solicitudes.index')" :active="request()->routeIs('estudiante.solicitudes.*')">
                         {{ __('Ver Solicitudes') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('estudiante.apelaciones.index')" :active="request()->routeIs('estudiante.apelaciones.*')">
+                        {{ __('Ver Apelaciones') }}
+                    </x-nav-link>
                     <x-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                         {{ __('Gestionar Solicitudes') }}
                     </x-nav-link>
@@ -82,6 +85,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('estudiante.solicitudes.index')" :active="request()->routeIs('estudiante.solicitudes.*')">
                 {{ __('Ver Solicitudes') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('estudiante.apelaciones.index')" :active="request()->routeIs('estudiante.apelaciones.*')">
+                {{ __('Ver Apelaciones') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                 {{ __('Gestionar Solicitudes') }}

@@ -43,6 +43,12 @@ Route::prefix('estudiante')->name('estudiante.')->group(function () {
             'solicitudes' => 'solicitud',
             'apelaciones' => 'apelacion'
         ]);
+
+    Route::resource('apelaciones', EstudianteApelacionController::class)
+        ->only(['index', 'show'])
+        ->parameters([
+            'apelaciones' => 'apelacion'
+        ]);
 });
 
 Route::prefix('secretaria')->name('secretaria.')->group(function () {
