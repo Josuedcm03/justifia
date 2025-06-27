@@ -38,7 +38,7 @@
                                 <x-heroicon-o-pencil-square class="w-5 h-5 text-[#0099a8]" />
                                 <span class="text-xs text-[#0099a8] hidden sm:inline">Modificar Solicitud</span>
                             </div>
-                            <p class="mb-1"><strong>Clase:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
+                            <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                             <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-1"><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>
                             <p class="mb-2"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
@@ -57,7 +57,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
                     @forelse($aprobadas as $solicitud)
                         <a href="{{ route('estudiante.solicitudes.show', ['solicitud' => $solicitud, 'estado' => 'aprobada']) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out">
-                            <p class="mb-1"><strong>Clase:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
+                            <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                             <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-1"><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>
                             <p class="mb-2"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
@@ -80,7 +80,7 @@
                                 <x-heroicon-o-arrow-path class="w-5 h-5 text-red-600" />
                                 <span class="text-xs text-red-600 hidden sm:inline">Apelar solicitud</span>
                             </div>
-                            <p class="mb-1"><strong>Clase:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
+                            <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} </p>
                             <p class="mb-1"><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-1"><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>
                             <p class="mb-2"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>

@@ -50,4 +50,9 @@ class Solicitud extends Model
     {
         return $this->belongsTo(TipoConstancia::class, 'tipo_constancia_id', 'id');
     }
+
+    public function apelaciones()
+    {
+        return $this->hasMany(Apelacion::class, 'solicitud_id', 'id');
+    }
 }

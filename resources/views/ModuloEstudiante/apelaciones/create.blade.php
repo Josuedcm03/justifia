@@ -14,7 +14,7 @@
                     {{ __('Apelar Solicitud de Justificación') }}
                 </h3>
 
-                <p class="mb-4"><strong>{{ __('Respuesta de la Secretaría:') }}</strong> {{ $solicitud->respuesta }}</p>
+                <p class="mb-4"><strong>{{ __('Respuesta de la Secretaría:') }}</strong> {{ $respuesta ?? '-' }}</p>
                 <div class="mb-4 space-y-1">
                     <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                     <p><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>

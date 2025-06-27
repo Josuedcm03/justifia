@@ -26,6 +26,9 @@ class SolicitudController extends Controller
             ->latest()
             ->get();
         $rechazadas = Solicitud::where('estado', 'rechazada')
+        ->whereDoesntHave('apelaciones', function ($q) {
+                $q->where('estado', 'pendiente');
+            })
             ->latest()
             ->get();
 

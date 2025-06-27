@@ -10,9 +10,9 @@ class AsignaturasSeeder extends Seeder
     public function run(): void
     {
         $asignaturas = [
-            'Diseño Web y Comercio Electrónico',
-            'Ingeniería de Software',
-            'Ingeniería de Software',
+            'Diseño Web',
+            'Ingeniería de Software I',
+            'Ingeniería de Software I',
             'Almacén de Datos',
         ];
 

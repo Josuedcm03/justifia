@@ -125,7 +125,7 @@ export default class SolicitudFrontera {
             if (!file && !this.isUpdate) {
                 errors.push('Debes adjuntar una constancia.');
             } else if (file) {
-                const allowed = ['application/pdf', 'image/jpeg', 'image/jpg'];
+                const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
                 if (!allowed.includes(file.type)) {
                     errors.push('El archivo debe ser PDF o JPG.');
                 }

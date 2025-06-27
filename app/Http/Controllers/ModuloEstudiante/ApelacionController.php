@@ -24,21 +24,31 @@ class ApelacionController extends Controller
      */
     public function create(Solicitud $solicitud)
     {
-        return view('ModuloEstudiante.apelaciones.create', compact('solicitud'));
+        $ultimaApelacion = Apelacion::where('solicitud_id', $solicitud->id)
+            ->latest()
+            ->first();
+
+        $respuesta = $ultimaApelacion?->respuesta ?? $solicitud->respuesta;
+
+        return view('ModuloEstudiante.apelaciones.create', compact('solicitud', 'respuesta'));
     }
 
     public function store(Request $request, Solicitud $solicitud)
     {
         $validated = $request->validate([
             'observacion_estudiante' => ['required', 'string'],
-            'apelacion_id' => ['nullable', 'exists:apelaciones,id'],
         ]);
+
+        $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)
+            ->where('estado', 'rechazada')
+            ->latest()
+            ->first();
 
         $data = [
             'observacion' => $validated['observacion_estudiante'],
             'estado' => 'pendiente',
             'solicitud_id' => $solicitud->id,
-            'apelacion_id' => $validated['apelacion_id'] ?? null,
+            'apelacion_id' => $ultimaRechazada?->id,
             'respuesta' => null,
         ];
 

@@ -13,12 +13,12 @@ class DocenteAsignaturasSeeder extends Seeder
     {
         $map = [
             'José Durán' => [
-                ['asignatura' => 'Diseño Web y Comercio Electrónico', 'grupo' => '1'],
-                ['asignatura' => 'Diseño Web y Comercio Electrónico', 'grupo' => '2'],
+                ['asignatura' => 'Diseño Web', 'grupo' => '1'],
+                ['asignatura' => 'Diseño Web', 'grupo' => '2'],
             ],
             'Armando López' => [
-                ['asignatura' => 'Ingeniería de Software', 'grupo' => '1'],
-                ['asignatura' => 'Ingeniería de Software', 'grupo' => '2'],
+                ['asignatura' => 'Ingeniería de Software I', 'grupo' => '1'],
+                ['asignatura' => 'Ingeniería de Software I', 'grupo' => '2'],
             ],
             'Freddy López' => [
                 ['asignatura' => 'Almacén de Datos', 'grupo' => '2'],
