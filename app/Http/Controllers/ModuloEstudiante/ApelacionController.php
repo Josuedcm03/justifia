@@ -18,7 +18,7 @@ class ApelacionController extends Controller
     {
         $estado = $request->query('estado', 'pendiente');
         $apelaciones = Apelacion::where('estado', $estado)
-            ->latest()
+            ->orderByDesc('id')
             ->get();
 
         return view('ModuloEstudiante.apelaciones.index', [
@@ -33,7 +33,7 @@ class ApelacionController extends Controller
     public function create(Solicitud $solicitud)
     {
         $ultimaApelacion = Apelacion::where('solicitud_id', $solicitud->id)
-            ->latest()
+            ->orderByDesc('id')
             ->first();
 
         $respuesta = $ultimaApelacion?->respuesta ?? $solicitud->respuesta;
@@ -49,7 +49,7 @@ class ApelacionController extends Controller
 
         $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)
             ->where('estado', 'rechazada')
-            ->latest()
+            ->orderByDesc('id')
             ->first();
 
         $data = [

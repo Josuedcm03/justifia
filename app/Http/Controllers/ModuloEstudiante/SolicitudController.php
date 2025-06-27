@@ -20,16 +20,16 @@ class SolicitudController extends Controller
     public function index()
     {
         $pendientes = Solicitud::where('estado', 'pendiente')
-            ->latest()
+            ->orderByDesc('id')
             ->get();
         $aprobadas = Solicitud::where('estado', 'aprobada')
-            ->latest()
+            ->orderByDesc('id')
             ->get();
         $rechazadas = Solicitud::where('estado', 'rechazada')
         ->whereDoesntHave('apelaciones', function ($q) {
                 $q->where('estado', 'pendiente');
             })
-            ->latest()
+            ->orderByDesc('id')
             ->get();
 
         return view('ModuloEstudiante.solicitudes.index', [

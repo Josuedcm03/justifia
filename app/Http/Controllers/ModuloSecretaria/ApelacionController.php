@@ -16,7 +16,7 @@ class ApelacionController extends Controller
     {
         $estado = $request->query('estado', 'pendiente');
         $apelaciones = Apelacion::where('estado', $estado)
-            ->latest()
+            ->orderByDesc('id')
             ->paginate(9);
 
         return view('ModuloSecretaria.apelaciones.index', [

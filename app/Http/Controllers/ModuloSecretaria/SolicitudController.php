@@ -17,6 +17,11 @@ class SolicitudController extends Controller
     {
         $estado = $request->query('estado', 'pendiente');
         $solicitudes = Solicitud::where('estado', $estado)
+        ->when($estado === 'rechazada', function ($query) {
+                $query->whereDoesntHave('apelaciones', function ($q) {
+                    $q->where('estado', 'pendiente');
+                });
+            })
             ->latest()
             ->paginate(9);
 
