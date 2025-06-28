@@ -13,7 +13,7 @@
                         <a href="{{ route('docente.solicitudes.show', $solicitud) }}" class="bg-white dark:bg-gray-800 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out">
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
-                            <p class="mb-1"><strong>Fecha ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
+                            <p class="mb-2"><strong>Fecha ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                             <span class="text-sm text-yellow-600">Pendiente</span>
                         </a>
                     @empty
@@ -29,7 +29,8 @@
                         <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-5 text-[#212121] dark:text-white">
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $reprogramacion->solicitud->estudiante->usuario->name }}</p>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $reprogramacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $reprogramacion->solicitud->docenteAsignatura->grupo }}</p>
-                            <p class="mb-1"><strong>Fecha programada:</strong> {{ $reprogramacion->fecha }} {{ $reprogramacion->hora }}</p>
+                            <p class="mb-1 "><strong>Fecha programada:</strong> {{ \Illuminate\Support\Carbon::parse($reprogramacion->fecha)->locale('es')->isoFormat('dddd, DD [de] MMMM') }} </p>
+                            <p class="mb-2"><strong>Hora programada:</strong> {{ $reprogramacion->hora }}</p>
                             <p class="flex items-center"><strong>Asistencia:</strong>
                                 @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::NoAsistio)
                                     <x-heroicon-o-x-circle class="w-5 h-5 text-red-600 ml-1" />

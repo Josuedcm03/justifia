@@ -46,18 +46,18 @@
                             <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
                                 @if ($estado === 'pendiente')
                                     <x-heroicon-o-pencil-square class="w-5 h-5 text-yellow-600" />
-                                    <span class="text-xs text-yellow-600 hidden sm:inline">Modificar Solicitud</span>
+                                    <span class="text-sm text-yellow-600 hidden sm:inline">Modificar Solicitud</span>
                                 @elseif ($estado === 'aprobada')
                                     <x-heroicon-o-eye class="w-5 h-5 text-green-600" />
-                                    <span class="text-xs text-green-600 hidden sm:inline">Ver detalles</span>
+                                    <span class="text-sm text-green-600 hidden sm:inline">Ver detalles</span>
                                 @else
                                     <x-heroicon-o-arrow-path class="w-5 h-5 text-red-600" />
-                                    <span class="text-xs text-red-600 hidden sm:inline">Apelar solicitud</span>
+                                    <span class="text-sm text-red-600 hidden sm:inline">Apelar solicitud</span>
                                 @endif
                             </div>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-1"><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>
-                            <p class="mb-2"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
+                            <p class="mb-2"><strong>Ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                             <p><strong>Estado:</strong>
                                 @if ($estado === 'pendiente')
                                     <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-semibold">Pendiente</span>

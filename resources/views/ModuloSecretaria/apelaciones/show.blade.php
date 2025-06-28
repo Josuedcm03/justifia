@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <a href="{{ route('secretaria.apelaciones.index', ['estado' => $estado]) }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
+            <a href="{{ route('secretaria.apelaciones.index', ['estado' => $estado]) }}" class="flex items-center text-base text-gray-200 hover:text-[#006b75] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
@@ -12,15 +12,15 @@
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8 text-[#212121] dark:text-white space-y-4">
                 @if ($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)
-                    <h3 class="flex justify-center text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Procesar Apelación') }}</h3>
+                    <h3 class="flex justify-center text-3xl font-bold mb-6 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Procesar Apelación') }}</h3>
                 @else
-                    <h3 class="flex justify-center text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Detalles de Apelación') }}</h3>
+                    <h3 class="flex justify-center text-3xl font-bold mb-6 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Detalles de Apelación') }}</h3>
                 @endif
 
                 <p><strong>Estudiante:</strong> {{ $apelacion->solicitud->estudiante->usuario->name }} ({{ $apelacion->solicitud->estudiante->cif }})</p>
                 <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }}</p>
                 <p><strong>Grupo:</strong> {{ $apelacion->solicitud->docenteAsignatura->grupo }}</p>
-                <p><strong>Fecha de ausencia:</strong> {{ $apelacion->solicitud->fecha_ausencia }}</p>
+                <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($apelacion->solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                 <p><strong>Observación del estudiante:</strong> {{ $apelacion->observacion }}</p>
                 @if ($apelacion->respuesta)
                     <p><strong>Respuesta:</strong> {{ $apelacion->respuesta }}</p>

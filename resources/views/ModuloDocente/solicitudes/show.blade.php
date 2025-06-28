@@ -15,10 +15,10 @@
                 <p><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
                 <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                 <p><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
-                <p><strong>Fecha de ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
+                <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                 @if($solicitud->reprogramacion)
                     <h4 class="text-lg font-semibold mt-4">Reprogramación</h4>
-                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $solicitud) }}" class="space-y-4">
+                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $solicitud) }}" class="space-y-4" data-reprogramacion-docente-frontera>
                         @csrf
                         @method('PATCH')
                         <div>
@@ -49,7 +49,7 @@
                     </form>
                 @else
                     <h4 class="text-lg font-semibold mt-4">Crear Reprogramación</h4>
-                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.store', $solicitud) }}" class="space-y-4">
+                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.store', $solicitud) }}" class="space-y-4" data-reprogramacion-docente-frontera>
                         @csrf
                         <div>
                             <label class="block font-medium mb-1">Fecha</label>

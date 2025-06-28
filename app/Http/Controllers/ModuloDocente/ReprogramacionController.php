@@ -44,9 +44,9 @@ class ReprogramacionController extends Controller
     public function storeReprogramacion(Request $request, Solicitud $solicitud)
     {
         $validated = $request->validate([
-            'fecha' => ['required', 'date'],
-            'hora' => ['required'],
-            'asistencia' => ['required', new Enum(EstadoAsistencia::class)],
+            'fecha' => ['date'],
+            'hora' => ['date_format:H:i'],
+            'asistencia' => [new Enum(EstadoAsistencia::class)],
             'observaciones' => ['nullable', 'string'],
         ]);
 
@@ -62,9 +62,9 @@ class ReprogramacionController extends Controller
     public function updateReprogramacion(Request $request, Solicitud $solicitud)
     {
         $validated = $request->validate([
-            'fecha' => ['required', 'date'],
-            'hora' => ['required'],
-            'asistencia' => ['required', new Enum(EstadoAsistencia::class)],
+            'fecha' => ['date'],
+            'hora' => ['date_format:H:i'],
+            'asistencia' => [new Enum(EstadoAsistencia::class)],
             'observaciones' => ['nullable', 'string'],
         ]);
 

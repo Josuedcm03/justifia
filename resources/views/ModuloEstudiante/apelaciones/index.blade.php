@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
+            <h2 class="font-semibold text-xl text-gray-200 leading-tight">
                 {{ __('Mis Apelaciones') }}
             </h2>
         </div>
@@ -40,7 +40,7 @@
                         @endif
                         <p class="mb-1"><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $apelacion->solicitud->docenteAsignatura->grupo }}</p>
                         <p class="mb-1"><strong>Docente:</strong> {{ $apelacion->solicitud->docenteAsignatura->docente->usuario->name }}</p>
-                        <p class="mb-2"><strong>Fecha:</strong> {{ $apelacion->solicitud->fecha_ausencia }}</p>
+                        <p class="mb-2"><strong>Ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($apelacion->solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                         <p><strong>Estado:</strong>
 
                         @if ($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)

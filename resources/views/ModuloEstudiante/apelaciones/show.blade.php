@@ -11,11 +11,11 @@
     <div class="py-12">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8 text-[#212121] dark:text-white space-y-4">
-                <h3 class="flex justify-center text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Detalles de Apelación') }}</h3>
+                <h3 class="flex justify-center text-3xl font-bold mb-6 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Detalles de Apelación') }}</h3>
 
                 <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }}</p>
                 <p><strong>Grupo:</strong> {{ $apelacion->solicitud->docenteAsignatura->grupo }}</p>
-                <p><strong>Fecha de ausencia:</strong> {{ $apelacion->solicitud->fecha_ausencia }}</p>
+                <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($apelacion->solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                 <p><strong>Observación del estudiante:</strong> {{ $apelacion->observacion }}</p>
                 @if ($apelacion->respuesta)
                     <p><strong>Respuesta:</strong> {{ $apelacion->respuesta }}</p>

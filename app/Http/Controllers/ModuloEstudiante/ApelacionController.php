@@ -47,7 +47,7 @@ class ApelacionController extends Controller
     public function store(Request $request, Solicitud $solicitud)
     {
         $validated = $request->validate([
-            'observacion_estudiante' => ['required', 'string'],
+            'observacion_estudiante' => ['string'],
         ]);
 
         $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)

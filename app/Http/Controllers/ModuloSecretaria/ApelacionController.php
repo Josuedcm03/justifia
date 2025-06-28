@@ -46,8 +46,8 @@ class ApelacionController extends Controller
     public function update(Request $request, Apelacion $apelacion)
     {
         $validated = $request->validate([
-            'estado' => ['required', new Enum(EstadoApelacion::class)],
-            'respuesta' => ['required', 'string'],
+            'estado' => [new Enum(EstadoApelacion::class)],
+            'respuesta' => ['string'],
         ]);
 
         $apelacion->estado = EstadoApelacion::from($validated['estado']);

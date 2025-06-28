@@ -16,7 +16,7 @@
                 <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                 <p><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
                 <p><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>
-                <p><strong>Fecha de ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
+                <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                 <p><strong>Tipo de constancia:</strong> {{ $solicitud->tipoConstancia->nombre }}</p>
                 <p><strong>Observaciones:</strong> {{ $solicitud->observaciones ?? '-' }}</p>
                 @if ($solicitud->respuesta)
