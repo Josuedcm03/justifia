@@ -26,7 +26,11 @@
                 <h3 class="text-lg font-semibold mb-4">{{ __('Reprogramaciones Realizadas') }}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @forelse($reprogramaciones as $reprogramacion)
-                        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-5 text-[#212121] dark:text-white">
+                        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-5 text-[#212121] dark:text-white @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente) cursor-pointer @endif"
+                            @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
+                                x-data
+                                x-on:click="$dispatch('open-modal', 'asistencia-{{ $reprogramacion->id }}')"
+                            @endif>
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $reprogramacion->solicitud->estudiante->usuario->name }}</p>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $reprogramacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $reprogramacion->solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-1 "><strong>Fecha programada:</strong> {{ \Illuminate\Support\Carbon::parse($reprogramacion->fecha)->locale('es')->isoFormat('dddd, DD [de] MMMM') }} </p>
@@ -41,6 +45,19 @@
                                 @endif
                             </p>
                         </div>
+                        @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
+                            <x-modal name="asistencia-{{ $reprogramacion->id }}" focusable>
+                                <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $reprogramacion->solicitud) }}" class="p-6 space-y-4">
+                                    @csrf
+                                    @method('PATCH')
+                                    <p class="text-center font-semibold">Registrar asistencia</p>
+                                    <div class="flex justify-center gap-4">
+                                        <button name="asistencia" value="asistio" class="bg-green-600 text-white px-4 py-2 rounded">Asistió</button>
+                                        <button name="asistencia" value="no_asistio" class="bg-red-600 text-white px-4 py-2 rounded">No asistió</button>
+                                    </div>
+                                </form>
+                            </x-modal>
+                        @endif
                     @empty
                         <p class="col-span-full text-gray-600 dark:text-gray-400">{{ __('No hay reprogramaciones.') }}</p>
                     @endforelse

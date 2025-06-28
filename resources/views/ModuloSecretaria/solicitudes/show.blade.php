@@ -17,7 +17,15 @@
                 <h3 class="flex justify-center text-3xl font-bold mb-6 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Detalles de Solicitud') }}</h3>
                 @endif
 
-                <p><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }} ({{ $solicitud->estudiante->cif }})</p>
+                <p class="flex items-center"><strong class="mr-1">CIF:</strong>
+                    <span class="mr-1">{{ $solicitud->estudiante->cif }}</span>
+                    <button type="button" class="text-gray-500 hover:text-gray-700"
+                        x-data
+                        x-on:click="navigator.clipboard.writeText('{{ $solicitud->estudiante->cif }}')">
+                        <x-heroicon-o-clipboard class="w-5 h-5" />
+                    </button>
+                </p>
+                <p><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
                 <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                 <p><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
                 <p><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>

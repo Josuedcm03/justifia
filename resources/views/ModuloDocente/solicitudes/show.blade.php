@@ -30,14 +30,6 @@
                             <input type="time" name="hora" value="{{ $solicitud->reprogramacion->hora }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                         </div>
                         <div>
-                            <label class="block font-medium mb-1">Asistencia</label>
-                            <select name="asistencia" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                                <option value="pendiente" @selected($solicitud->reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)>Pendiente</option>
-                                <option value="asistio" @selected($solicitud->reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Asistio)>Asistió</option>
-                                <option value="no_asistio" @selected($solicitud->reprogramacion->asistencia === \App\Enums\EstadoAsistencia::NoAsistio)>No asistió</option>
-                            </select>
-                        </div>
-                        <div>
                             <label class="block font-medium mb-1">Observaciones</label>
                             <textarea name="observaciones" rows="3" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">{{ $solicitud->reprogramacion->observaciones }}</textarea>
                         </div>
@@ -58,14 +50,6 @@
                         <div>
                             <label class="block font-medium mb-1">Hora</label>
                             <input type="time" name="hora" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                        </div>
-                        <div>
-                            <label class="block font-medium mb-1">Asistencia</label>
-                            <select name="asistencia" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                                <option value="pendiente">Pendiente</option>
-                                <option value="asistio">Asistió</option>
-                                <option value="no_asistio">No asistió</option>
-                            </select>
                         </div>
                         <div>
                             <label class="block font-medium mb-1">Observaciones</label>

@@ -1,5 +1,3 @@
-import EstadoAsistencia from '../Enums/EstadoAsistencia';
-
 export default class ReprogramacionFrontera {
     constructor(form, options = {}) {
         this.form = form;
@@ -15,7 +13,6 @@ export default class ReprogramacionFrontera {
         const errors = [];
         const fecha = this.form.querySelector('[name="fecha"]')?.value;
         const hora = this.form.querySelector('[name="hora"]')?.value;
-        const asistencia = this.form.querySelector('[name="asistencia"]')?.value;
 
         if (!fecha) {
             errors.push('La fecha es obligatoria.');
@@ -23,11 +20,6 @@ export default class ReprogramacionFrontera {
 
         if (!hora) {
             errors.push('La hora es obligatoria.');
-        }
-
-        const validAsistencia = Object.values(EstadoAsistencia);
-        if (!asistencia || !validAsistencia.includes(asistencia)) {
-            errors.push('Debes seleccionar un estado de asistencia válido.');
         }
 
         if (errors.length) {
