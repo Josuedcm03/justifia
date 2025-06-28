@@ -6,7 +6,7 @@ export default class ApelacionFrontera {
         this.rechazarForm = container.querySelector('#rechazar-form');
         this.respuestaInput = container.querySelector('#respuesta-input');
         this.aprobarForm = container.querySelector('#aprobar-form');
-        this.confirmed = false;
+        this.aprobarInput = container.querySelector('#respuesta-aprobar');
         this.registerEvents();
     }
 
@@ -14,24 +14,11 @@ export default class ApelacionFrontera {
         if (this.rechazarBtn && this.rechazarForm && this.respuestaInput) {
             this.rechazarBtn.addEventListener('click', () => this.showRechazarModal());
         }
-        if (this.aprobarForm) {
+        if (this.aprobarForm && this.aprobarInput) {
             this.aprobarForm.addEventListener('submit', e => {
-                if (!this.confirmed) {
+                if (!this.aprobarInput.value) {
                     e.preventDefault();
-                    Swal.fire({
-                        theme: this.theme,
-                        title: '¿Aprobar apelación?',
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonColor: '#0b545b',
-                        confirmButtonText: 'Sí, aprobar',
-                        cancelButtonText: 'Cancelar'
-                    }).then(result => {
-                        if (result.isConfirmed) {
-                            this.confirmed = true;
-                            this.aprobarForm.submit();
-                        }
-                    });
+                    this.showAprobarModal();
                 }
             });
         }
@@ -52,6 +39,25 @@ export default class ApelacionFrontera {
             if (result.isConfirmed && result.value) {
                 this.respuestaInput.value = result.value;
                 this.rechazarForm.submit();
+            }
+        });
+    }
+
+    showAprobarModal() {
+        Swal.fire({
+            theme: this.theme,
+            title: 'Aprobar apelación',
+            input: 'textarea',
+            inputLabel: 'Respuesta',
+            inputPlaceholder: 'Escribe la respuesta de aprobación',
+            showCancelButton: true,
+            confirmButtonColor: '#0099a8',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Aprobar'
+        }).then(result => {
+            if (result.isConfirmed && result.value) {
+                this.aprobarInput.value = result.value;
+                this.aprobarForm.submit();
             }
         });
     }

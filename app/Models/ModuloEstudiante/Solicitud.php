@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloSecretaria\DocenteAsignatura;
 use App\Models\ModuloSecretaria\TipoConstancia;
+use App\Models\ModuloDocente\Reprogramacion;
 
 class Solicitud extends Model
 {
@@ -54,5 +55,10 @@ class Solicitud extends Model
     public function apelaciones()
     {
         return $this->hasMany(Apelacion::class, 'solicitud_id', 'id');
+    }
+
+    public function reprogramacion()
+    {
+        return $this->hasOne(Reprogramacion::class, 'solicitud_id', 'id');
     }
 }

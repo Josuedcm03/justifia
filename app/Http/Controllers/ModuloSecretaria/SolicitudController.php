@@ -47,13 +47,11 @@ class SolicitudController extends Controller
     {
         $validated = $request->validate([
             'estado' => ['required', 'in:aprobada,rechazada'],
-            'respuesta' => ['nullable', 'string'],
+            'respuesta' => ['required', 'string'],
         ]);
 
         $solicitud->estado = $validated['estado'];
-        $solicitud->respuesta = $validated['estado'] === 'rechazada'
-        ? $validated['respuesta']
-        : null;
+        $solicitud->respuesta = $validated['respuesta'];
         $solicitud->save();
 
         $redirectEstado = $request->query('estado', 'pendiente');

@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
 
-            <a href="{{ route('estudiante.solicitudes.index', ['estado' => request()->query('estado', 'pendiente')]) }}" class="flex items-center text-sm text-[#0099a8] hover:text-[#007e8b] transition">
+            <a href="{{ route('estudiante.solicitudes.index', ['estado' => request()->query('estado', 'pendiente')]) }}" class="flex items-center text-base text-gray-200 hover:text-[#006b75] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>

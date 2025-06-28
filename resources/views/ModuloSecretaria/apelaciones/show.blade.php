@@ -71,7 +71,7 @@
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="estado" value="aprobada">
-                            <input type="hidden" name="respuesta" value="">
+                            <input type="hidden" name="respuesta" id="respuesta-aprobar">
                             <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] transition font-semibold">
                                 {{ __('Aprobar Apelación') }}
                             </button>

@@ -7,6 +7,7 @@ use App\Http\Controllers\ModuloEstudiante\SolicitudController as EstudianteSolic
 use App\Http\Controllers\ModuloEstudiante\ApelacionController as EstudianteApelacionController;
 use App\Http\Controllers\ModuloSecretaria\SolicitudController as SecretariaSolicitudController;
 use App\Http\Controllers\ModuloSecretaria\ApelacionController as SecretariaApelacionController;
+use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
 
 // During testing we skip the authentication screens and go straight to the
 // dashboard. The root URL and `/dashboard` both render the dashboard view
@@ -63,4 +64,12 @@ Route::prefix('secretaria')->name('secretaria.')->group(function () {
         ->parameters([
             'apelaciones' => 'apelacion'
         ]);
+
+        });
+
+Route::prefix('docente')->name('docente.')->group(function () {
+    Route::get('solicitudes', [DocenteReprogramacionController::class, 'index'])->name('solicitudes.index');
+    Route::get('solicitudes/{solicitud}', [DocenteReprogramacionController::class, 'show'])->name('solicitudes.show');
+    Route::post('solicitudes/{solicitud}/reprogramacion', [DocenteReprogramacionController::class, 'storeReprogramacion'])->name('solicitudes.reprogramacion.store');
+    Route::patch('solicitudes/{solicitud}/reprogramacion', [DocenteReprogramacionController::class, 'updateReprogramacion'])->name('solicitudes.reprogramacion.update');
 });

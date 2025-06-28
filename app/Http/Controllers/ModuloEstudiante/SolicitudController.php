@@ -17,25 +17,22 @@ class SolicitudController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $pendientes = Solicitud::where('estado', 'pendiente')
-            ->orderByDesc('id')
-            ->get();
-        $aprobadas = Solicitud::where('estado', 'aprobada')
-            ->orderByDesc('id')
-            ->get();
-        $rechazadas = Solicitud::where('estado', 'rechazada')
-        ->whereDoesntHave('apelaciones', function ($q) {
-                $q->where('estado', 'pendiente');
+        $estado = $request->query('estado', 'pendiente');
+
+        $solicitudes = Solicitud::where('estado', $estado)
+            ->when($estado === 'rechazada', function ($query) {
+                $query->whereDoesntHave('apelaciones', function ($q) {
+                    $q->where('estado', 'pendiente');
+                });
             })
             ->orderByDesc('id')
-            ->get();
+            ->paginate(9);
 
         return view('ModuloEstudiante.solicitudes.index', [
-            'pendientes' => $pendientes,
-            'aprobadas' => $aprobadas,
-            'rechazadas' => $rechazadas,
+            'solicitudes' => $solicitudes,
+            'estado' => $estado,
         ]);
     }
 

@@ -6,12 +6,21 @@ export default class SolicitudFrontera {
         this.rechazarForm = container.querySelector('#rechazar-form');
         this.respuestaInput = container.querySelector('#respuesta-input');
         this.aprobarForm = container.querySelector('#aprobar-form');
+        this.aprobarInput = container.querySelector('#respuesta-aprobar');
         this.registerEvents();
     }
 
     registerEvents() {
         if (this.rechazarBtn && this.rechazarForm && this.respuestaInput) {
             this.rechazarBtn.addEventListener('click', () => this.showRechazarModal());
+        }
+        if (this.aprobarForm && this.aprobarInput) {
+            this.aprobarForm.addEventListener('submit', e => {
+                if (!this.aprobarInput.value) {
+                    e.preventDefault();
+                    this.showAprobarModal();
+                }
+            });
         }
     }
 
@@ -30,6 +39,25 @@ export default class SolicitudFrontera {
             if (result.isConfirmed && result.value) {
                 this.respuestaInput.value = result.value;
                 this.rechazarForm.submit();
+            }
+        });
+    }
+
+    showAprobarModal() {
+        Swal.fire({
+            theme: this.theme,
+            title: 'Aprobar solicitud',
+            input: 'textarea',
+            inputLabel: 'Respuesta',
+            inputPlaceholder: 'Escribe la respuesta de aprobación',
+            showCancelButton: true,
+            confirmButtonColor: '#0099a8',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Aprobar'
+        }).then(result => {
+            if (result.isConfirmed && result.value) {
+                this.aprobarInput.value = result.value;
+                this.aprobarForm.submit();
             }
         });
     }

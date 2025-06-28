@@ -41,7 +41,7 @@ class ApelacionController extends Controller
     {
         $validated = $request->validate([
             'estado' => ['required', 'in:aprobada,rechazada'],
-            'respuesta' => ['nullable', 'string'],
+            'respuesta' => ['required', 'string'],
         ]);
 
         $apelacion->estado = $validated['estado'];
@@ -51,7 +51,7 @@ class ApelacionController extends Controller
         if ($validated['estado'] === 'aprobada') {
             $solicitud = $apelacion->solicitud;
             $solicitud->estado = 'aprobada';
-            $solicitud->respuesta = 'Solicitud aprobada automáticamente mediante la resolución de su apelación.';
+            $solicitud->respuesta = $validated['respuesta'];
             $solicitud->save();
         }
 
