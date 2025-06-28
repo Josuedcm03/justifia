@@ -8,8 +8,10 @@ export default class SolicitudFrontera {
         this.docenteSelect = this.form.querySelector('#docente_id');
         this.asignaturaSelect = this.form.querySelector('#docente_asignatura_id');
         this.constanciaInput = this.form.querySelector('#constancia');
+        this.deleteConstancia = this.form.querySelector('#delete_constancia');
         this.eliminarBtn = document.getElementById('eliminar-btn');
         this.eliminarForm = document.getElementById('eliminar-form');
+        this.confirmed = false;
         this.registerEvents();
         if (this.docenteSelect && this.docenteSelect.value) {
             this.cargarAsignaturas(this.docenteSelect.value, this.oldAsignatura);
@@ -20,6 +22,25 @@ export default class SolicitudFrontera {
         this.form.addEventListener('submit', e => {
             if (!this.validate()) {
                 e.preventDefault();
+                return;
+            }
+
+            if (this.isUpdate && !this.confirmed) {
+                e.preventDefault();
+                Swal.fire({
+                    theme: this.theme,
+                    title: '¿Guardar cambios?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#0b545b',
+                    confirmButtonText: 'Sí, guardar',
+                    cancelButtonText: 'Cancelar'
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        this.confirmed = true;
+                        this.form.submit();
+                    }
+                });
             }
         });
 
@@ -104,7 +125,7 @@ export default class SolicitudFrontera {
             if (!file && !this.isUpdate) {
                 errors.push('Debes adjuntar una constancia.');
             } else if (file) {
-                const allowed = ['application/pdf', 'image/jpeg', 'image/jpg'];
+                const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
                 if (!allowed.includes(file.type)) {
                     errors.push('El archivo debe ser PDF o JPG.');
                 }

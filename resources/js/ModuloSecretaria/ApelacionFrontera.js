@@ -1,4 +1,4 @@
-export default class SolicitudFrontera {
+export default class ApelacionFrontera {
     constructor(container, options = {}) {
         this.container = container;
         this.theme = options.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
@@ -27,7 +27,7 @@ export default class SolicitudFrontera {
     showRechazarModal() {
         Swal.fire({
             theme: this.theme,
-            title: 'Rechazar solicitud',
+            title: 'Rechazar apelación',
             input: 'textarea',
             inputLabel: 'Respuesta',
             inputPlaceholder: 'Escribe el motivo del rechazo',
@@ -46,7 +46,7 @@ export default class SolicitudFrontera {
     showAprobarModal() {
         Swal.fire({
             theme: this.theme,
-            title: 'Aprobar solicitud',
+            title: 'Aprobar apelación',
             input: 'textarea',
             inputLabel: 'Respuesta',
             inputPlaceholder: 'Escribe la respuesta de aprobación',

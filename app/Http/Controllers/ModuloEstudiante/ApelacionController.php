@@ -14,9 +14,17 @@ class ApelacionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return view('ModuloEstudiante.apelaciones.index');
+        $estado = $request->query('estado', 'pendiente');
+        $apelaciones = Apelacion::where('estado', $estado)
+            ->orderByDesc('id')
+            ->get();
+
+        return view('ModuloEstudiante.apelaciones.index', [
+            'apelaciones' => $apelaciones,
+            'estado' => $estado,
+        ]);
     }
 
     /**
@@ -24,37 +32,50 @@ class ApelacionController extends Controller
      */
     public function create(Solicitud $solicitud)
     {
-        return view('ModuloEstudiante.apelaciones.create', compact('solicitud'));
+        $ultimaApelacion = Apelacion::where('solicitud_id', $solicitud->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $respuesta = $ultimaApelacion?->respuesta ?? $solicitud->respuesta;
+
+        return view('ModuloEstudiante.apelaciones.create', compact('solicitud', 'respuesta'));
     }
 
     public function store(Request $request, Solicitud $solicitud)
     {
         $validated = $request->validate([
             'observacion_estudiante' => ['required', 'string'],
-            'apelacion_id' => ['nullable', 'exists:apelaciones,id'],
         ]);
+
+        $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)
+            ->where('estado', 'rechazada')
+            ->orderByDesc('id')
+            ->first();
 
         $data = [
             'observacion' => $validated['observacion_estudiante'],
             'estado' => 'pendiente',
             'solicitud_id' => $solicitud->id,
-            'apelacion_id' => $validated['apelacion_id'] ?? null,
+            'apelacion_id' => $ultimaRechazada?->id,
             'respuesta' => null,
         ];
 
         Apelacion::create($data);
+        
+        $redirectEstado = $request->query('estado', 'rechazada');
 
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Apelación enviada correctamente.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(int $apelacion)
+    public function show(Apelacion $apelacion)
     {
-        return view('ModuloEstudiante.apelaciones.show');
+        $estado = request()->query('estado', 'pendiente');
+        return view('ModuloEstudiante.apelaciones.show', compact('apelacion', 'estado'));
     }
 
     /**

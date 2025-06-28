@@ -17,6 +17,11 @@ class SolicitudController extends Controller
     {
         $estado = $request->query('estado', 'pendiente');
         $solicitudes = Solicitud::where('estado', $estado)
+        ->when($estado === 'rechazada', function ($query) {
+                $query->whereDoesntHave('apelaciones', function ($q) {
+                    $q->where('estado', 'pendiente');
+                });
+            })
             ->latest()
             ->paginate(9);
 
@@ -31,7 +36,8 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        return view('ModuloSecretaria.solicitudes.show', compact('solicitud'));
+        $estado = request()->query('estado', 'pendiente');
+        return view('ModuloSecretaria.solicitudes.show', compact('solicitud', 'estado'));
     }
 
     /**
@@ -41,17 +47,17 @@ class SolicitudController extends Controller
     {
         $validated = $request->validate([
             'estado' => ['required', 'in:aprobada,rechazada'],
-            'respuesta' => ['nullable', 'string'],
+            'respuesta' => ['required', 'string'],
         ]);
 
         $solicitud->estado = $validated['estado'];
-        $solicitud->respuesta = $validated['estado'] === 'rechazada'
-        ? $validated['respuesta']
-        : null;
+        $solicitud->respuesta = $validated['respuesta'];
         $solicitud->save();
 
+        $redirectEstado = $request->query('estado', 'pendiente');
+
         return redirect()
-            ->route('secretaria.solicitudes.index', ['estado' => 'pendiente'])
+            ->route('secretaria.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud actualizada correctamente.');
     }
 }

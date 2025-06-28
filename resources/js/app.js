@@ -4,6 +4,7 @@ import Alpine from 'alpinejs';
 import SolicitudEstudianteFrontera from './ModuloEstudiante/SolicitudFrontera';
 import ApelacionEstudianteFrontera from './ModuloEstudiante/ApelacionFrontera';
 import SolicitudSecretariaFrontera from './ModuloSecretaria/SolicitudFrontera';
+import ApelacionSecretariaFrontera from './ModuloSecretaria/ApelacionFrontera';
 
 window.Alpine = Alpine;
 
@@ -43,5 +44,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const resolverEl = document.querySelector('[data-solicitud-secretaria-frontera]');
     if (resolverEl) {
         new SolicitudSecretariaFrontera(resolverEl);
+    }
+
+    const apelacionSecretariaEl = document.querySelector('[data-apelacion-secretaria-frontera]');
+    if (apelacionSecretariaEl) {
+        new ApelacionSecretariaFrontera(apelacionSecretariaEl);
     }
 });

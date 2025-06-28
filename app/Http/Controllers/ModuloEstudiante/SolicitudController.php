@@ -17,22 +17,22 @@ class SolicitudController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $pendientes = Solicitud::where('estado', 'pendiente')
-            ->latest()
-            ->get();
-        $aprobadas = Solicitud::where('estado', 'aprobada')
-            ->latest()
-            ->get();
-        $rechazadas = Solicitud::where('estado', 'rechazada')
-            ->latest()
-            ->get();
+        $estado = $request->query('estado', 'pendiente');
+
+        $solicitudes = Solicitud::where('estado', $estado)
+            ->when($estado === 'rechazada', function ($query) {
+                $query->whereDoesntHave('apelaciones', function ($q) {
+                    $q->where('estado', 'pendiente');
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate(9);
 
         return view('ModuloEstudiante.solicitudes.index', [
-            'pendientes' => $pendientes,
-            'aprobadas' => $aprobadas,
-            'rechazadas' => $rechazadas,
+            'solicitudes' => $solicitudes,
+            'estado' => $estado,
         ]);
     }
 
@@ -67,8 +67,10 @@ class SolicitudController extends Controller
 
         Solicitud::create($data);
 
+        $redirectEstado = $request->query('estado', 'pendiente');
+
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud creada correctamente.');
     }
 
@@ -77,7 +79,8 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        return view('ModuloEstudiante.solicitudes.show', compact('solicitud'));
+        $estado = request()->query('estado', 'pendiente');
+        return view('ModuloEstudiante.solicitudes.show', compact('solicitud', 'estado'));
     }
 
     /**
@@ -107,12 +110,19 @@ class SolicitudController extends Controller
                 Storage::disk('public')->delete($solicitud->constancia);
             }
             $data['constancia'] = $request->file('constancia')->store('constancias', 'public');
+            } elseif ($request->boolean('delete_constancia')) {
+            if ($solicitud->constancia) {
+                Storage::disk('public')->delete($solicitud->constancia);
+            }
+            $data['constancia'] = null;
         }
 
         $solicitud->update($data);
 
+        $redirectEstado = $request->query('estado', 'pendiente');
+
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud actualizada correctamente.');
     }
 
@@ -137,7 +147,7 @@ class SolicitudController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Solicitud $solicitud)
+    public function destroy(Request $request, Solicitud $solicitud)
     {
                 if ($solicitud->constancia) {
             Storage::disk('public')->delete($solicitud->constancia);
@@ -145,8 +155,10 @@ class SolicitudController extends Controller
 
         $solicitud->delete();
 
+        $redirectEstado = $request->query('estado', 'pendiente');
+
         return redirect()
-            ->route('estudiante.solicitudes.index')
+            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud eliminada correctamente.');
     }
 }

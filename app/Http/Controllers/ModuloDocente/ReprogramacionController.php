@@ -1,0 +1,67 @@
+<?php
+
+namespace App\Http\Controllers\ModuloDocente;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+use App\Models\ModuloEstudiante\Solicitud;
+use App\Models\ModuloDocente\Reprogramacion;
+
+class ReprogramacionController extends Controller
+{
+    private int $docenteId = 1; // docente fijo simulado
+
+    public function index()
+    {
+        $solicitudes = Solicitud::where('estado', 'aprobada')
+            ->whereHas('docenteAsignatura', function ($q) {
+                $q->where('docente_id', $this->docenteId);
+            })
+            ->with('reprogramacion')
+            ->orderByDesc('id')
+            ->get();
+
+        return view('ModuloDocente.solicitudes.index', compact('solicitudes'));
+    }
+
+    public function show(Solicitud $solicitud)
+    {
+        $solicitud->load('reprogramacion', 'estudiante.usuario', 'docenteAsignatura.asignatura');
+        return view('ModuloDocente.solicitudes.show', compact('solicitud'));
+    }
+
+    public function storeReprogramacion(Request $request, Solicitud $solicitud)
+    {
+        $validated = $request->validate([
+            'fecha' => ['required', 'date'],
+            'hora' => ['required'],
+            'asistencia' => ['required', 'in:pendiente,asistio,no_asistio'],
+            'observaciones' => ['nullable', 'string'],
+        ]);
+
+        $validated['solicitud_id'] = $solicitud->id;
+
+        Reprogramacion::create($validated);
+
+        return redirect()
+            ->route('docente.solicitudes.show', $solicitud)
+            ->with('success', 'Reprogramación creada correctamente.');
+    }
+
+    public function updateReprogramacion(Request $request, Solicitud $solicitud)
+    {
+        $validated = $request->validate([
+            'fecha' => ['required', 'date'],
+            'hora' => ['required'],
+            'asistencia' => ['required', 'in:pendiente,asistio,no_asistio'],
+            'observaciones' => ['nullable', 'string'],
+        ]);
+
+        $solicitud->reprogramacion->update($validated);
+
+        return redirect()
+            ->route('docente.solicitudes.show', $solicitud)
+            ->with('success', 'Reprogramación actualizada correctamente.');
+    }
+}
