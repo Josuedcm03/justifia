@@ -11,7 +11,7 @@
     <div class="py-12" data-apelacion-secretaria-frontera>
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8 text-[#212121] dark:text-white space-y-4">
-                @if ($apelacion->estado === 'pendiente')
+                @if ($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)
                     <h3 class="flex justify-center text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Procesar Apelación') }}</h3>
                 @else
                     <h3 class="flex justify-center text-2xl font-bold mb-4 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Detalles de Apelación') }}</h3>
@@ -56,7 +56,7 @@
                     </x-modal>
                 </div>
 
-                @if ($apelacion->estado === 'pendiente')
+                @if ($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)
                     <div class="flex justify-end gap-2 pt-4">
                         <form method="POST" action="{{ route('secretaria.apelaciones.update', ['apelacion' => $apelacion, 'estado' => $estado]) }}" id="rechazar-form">
                             @csrf

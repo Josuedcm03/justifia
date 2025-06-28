@@ -11,6 +11,9 @@ use App\Models\ModuloEstudiante\Solicitud;
 use App\Models\ModuloSecretaria\Docente;
 use App\Models\ModuloSecretaria\DocenteAsignatura;
 use App\Models\ModuloSecretaria\TipoConstancia;
+use App\Enums\EstadoSolicitud;
+use App\Enums\EstadoApelacion;
+use Illuminate\Validation\Rules\Enum;
 
 class SolicitudController extends Controller
 {
@@ -19,12 +22,12 @@ class SolicitudController extends Controller
      */
     public function index(Request $request)
     {
-        $estado = $request->query('estado', 'pendiente');
+        $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
 
         $solicitudes = Solicitud::where('estado', $estado)
-            ->when($estado === 'rechazada', function ($query) {
+            ->when($estado === EstadoSolicitud::Rechazada, function ($query) {
                 $query->whereDoesntHave('apelaciones', function ($q) {
-                    $q->where('estado', 'pendiente');
+                    $q->where('estado', EstadoApelacion::Pendiente);
                 });
             })
             ->orderByDesc('id')
@@ -32,7 +35,7 @@ class SolicitudController extends Controller
 
         return view('ModuloEstudiante.solicitudes.index', [
             'solicitudes' => $solicitudes,
-            'estado' => $estado,
+            'estado' => $estado->value,
         ]);
     }
 
@@ -61,7 +64,7 @@ class SolicitudController extends Controller
             $data['constancia'] = $request->file('constancia')->store('constancias', 'public');
         }
 
-        $data['estado'] = 'pendiente';
+        $data['estado'] = EstadoSolicitud::Pendiente;
 
         $data['estudiante_id'] = 1;
 
@@ -79,8 +82,11 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        $estado = request()->query('estado', 'pendiente');
-        return view('ModuloEstudiante.solicitudes.show', compact('solicitud', 'estado'));
+        $estado = EstadoSolicitud::tryFrom(request()->query('estado')) ?? EstadoSolicitud::Pendiente;
+        return view('ModuloEstudiante.solicitudes.show', [
+            'solicitud' => $solicitud,
+            'estado' => $estado->value,
+        ]);
     }
 
     /**

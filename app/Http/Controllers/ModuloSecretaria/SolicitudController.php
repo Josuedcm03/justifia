@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 
 // Models
 use App\Models\ModuloEstudiante\Solicitud;
+use App\Enums\EstadoSolicitud;
+use App\Enums\EstadoApelacion;
+use Illuminate\Validation\Rules\Enum;
 
 class SolicitudController extends Controller
 {
@@ -15,11 +18,11 @@ class SolicitudController extends Controller
      */
     public function index(Request $request)
     {
-        $estado = $request->query('estado', 'pendiente');
+        $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
         $solicitudes = Solicitud::where('estado', $estado)
-        ->when($estado === 'rechazada', function ($query) {
+        ->when($estado === EstadoSolicitud::Rechazada, function ($query) {
                 $query->whereDoesntHave('apelaciones', function ($q) {
-                    $q->where('estado', 'pendiente');
+                    $q->where('estado', EstadoApelacion::Pendiente);
                 });
             })
             ->latest()
@@ -27,7 +30,7 @@ class SolicitudController extends Controller
 
         return view('ModuloSecretaria.solicitudes.index', [
             'solicitudes' => $solicitudes,
-            'estado' => $estado,
+            'estado' => $estado->value,
         ]);
     }
 
@@ -36,8 +39,11 @@ class SolicitudController extends Controller
      */
     public function show(Solicitud $solicitud)
     {
-        $estado = request()->query('estado', 'pendiente');
-        return view('ModuloSecretaria.solicitudes.show', compact('solicitud', 'estado'));
+        $estado = EstadoSolicitud::tryFrom(request()->query('estado')) ?? EstadoSolicitud::Pendiente;
+        return view('ModuloSecretaria.solicitudes.show', [
+            'solicitud' => $solicitud,
+            'estado' => $estado->value,
+        ]);
     }
 
     /**
@@ -46,11 +52,11 @@ class SolicitudController extends Controller
     public function update(Request $request, Solicitud $solicitud)
     {
         $validated = $request->validate([
-            'estado' => ['required', 'in:aprobada,rechazada'],
+            'estado' => ['required', new Enum(EstadoSolicitud::class)],
             'respuesta' => ['required', 'string'],
         ]);
 
-        $solicitud->estado = $validated['estado'];
+        $solicitud->estado = EstadoSolicitud::from($validated['estado']);
         $solicitud->respuesta = $validated['respuesta'];
         $solicitud->save();
 

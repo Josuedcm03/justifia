@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 
 use App\Models\ModuloEstudiante\Solicitud;
 use App\Models\ModuloDocente\Reprogramacion;
+use App\Enums\EstadoAsistencia;
+use App\Enums\EstadoSolicitud;
+use Illuminate\Validation\Rules\Enum;
 
 class ReprogramacionController extends Controller
 {
@@ -14,15 +17,22 @@ class ReprogramacionController extends Controller
 
     public function index()
     {
-        $solicitudes = Solicitud::where('estado', 'aprobada')
+        $solicitudesAReprogramar = Solicitud::where('estado', EstadoSolicitud::Aprobada)
             ->whereHas('docenteAsignatura', function ($q) {
                 $q->where('docente_id', $this->docenteId);
             })
-            ->with('reprogramacion')
+            ->doesntHave('reprogramacion')
             ->orderByDesc('id')
             ->get();
 
-        return view('ModuloDocente.solicitudes.index', compact('solicitudes'));
+        $reprogramaciones = Reprogramacion::whereHas('solicitud.docenteAsignatura', function ($q) {
+                $q->where('docente_id', $this->docenteId);
+            })
+            ->with('solicitud.estudiante.usuario', 'solicitud.docenteAsignatura.asignatura')
+            ->orderByDesc('id')
+            ->get();
+
+        return view('ModuloDocente.solicitudes.index', compact('solicitudesAReprogramar', 'reprogramaciones'));
     }
 
     public function show(Solicitud $solicitud)
@@ -36,7 +46,7 @@ class ReprogramacionController extends Controller
         $validated = $request->validate([
             'fecha' => ['required', 'date'],
             'hora' => ['required'],
-            'asistencia' => ['required', 'in:pendiente,asistio,no_asistio'],
+            'asistencia' => ['required', new Enum(EstadoAsistencia::class)],
             'observaciones' => ['nullable', 'string'],
         ]);
 
@@ -54,7 +64,7 @@ class ReprogramacionController extends Controller
         $validated = $request->validate([
             'fecha' => ['required', 'date'],
             'hora' => ['required'],
-            'asistencia' => ['required', 'in:pendiente,asistio,no_asistio'],
+            'asistencia' => ['required', new Enum(EstadoAsistencia::class)],
             'observaciones' => ['nullable', 'string'],
         ]);
 

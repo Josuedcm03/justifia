@@ -4,6 +4,7 @@ namespace App\Models\ModuloEstudiante;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Enums\EstadoApelacion;
 
 class Apelacion extends Model
 {
@@ -19,6 +20,10 @@ class Apelacion extends Model
         'estado',
         'solicitud_id',
         'apelacion_id',
+    ];
+
+    protected $casts = [
+        'estado' => EstadoApelacion::class,
     ];
 
     public function solicitud()

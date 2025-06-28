@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 // Models
 use App\Models\ModuloEstudiante\Apelacion;
 use App\Models\ModuloEstudiante\Solicitud;
+use App\Enums\EstadoApelacion;
+use App\Enums\EstadoSolicitud;
+use Illuminate\Validation\Rules\Enum;
 
 class ApelacionController extends Controller
 {
@@ -16,14 +19,14 @@ class ApelacionController extends Controller
      */
     public function index(Request $request)
     {
-        $estado = $request->query('estado', 'pendiente');
+        $estado = EstadoApelacion::tryFrom($request->query('estado')) ?? EstadoApelacion::Pendiente;
         $apelaciones = Apelacion::where('estado', $estado)
             ->orderByDesc('id')
             ->get();
 
         return view('ModuloEstudiante.apelaciones.index', [
             'apelaciones' => $apelaciones,
-            'estado' => $estado,
+            'estado' => $estado->value,
         ]);
     }
 
@@ -48,13 +51,13 @@ class ApelacionController extends Controller
         ]);
 
         $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)
-            ->where('estado', 'rechazada')
+            ->where('estado', EstadoApelacion::Rechazada)
             ->orderByDesc('id')
             ->first();
 
         $data = [
             'observacion' => $validated['observacion_estudiante'],
-            'estado' => 'pendiente',
+            'estado' => EstadoApelacion::Pendiente,
             'solicitud_id' => $solicitud->id,
             'apelacion_id' => $ultimaRechazada?->id,
             'respuesta' => null,
@@ -74,8 +77,11 @@ class ApelacionController extends Controller
      */
     public function show(Apelacion $apelacion)
     {
-        $estado = request()->query('estado', 'pendiente');
-        return view('ModuloEstudiante.apelaciones.show', compact('apelacion', 'estado'));
+        $estado = EstadoApelacion::tryFrom(request()->query('estado')) ?? EstadoApelacion::Pendiente;
+        return view('ModuloEstudiante.apelaciones.show', [
+            'apelacion' => $apelacion,
+            'estado' => $estado->value,
+        ]);
     }
 
     /**

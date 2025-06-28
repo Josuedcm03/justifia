@@ -38,15 +38,15 @@
                             } }}"
                             class="{{
                                 match($estado) {
-                                    'pendiente' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0099a8]',
-                                    'aprobada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out',
-                                    'rechazada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400',
+                                    'pendiente' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-yellow-100/30 dark:focus:bg-yellow-400/10',
+                                    'aprobada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-green-100/30 dark:focus:bg-green-400/10',
+                                    'rechazada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-red-100/30 dark:focus:bg-red-400/10',
                                 }
                             }}" {{ $estado === 'rechazada' ? 'tabindex=0' : '' }}>
                             <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
                                 @if ($estado === 'pendiente')
-                                    <x-heroicon-o-pencil-square class="w-5 h-5 text-[#0099a8]" />
-                                    <span class="text-xs text-[#0099a8] hidden sm:inline">Modificar Solicitud</span>
+                                    <x-heroicon-o-pencil-square class="w-5 h-5 text-yellow-600" />
+                                    <span class="text-xs text-yellow-600 hidden sm:inline">Modificar Solicitud</span>
                                 @elseif ($estado === 'aprobada')
                                     <x-heroicon-o-eye class="w-5 h-5 text-green-600" />
                                     <span class="text-xs text-green-600 hidden sm:inline">Ver detalles</span>
@@ -60,7 +60,7 @@
                             <p class="mb-2"><strong>Fecha:</strong> {{ $solicitud->fecha_ausencia }}</p>
                             <p><strong>Estado:</strong>
                                 @if ($estado === 'pendiente')
-                                    <span class="bg-[#0099a8] text-white text-xs px-2 py-1 rounded font-semibold">Pendiente</span>
+                                    <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-semibold">Pendiente</span>
                                 @elseif ($estado === 'aprobada')
                                     <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold">Aprobada</span>
                                 @else
