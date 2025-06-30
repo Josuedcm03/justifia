@@ -11,6 +11,7 @@ use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloSecretaria\DocenteAsignatura;
 use App\Models\ModuloSecretaria\TipoConstancia;
 use App\Models\ModuloDocente\Reprogramacion;
+use App\Enums\EstadoSolicitud;
 
 class Solicitud extends Model
 {
@@ -33,6 +34,10 @@ class Solicitud extends Model
 
     protected $dates = [
         'fecha_ausencia',
+    ];
+
+    protected $casts = [
+        'estado' => EstadoSolicitud::class,
     ];
 
     // Relaciones

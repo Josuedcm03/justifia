@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 use App\Models\ModuloEstudiante\Apelacion;
+use App\Enums\EstadoApelacion;
+use App\Enums\EstadoSolicitud;
+use Illuminate\Validation\Rules\Enum;
 
 class ApelacionController extends Controller
 {
@@ -14,8 +17,9 @@ class ApelacionController extends Controller
      */
     public function index(Request $request)
     {
-        $estado = $request->query('estado', 'pendiente');
+        $estado = EstadoApelacion::tryFrom($request->query('estado')) ?? EstadoApelacion::Pendiente;
         $apelaciones = Apelacion::where('estado', $estado)
+            ->whereDoesntHave('apelacionesHijas')
             ->orderByDesc('id')
             ->paginate(9);
 
@@ -30,8 +34,15 @@ class ApelacionController extends Controller
      */
     public function show(Apelacion $apelacion)
     {
-        $estado = request()->query('estado', 'pendiente');
-        return view('ModuloSecretaria.apelaciones.show', compact('apelacion', 'estado'));
+        $estado = EstadoApelacion::tryFrom(request()->query('estado')) ?? EstadoApelacion::Pendiente;
+        $apelacion->load('apelacionPadre', 'solicitud');
+        $historial = $apelacion->historial();
+
+        return view('ModuloSecretaria.apelaciones.show', [
+            'apelacion' => $apelacion,
+            'estado' => $estado->value,
+            'historial' => $historial,
+        ]);
     }
 
     /**
@@ -40,17 +51,17 @@ class ApelacionController extends Controller
     public function update(Request $request, Apelacion $apelacion)
     {
         $validated = $request->validate([
-            'estado' => ['required', 'in:aprobada,rechazada'],
-            'respuesta' => ['required', 'string'],
+            'estado' => [new Enum(EstadoApelacion::class)],
+            'respuesta' => ['string'],
         ]);
 
-        $apelacion->estado = $validated['estado'];
+        $apelacion->estado = EstadoApelacion::from($validated['estado']);
         $apelacion->respuesta = $validated['respuesta'];
         $apelacion->save();
 
-        if ($validated['estado'] === 'aprobada') {
+        if ($apelacion->estado === EstadoApelacion::Aprobada) {
             $solicitud = $apelacion->solicitud;
-            $solicitud->estado = 'aprobada';
+            $solicitud->estado = EstadoSolicitud::Aprobada;
             $solicitud->respuesta = $validated['respuesta'];
             $solicitud->save();
         }

@@ -4,6 +4,7 @@ namespace App\Models\ModuloDocente;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Enums\EstadoAsistencia;
 
 // Models
 use App\Models\ModuloEstudiante\Solicitud;
@@ -26,6 +27,10 @@ class Reprogramacion extends Model
 
     protected $dates = [
         'fecha',
+    ];
+
+    protected $casts = [
+        'asistencia' => EstadoAsistencia::class,
     ];
 
     public function solicitud()

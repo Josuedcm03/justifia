@@ -5,6 +5,7 @@ import SolicitudEstudianteFrontera from './ModuloEstudiante/SolicitudFrontera';
 import ApelacionEstudianteFrontera from './ModuloEstudiante/ApelacionFrontera';
 import SolicitudSecretariaFrontera from './ModuloSecretaria/SolicitudFrontera';
 import ApelacionSecretariaFrontera from './ModuloSecretaria/ApelacionFrontera';
+import ReprogramacionDocenteFrontera from './ModuloDocente/ReprogramacionFrontera';
 
 window.Alpine = Alpine;
 
@@ -50,4 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (apelacionSecretariaEl) {
         new ApelacionSecretariaFrontera(apelacionSecretariaEl);
     }
+
+    document.querySelectorAll('[data-reprogramacion-docente-frontera]').forEach(form => {
+        new ReprogramacionDocenteFrontera(form);
+    });
 });

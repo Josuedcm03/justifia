@@ -8,22 +8,24 @@ use Illuminate\Http\Request;
 // Models
 use App\Models\ModuloEstudiante\Apelacion;
 use App\Models\ModuloEstudiante\Solicitud;
+use App\Enums\EstadoApelacion;
+use App\Enums\EstadoSolicitud;
+use Illuminate\Validation\Rules\Enum;
 
 class ApelacionController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $estado = $request->query('estado', 'pendiente');
-        $apelaciones = Apelacion::where('estado', $estado)
+        $apelaciones = Apelacion::whereDoesntHave('apelacionesHijas')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->groupBy(fn ($a) => $a->estado->value);
 
         return view('ModuloEstudiante.apelaciones.index', [
             'apelaciones' => $apelaciones,
-            'estado' => $estado,
         ]);
     }
 
@@ -44,17 +46,17 @@ class ApelacionController extends Controller
     public function store(Request $request, Solicitud $solicitud)
     {
         $validated = $request->validate([
-            'observacion_estudiante' => ['required', 'string'],
+            'observacion_estudiante' => ['string'],
         ]);
 
         $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)
-            ->where('estado', 'rechazada')
+            ->where('estado', EstadoApelacion::Rechazada)
             ->orderByDesc('id')
             ->first();
 
         $data = [
             'observacion' => $validated['observacion_estudiante'],
-            'estado' => 'pendiente',
+            'estado' => EstadoApelacion::Pendiente,
             'solicitud_id' => $solicitud->id,
             'apelacion_id' => $ultimaRechazada?->id,
             'respuesta' => null,
@@ -74,8 +76,13 @@ class ApelacionController extends Controller
      */
     public function show(Apelacion $apelacion)
     {
-        $estado = request()->query('estado', 'pendiente');
-        return view('ModuloEstudiante.apelaciones.show', compact('apelacion', 'estado'));
+        $apelacion->load('apelacionPadre', 'solicitud');
+        $historial = $apelacion->historial();
+
+        return view('ModuloEstudiante.apelaciones.show', [
+            'apelacion' => $apelacion,
+            'historial' => $historial,
+        ]);
     }
 
     /**

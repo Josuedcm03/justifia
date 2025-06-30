@@ -15,10 +15,10 @@
                 <p><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
                 <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }}</p>
                 <p><strong>Grupo:</strong> {{ $solicitud->docenteAsignatura->grupo }}</p>
-                <p><strong>Fecha de ausencia:</strong> {{ $solicitud->fecha_ausencia }}</p>
+                <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                 @if($solicitud->reprogramacion)
                     <h4 class="text-lg font-semibold mt-4">Reprogramación</h4>
-                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $solicitud) }}" class="space-y-4">
+                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $solicitud) }}" class="space-y-4" data-reprogramacion-docente-frontera>
                         @csrf
                         @method('PATCH')
                         <div>
@@ -28,14 +28,6 @@
                         <div>
                             <label class="block font-medium mb-1">Hora</label>
                             <input type="time" name="hora" value="{{ $solicitud->reprogramacion->hora }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                        </div>
-                        <div>
-                            <label class="block font-medium mb-1">Asistencia</label>
-                            <select name="asistencia" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                                <option value="pendiente" @selected($solicitud->reprogramacion->asistencia=='pendiente')>Pendiente</option>
-                                <option value="asistio" @selected($solicitud->reprogramacion->asistencia=='asistio')>Asistió</option>
-                                <option value="no_asistio" @selected($solicitud->reprogramacion->asistencia=='no_asistio')>No asistió</option>
-                            </select>
                         </div>
                         <div>
                             <label class="block font-medium mb-1">Observaciones</label>
@@ -49,7 +41,7 @@
                     </form>
                 @else
                     <h4 class="text-lg font-semibold mt-4">Crear Reprogramación</h4>
-                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.store', $solicitud) }}" class="space-y-4">
+                    <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.store', $solicitud) }}" class="space-y-4" data-reprogramacion-docente-frontera>
                         @csrf
                         <div>
                             <label class="block font-medium mb-1">Fecha</label>
@@ -58,14 +50,6 @@
                         <div>
                             <label class="block font-medium mb-1">Hora</label>
                             <input type="time" name="hora" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                        </div>
-                        <div>
-                            <label class="block font-medium mb-1">Asistencia</label>
-                            <select name="asistencia" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                                <option value="pendiente">Pendiente</option>
-                                <option value="asistio">Asistió</option>
-                                <option value="no_asistio">No asistió</option>
-                            </select>
                         </div>
                         <div>
                             <label class="block font-medium mb-1">Observaciones</label>
