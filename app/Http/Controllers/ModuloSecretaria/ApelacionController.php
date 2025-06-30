@@ -19,6 +19,7 @@ class ApelacionController extends Controller
     {
         $estado = EstadoApelacion::tryFrom($request->query('estado')) ?? EstadoApelacion::Pendiente;
         $apelaciones = Apelacion::where('estado', $estado)
+            ->whereDoesntHave('apelacionesHijas')
             ->orderByDesc('id')
             ->paginate(9);
 
@@ -34,9 +35,13 @@ class ApelacionController extends Controller
     public function show(Apelacion $apelacion)
     {
         $estado = EstadoApelacion::tryFrom(request()->query('estado')) ?? EstadoApelacion::Pendiente;
+        $apelacion->load('apelacionPadre', 'solicitud');
+        $historial = $apelacion->historial();
+
         return view('ModuloSecretaria.apelaciones.show', [
             'apelacion' => $apelacion,
             'estado' => $estado->value,
+            'historial' => $historial,
         ]);
     }
 

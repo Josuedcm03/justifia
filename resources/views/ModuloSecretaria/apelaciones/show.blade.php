@@ -35,10 +35,15 @@
                         <button type="button" class="text-[#0099a8] underline" x-data x-on:click="$dispatch('open-modal', 'ver-constancia')">Ver constancia</button>
                     @endif
                     <x-modal name="ver-constancia" focusable>
-                        <div class="p-4" x-data="{ zoom: 2 }">
+                        <div class="p-4" x-data="{ zoom: 1 }">
                             @if (in_array($ext, ['jpg', 'jpeg', 'png']))
                                 <div class="relative overflow-auto">
-                                    <img src="{{ Storage::url($apelacion->solicitud->constancia) }}" alt="Constancia" class="max-h-[80vh] mx-auto transition-transform" :style="`transform: scale(${zoom})`">
+                                    <img src="{{ Storage::url($apelacion->solicitud->constancia) }}"
+                                        alt="Constancia"
+                                        class="max-h-[80vh] mx-auto transition-transform origin-top-left"
+                                        :class="zoom === 1 ? 'cursor-zoom-in' : 'cursor-zoom-out'"
+                                        :style="`transform: scale(${zoom})`"
+                                        x-on:click="zoom = zoom === 1 ? 2 : 1">
                                     <button type="button" class="absolute top-2 right-2 bg-white dark:bg-gray-700 p-1 rounded-full shadow" x-on:click="zoom = zoom === 1 ? 2 : 1">
                                         <x-heroicon-o-magnifying-glass-plus class="w-5 h-5" x-show="zoom === 1" />
                                         <x-heroicon-o-magnifying-glass-minus class="w-5 h-5" x-show="zoom > 1" />
@@ -47,14 +52,27 @@
                             @elseif ($ext === 'pdf')
                                 <iframe src="{{ Storage::url($apelacion->solicitud->constancia) }}" class="w-full h-[80vh]"></iframe>
                             @else
-                                <a href="{{ Storage::url($apelacion->solicitud->constancia) }}" target="_blank" class="text-[#0099a8] underline">Abrir archivo</a>
+                                <p class="text-gray-700 dark:text-gray-300">Archivo no soportado para previsualización.</p>
                             @endif
+                            <a href="{{ Storage::url($apelacion->solicitud->constancia) }}" target="_blank" class="text-[#0099a8] underline block mt-2">Abrir archivo</a>
                             <div class="mt-4 text-right">
                                 <x-secondary-button x-on:click="$dispatch('close')">Cerrar</x-secondary-button>
                             </div>
                         </div>
                     </x-modal>
                 </div>
+
+                <details class="mt-4">
+                    <summary class="cursor-pointer text-[#0099a8] hover:text-[#007e8b] font-semibold">Ver historial</summary>
+                    <div class="mt-2 space-y-2">
+                        @foreach ($historial as $item)
+                            <div>
+                                <span class="font-medium">{{ $item['autor'] === 'estudiante' ? 'Estudiante:' : 'Secretaría:' }}</span>
+                                <p class="ml-4">{{ $item['mensaje'] }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
 
                 @if ($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)
                     <div class="flex justify-end gap-2 pt-4">

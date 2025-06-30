@@ -25,11 +25,10 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
 
         $solicitudes = Solicitud::where('estado', $estado)
-            ->when($estado === EstadoSolicitud::Rechazada, function ($query) {
-                $query->whereDoesntHave('apelaciones', function ($q) {
-                    $q->where('estado', EstadoApelacion::Pendiente);
-                });
-            })
+            ->when(
+                $estado === EstadoSolicitud::Rechazada,
+                fn($query) => $query->whereDoesntHave('apelaciones')
+            )
             ->orderByDesc('id')
             ->paginate(9);
 

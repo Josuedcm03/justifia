@@ -40,4 +40,37 @@ class Apelacion extends Model
     {
         return $this->hasMany(Apelacion::class, 'apelacion_id', 'id');
     }
+
+    /**
+     * Obtener el historial completo de esta apelación en orden cronológico.
+     * El historial comienza con la primera respuesta de la secretaría a la
+     * solicitud inicial y continúa con las observaciones y respuestas de cada
+     * apelación.
+     */
+    public function historial(): array
+    {
+        $historial = [];
+
+        $cadena = [];
+        $actual = $this;
+        while ($actual) {
+            $cadena[] = $actual;
+            $actual = $actual->apelacionPadre;
+        }
+        $cadena = array_reverse($cadena);
+
+        $respuestaInicial = $this->solicitud->respuesta;
+        if ($respuestaInicial) {
+            $historial[] = ['autor' => 'secretaria', 'mensaje' => $respuestaInicial];
+        }
+
+        foreach ($cadena as $apelacion) {
+            $historial[] = ['autor' => 'estudiante', 'mensaje' => $apelacion->observacion];
+            if ($apelacion->respuesta) {
+                $historial[] = ['autor' => 'secretaria', 'mensaje' => $apelacion->respuesta];
+            }
+        }
+
+        return $historial;
+    }
 }

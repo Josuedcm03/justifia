@@ -17,16 +17,15 @@ class ApelacionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $estado = EstadoApelacion::tryFrom($request->query('estado')) ?? EstadoApelacion::Pendiente;
-        $apelaciones = Apelacion::where('estado', $estado)
+        $apelaciones = Apelacion::whereDoesntHave('apelacionesHijas')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->groupBy(fn ($a) => $a->estado->value);
 
         return view('ModuloEstudiante.apelaciones.index', [
             'apelaciones' => $apelaciones,
-            'estado' => $estado->value,
         ]);
     }
 
@@ -77,10 +76,12 @@ class ApelacionController extends Controller
      */
     public function show(Apelacion $apelacion)
     {
-        $estado = EstadoApelacion::tryFrom(request()->query('estado')) ?? EstadoApelacion::Pendiente;
+        $apelacion->load('apelacionPadre', 'solicitud');
+        $historial = $apelacion->historial();
+
         return view('ModuloEstudiante.apelaciones.show', [
             'apelacion' => $apelacion,
-            'estado' => $estado->value,
+            'historial' => $historial,
         ]);
     }
 
