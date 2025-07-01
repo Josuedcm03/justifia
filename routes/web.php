@@ -11,6 +11,7 @@ use App\Http\Controllers\ModuloSecretaria\AsignaturaController;
 use App\Http\Controllers\ModuloSecretaria\CarreraController;
 use App\Http\Controllers\ModuloSecretaria\FacultadController;
 use App\Http\Controllers\ModuloSecretaria\DocenteController;
+use App\Http\Controllers\ModuloSecretaria\TipoConstanciaController;
 use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
 
 // During testing we skip the authentication screens and go straight to the
@@ -79,6 +80,10 @@ Route::prefix('secretaria')->name('secretaria.')->group(function () {
         Route::resource('docentes', DocenteController::class);
         Route::get('docentes-importar', [DocenteController::class, 'showImport'])->name('docentes.import.form');
         Route::post('docentes-importar', [DocenteController::class, 'import'])->name('docentes.import');
+
+        Route::resource('tipo-constancia', TipoConstanciaController::class)->parameters([
+    'tipo-constancia' => 'tipo_constancia'
+]);
         });
 
 Route::prefix('docente')->name('docente.')->group(function () {
