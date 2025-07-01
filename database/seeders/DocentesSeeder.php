@@ -33,6 +33,7 @@ class DocentesSeeder extends Seeder
                 'email' => $docente['email'],
                 'password' => Hash::make('password'),
                 'role_id' => $role?->id,
+                'email_verified_at' => now(),
             ]);
 
             Docente::create([

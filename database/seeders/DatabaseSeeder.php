@@ -39,6 +39,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
             'password' => 'secret',
             'role_id' => $estudianteRole?->id,
+            'email_verified_at' => now(),
         ]);
 
         Estudiante::create([

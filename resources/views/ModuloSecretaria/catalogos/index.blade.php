@@ -7,12 +7,25 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8 space-y-2">
-                <a href="{{ route('secretaria.tipo-constancia.index') }}" class="text-[#0099a8] hover:underline">{{ __('Tipos de constancia') }}</a>
-                <a href="{{ route('secretaria.facultades.index') }}" class="text-[#0099a8] hover:underline">{{ __('Facultades') }}</a>
-                <a href="{{ route('secretaria.docentes.index') }}" class="text-[#0099a8] hover:underline">{{ __('Docentes') }}</a>
-                <a href="{{ route('secretaria.carreras.index') }}" class="text-[#0099a8] hover:underline">{{ __('Carreras') }}</a>
-                <a href="{{ route('secretaria.asignaturas.index') }}" class="text-[#0099a8] hover:underline">{{ __('Asignaturas') }}</a>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                @php
+                    $catalogos = [
+                        ['label' => 'Tipos de constancia', 'route' => 'secretaria.tipo-constancia.index', 'icon' => 'document-text'],
+                        ['label' => 'Facultades', 'route' => 'secretaria.facultades.index', 'icon' => 'building-library'],
+                        ['label' => 'Docentes', 'route' => 'secretaria.docentes.index', 'icon' => 'users'],
+                        ['label' => 'Carreras', 'route' => 'secretaria.carreras.index', 'icon' => 'academic-cap'],
+                        ['label' => 'Asignaturas', 'route' => 'secretaria.asignaturas.index', 'icon' => 'book-open'],
+                    ];
+                @endphp
+
+                @foreach($catalogos as $cat)
+                    <a href="{{ route($cat['route']) }}" class="block bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-md transition border border-transparent hover:border-[#0099a8] group">
+                        <div class="flex items-center space-x-4">
+                            <x-dynamic-component :component="'heroicon-o-' . $cat['icon']" class="w-6 h-6 text-[#0099a8] group-hover:text-[#007e8b]" />
+                            <span class="text-lg font-semibold text-gray-800 dark:text-white group-hover:text-[#007e8b]">{{ __($cat['label']) }}</span>
+                        </div>
+                    </a>
+                @endforeach
             </div>
         </div>
     </div>

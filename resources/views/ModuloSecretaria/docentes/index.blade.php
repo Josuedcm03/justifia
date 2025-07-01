@@ -9,8 +9,10 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8">
                 <div class="flex justify-end mb-4">
+                    
                     <a href="{{ route('secretaria.docentes.import') }}" class="bg-[#6E7881] hover:bg-[#4f5961] text-white px-4 py-2 rounded-md text-sm font-semibold mr-2">Importar Excel</a>
                     <a href="{{ route('secretaria.docentes.create') }}" class="bg-[#0099a8] hover:bg-[#007e8b] text-white px-4 py-2 rounded-md text-sm font-semibold">Nuevo Docente</a>
+                
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
