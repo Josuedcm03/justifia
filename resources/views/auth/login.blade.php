@@ -10,7 +10,7 @@
             <x-input-label for="login" :value="__('CIF o Correo institucional')" />
             <div class="relative">
                 <x-heroicon-o-user class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input id="login" class="block mt-1 w-full ps-10" type="text" name="login" :value="old('login')" required autofocus autocomplete="username" />
+                <input id="login" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="text" name="login" :value="old('login')" required autofocus autocomplete="username" />
             </div>
             <x-input-error :messages="$errors->get('login')" class="mt-2" />
         </div>
@@ -22,10 +22,10 @@
             <div class="relative">
                 <x-heroicon-o-lock-closed x-show="!visible" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
                 <x-heroicon-o-lock-open x-show="visible" x-cloak class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input :type="visible ? 'text' : 'password'" id="password" class="block mt-1 w-full ps-10 pe-10" name="password" required autocomplete="current-password" />
+                <input :type="visible ? 'text' : 'password'" id="password" class="block mt-1 w-full ps-10 pe-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" name="password" required autocomplete="current-password" />
                 <button type="button" @click="visible = !visible" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400">
-                    <x-heroicon-o-eye x-show="!visible" class="w-5 h-5" />
-                    <x-heroicon-o-eye-slash x-show="visible" x-cloak class="w-5 h-5" />
+                    <x-heroicon-o-eye x-show="!visible" class="w-5 h-5 text-[#31c0d3]" />
+                    <x-heroicon-o-eye-slash x-show="visible" x-cloak class="w-5 h-5 text-[#31c0d3]" />
                 </button>
             </div>
 

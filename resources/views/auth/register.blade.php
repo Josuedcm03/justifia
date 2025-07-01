@@ -7,7 +7,7 @@
             <x-input-label for="name" :value="__('Nombre completo')" />
             <div class="relative">
                 <x-heroicon-o-user class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input id="name" class="block mt-1 w-full ps-10" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
+                <input id="name" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
             </div>
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
@@ -17,7 +17,7 @@
             <x-input-label for="cif" :value="__('CIF')" />
             <div class="relative">
                 <x-heroicon-o-identification class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input id="cif" class="block mt-1 w-full ps-10" type="text" name="cif" :value="old('cif')" required />
+                <input id="cif" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="text" name="cif" :value="old('cif')" required />
             </div>
             <x-input-error :messages="$errors->get('cif')" class="mt-2" />
         </div>
@@ -39,7 +39,7 @@
             <x-input-label for="email" :value="__('Correo institucional')" />
             <div class="relative">
                 <x-heroicon-o-envelope class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input id="email" class="block mt-1 w-full ps-10" type="email" name="email" :value="old('email')" required autocomplete="username" />
+                <input id="email" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="email" name="email" :value="old('email')" required autocomplete="username" />
             </div>
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
@@ -50,7 +50,7 @@
             <div class="relative">
                 <x-heroicon-o-lock-closed x-show="!visible" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
                 <x-heroicon-o-lock-open x-show="visible" x-cloak class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input :type="visible ? 'text' : 'password'" id="password" class="block mt-1 w-full ps-10 pe-10" name="password" required autocomplete="new-password" />
+                <input :type="visible ? 'text' : 'password'" id="password" class="block mt-1 w-full ps-10 pe-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" name="password" required autocomplete="new-password" />
                 <button type="button" @click="pass = !pass; visible = pass" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400">
                     <x-heroicon-o-eye x-show="!visible" class="w-5 h-5" />
                     <x-heroicon-o-eye-slash x-show="visible" x-cloak class="w-5 h-5" />
@@ -65,7 +65,7 @@
             <div class="relative">
                 <x-heroicon-o-lock-closed x-show="!visible" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
                 <x-heroicon-o-lock-open x-show="visible" x-cloak class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input :type="visible ? 'text' : 'password'" id="password_confirmation" class="block mt-1 w-full ps-10 pe-10" name="password_confirmation" required autocomplete="new-password" />
+                <input :type="visible ? 'text' : 'password'" id="password_confirmation" class="block mt-1 w-full ps-10 pe-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" name="password_confirmation" required autocomplete="new-password" />
                 <button type="button" @click="confirm = !confirm; visible = confirm" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400">
                     <x-heroicon-o-eye x-show="!visible" class="w-5 h-5" />
                     <x-heroicon-o-eye-slash x-show="visible" x-cloak class="w-5 h-5" />
