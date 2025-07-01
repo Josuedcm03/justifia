@@ -21,6 +21,7 @@ class Docente extends Model
 
 
     protected $fillable = [
+        'cif',
         'usuario_id',
         'carrera_id',
     ];

@@ -17,22 +17,37 @@
                     <h3 class="flex justify-center text-3xl font-bold mb-6 text-[#0099a8] dark:text-[#40c4d0]">{{ __('Detalles de Apelación') }}</h3>
                 @endif
 
-                <p><strong>Estudiante:</strong> {{ $apelacion->solicitud->estudiante->usuario->name }} ({{ $apelacion->solicitud->estudiante->cif }})</p>
-                <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }}</p>
-                <p><strong>Grupo:</strong> {{ $apelacion->solicitud->docenteAsignatura->grupo }}</p>
-                <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($apelacion->solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
-                <p><strong>Observación del estudiante:</strong> {{ $apelacion->observacion }}</p>
-                @if ($apelacion->respuesta)
-                    <p><strong>Respuesta:</strong> {{ $apelacion->respuesta }}</p>
+                @if($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)
+                <div class="bg-gray-100/80 dark:bg-gray-700/80 p-4 rounded-md">
+                    <p><strong>Apelación del estudiante:</strong> {{ $apelacion->observacion }}</p>
+                </div>
+                @elseif ($apelacion->respuesta && $apelacion->estado !== \App\Enums\EstadoApelacion::Pendiente)
+                    <div class="bg-gray-100/80 dark:bg-gray-700/80 p-4 rounded-md">
+                        <p><strong>Respuesta de la Secretaría:</strong> {{ $apelacion->respuesta }}</p>
+                    </div>
                 @endif
+
+                <p class="flex items-center"><strong class="mr-1">CIF:</strong>
+                    <span class="mr-1">{{ $apelacion->solicitud->estudiante->cif }}</span>
+                    <button type="button" class="text-gray-500 hover:text-gray-700"
+                        x-data
+                        x-on:click="navigator.clipboard.writeText('{{ $apelacion->solicitud->estudiante->cif }}')">
+                        <x-heroicon-o-clipboard class="w-5 h-5" />
+                    </button>
+                </p>
+                <p><strong>Estudiante:</strong> {{ $apelacion->solicitud->estudiante->usuario->name }}</p>
+                <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $apelacion->solicitud->docenteAsignatura->grupo }}</p>
+                <p><strong>Docente:</strong> {{ $apelacion->solicitud->docenteAsignatura->docente->usuario->name }}</p>
+                <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($apelacion->solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
+                <p><strong>Tipo de constancia:</strong> {{ $apelacion->solicitud->tipoConstancia->nombre }}</p>
 
                 @php $ext = strtolower(pathinfo($apelacion->solicitud->constancia, PATHINFO_EXTENSION)); @endphp
                 <div class="space-y-2">
-                    <label class="block font-medium">Constancia adjunta</label>
+                    <p><strong>Constancia adjunta:</strong></p></label>
                     @if (in_array($ext, ['jpg', 'jpeg', 'png']))
                         <img src="{{ Storage::url($apelacion->solicitud->constancia) }}" alt="Constancia" class="max-h-52 rounded cursor-pointer" x-data x-on:click="$dispatch('open-modal', 'ver-constancia')">
                     @else
-                        <button type="button" class="text-[#0099a8] underline" x-data x-on:click="$dispatch('open-modal', 'ver-constancia')">Ver constancia</button>
+                        <button type="button" class="text-[#0099a8] underline" x-data x-on:click="$dispatch('open-modal', 'ver-constancia')">Ver constancia PDF</button>
                     @endif
                     <x-modal name="ver-constancia" focusable>
                         <div class="p-4" x-data="{ zoom: 1 }">
@@ -63,7 +78,7 @@
                 </div>
 
                 <details class="mt-4">
-                    <summary class="cursor-pointer text-[#0099a8] hover:text-[#007e8b] font-semibold">Ver historial</summary>
+                    <summary class="cursor-pointer text-[#0099a8] hover:text-[#007e8b] font-semibold">Ver historial de respuestas</summary>
                     <div class="mt-2 space-y-2">
                         @foreach ($historial as $item)
                             <div>

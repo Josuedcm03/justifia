@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 
 // Models
 use App\Models\ModuloSecretaria\Docente;
+use App\Imports\DocentesImport;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class DocenteController extends Controller
 {
@@ -15,7 +19,8 @@ class DocenteController extends Controller
      */
     public function index()
     {
-        //
+        $docentes = Docente::orderBy('cif')->paginate(10);
+        return view('ModuloSecretaria.docentes.index', compact('docentes'));
     }
 
     /**
@@ -23,7 +28,7 @@ class DocenteController extends Controller
      */
     public function create()
     {
-        //
+        return view('ModuloSecretaria.docentes.create');
     }
 
     /**
@@ -31,7 +36,27 @@ class DocenteController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'cif' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        ]);
+
+        $password = $this->generatePassword($validated['name'], $validated['cif']);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($password),
+        ]);
+
+        Docente::create([
+            'cif' => $validated['cif'],
+            'usuario_id' => $user->id,
+        ]);
+
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docente creado correctamente. Contraseña: ' . $password);
     }
 
     /**
@@ -47,7 +72,7 @@ class DocenteController extends Controller
      */
     public function edit(Docente $docente)
     {
-        //
+        return view('ModuloSecretaria.docentes.edit', compact('docente'));
     }
 
     /**
@@ -55,7 +80,23 @@ class DocenteController extends Controller
      */
     public function update(Request $request, Docente $docente)
     {
-        //
+        $validated = $request->validate([
+            'cif' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $docente->usuario_id],
+        ]);
+
+        $docente->update([
+            'cif' => $validated['cif'],
+        ]);
+
+        $docente->usuario?->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
+
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docente actualizado correctamente.');
     }
 
     /**
@@ -63,6 +104,34 @@ class DocenteController extends Controller
      */
     public function destroy(Docente $docente)
     {
-        //
+        $docente->delete();
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docente eliminado correctamente.');
+    }
+
+    public function showImport()
+    {
+        return view('ModuloSecretaria.docentes.import');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx'],
+        ]);
+
+        Excel::import(new DocentesImport(), $request->file('file'));
+
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docentes importados correctamente.');
+    }
+
+    private function generatePassword(string $name, string $cif): string
+    {
+        $initials = implode('', array_map(fn ($part) => strtolower($part[0]), explode(' ', trim($name))));
+        $numbers = substr(preg_replace('/\D/', '', $cif), -4);
+        $random = random_int(10, 99);
+
+        return $initials . $numbers . $random;
     }
 }

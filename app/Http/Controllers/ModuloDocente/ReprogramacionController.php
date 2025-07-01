@@ -54,7 +54,7 @@ class ReprogramacionController extends Controller
         Reprogramacion::create($validated);
 
         return redirect()
-            ->route('docente.solicitudes.show', $solicitud)
+            ->route('docente.solicitudes.index')
             ->with('success', 'Reprogramación creada correctamente.');
     }
 
@@ -70,7 +70,7 @@ class ReprogramacionController extends Controller
         $solicitud->reprogramacion->update($validated);
 
         return redirect()
-            ->route('docente.solicitudes.show', $solicitud)
+            ->route('docente.solicitudes.index', $solicitud)
             ->with('success', 'Reprogramación actualizada correctamente.');
     }
 }
