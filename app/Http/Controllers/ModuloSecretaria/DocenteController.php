@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Models\ModuloSecretaria\Docente;
 use App\Imports\DocentesImport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\User;
 
 class DocenteController extends Controller
 {
@@ -26,7 +27,8 @@ class DocenteController extends Controller
      */
     public function create()
     {
-        return view('ModuloSecretaria.docentes.create');
+        $usuarios = User::orderBy('name')->get();
+        return view('ModuloSecretaria.docentes.create', compact('usuarios'));
     }
 
     /**
@@ -36,6 +38,7 @@ class DocenteController extends Controller
     {
         $validated = $request->validate([
             'cif' => ['required', 'string', 'max:255'],
+            'usuario_id' => ['required', 'exists:users,id'],
         ]);
         Docente::create($validated);
 
@@ -56,7 +59,8 @@ class DocenteController extends Controller
      */
     public function edit(Docente $docente)
     {
-        return view('ModuloSecretaria.docentes.edit', compact('docente'));
+        $usuarios = User::orderBy('name')->get();
+        return view('ModuloSecretaria.docentes.edit', compact('docente', 'usuarios'));
     }
 
     /**
@@ -66,6 +70,7 @@ class DocenteController extends Controller
     {
         $validated = $request->validate([
             'cif' => ['required', 'string', 'max:255'],
+            'usuario_id' => ['required', 'exists:users,id'],
         ]);
         $docente->update($validated);
 

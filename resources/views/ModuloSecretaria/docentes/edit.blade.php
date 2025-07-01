@@ -19,6 +19,16 @@
                         <input type="text" name="cif" id="cif" value="{{ old('cif', $docente->cif) }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
                         <x-input-error class="mt-2" :messages="$errors->get('cif')" />
                     </div>
+                    <div>
+                        <label for="usuario_id" class="block font-medium mb-1">Docente</label>
+                        <select name="usuario_id" id="usuario_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
+                            <option value="">Seleccione un usuario</option>
+                            @foreach($usuarios as $usuario)
+                                <option value="{{ $usuario->id }}" @selected(old('usuario_id', $docente->usuario_id) == $usuario->id)>{{ $usuario->name }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error class="mt-2" :messages="$errors->get('usuario_id')" />
+                    </div>
                     <div class="flex justify-end pt-4">
                         <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] font-semibold">Actualizar</button>
                     </div>
