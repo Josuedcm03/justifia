@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\ModuloSecretaria\Docente;
 use App\Models\User;
+use App\Models\ModuloSeguridad\Role;
 use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -18,10 +19,13 @@ class DocentesImport implements ToModel, WithHeadingRow
 
         $password = $this->generatePassword($row['name'], $row['cif']);
 
+        $role = Role::where('name', 'docente')->first();
+
         $user = User::create([
             'name' => $row['name'],
             'email' => $row['email'],
             'password' => Hash::make($password),
+            'role_id' => $role?->id,
         ]);
 
         return new Docente([

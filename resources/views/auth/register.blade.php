@@ -1,4 +1,14 @@
 <x-guest-layout>
+    <a href="{{ route('home') }}" class="flex items-center mb-4 text-gray-600 hover:text-[#006b75] transition">
+        <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
+        {{ __('Volver') }}
+    </a>
+
+    <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-[#006b75]">{{ __('Registrarse como estudiante') }}</h1>
+        <p class="text-gray-600 dark:text-gray-400">{{ __('Por favor, complete el formulario para crear una cuenta') }}</p>
+    </div>
+
     <form method="POST" action="{{ route('register') }}" x-data="{ pass: false, confirm: false }">
         @csrf
 

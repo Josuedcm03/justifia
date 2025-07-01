@@ -12,6 +12,7 @@ use App\Http\Controllers\ModuloSecretaria\CarreraController;
 use App\Http\Controllers\ModuloSecretaria\FacultadController;
 use App\Http\Controllers\ModuloSecretaria\DocenteController;
 use App\Http\Controllers\ModuloSecretaria\TipoConstanciaController;
+use App\Http\Controllers\ModuloSecretaria\CatalogoController;
 use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,8 +26,7 @@ Route::get('/', function () {
 
 Route::get('/dashboard', function () {
     return view('dashboard');
-//})->middleware(['auth', 'verified'])->name('dashboard');
-})->name('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 // Profile management still requires authentication once that feature is ready.
 
@@ -38,7 +38,7 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/auth.php';
 
-Route::middleware(['auth', 'role:estudiante'])->prefix('estudiante')->name('estudiante.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:estudiante'])->prefix('estudiante')->name('estudiante.')->group(function () {
     Route::get('docentes/{docente}/asignaturas', [EstudianteSolicitudController::class, 'asignaturasPorDocente'])
         ->name('docentes.asignaturas');
     Route::resource('solicitudes', EstudianteSolicitudController::class)->parameters([
@@ -57,7 +57,7 @@ Route::middleware(['auth', 'role:estudiante'])->prefix('estudiante')->name('estu
         ]);
 });
 
-Route::middleware(['auth', 'role:secretaria'])->prefix('secretaria')->name('secretaria.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')->name('secretaria.')->group(function () {
     Route::resource('solicitudes', SecretariaSolicitudController::class)
         ->only(['index', 'show', 'update'])
         ->parameters([
@@ -84,9 +84,11 @@ Route::middleware(['auth', 'role:secretaria'])->prefix('secretaria')->name('secr
         Route::resource('tipo-constancia', TipoConstanciaController::class)->parameters([
     'tipo-constancia' => 'tipo_constancia'
 ]);
-        });
 
-Route::middleware(['auth', 'role:docente'])->prefix('docente')->name('docente.')->group(function () {
+Route::get('catalogos', [CatalogoController::class, 'index'])->name('catalogos.index');
+    });
+
+Route::middleware(['auth', 'verified', 'role:docente'])->prefix('docente')->name('docente.')->group(function () {
     Route::get('solicitudes', [DocenteReprogramacionController::class, 'index'])->name('solicitudes.index');
     Route::get('solicitudes/{solicitud}', [DocenteReprogramacionController::class, 'show'])->name('solicitudes.show');
     Route::post('solicitudes/{solicitud}/reprogramacion', [DocenteReprogramacionController::class, 'storeReprogramacion'])->name('solicitudes.reprogramacion.store');

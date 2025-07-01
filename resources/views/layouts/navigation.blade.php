@@ -27,6 +27,9 @@
                         <x-nav-link :href="route('secretaria.apelaciones.index')" :active="request()->routeIs('secretaria.apelaciones.*')">
                             {{ __('Gestionar Apelaciones') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('secretaria.catalogos.index')" :active="request()->routeIs('secretaria.catalogos.*')">
+                            {{ __('Catálogos') }}
+                        </x-nav-link>
                     @endif
                     @if(auth()->check() && auth()->user()->hasRole('docente'))
                         <x-nav-link :href="route('docente.solicitudes.index')" :active="request()->routeIs('docente.solicitudes.*')">
@@ -105,6 +108,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('secretaria.apelaciones.index')" :active="request()->routeIs('secretaria.apelaciones.*')">
                 {{ __('Gestionar Apelaciones') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('secretaria.catalogos.index')" :active="request()->routeIs('secretaria.catalogos.*')">
+                {{ __('Catálogos') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('docente.solicitudes.index')" :active="request()->routeIs('docente.solicitudes.*')">
                 {{ __('Reprogramaciones') }}
