@@ -65,7 +65,7 @@ class SolicitudController extends Controller
 
         $data['estado'] = EstadoSolicitud::Pendiente;
 
-        $data['estudiante_id'] = 1;
+        $data['estudiante_id'] = $request->user()->estudiante->id;
 
         Solicitud::create($data);
 

@@ -12,21 +12,30 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('estudiante.solicitudes.index')" :active="request()->routeIs('estudiante.solicitudes.*')">
-                        {{ __('Ver Solicitudes') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('estudiante.apelaciones.index')" :active="request()->routeIs('estudiante.apelaciones.*')">
-                        {{ __('Ver Apelaciones') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
-                        {{ __('Gestionar Solicitudes') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('secretaria.apelaciones.index')" :active="request()->routeIs('secretaria.apelaciones.*')">
-                        {{ __('Gestionar Apelaciones') }}
-                    </x-nav-link>
-                <x-nav-link :href="route('docente.solicitudes.index')" :active="request()->routeIs('docente.solicitudes.*')">
-                        {{ __('Reprogramaciones') }}
-                    </x-nav-link>
+                    @if(auth()->check() && auth()->user()->hasRole('estudiante'))
+                        <x-nav-link :href="route('estudiante.solicitudes.index')" :active="request()->routeIs('estudiante.solicitudes.*')">
+                            {{ __('Ver Solicitudes') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('estudiante.apelaciones.index')" :active="request()->routeIs('estudiante.apelaciones.*')">
+                            {{ __('Ver Apelaciones') }}
+                        </x-nav-link>
+                    @endif
+                    @if(auth()->check() && auth()->user()->hasRole('secretaria'))
+                        <x-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
+                            {{ __('Gestionar Solicitudes') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('secretaria.apelaciones.index')" :active="request()->routeIs('secretaria.apelaciones.*')">
+                            {{ __('Gestionar Apelaciones') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('secretaria.catalogos.index')" :active="request()->routeIs('secretaria.catalogos.*')">
+                            {{ __('Catálogos') }}
+                        </x-nav-link>
+                    @endif
+                    @if(auth()->check() && auth()->user()->hasRole('docente'))
+                        <x-nav-link :href="route('docente.solicitudes.index')" :active="request()->routeIs('docente.solicitudes.*')">
+                            {{ __('Reprogramaciones') }}
+                        </x-nav-link>
+                    @endif
                 </div> 
             </div>
 
@@ -35,7 +44,9 @@
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-300 hover:text-gray-100 focus:outline-none transition ease-in-out duration-150">
-                            <div>Usuario Prueba</div>
+                        @if(Auth::check())    
+                        <div>{{ Auth::user()->name }}</div>
+                        @endif
 
                             <div class="ms-1">
                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -98,6 +109,9 @@
             <x-responsive-nav-link :href="route('secretaria.apelaciones.index')" :active="request()->routeIs('secretaria.apelaciones.*')">
                 {{ __('Gestionar Apelaciones') }}
             </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('secretaria.catalogos.index')" :active="request()->routeIs('secretaria.catalogos.*')">
+                {{ __('Catálogos') }}
+            </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('docente.solicitudes.index')" :active="request()->routeIs('docente.solicitudes.*')">
                 {{ __('Reprogramaciones') }}
             </x-responsive-nav-link>
@@ -106,8 +120,10 @@
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
             <div class="px-4">
-                <div class="font-medium text-base text-gray-800 dark:text-gray-200">Usuario Prueba</div>
-                <div class="font-medium text-sm text-gray-500">Correo Prueba</div>
+                @if(Auth::check())
+                <div class="font-medium text-base text-gray-800 dark:text-gray-200">{{ Auth::user()->name }}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">{{ Auth::user()->email }}</div>
+                @endif
             </div>
 
             <div class="mt-3 space-y-1">

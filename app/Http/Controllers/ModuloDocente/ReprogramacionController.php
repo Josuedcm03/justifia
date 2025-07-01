@@ -11,22 +11,23 @@ use App\Enums\EstadoAsistencia;
 use App\Enums\EstadoSolicitud;
 use Illuminate\Validation\Rules\Enum;
 
+
 class ReprogramacionController extends Controller
 {
-    private int $docenteId = 1; // docente fijo simulado
-
-    public function index()
+    public function index(Request $request)
     {
+        $docenteId = $request->user()->docente->id;
+
         $solicitudesAReprogramar = Solicitud::where('estado', EstadoSolicitud::Aprobada)
-            ->whereHas('docenteAsignatura', function ($q) {
-                $q->where('docente_id', $this->docenteId);
+            ->whereHas('docenteAsignatura', function ($q) use ($docenteId) {
+                $q->where('docente_id', $docenteId);
             })
             ->doesntHave('reprogramacion')
             ->orderByDesc('id')
             ->get();
 
-        $reprogramaciones = Reprogramacion::whereHas('solicitud.docenteAsignatura', function ($q) {
-                $q->where('docente_id', $this->docenteId);
+        $reprogramaciones = Reprogramacion::whereHas('solicitud.docenteAsignatura', function ($q) use ($docenteId) {
+                $q->where('docente_id', $docenteId);
             })
             ->with('solicitud.estudiante.usuario', 'solicitud.docenteAsignatura.asignatura')
             ->orderByDesc('id')

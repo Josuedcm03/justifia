@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use App\Models\ModuloSeguridad\Role;
 use App\Models\ModuloSecretaria\Carrera;
 use App\Models\ModuloEstudiante\Estudiante;
 
@@ -36,15 +37,18 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'cif' => ['required', 'string', 'max:255', 'unique:estudiantes,cif'],
+            'cif' => ['required', 'numeric', 'digits_between:1,8', 'unique:estudiantes,cif'],
             'carrera_id' => ['required', 'exists:carreras,id'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
+
+        $estudianteRole = Role::where('name', 'estudiante')->first();
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role_id' => $estudianteRole?->id,
         ]);
 
         Estudiante::create([

@@ -11,6 +11,7 @@ use App\Imports\DocentesImport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Models\ModuloSeguridad\Role;
 
 class DocenteController extends Controller
 {
@@ -44,10 +45,13 @@ class DocenteController extends Controller
 
         $password = $this->generatePassword($validated['name'], $validated['cif']);
 
+        $role = Role::where('name', 'docente')->first();
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($password),
+            'role_id' => $role?->id,
         ]);
 
         Docente::create([

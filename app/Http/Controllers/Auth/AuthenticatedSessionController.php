@@ -28,7 +28,23 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = $request->user();
+
+        if ($user?->hasRole('docente') && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+
+        $redirect = route('dashboard', absolute: false);
+
+        if ($user?->hasRole('estudiante')) {
+            $redirect = route('estudiante.solicitudes.index', absolute: false);
+        } elseif ($user?->hasRole('secretaria')) {
+            $redirect = route('secretaria.solicitudes.index', absolute: false);
+        } elseif ($user?->hasRole('docente')) {
+            $redirect = route('docente.solicitudes.index', absolute: false);
+        }
+
+        return redirect()->intended($redirect);
     }
 
     /**
