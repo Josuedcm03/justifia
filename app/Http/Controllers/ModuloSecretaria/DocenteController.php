@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 
 // Models
 use App\Models\ModuloSecretaria\Docente;
+use App\Imports\DocentesImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DocenteController extends Controller
 {
@@ -15,7 +17,8 @@ class DocenteController extends Controller
      */
     public function index()
     {
-        //
+        $docentes = Docente::orderBy('cif')->paginate(10);
+        return view('ModuloSecretaria.docentes.index', compact('docentes'));
     }
 
     /**
@@ -23,7 +26,7 @@ class DocenteController extends Controller
      */
     public function create()
     {
-        //
+        return view('ModuloSecretaria.docentes.create');
     }
 
     /**
@@ -31,7 +34,13 @@ class DocenteController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'cif' => ['required', 'string', 'max:255'],
+        ]);
+        Docente::create($validated);
+
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docente creado correctamente.');
     }
 
     /**
@@ -47,7 +56,7 @@ class DocenteController extends Controller
      */
     public function edit(Docente $docente)
     {
-        //
+        return view('ModuloSecretaria.docentes.edit', compact('docente'));
     }
 
     /**
@@ -55,7 +64,13 @@ class DocenteController extends Controller
      */
     public function update(Request $request, Docente $docente)
     {
-        //
+        $validated = $request->validate([
+            'cif' => ['required', 'string', 'max:255'],
+        ]);
+        $docente->update($validated);
+
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docente actualizado correctamente.');
     }
 
     /**
@@ -63,6 +78,25 @@ class DocenteController extends Controller
      */
     public function destroy(Docente $docente)
     {
-        //
+        $docente->delete();
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docente eliminado correctamente.');
+    }
+
+    public function showImport()
+    {
+        return view('ModuloSecretaria.docentes.import');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx'],
+        ]);
+
+        Excel::import(new DocentesImport(), $request->file('file'));
+
+        return redirect()->route('secretaria.docentes.index')
+            ->with('success', 'Docentes importados correctamente.');
     }
 }

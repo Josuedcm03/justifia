@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 
 // Models
 use App\Models\ModuloSecretaria\Carrera;
+use App\Models\ModuloSecretaria\Facultad;
 
 class CarreraController extends Controller
 {
@@ -15,7 +16,8 @@ class CarreraController extends Controller
      */
     public function index()
     {
-        //
+        $carreras = Carrera::with('facultad')->orderBy('nombre')->paginate(10);
+        return view('ModuloSecretaria.carreras.index', compact('carreras'));
     }
 
     /**
@@ -23,7 +25,8 @@ class CarreraController extends Controller
      */
     public function create()
     {
-        //
+        $facultades = Facultad::orderBy('nombre')->get();
+        return view('ModuloSecretaria.carreras.create', compact('facultades'));
     }
 
     /**
@@ -31,7 +34,13 @@ class CarreraController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'facultad_id' => ['required', 'exists:facultades,id'],
+        ]);
+        Carrera::create($validated);
+        return redirect()->route('secretaria.carreras.index')
+            ->with('success', 'Carrera creada correctamente.');
     }
 
     /**
@@ -47,7 +56,8 @@ class CarreraController extends Controller
      */
     public function edit(Carrera $carrera)
     {
-        //
+        $facultades = Facultad::orderBy('nombre')->get();
+        return view('ModuloSecretaria.carreras.edit', compact('carrera','facultades'));
     }
 
     /**
@@ -55,7 +65,13 @@ class CarreraController extends Controller
      */
     public function update(Request $request, Carrera $carrera)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'facultad_id' => ['required', 'exists:facultades,id'],
+        ]);
+        $carrera->update($validated);
+        return redirect()->route('secretaria.carreras.index')
+            ->with('success', 'Carrera actualizada correctamente.');
     }
 
     /**
@@ -63,6 +79,8 @@ class CarreraController extends Controller
      */
     public function destroy(Carrera $carrera)
     {
-        //
+        $carrera->delete();
+        return redirect()->route('secretaria.carreras.index')
+            ->with('success', 'Carrera eliminada correctamente.');
     }
 }

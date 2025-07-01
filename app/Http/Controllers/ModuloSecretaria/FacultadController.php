@@ -15,7 +15,8 @@ class FacultadController extends Controller
      */
     public function index()
     {
-        //
+        $facultades = Facultad::orderBy('nombre')->paginate(10);
+        return view('ModuloSecretaria.facultades.index', compact('facultades'));
     }
 
     /**
@@ -23,7 +24,7 @@ class FacultadController extends Controller
      */
     public function create()
     {
-        //
+        return view('ModuloSecretaria.facultades.create');
     }
 
     /**
@@ -31,7 +32,13 @@ class FacultadController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+        ]);
+        Facultad::create($validated);
+
+        return redirect()->route('secretaria.facultades.index')
+            ->with('success', 'Facultad creada correctamente.');
     }
 
     /**
@@ -47,7 +54,7 @@ class FacultadController extends Controller
      */
     public function edit(Facultad $facultad)
     {
-        //
+        return view('ModuloSecretaria.facultades.edit', compact('facultad'));
     }
 
     /**
@@ -55,7 +62,13 @@ class FacultadController extends Controller
      */
     public function update(Request $request, Facultad $facultad)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+        ]);
+        $facultad->update($validated);
+
+        return redirect()->route('secretaria.facultades.index')
+            ->with('success', 'Facultad actualizada correctamente.');
     }
 
     /**
@@ -63,6 +76,8 @@ class FacultadController extends Controller
      */
     public function destroy(Facultad $facultad)
     {
-        //
+        $facultad->delete();
+        return redirect()->route('secretaria.facultades.index')
+            ->with('success', 'Facultad eliminada correctamente.');
     }
 }

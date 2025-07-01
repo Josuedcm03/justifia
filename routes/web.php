@@ -7,6 +7,10 @@ use App\Http\Controllers\ModuloEstudiante\SolicitudController as EstudianteSolic
 use App\Http\Controllers\ModuloEstudiante\ApelacionController as EstudianteApelacionController;
 use App\Http\Controllers\ModuloSecretaria\SolicitudController as SecretariaSolicitudController;
 use App\Http\Controllers\ModuloSecretaria\ApelacionController as SecretariaApelacionController;
+use App\Http\Controllers\ModuloSecretaria\AsignaturaController;
+use App\Http\Controllers\ModuloSecretaria\CarreraController;
+use App\Http\Controllers\ModuloSecretaria\FacultadController;
+use App\Http\Controllers\ModuloSecretaria\DocenteController;
 use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
 
 // During testing we skip the authentication screens and go straight to the
@@ -65,6 +69,16 @@ Route::prefix('secretaria')->name('secretaria.')->group(function () {
             'apelaciones' => 'apelacion'
         ]);
 
+        Route::resource('asignaturas', AsignaturaController::class);
+        Route::get('asignaturas-importar', [AsignaturaController::class, 'showImport'])->name('asignaturas.import.form');
+        Route::post('asignaturas-importar', [AsignaturaController::class, 'import'])->name('asignaturas.import');
+
+        Route::resource('facultades', FacultadController::class);
+        Route::resource('carreras', CarreraController::class);
+
+        Route::resource('docentes', DocenteController::class);
+        Route::get('docentes-importar', [DocenteController::class, 'showImport'])->name('docentes.import.form');
+        Route::post('docentes-importar', [DocenteController::class, 'import'])->name('docentes.import');
         });
 
 Route::prefix('docente')->name('docente.')->group(function () {
