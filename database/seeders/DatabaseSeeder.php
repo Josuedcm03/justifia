@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
         $estudianteUser = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'password' => 'secret',
             'role_id' => $estudianteRole?->id,
         ]);
 
@@ -50,6 +51,7 @@ class DatabaseSeeder extends Seeder
         User::factory()->create([
             'name' => 'Secretaria',
             'email' => 'secretaria@example.com',
+            'password' => 'secret',
             'role_id' => $secretariaRole?->id,
         ]);
 

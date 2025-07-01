@@ -19,10 +19,10 @@ class DocentesSeeder extends Seeder
         }
 
         $docentes = [
-            ['name' => 'José Durán', 'email' => 'joseduran@example.com'],
-            ['name' => 'Armando López', 'email' => 'armandolopez@example.com'],
-            ['name' => 'Freddy López', 'email' => 'freddylopez@example.com'],
-            ['name' => 'Tobías Solano', 'email' => 'tobiassolano@example.com'],
+            ['name' => 'José Durán', 'email' => 'joseduran@example.com', 'cif' => '22010116'],
+            ['name' => 'Armando López', 'email' => 'armandolopez@example.com', 'cif' => '22010117'],
+            ['name' => 'Freddy López', 'email' => 'freddylopez@example.com', 'cif' => '22010118'],
+            ['name' => 'Tobías Solano', 'email' => 'tobiassolano@example.com', 'cif' => '22010119'],
         ];
 
         $role = Role::where('name', 'docente')->first();
@@ -38,6 +38,7 @@ class DocentesSeeder extends Seeder
             Docente::create([
                 'usuario_id' => $user->id,
                 'carrera_id' => $carrera->id,
+                'cif' => $docente['cif'],
             ]);
         }
     }
