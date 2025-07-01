@@ -9,6 +9,25 @@
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
 
+        <!-- CIF -->
+        <div class="mt-4">
+            <x-input-label for="cif" :value="__('CIF')" />
+            <x-text-input id="cif" class="block mt-1 w-full" type="text" name="cif" :value="old('cif')" required />
+            <x-input-error :messages="$errors->get('cif')" class="mt-2" />
+        </div>
+
+        <!-- Career -->
+        <div class="mt-4">
+            <x-input-label for="career" :value="__('Carrera')" />
+            <select id="career" name="career" class="block mt-1 w-full rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm">
+                <option value="">Seleccione su carrera</option>
+                <option value="ingenieria">Ingeniería</option>
+                <option value="medicina">Medicina</option>
+                <option value="derecho">Derecho</option>
+            </select>
+            <x-input-error :messages="$errors->get('career')" class="mt-2" />
+        </div>
+
         <!-- Email Address -->
         <div class="mt-4">
             <x-input-label for="email" :value="__('Email')" />
