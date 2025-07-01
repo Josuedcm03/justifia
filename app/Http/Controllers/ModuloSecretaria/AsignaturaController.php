@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 
 // Models
 use App\Models\ModuloSecretaria\Asignatura;
+use App\Imports\AsignaturasImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AsignaturaController extends Controller
 {
@@ -15,7 +17,8 @@ class AsignaturaController extends Controller
      */
     public function index()
     {
-        //
+        $asignaturas = Asignatura::orderBy('nombre')->paginate(10);
+        return view('ModuloSecretaria.asignaturas.index', compact('asignaturas'));
     }
 
     /**
@@ -23,7 +26,7 @@ class AsignaturaController extends Controller
      */
     public function create()
     {
-        //
+        return view('ModuloSecretaria.asignaturas.create');
     }
 
     /**
@@ -31,7 +34,13 @@ class AsignaturaController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+        ]);
+
+        Asignatura::create($validated);
+        return redirect()->route('secretaria.asignaturas.index')
+            ->with('success', 'Asignatura creada correctamente.');
     }
 
     /**
@@ -47,7 +56,7 @@ class AsignaturaController extends Controller
      */
     public function edit(Asignatura $asignatura)
     {
-        //
+        return view('ModuloSecretaria.asignaturas.edit', compact('asignatura'));
     }
 
     /**
@@ -55,7 +64,13 @@ class AsignaturaController extends Controller
      */
     public function update(Request $request, Asignatura $asignatura)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+        ]);
+        $asignatura->update($validated);
+
+        return redirect()->route('secretaria.asignaturas.index')
+            ->with('success', 'Asignatura actualizada correctamente.');
     }
 
     /**
@@ -63,6 +78,25 @@ class AsignaturaController extends Controller
      */
     public function destroy(Asignatura $asignatura)
     {
-        //
+        $asignatura->delete();
+        return redirect()->route('secretaria.asignaturas.index')
+            ->with('success', 'Asignatura eliminada correctamente.');
+    }
+
+    public function showImport()
+    {
+        return view('ModuloSecretaria.asignaturas.import');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx'],
+        ]);
+
+        Excel::import(new AsignaturasImport(), $request->file('file'));
+
+        return redirect()->route('secretaria.asignaturas.index')
+            ->with('success', 'Asignaturas importadas correctamente.');
     }
 }
