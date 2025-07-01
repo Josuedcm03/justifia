@@ -22,8 +22,10 @@
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     </head>
     <body class="font-sans antialiased">
+        
         <div class="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-150">
             @include('layouts.navigation')
+            <x-loader />
 
             <!-- Page Heading -->
             @isset($header)

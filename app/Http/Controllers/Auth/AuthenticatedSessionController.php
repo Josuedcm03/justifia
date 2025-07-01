@@ -29,6 +29,11 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
+
+        if ($user?->hasRole('docente') && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+
         $redirect = route('dashboard', absolute: false);
 
         if ($user?->hasRole('estudiante')) {
