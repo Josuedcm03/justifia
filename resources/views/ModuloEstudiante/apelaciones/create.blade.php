@@ -22,7 +22,9 @@
                     <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
                     <p><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>
                     <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
-                    <p><strong>Observaciones:</strong> {{$solicitud->observaciones ?? '-'}}</p>
+                    @if ($solicitud->observacion)
+                        <p><strong>Observación del estudiante:</strong> {{ $solicitud->observacion }}</p>
+                    @endif
                 </div>
 
                 @php $ext = strtolower(pathinfo($solicitud->constancia, PATHINFO_EXTENSION)); @endphp

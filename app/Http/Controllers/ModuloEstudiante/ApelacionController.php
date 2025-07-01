@@ -62,14 +62,15 @@ class ApelacionController extends Controller
             'respuesta' => null,
         ];
 
-        Apelacion::create($data);
+        $apelacion = Apelacion::create($data);
         
         $redirectEstado = $request->query('estado', 'rechazada');
-
+    
         return redirect()
-            ->route('estudiante.solicitudes.index', ['estado' => $redirectEstado])
+            ->route('estudiante.apelaciones.index', $apelacion)
             ->with('success', 'Apelación enviada correctamente.');
     }
+
 
     /**
      * Display the specified resource.
@@ -96,9 +97,22 @@ class ApelacionController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, int $apelacion)
+    public function update(Request $request, Solicitud $solicitud, Apelacion $apelacion)
     {
-        return redirect()->route('estudiante.apelaciones.index');
+        if ($apelacion->estado !== EstadoApelacion::Pendiente) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'observacion_estudiante' => ['string'],
+        ]);
+
+        $apelacion->observacion = $validated['observacion_estudiante'];
+        $apelacion->save();
+
+        return redirect()
+            ->route('estudiante.apelaciones.index')
+            ->with('success', 'Apelación actualizada correctamente.');
     }
 
     /**

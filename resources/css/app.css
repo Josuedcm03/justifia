@@ -20,4 +20,8 @@ color: #ffffff;
 --color-3: #0b545b;
 --color-4: #231f20;
 --color-5: #ffffff;
+
+}
+[x-cloak] {
+display: none !important;
 }
