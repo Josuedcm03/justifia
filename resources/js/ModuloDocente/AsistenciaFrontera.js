@@ -18,7 +18,7 @@ export default class AsistenciaFrontera {
             showDenyButton: true,
             confirmButtonColor: '#0b545b',
             denyButtonColor: '#b91c1c',
-            confirmButtonText: 'Asist\u00f3',
+            confirmButtonText: 'Asisti\u00f3',
             denyButtonText: 'No asisti\u00f3'
         }).then(result => {
             if (result.isConfirmed || result.isDenied) {

@@ -12,11 +12,11 @@
                 </summary>
                 <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @forelse($solicitudesAReprogramar as $solicitud)
-                        <a href="{{ route('docente.solicitudes.show', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out">
+                        <a href="{{ route('docente.solicitudes.show', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform focus:bg-yellow-100/30 dark:focus:bg-yellow-400/10">
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-2"><strong>Fecha ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
-                            <span class="text-sm text-yellow-600">Pendiente</span>
+                            <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-semibold">Reprogramación Pendiente</span>
                         </a>
                     @empty
                         <p class="col-span-full text-gray-600 dark:text-gray-400">{{ __('No hay solicitudes.') }}</p>
@@ -29,12 +29,19 @@
                     {{ __('Reprogramaciones Realizadas') }}
                 </summary>
                 <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
                     @forelse($reprogramaciones as $reprogramacion)
-                        <div class="relative group bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente) cursor-pointer @endif"
+                        <div class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente) cursor-pointer @endif"
                             @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
                                                                 data-asistencia-docente-frontera
                             @endif>
+
+                            
+                    @if ($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
+                            <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
+                                <x-heroicon-o-clipboard-document-check class="w-5 h-5 text-[#0099a8]" />
+                                <span class="text-sm text-[#0099a8] hidden sm:inline">Validar asistencia</span>
+                            </div>
+                        @endif
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $reprogramacion->solicitud->estudiante->usuario->name }}</p>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $reprogramacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $reprogramacion->solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-1 "><strong>Fecha programada:</strong> {{ \Illuminate\Support\Carbon::parse($reprogramacion->fecha)->locale('es')->isoFormat('dddd, DD [de] MMMM') }} </p>
