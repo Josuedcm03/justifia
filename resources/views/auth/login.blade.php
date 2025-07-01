@@ -5,21 +5,29 @@
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        <!-- Login -->
+        <div class="mb-4">
+            <x-input-label for="login" :value="__('CIF o Correo institucional')" />
+            <div class="relative">
+                <x-heroicon-o-user class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
+                <input id="login" class="block mt-1 w-full ps-10" type="text" name="login" :value="old('login')" required autofocus autocomplete="username" />
+            </div>
+            <x-input-error :messages="$errors->get('login')" class="mt-2" />
         </div>
 
         <!-- Password -->
-        <div class="mt-4">
+        <div class="mb-4" x-data="{ visible: false }">
             <x-input-label for="password" :value="__('Password')" />
 
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
+            <div class="relative">
+                <x-heroicon-o-lock-closed x-show="!visible" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
+                <x-heroicon-o-lock-open x-show="visible" x-cloak class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
+                <input :type="visible ? 'text' : 'password'" id="password" class="block mt-1 w-full ps-10 pe-10" name="password" required autocomplete="current-password" />
+                <button type="button" @click="visible = !visible" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400">
+                    <x-heroicon-o-eye x-show="!visible" class="w-5 h-5" />
+                    <x-heroicon-o-eye-slash x-show="visible" x-cloak class="w-5 h-5" />
+                </button>
+            </div>
 
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>

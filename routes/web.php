@@ -13,15 +13,15 @@ use App\Http\Controllers\ModuloSecretaria\FacultadController;
 use App\Http\Controllers\ModuloSecretaria\DocenteController;
 use App\Http\Controllers\ModuloSecretaria\TipoConstanciaController;
 use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
+use Illuminate\Support\Facades\Auth;
 
 // During testing we skip the authentication screens and go straight to the
 // dashboard. The root URL and `/dashboard` both render the dashboard view
 // without requiring authentication.
 
 Route::get('/', function () {
-    //return view('welcome');
-    return view('dashboard');
-});
+    return Auth::check() ? view('dashboard') : view('home');
+})->name('home');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
