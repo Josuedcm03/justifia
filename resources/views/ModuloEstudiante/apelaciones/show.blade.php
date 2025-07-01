@@ -15,11 +15,22 @@
 
 
                 @if ($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)
-                    <div class="bg-gray-100/80 dark:bg-gray-700/80 p-4 rounded-md">
-                    <p><strong>Respuesta del Estudiante:</strong> {{ $apelacion->observacion}}</p>
-                    </div>
-                @endif
-                @if ($apelacion->respuesta && $apelacion->estado !== \App\Enums\EstadoApelacion::Pendiente)
+                <form method="POST" action="{{ route('estudiante.solicitudes.apelaciones.update', ['solicitud' => $apelacion->solicitud, 'apelacion' => $apelacion]) }}" class="space-y-4" data-apelacion-estudiante-frontera>
+                        @csrf
+                        @method('PUT')
+                        <div class="bg-gray-100/80 dark:bg-gray-700/80 p-4 rounded-md">
+                            <label for="observacion_estudiante" class="block font-medium mb-1">Respuesta del Estudiante</label>
+                            <textarea id="observacion_estudiante" name="observacion_estudiante" rows="4" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>{{ old('observacion_estudiante', $apelacion->observacion) }}</textarea>
+                            <x-input-error class="mt-2" :messages="$errors->get('observacion_estudiante')" />
+                        <div class="flex justify-end pt-4">
+                            <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] transition font-semibold">
+                                {{ __('Guardar Cambios') }}
+                            </button>
+                        </div>
+                        </div>
+                        
+                    </form>
+                @elseif ($apelacion->respuesta && $apelacion->estado !== \App\Enums\EstadoApelacion::Pendiente)
                 <div class="bg-gray-100/80 dark:bg-gray-700/80 p-4 rounded-md">
                     <p><strong>Respuesta de la Secretaría:</strong> {{ $apelacion->respuesta }}</p>
                 </div>

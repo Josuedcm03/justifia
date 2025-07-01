@@ -20,7 +20,7 @@
                     </summary>
                     <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         @forelse($apelaciones[$clave] ?? [] as $apelacion)
-                            <a href="{{ route('estudiante.apelaciones.show', $apelacion) }}"
+                            <a href="{{ $apelacion->estado === \App\Enums\EstadoApelacion::Rechazada ? route('estudiante.solicitudes.apelaciones.create', ['solicitud' => $apelacion->solicitud, 'estado' => 'rechazada']) : route('estudiante.apelaciones.show', $apelacion) }}"
                                 class="{{
                                     match($apelacion->estado->value) {
                                         'pendiente' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform focus:bg-yellow-100/30 dark:focus:bg-yellow-400/10',

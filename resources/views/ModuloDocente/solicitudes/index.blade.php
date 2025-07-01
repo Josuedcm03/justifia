@@ -1,36 +1,47 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-[#212121] dark:text-gray-200 leading-tight">
+        <h2 class="font-semibold text-xl text-gray-200 leading-tight">
             {{ __('Gestionar Reprogramaciones') }}
         </h2>
     </x-slot>
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-12">
-            <div>
-                <h3 class="text-lg font-semibold mb-4">{{ __('Solicitudes a Reprogramar') }}</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
+            <details class="bg-white/50 dark:bg-gray-800/50 shadow rounded-lg" open>
+                <summary class="cursor-pointer px-4 py-2 text-[#0099a8] hover:text-[#007e8b] font-semibold">
+                    {{ __('Solicitudes a Reprogramar') }}
+                </summary>
+                <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @forelse($solicitudesAReprogramar as $solicitud)
-                        <a href="{{ route('docente.solicitudes.show', $solicitud) }}" class="bg-white dark:bg-gray-800 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out">
+                        <a href="{{ route('docente.solicitudes.show', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform focus:bg-yellow-100/30 dark:focus:bg-yellow-400/10">
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-2"><strong>Fecha ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
-                            <span class="text-sm text-yellow-600">Pendiente</span>
+                            <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-semibold">Reprogramación Pendiente</span>
                         </a>
                     @empty
                         <p class="col-span-full text-gray-600 dark:text-gray-400">{{ __('No hay solicitudes.') }}</p>
                     @endforelse
                 </div>
-            </div>
+            </details>
 
-            <div>
-                <h3 class="text-lg font-semibold mb-4">{{ __('Reprogramaciones Realizadas') }}</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <details class="bg-white/50 dark:bg-gray-800/50 shadow rounded-lg">
+                <summary class="cursor-pointer px-4 py-2 text-[#0099a8] hover:text-[#007e8b] font-semibold">
+                    {{ __('Reprogramaciones Realizadas') }}
+                </summary>
+                <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @forelse($reprogramaciones as $reprogramacion)
-                        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-5 text-[#212121] dark:text-white @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente) cursor-pointer @endif"
+                        <div data-asistencia-card class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente) cursor-pointer @endif"
                             @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
-                                x-data
-                                x-on:click="$dispatch('open-modal', 'asistencia-{{ $reprogramacion->id }}')"
+                                                                data-asistencia-docente-frontera
                             @endif>
+
+                            
+                    @if ($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
+                            <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none">
+                                <x-heroicon-o-clipboard-document-check class="w-5 h-5 text-[#0099a8]" />
+                                <span class="text-sm text-[#0099a8] hidden sm:inline">Validar asistencia</span>
+                            </div>
+                        @endif
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $reprogramacion->solicitud->estudiante->usuario->name }}</p>
                             <p class="mb-1"><strong>Asignatura:</strong> {{ $reprogramacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $reprogramacion->solicitud->docenteAsignatura->grupo }}</p>
                             <p class="mb-1 "><strong>Fecha programada:</strong> {{ \Illuminate\Support\Carbon::parse($reprogramacion->fecha)->locale('es')->isoFormat('dddd, DD [de] MMMM') }} </p>
@@ -44,25 +55,23 @@
                                     <x-heroicon-o-ellipsis-horizontal class="w-5 h-5 text-gray-500 ml-1" />
                                 @endif
                             </p>
+                            <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $reprogramacion->solicitud) }}" class="hidden" data-asistencia-form>
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="asistencia">
+                            </form>
+                            @if($reprogramacion->asistencia !== \App\Enums\EstadoAsistencia::Pendiente)
+                                <button type="button" data-asistencia-edit class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
+                                    <x-heroicon-o-pencil-square class="w-5 h-5 text-[#0099a8]" />
+                                    <span class="text-sm text-[#0099a8] hidden sm:inline">Modificar asistencia</span>
+                                </button>
+                            @endif
                         </div>
-                        @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
-                            <x-modal name="asistencia-{{ $reprogramacion->id }}" focusable>
-                                <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $reprogramacion->solicitud) }}" class="p-6 space-y-4">
-                                    @csrf
-                                    @method('PATCH')
-                                    <p class="text-center font-semibold">Registrar asistencia</p>
-                                    <div class="flex justify-center gap-4">
-                                        <button name="asistencia" value="asistio" class="bg-green-600 text-white px-4 py-2 rounded">Asistió</button>
-                                        <button name="asistencia" value="no_asistio" class="bg-red-600 text-white px-4 py-2 rounded">No asistió</button>
-                                    </div>
-                                </form>
-                            </x-modal>
-                        @endif
                     @empty
                         <p class="col-span-full text-gray-600 dark:text-gray-400">{{ __('No hay reprogramaciones.') }}</p>
                     @endforelse
                 </div>
-            </div>
+            </details>
         </div>
     </div>
 </x-app-layout>
