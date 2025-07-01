@@ -18,6 +18,7 @@
                             <tr>
                                 <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">CIF</th>
                                 <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Nombre</th>
+                                <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Correo</th>
                                 <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-right text-xs font-medium text-white uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
@@ -26,6 +27,7 @@
                                 <tr>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $docente->cif }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $docente->usuario?->name }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $docente->usuario?->email }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 text-right space-x-2">
                                         <a href="{{ route('secretaria.docentes.edit', $docente) }}" class="text-[#0099a8] hover:underline">Editar</a>
                                         <form action="{{ route('secretaria.docentes.destroy', $docente) }}" method="POST" class="inline">
@@ -37,7 +39,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="3" class="px-6 py-4 text-center text-gray-600 dark:text-gray-400">No hay docentes.</td>
+                                    <td colspan="4" class="px-6 py-4 text-center text-gray-600 dark:text-gray-400">No hay docentes.</td>
                                 </tr>
                             @endforelse
                         </tbody>

@@ -21,6 +21,7 @@ class Carrera extends Model
 
     protected $fillable = [
         'nombre',
+        'facultad_id',
     ];
 
     // Relaciones

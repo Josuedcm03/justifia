@@ -3,6 +3,8 @@
 namespace App\Imports;
 
 use App\Models\ModuloSecretaria\Docente;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -10,8 +12,30 @@ class DocentesImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
-        return new Docente([
-            'cif' => $row['cif'] ?? null,
+        if (!isset($row['cif'], $row['name'], $row['email'])) {
+            return null;
+        }
+
+        $password = $this->generatePassword($row['name'], $row['cif']);
+
+        $user = User::create([
+            'name' => $row['name'],
+            'email' => $row['email'],
+            'password' => Hash::make($password),
         ]);
+
+        return new Docente([
+            'cif' => $row['cif'],
+            'usuario_id' => $user->id,
+        ]);
+    }
+
+    private function generatePassword(string $name, string $cif): string
+    {
+        $initials = implode('', array_map(fn ($part) => strtolower($part[0]), explode(' ', trim($name))));
+        $numbers = substr(preg_replace('/\D/', '', $cif), -4);
+        $random = random_int(10, 99);
+
+        return $initials . $numbers . $random;
     }
 }

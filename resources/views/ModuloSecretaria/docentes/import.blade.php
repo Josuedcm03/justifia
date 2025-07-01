@@ -11,7 +11,9 @@
     <div class="py-12">
         <div class="max-w-md mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8">
-                <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">El archivo debe tener una columna llamada <strong>cif</strong>.</p>
+                <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                    El archivo debe contener las columnas <strong>cif</strong>, <strong>name</strong> y <strong>email</strong>.
+                </p>
                 <form method="POST" action="{{ route('secretaria.docentes.import') }}" enctype="multipart/form-data" class="space-y-4">
                     @csrf
                     <input type="file" name="file" accept=".xlsx" required>
