@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\ModuloSecretaria\Docente;
 use App\Models\User;
 use App\Models\ModuloSecretaria\Carrera;
+use App\Models\ModuloSeguridad\Role;
 use Illuminate\Support\Facades\Hash;
 
 class DocentesSeeder extends Seeder
@@ -24,11 +25,14 @@ class DocentesSeeder extends Seeder
             ['name' => 'Tobías Solano', 'email' => 'tobiassolano@example.com'],
         ];
 
+        $role = Role::where('name', 'docente')->first();
+
         foreach ($docentes as $docente) {
             $user = User::create([
                 'name' => $docente['name'],
                 'email' => $docente['email'],
                 'password' => Hash::make('password'),
+                'role_id' => $role?->id,
             ]);
 
             Docente::create([

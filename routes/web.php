@@ -38,7 +38,7 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/auth.php';
 
-Route::prefix('estudiante')->name('estudiante.')->group(function () {
+Route::middleware(['auth', 'role:estudiante'])->prefix('estudiante')->name('estudiante.')->group(function () {
     Route::get('docentes/{docente}/asignaturas', [EstudianteSolicitudController::class, 'asignaturasPorDocente'])
         ->name('docentes.asignaturas');
     Route::resource('solicitudes', EstudianteSolicitudController::class)->parameters([
@@ -57,7 +57,7 @@ Route::prefix('estudiante')->name('estudiante.')->group(function () {
         ]);
 });
 
-Route::prefix('secretaria')->name('secretaria.')->group(function () {
+Route::middleware(['auth', 'role:secretaria'])->prefix('secretaria')->name('secretaria.')->group(function () {
     Route::resource('solicitudes', SecretariaSolicitudController::class)
         ->only(['index', 'show', 'update'])
         ->parameters([
@@ -86,7 +86,7 @@ Route::prefix('secretaria')->name('secretaria.')->group(function () {
 ]);
         });
 
-Route::prefix('docente')->name('docente.')->group(function () {
+Route::middleware(['auth', 'role:docente'])->prefix('docente')->name('docente.')->group(function () {
     Route::get('solicitudes', [DocenteReprogramacionController::class, 'index'])->name('solicitudes.index');
     Route::get('solicitudes/{solicitud}', [DocenteReprogramacionController::class, 'show'])->name('solicitudes.show');
     Route::post('solicitudes/{solicitud}/reprogramacion', [DocenteReprogramacionController::class, 'storeReprogramacion'])->name('solicitudes.reprogramacion.store');
