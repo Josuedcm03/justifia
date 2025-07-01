@@ -30,7 +30,7 @@
                 </summary>
                 <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @forelse($reprogramaciones as $reprogramacion)
-                        <div class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente) cursor-pointer @endif"
+                        <div data-asistencia-card class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-[#0099a8] shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente) cursor-pointer @endif"
                             @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
                                                                 data-asistencia-docente-frontera
                             @endif>
@@ -55,12 +55,16 @@
                                     <x-heroicon-o-ellipsis-horizontal class="w-5 h-5 text-gray-500 ml-1" />
                                 @endif
                             </p>
-                            @if($reprogramacion->asistencia === \App\Enums\EstadoAsistencia::Pendiente)
-                                <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $reprogramacion->solicitud) }}" class="hidden" data-asistencia-form>
-                                    @csrf
-                                    @method('PATCH')
-                                    <input type="hidden" name="asistencia">
-                                </form>
+                            <form method="POST" action="{{ route('docente.solicitudes.reprogramacion.update', $reprogramacion->solicitud) }}" class="hidden" data-asistencia-form>
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="asistencia">
+                            </form>
+                            @if($reprogramacion->asistencia !== \App\Enums\EstadoAsistencia::Pendiente)
+                                <button type="button" data-asistencia-edit class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
+                                    <x-heroicon-o-pencil-square class="w-5 h-5 text-[#0099a8]" />
+                                    <span class="text-sm text-[#0099a8] hidden sm:inline">Modificar asistencia</span>
+                                </button>
                             @endif
                         </div>
                     @empty

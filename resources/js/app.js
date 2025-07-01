@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         new ReprogramacionDocenteFrontera(form);
     });
 
-    document.querySelectorAll('[data-asistencia-docente-frontera]').forEach(card => {
+    document.querySelectorAll('[data-asistencia-card]').forEach(card => {
         new AsistenciaFrontera(card);
     });
 });
