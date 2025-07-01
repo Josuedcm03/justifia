@@ -15,7 +15,8 @@ class TipoConstanciaController extends Controller
      */
     public function index()
     {
-        //
+        $tipos = TipoConstancia::orderBy('nombre')->paginate(10);
+        return view('ModuloSecretaria.tipos-constancia.index', compact('tipos'));
     }
 
     /**
@@ -23,7 +24,7 @@ class TipoConstanciaController extends Controller
      */
     public function create()
     {
-        //
+        return view('ModuloSecretaria.tipos-constancia.create');
     }
 
     /**
@@ -31,7 +32,13 @@ class TipoConstanciaController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+        ]);
+
+        TipoConstancia::create($validated);
+        return redirect()->route('secretaria.tipo-constancia.index')
+            ->with('success', 'Tipo de constancia creado correctamente.');
     }
 
     /**
@@ -47,7 +54,9 @@ class TipoConstanciaController extends Controller
      */
     public function edit(TipoConstancia $TipoConstancia)
     {
-        //
+        return view('ModuloSecretaria.tipos-constancia.edit', [
+            'tipoConstancia' => $TipoConstancia,
+        ]);
     }
 
     /**
@@ -55,7 +64,14 @@ class TipoConstanciaController extends Controller
      */
     public function update(Request $request, TipoConstancia $TipoConstancia)
     {
-        //
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+        ]);
+
+        $TipoConstancia->update($validated);
+
+        return redirect()->route('secretaria.tipo-constancia.index')
+            ->with('success', 'Tipo de constancia actualizado correctamente.');
     }
 
     /**
@@ -63,6 +79,8 @@ class TipoConstanciaController extends Controller
      */
     public function destroy(TipoConstancia $TipoConstancia)
     {
-        //
+        $TipoConstancia->delete();
+        return redirect()->route('secretaria.tipo-constancia.index')
+            ->with('success', 'Tipo de constancia eliminado correctamente.');
     }
 }
