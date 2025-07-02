@@ -31,7 +31,7 @@ class DocentesSeeder extends Seeder
             $user = User::create([
                 'name' => $docente['name'],
                 'email' => $docente['email'],
-                'password' => Hash::make('password'),
+                'password' => 'secret',
                 'role_id' => $role?->id,
                 'email_verified_at' => now(),
             ]);
