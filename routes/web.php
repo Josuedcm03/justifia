@@ -74,7 +74,9 @@ Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')
         Route::get('asignaturas-importar', [AsignaturaController::class, 'showImport'])->name('asignaturas.import.form');
         Route::post('asignaturas-importar', [AsignaturaController::class, 'import'])->name('asignaturas.import');
 
-        Route::resource('facultades', FacultadController::class);
+        Route::resource('facultades', FacultadController::class)->parameters([
+            'facultades' => 'facultad'
+        ]);
         Route::resource('carreras', CarreraController::class);
 
         Route::resource('docentes', DocenteController::class);

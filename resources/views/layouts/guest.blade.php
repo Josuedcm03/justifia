@@ -5,6 +5,7 @@
         $isAuthPage = request()->routeIs('login') || request()->routeIs('register');
         $isAuthPage = $isAuthPage || request()->routeIs('password.*') || request()->routeIs('verification.*') || request()->routeIs('home');
     @endphp
+    
     <script>
         @if(! $isAuthPage)
             if (localStorage.getItem('theme') === 'dark') {
@@ -37,11 +38,6 @@
             <div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
         @endif
 
-        <div class="relative z-10">
-            <a href="/">
-                <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-            </a>
-        </div>
 
         <div class="relative z-10 w-full sm:max-w-md mt-6 px-6 py-4 bg-white/70 dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg">
             {{ $slot }}

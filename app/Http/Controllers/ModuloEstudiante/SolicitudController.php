@@ -25,6 +25,7 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
 
         $solicitudes = Solicitud::where('estado', $estado)
+        ->where('estudiante_id', $request->user()->estudiante->id)
             ->when(
                 $estado === EstadoSolicitud::Rechazada,
                 fn($query) => $query->whereDoesntHave('apelaciones')

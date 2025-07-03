@@ -97,12 +97,15 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            @if(auth()->check() && auth()->user()->hasRole('estudiante'))
             <x-responsive-nav-link :href="route('estudiante.solicitudes.index')" :active="request()->routeIs('estudiante.solicitudes.*')">
                 {{ __('Ver Solicitudes') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('estudiante.apelaciones.index')" :active="request()->routeIs('estudiante.apelaciones.*')">
                 {{ __('Ver Apelaciones') }}
             </x-responsive-nav-link>
+            @endif
+            @if(auth()->check() && auth()->user()->hasRole('secretaria'))
             <x-responsive-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                 {{ __('Gestionar Solicitudes') }}
             </x-responsive-nav-link>
@@ -112,9 +115,12 @@
             <x-responsive-nav-link :href="route('secretaria.catalogos.index')" :active="request()->routeIs('secretaria.catalogos.*')">
                 {{ __('Catálogos') }}
             </x-responsive-nav-link>
+            @endif
+            @if(auth()->check() && auth()->user()->hasRole('docente'))
             <x-responsive-nav-link :href="route('docente.solicitudes.index')" :active="request()->routeIs('docente.solicitudes.*')">
                 {{ __('Reprogramaciones') }}
             </x-responsive-nav-link>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->
