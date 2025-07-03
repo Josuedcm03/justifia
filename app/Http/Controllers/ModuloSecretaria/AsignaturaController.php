@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ModuloSecretaria;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 
 // Models
 use App\Models\ModuloSecretaria\Asignatura;
@@ -78,9 +79,14 @@ class AsignaturaController extends Controller
      */
     public function destroy(Asignatura $asignatura)
     {
-        $asignatura->delete();
-        return redirect()->route('secretaria.asignaturas.index')
-            ->with('success', 'Asignatura eliminada correctamente.');
+        try {
+            $asignatura->delete();
+            return redirect()->route('secretaria.asignaturas.index')
+                ->with('success', 'Asignatura eliminada correctamente.');
+        } catch (QueryException $e) {
+            return redirect()->route('secretaria.asignaturas.index')
+                ->with('error', 'No se puede eliminar la asignatura porque está asociada a otros registros.');
+        }
     }
 
     public function showImport()

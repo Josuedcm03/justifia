@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ModuloSecretaria;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 
 // Models
 use App\Models\ModuloSecretaria\Carrera;
@@ -79,8 +80,13 @@ class CarreraController extends Controller
      */
     public function destroy(Carrera $carrera)
     {
-        $carrera->delete();
-        return redirect()->route('secretaria.carreras.index')
-            ->with('success', 'Carrera eliminada correctamente.');
+        try {
+            $carrera->delete();
+            return redirect()->route('secretaria.carreras.index')
+                ->with('success', 'Carrera eliminada correctamente.');
+        } catch (QueryException $e) {
+            return redirect()->route('secretaria.carreras.index')
+                ->with('error', 'No se puede eliminar la carrera porque está asociada a otros registros.');
+        }
     }
 }

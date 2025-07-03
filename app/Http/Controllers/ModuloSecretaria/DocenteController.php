@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ModuloSecretaria;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 
 // Models
 use App\Models\ModuloSecretaria\Docente;
@@ -108,9 +109,14 @@ class DocenteController extends Controller
      */
     public function destroy(Docente $docente)
     {
-        $docente->delete();
-        return redirect()->route('secretaria.docentes.index')
-            ->with('success', 'Docente eliminado correctamente.');
+        try {
+            $docente->delete();
+            return redirect()->route('secretaria.docentes.index')
+                ->with('success', 'Docente eliminado correctamente.');
+        } catch (QueryException $e) {
+            return redirect()->route('secretaria.docentes.index')
+                ->with('error', 'No se puede eliminar el docente porque está asociado a otros registros.');
+        }
     }
 
     public function showImport()
