@@ -1,7 +1,8 @@
+import { getCurrentTheme } from '../utils/theme';
+
 export default class AsistenciaFrontera {
     constructor(card) {
         this.card = card;
-        this.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
         this.form = card.querySelector('[data-asistencia-form]');
         this.editBtn = card.querySelector('[data-asistencia-edit]');
         this.init();
@@ -21,7 +22,7 @@ export default class AsistenciaFrontera {
 
     showModal() {
         Swal.fire({
-            theme: this.theme,
+            theme: getCurrentTheme(),
             title: 'Registrar asistencia',
             showDenyButton: true,
             confirmButtonColor: '#0b545b',
@@ -38,7 +39,7 @@ export default class AsistenciaFrontera {
 
     showEditModal() {
         Swal.fire({
-            theme: this.theme,
+            theme: getCurrentTheme(),
             title: 'Modificar asistencia',
             showDenyButton: true,
             confirmButtonColor: '#0b545b',

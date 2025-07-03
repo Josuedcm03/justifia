@@ -1,7 +1,8 @@
+import { getCurrentTheme } from '../utils/theme';
+
 export default class ReprogramacionFrontera {
-    constructor(form, options = {}) {
+    constructor(form) {
         this.form = form;
-        this.theme = options.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
         this.form.addEventListener('submit', e => {
             e.preventDefault();
             if (this.validate()) {
@@ -33,7 +34,7 @@ export default class ReprogramacionFrontera {
 
         if (errors.length) {
             Swal.fire({
-                theme: this.theme,
+                theme: getCurrentTheme(),
                 title: 'Errores de validación',
                 html: `<ul class="text-center">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`,
                 icon: 'error',
@@ -46,7 +47,7 @@ export default class ReprogramacionFrontera {
 
     confirmSubmit() {
         Swal.fire({
-            theme: this.theme,
+            theme: getCurrentTheme(),
             title: '¿Confirmar reprogramación?',
             iconHtml: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#0b545b]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`,
             showCancelButton: true,

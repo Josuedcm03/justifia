@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use App\Models\ModuloSeguridad\Role;
 use App\Models\ModuloSecretaria\Carrera;
@@ -34,14 +35,20 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'cif' => ['required', 'numeric', 'digits_between:1,8', 'unique:estudiantes,cif'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
+            'cif' => ['required', 'numeric', 'digits:8', 'unique:estudiantes,cif'],
             'carrera_id' => ['required', 'exists:carreras,id'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput($request->except($validator->errors()->keys()));
+        }
+        
         $estudianteRole = Role::where('name', 'estudiante')->first();
 
         $user = User::create([

@@ -1,7 +1,8 @@
+import { getCurrentTheme } from '../utils/theme';
+
 export default class ApelacionFrontera {
-    constructor(form, options = {}) {
+    constructor(form) {
         this.form = form;
-        this.theme = options.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
         this.form.addEventListener('submit', e => {
             if (!this.validate()) {
                 e.preventDefault();
@@ -18,7 +19,7 @@ export default class ApelacionFrontera {
 
         if (errors.length) {
             Swal.fire({
-                theme: this.theme,
+                theme: getCurrentTheme(),
                 title: 'Errores de validación',
                 html: `<ul class="text-center">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`,
                 icon: 'error',
