@@ -28,7 +28,7 @@
                             {{ __('Gestionar Apelaciones') }}
                         </x-nav-link>
                         <x-nav-link :href="route('secretaria.catalogos.index')" :active="request()->routeIs('secretaria.catalogos.*')">
-                            {{ __('Catálogos') }}
+                            {{ __('Gestionar Catálogos') }}
                         </x-nav-link>
                     @endif
                     @if(auth()->check() && auth()->user()->hasRole('docente'))
@@ -113,7 +113,7 @@
                 {{ __('Gestionar Apelaciones') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('secretaria.catalogos.index')" :active="request()->routeIs('secretaria.catalogos.*')">
-                {{ __('Catálogos') }}
+                {{ __('Gestionar Catálogos') }}
             </x-responsive-nav-link>
             @endif
             @if(auth()->check() && auth()->user()->hasRole('docente'))

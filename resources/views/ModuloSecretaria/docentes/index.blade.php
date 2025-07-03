@@ -7,20 +7,27 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8">
+            <div class="bg-white/50 dark:bg-gray-800/50 shadow sm:rounded-lg p-8">
                 <div class="flex justify-end mb-4">
-                    
-                    <a href="{{ route('secretaria.docentes.import') }}" class="bg-[#6E7881] hover:bg-[#4f5961] text-white px-4 py-2 rounded-md text-sm font-semibold mr-2">Importar Excel</a>
-                    <a href="{{ route('secretaria.docentes.create') }}" class="bg-[#0099a8] hover:bg-[#007e8b] text-white px-4 py-2 rounded-md text-sm font-semibold">Nuevo Docente</a>
-                
+                    <a href="{{ route('secretaria.docentes.import') }}"
+                    class="inline-flex items-center gap-2 bg-[#6E7881] hover:bg-[#4f5961] text-white px-4 py-2 rounded-md text-sm font-semibold mr-2 transition">
+                    <x-heroicon-o-document-plus class="w-5 h-5" />
+                    Importar Excel
+                    </a>
+                    <a href="{{ route('secretaria.docentes.create') }}"
+                    class="inline-flex items-center gap-2 bg-[#0099a8] hover:bg-[#007e8b] text-white px-4 py-2 rounded-md text-sm font-semibold transition">
+                    <x-heroicon-o-plus class="w-5 h-5" />
+                    Crear Docente
+                    </a>
                 </div>
+
                 <div class="overflow-x-auto">
                     <table class="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                         <thead>
                             <tr>
                                 <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">CIF</th>
-                                <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Nombre</th>
-                                <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Correo</th>
+                                <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Nombre del Docente</th>
+                                <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Correo electrónico</th>
                                 <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-right text-xs font-medium text-white uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>

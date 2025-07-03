@@ -16,7 +16,7 @@
                     @csrf
                     <input type="file" name="file" accept=".xlsx" required>
                     <div class="flex justify-end pt-4">
-                        <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] font-semibold">Importar</button>
+                        <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] font-semibold transition">Importar</button>
                     </div>
                 </form>
             </div>
