@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ModuloSecretaria;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 
 // Models
 use App\Models\ModuloSecretaria\Facultad;
@@ -76,8 +77,13 @@ class FacultadController extends Controller
      */
     public function destroy(Facultad $facultad)
     {
-        $facultad->delete();
-        return redirect()->route('secretaria.facultades.index')
-            ->with('success', 'Facultad eliminada correctamente.');
+        try {
+            $facultad->delete();
+            return redirect()->route('secretaria.facultades.index')
+                ->with('success', 'Facultad eliminada correctamente.');
+        } catch (QueryException $e) {
+            return redirect()->route('secretaria.facultades.index')
+                ->with('error', 'No se puede eliminar la facultad porque está asociada a otros registros.');
+        }
     }
 }

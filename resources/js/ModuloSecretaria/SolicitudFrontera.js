@@ -1,7 +1,8 @@
+import { getCurrentTheme } from '../utils/theme';
+
 export default class SolicitudFrontera {
-    constructor(container, options = {}) {
+    constructor(container) {
         this.container = container;
-        this.theme = options.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
         this.rechazarBtn = container.querySelector('#rechazar-btn');
         this.rechazarForm = container.querySelector('#rechazar-form');
         this.respuestaInput = container.querySelector('#respuesta-input');
@@ -26,7 +27,7 @@ export default class SolicitudFrontera {
 
     showRechazarModal() {
         Swal.fire({
-            theme: this.theme,
+            theme: getCurrentTheme(),
             title: 'Rechazar solicitud',
             input: 'textarea',
             inputLabel: 'Respuesta',
@@ -45,7 +46,7 @@ export default class SolicitudFrontera {
 
     showAprobarModal() {
         Swal.fire({
-            theme: this.theme,
+            theme: getCurrentTheme(),
             title: 'Aprobar solicitud',
             input: 'textarea',
             inputLabel: 'Respuesta',

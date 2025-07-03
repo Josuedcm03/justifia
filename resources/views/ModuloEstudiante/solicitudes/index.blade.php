@@ -23,7 +23,9 @@
                         </div>
                     </div>
                     <div class="mt-4 sm:mt-0">
-                        <a href="{{ route('estudiante.solicitudes.create') }}" class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
+                        <a href="{{ route('estudiante.solicitudes.create') }}"
+                        class="inline-flex items-center px-4 py-2 bg-[#0099a8] hover:bg-[#007e8b] text-white text-sm font-semibold rounded-lg shadow-sm transition">
+                            <x-heroicon-o-plus class="w-5 h-5 mr-2" />
                             {{ __('Crear Solicitud de Justificación') }}
                         </a>
                     </div>

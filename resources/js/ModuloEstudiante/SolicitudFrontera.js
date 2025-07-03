@@ -1,10 +1,10 @@
+import { getCurrentTheme } from '../utils/theme';
 export default class SolicitudFrontera {
     constructor(form, options = {}) {
         this.form = form;
         this.isUpdate = options.isUpdate || false;
         this.oldAsignatura = form.dataset.oldAsignatura || '';
         this.asignaturasUrl = form.dataset.asignaturasUrl;
-        this.theme = options.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
         this.docenteSelect = this.form.querySelector('#docente_id');
         this.asignaturaSelect = this.form.querySelector('#docente_asignatura_id');
         this.constanciaInput = this.form.querySelector('#constancia');
@@ -28,7 +28,7 @@ export default class SolicitudFrontera {
             if (this.isUpdate && !this.confirmed) {
                 e.preventDefault();
                 Swal.fire({
-                    theme: this.theme,
+                    theme: getCurrentTheme(),
                     title: '¿Guardar cambios?',
                     icon: 'question',
                     showCancelButton: true,
@@ -53,7 +53,7 @@ export default class SolicitudFrontera {
         if (this.eliminarBtn && this.eliminarForm) {
             this.eliminarBtn.addEventListener('click', () => {
                 Swal.fire({
-                    theme: this.theme,
+                    theme: getCurrentTheme(),
                     title: '¿Deseas Eliminar la Solicitud?',
                     text: 'Esta acción no se puede deshacer',
                     icon: 'warning',
@@ -137,7 +137,7 @@ export default class SolicitudFrontera {
 
         if (errors.length) {
             Swal.fire({
-                theme: this.theme,
+                theme: getCurrentTheme(),
                 title: 'Errores de validación',
                 html: `<ul class="text-center">${errors.map(e => `<li class="mb-2">${e}</li>`).join('')}</ul>`,
                 icon: 'error',

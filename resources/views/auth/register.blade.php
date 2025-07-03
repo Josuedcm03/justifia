@@ -17,7 +17,7 @@
             <x-input-label for="name" :value="__('Nombre completo')" />
             <div class="relative">
                 <x-heroicon-o-user class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input id="name" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
+                <input id="name" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" />
             </div>
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
@@ -27,7 +27,7 @@
             <x-input-label for="cif" :value="__('CIF')" />
             <div class="relative">
                 <x-heroicon-o-identification class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input id="cif" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="text" name="cif" :value="old('cif')" required />
+                <input id="cif" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="text" name="cif" value="{{ old('cif') }}" required />
             </div>
             <x-input-error :messages="$errors->get('cif')" class="mt-2" />
         </div>
@@ -49,7 +49,7 @@
             <x-input-label for="email" :value="__('Correo institucional')" />
             <div class="relative">
                 <x-heroicon-o-envelope class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
-                <input id="email" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="email" name="email" :value="old('email')" required autocomplete="username" />
+                <input id="email" class="block mt-1 w-full ps-10 rounded-md border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:border-[#31c0d3] focus:ring-[#31c0d3] shadow-sm" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" />
             </div>
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>

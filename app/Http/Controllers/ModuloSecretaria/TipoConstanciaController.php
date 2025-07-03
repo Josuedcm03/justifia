@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ModuloSecretaria;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 
 // Models
 use App\Models\ModuloSecretaria\TipoConstancia;
@@ -79,8 +80,13 @@ class TipoConstanciaController extends Controller
      */
     public function destroy(TipoConstancia $TipoConstancia)
     {
-        $TipoConstancia->delete();
-        return redirect()->route('secretaria.tipo-constancia.index')
-            ->with('success', 'Tipo de constancia eliminado correctamente.');
+        try {
+            $TipoConstancia->delete();
+            return redirect()->route('secretaria.tipo-constancia.index')
+                ->with('success', 'Tipo de constancia eliminado correctamente.');
+        } catch (QueryException $e) {
+            return redirect()->route('secretaria.tipo-constancia.index')
+                ->with('error', 'No se puede eliminar el tipo de constancia porque está asociado a otros registros.');
+        }
     }
 }

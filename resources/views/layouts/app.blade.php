@@ -51,7 +51,21 @@
                 icon: 'success',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#0b545b'
-                
+                });
+        });
+    </script>
+@endif
+
+        @if (session('error'))
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            Swal.fire({
+                theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+                title: 'Error',
+                text: @js(session('error')),
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#0b545b'
             });
         });
     </script>
