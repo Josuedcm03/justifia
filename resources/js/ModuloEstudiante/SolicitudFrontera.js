@@ -97,27 +97,27 @@ export default class SolicitudFrontera {
         const errors = [];
         const fecha = this.form.querySelector('#fecha_ausencia')?.value;
         if (!fecha) {
-            errors.push('La fecha de ausencia es obligatoria.');
+            errors.push('La fecha de ausencia es obligatoria');
         } else {
             const selectedDate = new Date(fecha);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             if (selectedDate > today) {
-                errors.push('La fecha de ausencia no puede ser posterior a hoy.');
+                errors.push('La fecha de ausencia no puede ser posterior a hoy');
             }
         }
 
         if (this.docenteSelect && !this.docenteSelect.value) {
-            errors.push('Debes seleccionar un docente.');
+            errors.push('Debes seleccionar un docente');
         }
 
         if (this.asignaturaSelect && !this.asignaturaSelect.value) {
-            errors.push('Debes seleccionar una asignatura.');
+            errors.push('Debes seleccionar una asignatura');
         }
 
         const tipoConstancia = this.form.querySelector('#tipo_constancia_id');
         if (tipoConstancia && !tipoConstancia.value) {
-            errors.push('Debes seleccionar un tipo de constancia.');
+            errors.push('Debes seleccionar un tipo de constancia');
         }
 
         if (this.constanciaInput) {
@@ -127,10 +127,10 @@ export default class SolicitudFrontera {
             } else if (file) {
                 const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
                 if (!allowed.includes(file.type)) {
-                    errors.push('El archivo debe ser PDF o JPG.');
+                    errors.push('El archivo debe ser PDF o JPG');
                 }
                 if (file.size > 2 * 1024 * 1024) {
-                    errors.push('El archivo debe pesar menos de 2 MB.');
+                    errors.push('El archivo debe pesar menos de 2 MB');
                 }
             }
         }
@@ -139,7 +139,7 @@ export default class SolicitudFrontera {
             Swal.fire({
                 theme: this.theme,
                 title: 'Errores de validación',
-                html: `<ul class="text-center">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`,
+                html: `<ul class="text-center">${errors.map(e => `<li class="mb-2">${e}</li>`).join('')}</ul>`,
                 icon: 'error',
                 confirmButtonColor: '#0b545b'
             });
