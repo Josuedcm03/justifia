@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-200 leading-tight">
-            {{ __('Catálogos') }}
+            {{ __('Gestionar Catálogos') }}
         </h2>
     </x-slot>
 
@@ -10,7 +10,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 @php
                     $catalogos = [
-                        ['label' => 'Tipos de constancia', 'route' => 'secretaria.tipo-constancia.index', 'icon' => 'document-text'],
+                        ['label' => 'Tipos de Constancia', 'route' => 'secretaria.tipo-constancia.index', 'icon' => 'document-text'],
                         ['label' => 'Facultades', 'route' => 'secretaria.facultades.index', 'icon' => 'building-library'],
                         ['label' => 'Docentes', 'route' => 'secretaria.docentes.index', 'icon' => 'users'],
                         ['label' => 'Carreras', 'route' => 'secretaria.carreras.index', 'icon' => 'academic-cap'],

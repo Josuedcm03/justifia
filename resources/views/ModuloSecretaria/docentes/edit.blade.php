@@ -15,22 +15,22 @@
                     @csrf
                     @method('PATCH')
                     <div>
-                        <label for="cif" class="block font-medium mb-1">CIF</label>
+                        <label for="cif" class="block font-medium mb-1 dark:text-white">CIF</label>
                         <input type="text" name="cif" id="cif" value="{{ old('cif', $docente->cif) }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
                         <x-input-error class="mt-2" :messages="$errors->get('cif')" />
                     </div>
                     <div>
-                        <label for="name" class="block font-medium mb-1">Nombre</label>
+                        <label for="name" class="block font-medium mb-1 dark:text-white">Nombre del Docente</label>
                         <input type="text" name="name" id="name" value="{{ old('name', $docente->usuario?->name) }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
                         <x-input-error class="mt-2" :messages="$errors->get('name')" />
                     </div>
                     <div>
-                        <label for="email" class="block font-medium mb-1">Correo</label>
+                        <label for="email" class="block font-medium mb-1 dark:text-white">Correo electrónico</label>
                         <input type="email" name="email" id="email" value="{{ old('email', $docente->usuario?->email) }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
                         <x-input-error class="mt-2" :messages="$errors->get('email')" />
                     </div>
                     <div class="flex justify-end pt-4">
-                        <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] font-semibold">Actualizar</button>
+                        <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] font-semibold transition">Actualizar</button>
                     </div>
                 </form>
             </div>

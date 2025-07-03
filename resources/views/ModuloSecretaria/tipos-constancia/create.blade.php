@@ -14,12 +14,12 @@
                 <form method="POST" action="{{ route('secretaria.tipo-constancia.store') }}" class="space-y-4">
                     @csrf
                     <div>
-                        <label for="nombre" class="block font-medium mb-1">Nombre</label>
+                        <label for="nombre" class="block font-medium mb-1 dark:text-white">Nombre del Tipo de Constancia</label>
                         <input type="text" name="nombre" id="nombre" value="{{ old('nombre') }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
                         <x-input-error class="mt-2" :messages="$errors->get('nombre')" />
                     </div>
                     <div class="flex justify-end pt-4">
-                        <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] font-semibold">Guardar</button>
+                        <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] font-semibold transition">Guardar</button>
                     </div>
                 </form>
             </div>
