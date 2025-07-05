@@ -5,16 +5,19 @@ export default class SolicitudFrontera {
         this.isUpdate = options.isUpdate || false;
         this.oldAsignatura = form.dataset.oldAsignatura || '';
         this.asignaturasUrl = form.dataset.asignaturasUrl;
-        this.docenteSelect = this.form.querySelector('#docente_id');
-        this.asignaturaSelect = this.form.querySelector('#docente_asignatura_id');
+        this.buscarDocentesUrl = form.dataset.buscarDocentesUrl;
+        this.docenteInput = this.form.querySelector('#docente_input');
+        this.docenteHidden = this.form.querySelector('#docente_id');
+        this.facultadSelect = this.form.querySelector('#facultad_id');
+        this.asignaturaSelect = this.form.querySelector('#asignatura_id');
         this.constanciaInput = this.form.querySelector('#constancia');
         this.deleteConstancia = this.form.querySelector('#delete_constancia');
         this.eliminarBtn = document.getElementById('eliminar-btn');
         this.eliminarForm = document.getElementById('eliminar-form');
         this.confirmed = false;
         this.registerEvents();
-        if (this.docenteSelect && this.docenteSelect.value) {
-            this.cargarAsignaturas(this.docenteSelect.value, this.oldAsignatura);
+        if (this.facultadSelect && this.facultadSelect.value) {
+            this.cargarAsignaturas(this.facultadSelect.value, this.oldAsignatura);
         }
     }
 
@@ -44,8 +47,18 @@ export default class SolicitudFrontera {
             }
         });
 
-        if (this.docenteSelect) {
-            this.docenteSelect.addEventListener('change', e => {
+        if (this.docenteInput) {
+            this.docenteInput.addEventListener('input', e => {
+                this.buscarDocentes(e.target.value);
+            });
+            this.docenteInput.addEventListener('change', e => {
+                const option = Array.from(this.docenteInput.list.options).find(o => o.value === e.target.value);
+                this.docenteHidden.value = option ? option.dataset.id : '';
+            });
+        }
+
+        if (this.facultadSelect) {
+            this.facultadSelect.addEventListener('change', e => {
                 this.cargarAsignaturas(e.target.value);
             });
         }
@@ -70,14 +83,14 @@ export default class SolicitudFrontera {
         }
     }
 
-    cargarAsignaturas(docenteId, selected = null) {
+    cargarAsignaturas(facultadId, selected = null) {
         if (!this.asignaturaSelect) return;
         this.asignaturaSelect.innerHTML = '<option value="">Cargando...</option>';
-        if (!docenteId) {
+        if (!facultadId) {
             this.asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
             return;
         }
-        fetch(`${this.asignaturasUrl}/${docenteId}/asignaturas`)
+        fetch(`${this.asignaturasUrl}/${facultadId}/asignaturas`)
             .then(r => r.json())
             .then(data => {
                 this.asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
@@ -89,6 +102,22 @@ export default class SolicitudFrontera {
                         option.selected = true;
                     }
                     this.asignaturaSelect.appendChild(option);
+                });
+            });
+    }
+
+    buscarDocentes(query) {
+        if (!this.buscarDocentesUrl) return;
+        fetch(`${this.buscarDocentesUrl}?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                const list = this.docenteInput.list;
+                list.innerHTML = '';
+                data.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.nombre;
+                    option.dataset.id = item.id;
+                    list.appendChild(option);
                 });
             });
     }
@@ -107,7 +136,7 @@ export default class SolicitudFrontera {
             }
         }
 
-        if (this.docenteSelect && !this.docenteSelect.value) {
+        if (this.docenteHidden && !this.docenteHidden.value) {
             errors.push('Debes seleccionar un docente');
         }
 

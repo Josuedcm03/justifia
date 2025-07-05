@@ -9,7 +9,8 @@ use Illuminate\Notifications\Notifiable;
 // Models
 use App\Models\User;
 use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSecretaria\DocenteAsignatura;
+use App\Models\ModuloEstudiante\Solicitud;
+
 
 class Docente extends Model
 {
@@ -38,10 +39,8 @@ class Docente extends Model
         return $this->belongsTo(Carrera::class, 'carrera_id', 'id');
     }
 
-    public function asignaturas()
+    public function solicitudes()
     {
-        return $this->hasMany(DocenteAsignatura::class, 'docente_id', 'id');
+        return $this->hasMany(Solicitud::class, 'docente_id', 'id');
     }
-
-
 }

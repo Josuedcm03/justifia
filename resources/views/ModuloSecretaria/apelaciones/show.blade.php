@@ -36,8 +36,8 @@
                     </button>
                 </p>
                 <p><strong>Estudiante:</strong> {{ $apelacion->solicitud->estudiante->usuario->name }}</p>
-                <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $apelacion->solicitud->docenteAsignatura->grupo }}</p>
-                <p><strong>Docente:</strong> {{ $apelacion->solicitud->docenteAsignatura->docente->usuario->name }}</p>
+                <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->asignatura->nombre }}</p>
+                <p><strong>Docente:</strong> {{ $apelacion->solicitud->docente->usuario->name }}</p>
                 <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($apelacion->solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                 <p><strong>Tipo de constancia:</strong> {{ $apelacion->solicitud->tipoConstancia->nombre }}</p>
 

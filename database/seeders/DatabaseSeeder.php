@@ -12,7 +12,6 @@ use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloSecretaria\Carrera;
 use App\Models\ModuloSecretaria\Facultad;
 use App\Models\ModuloSeguridad\Role;
-use Database\Seeders\DocenteAsignaturasSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -62,7 +61,6 @@ class DatabaseSeeder extends Seeder
             AsignaturasSeeder::class,
             DocentesSeeder::class,
             TipoConstanciaSeeder::class,
-            DocenteAsignaturasSeeder::class,
         ]);
     }
 }

@@ -14,7 +14,7 @@
                     @forelse($solicitudesAReprogramar as $solicitud)
                         <a href="{{ route('docente.solicitudes.show', $solicitud) }}" class="relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform focus:bg-yellow-100/30 dark:focus:bg-yellow-400/10">
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
-                            <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
+                            <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->asignatura->nombre }}</p>
                             <p class="mb-2"><strong>Fecha ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                             <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-semibold">Reprogramación Pendiente</span>
                         </a>
@@ -43,7 +43,7 @@
                             </div>
                         @endif
                             <p class="mb-1"><strong>Estudiante:</strong> {{ $reprogramacion->solicitud->estudiante->usuario->name }}</p>
-                            <p class="mb-1"><strong>Asignatura:</strong> {{ $reprogramacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $reprogramacion->solicitud->docenteAsignatura->grupo }}</p>
+                            <p class="mb-1"><strong>Asignatura:</strong> {{ $reprogramacion->solicitud->asignatura->nombre }}</p>
                             <p class="mb-1 "><strong>Fecha programada:</strong> {{ \Illuminate\Support\Carbon::parse($reprogramacion->fecha)->locale('es')->isoFormat('dddd, DD [de] MMMM') }} </p>
                             <p class="mb-2"><strong>Hora programada:</strong> {{ $reprogramacion->hora }}</p>
                             <p class="flex items-center"><strong>Asistencia:</strong>

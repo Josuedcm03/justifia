@@ -24,7 +24,7 @@
                 </p>
 
                 <p><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
-                <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
+                <p><strong>Asignatura:</strong> {{ $solicitud->asignatura->nombre }}</p>
                 <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
 
                 @if($solicitud->reprogramacion)
