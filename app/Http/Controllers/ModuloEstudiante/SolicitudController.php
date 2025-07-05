@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 // Models
 use App\Models\ModuloEstudiante\Solicitud;
 use App\Models\ModuloSecretaria\Docente;
-use App\Models\ModuloSecretaria\DocenteAsignatura;
+use App\Models\ModuloSecretaria\Facultad;
 use App\Models\ModuloSecretaria\TipoConstancia;
 use App\Enums\EstadoSolicitud;
 use App\Enums\EstadoApelacion;
@@ -45,11 +45,13 @@ class SolicitudController extends Controller
     public function create()
     {
         $docentes = Docente::with('usuario')->get();
+        $facultades = Facultad::orderBy('nombre')->get();
         $TiposConstancia = TipoConstancia::all();
 
         return view('ModuloEstudiante.solicitudes.create', [
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
+            'facultades' => $facultades,
         ]);
     }
 
@@ -95,12 +97,14 @@ class SolicitudController extends Controller
     public function edit(Solicitud $solicitud)
     {
         $docentes = Docente::with('usuario')->get();
+        $facultades = Facultad::orderBy('nombre')->get();
         $TiposConstancia = TipoConstancia::all();
 
         return view('ModuloEstudiante.solicitudes.edit', [
             'solicitud' => $solicitud,
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
+            'facultades' => $facultades,
         ]);
     }
 
@@ -133,21 +137,28 @@ class SolicitudController extends Controller
     }
 
     /**
-     * Return asignaturas linked to a docente.
+    * Return asignaturas linked to a facultad.
      */
-    public function asignaturasPorDocente(Docente $docente)
+    public function asignaturasPorFacultad(Facultad $facultad)
     {
-        $asignaturas = $docente->asignaturas()
-            ->with('asignatura')
-            ->get()
-            ->map(function (DocenteAsignatura $da) {
-                return [
-                    'id' => $da->id,
-                    'nombre' => $da->asignatura->nombre . ' - Grupo ' . $da->grupo,
-                ];
-            });
+        $asignaturas = $facultad->asignaturas()->select('id', 'nombre')->get();
 
         return response()->json($asignaturas);
+    }
+
+    public function buscarDocentes(Request $request)
+    {
+        $query = $request->query('q');
+        $docentes = Docente::with('usuario')
+            ->when($query, function ($q) use ($query) {
+                $q->whereHas('usuario', function ($qu) use ($query) {
+                    $qu->where('name', 'like', "%{$query}%");
+                });
+            })
+            ->limit(10)
+            ->get()
+            ->map(fn($d) => ['id' => $d->id, 'nombre' => $d->usuario->name]);
+        return response()->json($docentes);
     }
 
     /**

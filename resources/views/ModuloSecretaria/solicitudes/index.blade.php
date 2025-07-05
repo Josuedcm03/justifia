@@ -49,7 +49,7 @@
                             </div>
                         @endif
                         <p class="mb-1"><strong>Estudiante:</strong> {{ $solicitud->estudiante->usuario->name }}</p>
-                        <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
+                        <p class="mb-1"><strong>Asignatura:</strong> {{ $solicitud->asignatura->nombre }}</p>
                         <p class="mb-2"><strong>Ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                         <p><strong>Estado:</strong>
                         @if ($solicitud->estado === \App\Enums\EstadoSolicitud::Pendiente)

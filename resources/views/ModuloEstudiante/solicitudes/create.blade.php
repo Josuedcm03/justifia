@@ -15,10 +15,13 @@
                     {{ __('Crear Solicitud de Justificación') }}
                 </h3>
 
+                <p class="text-sm text-center">¿Necesitas ayuda? <a href="https://example.com/docs/solicitudes" target="_blank" class="text-[#0099a8] underline">Consulta la documentación</a>.</p>
+
                 <form method="POST" action="{{ route('estudiante.solicitudes.store', ['estado' => request()->query('estado', 'pendiente')]) }}" enctype="multipart/form-data" class="space-y-4"
                     data-solicitud-estudiante-frontera
-                    data-asignaturas-url="{{ url('estudiante/docentes') }}"
-                    data-old-asignatura="{{ old('docente_asignatura_id') }}">
+                    data-asignaturas-url="{{ url('estudiante/facultades') }}"
+                    data-buscar-docentes-url="{{ url('estudiante/docentes/buscar') }}"
+                    data-old-asignatura="{{ old('asignatura_id') }}">
                     @csrf
                     <div>
                         <label for="fecha_ausencia" class="block font-medium mb-1">Fecha de la ausencia</label>
@@ -27,24 +30,34 @@
                     </div>
 
                     <div>
-                        <label for="docente_id" class="block font-medium mb-1">Docente</label>
-<select id="docente_id" name="docente_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                            <option value="">Seleccionar Docente</option>
+                        <label for="docente_input" class="block font-medium mb-1">Docente</label>
+                        <input id="docente_input" list="docentes-list" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" placeholder="Escribe para buscar" autocomplete="off">
+                        <datalist id="docentes-list">
                             @foreach ($docentes as $docente)
-                                <option value="{{ $docente->id }}" @selected(old('docente_id') == $docente->id)>
-                                    {{ $docente->usuario->name }}
-                                </option>
+                                <option data-id="{{ $docente->id }}" value="{{ $docente->usuario->name }}"></option>
                             @endforeach
-                        </select>
+                        </datalist>
+                        <input type="hidden" id="docente_id" name="docente_id" value="{{ old('docente_id') }}">
                         <x-input-error class="mt-2" :messages="$errors->get('docente_id')" />
                     </div>
 
                     <div>
-<label for="docente_asignatura_id" class="block font-medium mb-1">Asignatura</label>
-                        <select id="docente_asignatura_id" name="docente_asignatura_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
+<label for="facultad_id" class="block font-medium mb-1">Facultad</label>
+                        <select id="facultad_id" name="facultad_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
+                            <option value="">Seleccionar Facultad</option>
+                            @foreach ($facultades as $facultad)
+                                <option value="{{ $facultad->id }}" @selected(old('facultad_id') == $facultad->id)>{{ $facultad->nombre }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error class="mt-2" :messages="$errors->get('facultad_id')" />
+                    </div>
+
+                    <div>
+                        <label for="asignatura_id" class="block font-medium mb-1">Asignatura</label>
+                        <select id="asignatura_id" name="asignatura_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                             <option value="">Seleccionar Asignatura</option>
                         </select>
-                        <x-input-error class="mt-2" :messages="$errors->get('docente_asignatura_id')" />
+                        <x-input-error class="mt-2" :messages="$errors->get('asignatura_id')" />
                     </div>
 
                     <div>

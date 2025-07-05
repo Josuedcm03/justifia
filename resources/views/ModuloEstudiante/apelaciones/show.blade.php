@@ -36,8 +36,8 @@
                 </div>
                 @endif
                 <div class="mb-4 space-y-4">
-                <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $apelacion->solicitud->docenteAsignatura->grupo }}</p>
-                <p><strong>Docente:</strong> {{ $apelacion->solicitud->docenteAsignatura->docente->usuario->name }}</p>
+                <p><strong>Asignatura:</strong> {{ $apelacion->solicitud->asignatura->nombre }}</p>
+                <p><strong>Docente:</strong> {{ $apelacion->solicitud->docente->usuario->name }}</p>
                 <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($apelacion->solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                 </div>
 

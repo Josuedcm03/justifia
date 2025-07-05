@@ -7,7 +7,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 // Models
-use App\Models\ModuloSecretaria\DocenteAsignatura;
+use App\Models\ModuloSecretaria\Facultad;
 use App\Models\ModuloEstudiante\Solicitud;
 
 class Asignatura extends Model
@@ -20,28 +20,16 @@ class Asignatura extends Model
 
     protected $fillable = [
         'nombre',
+        'facultad_id',
     ];
 
-    /**
-     * 1 Asignatura puede tener N grupos asignados a través de DocenteAsignatura
-     */
-    public function docenteAsignaturas()
+    public function facultad()
     {
-        return $this->hasMany(DocenteAsignatura::class, 'asignatura_id', 'id');
+        return $this->belongsTo(Facultad::class, 'facultad_id', 'id');
     }
 
-    /**
-     * (Opcional) Solicitudes asociadas atravesando DocenteAsignatura
-     */
     public function solicitudes()
     {
-        return $this->hasManyThrough(
-            Solicitud::class,
-            DocenteAsignatura::class,
-            'asignatura_id',          // FK en docente_asignatura
-            'docente_asignatura_id',  // FK en solicitud
-            'id',                     // PK local de asignatura
-            'id'                      // PK local de docente_asignatura
-        );
+        return $this->hasMany(Solicitud::class, 'asignatura_id', 'id');
     }
 }

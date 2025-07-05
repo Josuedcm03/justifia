@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 // Models
 use App\Models\ModuloEstudiante\Estudiante;
-use App\Models\ModuloSecretaria\DocenteAsignatura;
+use App\Models\ModuloEstudiante\Apelacion;
 use App\Models\ModuloSecretaria\TipoConstancia;
 use App\Models\ModuloDocente\Reprogramacion;
 use App\Enums\EstadoSolicitud;
+use App\Models\ModuloSecretaria\Docente;
+use App\Models\ModuloSecretaria\Asignatura;
 
 class Solicitud extends Model
 {
@@ -28,7 +30,8 @@ class Solicitud extends Model
         'respuesta',
         'estado',                 // "pendiente" | "aprobada" | "rechazada"
         'estudiante_id',
-        'docente_asignatura_id',
+        'docente_id',
+        'asignatura_id',
         'tipo_constancia_id',
     ];
 
@@ -47,9 +50,14 @@ class Solicitud extends Model
         return $this->belongsTo(Estudiante::class, 'estudiante_id', 'id');
     }
 
-    public function docenteAsignatura()
+    public function docente()
     {
-        return $this->belongsTo(DocenteAsignatura::class, 'docente_asignatura_id', 'id');
+        return $this->belongsTo(Docente::class, 'docente_id', 'id');
+    }
+
+    public function asignatura()
+    {
+        return $this->belongsTo(Asignatura::class, 'asignatura_id', 'id');
     }
 
     public function tipoConstancia()

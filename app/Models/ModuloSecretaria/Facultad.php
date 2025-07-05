@@ -8,6 +8,7 @@ use Illuminate\Notifications\Notifiable;
 
 // Models
 use App\Models\ModuloSecretaria\Carrera;
+use App\Models\ModuloSecretaria\Asignatura;
 
 class Facultad extends Model
 {
@@ -25,5 +26,10 @@ class Facultad extends Model
     public function carreras()
     {
         return $this->hasMany(Carrera::class, 'facultad_id', 'id');
+    }
+
+    public function asignaturas()
+    {
+        return $this->hasMany(Asignatura::class, 'facultad_id', 'id');
     }
 }

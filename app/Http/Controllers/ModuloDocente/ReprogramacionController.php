@@ -19,17 +19,15 @@ class ReprogramacionController extends Controller
         $docenteId = $request->user()->docente->id;
 
         $solicitudesAReprogramar = Solicitud::where('estado', EstadoSolicitud::Aprobada)
-            ->whereHas('docenteAsignatura', function ($q) use ($docenteId) {
-                $q->where('docente_id', $docenteId);
-            })
+            ->where('docente_id', $docenteId)
             ->doesntHave('reprogramacion')
             ->orderByDesc('id')
             ->get();
 
-        $reprogramaciones = Reprogramacion::whereHas('solicitud.docenteAsignatura', function ($q) use ($docenteId) {
+        $reprogramaciones = Reprogramacion::whereHas('solicitud', function ($q) use ($docenteId) {
                 $q->where('docente_id', $docenteId);
             })
-            ->with('solicitud.estudiante.usuario', 'solicitud.docenteAsignatura.asignatura')
+            ->with('solicitud.estudiante.usuario', 'solicitud.asignatura')
             ->orderByDesc('id')
             ->get();
 
@@ -38,7 +36,7 @@ class ReprogramacionController extends Controller
 
     public function show(Solicitud $solicitud)
     {
-        $solicitud->load('reprogramacion', 'estudiante.usuario', 'docenteAsignatura.asignatura');
+        $solicitud->load('reprogramacion', 'estudiante.usuario', 'asignatura');
         return view('ModuloDocente.solicitudes.show', compact('solicitud'));
     }
 

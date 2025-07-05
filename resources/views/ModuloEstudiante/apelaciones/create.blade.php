@@ -19,8 +19,8 @@
                     </div>
                 
                 <div class="mb-4 space-y-4">
-                    <p><strong>Asignatura:</strong> {{ $solicitud->docenteAsignatura->asignatura->nombre }} - Grupo {{ $solicitud->docenteAsignatura->grupo }}</p>
-                    <p><strong>Docente:</strong> {{ $solicitud->docenteAsignatura->docente->usuario->name }}</p>
+                    <p><strong>Asignatura:</strong> {{ $solicitud->asignatura->nombre }}</p>
+                    <p><strong>Docente:</strong> {{ $solicitud->docente->usuario->name }}</p>
                     <p><strong>Fecha de ausencia:</strong> {{ \Illuminate\Support\Carbon::parse($solicitud->fecha_ausencia)->locale('es')->isoFormat('dddd, DD [de] MMMM') }}</p>
                     @if ($solicitud->observacion)
                         <p><strong>Observación del estudiante:</strong> {{ $solicitud->observacion }}</p>
