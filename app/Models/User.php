@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Models\ModuloSeguridad\Role;
 use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloSecretaria\Docente;
+use App\Notifications\CustomVerifyEmail;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -78,6 +79,13 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role?->name === $roleName;
     }
 
+    /**
+     * Send the custom email verification notification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new CustomVerifyEmail());
+    }
 
 
 }
