@@ -30,6 +30,7 @@
                         <thead>
                             <tr>
                                 <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Nombre de la Asignatura</th>
+                                <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-left text-xs font-medium text-white uppercase tracking-wider">Facultad</th>
                                 <th class="px-6 py-3 border-b bg-[#0099a8] dark:bg-[#007e8b] text-right text-xs font-medium text-white uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
@@ -37,6 +38,7 @@
                             @forelse($asignaturas as $asignatura)
                                 <tr>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $asignatura->nombre }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $asignatura->facultad->nombre }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 text-right space-x-2">
                                         <a href="{{ route('secretaria.asignaturas.edit', $asignatura) }}" class="text-[#0099a8] hover:underline">Editar</a>
                                         <form action="{{ route('secretaria.asignaturas.destroy', $asignatura) }}" method="POST" class="inline">
@@ -48,7 +50,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="2" class="px-6 py-4 text-center text-gray-600 dark:text-gray-400">No hay asignaturas.</td>
+                                    <td colspan="3" class="px-6 py-4 text-center text-gray-600 dark:text-gray-400">No hay asignaturas.</td>
                                 </tr>
                             @endforelse
                         </tbody>

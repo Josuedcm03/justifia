@@ -10,6 +10,7 @@ use Illuminate\Database\QueryException;
 use App\Models\ModuloSecretaria\Asignatura;
 use App\Imports\AsignaturasImport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\ModuloSecretaria\Facultad;
 
 class AsignaturaController extends Controller
 {
@@ -19,6 +20,7 @@ class AsignaturaController extends Controller
     public function index()
     {
         $asignaturas = Asignatura::orderBy('nombre')->paginate(10);
+        $asignaturas = Asignatura::with('facultad')->orderBy('nombre')->paginate(10);
         return view('ModuloSecretaria.asignaturas.index', compact('asignaturas'));
     }
 
@@ -27,7 +29,8 @@ class AsignaturaController extends Controller
      */
     public function create()
     {
-        return view('ModuloSecretaria.asignaturas.create');
+        $facultades = Facultad::orderBy('nombre')->get();
+        return view('ModuloSecretaria.asignaturas.create', compact('facultades'));
     }
 
     /**
@@ -37,6 +40,7 @@ class AsignaturaController extends Controller
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
+            'facultad_id' => ['required', 'exists:facultades,id'],
         ]);
 
         Asignatura::create($validated);
@@ -57,7 +61,8 @@ class AsignaturaController extends Controller
      */
     public function edit(Asignatura $asignatura)
     {
-        return view('ModuloSecretaria.asignaturas.edit', compact('asignatura'));
+        $facultades = Facultad::orderBy('nombre')->get();
+        return view('ModuloSecretaria.asignaturas.edit', compact('asignatura', 'facultades'));
     }
 
     /**
@@ -67,6 +72,7 @@ class AsignaturaController extends Controller
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
+            'facultad_id' => ['required', 'exists:facultades,id'],
         ]);
         $asignatura->update($validated);
 
