@@ -12,6 +12,7 @@ use App\Enums\EstadoSolicitud;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\RescheduleMail;
+use Illuminate\Support\Facades\Log;
 
 
 class ReprogramacionController extends Controller
@@ -56,15 +57,19 @@ class ReprogramacionController extends Controller
 
         $studentUser = $solicitud->estudiante->usuario;
 
-        Mail::to($studentUser->email)->send(
-            new RescheduleMail(
-                $studentUser->name,
-                \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),
-                $reprogramacion->hora,
-                $reprogramacion->observaciones,
-                $studentUser->email
-            )
-        );
+        try {
+            Mail::to($studentUser->email)->send(
+                new RescheduleMail(
+                    $studentUser->name,
+                    \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),
+                    $reprogramacion->hora,
+                    $reprogramacion->observaciones,
+                    $studentUser->email
+                )
+            );
+        } catch (\Throwable $e) {
+            Log::error('Error enviando correo de reprogramación: ' . $e->getMessage());
+        }
 
         return redirect()
             ->route('docente.solicitudes.index')
@@ -83,7 +88,7 @@ class ReprogramacionController extends Controller
         $solicitud->reprogramacion->update($validated);
 
         return redirect()
-            ->route('docente.solicitudes.index', $solicitud)
+            ->route('docente.solicitudes.index')
             ->with('success', 'Reprogramación actualizada correctamente.');
     }
 }
