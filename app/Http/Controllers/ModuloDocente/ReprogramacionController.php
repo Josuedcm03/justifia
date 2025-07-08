@@ -61,7 +61,7 @@ class ReprogramacionController extends Controller
                 $studentUser->name,
                 \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),
                 $reprogramacion->hora,
-                'Por definir',
+                $reprogramacion->observaciones,
                 $studentUser->email
             )
         );

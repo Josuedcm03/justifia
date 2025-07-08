@@ -14,19 +14,19 @@ class RescheduleMail extends Mailable
     public ?string $recipientEmail;
     public string $fecha;
     public string $hora;
-    public string $lugar;
+    public string $observaciones;
 
     public function __construct(
         string $recipientName,
         string $fecha,
         string $hora,
-        string $lugar,
+        string $observaciones,
         ?string $recipientEmail = null
     ) {
         $this->recipientName = $recipientName;
         $this->fecha = $fecha;
         $this->hora = $hora;
-        $this->lugar = $lugar;
+        $this->observaciones = $observaciones;
         $this->recipientEmail = $recipientEmail;
     }
 

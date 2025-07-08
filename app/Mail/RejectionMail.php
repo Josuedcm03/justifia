@@ -12,11 +12,13 @@ class RejectionMail extends Mailable
 
     public string $recipientName;
     public ?string $recipientEmail;
+    public ?string $observaciones;
 
-    public function __construct(string $recipientName, ?string $recipientEmail = null)
+    public function __construct(string $recipientName, ?string $observaciones = null, ?string $recipientEmail = null)
     {
         $this->recipientName = $recipientName;
         $this->recipientEmail = $recipientEmail;
+        $this->observaciones = $observaciones;
     }
 
     public function build(): self
