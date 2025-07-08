@@ -1,8 +1,6 @@
 @component('mail::message')
 # ¡Bienvenido a JustiFIA - UAM!
 
-Hola {{ $user->name }},
-
 Gracias por registrarte en JustiFIA - UAM. Antes de comenzar, necesitamos verificar que esta dirección de correo te pertenece.
 
 @component('mail::button', ['url' => $url])
