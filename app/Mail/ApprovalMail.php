@@ -4,6 +4,8 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class ApprovalMail extends Mailable
@@ -19,10 +21,22 @@ class ApprovalMail extends Mailable
         $this->recipientEmail = $recipientEmail;
     }
 
-    public function build(): self
+    public function envelope(): Envelope
     {
-        return $this
-            ->subject('Solicitud Aprobada')
-            ->view('emails.approval');
+        return new Envelope(
+            subject: 'Solicitud Aprobada'
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            view: 'emails.approval'
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
     }
 }

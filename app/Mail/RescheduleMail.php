@@ -4,6 +4,8 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class RescheduleMail extends Mailable
@@ -30,10 +32,22 @@ class RescheduleMail extends Mailable
         $this->recipientEmail = $recipientEmail;
     }
 
-    public function build(): self
+    public function envelope(): Envelope
     {
-        return $this
-            ->subject('Reprogramación de Evaluación')
-            ->view('emails.reschedule');
+        return new Envelope(
+            subject: 'Reprogramación de Evaluación'
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            view: 'emails.reschedule'
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
     }
 }

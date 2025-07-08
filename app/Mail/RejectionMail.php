@@ -4,6 +4,8 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class RejectionMail extends Mailable
@@ -21,10 +23,22 @@ class RejectionMail extends Mailable
         $this->observaciones = $observaciones;
     }
 
-    public function build(): self
+    public function envelope(): Envelope
     {
-        return $this
-            ->subject('Solicitud Rechazada')
-            ->view('emails.rejection');
+        return new Envelope(
+            subject: 'Solicitud Rechazada'
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            view: 'emails.rejection'
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
     }
 }
