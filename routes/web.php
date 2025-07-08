@@ -14,6 +14,7 @@ use App\Http\Controllers\ModuloSecretaria\DocenteController;
 use App\Http\Controllers\ModuloSecretaria\TipoConstanciaController;
 use App\Http\Controllers\ModuloSecretaria\CatalogoController;
 use App\Http\Controllers\ModuloSecretaria\DashboardController;
+use App\Models\ModuloEstudiante\Solicitud;
 use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
 use Illuminate\Support\Facades\Auth;
 
@@ -22,11 +23,19 @@ use Illuminate\Support\Facades\Auth;
 // without requiring authentication.
 
 Route::get('/', function () {
-    return Auth::check() ? view('dashboard') : view('home');
+    $solicitudesListado = [];
+    if (Auth::check() && Auth::user()->hasRole('secretaria')) {
+        $solicitudesListado = Solicitud::latest()->get();
+    }
+    return Auth::check() ? view('dashboard', ['solicitudesListado' => $solicitudesListado]) : view('home');
 })->name('home');
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    $solicitudesListado = [];
+    if (Auth::user()->hasRole('secretaria')) {
+        $solicitudesListado = Solicitud::latest()->get();
+    }
+    return view('dashboard', ['solicitudesListado' => $solicitudesListado]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Profile management still requires authentication once that feature is ready.
@@ -59,7 +68,8 @@ Route::middleware(['auth', 'verified', 'role:estudiante'])->prefix('estudiante')
 });
 
 Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')->name('secretaria.')->group(function () {
-    Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats'); 
+    Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
+    Route::get('solicitudes/reporte', [SecretariaSolicitudController::class, 'pdf'])->name('solicitudes.pdf');
     Route::resource('solicitudes', SecretariaSolicitudController::class)
         ->only(['index', 'show', 'update'])
         ->parameters([

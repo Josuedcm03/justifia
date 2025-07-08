@@ -13,6 +13,7 @@ use Illuminate\Validation\Rules\Enum;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ApprovalMail;
 use App\Mail\RejectionMail;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class SolicitudController extends Controller
 {
@@ -89,5 +90,17 @@ $studentUser = $solicitud->estudiante->usuario;
         return redirect()
             ->route('secretaria.solicitudes.index', ['estado' => $redirectEstado])
             ->with('success', 'Solicitud actualizada correctamente.');
+    }
+
+    public function pdf(Request $request)
+    {
+        $id = $request->query('solicitud_id');
+        $solicitud = Solicitud::findOrFail($id);
+
+        $pdf = Pdf::loadView('ModuloSecretaria.solicitudes.pdf', [
+            'solicitud' => $solicitud,
+        ]);
+
+        return $pdf->download('reporte-solicitud-' . $solicitud->id . '.pdf');
     }
 }
