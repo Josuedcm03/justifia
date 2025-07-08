@@ -12,7 +12,7 @@
         <div class="max-w-md mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-5">
                 <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">El archivo debe tener una columna llamada <strong>nombre</strong>.</p>
-                <form method="POST" action="{{ route('secretaria.asignaturas.import') }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('secretaria.asignaturas.import.preview') }}" enctype="multipart/form-data" class="space-y-4">
                     @csrf
                     <input type="file" name="file" accept=".xlsx" required>
                     <div class="flex justify-end pt-4">

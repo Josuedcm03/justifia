@@ -14,7 +14,7 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="font-semibold text-lg text-gray-800 dark:text-gray-200 ml-1">{{ __('Gestionar Asignaturas') }}</h2>
                     <div class="flex">
-                        <a href="{{ route('secretaria.asignaturas.import') }}"
+                        <a href="{{ route('secretaria.asignaturas.import.form') }}"
                         class="inline-flex items-center gap-2 bg-[#6E7881] hover:bg-[#4f5961] text-white px-4 py-2 rounded-md text-sm font-semibold mr-2 transition">
                         <x-heroicon-o-document-plus class="w-5 h-5" />
                         Importar Excel</a>
