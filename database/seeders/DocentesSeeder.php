@@ -7,30 +7,53 @@ use App\Models\ModuloSecretaria\Docente;
 use App\Models\User;
 use App\Models\ModuloSecretaria\Carrera;
 use App\Models\ModuloSeguridad\Role;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DocentesSeeder extends Seeder
 {
     public function run(): void
     {
-        $carrera = Carrera::where('nombre', 'Ingeniería en Sistemas de Información')->first();
-        if (!$carrera) {
-            $carrera = Carrera::first();
+        $carreras = Carrera::all();
+        if ($carreras->isEmpty()) {
+            return;
         }
 
-        $docentes = [
-            ['name' => 'José Durán', 'email' => 'joseduran@example.com', 'cif' => '22010116'],
-            ['name' => 'Armando López', 'email' => 'armandolopez@example.com', 'cif' => '22010117'],
-            ['name' => 'Freddy López', 'email' => 'freddylopez@example.com', 'cif' => '22010118'],
-            ['name' => 'Tobías Solano', 'email' => 'tobiassolano@example.com', 'cif' => '22010119'],
+        $docenteNames = [
+            'Nestor Manuel Avendaño Castellon',
+            'Christopher Alberto Baldizón Tinoco',
+            'Luvy Jeronima Barquero Vega',
+            'Kenneth Joel Fonseca Lupiac',
+            'Tobias Adrian Gamboa Solano',
+            'Mauricio Antonio Garcia Sotelo',
+            'Jose Sebastian Gutiérrez Carballo',
+            'Fabiola De Jesus Hernandez Palacios',
+            'Hans Jürgen Jahn',
+            'Luis Alejandro Jerez Murillo',
+            'Esperanza Jiron Balladares',
+            'Illiat Lennin Jiron De La Rocha',
+            'Ambrosia Del Carmen Lezama Zelaya',
+            'Jose Antonio Lezama',
+            'Ingrid Yoamy Lopez Blandon',
+            'Freddy Luis López Barrios',
+            'Ileana Margarita Lopez Briceño',
+            'Armando Jose Lopez Lopez',
+            'Tatiana María Lorenzo Curbelo',
+            'Guadalupe De Los Angeles Martinez Valdivia',
+            'Fernanda Marcela Matus Sobalvarro',
+            'Carlos Alexander Mendoza Jacomino',
+            'Margelia Fátima Montenegro Solórzano',
+            'Alejandro Mora Holmann',
+            'Carolina Pineda Zeledon',
+            'Erick Saul Rios Juarez',
+            'Tania Ydith Rivas Morales',
         ];
 
         $role = Role::where('name', 'docente')->first();
 
-        foreach ($docentes as $docente) {
+        foreach ($docenteNames as $index => $name) {
             $user = User::create([
-                'name' => $docente['name'],
-                'email' => $docente['email'],
+                'name' => $name,
+                'email' => Str::slug($name, '.') . '@example.com',
                 'password' => 'secret',
                 'role_id' => $role?->id,
                 'email_verified_at' => now(),
@@ -38,8 +61,8 @@ class DocentesSeeder extends Seeder
 
             Docente::create([
                 'usuario_id' => $user->id,
-                'carrera_id' => $carrera->id,
-                'cif' => $docente['cif'],
+                'carrera_id' => $carreras->random()->id,
+                'cif' => sprintf('22010%03d', $index + 1),
             ]);
         }
     }
