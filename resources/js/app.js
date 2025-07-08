@@ -7,6 +7,7 @@ import SolicitudSecretariaFrontera from './ModuloSecretaria/SolicitudFrontera';
 import ApelacionSecretariaFrontera from './ModuloSecretaria/ApelacionFrontera';
 import ReprogramacionDocenteFrontera from './ModuloDocente/ReprogramacionFrontera';
 import AsistenciaFrontera from './ModuloDocente/AsistenciaFrontera';
+import ConfirmBack from './utils/ConfirmBack';
 
 window.Alpine = Alpine;
 
@@ -60,6 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-asistencia-card]').forEach(card => {
         new AsistenciaFrontera(card);
     });
+
+    document.querySelectorAll('[data-confirm-back]').forEach(link => {
+        new ConfirmBack(link);
+    });
+
 const loader = document.getElementById('page-loader');
     if (loader) {
         window.addEventListener('load', () => loader.classList.add('hidden'));
