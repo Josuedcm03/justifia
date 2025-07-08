@@ -1,7 +1,9 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <a href="{{ route('secretaria.docentes.import.form') }}" class="flex items-center text-base text-gray-200 hover:text-[#006b75] transition">
+            <a href="{{ route('secretaria.docentes.import.form') }}"
+                onclick="return confirm('¿Está seguro de salir de esta vista? Se perderá todo lo importado y modificado.')"
+                class="flex items-center text-base text-gray-200 hover:text-[#006b75] transition">
                 <x-heroicon-o-arrow-left class="w-5 h-5 mr-1" />
                 {{ __('Volver') }}
             </a>
@@ -28,17 +30,18 @@
                                     <tr>
                                         <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">
                                             <input type="hidden" name="rows[{{ $index }}][cif]" value="{{ $row['cif'] }}">
-                                            {{ $row['cif'] }}
+                                            <span class="display-cif">{{ $row['cif'] }}</span>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">
                                             <input type="hidden" name="rows[{{ $index }}][name]" value="{{ $row['name'] }}">
-                                            {{ $row['name'] }}
+                                            <span class="display-name">{{ $row['name'] }}</span>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">
                                             <input type="hidden" name="rows[{{ $index }}][email]" value="{{ $row['email'] }}">
-                                            {{ $row['email'] }}
+                                            <span class="display-email">{{ $row['email'] }}</span>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 text-right">
+                                            <button type="button" onclick="editRow(this)" class="text-blue-600 hover:underline mr-2">Editar</button>
                                             <button type="button" onclick="this.closest('tr').remove();" class="text-red-600 hover:underline">Eliminar</button>
                                         </td>
                                     </tr>
@@ -53,4 +56,23 @@
             </div>
         </div>
     </div>
+    <script>
+        function editRow(button) {
+            const row = button.closest('tr');
+            const fields = [
+                {name: 'cif', label: 'CIF'},
+                {name: 'name', label: 'nombre'},
+                {name: 'email', label: 'email'}
+            ];
+            fields.forEach(field => {
+                const input = row.querySelector(`input[name$="[${field.name}]"]`);
+                const span = row.querySelector(`.display-${field.name}`);
+                const nuevo = prompt(`Editar ${field.label}`, input.value);
+                if (nuevo !== null && nuevo.trim() !== '') {
+                    input.value = nuevo.trim();
+                    span.textContent = nuevo.trim();
+                }
+            });
+        }
+    </script>
 </x-app-layout>
