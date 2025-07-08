@@ -124,13 +124,51 @@ class DocenteController extends Controller
         return view('ModuloSecretaria.docentes.import');
     }
 
-    public function import(Request $request)
+    public function previewImport(Request $request)
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx'],
         ]);
 
-        Excel::import(new DocentesImport(), $request->file('file'));
+        $import = new \App\Imports\RowsImport();
+        Excel::import($import, $request->file('file'));
+
+        $rows = $import->rows->map(function ($row) {
+            return [
+                'cif' => $row['cif'] ?? null,
+                'name' => $row['name'] ?? null,
+                'email' => $row['email'] ?? null,
+            ];
+        })->filter(fn ($row) => $row['cif'] && $row['name'] && $row['email']);
+
+        return view('ModuloSecretaria.docentes.import-preview', compact('rows'));
+    }
+
+    public function import(Request $request)
+    {
+        $rows = $request->input('rows', []);
+
+        foreach ($rows as $row) {
+            if (!isset($row['cif'], $row['name'], $row['email'])) {
+                continue;
+            }
+
+            $password = $this->generatePassword($row['name'], $row['cif']);
+
+            $role = Role::where('name', 'docente')->first();
+
+            $user = User::create([
+                'name' => $row['name'],
+                'email' => $row['email'],
+                'password' => Hash::make($password),
+                'role_id' => $role?->id,
+            ]);
+
+            Docente::create([
+                'cif' => $row['cif'],
+                'usuario_id' => $user->id,
+            ]);
+        }
 
         return redirect()->route('secretaria.docentes.index')
             ->with('success', 'Docentes importados correctamente.');

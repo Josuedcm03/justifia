@@ -72,7 +72,8 @@ Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')
 
         Route::resource('asignaturas', AsignaturaController::class);
         Route::get('asignaturas-importar', [AsignaturaController::class, 'showImport'])->name('asignaturas.import.form');
-        Route::post('asignaturas-importar', [AsignaturaController::class, 'import'])->name('asignaturas.import');
+        Route::post('asignaturas-importar', [AsignaturaController::class, 'previewImport'])->name('asignaturas.import.preview');
+        Route::post('asignaturas-importar/confirm', [AsignaturaController::class, 'import'])->name('asignaturas.import');
 
         Route::resource('facultades', FacultadController::class)->parameters([
             'facultades' => 'facultad'
@@ -81,7 +82,8 @@ Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')
 
         Route::resource('docentes', DocenteController::class);
         Route::get('docentes-importar', [DocenteController::class, 'showImport'])->name('docentes.import.form');
-        Route::post('docentes-importar', [DocenteController::class, 'import'])->name('docentes.import');
+        Route::post('docentes-importar', [DocenteController::class, 'previewImport'])->name('docentes.import.preview');
+        Route::post('docentes-importar/confirm', [DocenteController::class, 'import'])->name('docentes.import');
 
         Route::resource('tipo-constancia', TipoConstanciaController::class)->parameters([
     'tipo-constancia' => 'tipo_constancia'

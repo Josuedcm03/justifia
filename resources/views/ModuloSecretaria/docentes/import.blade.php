@@ -14,7 +14,7 @@
                 <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
                     El archivo debe contener las columnas <strong>cif</strong>, <strong>name</strong> y <strong>email</strong>.
                 </p>
-                <form method="POST" action="{{ route('secretaria.docentes.import') }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('secretaria.docentes.import.preview') }}" enctype="multipart/form-data" class="space-y-4">
                     @csrf
                     <input type="file" name="file" accept=".xlsx" required>
                     <div class="flex justify-end pt-4">
