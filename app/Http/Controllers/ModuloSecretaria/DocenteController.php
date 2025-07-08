@@ -13,6 +13,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Models\ModuloSeguridad\Role;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\DocenteCredentialsMail;
 
 class DocenteController extends Controller
 {
@@ -39,26 +41,34 @@ class DocenteController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'cif' => ['required', 'string', 'max:255'],
+            'cif' => ['required', 'string', 'max:255', 'unique:docentes,cif'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
         ]);
 
         $password = $this->generatePassword($validated['name'], $validated['cif']);
 
-        $role = Role::where('name', 'docente')->first();
+        try {
+            $role = Role::where('name', 'docente')->first();
 
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($password),
-            'role_id' => $role?->id,
-        ]);
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($password),
+                'role_id' => $role?->id,
+            ]);
 
         Docente::create([
-            'cif' => $validated['cif'],
-            'usuario_id' => $user->id,
-        ]);
+                'cif' => $validated['cif'],
+                'usuario_id' => $user->id,
+            ]);
+        } catch (QueryException $e) {
+            return back()->with('error', 'No se pudo crear el docente.')->withInput();
+        }
+
+        Mail::to($user->email)->send(
+            new DocenteCredentialsMail($user->name, $password, $user->email)
+        );
 
         return redirect()->route('secretaria.docentes.index')
             ->with('success', 'Docente creado correctamente. Contraseña: ' . $password);
@@ -86,19 +96,23 @@ class DocenteController extends Controller
     public function update(Request $request, Docente $docente)
     {
         $validated = $request->validate([
-            'cif' => ['required', 'string', 'max:255'],
+            'cif' => ['required', 'string', 'max:255', 'unique:docentes,cif,' . $docente->id],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $docente->usuario_id],
         ]);
 
-        $docente->update([
-            'cif' => $validated['cif'],
-        ]);
+        try {
+            $docente->update([
+                'cif' => $validated['cif'],
+            ]);
 
         $docente->usuario?->update([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-        ]);
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+            ]);
+        } catch (QueryException $e) {
+            return back()->with('error', 'No se pudo actualizar el docente.')->withInput();
+        }
 
         return redirect()->route('secretaria.docentes.index')
             ->with('success', 'Docente actualizado correctamente.');
@@ -124,13 +138,55 @@ class DocenteController extends Controller
         return view('ModuloSecretaria.docentes.import');
     }
 
-    public function import(Request $request)
+    public function previewImport(Request $request)
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx'],
         ]);
 
-        Excel::import(new DocentesImport(), $request->file('file'));
+        $import = new \App\Imports\RowsImport();
+        Excel::import($import, $request->file('file'));
+
+        $rows = $import->rows->map(function ($row) {
+            return [
+                'cif' => $row['cif'] ?? null,
+                'name' => $row['name'] ?? null,
+                'email' => $row['email'] ?? null,
+            ];
+        })->filter(fn ($row) => $row['cif'] && $row['name'] && $row['email']);
+
+        return view('ModuloSecretaria.docentes.import-preview', compact('rows'));
+    }
+
+    public function import(Request $request)
+    {
+        $rows = $request->input('rows', []);
+
+        foreach ($rows as $row) {
+            if (!isset($row['cif'], $row['name'], $row['email'])) {
+                continue;
+            }
+
+            $password = $this->generatePassword($row['name'], $row['cif']);
+
+            $role = Role::where('name', 'docente')->first();
+
+            $user = User::create([
+                'name' => $row['name'],
+                'email' => $row['email'],
+                'password' => Hash::make($password),
+                'role_id' => $role?->id,
+            ]);
+
+            Docente::create([
+                'cif' => $row['cif'],
+                'usuario_id' => $user->id,
+            ]);
+
+            Mail::to($user->email)->send(
+                new DocenteCredentialsMail($user->name, $password, $user->email)
+            );
+        }
 
         return redirect()->route('secretaria.docentes.index')
             ->with('success', 'Docentes importados correctamente.');

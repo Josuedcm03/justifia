@@ -14,7 +14,6 @@ class TipoConstancia extends Model
     use HasFactory, Notifiable;
 
     protected $table = 'tipo_constancias';
-    public $timestamps = false;
     protected $primaryKey = 'id';
 
     protected $fillable = [

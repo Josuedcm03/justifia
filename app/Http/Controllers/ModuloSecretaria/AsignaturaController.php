@@ -39,11 +39,15 @@ class AsignaturaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+            'nombre' => ['required', 'string', 'max:255', 'unique:asignaturas,nombre'],
             'facultad_id' => ['required', 'exists:facultades,id'],
         ]);
 
-        Asignatura::create($validated);
+        try {
+            Asignatura::create($validated);
+        } catch (QueryException $e) {
+            return back()->with('error', 'No se pudo crear la asignatura.')->withInput();
+        }
         return redirect()->route('secretaria.asignaturas.index')
             ->with('success', 'Asignatura creada correctamente.');
     }
@@ -71,10 +75,14 @@ class AsignaturaController extends Controller
     public function update(Request $request, Asignatura $asignatura)
     {
         $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+            'nombre' => ['required', 'string', 'max:255', 'unique:asignaturas,nombre,' . $asignatura->id],
             'facultad_id' => ['required', 'exists:facultades,id'],
         ]);
-        $asignatura->update($validated);
+        try {
+            $asignatura->update($validated);
+        } catch (QueryException $e) {
+            return back()->with('error', 'No se pudo actualizar la asignatura.')->withInput();
+        }
 
         return redirect()->route('secretaria.asignaturas.index')
             ->with('success', 'Asignatura actualizada correctamente.');
@@ -100,13 +108,38 @@ class AsignaturaController extends Controller
         return view('ModuloSecretaria.asignaturas.import');
     }
 
-    public function import(Request $request)
+    public function previewImport(Request $request)
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx'],
         ]);
 
-        Excel::import(new AsignaturasImport(), $request->file('file'));
+        $import = new \App\Imports\RowsImport();
+        Excel::import($import, $request->file('file'));
+
+        $rows = $import->rows->map(function ($row) {
+            return ['nombre' => $row['nombre'] ?? null];
+        })->filter(fn ($row) => $row['nombre']);
+
+        $facultades = Facultad::orderBy('nombre')->get();
+
+        return view('ModuloSecretaria.asignaturas.import-preview', compact('rows', 'facultades'));
+    }
+
+    public function import(Request $request)
+    {
+        $rows = $request->input('rows', []);
+
+        foreach ($rows as $row) {
+            if (!isset($row['nombre'], $row['facultad_id'])) {
+                continue;
+            }
+
+            Asignatura::create([
+                'nombre' => $row['nombre'],
+                'facultad_id' => $row['facultad_id'],
+            ]);
+        }
 
         return redirect()->route('secretaria.asignaturas.index')
             ->with('success', 'Asignaturas importadas correctamente.');

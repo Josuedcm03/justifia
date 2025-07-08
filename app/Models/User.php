@@ -18,7 +18,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
 
     protected $table = 'users';
-    public $timestamps = false;
     protected $primaryKey = 'id';
 
     /**

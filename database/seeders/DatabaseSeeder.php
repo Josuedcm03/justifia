@@ -11,6 +11,8 @@ use Database\Seeders\RolesSeeder;
 use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloSecretaria\Carrera;
 use App\Models\ModuloSecretaria\Facultad;
+use Database\Seeders\EstudiantesSeeder;
+use Database\Seeders\SolicitudesSeeder;
 use App\Models\ModuloSeguridad\Role;
 use Illuminate\Database\Seeder;
 
@@ -26,9 +28,11 @@ class DatabaseSeeder extends Seeder
         $this->call(RolesSeeder::class);
 
 
-                $facultad = Facultad::firstOrCreate(['nombre' => 'Facultad']);
+        $facultad = Facultad::firstOrCreate([
+            'nombre' => 'Facultad de Ingeniería y Arquitectura',
+        ]);
         $carrera = Carrera::firstOrCreate([
-            'nombre' => 'Carrera',
+            'nombre' => 'Ingeniería en Sistemas de Información',
             'facultad_id' => $facultad->id,
         ]);
         
@@ -60,7 +64,9 @@ class DatabaseSeeder extends Seeder
             FacultadesSeeder::class,
             AsignaturasSeeder::class,
             DocentesSeeder::class,
+            EstudiantesSeeder::class,
             TipoConstanciaSeeder::class,
+            SolicitudesSeeder::class,
         ]);
     }
 }

@@ -21,6 +21,9 @@
                         </x-nav-link>
                     @endif
                     @if(auth()->check() && auth()->user()->hasRole('secretaria'))
+                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                            {{ __('Dashboard') }}
+                        </x-nav-link>
                         <x-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                             {{ __('Gestionar Solicitudes') }}
                         </x-nav-link>
@@ -106,6 +109,9 @@
             </x-responsive-nav-link>
             @endif
             @if(auth()->check() && auth()->user()->hasRole('secretaria'))
+            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                {{ __('Dashboard') }}
+            </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('secretaria.solicitudes.index')" :active="request()->routeIs('secretaria.solicitudes.*')">
                 {{ __('Gestionar Solicitudes') }}
             </x-responsive-nav-link>

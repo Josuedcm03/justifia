@@ -37,11 +37,12 @@ class FacultadesSeeder extends Seeder
             ],
         ];
 
-        foreach ($data as $facultad => $carreras) {
-            $facultadModel = Facultad::create(['nombre' => $facultad]);
-            foreach ($carreras as $carrera) {
-                Carrera::create([
-                    'nombre' => $carrera,
+        foreach ($data as $nombreFacultad => $carreras) {
+            $facultadModel = Facultad::firstOrCreate(['nombre' => $nombreFacultad]);
+
+            foreach ($carreras as $nombreCarrera) {
+                Carrera::firstOrCreate([
+                    'nombre' => $nombreCarrera,
                     'facultad_id' => $facultadModel->id,
                 ]);
             }

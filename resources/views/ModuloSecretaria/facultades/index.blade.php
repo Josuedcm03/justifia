@@ -8,7 +8,7 @@
         </div>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-12" data-catalogo-frontera>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white/50 dark:bg-gray-800/50 shadow sm:rounded-lg p-8">
                 <div class="flex justify-between items-center mb-4">
@@ -36,10 +36,10 @@
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $facultad->nombre }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 text-right space-x-2">
                                         <a href="{{ route('secretaria.facultades.edit', $facultad) }}" class="text-[#0099a8] hover:underline">Editar</a>
-                                        <form action="{{ route('secretaria.facultades.destroy', $facultad) }}" method="POST" class="inline">
+                                        <form action="{{ route('secretaria.facultades.destroy', $facultad) }}" method="POST" class="inline" data-delete-form data-message="¿Eliminar facultad?">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('¿Eliminar facultad?')">Eliminar</button>
+                                            <button type="submit" class="text-red-600 hover:underline">Eliminar</button>
                                         </form>
                                     </td>
                                 </tr>

@@ -11,7 +11,6 @@ class Apelacion extends Model
     use HasFactory;
 
     protected $table = 'apelaciones';
-    public $timestamps = false;
     protected $primaryKey = 'id';
 
     protected $fillable = [
