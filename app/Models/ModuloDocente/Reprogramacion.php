@@ -14,7 +14,6 @@ class Reprogramacion extends Model
     use HasFactory;
 
     protected $table = 'reprogramaciones';
-    public $timestamps = false;
     protected $primaryKey = 'id';
 
     protected $fillable = [

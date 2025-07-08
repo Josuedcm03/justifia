@@ -15,7 +15,6 @@ class Asignatura extends Model
     use HasFactory, Notifiable;
 
     protected $table = 'asignaturas';
-    public $timestamps = false;
     protected $primaryKey = 'id';
 
     protected $fillable = [

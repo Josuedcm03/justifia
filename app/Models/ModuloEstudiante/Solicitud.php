@@ -20,7 +20,6 @@ class Solicitud extends Model
     use HasFactory, Notifiable;
 
     protected $table = 'solicitudes';
-    public $timestamps = false;
     protected $primaryKey = 'id';
 
     protected $fillable = [
