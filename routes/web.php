@@ -13,6 +13,7 @@ use App\Http\Controllers\ModuloSecretaria\FacultadController;
 use App\Http\Controllers\ModuloSecretaria\DocenteController;
 use App\Http\Controllers\ModuloSecretaria\TipoConstanciaController;
 use App\Http\Controllers\ModuloSecretaria\CatalogoController;
+use App\Http\Controllers\ModuloSecretaria\DashboardController;
 use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
 use Illuminate\Support\Facades\Auth;
 
@@ -58,6 +59,7 @@ Route::middleware(['auth', 'verified', 'role:estudiante'])->prefix('estudiante')
 });
 
 Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')->name('secretaria.')->group(function () {
+    Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats'); 
     Route::resource('solicitudes', SecretariaSolicitudController::class)
         ->only(['index', 'show', 'update'])
         ->parameters([

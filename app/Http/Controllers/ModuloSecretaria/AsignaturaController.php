@@ -39,11 +39,15 @@ class AsignaturaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+            'nombre' => ['required', 'string', 'max:255', 'unique:asignaturas,nombre'],
             'facultad_id' => ['required', 'exists:facultades,id'],
         ]);
 
-        Asignatura::create($validated);
+        try {
+            Asignatura::create($validated);
+        } catch (QueryException $e) {
+            return back()->with('error', 'No se pudo crear la asignatura.')->withInput();
+        }
         return redirect()->route('secretaria.asignaturas.index')
             ->with('success', 'Asignatura creada correctamente.');
     }
@@ -71,10 +75,14 @@ class AsignaturaController extends Controller
     public function update(Request $request, Asignatura $asignatura)
     {
         $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+            'nombre' => ['required', 'string', 'max:255', 'unique:asignaturas,nombre,' . $asignatura->id],
             'facultad_id' => ['required', 'exists:facultades,id'],
         ]);
-        $asignatura->update($validated);
+        try {
+            $asignatura->update($validated);
+        } catch (QueryException $e) {
+            return back()->with('error', 'No se pudo actualizar la asignatura.')->withInput();
+        }
 
         return redirect()->route('secretaria.asignaturas.index')
             ->with('success', 'Asignatura actualizada correctamente.');

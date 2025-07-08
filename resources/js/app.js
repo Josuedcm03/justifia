@@ -8,6 +8,8 @@ import ApelacionSecretariaFrontera from './ModuloSecretaria/ApelacionFrontera';
 import ReprogramacionDocenteFrontera from './ModuloDocente/ReprogramacionFrontera';
 import AsistenciaFrontera from './ModuloDocente/AsistenciaFrontera';
 import ConfirmBack from './utils/ConfirmBack';
+import CatalogoFrontera from './ModuloSecretaria/CatalogoFrontera';
+import DashboardCharts from './ModuloSecretaria/DashboardCharts';
 
 window.Alpine = Alpine;
 
@@ -64,6 +66,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('[data-confirm-back]').forEach(link => {
         new ConfirmBack(link);
+    });
+
+    const dashboardContainer = document.getElementById('dashboard-charts');
+    if (dashboardContainer) {
+        new DashboardCharts(dashboardContainer);
+    }
+
+    document.querySelectorAll('[data-catalogo-frontera]').forEach(container => {
+        new CatalogoFrontera(container);
     });
 
 const loader = document.getElementById('page-loader');

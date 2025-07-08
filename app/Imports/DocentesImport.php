@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\ModuloSeguridad\Role;
 use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Concerns\ToModel;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\DocenteCredentialsMail;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class DocentesImport implements ToModel, WithHeadingRow
@@ -27,6 +29,10 @@ class DocentesImport implements ToModel, WithHeadingRow
             'password' => Hash::make($password),
             'role_id' => $role?->id,
         ]);
+
+        Mail::to($user->email)->send(
+            new DocenteCredentialsMail($user->name, $password, $user->email)
+        );
 
         return new Docente([
             'cif' => $row['cif'],

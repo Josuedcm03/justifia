@@ -32,12 +32,14 @@
 
                     <div>
                         <label for="docente_input" class="block font-medium mb-1">Docente</label>
-                        <input id="docente_input" list="docentes-list" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" placeholder="Escribe para buscar" autocomplete="off" value="{{ $solicitud->docente->usuario->name }}">
-                        <datalist id="docentes-list">
-                            @foreach ($docentes as $docente)
-                                <option data-id="{{ $docente->id }}" value="{{ $docente->usuario->name }}"></option>
-                            @endforeach
-                        </datalist>
+                        <div class="relative" id="docente-wrapper">
+                            <input id="docente_input" type="text" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8] pr-10" placeholder="Escribe para buscar" autocomplete="off" value="{{ $solicitud->docente->usuario->name }}">
+                            <button type="button" id="docente_clear" class="hidden absolute top-1/2 -translate-y-1/2 right-2 text-gray-500">
+                                <x-heroicon-o-x-mark class="w-5 h-5" />
+                            </button>
+                            <x-heroicon-o-chevron-down id="docente_icon" class="w-5 h-4 absolute top-1/2 -translate-y-1/2 right-2 text-gray-500 pointer-events-none" />
+                            <ul id="docente_results" class="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 rounded-md mt-1 max-h-60 overflow-auto hidden"></ul>
+                        </div>
                         <input type="hidden" id="docente_id" name="docente_id" value="{{ old('docente_id', $solicitud->docente_id) }}">
                         <x-input-error class="mt-2" :messages="$errors->get('docente_id')" />
                     </div>
