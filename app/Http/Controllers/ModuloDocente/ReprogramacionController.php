@@ -10,6 +10,8 @@ use App\Models\ModuloDocente\Reprogramacion;
 use App\Enums\EstadoAsistencia;
 use App\Enums\EstadoSolicitud;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\RescheduleMail;
 
 
 class ReprogramacionController extends Controller
@@ -50,7 +52,19 @@ class ReprogramacionController extends Controller
 
         $validated['solicitud_id'] = $solicitud->id;
 
-        Reprogramacion::create($validated);
+        $reprogramacion = Reprogramacion::create($validated);
+
+        $studentUser = $solicitud->estudiante->usuario;
+
+        Mail::to($studentUser->email)->send(
+            new RescheduleMail(
+                $studentUser->name,
+                \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),
+                $reprogramacion->hora,
+                'Por definir',
+                $studentUser->email
+            )
+        );
 
         return redirect()
             ->route('docente.solicitudes.index')

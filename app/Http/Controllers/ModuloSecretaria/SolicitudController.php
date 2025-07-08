@@ -10,6 +10,9 @@ use App\Models\ModuloEstudiante\Solicitud;
 use App\Enums\EstadoSolicitud;
 use App\Enums\EstadoApelacion;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ApprovalMail;
+use App\Mail\RejectionMail;
 
 class SolicitudController extends Controller
 {
@@ -59,6 +62,27 @@ class SolicitudController extends Controller
         $solicitud->estado = EstadoSolicitud::from($validated['estado']);
         $solicitud->respuesta = $validated['respuesta'];
         $solicitud->save();
+
+$studentUser = $solicitud->estudiante->usuario;
+        $teacherUser = $solicitud->docente->usuario;
+
+        if ($solicitud->estado === EstadoSolicitud::Aprobada) {
+            Mail::to($studentUser->email)->send(
+                new ApprovalMail($studentUser->name, $studentUser->email)
+            );
+            Mail::to($teacherUser->email)->send(
+                new ApprovalMail($teacherUser->name, $teacherUser->email)
+            );
+        }
+
+        if ($solicitud->estado === EstadoSolicitud::Rechazada) {
+            Mail::to($studentUser->email)->send(
+                new RejectionMail($studentUser->name, $studentUser->email)
+            );
+            Mail::to($teacherUser->email)->send(
+                new RejectionMail($teacherUser->name, $teacherUser->email)
+            );
+        }
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
