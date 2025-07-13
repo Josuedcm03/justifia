@@ -4,8 +4,11 @@
         {{ __('Volver') }}
     </a>
 
+            
+            
+
     <div class="text-center mb-6">
-        <h1 class="text-2xl font-bold text-[#006b75]">{{ __('Iniciar sesión') }}</h1>
+        <h1 class="text-2xl font-bold text-gray-700">{{ __('Iniciar sesión') }}</h1>
         <p class="text-gray-600 dark:text-gray-400">{{ __('Por favor, ingresa tus credenciales para continuar') }}</p>
     </div>
     <!-- Session Status -->
@@ -26,7 +29,7 @@
 
         <!-- Password -->
         <div class="mb-4" x-data="{ visible: false }">
-            <x-input-label for="password" :value="__('Password')" />
+            <x-input-label for="password" :value="__('Contraseña')" />
 
             <div class="relative">
                 <x-heroicon-o-lock-closed x-show="!visible" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#31c0d3]" />
@@ -41,23 +44,15 @@
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" name="remember">
-                <span class="ms-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Remember me') }}</span>
-            </label>
-        </div>
-
         <div class="flex items-center justify-end mt-4">
             @if (Route::has('password.request'))
                 <a class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
+                    {{ __('Olvidé mi contraseña') }}
                 </a>
             @endif
 
             <x-primary-button class="ms-3">
-                {{ __('Log in') }}
+                {{ __('Ingresar') }}
             </x-primary-button>
         </div>
     </form>

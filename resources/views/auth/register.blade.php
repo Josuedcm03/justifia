@@ -5,7 +5,7 @@
     </a>
 
     <div class="text-center mb-6">
-        <h1 class="text-2xl font-bold text-[#006b75]">{{ __('Registrarse como estudiante') }}</h1>
+        <h1 class="text-2xl font-bold text-gray-700">{{ __('Registrarse como estudiante') }}</h1>
         <p class="text-gray-600 dark:text-gray-400">{{ __('Por favor, complete el formulario para crear una cuenta') }}</p>
     </div>
 
@@ -90,7 +90,7 @@
             </a>
 
             <x-primary-button class="ms-4">
-                {{ __('Registrar') }}
+                {{ __('Registrarse') }}
             </x-primary-button>
         </div>
     </form>

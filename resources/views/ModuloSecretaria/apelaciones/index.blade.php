@@ -27,9 +27,9 @@
                     <a href="{{ route('secretaria.apelaciones.show', ['apelacion' => $apelacion, 'estado' => $estado]) }}"
                         class="{{
                             match($apelacion->estado->value) {
-                                'pendiente' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-yellow-100/30 dark:focus:bg-yellow-400/10',
-                                'aprobada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-green-100/30 dark:focus:bg-green-400/10',
-                                'rechazada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-red-100/30 dark:focus:bg-red-400/10',
+                                'pendiente' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-yellow-500 focus:border-yellow-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-yellow-100/30 dark:focus:bg-yellow-400/10',
+                                'aprobada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-green-500 focus:border-green-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-green-100/30 dark:focus:bg-green-400/10',
+                                'rechazada' => 'relative group block bg-white dark:bg-gray-800 border-2 border-transparent hover:border-red-400 focus:border-red-500 shadow rounded-lg p-5 text-[#212121] dark:text-white hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out focus:bg-red-100/30 dark:focus:bg-red-400/10',
                             }
                         }}">
                         @if ($apelacion->estado === \App\Enums\EstadoApelacion::Pendiente)
