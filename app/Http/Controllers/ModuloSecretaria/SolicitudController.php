@@ -65,6 +65,7 @@ class SolicitudController extends Controller
             $studentUser->name,
             $teacherUser->email,
             $teacherUser->name,
+            $solicitud,
         );
 
         $redirectEstado = $request->query('estado', 'pendiente');

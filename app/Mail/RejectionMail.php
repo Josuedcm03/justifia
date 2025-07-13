@@ -5,6 +5,7 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use App\Models\ModuloEstudiante\Solicitud;
 
 class RejectionMail extends Mailable
 {
@@ -12,11 +13,13 @@ class RejectionMail extends Mailable
 
     public string $recipientName;
     public ?string $recipientEmail;
+    public Solicitud $solicitud;
 
-    public function __construct(string $recipientName, ?string $recipientEmail = null)
+    public function __construct(string $recipientName, Solicitud $solicitud, ?string $recipientEmail = null)
     {
         $this->recipientName = $recipientName;
         $this->recipientEmail = $recipientEmail;
+        $this->solicitud = $solicitud;
     }
 
     public function build(): self

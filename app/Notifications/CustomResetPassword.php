@@ -2,21 +2,18 @@
 
 namespace App\Notifications;
 
-use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class CustomVerifyEmail extends VerifyEmail
+class CustomResetPassword extends ResetPassword
 {
-    /**
-     * Get the mail representation of the notification.
-     */
     public function toMail($notifiable): MailMessage
     {
-        $url = $this->verificationUrl($notifiable);
+        $url = $this->resetUrl($notifiable);
 
         return (new MailMessage)
-            ->subject('Verifica tu correo')
-            ->markdown('emails.verify', [
+            ->subject('Restablecer contraseña')
+            ->markdown('emails.reset-password', [
                 'url' => $url,
                 'recipientName' => $notifiable->name,
                 'recipientEmail' => $notifiable->email,
