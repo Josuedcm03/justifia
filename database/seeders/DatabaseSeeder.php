@@ -27,30 +27,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call(RolesSeeder::class);
 
-
-        $facultad = Facultad::firstOrCreate([
-            'nombre' => 'Facultad de Ingeniería y Arquitectura',
-        ]);
-        $carrera = Carrera::firstOrCreate([
-            'nombre' => 'Ingeniería en Sistemas de Información',
-            'facultad_id' => $facultad->id,
-        ]);
-        
-        $estudianteRole = Role::where('name', 'estudiante')->first();
-        $estudianteUser = User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => 'secret',
-            'role_id' => $estudianteRole?->id,
-            'email_verified_at' => now(),
-        ]);
-
-        Estudiante::create([
-            'cif' => '22010116',
-            'usuario_id' => $estudianteUser->id,
-            'carrera_id' => $carrera->id,
-        ]);
-
         $secretariaRole = Role::where('name', 'secretaria')->first();
         User::factory()->create([
             'name' => 'Secretaria',
@@ -58,7 +34,6 @@ class DatabaseSeeder extends Seeder
             'password' => 'secret',
             'role_id' => $secretariaRole?->id,
         ]);
-
 
                 $this->call([
             FacultadesSeeder::class,

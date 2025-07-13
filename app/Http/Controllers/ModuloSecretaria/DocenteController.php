@@ -11,7 +11,8 @@ use App\Models\ModuloSecretaria\Docente;
 use App\Imports\DocentesImport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use App\Models\ModuloSeguridad\Role;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DocenteCredentialsMail;
@@ -40,15 +41,13 @@ class DocenteController extends Controller
      */
     public function store(Request $request)
     {
-        $password = $this->generatePassword($request->input('name'), $request->input('cif'));
-
         try {
             $role = Role::where('name', 'docente')->first();
 
         $user = User::create([
                 'name' => $request->input('name'),
                 'email' => $request->input('email'),
-                'password' => Hash::make($password),
+                'password' => Str::random(40),
                 'role_id' => $role?->id,
             ]);
 
@@ -61,11 +60,14 @@ class DocenteController extends Controller
         }
 
         Mail::to($user->email)->queue(
-            new DocenteCredentialsMail($user->name, $password, $user->email)
+            new DocenteCredentialsMail($user->name, $user->email)
         );
 
+        $token = Password::broker()->createToken($user);
+        $user->sendPasswordResetNotification($token);
+
         return redirect()->route('secretaria.docentes.index')
-            ->with('success', 'Docente creado correctamente. Contraseña: ' . $password);
+            ->with('success', 'Docente creado correctamente.');
     }
 
     /**
@@ -151,14 +153,12 @@ class DocenteController extends Controller
                 continue;
             }
 
-            $password = $this->generatePassword($row['name'], $row['cif']);
-
             $role = Role::where('name', 'docente')->first();
 
             $user = User::create([
                 'name' => $row['name'],
                 'email' => $row['email'],
-                'password' => Hash::make($password),
+                'password' => Str::random(40),
                 'role_id' => $role?->id,
             ]);
 
@@ -168,20 +168,15 @@ class DocenteController extends Controller
             ]);
 
             Mail::to($user->email)->queue(
-                new DocenteCredentialsMail($user->name, $password, $user->email)
+                new DocenteCredentialsMail($user->name, $user->email)
             );
+
+            $token = Password::broker()->createToken($user);
+            $user->sendPasswordResetNotification($token);
         }
 
         return redirect()->route('secretaria.docentes.index')
             ->with('success', 'Docentes importados correctamente.');
     }
 
-    private function generatePassword(string $name, string $cif): string
-    {
-        $initials = implode('', array_map(fn ($part) => strtolower($part[0]), explode(' ', trim($name))));
-        $numbers = substr(preg_replace('/\D/', '', $cif), -4);
-        $random = random_int(10, 99);
-
-        return $initials . $numbers . $random;
-    }
 }

@@ -12,13 +12,11 @@ class DocenteCredentialsMail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public string $recipientName;
-    public string $password;
     public string $recipientEmail;
 
-    public function __construct(string $recipientName, string $password, string $recipientEmail)
+    public function __construct(string $recipientName, string $recipientEmail)
     {
         $this->recipientName = $recipientName;
-        $this->password = $password;
         $this->recipientEmail = $recipientEmail;
     }
 

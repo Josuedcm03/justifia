@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use App\Models\ModuloEstudiante\Solicitud;
 
 class ApprovalMail extends Mailable implements ShouldQueue
 {
