@@ -28,11 +28,11 @@ class SendStatusMail implements ShouldQueue
     public function handle(): void
     {
         if ($this->approved) {
-            Mail::to($this->studentEmail)->send(new ApprovalMail($this->studentName, $this->solicitud, $this->studentEmail));
-            Mail::to($this->teacherEmail)->send(new ApprovalMail($this->teacherName, $this->solicitud, $this->teacherEmail));
+            Mail::to($this->studentEmail)->queue(new ApprovalMail($this->studentName, $this->solicitud, $this->studentEmail));
+            Mail::to($this->teacherEmail)->queue(new ApprovalMail($this->teacherName, $this->solicitud, $this->teacherEmail));
         } else {
-            Mail::to($this->studentEmail)->send(new RejectionMail($this->studentName, $this->solicitud, $this->studentEmail));
-            Mail::to($this->teacherEmail)->send(new RejectionMail($this->teacherName, $this->solicitud, $this->teacherEmail));
+            Mail::to($this->studentEmail)->queue(new RejectionMail($this->studentName, $this->solicitud, $this->studentEmail));
+            Mail::to($this->teacherEmail)->queue(new RejectionMail($this->teacherName, $this->solicitud, $this->teacherEmail));
         }
     }
 }

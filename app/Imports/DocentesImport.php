@@ -30,7 +30,7 @@ class DocentesImport implements ToModel, WithHeadingRow
             'role_id' => $role?->id,
         ]);
 
-        Mail::to($user->email)->send(
+        Mail::to($user->email)->queue(
             new DocenteCredentialsMail($user->name, $password, $user->email)
         );
 

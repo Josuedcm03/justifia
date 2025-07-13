@@ -54,3 +54,6 @@ php artisan serve
 
 php artisan queue:work
 ```
+
+En producción, configura un worker de colas (por ejemplo con Supervisor o systemd)
+para mantener en ejecución `php artisan queue:work`.

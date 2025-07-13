@@ -52,7 +52,7 @@ class ReprogramacionController extends Controller
         
         $studentUser = $solicitud->estudiante->usuario;
 
-        Mail::to($studentUser->email)->send(
+        Mail::to($studentUser->email)->queue(
             new RescheduleMail(
                 $studentUser->name,
                 \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),

@@ -60,7 +60,7 @@ class DocenteController extends Controller
             return back()->with('error', 'No se pudo crear el docente.')->withInput();
         }
 
-        Mail::to($user->email)->send(
+        Mail::to($user->email)->queue(
             new DocenteCredentialsMail($user->name, $password, $user->email)
         );
 
@@ -167,7 +167,7 @@ class DocenteController extends Controller
                 'usuario_id' => $user->id,
             ]);
 
-            Mail::to($user->email)->send(
+            Mail::to($user->email)->queue(
                 new DocenteCredentialsMail($user->name, $password, $user->email)
             );
         }
