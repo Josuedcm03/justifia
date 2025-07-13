@@ -28,7 +28,7 @@ Route::get('/', function () {
         $solicitudesListado = Solicitud::latest()->get();
     }
     return Auth::check() ? view('dashboard', ['solicitudesListado' => $solicitudesListado]) : view('home');
-})->name('home');
+})->middleware('throttle:global')->name('home');
 
 Route::get('/dashboard', function () {
     $solicitudesListado = [];
@@ -36,17 +36,17 @@ Route::get('/dashboard', function () {
         $solicitudesListado = Solicitud::latest()->get();
     }
     return view('dashboard', ['solicitudesListado' => $solicitudesListado]);
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth', 'verified', 'throttle:global'])->name('dashboard');
 
 // Profile management still requires authentication once that feature is ready.
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'throttle:global'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
 });
 
 require __DIR__.'/auth.php';
 
-Route::middleware(['auth', 'verified', 'role:estudiante'])->prefix('estudiante')->name('estudiante.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:estudiante', 'throttle:global'])->prefix('estudiante')->name('estudiante.')->group(function () {
     Route::get('docentes/buscar', [EstudianteSolicitudController::class, 'buscarDocentes'])
         ->name('docentes.buscar');
     Route::get('facultades/{facultad}/asignaturas', [EstudianteSolicitudController::class, 'asignaturasPorFacultad'])
@@ -67,7 +67,7 @@ Route::middleware(['auth', 'verified', 'role:estudiante'])->prefix('estudiante')
         ]);
 });
 
-Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')->name('secretaria.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:secretaria', 'throttle:global'])->prefix('secretaria')->name('secretaria.')->group(function () {
     Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
     Route::get('solicitudes/reporte', [SecretariaSolicitudController::class, 'pdf'])->name('solicitudes.pdf');
     Route::resource('solicitudes', SecretariaSolicitudController::class)
@@ -104,7 +104,7 @@ Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')
 Route::get('catalogos', [CatalogoController::class, 'index'])->name('catalogos.index');
     });
 
-Route::middleware(['auth', 'verified', 'role:docente'])->prefix('docente')->name('docente.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:docente', 'throttle:global'])->prefix('docente')->name('docente.')->group(function () {
     Route::get('solicitudes', [DocenteReprogramacionController::class, 'index'])->name('solicitudes.index');
     Route::get('solicitudes/{solicitud}', [DocenteReprogramacionController::class, 'show'])->name('solicitudes.show');
     Route::post('solicitudes/{solicitud}/reprogramacion', [DocenteReprogramacionController::class, 'storeReprogramacion'])->name('solicitudes.reprogramacion.store');

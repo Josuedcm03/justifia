@@ -11,21 +11,21 @@
     <div class="py-12">
         <div class="max-w-md mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-8">
-                <form method="POST" action="{{ route('secretaria.docentes.store') }}" class="space-y-4">
+                <form method="POST" action="{{ route('secretaria.docentes.store') }}" class="space-y-4" data-docente-frontera>
                     @csrf
                     <div>
                         <label for="cif" class="block font-medium mb-1 dark:text-white">CIF</label>
-                        <input type="text" name="cif" id="cif" value="{{ old('cif') }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
+                        <input type="text" name="cif" id="cif" value="{{ old('cif') }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                         <x-input-error class="mt-2" :messages="$errors->get('cif')" />
                     </div>
                     <div>
                         <label for="name" class="block font-medium mb-1 dark:text-white">Nombre del Docente</label>
-                        <input type="text" name="name" id="name" value="{{ old('name') }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
+                        <input type="text" name="name" id="name" value="{{ old('name') }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                         <x-input-error class="mt-2" :messages="$errors->get('name')" />
                     </div>
                     <div>
                         <label for="email" class="block font-medium mb-1 dark:text-white">Correo electrónico</label>
-                        <input type="email" name="email" id="email" value="{{ old('email') }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" required>
+                        <input type="email" name="email" id="email" value="{{ old('email') }}" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                         <x-input-error class="mt-2" :messages="$errors->get('email')" />
                     </div>
                     <div class="flex justify-end pt-4">

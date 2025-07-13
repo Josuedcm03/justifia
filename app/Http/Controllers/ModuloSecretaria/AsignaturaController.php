@@ -38,13 +38,11 @@ class AsignaturaController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255', 'unique:asignaturas,nombre'],
-            'facultad_id' => ['required', 'exists:facultades,id'],
-        ]);
-
         try {
-            Asignatura::create($validated);
+            Asignatura::create([
+                'nombre' => $request->input('nombre'),
+                'facultad_id' => $request->input('facultad_id'),
+            ]);
         } catch (QueryException $e) {
             return back()->with('error', 'No se pudo crear la asignatura.')->withInput();
         }
@@ -74,12 +72,11 @@ class AsignaturaController extends Controller
      */
     public function update(Request $request, Asignatura $asignatura)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255', 'unique:asignaturas,nombre,' . $asignatura->id],
-            'facultad_id' => ['required', 'exists:facultades,id'],
-        ]);
         try {
-            $asignatura->update($validated);
+            $asignatura->update([
+                'nombre' => $request->input('nombre'),
+                'facultad_id' => $request->input('facultad_id'),
+            ]);
         } catch (QueryException $e) {
             return back()->with('error', 'No se pudo actualizar la asignatura.')->withInput();
         }
@@ -110,10 +107,6 @@ class AsignaturaController extends Controller
 
     public function previewImport(Request $request)
     {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx'],
-        ]);
-
         $import = new \App\Imports\RowsImport();
         Excel::import($import, $request->file('file'));
 

@@ -25,20 +25,30 @@ class DashboardController extends Controller
             'pendientes' => Apelacion::where('estado', EstadoApelacion::Pendiente)->count(),
         ];
 
-        $porCarrera = DB::table('solicitudes')
-            ->join('estudiantes', 'solicitudes.estudiante_id', '=', 'estudiantes.id')
-            ->join('carreras', 'estudiantes.carrera_id', '=', 'carreras.id')
-            ->select('carreras.nombre as nombre', DB::raw('count(*) as total'))
-            ->groupBy('carreras.nombre')
+        $porCarrera = DB::table('carreras')
+            ->leftJoin('estudiantes', 'carreras.id', '=', 'estudiantes.carrera_id')
+            ->leftJoin('solicitudes', 'estudiantes.id', '=', 'solicitudes.estudiante_id')
+            ->leftJoin('apelaciones', 'solicitudes.id', '=', 'apelaciones.solicitud_id')
+            ->select(
+                'carreras.nombre as nombre',
+                DB::raw('count(distinct solicitudes.id) as solicitudes'),
+                DB::raw('count(apelaciones.id) as apelaciones')
+            )
+            ->groupBy('carreras.id', 'carreras.nombre')
             ->orderBy('carreras.nombre')
             ->get();
 
-        $porFacultad = DB::table('solicitudes')
-            ->join('estudiantes', 'solicitudes.estudiante_id', '=', 'estudiantes.id')
-            ->join('carreras', 'estudiantes.carrera_id', '=', 'carreras.id')
-            ->join('facultades', 'carreras.facultad_id', '=', 'facultades.id')
-            ->select('facultades.nombre as nombre', DB::raw('count(*) as total'))
-            ->groupBy('facultades.nombre')
+        $porFacultad = DB::table('facultades')
+            ->leftJoin('carreras', 'facultades.id', '=', 'carreras.facultad_id')
+            ->leftJoin('estudiantes', 'carreras.id', '=', 'estudiantes.carrera_id')
+            ->leftJoin('solicitudes', 'estudiantes.id', '=', 'solicitudes.estudiante_id')
+            ->leftJoin('apelaciones', 'solicitudes.id', '=', 'apelaciones.solicitud_id')
+            ->select(
+                'facultades.nombre as nombre',
+                DB::raw('count(distinct solicitudes.id) as solicitudes'),
+                DB::raw('count(apelaciones.id) as apelaciones')
+            )
+            ->groupBy('facultades.id', 'facultades.nombre')
             ->orderBy('facultades.nombre')
             ->get();
 

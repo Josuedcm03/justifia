@@ -26,18 +26,18 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white dark:bg-gray-800 p-4 rounded shadow">
-                        <canvas id="chart-solicitudes" class="h-64"></canvas>
+                        <canvas id="chart-solicitudes" class="h-72"></canvas>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-4 rounded shadow">
-                        <canvas id="chart-apelaciones" class="h-64"></canvas>
+                        <canvas id="chart-apelaciones" class="h-72"></canvas>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 gap-6">
                     <div class="bg-white dark:bg-gray-800 p-4 rounded shadow">
-                        <canvas id="chart-carreras" class="h-72"></canvas>
+                        <canvas id="chart-carreras" class="h-[500px]"></canvas>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-4 rounded shadow">
-                        <canvas id="chart-facultades" class="h-72"></canvas>
+                        <canvas id="chart-facultades" class="h-[500px]"></canvas>
                     </div>
                 </div>
             </div>

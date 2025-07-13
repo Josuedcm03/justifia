@@ -51,4 +51,6 @@ Inicia el servidor de desarrollo con:
 
 ```bash
 php artisan serve
+
+php artisan queue:work
 ```

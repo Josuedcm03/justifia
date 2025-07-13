@@ -10,6 +10,12 @@ import AsistenciaFrontera from './ModuloDocente/AsistenciaFrontera';
 import ConfirmBack from './utils/ConfirmBack';
 import CatalogoFrontera from './ModuloSecretaria/CatalogoFrontera';
 import DashboardCharts from './ModuloSecretaria/DashboardCharts';
+import TipoConstanciaFrontera from './ModuloSecretaria/TipoConstanciaFrontera';
+import CarreraFrontera from './ModuloSecretaria/CarreraFrontera';
+import AsignaturaFrontera from './ModuloSecretaria/AsignaturaFrontera';
+import FacultadFrontera from './ModuloSecretaria/FacultadFrontera';
+import DocenteFrontera from './ModuloSecretaria/DocenteFrontera';
+import ImportFrontera from './ModuloSecretaria/ImportFrontera';
 
 window.Alpine = Alpine;
 
@@ -55,6 +61,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (apelacionSecretariaEl) {
         new ApelacionSecretariaFrontera(apelacionSecretariaEl);
     }
+
+    document.querySelectorAll('[data-tipo-constancia-frontera]').forEach(form => {
+        new TipoConstanciaFrontera(form);
+    });
+
+    document.querySelectorAll('[data-carrera-frontera]').forEach(form => {
+        new CarreraFrontera(form);
+    });
+
+    document.querySelectorAll('[data-asignatura-frontera]').forEach(form => {
+        new AsignaturaFrontera(form);
+    });
+
+    document.querySelectorAll('[data-facultad-frontera]').forEach(form => {
+        new FacultadFrontera(form);
+    });
+
+    document.querySelectorAll('[data-docente-frontera]').forEach(form => {
+        new DocenteFrontera(form);
+    });
+
+    document.querySelectorAll('[data-import-frontera]').forEach(form => {
+        new ImportFrontera(form);
+    });
 
     document.querySelectorAll('[data-reprogramacion-docente-frontera]').forEach(form => {
         new ReprogramacionDocenteFrontera(form);

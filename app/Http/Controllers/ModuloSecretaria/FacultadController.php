@@ -33,10 +33,9 @@ class FacultadController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+        Facultad::create([
+            'nombre' => $request->input('nombre'),
         ]);
-        Facultad::create($validated);
 
         return redirect()->route('secretaria.facultades.index')
             ->with('success', 'Facultad creada correctamente.');
@@ -63,10 +62,9 @@ class FacultadController extends Controller
      */
     public function update(Request $request, Facultad $facultad)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+        $facultad->update([
+            'nombre' => $request->input('nombre'),
         ]);
-        $facultad->update($validated);
 
         return redirect()->route('secretaria.facultades.index')
             ->with('success', 'Facultad actualizada correctamente.');

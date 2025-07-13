@@ -35,11 +35,10 @@ class CarreraController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
-            'facultad_id' => ['required', 'exists:facultades,id'],
+        Carrera::create([
+            'nombre' => $request->input('nombre'),
+            'facultad_id' => $request->input('facultad_id'),
         ]);
-        Carrera::create($validated);
         return redirect()->route('secretaria.carreras.index')
             ->with('success', 'Carrera creada correctamente.');
     }
@@ -66,11 +65,10 @@ class CarreraController extends Controller
      */
     public function update(Request $request, Carrera $carrera)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
-            'facultad_id' => ['required', 'exists:facultades,id'],
+        $carrera->update([
+            'nombre' => $request->input('nombre'),
+            'facultad_id' => $request->input('facultad_id'),
         ]);
-        $carrera->update($validated);
         return redirect()->route('secretaria.carreras.index')
             ->with('success', 'Carrera actualizada correctamente.');
     }

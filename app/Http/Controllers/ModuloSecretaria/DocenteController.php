@@ -40,26 +40,20 @@ class DocenteController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'cif' => ['required', 'string', 'max:255', 'unique:docentes,cif'],
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-        ]);
-
-        $password = $this->generatePassword($validated['name'], $validated['cif']);
+        $password = $this->generatePassword($request->input('name'), $request->input('cif'));
 
         try {
             $role = Role::where('name', 'docente')->first();
 
         $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
+                'name' => $request->input('name'),
+                'email' => $request->input('email'),
                 'password' => Hash::make($password),
                 'role_id' => $role?->id,
             ]);
 
         Docente::create([
-                'cif' => $validated['cif'],
+                'cif' => $request->input('cif'),
                 'usuario_id' => $user->id,
             ]);
         } catch (QueryException $e) {
@@ -95,20 +89,14 @@ class DocenteController extends Controller
      */
     public function update(Request $request, Docente $docente)
     {
-        $validated = $request->validate([
-            'cif' => ['required', 'string', 'max:255', 'unique:docentes,cif,' . $docente->id],
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $docente->usuario_id],
-        ]);
-
         try {
             $docente->update([
-                'cif' => $validated['cif'],
+                'cif' => $request->input('cif'),
             ]);
 
         $docente->usuario?->update([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
+                'name' => $request->input('name'),
+                'email' => $request->input('email'),
             ]);
         } catch (QueryException $e) {
             return back()->with('error', 'No se pudo actualizar el docente.')->withInput();
@@ -140,10 +128,6 @@ class DocenteController extends Controller
 
     public function previewImport(Request $request)
     {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx'],
-        ]);
-
         $import = new \App\Imports\RowsImport();
         Excel::import($import, $request->file('file'));
 

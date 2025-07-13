@@ -25,69 +25,121 @@ export default class DashboardCharts {
         this.renderFacultadesChart(data.facultades);
     }
 
-    renderSolicitudesChart(stats) {
-        const el = this.container.querySelector('#chart-solicitudes');
-        if (!el) return;
-        new Chart(el, {
-            type: 'doughnut',
-            data: {
-                labels: ['Aprobadas', 'Pendientes', 'Rechazadas'],
-                datasets: [{
-                    data: [stats.aprobadas, stats.pendientes, stats.rechazadas],
-                    backgroundColor: ['#16a34a', '#eab308', '#dc2626'],
-                }]
-            },
-            options: { maintainAspectRatio: false }
-        });
-    }
+renderSolicitudesChart(stats) {
+    const el = this.container.querySelector('#chart-solicitudes');
+    if (!el) return;
+
+    new Chart(el, {
+        type: 'doughnut',
+        data: {
+            labels: ['Aprobadas', 'Pendientes', 'Rechazadas'],
+            datasets: [{
+                data: [stats.aprobadas, stats.pendientes, stats.rechazadas],
+                backgroundColor: ['#00c951', '#efb100', '#fb2c36'],
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Distribución de Solicitudes'
+                }
+            }
+        }
+    });
+}
 
     renderApelacionesChart(stats) {
-        const el = this.container.querySelector('#chart-apelaciones');
-        if (!el) return;
-        new Chart(el, {
-            type: 'doughnut',
-            data: {
-                labels: ['Aprobadas', 'Pendientes', 'Rechazadas'],
-                datasets: [{
-                    data: [stats.aprobadas, stats.pendientes, stats.rechazadas],
-                    backgroundColor: ['#16a34a', '#eab308', '#dc2626'],
-                }]
-            },
-            options: { maintainAspectRatio: false }
-        });
-    }
+    const el = this.container.querySelector('#chart-apelaciones');
+    if (!el) return;
 
-    renderCarrerasChart(items) {
-        const el = this.container.querySelector('#chart-carreras');
-        if (!el) return;
-        new Chart(el, {
-            type: 'bar',
-            data: {
-                labels: items.map(i => i.nombre),
-                datasets: [{
+    new Chart(el, {
+        type: 'doughnut',
+        data: {
+            labels: ['Aprobadas', 'Pendientes', 'Rechazadas'],
+            datasets: [{
+                data: [stats.aprobadas, stats.pendientes, stats.rechazadas],
+                backgroundColor: ['#00c951', '#efb100', '#fb2c36'],
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Distribución de Apelaciones'
+                }
+            }
+        }
+    });
+}
+
+
+renderCarrerasChart(items) {
+    const el = this.container.querySelector('#chart-carreras');
+    if (!el) return;
+
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: items.map(i => i.nombre),
+            datasets: [
+                {
                     label: 'Solicitudes',
-                    data: items.map(i => i.total),
+                    data: items.map(i => i.solicitudes),
                     backgroundColor: '#0ea5e9',
-                }]
-            },
-            options: { maintainAspectRatio: false }
-        });
-    }
+                },
+                {
+                    label: 'Apelaciones',
+                    data: items.map(i => i.apelaciones),
+                    backgroundColor: '#f97316',
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Solicitudes y Apelaciones por Carrera'
+                }
+            }
+        }
+    });
+}
 
-    renderFacultadesChart(items) {
-        const el = this.container.querySelector('#chart-facultades');
-        if (!el) return;
-        new Chart(el, {
-            type: 'bar',
-            data: {
-                labels: items.map(i => i.nombre),
-                datasets: [{
+renderFacultadesChart(items) {
+    const el = this.container.querySelector('#chart-facultades');
+    if (!el) return;
+
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: items.map(i => i.nombre),
+            datasets: [
+                {
                     label: 'Solicitudes',
-                    data: items.map(i => i.total),
+                    data: items.map(i => i.solicitudes),
                     backgroundColor: '#a855f7',
-                }]
-            },
-            options: { maintainAspectRatio: false }
-        });
-    }
+                },
+                {
+                    label: 'Apelaciones',
+                    data: items.map(i => i.apelaciones),
+                    backgroundColor: '#f97316',
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Solicitudes y Apelaciones por Facultad'
+                }
+            }
+        }
+    });
+}
+
 }
