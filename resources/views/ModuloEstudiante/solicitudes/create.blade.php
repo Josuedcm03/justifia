@@ -19,8 +19,8 @@
 
                 <form method="POST" action="{{ route('estudiante.solicitudes.store', ['estado' => request()->query('estado', 'pendiente')]) }}" enctype="multipart/form-data" class="space-y-4"
                     data-solicitud-estudiante-frontera
-                    data-asignaturas-url="{{ url('estudiante/facultades') }}"
                     data-buscar-docentes-url="{{ url('estudiante/docentes/buscar') }}"
+                    data-buscar-asignaturas-url="{{ url('estudiante/asignaturas/buscar') }}"
                     data-old-asignatura="{{ old('asignatura_id') }}">
                     @csrf
                     <div>
@@ -55,10 +55,16 @@
                     </div>
 
                     <div>
-                        <label for="asignatura_id" class="block font-medium mb-1">Asignatura</label>
-                        <select id="asignatura_id" name="asignatura_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
-                            <option value="">Seleccionar Asignatura</option>
-                        </select>
+                        <label for="asignatura_input" class="block font-medium mb-1">Asignatura</label>
+                        <div class="relative" id="asignatura-wrapper">
+                            <input id="asignatura_input" type="text" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8] pr-10" placeholder="Escribe para buscar" autocomplete="off">
+                            <button type="button" id="asignatura_clear" class="hidden absolute top-1/2 -translate-y-1/2 right-2 text-gray-500">
+                                <x-heroicon-o-x-mark class="w-5 h-5" />
+                            </button>
+                            <x-heroicon-o-chevron-down id="asignatura_icon" class="w-5 h-4 absolute top-1/2 -translate-y-1/2 right-2 text-gray-500 pointer-events-none" />
+                            <ul id="asignatura_results" class="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 rounded-md mt-1 max-h-60 overflow-auto hidden"></ul>
+                        </div>
+                        <input type="hidden" id="asignatura_id" name="asignatura_id" value="{{ old('asignatura_id') }}">
                         <x-input-error class="mt-2" :messages="$errors->get('asignatura_id')" />
                     </div>
 

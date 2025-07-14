@@ -17,11 +17,22 @@ class AsignaturaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $asignaturas = Asignatura::orderBy('nombre')->paginate(10);
-        $asignaturas = Asignatura::with('facultad')->orderBy('nombre')->paginate(10);
-        return view('ModuloSecretaria.asignaturas.index', compact('asignaturas'));
+        $search = $request->input('search');
+
+        $asignaturas = Asignatura::with('facultad')
+            ->when($search, function ($query) use ($search) {
+                $query->where('nombre', 'like', "%{$search}%")
+                    ->orWhereHas('facultad', function ($q) use ($search) {
+                        $q->where('nombre', 'like', "%{$search}%");
+                    });
+            })
+            ->orderBy('nombre')
+            ->paginate(15)
+            ->appends(['search' => $search]);
+
+        return view('ModuloSecretaria.asignaturas.index', compact('asignaturas', 'search'));
     }
 
     /**

@@ -22,10 +22,23 @@ class DocenteController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $docentes = Docente::orderBy('cif')->paginate(10);
-        return view('ModuloSecretaria.docentes.index', compact('docentes'));
+        $search = $request->input('search');
+
+        $docentes = Docente::with('usuario')
+            ->when($search, function ($query) use ($search) {
+                $query->where('cif', 'like', "%{$search}%")
+                    ->orWhereHas('usuario', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+                    });
+            })
+            ->orderBy('cif')
+            ->paginate(15)
+            ->appends(['search' => $search]);
+
+        return view('ModuloSecretaria.docentes.index', compact('docentes', 'search'));
     }
 
     /**

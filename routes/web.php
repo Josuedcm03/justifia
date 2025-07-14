@@ -49,6 +49,8 @@ require __DIR__.'/auth.php';
 Route::middleware(['auth', 'verified', 'role:estudiante', 'throttle:global'])->prefix('estudiante')->name('estudiante.')->group(function () {
     Route::get('docentes/buscar', [EstudianteSolicitudController::class, 'buscarDocentes'])
         ->name('docentes.buscar');
+    Route::get('asignaturas/buscar', [EstudianteSolicitudController::class, 'buscarAsignaturas'])
+        ->name('asignaturas.buscar');
     Route::get('facultades/{facultad}/asignaturas', [EstudianteSolicitudController::class, 'asignaturasPorFacultad'])
         ->name('facultades.asignaturas');
     Route::resource('solicitudes', EstudianteSolicitudController::class)->parameters([

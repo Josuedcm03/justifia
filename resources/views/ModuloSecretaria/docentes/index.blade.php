@@ -27,6 +27,13 @@
                     </div>
                 </div>
 
+                <form method="GET" class="mb-4">
+                    <div class="relative max-w-xs">
+                        <x-heroicon-o-magnifying-glass class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                        <input type="text" name="search" placeholder="Buscar por nombre" value="{{ $search }}" class="w-full pl-10 pr-4 py-2 rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" />
+                    </div>
+                </form>
+                
                 <div class="overflow-x-auto">
                     <table class="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                         <thead>

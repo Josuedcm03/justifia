@@ -99,6 +99,15 @@ renderCarrerasChart(items) {
         },
         options: {
             maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 90,
+                        minRotation: 30
+                    }
+                }
+            },
             plugins: {
                 title: {
                     display: true,
@@ -132,6 +141,15 @@ renderFacultadesChart(items) {
         },
         options: {
             maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 90,
+                        minRotation: 30
+                    }
+                }
+            },
             plugins: {
                 title: {
                     display: true,

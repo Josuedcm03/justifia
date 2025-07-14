@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 // Models
 use App\Models\ModuloEstudiante\Solicitud;
 use App\Models\ModuloSecretaria\Docente;
+use App\Models\ModuloSecretaria\Asignatura;
 use App\Models\ModuloSecretaria\Facultad;
 use App\Models\ModuloSecretaria\TipoConstancia;
 use App\Enums\EstadoSolicitud;
@@ -159,6 +160,20 @@ class SolicitudController extends Controller
             ->get()
             ->map(fn($d) => ['id' => $d->id, 'nombre' => $d->usuario->name]);
         return response()->json($docentes);
+    }
+
+    public function buscarAsignaturas(Request $request)
+    {
+        $query = $request->query('q');
+        $facultadId = $request->query('facultad');
+
+        $asignaturas = Asignatura::query()
+            ->when($facultadId, fn($q) => $q->where('facultad_id', $facultadId))
+            ->when($query, fn($q) => $q->where('nombre', 'like', "%{$query}%"))
+            ->limit(10)
+            ->get(['id', 'nombre']);
+
+        return response()->json($asignaturas);
     }
 
     /**

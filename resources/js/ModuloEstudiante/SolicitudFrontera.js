@@ -4,8 +4,8 @@ export default class SolicitudFrontera {
         this.form = form;
         this.isUpdate = options.isUpdate || false;
         this.oldAsignatura = form.dataset.oldAsignatura || '';
-        this.asignaturasUrl = form.dataset.asignaturasUrl;
         this.buscarDocentesUrl = form.dataset.buscarDocentesUrl;
+        this.buscarAsignaturasUrl = form.dataset.buscarAsignaturasUrl;
         this.docenteInput = this.form.querySelector('#docente_input');
         this.docenteHidden = this.form.querySelector('#docente_id');
         this.docenteList = this.form.querySelector('#docente_results');
@@ -14,7 +14,13 @@ export default class SolicitudFrontera {
         this.docenteWrapper = this.form.querySelector('#docente-wrapper');
         this.docenteSelected = !!(this.docenteHidden && this.docenteHidden.value);
         this.facultadSelect = this.form.querySelector('#facultad_id');
-        this.asignaturaSelect = this.form.querySelector('#asignatura_id');
+        this.asignaturaInput = this.form.querySelector('#asignatura_input');
+        this.asignaturaHidden = this.form.querySelector('#asignatura_id');
+        this.asignaturaList = this.form.querySelector('#asignatura_results');
+        this.asignaturaIcon = this.form.querySelector('#asignatura_icon');
+        this.asignaturaClear = this.form.querySelector('#asignatura_clear');
+        this.asignaturaWrapper = this.form.querySelector('#asignatura-wrapper');
+        this.asignaturaSelected = !!(this.asignaturaHidden && this.asignaturaHidden.value);
         this.constanciaInput = this.form.querySelector('#constancia');
         this.deleteConstancia = this.form.querySelector('#delete_constancia');
         this.eliminarBtn = document.getElementById('eliminar-btn');
@@ -22,9 +28,7 @@ export default class SolicitudFrontera {
         this.confirmed = false;
         this.registerEvents();
         this.inicializarDocente();
-        if (this.facultadSelect && this.facultadSelect.value) {
-            this.cargarAsignaturas(this.facultadSelect.value, this.oldAsignatura);
-        }
+        this.inicializarAsignatura();
     }
 
     registerEvents() {
@@ -74,12 +78,32 @@ export default class SolicitudFrontera {
             if (this.docenteWrapper && !this.docenteWrapper.contains(e.target)) {
                 this.docenteList?.classList.add('hidden');
             }
+            if (this.asignaturaWrapper && !this.asignaturaWrapper.contains(e.target)) {
+                this.asignaturaList?.classList.add('hidden');
+            }
         });
 
         if (this.facultadSelect) {
-            this.facultadSelect.addEventListener('change', e => {
-                this.cargarAsignaturas(e.target.value);
+            this.facultadSelect.addEventListener('change', () => {
+                this.limpiarAsignatura();
             });
+        }
+
+        if (this.asignaturaInput) {
+            this.asignaturaInput.addEventListener('input', e => {
+                if (this.asignaturaSelected) return;
+                this.buscarAsignaturas(e.target.value);
+            });
+            this.asignaturaInput.addEventListener('focus', () => {
+                if (this.asignaturaSelected) return;
+                if (this.asignaturaList && this.asignaturaList.children.length) {
+                    this.asignaturaList.classList.remove('hidden');
+                }
+            });
+        }
+
+        if (this.asignaturaClear) {
+            this.asignaturaClear.addEventListener('click', () => this.limpiarAsignatura());
         }
 
         if (this.eliminarBtn && this.eliminarForm) {
@@ -100,29 +124,6 @@ export default class SolicitudFrontera {
                 });
             });
         }
-    }
-
-    cargarAsignaturas(facultadId, selected = null) {
-        if (!this.asignaturaSelect) return;
-        this.asignaturaSelect.innerHTML = '<option value="">Cargando...</option>';
-        if (!facultadId) {
-            this.asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-            return;
-        }
-        fetch(`${this.asignaturasUrl}/${facultadId}/asignaturas`)
-            .then(r => r.json())
-            .then(data => {
-                this.asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-                data.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item.id;
-                    option.textContent = item.nombre;
-                    if (selected == item.id) {
-                        option.selected = true;
-                    }
-                    this.asignaturaSelect.appendChild(option);
-                });
-            });
     }
 
     buscarDocentes(query) {
@@ -162,6 +163,54 @@ export default class SolicitudFrontera {
         this.docenteIcon?.classList.remove('hidden');
     }
 
+    buscarAsignaturas(query) {
+        if (!this.buscarAsignaturasUrl || !this.asignaturaList) return;
+        const facultadId = this.facultadSelect ? this.facultadSelect.value : '';
+        const params = new URLSearchParams({ q: query });
+        if (facultadId) params.append('facultad', facultadId);
+        fetch(`${this.buscarAsignaturasUrl}?${params.toString()}`)
+            .then(r => r.json())
+            .then(data => {
+                this.asignaturaList.innerHTML = '';
+                data.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = item.nombre;
+                    li.dataset.id = item.id;
+                    li.className = 'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800';
+                    li.addEventListener('click', () => this.seleccionarAsignatura(item));
+                    this.asignaturaList.appendChild(li);
+                });
+                this.asignaturaList.classList.remove('hidden');
+            });
+    }
+
+    seleccionarAsignatura(item) {
+        this.asignaturaInput.value = item.nombre;
+        if (this.asignaturaHidden) this.asignaturaHidden.value = item.id;
+        this.asignaturaSelected = true;
+        this.asignaturaInput.readOnly = true;
+        this.asignaturaList.classList.add('hidden');
+        this.asignaturaIcon?.classList.add('hidden');
+        this.asignaturaClear?.classList.remove('hidden');
+    }
+
+    limpiarAsignatura() {
+        if (this.asignaturaInput) this.asignaturaInput.value = '';
+        if (this.asignaturaHidden) this.asignaturaHidden.value = '';
+        this.asignaturaSelected = false;
+        if (this.asignaturaInput) this.asignaturaInput.readOnly = false;
+        this.asignaturaClear?.classList.add('hidden');
+        this.asignaturaIcon?.classList.remove('hidden');
+    }
+
+    inicializarAsignatura() {
+        if (this.asignaturaSelected) {
+            if (this.asignaturaInput) this.asignaturaInput.readOnly = true;
+            this.asignaturaIcon?.classList.add('hidden');
+            this.asignaturaClear?.classList.remove('hidden');
+        }
+    }
+
     inicializarDocente() {
         if (this.docenteSelected) {
             this.docenteInput.readOnly = true;
@@ -188,7 +237,7 @@ export default class SolicitudFrontera {
             errors.push('Debes seleccionar un docente');
         }
 
-        if (this.asignaturaSelect && !this.asignaturaSelect.value) {
+        if (this.asignaturaHidden && !this.asignaturaHidden.value) {
             errors.push('Debes seleccionar una asignatura');
         }
 
