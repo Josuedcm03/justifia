@@ -29,12 +29,11 @@ class DocentesImport implements ToModel, WithHeadingRow
             'role_id' => $role?->id,
         ]);
 
-        Mail::to($user->email)->queue(
-            new DocenteCredentialsMail($user->name, $user->email)
-        );
-
         $token = Password::broker()->createToken($user);
-        $user->sendPasswordResetNotification($token);
+
+        Mail::to($user->email)->queue(
+            new DocenteCredentialsMail($user->name, $user->email, $token)
+        );
 
         return new Docente([
             'cif' => $row['cif'],

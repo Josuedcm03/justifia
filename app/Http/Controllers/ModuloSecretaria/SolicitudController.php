@@ -57,14 +57,14 @@ class SolicitudController extends Controller
         $solicitud->save();
 
         $studentUser = $solicitud->estudiante->usuario;
-        $teacherUser = $solicitud->docente->usuario;
+        
 
         SendStatusMail::dispatch(
             $solicitud->estado === EstadoSolicitud::Aprobada,
             $studentUser->email,
             $studentUser->name,
-            $teacherUser->email,
-            $teacherUser->name,
+            
+            
             $solicitud,
         );
 

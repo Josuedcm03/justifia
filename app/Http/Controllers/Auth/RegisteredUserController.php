@@ -35,13 +35,27 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
-            'cif' => ['required', 'numeric', 'digits:8', 'unique:estudiantes,cif'],
-            'carrera_id' => ['required', 'exists:carreras,id'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'name' => ['required', 'string', 'max:255'],
+                'email' => [
+                    'required',
+                    'string',
+                    'lowercase',
+                    'email',
+                    'max:255',
+                    'unique:' . User::class,
+                    'regex:/^[^@\s]+@uamv\.edu\.ni$/i',
+                ],
+                'cif' => ['required', 'numeric', 'digits:8', 'unique:estudiantes,cif'],
+                'carrera_id' => ['required', 'exists:carreras,id'],
+                'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            ],
+            [
+                'email.regex' => 'El correo institucional debe finalizar con @uamv.edu.ni.',
+            ]
+        );
 
         if ($validator->fails()) {
             return back()

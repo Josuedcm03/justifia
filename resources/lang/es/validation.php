@@ -112,6 +112,9 @@ return [
         'carrera_id' => [
             'required' => 'Debe seleccionar una carrera.',
         ],
+        'email' => [
+            'regex' => 'El correo institucional debe finalizar con @uamv.edu.ni.',
+        ],
         'password' => [
             'min' => 'La contraseña debe tener al menos :min caracteres.',
         ],

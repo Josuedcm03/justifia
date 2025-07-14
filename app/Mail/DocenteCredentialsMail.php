@@ -13,17 +13,27 @@ class DocenteCredentialsMail extends Mailable implements ShouldQueue
 
     public string $recipientName;
     public string $recipientEmail;
+    protected string $token;
 
-    public function __construct(string $recipientName, string $recipientEmail)
+    public function __construct(string $recipientName, string $recipientEmail, string $token)
     {
         $this->recipientName = $recipientName;
         $this->recipientEmail = $recipientEmail;
+        $this->token = $token;
     }
 
     public function build(): self
     {
+        $url = url(route('password.reset', [
+            'token' => $this->token,
+            'email' => $this->recipientEmail,
+        ], false));
+
         return $this
             ->subject('Credenciales de Acceso')
-            ->view('emails.docente-credentials');
+            ->view('emails.docente-credentials')
+            ->with([
+                'url' => $url,
+            ]);
     }
 }

@@ -72,12 +72,11 @@ class DocenteController extends Controller
             return back()->with('error', 'No se pudo crear el docente.')->withInput();
         }
 
-        Mail::to($user->email)->queue(
-            new DocenteCredentialsMail($user->name, $user->email)
-        );
-
         $token = Password::broker()->createToken($user);
-        $user->sendPasswordResetNotification($token);
+
+        Mail::to($user->email)->queue(
+            new DocenteCredentialsMail($user->name, $user->email, $token)
+        );
 
         return redirect()->route('secretaria.docentes.index')
             ->with('success', 'Docente creado correctamente.');
@@ -180,12 +179,12 @@ class DocenteController extends Controller
                 'usuario_id' => $user->id,
             ]);
 
+            $token = Password::broker()->createToken($user);
+            
             Mail::to($user->email)->queue(
-                new DocenteCredentialsMail($user->name, $user->email)
+                new DocenteCredentialsMail($user->name, $user->email, $token)
             );
 
-            $token = Password::broker()->createToken($user);
-            $user->sendPasswordResetNotification($token);
         }
 
         return redirect()->route('secretaria.docentes.index')
