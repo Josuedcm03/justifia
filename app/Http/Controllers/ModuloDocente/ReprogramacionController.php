@@ -52,15 +52,17 @@ class ReprogramacionController extends Controller
         
         $studentUser = $solicitud->estudiante->usuario;
 
-        Mail::to($studentUser->email)->queue(
-            new RescheduleMail(
-                $studentUser->name,
-                \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),
-                $reprogramacion->hora,
-                'Por definir',
-                $studentUser->email
-            )
-        );
+        Mail::to($studentUser->email)
+            ->cc($solicitud->docente->usuario->email)
+            ->queue(
+                new RescheduleMail(
+                    $studentUser->name,
+                    \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),
+                    $reprogramacion->hora,
+                    $reprogramacion->observaciones,
+                    $studentUser->email
+                )
+            );
 
         return redirect()
             ->route('docente.solicitudes.index')

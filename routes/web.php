@@ -106,7 +106,7 @@ Route::middleware(['auth', 'verified', 'role:secretaria', 'throttle:global'])->p
 Route::get('catalogos', [CatalogoController::class, 'index'])->name('catalogos.index');
     });
 
-Route::middleware(['auth', 'verified', 'role:docente', 'throttle:global'])->prefix('docente')->name('docente.')->group(function () {
+Route::middleware(['auth', 'role:docente', 'throttle:global'])->prefix('docente')->name('docente.')->group(function () {
     Route::get('solicitudes', [DocenteReprogramacionController::class, 'index'])->name('solicitudes.index');
     Route::get('solicitudes/{solicitud}', [DocenteReprogramacionController::class, 'show'])->name('solicitudes.show');
     Route::post('solicitudes/{solicitud}/reprogramacion', [DocenteReprogramacionController::class, 'storeReprogramacion'])->name('solicitudes.reprogramacion.store');

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\ModuloEstudiante\Apelacion;
 use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSolicitud;
+use App\Jobs\SendAppealStatusMail;
 
 class ApelacionController extends Controller
 {
@@ -59,6 +60,15 @@ class ApelacionController extends Controller
             $solicitud->respuesta = $request->input('respuesta');
             $solicitud->save();
         }
+
+        $studentUser = $apelacion->solicitud->estudiante->usuario;
+
+        SendAppealStatusMail::dispatch(
+            $apelacion->estado === EstadoApelacion::Aprobada,
+            $studentUser->email,
+            $studentUser->name,
+            $apelacion,
+        );
 
         $redirectEstado = $request->query('estado', 'pendiente');
 

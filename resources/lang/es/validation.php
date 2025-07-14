@@ -113,7 +113,7 @@ return [
             'required' => 'Debe seleccionar una carrera.',
         ],
         'email' => [
-            'regex' => 'El correo institucional debe finalizar con @uamv.edu.ni.',
+            'regex' => 'El correo debe ser institucional.',
         ],
         'password' => [
             'min' => 'La contraseña debe tener al menos :min caracteres.',

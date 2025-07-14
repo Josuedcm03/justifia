@@ -13,7 +13,7 @@ class CustomResetPassword extends ResetPassword
 
         return (new MailMessage)
             ->subject('Restablecer contraseña')
-            ->markdown('emails.reset-password', [
+            ->view('emails.reset-password', [
                 'url' => $url,
                 'recipientName' => $notifiable->name,
                 'recipientEmail' => $notifiable->email,

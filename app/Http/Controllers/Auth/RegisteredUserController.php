@@ -53,7 +53,7 @@ class RegisteredUserController extends Controller
                 'password' => ['required', 'confirmed', Rules\Password::defaults()],
             ],
             [
-                'email.regex' => 'El correo institucional debe finalizar con @uamv.edu.ni.',
+                'email.regex' => 'El correo no es institucional.',
             ]
         );
 
