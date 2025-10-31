@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
         User::factory()->create([
             'name' => 'Secretaria',
             'email' => 'secretaria@example.com',
-            'password' => 'secret',
+            'password' => 'secret123',
             'role_id' => $secretariaRole?->id,
         ]);
 
@@ -39,9 +39,7 @@ class DatabaseSeeder extends Seeder
             FacultadesSeeder::class,
             AsignaturasSeeder::class,
             DocentesSeeder::class,
-            EstudiantesSeeder::class,
             TipoConstanciaSeeder::class,
-            SolicitudesSeeder::class,
         ]);
     }
 }
