@@ -1,19 +1,18 @@
 <?php
 
-namespace App\Models\ModuloEstudiante;
+namespace App\Domain\Solicitud\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-// Models
-use App\Models\ModuloEstudiante\Estudiante;
-use App\Models\ModuloEstudiante\Apelacion;
-use App\Models\ModuloSecretaria\TipoConstancia;
-use App\Models\ModuloDocente\Reprogramacion;
 use App\Enums\EstadoSolicitud;
-use App\Models\ModuloSecretaria\Docente;
-use App\Models\ModuloSecretaria\Asignatura;
+use App\Domain\Estudiante\Entities\Estudiante;
+use App\Domain\Apelaciones\Entities\Apelacion;
+use App\Domain\Catalogo\Entities\TipoConstancia;
+use App\Domain\Reprogramacion\Entities\Reprogramacion;
+use App\Domain\Docente\Entities\Docente;
+use App\Domain\Catalogo\Entities\Asignatura;
 
 class Solicitud extends Model
 {

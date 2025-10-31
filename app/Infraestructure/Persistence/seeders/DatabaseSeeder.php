@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Domain\Usuarios\Entities\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Database\Seeders\FacultadesSeeder;
 use Database\Seeders\AsignaturasSeeder;
 use Database\Seeders\DocentesSeeder;
 use Database\Seeders\RolesSeeder;
-use App\Models\ModuloEstudiante\Estudiante;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSecretaria\Facultad;
-use App\Models\ModuloSeguridad\Role;
+use App\Domain\Estudiante\Entities\Estudiante;
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Catalogo\Entities\Facultad;
+use App\Domain\Seguridad\Entities\Role;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder

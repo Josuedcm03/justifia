@@ -6,8 +6,8 @@ use App\Application\Catalogo\CatalogoService;
 use App\Application\Solicitudes\SolicitudService;
 use App\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
-use App\Models\ModuloEstudiante\Solicitud;
-use App\Models\ModuloSecretaria\Facultad;
+use App\Domain\Solicitud\Entities\Solicitud;
+use App\Domain\Catalogo\Entities\Facultad;
 use Illuminate\Http\Request;
 
 class SolicitudController extends Controller

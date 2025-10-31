@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Catalogo\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-// Models
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud;
 
 class TipoConstancia extends Model
 {

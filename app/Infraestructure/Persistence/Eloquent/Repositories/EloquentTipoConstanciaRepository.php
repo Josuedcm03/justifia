@@ -3,7 +3,7 @@
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Catalogo\Repositories\TipoConstanciaRepository;
-use App\Models\ModuloSecretaria\TipoConstancia;
+use App\Domain\Catalogo\Entities\TipoConstancia;
 use Illuminate\Support\Collection;
 
 class EloquentTipoConstanciaRepository implements TipoConstanciaRepository

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\ModuloSecretaria;
 use App\Application\Solicitudes\SolicitudService;
 use App\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
 
 class SolicitudController extends Controller

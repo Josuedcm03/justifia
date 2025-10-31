@@ -3,7 +3,7 @@
 namespace App\Domain\Solicitud\Repositories;
 
 use App\Enums\EstadoSolicitud;
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 

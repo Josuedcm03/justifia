@@ -1,15 +1,13 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Docente\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use \Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 
-// Models
-use App\Models\User;
-
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Usuarios\Entities\User;
+use App\Domain\Solicitud\Entities\Solicitud;
 
 
 class Docente extends Model

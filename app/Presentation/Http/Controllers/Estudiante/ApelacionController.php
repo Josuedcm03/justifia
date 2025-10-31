@@ -5,8 +5,8 @@ namespace App\Http\Controllers\ModuloEstudiante;
 use App\Application\Apelaciones\ApelacionService;
 use App\Enums\EstadoApelacion;
 use App\Http\Controllers\Controller;
-use App\Models\ModuloEstudiante\Apelacion;
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Apelaciones\Entities\Apelacion;
+use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
 
 class ApelacionController extends Controller

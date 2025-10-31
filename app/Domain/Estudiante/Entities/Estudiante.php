@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Models\ModuloEstudiante;
+namespace App\Domain\Estudiante\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-// Models
-use App\Models\User;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Usuarios\Entities\User;
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Solicitud\Entities\Solicitud;
 
 class Estudiante extends Model
 {

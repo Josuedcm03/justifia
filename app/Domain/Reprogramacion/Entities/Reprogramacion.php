@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Models\ModuloDocente;
+namespace App\Domain\Reprogramacion\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Enums\EstadoAsistencia;
 
-// Models
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud;
 
 class Reprogramacion extends Model
 {

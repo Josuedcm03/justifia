@@ -1,14 +1,13 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Catalogo\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 
-// Models
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSecretaria\Asignatura;
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Catalogo\Entities\Asignatura;
 
 class Facultad extends Model
 {

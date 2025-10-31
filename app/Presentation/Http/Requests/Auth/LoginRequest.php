@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Domain\Usuarios\Entities\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +48,7 @@ class LoginRequest extends FormRequest
         if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
             $credentials['email'] = $login;
         } else {
-            $user = \App\Models\User::whereHas('estudiante', function ($q) use ($login) {
+            $user = User::whereHas('estudiante', function ($q) use ($login) {
                 $q->where('cif', $login);
             })->first();
 

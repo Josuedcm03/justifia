@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\ModuloSecretaria\Docente;
-use App\Models\User;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSeguridad\Role;
+use App\Domain\Docente\Entities\Docente;
+use App\Domain\Usuarios\Entities\User;
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Seguridad\Entities\Role;
 use Illuminate\Support\Facades\Hash;
 
 class DocentesSeeder extends Seeder

@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Models\ModuloEstudiante;
+namespace App\Domain\Apelaciones\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Enums\EstadoApelacion;
+use App\Domain\Solicitud\Entities\Solicitud;
 
 class Apelacion extends Model
 {

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\ModuloDocente;
 
 use App\Application\Reprogramaciones\ReprogramacionService;
 use App\Http\Controllers\Controller;
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
 
 class ReprogramacionController extends Controller

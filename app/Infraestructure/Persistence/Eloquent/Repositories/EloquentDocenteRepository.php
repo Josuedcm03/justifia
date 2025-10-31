@@ -3,7 +3,7 @@
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Docente\Repositories\DocenteRepository;
-use App\Models\ModuloSecretaria\Docente;
+use App\Domain\Docente\Entities\Docente;
 use Illuminate\Support\Collection;
 
 class EloquentDocenteRepository implements DocenteRepository

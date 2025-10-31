@@ -1,15 +1,13 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Catalogo\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 
-// Models
-use App\Models\ModuloEstudiante\Estudiante;
-
-use App\Models\ModuloSecretaria\Facultad;
+use App\Domain\Estudiante\Entities\Estudiante;
+use App\Domain\Catalogo\Entities\Facultad;
 
 class Carrera extends Model
 {

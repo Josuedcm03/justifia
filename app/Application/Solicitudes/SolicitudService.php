@@ -6,7 +6,7 @@ use App\Domain\Solicitud\Repositories\SolicitudRepository;
 use App\Enums\EstadoSolicitud;
 use App\Mail\ApprovalMail;
 use App\Mail\RejectionMail;
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 // Models
-use App\Models\ModuloEstudiante\Estudiante;
+use App\Domain\Estudiante\Entities\Estudiante;
 
 class EstudianteController extends Controller
 {

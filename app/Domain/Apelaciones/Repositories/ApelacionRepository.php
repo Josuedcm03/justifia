@@ -3,7 +3,7 @@
 namespace App\Domain\Apelaciones\Repositories;
 
 use App\Enums\EstadoApelacion;
-use App\Models\ModuloEstudiante\Apelacion;
+use App\Domain\Apelaciones\Entities\Apelacion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 

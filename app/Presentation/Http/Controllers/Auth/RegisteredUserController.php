@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Domain\Usuarios\Entities\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
-use App\Models\ModuloSeguridad\Role;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloEstudiante\Estudiante;
+use App\Domain\Seguridad\Entities\Role;
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Estudiante\Entities\Estudiante;
 
 class RegisteredUserController extends Controller
 {

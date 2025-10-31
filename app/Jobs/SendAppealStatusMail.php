@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\AppealApprovalMail;
 use App\Mail\AppealRejectionMail;
-use App\Models\ModuloEstudiante\Apelacion;
+use App\Domain\Apelaciones\Entities\Apelacion;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

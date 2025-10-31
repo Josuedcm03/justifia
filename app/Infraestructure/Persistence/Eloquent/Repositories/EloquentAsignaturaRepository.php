@@ -3,7 +3,7 @@
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Catalogo\Repositories\AsignaturaRepository;
-use App\Models\ModuloSecretaria\Asignatura;
+use App\Domain\Catalogo\Entities\Asignatura;
 use Illuminate\Support\Collection;
 
 class EloquentAsignaturaRepository implements AsignaturaRepository

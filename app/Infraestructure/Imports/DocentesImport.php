@@ -2,9 +2,9 @@
 
 namespace App\Imports;
 
-use App\Models\ModuloSecretaria\Docente;
-use App\Models\User;
-use App\Models\ModuloSeguridad\Role;
+use App\Domain\Docente\Entities\Docente;
+use App\Domain\Usuarios\Entities\User;
+use App\Domain\Seguridad\Entities\Role;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ToModel;

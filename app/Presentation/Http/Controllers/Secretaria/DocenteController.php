@@ -7,13 +7,14 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 
 // Models
-use App\Models\ModuloSecretaria\Docente;
+use App\Domain\Docente\Entities\Docente;
 use App\Imports\DocentesImport;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Models\User;
+use App\Domain\Usuarios\Entities\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use App\Models\ModuloSeguridad\Role;
+use App\Domain\Seguridad\Entities\Role;
 
 class DocenteController extends Controller
 {

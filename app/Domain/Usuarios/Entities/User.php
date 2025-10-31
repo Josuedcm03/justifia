@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Models;
+namespace App\Domain\Usuarios\Entities;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\ModuloSeguridad\Role;
-use App\Models\ModuloEstudiante\Estudiante;
-use App\Models\ModuloSecretaria\Docente;
+use App\Domain\Seguridad\Entities\Role;
+use App\Domain\Estudiante\Entities\Estudiante;
+use App\Domain\Docente\Entities\Docente;
 use App\Notifications\CustomVerifyEmail;
 use App\Notifications\CustomResetPassword;
 
