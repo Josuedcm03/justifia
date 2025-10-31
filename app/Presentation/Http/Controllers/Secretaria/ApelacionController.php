@@ -2,26 +2,27 @@
 
 namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
-use App\Models\ModuloEstudiante\Apelacion;
+use App\Application\Apelaciones\ApelacionService;
+use App\Application\Solicitudes\SolicitudService;
 use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSolicitud;
+use App\Http\Controllers\Controller;
 use App\Jobs\SendAppealStatusMail;
+use App\Models\ModuloEstudiante\Apelacion;
+use Illuminate\Http\Request;
 
 class ApelacionController extends Controller
 {
-    /**
-     * Display a listing of the resource filtered by status.
-     */
+    public function __construct(
+        private readonly ApelacionService $apelaciones,
+        private readonly SolicitudService $solicitudes
+    ) {
+    }
+
     public function index(Request $request)
     {
         $estado = EstadoApelacion::tryFrom($request->query('estado')) ?? EstadoApelacion::Pendiente;
-        $apelaciones = Apelacion::where('estado', $estado)
-            ->whereDoesntHave('apelacionesHijas')
-            ->orderByDesc('id')
-            ->paginate(9);
+        $apelaciones = $this->apelaciones->paginarPorEstado($estado, 9);
 
         return view('ModuloSecretaria.apelaciones.index', [
             'apelaciones' => $apelaciones,
@@ -50,21 +51,22 @@ class ApelacionController extends Controller
      */
     public function update(Request $request, Apelacion $apelacion)
     {
-        $apelacion->estado = EstadoApelacion::from($request->input('estado'));
-        $apelacion->respuesta = $request->input('respuesta');
-        $apelacion->save();
+        $estado = EstadoApelacion::from($request->input('estado'));
+        $respuesta = $request->input('respuesta');
 
-        if ($apelacion->estado === EstadoApelacion::Aprobada) {
-            $solicitud = $apelacion->solicitud;
-            $solicitud->estado = EstadoSolicitud::Aprobada;
-            $solicitud->respuesta = $request->input('respuesta');
-            $solicitud->save();
+        $apelacion = $this->apelaciones->actualizar($apelacion, [
+            'estado' => $estado,
+            'respuesta' => $respuesta,
+        ]);
+
+        if ($estado === EstadoApelacion::Aprobada) {
+            $this->solicitudes->actualizarEstado($apelacion->solicitud, EstadoSolicitud::Aprobada, $respuesta);
         }
 
         $studentUser = $apelacion->solicitud->estudiante->usuario;
 
         SendAppealStatusMail::dispatch(
-            $apelacion->estado === EstadoApelacion::Aprobada,
+            $estado === EstadoApelacion::Aprobada,
             $studentUser->email,
             $studentUser->name,
             $apelacion,

@@ -2,37 +2,31 @@
 
 namespace App\Http\Controllers\ModuloEstudiante;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-
-// Models
-use App\Models\ModuloEstudiante\Solicitud;
-use App\Models\ModuloSecretaria\Docente;
-use App\Models\ModuloSecretaria\Asignatura;
-use App\Models\ModuloSecretaria\Facultad;
-use App\Models\ModuloSecretaria\TipoConstancia;
+use App\Application\Catalogo\CatalogoService;
+use App\Application\Solicitudes\SolicitudService;
 use App\Enums\EstadoSolicitud;
-use App\Enums\EstadoApelacion;
-use Illuminate\Validation\Rules\Enum;
+use App\Http\Controllers\Controller;
+use App\Models\ModuloEstudiante\Solicitud;
+use App\Models\ModuloSecretaria\Facultad;
+use Illuminate\Http\Request;
 
 class SolicitudController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct(
+        private readonly SolicitudService $solicitudes,
+        private readonly CatalogoService $catalogo,
+    ) {
+    }
+
     public function index(Request $request)
     {
         $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
 
-        $solicitudes = Solicitud::where('estado', $estado)
-        ->where('estudiante_id', $request->user()->estudiante->id)
-            ->when(
-                $estado === EstadoSolicitud::Rechazada,
-                fn($query) => $query->whereDoesntHave('apelaciones')
-            )
-            ->orderByDesc('id')
-            ->paginate(9);
+        $solicitudes = $this->solicitudes->paginateForEstudiante(
+            $request->user()->estudiante->id,
+            $estado,
+            9
+        );
 
         return view('ModuloEstudiante.solicitudes.index', [
             'solicitudes' => $solicitudes,
@@ -45,9 +39,9 @@ class SolicitudController extends Controller
      */
     public function create()
     {
-        $docentes = Docente::with('usuario')->get();
-        $facultades = Facultad::orderBy('nombre')->get();
-        $TiposConstancia = TipoConstancia::all();
+        $docentes = $this->catalogo->docentes();
+        $facultades = $this->catalogo->facultades();
+        $TiposConstancia = $this->catalogo->tiposConstancia();
 
         return view('ModuloEstudiante.solicitudes.create', [
             'docentes' => $docentes,
@@ -63,15 +57,11 @@ class SolicitudController extends Controller
     {
         $data = $request->all();
 
-        if ($request->hasFile('constancia')) {
-            $data['constancia'] = $request->file('constancia')->store('constancias', 'public');
-        }
-
-        $data['estado'] = EstadoSolicitud::Pendiente;
-
-        $data['estudiante_id'] = $request->user()->estudiante->id;
-
-        Solicitud::create($data);
+        $this->solicitudes->crear(
+            $data,
+            $request->hasFile('constancia') ? $request->file('constancia') : null,
+            $request->user()->estudiante->id
+        );
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
@@ -97,9 +87,9 @@ class SolicitudController extends Controller
      */
     public function edit(Solicitud $solicitud)
     {
-        $docentes = Docente::with('usuario')->get();
-        $facultades = Facultad::orderBy('nombre')->get();
-        $TiposConstancia = TipoConstancia::all();
+        $docentes = $this->catalogo->docentes();
+        $facultades = $this->catalogo->facultades();
+        $TiposConstancia = $this->catalogo->tiposConstancia();
 
         return view('ModuloEstudiante.solicitudes.edit', [
             'solicitud' => $solicitud,
@@ -114,21 +104,14 @@ class SolicitudController extends Controller
      */
     public function update(Request $request, Solicitud $solicitud)
     {
-            $data = $request->all();
+        $data = $request->all();
 
-        if ($request->hasFile('constancia')) {
-            if ($solicitud->constancia) {
-                Storage::disk('public')->delete($solicitud->constancia);
-            }
-            $data['constancia'] = $request->file('constancia')->store('constancias', 'public');
-            } elseif ($request->boolean('delete_constancia')) {
-            if ($solicitud->constancia) {
-                Storage::disk('public')->delete($solicitud->constancia);
-            }
-            $data['constancia'] = null;
-        }
-
-        $solicitud->update($data);
+        $this->solicitudes->actualizar(
+            $solicitud,
+            $data,
+            $request->hasFile('constancia') ? $request->file('constancia') : null,
+            $request->boolean('delete_constancia')
+        );
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
@@ -142,23 +125,16 @@ class SolicitudController extends Controller
      */
     public function asignaturasPorFacultad(Facultad $facultad)
     {
-        $asignaturas = $facultad->asignaturas()->select('id', 'nombre')->get();
-
-        return response()->json($asignaturas);
+        return response()->json($this->catalogo->asignaturasPorFacultad($facultad->id));
     }
 
     public function buscarDocentes(Request $request)
     {
         $query = $request->query('q');
-        $docentes = Docente::with('usuario')
-            ->when($query, function ($q) use ($query) {
-                $q->whereHas('usuario', function ($qu) use ($query) {
-                    $qu->where('name', 'like', "%{$query}%");
-                });
-            })
-            ->limit(10)
-            ->get()
+        $docentes = $this->catalogo
+            ->buscarDocentes($query ?? '')
             ->map(fn($d) => ['id' => $d->id, 'nombre' => $d->usuario->name]);
+
         return response()->json($docentes);
     }
 
@@ -167,11 +143,9 @@ class SolicitudController extends Controller
         $query = $request->query('q');
         $facultadId = $request->query('facultad');
 
-        $asignaturas = Asignatura::query()
-            ->when($facultadId, fn($q) => $q->where('facultad_id', $facultadId))
-            ->when($query, fn($q) => $q->where('nombre', 'like', "%{$query}%"))
-            ->limit(10)
-            ->get(['id', 'nombre']);
+        $asignaturas = $this->catalogo
+            ->buscarAsignaturas($query ?? '', $facultadId)
+            ->map(fn($a) => ['id' => $a->id, 'nombre' => $a->nombre]);
 
         return response()->json($asignaturas);
     }
@@ -181,11 +155,7 @@ class SolicitudController extends Controller
      */
     public function destroy(Request $request, Solicitud $solicitud)
     {
-                if ($solicitud->constancia) {
-            Storage::disk('public')->delete($solicitud->constancia);
-        }
-
-        $solicitud->delete();
+        $this->solicitudes->eliminar($solicitud);
 
         $redirectEstado = $request->query('estado', 'pendiente');
 

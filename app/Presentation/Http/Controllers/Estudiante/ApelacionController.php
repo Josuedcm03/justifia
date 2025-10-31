@@ -2,27 +2,25 @@
 
 namespace App\Http\Controllers\ModuloEstudiante;
 
+use App\Application\Apelaciones\ApelacionService;
+use App\Enums\EstadoApelacion;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
-// Models
 use App\Models\ModuloEstudiante\Apelacion;
 use App\Models\ModuloEstudiante\Solicitud;
-use App\Enums\EstadoApelacion;
-use App\Enums\EstadoSolicitud;
-use Illuminate\Validation\Rules\Enum;
+use Illuminate\Http\Request;
 
 class ApelacionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct(private readonly ApelacionService $apelaciones)
+    {
+    }
+
     public function index()
     {
-        $apelaciones = Apelacion::whereDoesntHave('apelacionesHijas')
-            ->orderByDesc('id')
-            ->get()
-            ->groupBy(fn ($a) => $a->estado->value);
+        $estudianteId = auth()->user()->estudiante->id;
+        $apelaciones = $this->apelaciones
+            ->listarFinalesPorEstudiante($estudianteId)
+            ->groupBy(fn($a) => $a->estado->value);
 
         return view('ModuloEstudiante.apelaciones.index', [
             'apelaciones' => $apelaciones,
@@ -34,9 +32,7 @@ class ApelacionController extends Controller
      */
     public function create(Solicitud $solicitud)
     {
-        $ultimaApelacion = Apelacion::where('solicitud_id', $solicitud->id)
-            ->orderByDesc('id')
-            ->first();
+        $ultimaApelacion = $this->apelaciones->obtenerUltimaDeSolicitud($solicitud->id);
 
         $respuesta = $ultimaApelacion?->respuesta ?? $solicitud->respuesta;
 
@@ -47,10 +43,7 @@ class ApelacionController extends Controller
     {
         $observacion = $request->input('observacion_estudiante');
 
-        $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)
-            ->where('estado', EstadoApelacion::Rechazada)
-            ->orderByDesc('id')
-            ->first();
+        $ultimaRechazada = $this->apelaciones->obtenerUltimaRechazada($solicitud->id);
 
         $data = [
             'observacion' => $observacion,
@@ -60,7 +53,7 @@ class ApelacionController extends Controller
             'respuesta' => null,
         ];
 
-        $apelacion = Apelacion::create($data);
+        $apelacion = $this->apelaciones->crear($data);
         
         $redirectEstado = $request->query('estado', 'rechazada');
     
@@ -101,8 +94,9 @@ class ApelacionController extends Controller
             abort(403);
         }
 
-        $apelacion->observacion = $request->input('observacion_estudiante');
-        $apelacion->save();
+        $this->apelaciones->actualizar($apelacion, [
+            'observacion' => $request->input('observacion_estudiante'),
+        ]);
 
         return redirect()
             ->route('estudiante.apelaciones.index')

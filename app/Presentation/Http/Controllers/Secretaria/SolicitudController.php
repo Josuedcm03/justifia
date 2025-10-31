@@ -2,35 +2,24 @@
 
 namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
-// Models
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Application\Solicitudes\SolicitudService;
 use App\Enums\EstadoSolicitud;
-use App\Enums\EstadoApelacion;
-use Illuminate\Validation\Rules\Enum;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
-use App\Mail\ApprovalMail;
-use App\Mail\RejectionMail;
+use App\Http\Controllers\Controller;
+use App\Models\ModuloEstudiante\Solicitud;
+use Illuminate\Http\Request;
 
 class SolicitudController extends Controller
 {
-    /**
-     * Display a listing of the resource filtered by status.
-     */
+    public function __construct(private readonly SolicitudService $solicitudes)
+    {
+    }
+
     public function index(Request $request)
     {
         $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
-        $solicitudes = Solicitud::where('estado', $estado)
-        ->when($estado === EstadoSolicitud::Rechazada, function ($query) {
-                $query->whereDoesntHave('apelaciones', function ($q) {
-                    $q->where('estado', EstadoApelacion::Pendiente);
-                });
-            })
-            ->latest()
-            ->paginate(9);
+        $sinPendientes = $estado === EstadoSolicitud::Rechazada;
+
+        $solicitudes = $this->solicitudes->paginateForSecretaria($estado, $sinPendientes, 9);
 
         return view('ModuloSecretaria.solicitudes.index', [
             'solicitudes' => $solicitudes,
@@ -55,33 +44,10 @@ class SolicitudController extends Controller
      */
     public function update(Request $request, Solicitud $solicitud)
     {
-        $solicitud->estado = EstadoSolicitud::from($request->input('estado'));
-        $solicitud->respuesta = $request->input('respuesta');
-        $solicitud->save();
+        $estado = EstadoSolicitud::from($request->input('estado'));
+        $respuesta = $request->input('respuesta');
 
-        $studentUser = $solicitud->estudiante->usuario;
-        $teacherUser = $solicitud->docente->usuario;
-
-        try {
-            if ($solicitud->estado === EstadoSolicitud::Aprobada) {
-                Mail::to($studentUser->email)->send(
-                    new ApprovalMail($studentUser->name, $studentUser->email)
-                );
-                Mail::to($teacherUser->email)->send(
-                    new ApprovalMail($teacherUser->name, $teacherUser->email)
-                );
-            }
-            if ($solicitud->estado === EstadoSolicitud::Rechazada) {
-                Mail::to($studentUser->email)->send(
-                    new RejectionMail($studentUser->name, $solicitud->respuesta, $studentUser->email)
-                );
-                Mail::to($teacherUser->email)->send(
-                    new RejectionMail($teacherUser->name, $solicitud->respuesta, $teacherUser->email)
-                );
-            }
-        } catch (\Throwable $e) {
-            Log::error('Error enviando correo de solicitud: ' . $e->getMessage());
-        }
+        $this->solicitudes->actualizarEstado($solicitud, $estado, $respuesta);
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
