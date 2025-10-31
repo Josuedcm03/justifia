@@ -17,7 +17,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="{{ asset('images/logo.png') }}" alt="UAM">
+            <img src="{{ $message->embed(public_path('images/logo.png')) }}" alt="UAM">
             <h1 style="margin:0;font-size:22px;">Sistema de Justificación de Inasistencias</h1>
         </div>
         <div class="content">

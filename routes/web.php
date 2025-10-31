@@ -30,15 +30,17 @@ Route::get('/dashboard', function () {
 
 // Profile management still requires authentication once that feature is ready.
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'throttle:global'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
 });
 
 require __DIR__.'/auth.php';
 
-Route::middleware(['auth', 'verified', 'role:estudiante'])->prefix('estudiante')->name('estudiante.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:estudiante', 'throttle:global'])->prefix('estudiante')->name('estudiante.')->group(function () {
     Route::get('docentes/buscar', [EstudianteSolicitudController::class, 'buscarDocentes'])
         ->name('docentes.buscar');
+    Route::get('asignaturas/buscar', [EstudianteSolicitudController::class, 'buscarAsignaturas'])
+        ->name('asignaturas.buscar');
     Route::get('facultades/{facultad}/asignaturas', [EstudianteSolicitudController::class, 'asignaturasPorFacultad'])
         ->name('facultades.asignaturas');
     Route::resource('solicitudes', EstudianteSolicitudController::class)->parameters([
@@ -72,8 +74,7 @@ Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')
 
         Route::resource('asignaturas', AsignaturaController::class);
         Route::get('asignaturas-importar', [AsignaturaController::class, 'showImport'])->name('asignaturas.import.form');
-        Route::post('asignaturas-importar', [AsignaturaController::class, 'previewImport'])->name('asignaturas.import.preview');
-        Route::post('asignaturas-importar/confirm', [AsignaturaController::class, 'import'])->name('asignaturas.import');
+        Route::post('asignaturas-importar', [AsignaturaController::class, 'import'])->name('asignaturas.import');
 
         Route::resource('facultades', FacultadController::class)->parameters([
             'facultades' => 'facultad'
@@ -82,8 +83,7 @@ Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')
 
         Route::resource('docentes', DocenteController::class);
         Route::get('docentes-importar', [DocenteController::class, 'showImport'])->name('docentes.import.form');
-        Route::post('docentes-importar', [DocenteController::class, 'previewImport'])->name('docentes.import.preview');
-        Route::post('docentes-importar/confirm', [DocenteController::class, 'import'])->name('docentes.import');
+        Route::post('docentes-importar', [DocenteController::class, 'import'])->name('docentes.import');
 
         Route::resource('tipo-constancia', TipoConstanciaController::class)->parameters([
     'tipo-constancia' => 'tipo_constancia'
@@ -92,7 +92,7 @@ Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')
 Route::get('catalogos', [CatalogoController::class, 'index'])->name('catalogos.index');
     });
 
-Route::middleware(['auth', 'verified', 'role:docente'])->prefix('docente')->name('docente.')->group(function () {
+Route::middleware(['auth', 'role:docente', 'throttle:global'])->prefix('docente')->name('docente.')->group(function () {
     Route::get('solicitudes', [DocenteReprogramacionController::class, 'index'])->name('solicitudes.index');
     Route::get('solicitudes/{solicitud}', [DocenteReprogramacionController::class, 'show'])->name('solicitudes.show');
     Route::post('solicitudes/{solicitud}/reprogramacion', [DocenteReprogramacionController::class, 'storeReprogramacion'])->name('solicitudes.reprogramacion.store');

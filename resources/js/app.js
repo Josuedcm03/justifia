@@ -7,7 +7,6 @@ import SolicitudSecretariaFrontera from './ModuloSecretaria/SolicitudFrontera';
 import ApelacionSecretariaFrontera from './ModuloSecretaria/ApelacionFrontera';
 import ReprogramacionDocenteFrontera from './ModuloDocente/ReprogramacionFrontera';
 import AsistenciaFrontera from './ModuloDocente/AsistenciaFrontera';
-import ConfirmBack from './utils/ConfirmBack';
 
 window.Alpine = Alpine;
 
@@ -54,6 +53,30 @@ document.addEventListener('DOMContentLoaded', () => {
         new ApelacionSecretariaFrontera(apelacionSecretariaEl);
     }
 
+    document.querySelectorAll('[data-tipo-constancia-frontera]').forEach(form => {
+        new TipoConstanciaFrontera(form);
+    });
+
+    document.querySelectorAll('[data-carrera-frontera]').forEach(form => {
+        new CarreraFrontera(form);
+    });
+
+    document.querySelectorAll('[data-asignatura-frontera]').forEach(form => {
+        new AsignaturaFrontera(form);
+    });
+
+    document.querySelectorAll('[data-facultad-frontera]').forEach(form => {
+        new FacultadFrontera(form);
+    });
+
+    document.querySelectorAll('[data-docente-frontera]').forEach(form => {
+        new DocenteFrontera(form);
+    });
+
+    document.querySelectorAll('[data-import-frontera]').forEach(form => {
+        new ImportFrontera(form);
+    });
+
     document.querySelectorAll('[data-reprogramacion-docente-frontera]').forEach(form => {
         new ReprogramacionDocenteFrontera(form);
     });
@@ -61,11 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-asistencia-card]').forEach(card => {
         new AsistenciaFrontera(card);
     });
-
-    document.querySelectorAll('[data-confirm-back]').forEach(link => {
-        new ConfirmBack(link);
-    });
-
 const loader = document.getElementById('page-loader');
     if (loader) {
         window.addEventListener('load', () => loader.classList.add('hidden'));
