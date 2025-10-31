@@ -7,8 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 
 // Models
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSecretaria\Facultad;
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Catalogo\Entities\Facultad;
 
 class CarreraController extends Controller
 {

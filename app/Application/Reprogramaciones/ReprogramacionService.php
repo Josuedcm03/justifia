@@ -5,6 +5,7 @@ namespace App\Application\Reprogramaciones;
 use App\Application\Solicitudes\SolicitudService;
 use App\Domain\Reprogramacion\Entities\Reprogramacion as ReprogramacionEntity;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
+use App\Domain\Solicitud\Entities\Solicitud;
 use App\Enums\EstadoAsistencia;
 use App\Mail\RescheduleMail;
 use App\Models\ModuloDocente\Reprogramacion as ReprogramacionModel;

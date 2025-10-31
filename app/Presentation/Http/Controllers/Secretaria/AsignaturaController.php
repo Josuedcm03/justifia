@@ -7,10 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 
 // Models
-use App\Models\ModuloSecretaria\Asignatura;
+use App\Domain\Catalogo\Entities\Asignatura;
+use App\Domain\Catalogo\Entities\Facultad;
 use App\Imports\AsignaturasImport;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Models\ModuloSecretaria\Facultad;
 
 class AsignaturaController extends Controller
 {

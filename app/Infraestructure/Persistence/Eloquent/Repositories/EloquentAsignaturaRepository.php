@@ -2,20 +2,19 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Catalogo\Entities\Asignatura;
 use App\Domain\Catalogo\Repositories\AsignaturaRepository;
-use App\Models\ModuloSecretaria\Asignatura;
-use Illuminate\Support\Collection;
 
 class EloquentAsignaturaRepository implements AsignaturaRepository
 {
-    public function listByFacultad(int $facultadId): Collection
+    public function listByFacultad(int $facultadId): iterable
     {
         return Asignatura::where('facultad_id', $facultadId)
             ->orderBy('nombre')
             ->get(['id', 'nombre']);
     }
 
-    public function search(string $termino = '', ?int $facultadId = null, int $limit = 10): Collection
+    public function search(string $termino = '', ?int $facultadId = null, int $limit = 10): iterable
     {
         return Asignatura::query()
             ->when($facultadId, fn($q) => $q->where('facultad_id', $facultadId))

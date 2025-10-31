@@ -2,18 +2,17 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Docente\Entities\Docente;
 use App\Domain\Docente\Repositories\DocenteRepository;
-use App\Models\ModuloSecretaria\Docente;
-use Illuminate\Support\Collection;
 
 class EloquentDocenteRepository implements DocenteRepository
 {
-    public function allWithUsuario(): Collection
+    public function allWithUsuario(): iterable
     {
         return Docente::with('usuario')->get();
     }
 
-    public function searchByNombre(string $nombre, int $limit = 10): Collection
+    public function searchByNombre(string $nombre, int $limit = 10): iterable
     {
         return Docente::with('usuario')
             ->when($nombre !== '', function ($query) use ($nombre) {

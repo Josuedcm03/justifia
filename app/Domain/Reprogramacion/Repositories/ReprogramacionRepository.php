@@ -2,7 +2,7 @@
 
 namespace App\Domain\Reprogramacion\Repositories;
 
-use App\Models\ModuloDocente\Reprogramacion;
+use App\Domain\Reprogramacion\Entities\Reprogramacion;
 
 interface ReprogramacionRepository
 {

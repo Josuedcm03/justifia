@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Catalogo\Entities\Asignatura;
+use App\Domain\Catalogo\Entities\Facultad;
 use Illuminate\Database\Seeder;
-use App\Models\ModuloSecretaria\Asignatura;
-use App\Models\ModuloSecretaria\Facultad;
 
 class AsignaturasSeeder extends Seeder
 {

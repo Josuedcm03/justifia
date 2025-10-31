@@ -64,3 +64,5 @@ final class Carrera
         ];
     }
 }
+
+\class_alias(Carrera::class, 'App\\Models\\ModuloSecretaria\\Carrera');

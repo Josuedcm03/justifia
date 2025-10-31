@@ -16,7 +16,8 @@ class ApelacionService
     {
     }
 
-    public function listarFinalesPorEstudiante(int $estudianteId): Collection
+    /** @return iterable<Apelacion> */
+    public function listarFinalesPorEstudiante(int $estudianteId): iterable
     {
         return $this->apelaciones->listarFinalesPorEstudiante($estudianteId);
     }

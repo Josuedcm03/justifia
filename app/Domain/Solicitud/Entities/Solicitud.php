@@ -236,3 +236,5 @@ final class Solicitud
         }
     }
 }
+
+\class_alias(Solicitud::class, 'App\\Models\\ModuloEstudiante\\Solicitud');

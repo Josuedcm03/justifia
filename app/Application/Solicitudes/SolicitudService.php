@@ -144,11 +144,13 @@ class SolicitudService
         return $solicitud;
     }
 
+    /** @return iterable<Solicitud> */
     public function solicitudesAprobadasSinReprogramar(int $docenteId)
     {
         return $this->solicitudes->solicitudesAprobadasSinReprogramacion($docenteId);
     }
 
+    /** @return iterable<Solicitud> */
     public function reprogramacionesPorDocente(int $docenteId)
     {
         return $this->solicitudes->reprogramacionesPorDocente($docenteId);

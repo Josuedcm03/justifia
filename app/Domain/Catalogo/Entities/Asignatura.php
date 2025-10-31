@@ -64,3 +64,5 @@ final class Asignatura
         ];
     }
 }
+
+\class_alias(Asignatura::class, 'App\\Models\\ModuloSecretaria\\Asignatura');

@@ -77,3 +77,5 @@ final class Estudiante
         ];
     }
 }
+
+\class_alias(Estudiante::class, 'App\\Models\\ModuloEstudiante\\Estudiante');

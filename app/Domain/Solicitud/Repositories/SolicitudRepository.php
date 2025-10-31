@@ -2,10 +2,9 @@
 
 namespace App\Domain\Solicitud\Repositories;
 
+use App\Domain\Solicitud\Entities\Solicitud;
 use App\Enums\EstadoSolicitud;
-use App\Models\ModuloEstudiante\Solicitud;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 interface SolicitudRepository
 {
@@ -19,7 +18,9 @@ interface SolicitudRepository
 
     public function delete(Solicitud $solicitud): void;
 
-    public function solicitudesAprobadasSinReprogramacion(int $docenteId): Collection;
+    /** @return iterable<Solicitud> */
+    public function solicitudesAprobadasSinReprogramacion(int $docenteId): iterable;
 
-    public function reprogramacionesPorDocente(int $docenteId): Collection;
+    /** @return iterable<Solicitud> */
+    public function reprogramacionesPorDocente(int $docenteId): iterable;
 }

@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
+use App\Domain\Shared\ValueObjects\EmailInstitucional;
+use App\Domain\Usuarios\Entities\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProfileUpdateRequest extends FormRequest
 {
@@ -26,5 +28,16 @@ class ProfileUpdateRequest extends FormRequest
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
         ];
+    }
+
+    protected function passedValidation(): void
+    {
+        try {
+            new EmailInstitucional($this->string('email'));
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'email' => $exception->getMessage(),
+            ]);
+        }
     }
 }

@@ -49,3 +49,5 @@ final class Facultad
         return ['nombre' => $this->nombre->value()];
     }
 }
+
+\class_alias(Facultad::class, 'App\\Models\\ModuloSecretaria\\Facultad');

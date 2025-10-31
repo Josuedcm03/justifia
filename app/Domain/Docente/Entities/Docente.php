@@ -54,3 +54,5 @@ final class Docente
         ];
     }
 }
+
+\class_alias(Docente::class, 'App\\Models\\ModuloSecretaria\\Docente');

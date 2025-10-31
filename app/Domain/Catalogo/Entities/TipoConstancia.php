@@ -49,3 +49,5 @@ final class TipoConstancia
         return ['nombre' => $this->nombre->value()];
     }
 }
+
+\class_alias(TipoConstancia::class, 'App\\Models\\ModuloSecretaria\\TipoConstancia');

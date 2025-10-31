@@ -132,3 +132,5 @@ final class User
         ];
     }
 }
+
+\class_alias(User::class, 'App\\Models\\User');
