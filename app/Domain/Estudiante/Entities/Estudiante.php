@@ -1,50 +1,79 @@
 <?php
 
-namespace App\Models\ModuloEstudiante;
+namespace App\Domain\Estudiante\Entities;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Domain\Shared\ValueObjects\Cif;
+use App\Domain\Shared\ValueObjects\EntityId;
 
-// Models
-use App\Models\User;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloEstudiante\Solicitud;
-
-class Estudiante extends Model
+final class Estudiante
 {
-    use \Illuminate\Database\Eloquent\Factories\HasFactory;
+    private ?EntityId $id;
+    private Cif $cif;
+    private EntityId $usuarioId;
+    private EntityId $carreraId;
 
+    private function __construct(?EntityId $id, Cif $cif, EntityId $usuarioId, EntityId $carreraId)
+    {
+        $this->id = $id;
+        $this->cif = $cif;
+        $this->usuarioId = $usuarioId;
+        $this->carreraId = $carreraId;
+    }
 
-    protected $table = 'estudiantes';
-    public $timestamps = false;
-    protected $primaryKey = 'id';
+    public static function registrar(string $cif, int $usuarioId, int $carreraId): self
+    {
+        return new self(
+            null,
+            new Cif($cif),
+            EntityId::fromInt($usuarioId),
+            EntityId::fromInt($carreraId)
+        );
+    }
 
-    
+    public static function reconstruir(int $id, string $cif, int $usuarioId, int $carreraId): self
+    {
+        return new self(
+            EntityId::fromInt($id),
+            new Cif($cif),
+            EntityId::fromInt($usuarioId),
+            EntityId::fromInt($carreraId)
+        );
+    }
+
+    public function cambiarCarrera(int $carreraId): void
+    {
+        $this->carreraId = EntityId::fromInt($carreraId);
+    }
+
+    public function id(): ?EntityId
+    {
+        return $this->id;
+    }
+
+    public function cif(): Cif
+    {
+        return $this->cif;
+    }
+
+    public function usuarioId(): EntityId
+    {
+        return $this->usuarioId;
+    }
+
+    public function carreraId(): EntityId
+    {
+        return $this->carreraId;
+    }
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<string>
+     * @return array<string, int|string>
      */
-    protected $fillable = [
-        'cif',
-        'usuario_id',
-        'carrera_id'
-    ];
-    
-    // Relaciones
-
-    public function usuario()
+    public function toArray(): array
     {
-        return $this->belongsTo(User::class, 'usuario_id', 'id');
-    }
-
-    public function carrera()
-    {
-        return $this->belongsTo(Carrera::class, 'carrera_id', 'id');
-    }
-
-    public function solicitudes()
-    {
-        return $this->hasMany(Solicitud::class, 'estudiante_id', 'id');
+        return [
+            'cif' => $this->cif->value(),
+            'usuario_id' => $this->usuarioId->value(),
+            'carrera_id' => $this->carreraId->value(),
+        ];
     }
 }
