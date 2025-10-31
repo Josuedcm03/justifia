@@ -2,10 +2,11 @@
 
 namespace App\Domain\Estudiante\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\Cif;
 use App\Domain\Shared\ValueObjects\EntityId;
 
-final class Estudiante
+final class Estudiante implements Entity
 {
     private ?EntityId $id;
     private Cif $cif;
@@ -77,5 +78,3 @@ final class Estudiante
         ];
     }
 }
-
-\class_alias(Estudiante::class, 'App\\Models\\ModuloEstudiante\\Estudiante');

@@ -12,9 +12,11 @@ interface SolicitudRepository
 
     public function paginateByEstadoForSecretaria(EstadoSolicitud $estado, bool $sinApelacionesPendientes, int $perPage = 9): LengthAwarePaginator;
 
-    public function create(array $data): Solicitud;
+    public function findById(int $id): Solicitud;
 
-    public function update(Solicitud $solicitud, array $data): Solicitud;
+    public function create(Solicitud $solicitud): Solicitud;
+
+    public function update(Solicitud $solicitud): Solicitud;
 
     public function delete(Solicitud $solicitud): void;
 

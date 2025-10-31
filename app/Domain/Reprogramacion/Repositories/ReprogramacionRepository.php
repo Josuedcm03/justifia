@@ -6,7 +6,9 @@ use App\Domain\Reprogramacion\Entities\Reprogramacion;
 
 interface ReprogramacionRepository
 {
-    public function create(array $data): Reprogramacion;
+    public function findById(int $id): Reprogramacion;
 
-    public function update(Reprogramacion $reprogramacion, array $data): Reprogramacion;
+    public function create(Reprogramacion $reprogramacion): Reprogramacion;
+
+    public function update(Reprogramacion $reprogramacion): Reprogramacion;
 }

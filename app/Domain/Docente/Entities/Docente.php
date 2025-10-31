@@ -2,10 +2,11 @@
 
 namespace App\Domain\Docente\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\Cif;
 use App\Domain\Shared\ValueObjects\EntityId;
 
-final class Docente
+final class Docente implements Entity
 {
     private ?EntityId $id;
     private Cif $cif;
@@ -54,5 +55,3 @@ final class Docente
         ];
     }
 }
-
-\class_alias(Docente::class, 'App\\Models\\ModuloSecretaria\\Docente');

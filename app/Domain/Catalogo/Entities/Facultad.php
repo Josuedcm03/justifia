@@ -2,10 +2,11 @@
 
 namespace App\Domain\Catalogo\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Nombre;
 
-final class Facultad
+final class Facultad implements Entity
 {
     private ?EntityId $id;
     private Nombre $nombre;
@@ -49,5 +50,3 @@ final class Facultad
         return ['nombre' => $this->nombre->value()];
     }
 }
-
-\class_alias(Facultad::class, 'App\\Models\\ModuloSecretaria\\Facultad');

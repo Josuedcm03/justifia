@@ -2,8 +2,10 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
-use App\Domain\Reprogramacion\Entities\Reprogramacion;
+use App\Domain\Reprogramacion\Entities\Reprogramacion as ReprogramacionEntity;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
+use App\Infraestructure\Persistence\Eloquent\Repositories\Mappers\ReprogramacionMapper;
+use App\Models\ModuloDocente\Reprogramacion as ReprogramacionModel;
 
 class EloquentReprogramacionRepository implements ReprogramacionRepository
 {
@@ -12,16 +14,26 @@ class EloquentReprogramacionRepository implements ReprogramacionRepository
     ) {
     }
 
-    public function create(array $data): Reprogramacion
-    {
-        return $this->mapper->toEntity(Reprogramacion::create($data));
-    }
-
-    public function update(Reprogramacion $reprogramacion, array $data): Reprogramacion
+    public function create(ReprogramacionEntity $reprogramacion): ReprogramacionEntity
     {
         $model = $this->mapper->toModel($reprogramacion);
-        $model->update($data);
+        $model->save();
 
-        return $this->mapper->toEntity($model->refresh());
+        return $this->mapper->toEntity($model->fresh());
+    }
+
+    public function update(ReprogramacionEntity $reprogramacion): ReprogramacionEntity
+    {
+        $model = $this->mapper->toModel($reprogramacion);
+        $model->save();
+
+        return $this->mapper->toEntity($model->fresh());
+    }
+
+    public function findById(int $id): ReprogramacionEntity
+    {
+        $model = ReprogramacionModel::findOrFail($id);
+
+        return $this->mapper->toEntity($model);
     }
 }

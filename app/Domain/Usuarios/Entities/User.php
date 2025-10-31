@@ -2,12 +2,13 @@
 
 namespace App\Domain\Usuarios\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\EmailAddress;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Nombre;
 use DateTimeImmutable;
 
-final class User
+final class User implements Entity
 {
     private ?EntityId $id;
     private Nombre $nombre;
@@ -132,5 +133,3 @@ final class User
         ];
     }
 }
-
-\class_alias(User::class, 'App\\Models\\User');

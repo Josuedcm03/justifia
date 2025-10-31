@@ -2,11 +2,14 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
-use App\Domain\Solicitud\Entities\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
 use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSolicitud;
+use App\Infraestructure\Persistence\Eloquent\Repositories\Mappers\SolicitudMapper;
+use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class EloquentSolicitudRepository implements SolicitudRepository
 {
@@ -17,7 +20,7 @@ class EloquentSolicitudRepository implements SolicitudRepository
 
     public function paginateByEstadoForEstudiante(int $estudianteId, EstadoSolicitud $estado, int $perPage = 9): LengthAwarePaginator
     {
-        $paginator = Solicitud::with(['docente.usuario', 'asignatura'])
+        $paginator = SolicitudModel::with(['docente.usuario', 'asignatura'])
             ->where('estado', $estado)
             ->where('estudiante_id', $estudianteId)
             ->when(
@@ -28,7 +31,7 @@ class EloquentSolicitudRepository implements SolicitudRepository
             ->paginate($perPage);
 
         $paginator->setCollection(
-            $paginator->getCollection()->map(fn(Solicitud $solicitud) => $this->mapper->toEntity($solicitud))
+            $this->mapCollectionToEntities($paginator->getCollection())
         );
 
         return $paginator;
@@ -36,7 +39,7 @@ class EloquentSolicitudRepository implements SolicitudRepository
 
     public function paginateByEstadoForSecretaria(EstadoSolicitud $estado, bool $sinApelacionesPendientes, int $perPage = 9): LengthAwarePaginator
     {
-        $paginator = Solicitud::with(['docente.usuario', 'asignatura', 'estudiante.usuario'])
+        $paginator = SolicitudModel::with(['docente.usuario', 'asignatura', 'estudiante.usuario'])
             ->where('estado', $estado)
             ->when(
                 $sinApelacionesPendientes,
@@ -46,48 +49,63 @@ class EloquentSolicitudRepository implements SolicitudRepository
             ->paginate($perPage);
 
         $paginator->setCollection(
-            $paginator->getCollection()->map(fn(Solicitud $solicitud) => $this->mapper->toEntity($solicitud))
+            $this->mapCollectionToEntities($paginator->getCollection())
         );
 
         return $paginator;
     }
 
-    public function create(array $data): Solicitud
+    public function findById(int $id): SolicitudEntity
     {
-        return $this->mapper->toEntity(Solicitud::create($data));
+        $model = SolicitudModel::findOrFail($id);
+
+        return $this->mapper->toEntity($model);
     }
 
-    public function update(Solicitud $solicitud, array $data): Solicitud
+    public function create(SolicitudEntity $solicitud): SolicitudEntity
     {
         $model = $this->mapper->toModel($solicitud);
-        $model->update($data);
+        $model->save();
 
-        return $this->mapper->toEntity($model->refresh());
+        return $this->mapper->toEntity($model->fresh());
     }
 
-    public function delete(Solicitud $solicitud): void
+    public function update(SolicitudEntity $solicitud): SolicitudEntity
+    {
+        $model = $this->mapper->toModel($solicitud);
+        $model->save();
+
+        return $this->mapper->toEntity($model->fresh());
+    }
+
+    public function delete(SolicitudEntity $solicitud): void
     {
         $this->mapper->toModel($solicitud)->delete();
     }
 
     public function solicitudesAprobadasSinReprogramacion(int $docenteId): iterable
     {
-        return Solicitud::with(['estudiante.usuario', 'asignatura'])
+        return SolicitudModel::with(['estudiante.usuario', 'asignatura'])
             ->where('estado', EstadoSolicitud::Aprobada)
             ->where('docente_id', $docenteId)
             ->doesntHave('reprogramacion')
             ->orderByDesc('id')
             ->get()
-            ->map(fn(Solicitud $solicitud) => $this->mapper->toEntity($solicitud));
+            ->map(fn(SolicitudModel $solicitud) => $this->mapper->toEntity($solicitud));
     }
 
     public function reprogramacionesPorDocente(int $docenteId): iterable
     {
-        return Solicitud::with(['reprogramacion', 'estudiante.usuario', 'asignatura'])
+        return SolicitudModel::with(['reprogramacion', 'estudiante.usuario', 'asignatura'])
             ->where('docente_id', $docenteId)
             ->whereHas('reprogramacion')
             ->orderByDesc('id')
             ->get()
-            ->map(fn(Solicitud $solicitud) => $this->mapper->toEntity($solicitud));
+            ->map(fn(SolicitudModel $solicitud) => $this->mapper->toEntity($solicitud));
+    }
+
+    private function mapCollectionToEntities(Collection $collection): Collection
+    {
+        return $collection->map(fn(SolicitudModel $solicitud) => $this->mapper->toEntity($solicitud));
     }
 }

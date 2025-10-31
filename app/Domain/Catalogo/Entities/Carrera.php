@@ -2,10 +2,11 @@
 
 namespace App\Domain\Catalogo\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Nombre;
 
-final class Carrera
+final class Carrera implements Entity
 {
     private ?EntityId $id;
     private Nombre $nombre;
@@ -64,5 +65,3 @@ final class Carrera
         ];
     }
 }
-
-\class_alias(Carrera::class, 'App\\Models\\ModuloSecretaria\\Carrera');

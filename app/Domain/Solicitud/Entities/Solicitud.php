@@ -2,6 +2,7 @@
 
 namespace App\Domain\Solicitud\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Enums\EstadoSolicitud;
 use App\Domain\Shared\ValueObjects\ArchivoConstancia;
 use App\Domain\Shared\ValueObjects\EntityId;
@@ -9,7 +10,7 @@ use App\Domain\Shared\ValueObjects\Texto;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
-final class Solicitud
+final class Solicitud implements Entity
 {
     private ?EntityId $id;
     private DateTimeImmutable $fechaAusencia;
@@ -236,5 +237,3 @@ final class Solicitud
         }
     }
 }
-
-\class_alias(Solicitud::class, 'App\\Models\\ModuloEstudiante\\Solicitud');
