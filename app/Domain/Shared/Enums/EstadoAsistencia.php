@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Enums;
+namespace App\Domain\Shared\Enums;
 
 enum EstadoAsistencia: string
 {
     case Pendiente = 'pendiente';
-    case Asistio = 'asistio';
-    case NoAsistio = 'no_asistio';
+    case Aprobada = 'aprobada';
+    case Rechazada = 'rechazada';
 }

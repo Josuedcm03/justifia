@@ -2,7 +2,7 @@
 
 namespace App\Domain\Shared\ValueObjects;
 
-use InvalidArgumentException;
+use App\Domain\Shared\DomainException;
 
 final class EntityId
 {
@@ -11,7 +11,10 @@ final class EntityId
     private function __construct(int $value)
     {
         if ($value <= 0) {
-            throw new InvalidArgumentException('El identificador debe ser un entero positivo.');
+            throw DomainException::withMessage(
+                'El identificador debe ser un entero positivo.',
+                ['id' => $value],
+            );
         }
 
         $this->value = $value;

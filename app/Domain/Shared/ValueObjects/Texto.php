@@ -2,7 +2,7 @@
 
 namespace App\Domain\Shared\ValueObjects;
 
-use InvalidArgumentException;
+use App\Domain\Shared\DomainException;
 
 final class Texto
 {
@@ -13,11 +13,14 @@ final class Texto
         $value = trim($value);
 
         if (! $allowEmpty && $value === '') {
-            throw new InvalidArgumentException('El texto no puede estar vacío.');
+            throw DomainException::withMessage('El texto no puede estar vacío.');
         }
 
         if (mb_strlen($value) > $maxLength) {
-            throw new InvalidArgumentException('El texto supera el largo permitido.');
+            throw DomainException::withMessage(
+                'El texto supera el largo permitido.',
+                ['texto' => $value, 'maxLength' => $maxLength],
+            );
         }
 
         $this->value = $value;

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\ModuloSecretaria;
 
 use App\Application\Apelaciones\ApelacionService;
 use App\Application\Solicitudes\SolicitudService;
-use App\Enums\EstadoApelacion;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendAppealStatusMail;
 use App\Domain\Apelaciones\Entities\Apelacion;

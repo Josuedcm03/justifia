@@ -3,7 +3,7 @@
 namespace App\Domain\Solicitud\Entities;
 
 use App\Domain\Shared\Contracts\Entity;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Domain\Shared\ValueObjects\ArchivoConstancia;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Texto;

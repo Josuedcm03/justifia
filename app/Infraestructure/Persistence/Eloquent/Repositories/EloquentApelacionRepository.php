@@ -4,7 +4,7 @@ namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Apelaciones\Entities\Apelacion as ApelacionEntity;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;
-use App\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Infraestructure\Persistence\Eloquent\Repositories\Mappers\ApelacionMapper;
 use App\Models\ModuloEstudiante\Apelacion as ApelacionModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;

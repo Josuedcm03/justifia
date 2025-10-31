@@ -5,7 +5,7 @@ namespace App\Infraestructure\Persistence\Eloquent\Repositories\Mappers;
 use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\ArchivoConstancia;
 use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Model;

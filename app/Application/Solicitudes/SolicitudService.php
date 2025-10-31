@@ -5,7 +5,7 @@ namespace App\Application\Solicitudes;
 use App\Domain\Shared\ValueObjects\ArchivoConstancia;
 use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Mail\ApprovalMail;
 use App\Mail\RejectionMail;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\ModuloSecretaria;
 
 use App\Application\Solicitudes\SolicitudService;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;

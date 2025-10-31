@@ -4,7 +4,7 @@ namespace App\Models\ModuloDocente;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Enums\EstadoAsistencia;
+use App\Domain\Shared\Enums\EstadoAsistencia;
 
 // Models
 use App\Models\ModuloEstudiante\Solicitud;

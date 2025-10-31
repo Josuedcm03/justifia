@@ -3,7 +3,7 @@
 namespace App\Domain\Apelaciones\Entities;
 
 use App\Domain\Shared\Contracts\Entity;
-use App\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Texto;
 

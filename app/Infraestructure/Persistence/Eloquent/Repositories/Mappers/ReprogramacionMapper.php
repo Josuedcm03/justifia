@@ -4,7 +4,7 @@ namespace App\Infraestructure\Persistence\Eloquent\Repositories\Mappers;
 
 use App\Domain\Reprogramacion\Entities\Reprogramacion as ReprogramacionEntity;
 use App\Domain\Shared\Contracts\Entity;
-use App\Enums\EstadoAsistencia;
+use App\Domain\Shared\Enums\EstadoAsistencia;
 use App\Models\ModuloDocente\Reprogramacion as ReprogramacionModel;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Model;
