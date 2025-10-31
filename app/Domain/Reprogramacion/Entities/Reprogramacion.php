@@ -2,14 +2,15 @@
 
 namespace App\Models\ModuloDocente;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Shared\Contracts\Entity;
 use App\Enums\EstadoAsistencia;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 // Models
 use App\Models\ModuloEstudiante\Solicitud;
 
-class Reprogramacion extends Model
+class Reprogramacion extends Model implements Entity
 {
     use HasFactory;
 

@@ -2,6 +2,7 @@
 
 namespace App\Models\ModuloEstudiante;
 
+use App\Domain\Shared\Contracts\Entity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +16,7 @@ use App\Enums\EstadoSolicitud;
 use App\Models\ModuloSecretaria\Docente;
 use App\Models\ModuloSecretaria\Asignatura;
 
-class Solicitud extends Model
+class Solicitud extends Model implements Entity
 {
     use HasFactory, Notifiable;
 

@@ -2,11 +2,12 @@
 
 namespace App\Models\ModuloEstudiante;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Shared\Contracts\Entity;
 use App\Enums\EstadoApelacion;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-class Apelacion extends Model
+class Apelacion extends Model implements Entity
 {
     use HasFactory;
 

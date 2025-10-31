@@ -2,8 +2,9 @@
 
 namespace App\Models\ModuloSecretaria;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Domain\Shared\Contracts\Entity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 
 // Models
@@ -11,7 +12,7 @@ use App\Models\ModuloEstudiante\Estudiante;
 
 use App\Models\ModuloSecretaria\Facultad;
 
-class Carrera extends Model
+class Carrera extends Model implements Entity
 {
     use HasFactory, Notifiable;
 

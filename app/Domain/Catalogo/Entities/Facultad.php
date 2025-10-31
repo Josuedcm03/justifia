@@ -2,15 +2,16 @@
 
 namespace App\Models\ModuloSecretaria;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Domain\Shared\Contracts\Entity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 
 // Models
 use App\Models\ModuloSecretaria\Carrera;
 use App\Models\ModuloSecretaria\Asignatura;
 
-class Facultad extends Model
+class Facultad extends Model implements Entity
 {
     use HasFactory, Notifiable;
 

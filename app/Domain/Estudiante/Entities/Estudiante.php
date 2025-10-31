@@ -2,6 +2,7 @@
 
 namespace App\Models\ModuloEstudiante;
 
+use App\Domain\Shared\Contracts\Entity;
 use Illuminate\Database\Eloquent\Model;
 
 // Models
@@ -9,7 +10,7 @@ use App\Models\User;
 use App\Models\ModuloSecretaria\Carrera;
 use App\Models\ModuloEstudiante\Solicitud;
 
-class Estudiante extends Model
+class Estudiante extends Model implements Entity
 {
     use \Illuminate\Database\Eloquent\Factories\HasFactory;
 
