@@ -9,6 +9,8 @@ class EloquentTipoConstanciaRepository implements TipoConstanciaRepository
 {
     public function all(): iterable
     {
-        return TipoConstancia::orderBy('nombre')->get();
+        return TipoConstancia::orderBy('nombre')
+            ->get()
+            ->map(fn(TipoConstancia $tipo) => $this->mapper->toEntity($tipo));
     }
 }

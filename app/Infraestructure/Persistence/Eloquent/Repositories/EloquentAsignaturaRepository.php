@@ -11,7 +11,8 @@ class EloquentAsignaturaRepository implements AsignaturaRepository
     {
         return Asignatura::where('facultad_id', $facultadId)
             ->orderBy('nombre')
-            ->get(['id', 'nombre']);
+            ->get(['id', 'nombre'])
+            ->map(fn(Asignatura $asignatura) => $this->mapper->toEntity($asignatura));
     }
 
     public function search(string $termino = '', ?int $facultadId = null, int $limit = 10): iterable
@@ -21,6 +22,7 @@ class EloquentAsignaturaRepository implements AsignaturaRepository
             ->when($termino !== '', fn($q) => $q->where('nombre', 'like', "%{$termino}%"))
             ->orderBy('nombre')
             ->limit($limit)
-            ->get(['id', 'nombre']);
+            ->get(['id', 'nombre'])
+            ->map(fn(Asignatura $asignatura) => $this->mapper->toEntity($asignatura));
     }
 }

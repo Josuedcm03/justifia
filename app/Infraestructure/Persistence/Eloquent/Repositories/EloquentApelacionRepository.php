@@ -15,42 +15,54 @@ class EloquentApelacionRepository implements ApelacionRepository
             ->whereHas('solicitud', fn($q) => $q->where('estudiante_id', $estudianteId))
             ->with('solicitud')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->map(fn(Apelacion $apelacion) => $this->mapper->toEntity($apelacion));
     }
 
     public function obtenerUltimaPorSolicitud(int $solicitudId): ?Apelacion
     {
-        return Apelacion::where('solicitud_id', $solicitudId)
+        $model = Apelacion::where('solicitud_id', $solicitudId)
             ->orderByDesc('id')
             ->first();
+
+        return $model ? $this->mapper->toEntity($model) : null;
     }
 
     public function obtenerUltimaRechazada(int $solicitudId): ?Apelacion
     {
-        return Apelacion::where('solicitud_id', $solicitudId)
+        $model = Apelacion::where('solicitud_id', $solicitudId)
             ->where('estado', EstadoApelacion::Rechazada)
             ->orderByDesc('id')
             ->first();
+
+        return $model ? $this->mapper->toEntity($model) : null;
     }
 
     public function crear(array $data): Apelacion
     {
-        return Apelacion::create($data);
+        return $this->mapper->toEntity(Apelacion::create($data));
     }
 
     public function actualizar(Apelacion $apelacion, array $data): Apelacion
     {
-        $apelacion->update($data);
+        $model = $this->mapper->toModel($apelacion);
+        $model->update($data);
 
-        return $apelacion->refresh();
+        return $this->mapper->toEntity($model->refresh());
     }
 
     public function paginarPorEstado(EstadoApelacion $estado, int $perPage = 9): LengthAwarePaginator
     {
-        return Apelacion::where('estado', $estado)
+        $paginator = Apelacion::where('estado', $estado)
             ->whereDoesntHave('apelacionesHijas')
             ->with('solicitud')
             ->orderByDesc('id')
             ->paginate($perPage);
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn(Apelacion $apelacion) => $this->mapper->toEntity($apelacion))
+        );
+
+        return $paginator;
     }
 }
