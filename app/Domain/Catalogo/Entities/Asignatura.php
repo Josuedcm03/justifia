@@ -1,35 +1,66 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Catalogo\Entities;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Shared\ValueObjects\EntityId;
+use App\Domain\Shared\ValueObjects\Nombre;
 
-// Models
-use App\Models\ModuloSecretaria\Facultad;
-use App\Models\ModuloEstudiante\Solicitud;
-
-class Asignatura extends Model
+final class Asignatura
 {
-    use HasFactory, Notifiable;
+    private ?EntityId $id;
+    private Nombre $nombre;
+    private EntityId $facultadId;
 
-    protected $table = 'asignaturas';
-    public $timestamps = false;
-    protected $primaryKey = 'id';
-
-    protected $fillable = [
-        'nombre',
-        'facultad_id',
-    ];
-
-    public function facultad()
+    private function __construct(?EntityId $id, Nombre $nombre, EntityId $facultadId)
     {
-        return $this->belongsTo(Facultad::class, 'facultad_id', 'id');
+        $this->id = $id;
+        $this->nombre = $nombre;
+        $this->facultadId = $facultadId;
     }
 
-    public function solicitudes()
+    public static function crear(string $nombre, int $facultadId): self
     {
-        return $this->hasMany(Solicitud::class, 'asignatura_id', 'id');
+        return new self(null, new Nombre($nombre), EntityId::fromInt($facultadId));
+    }
+
+    public static function reconstruir(int $id, string $nombre, int $facultadId): self
+    {
+        return new self(EntityId::fromInt($id), new Nombre($nombre), EntityId::fromInt($facultadId));
+    }
+
+    public function renombrar(string $nombre): void
+    {
+        $this->nombre = new Nombre($nombre);
+    }
+
+    public function cambiarFacultad(int $facultadId): void
+    {
+        $this->facultadId = EntityId::fromInt($facultadId);
+    }
+
+    public function id(): ?EntityId
+    {
+        return $this->id;
+    }
+
+    public function nombre(): Nombre
+    {
+        return $this->nombre;
+    }
+
+    public function facultadId(): EntityId
+    {
+        return $this->facultadId;
+    }
+
+    /**
+     * @return array<string, int|string>
+     */
+    public function toArray(): array
+    {
+        return [
+            'nombre' => $this->nombre->value(),
+            'facultad_id' => $this->facultadId->value(),
+        ];
     }
 }
