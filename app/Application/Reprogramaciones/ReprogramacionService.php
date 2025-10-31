@@ -3,12 +3,16 @@
 namespace App\Application\Reprogramaciones;
 
 use App\Application\Solicitudes\SolicitudService;
+use App\Domain\Reprogramacion\Entities\Reprogramacion as ReprogramacionEntity;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
+use App\Domain\Solicitud\Entities\Solicitud;
 use App\Enums\EstadoAsistencia;
 use App\Mail\RescheduleMail;
-use App\Models\ModuloDocente\Reprogramacion;
-use App\Models\ModuloEstudiante\Solicitud;
+use App\Models\ModuloDocente\Reprogramacion as ReprogramacionModel;
+use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\Mail;
+use InvalidArgumentException;
 
 class ReprogramacionService
 {
@@ -18,14 +22,19 @@ class ReprogramacionService
     ) {
     }
 
-    public function crear(Solicitud $solicitud, array $data): Reprogramacion
+    public function crear(SolicitudModel $solicitud, array $data): ReprogramacionModel
     {
-        $reprogramacion = $this->reprogramaciones->create([
-            'fecha' => $data['fecha'],
-            'hora' => $data['hora'],
-            'observaciones' => $data['observaciones'] ?? null,
-            'solicitud_id' => $solicitud->id,
-        ]);
+        $fecha = $this->parseFecha($data['fecha'] ?? null);
+        $hora = $this->requireHora($data['hora'] ?? null);
+
+        $entity = ReprogramacionEntity::crear(
+            $fecha,
+            $hora,
+            $data['observaciones'] ?? null,
+            $solicitud->id
+        );
+
+        $reprogramacion = $this->reprogramaciones->create($entity->toArray());
 
         $studentUser = $solicitud->estudiante->usuario;
 
@@ -40,13 +49,32 @@ class ReprogramacionService
         return $reprogramacion;
     }
 
-    public function actualizar(Reprogramacion $reprogramacion, array $data): Reprogramacion
+    public function actualizar(ReprogramacionModel $reprogramacion, array $data): ReprogramacionModel
     {
-        if (isset($data['asistencia'])) {
-            $data['asistencia'] = EstadoAsistencia::from($data['asistencia']);
+        $entity = ReprogramacionEntity::reconstruir(
+            $reprogramacion->id,
+            $this->parseFecha($this->fechaString($reprogramacion->fecha)),
+            $reprogramacion->hora,
+            $reprogramacion->asistencia,
+            $reprogramacion->observaciones,
+            $reprogramacion->solicitud_id
+        );
+
+        if (array_key_exists('fecha', $data) || array_key_exists('hora', $data) || array_key_exists('observaciones', $data)) {
+            $fecha = $this->parseFecha($data['fecha'] ?? $this->fechaString($reprogramacion->fecha));
+            $hora = $this->requireHora($data['hora'] ?? $reprogramacion->hora);
+            $observaciones = $data['observaciones'] ?? $reprogramacion->observaciones;
+            $entity->reprogramar($fecha, $hora, $observaciones);
         }
 
-        return $this->reprogramaciones->update($reprogramacion, $data);
+        if (array_key_exists('asistencia', $data) && $data['asistencia'] !== null) {
+            $estado = $data['asistencia'] instanceof EstadoAsistencia
+                ? $data['asistencia']
+                : EstadoAsistencia::from($data['asistencia']);
+            $entity->registrarAsistencia($estado);
+        }
+
+        return $this->reprogramaciones->update($reprogramacion, $entity->toArray());
     }
 
     public function solicitudesAprobadasSinReprogramar(int $docenteId)
@@ -57,5 +85,43 @@ class ReprogramacionService
     public function reprogramacionesPorDocente(int $docenteId)
     {
         return $this->solicitudes->reprogramacionesPorDocente($docenteId);
+    }
+
+    private function parseFecha(?string $fecha): DateTimeImmutable
+    {
+        if (! $fecha) {
+            throw new InvalidArgumentException('La fecha es obligatoria.');
+        }
+
+        $instancia = DateTimeImmutable::createFromFormat('Y-m-d', $fecha);
+        if (! $instancia) {
+            throw new InvalidArgumentException('La fecha no tiene un formato válido.');
+        }
+
+        return $instancia;
+    }
+
+    private function requireHora(?string $hora): string
+    {
+        $hora = $hora !== null ? trim($hora) : '';
+        if ($hora === '') {
+            throw new InvalidArgumentException('La hora es obligatoria.');
+        }
+
+        $validada = DateTimeImmutable::createFromFormat('H:i', $hora);
+        if (! $validada || $validada->format('H:i') !== $hora) {
+            throw new InvalidArgumentException('La hora debe tener el formato HH:MM.');
+        }
+
+        return $hora;
+    }
+
+    private function fechaString(mixed $valor): string
+    {
+        if ($valor instanceof \DateTimeInterface) {
+            return $valor->format('Y-m-d');
+        }
+
+        return (string) $valor;
     }
 }

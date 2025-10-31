@@ -8,7 +8,7 @@ use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendAppealStatusMail;
-use App\Models\ModuloEstudiante\Apelacion;
+use App\Domain\Apelaciones\Entities\Apelacion;
 use Illuminate\Http\Request;
 
 class ApelacionController extends Controller

@@ -2,11 +2,13 @@
 
 namespace App\Domain\Catalogo\Repositories;
 
-use Illuminate\Support\Collection;
+use App\Domain\Catalogo\Entities\Asignatura;
 
 interface AsignaturaRepository
 {
-    public function listByFacultad(int $facultadId): Collection;
+    /** @return iterable<Asignatura> */
+    public function listByFacultad(int $facultadId): iterable;
 
-    public function search(string $termino = '', ?int $facultadId = null, int $limit = 10): Collection;
+    /** @return iterable<Asignatura> */
+    public function search(string $termino = '', ?int $facultadId = null, int $limit = 10): iterable;
 }

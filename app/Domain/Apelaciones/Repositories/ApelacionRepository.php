@@ -2,14 +2,14 @@
 
 namespace App\Domain\Apelaciones\Repositories;
 
+use App\Domain\Apelaciones\Entities\Apelacion;
 use App\Enums\EstadoApelacion;
-use App\Models\ModuloEstudiante\Apelacion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 interface ApelacionRepository
 {
-    public function listarFinalesPorEstudiante(int $estudianteId): Collection;
+    /** @return iterable<Apelacion> */
+    public function listarFinalesPorEstudiante(int $estudianteId): iterable;
 
     public function obtenerUltimaPorSolicitud(int $solicitudId): ?Apelacion;
 

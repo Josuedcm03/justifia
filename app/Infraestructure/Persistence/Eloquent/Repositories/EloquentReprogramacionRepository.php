@@ -2,9 +2,8 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Reprogramacion\Entities\Reprogramacion;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
-use App\Infraestructure\Persistence\Eloquent\Repositories\Mappers\ReprogramacionMapper;
-use App\Models\ModuloDocente\Reprogramacion;
 
 class EloquentReprogramacionRepository implements ReprogramacionRepository
 {

@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Docente\Entities\Docente;
+use App\Domain\Seguridad\Entities\Role;
+use App\Domain\Usuarios\Entities\User;
 use Illuminate\Database\Seeder;
-use App\Models\ModuloSecretaria\Docente;
-use App\Models\User;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSeguridad\Role;
 use Illuminate\Support\Facades\Hash;
 
 class DocentesSeeder extends Seeder
@@ -31,7 +31,7 @@ class DocentesSeeder extends Seeder
             $user = User::create([
                 'name' => $docente['name'],
                 'email' => $docente['email'],
-                'password' => 'secret',
+                'password' => Hash::make('secret'),
                 'role_id' => $role?->id,
                 'email_verified_at' => now(),
             ]);

@@ -47,7 +47,7 @@ class LoginRequest extends FormRequest
         if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
             $credentials['email'] = $login;
         } else {
-            $user = \App\Models\User::whereHas('estudiante', function ($q) use ($login) {
+            $user = \App\Domain\Usuarios\Entities\User::whereHas('estudiante', function ($q) use ($login) {
                 $q->where('cif', $login);
             })->first();
 

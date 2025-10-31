@@ -1,102 +1,136 @@
 <?php
 
-namespace App\Models;
+namespace App\Domain\Usuarios\Entities;
 
-use App\Domain\Shared\Contracts\Entity;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use App\Models\ModuloSeguridad\Role;
-use App\Models\ModuloEstudiante\Estudiante;
-use App\Models\ModuloSecretaria\Docente;
-use App\Notifications\CustomVerifyEmail;
-use App\Notifications\CustomResetPassword;
+use App\Domain\Shared\ValueObjects\EmailAddress;
+use App\Domain\Shared\ValueObjects\EntityId;
+use App\Domain\Shared\ValueObjects\Nombre;
+use DateTimeImmutable;
 
-class User extends Authenticatable implements MustVerifyEmail, Entity
+final class User
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    private ?EntityId $id;
+    private Nombre $nombre;
+    private EmailAddress $email;
+    private ?string $passwordHash;
+    private ?EntityId $roleId;
+    private ?DateTimeImmutable $emailVerificadoEn;
 
+    private function __construct(
+        ?EntityId $id,
+        Nombre $nombre,
+        EmailAddress $email,
+        ?string $passwordHash,
+        ?EntityId $roleId,
+        ?DateTimeImmutable $emailVerificadoEn
+    ) {
+        $this->id = $id;
+        $this->nombre = $nombre;
+        $this->email = $email;
+        $this->passwordHash = $passwordHash;
+        $this->roleId = $roleId;
+        $this->emailVerificadoEn = $emailVerificadoEn;
+    }
 
-    protected $table = 'users';
-    public $timestamps = false;
-    protected $primaryKey = 'id';
+    public static function registrar(string $nombre, string $email, ?string $passwordHash, ?int $roleId = null): self
+    {
+        return new self(
+            null,
+            new Nombre($nombre),
+            new EmailAddress($email),
+            $passwordHash,
+            $roleId ? EntityId::fromInt($roleId) : null,
+            null
+        );
+    }
+
+    public static function reconstruir(
+        int $id,
+        string $nombre,
+        string $email,
+        ?string $passwordHash,
+        ?int $roleId,
+        ?DateTimeImmutable $emailVerificadoEn
+    ): self {
+        return new self(
+            EntityId::fromInt($id),
+            new Nombre($nombre),
+            new EmailAddress($email),
+            $passwordHash,
+            $roleId ? EntityId::fromInt($roleId) : null,
+            $emailVerificadoEn
+        );
+    }
+
+    public function cambiarNombre(string $nombre): void
+    {
+        $this->nombre = new Nombre($nombre);
+    }
+
+    public function cambiarEmail(string $email): void
+    {
+        $this->email = new EmailAddress($email);
+        $this->emailVerificadoEn = null;
+    }
+
+    public function asignarRole(?int $roleId): void
+    {
+        $this->roleId = $roleId ? EntityId::fromInt($roleId) : null;
+    }
+
+    public function establecerPasswordHash(?string $hash): void
+    {
+        $this->passwordHash = $hash;
+    }
+
+    public function verificarEmail(DateTimeImmutable $fecha): void
+    {
+        $this->emailVerificadoEn = $fecha;
+    }
+
+    public function id(): ?EntityId
+    {
+        return $this->id;
+    }
+
+    public function nombre(): Nombre
+    {
+        return $this->nombre;
+    }
+
+    public function email(): EmailAddress
+    {
+        return $this->email;
+    }
+
+    public function passwordHash(): ?string
+    {
+        return $this->passwordHash;
+    }
+
+    public function roleId(): ?EntityId
+    {
+        return $this->roleId;
+    }
+
+    public function emailVerificadoEn(): ?DateTimeImmutable
+    {
+        return $this->emailVerificadoEn;
+    }
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
+     * @return array<string, mixed>
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'role_id',
-    ];
-
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    public function toArray(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'name' => $this->nombre->value(),
+            'email' => (string) $this->email,
+            'password' => $this->passwordHash,
+            'role_id' => $this->roleId?->value(),
+            'email_verified_at' => $this->emailVerificadoEn?->format('Y-m-d H:i:s'),
         ];
     }
-
-
-     // Relaciones
-
-    public function estudiante()
-    {
-        return $this->hasOne(Estudiante::class, 'usuario_id', 'id');
-    }
-
-    public function docente()
-    {
-        return $this->hasOne(Docente::class, 'usuario_id', 'id');
-    }
-
-    public function role()
-    {
-        return $this->belongsTo(Role::class, 'role_id');
-    }
-
-    public function hasRole(string $roleName): bool
-    {
-        return $this->role?->name === $roleName;
-    }
-
-    /**
-     * Send the custom email verification notification.
-     */
-    public function sendEmailVerificationNotification(): void
-    {
-        $this->notify(new CustomVerifyEmail());
-    }
-
-        /**
-     * Send the password reset notification.
-     */
-    public function sendPasswordResetNotification($token): void
-    {
-        $this->notify(new CustomResetPassword($token));
-    }
-
-
-
 }
+
+\class_alias(User::class, 'App\\Models\\User');

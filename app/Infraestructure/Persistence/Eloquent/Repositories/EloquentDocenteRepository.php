@@ -2,26 +2,19 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Docente\Entities\Docente;
 use App\Domain\Docente\Repositories\DocenteRepository;
-use App\Infraestructure\Persistence\Eloquent\Repositories\Mappers\DocenteMapper;
-use App\Models\ModuloSecretaria\Docente;
-use Illuminate\Support\Collection;
 
 class EloquentDocenteRepository implements DocenteRepository
 {
-    public function __construct(
-        private readonly DocenteMapper $mapper,
-    ) {
-    }
-
-    public function allWithUsuario(): Collection
+    public function allWithUsuario(): iterable
     {
         return Docente::with('usuario')
             ->get()
             ->map(fn(Docente $docente) => $this->mapper->toEntity($docente));
     }
 
-    public function searchByNombre(string $nombre, int $limit = 10): Collection
+    public function searchByNombre(string $nombre, int $limit = 10): iterable
     {
         return Docente::with('usuario')
             ->when($nombre !== '', function ($query) use ($nombre) {

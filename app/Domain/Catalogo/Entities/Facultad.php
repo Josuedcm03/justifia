@@ -1,36 +1,53 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Catalogo\Entities;
 
-use App\Domain\Shared\Contracts\Entity;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Notifiable;
+use App\Domain\Shared\ValueObjects\EntityId;
+use App\Domain\Shared\ValueObjects\Nombre;
 
-// Models
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSecretaria\Asignatura;
-
-class Facultad extends Model implements Entity
+final class Facultad
 {
-    use HasFactory, Notifiable;
+    private ?EntityId $id;
+    private Nombre $nombre;
 
-    protected $table = 'facultades';
-    public $timestamps = false;
-    protected $primaryKey = 'id';
-
-    protected $fillable = [
-        'nombre',
-    ];
-
-    // Relaciones
-    public function carreras()
+    private function __construct(?EntityId $id, Nombre $nombre)
     {
-        return $this->hasMany(Carrera::class, 'facultad_id', 'id');
+        $this->id = $id;
+        $this->nombre = $nombre;
     }
 
-    public function asignaturas()
+    public static function crear(string $nombre): self
     {
-        return $this->hasMany(Asignatura::class, 'facultad_id', 'id');
+        return new self(null, new Nombre($nombre));
+    }
+
+    public static function reconstruir(int $id, string $nombre): self
+    {
+        return new self(EntityId::fromInt($id), new Nombre($nombre));
+    }
+
+    public function renombrar(string $nombre): void
+    {
+        $this->nombre = new Nombre($nombre);
+    }
+
+    public function id(): ?EntityId
+    {
+        return $this->id;
+    }
+
+    public function nombre(): Nombre
+    {
+        return $this->nombre;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function toArray(): array
+    {
+        return ['nombre' => $this->nombre->value()];
     }
 }
+
+\class_alias(Facultad::class, 'App\\Models\\ModuloSecretaria\\Facultad');
