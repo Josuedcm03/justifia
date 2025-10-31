@@ -16,6 +16,10 @@ class CustomVerifyEmail extends VerifyEmail
 
         return (new MailMessage)
             ->subject('Verifica tu correo')
-            ->markdown('emails.verify', ['url' => $url]);
+            ->view('emails.verify', [
+                'url' => $url,
+                'recipientName' => $notifiable->name,
+                'recipientEmail' => $notifiable->email,
+            ]);
     }
 }

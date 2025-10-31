@@ -7,9 +7,7 @@ use Illuminate\Http\Request;
 
 use App\Models\ModuloEstudiante\Solicitud;
 use App\Models\ModuloDocente\Reprogramacion;
-use App\Enums\EstadoAsistencia;
 use App\Enums\EstadoSolicitud;
-use Illuminate\Validation\Rules\Enum;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\RescheduleMail;
 use Illuminate\Support\Facades\Log;
@@ -45,16 +43,14 @@ class ReprogramacionController extends Controller
 
     public function storeReprogramacion(Request $request, Solicitud $solicitud)
     {
-        $validated = $request->validate([
-            'fecha' => ['date'],
-            'hora' => ['date_format:H:i'],
-            'observaciones' => ['nullable', 'string'],
+        $reprogramacion = Reprogramacion::create([
+            'fecha' => $request->input('fecha'),
+            'hora' => $request->input('hora'),
+            'observaciones' => $request->input('observaciones'),
+            'solicitud_id' => $solicitud->id,
         ]);
 
-        $validated['solicitud_id'] = $solicitud->id;
-
-        $reprogramacion = Reprogramacion::create($validated);
-
+        
         $studentUser = $solicitud->estudiante->usuario;
 
         try {
@@ -78,15 +74,12 @@ class ReprogramacionController extends Controller
 
     public function updateReprogramacion(Request $request, Solicitud $solicitud)
     {
-        $validated = $request->validate([
-            'fecha' => ['sometimes', 'date'],
-            'hora' => ['sometimes', 'date_format:H:i'],
-            'asistencia' => ['sometimes', new Enum(EstadoAsistencia::class)],
-            'observaciones' => ['nullable', 'string'],
+        $solicitud->reprogramacion->update([
+            'fecha' => $request->input('fecha'),
+            'hora' => $request->input('hora'),
+            'asistencia' => $request->input('asistencia'),
+            'observaciones' => $request->input('observaciones'),
         ]);
-
-        $solicitud->reprogramacion->update($validated);
-
         return redirect()
             ->route('docente.solicitudes.index')
             ->with('success', 'Reprogramación actualizada correctamente.');

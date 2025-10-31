@@ -5,7 +5,8 @@ namespace App\Imports;
 use App\Models\ModuloSecretaria\Docente;
 use App\Models\User;
 use App\Models\ModuloSeguridad\Role;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -17,14 +18,12 @@ class DocentesImport implements ToModel, WithHeadingRow
             return null;
         }
 
-        $password = $this->generatePassword($row['name'], $row['cif']);
-
         $role = Role::where('name', 'docente')->first();
 
         $user = User::create([
             'name' => $row['name'],
             'email' => $row['email'],
-            'password' => Hash::make($password),
+            'password' => Str::random(40),
             'role_id' => $role?->id,
         ]);
 
@@ -34,12 +33,4 @@ class DocentesImport implements ToModel, WithHeadingRow
         ]);
     }
 
-    private function generatePassword(string $name, string $cif): string
-    {
-        $initials = implode('', array_map(fn ($part) => strtolower($part[0]), explode(' ', trim($name))));
-        $numbers = substr(preg_replace('/\D/', '', $cif), -4);
-        $random = random_int(10, 99);
-
-        return $initials . $numbers . $random;
-    }
 }

@@ -55,13 +55,8 @@ class SolicitudController extends Controller
      */
     public function update(Request $request, Solicitud $solicitud)
     {
-        $validated = $request->validate([
-            'estado' => [new Enum(EstadoSolicitud::class)],
-            'respuesta' => ['string'],
-        ]);
-
-        $solicitud->estado = EstadoSolicitud::from($validated['estado']);
-        $solicitud->respuesta = $validated['respuesta'];
+        $solicitud->estado = EstadoSolicitud::from($request->input('estado'));
+        $solicitud->respuesta = $request->input('respuesta');
         $solicitud->save();
 
         $studentUser = $solicitud->estudiante->usuario;

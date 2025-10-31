@@ -45,9 +45,7 @@ class ApelacionController extends Controller
 
     public function store(Request $request, Solicitud $solicitud)
     {
-        $validated = $request->validate([
-            'observacion_estudiante' => ['string'],
-        ]);
+        $observacion = $request->input('observacion_estudiante');
 
         $ultimaRechazada = Apelacion::where('solicitud_id', $solicitud->id)
             ->where('estado', EstadoApelacion::Rechazada)
@@ -55,7 +53,7 @@ class ApelacionController extends Controller
             ->first();
 
         $data = [
-            'observacion' => $validated['observacion_estudiante'],
+            'observacion' => $observacion,
             'estado' => EstadoApelacion::Pendiente,
             'solicitud_id' => $solicitud->id,
             'apelacion_id' => $ultimaRechazada?->id,
@@ -103,11 +101,7 @@ class ApelacionController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'observacion_estudiante' => ['string'],
-        ]);
-
-        $apelacion->observacion = $validated['observacion_estudiante'];
+        $apelacion->observacion = $request->input('observacion_estudiante');
         $apelacion->save();
 
         return redirect()

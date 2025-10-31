@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::table('docentes', function (Blueprint $table) {
             $table->string('cif')->after('id');
             $table->unsignedBigInteger('usuario_id')->nullable()->change();
-            $table->unsignedBigInteger('carrera_id')->nullable()->change();
         });
     }
 
@@ -20,7 +19,6 @@ return new class extends Migration
         Schema::table('docentes', function (Blueprint $table) {
             $table->dropColumn('cif');
             $table->unsignedBigInteger('usuario_id')->nullable(false)->change();
-            $table->unsignedBigInteger('carrera_id')->nullable(false)->change();
         });
     }
 };

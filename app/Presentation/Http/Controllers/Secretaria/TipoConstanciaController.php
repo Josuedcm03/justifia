@@ -33,11 +33,10 @@ class TipoConstanciaController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+        TipoConstancia::create([
+            'nombre' => $request->input('nombre'),
         ]);
 
-        TipoConstancia::create($validated);
         return redirect()->route('secretaria.tipo-constancia.index')
             ->with('success', 'Tipo de constancia creado correctamente.');
     }
@@ -65,11 +64,9 @@ class TipoConstanciaController extends Controller
      */
     public function update(Request $request, TipoConstancia $TipoConstancia)
     {
-        $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
+        $TipoConstancia->update([
+            'nombre' => $request->input('nombre'),
         ]);
-
-        $TipoConstancia->update($validated);
 
         return redirect()->route('secretaria.tipo-constancia.index')
             ->with('success', 'Tipo de constancia actualizado correctamente.');

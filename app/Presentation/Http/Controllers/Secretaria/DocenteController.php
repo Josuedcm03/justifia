@@ -11,7 +11,8 @@ use App\Models\ModuloSecretaria\Docente;
 use App\Imports\DocentesImport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use App\Models\ModuloSeguridad\Role;
 
 class DocenteController extends Controller
@@ -19,10 +20,23 @@ class DocenteController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $docentes = Docente::orderBy('cif')->paginate(10);
-        return view('ModuloSecretaria.docentes.index', compact('docentes'));
+        $search = $request->input('search');
+
+        $docentes = Docente::with('usuario')
+            ->when($search, function ($query) use ($search) {
+                $query->where('cif', 'like', "%{$search}%")
+                    ->orWhereHas('usuario', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+                    });
+            })
+            ->orderBy('cif')
+            ->paginate(15)
+            ->appends(['search' => $search]);
+
+        return view('ModuloSecretaria.docentes.index', compact('docentes', 'search'));
     }
 
     /**
@@ -61,7 +75,7 @@ class DocenteController extends Controller
         ]);
 
         return redirect()->route('secretaria.docentes.index')
-            ->with('success', 'Docente creado correctamente. Contraseña: ' . $password);
+            ->with('success', 'Docente creado correctamente.');
     }
 
     /**
@@ -136,12 +150,4 @@ class DocenteController extends Controller
             ->with('success', 'Docentes importados correctamente.');
     }
 
-    private function generatePassword(string $name, string $cif): string
-    {
-        $initials = implode('', array_map(fn ($part) => strtolower($part[0]), explode(' ', trim($name))));
-        $numbers = substr(preg_replace('/\D/', '', $cif), -4);
-        $random = random_int(10, 99);
-
-        return $initials . $numbers . $random;
-    }
 }

@@ -4,12 +4,18 @@ export default class SolicitudFrontera {
         this.form = form;
         this.isUpdate = options.isUpdate || false;
         this.oldAsignatura = form.dataset.oldAsignatura || '';
-        this.asignaturasUrl = form.dataset.asignaturasUrl;
         this.buscarDocentesUrl = form.dataset.buscarDocentesUrl;
+        this.buscarAsignaturasUrl = form.dataset.buscarAsignaturasUrl;
         this.docenteInput = this.form.querySelector('#docente_input');
         this.docenteHidden = this.form.querySelector('#docente_id');
         this.facultadSelect = this.form.querySelector('#facultad_id');
-        this.asignaturaSelect = this.form.querySelector('#asignatura_id');
+        this.asignaturaInput = this.form.querySelector('#asignatura_input');
+        this.asignaturaHidden = this.form.querySelector('#asignatura_id');
+        this.asignaturaList = this.form.querySelector('#asignatura_results');
+        this.asignaturaIcon = this.form.querySelector('#asignatura_icon');
+        this.asignaturaClear = this.form.querySelector('#asignatura_clear');
+        this.asignaturaWrapper = this.form.querySelector('#asignatura-wrapper');
+        this.asignaturaSelected = !!(this.asignaturaHidden && this.asignaturaHidden.value);
         this.constanciaInput = this.form.querySelector('#constancia');
         this.deleteConstancia = this.form.querySelector('#delete_constancia');
         this.eliminarBtn = document.getElementById('eliminar-btn');
@@ -58,9 +64,26 @@ export default class SolicitudFrontera {
         }
 
         if (this.facultadSelect) {
-            this.facultadSelect.addEventListener('change', e => {
-                this.cargarAsignaturas(e.target.value);
+            this.facultadSelect.addEventListener('change', () => {
+                this.limpiarAsignatura();
             });
+        }
+
+        if (this.asignaturaInput) {
+            this.asignaturaInput.addEventListener('input', e => {
+                if (this.asignaturaSelected) return;
+                this.buscarAsignaturas(e.target.value);
+            });
+            this.asignaturaInput.addEventListener('focus', () => {
+                if (this.asignaturaSelected) return;
+                if (this.asignaturaList && this.asignaturaList.children.length) {
+                    this.asignaturaList.classList.remove('hidden');
+                }
+            });
+        }
+
+        if (this.asignaturaClear) {
+            this.asignaturaClear.addEventListener('click', () => this.limpiarAsignatura());
         }
 
         if (this.eliminarBtn && this.eliminarForm) {
@@ -81,29 +104,6 @@ export default class SolicitudFrontera {
                 });
             });
         }
-    }
-
-    cargarAsignaturas(facultadId, selected = null) {
-        if (!this.asignaturaSelect) return;
-        this.asignaturaSelect.innerHTML = '<option value="">Cargando...</option>';
-        if (!facultadId) {
-            this.asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-            return;
-        }
-        fetch(`${this.asignaturasUrl}/${facultadId}/asignaturas`)
-            .then(r => r.json())
-            .then(data => {
-                this.asignaturaSelect.innerHTML = '<option value="">Seleccionar Asignatura</option>';
-                data.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item.id;
-                    option.textContent = item.nombre;
-                    if (selected == item.id) {
-                        option.selected = true;
-                    }
-                    this.asignaturaSelect.appendChild(option);
-                });
-            });
     }
 
     buscarDocentes(query) {
@@ -140,7 +140,7 @@ export default class SolicitudFrontera {
             errors.push('Debes seleccionar un docente');
         }
 
-        if (this.asignaturaSelect && !this.asignaturaSelect.value) {
+        if (this.asignaturaHidden && !this.asignaturaHidden.value) {
             errors.push('Debes seleccionar una asignatura');
         }
 

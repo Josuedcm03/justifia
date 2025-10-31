@@ -19,10 +19,10 @@
                 @endphp
 
                 @foreach($catalogos as $cat)
-                    <a href="{{ route($cat['route']) }}" class="block bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-md transition border border-transparent hover:border-[#0099a8] group">
+                    <a href="{{ route($cat['route']) }}" class="block bg-white dark:bg-gray-800 p-6 rounded-lg shadow hover:shadow-md transition border border-transparent hover:border-[#007e8b] focus:border-[#007e8b] group focus:bg-[#0099a8]/20 dark:focus:bg-[#0099a8]/10">
                         <div class="flex items-center space-x-4">
-                            <x-dynamic-component :component="'heroicon-o-' . $cat['icon']" class="w-6 h-6 text-[#0099a8] group-hover:text-[#007e8b]" />
-                            <span class="text-lg font-semibold text-gray-800 dark:text-white group-hover:text-[#007e8b]">{{ __($cat['label']) }}</span>
+                            <x-dynamic-component :component="'heroicon-o-' . $cat['icon']" class="w-6 h-6 text-[#0099a8] group-hover:text-[#007e8b] group-focus:text-[#007e8b]" />
+                            <span class="text-lg font-semibold text-gray-800 dark:text-white group-hover:text-[#007e8b] group-focus:text-[#007e8b]">{{ __($cat['label']) }}</span>
                         </div>
                     </a>
                 @endforeach

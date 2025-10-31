@@ -17,23 +17,29 @@ class FacultadesSeeder extends Seeder
                 'Ingeniería Industrial',
                 'Ingeniería en Sistemas de Información',
             ],
-            'Ciencias Médicas' => [
+            'Facultad de Ciencias Médicas' => [
                 'Medicina',
                 'Psicología',
                 'Nutrición',
             ],
-            'Ciencias Jurídicas, Humanidades y Relaciones Internacionales' => [
+            'Facultad de Ciencias Jurídicas. Humanidades y Relaciones Internacionales' => [
                 'Derecho',
                 'Diplomacia y Relaciones Internacionales',
             ],
-            'Ciencias Administrativas y Económicas' => [
+            'Facultad de Ciencias Administrativas y Económicas' => [
                 'Administración de Empresas',
-                'Contabilidad de Finanzas',
+                'Contabilidad y Finanzas',
                 'Economía Empresarial',
                 'Negocios Internacionales',
             ],
             'Facultad de Odontología' => [
                 'Odontología',
+            ],
+
+            'Facultad de Marketing. Diseño y Ciencias de la Comunicación' => [
+                'Marketing y Publicidad',
+                'Diseño y Comunicación Visual',
+                'Comunicación y Relaciones Públicas',
             ],
         ];
 

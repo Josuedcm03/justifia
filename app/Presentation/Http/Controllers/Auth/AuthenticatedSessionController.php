@@ -30,10 +30,6 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
 
-        if ($user?->hasRole('docente') && ! $user->hasVerifiedEmail()) {
-            $user->sendEmailVerificationNotification();
-        }
-
         $redirect = route('dashboard', absolute: false);
 
         if ($user?->hasRole('estudiante')) {

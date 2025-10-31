@@ -10,6 +10,7 @@ use App\Models\ModuloSeguridad\Role;
 use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloSecretaria\Docente;
 use App\Notifications\CustomVerifyEmail;
+use App\Notifications\CustomResetPassword;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -86,6 +87,15 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $this->notify(new CustomVerifyEmail());
     }
+
+        /**
+     * Send the password reset notification.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new CustomResetPassword($token));
+    }
+
 
 
 }

@@ -55,7 +55,6 @@ class DatabaseSeeder extends Seeder
             'role_id' => $secretariaRole?->id,
         ]);
 
-
                 $this->call([
             FacultadesSeeder::class,
             AsignaturasSeeder::class,

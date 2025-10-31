@@ -8,7 +8,7 @@ use Illuminate\Notifications\Notifiable;
 
 // Models
 use App\Models\User;
-use App\Models\ModuloSecretaria\Carrera;
+
 use App\Models\ModuloEstudiante\Solicitud;
 
 
@@ -24,7 +24,7 @@ class Docente extends Model
     protected $fillable = [
         'cif',
         'usuario_id',
-        'carrera_id',
+
     ];
 
     // Relaciones
@@ -33,12 +33,7 @@ class Docente extends Model
     {
         return $this->belongsTo(User::class, 'usuario_id', 'id');
     }
-
-    public function carrera()
-    {
-        return $this->belongsTo(Carrera::class, 'carrera_id', 'id');
-    }
-
+    
     public function solicitudes()
     {
         return $this->hasMany(Solicitud::class, 'docente_id', 'id');

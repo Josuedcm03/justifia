@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\ModuloEstudiante\Apelacion;
 use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSolicitud;
-use Illuminate\Validation\Rules\Enum;
+use App\Jobs\SendAppealStatusMail;
 
 class ApelacionController extends Controller
 {
@@ -50,21 +50,25 @@ class ApelacionController extends Controller
      */
     public function update(Request $request, Apelacion $apelacion)
     {
-        $validated = $request->validate([
-            'estado' => [new Enum(EstadoApelacion::class)],
-            'respuesta' => ['string'],
-        ]);
-
-        $apelacion->estado = EstadoApelacion::from($validated['estado']);
-        $apelacion->respuesta = $validated['respuesta'];
+        $apelacion->estado = EstadoApelacion::from($request->input('estado'));
+        $apelacion->respuesta = $request->input('respuesta');
         $apelacion->save();
 
         if ($apelacion->estado === EstadoApelacion::Aprobada) {
             $solicitud = $apelacion->solicitud;
             $solicitud->estado = EstadoSolicitud::Aprobada;
-            $solicitud->respuesta = $validated['respuesta'];
+            $solicitud->respuesta = $request->input('respuesta');
             $solicitud->save();
         }
+
+        $studentUser = $apelacion->solicitud->estudiante->usuario;
+
+        SendAppealStatusMail::dispatch(
+            $apelacion->estado === EstadoApelacion::Aprobada,
+            $studentUser->email,
+            $studentUser->name,
+            $apelacion,
+        );
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
