@@ -8,11 +8,6 @@ export default class SolicitudFrontera {
         this.buscarAsignaturasUrl = form.dataset.buscarAsignaturasUrl;
         this.docenteInput = this.form.querySelector('#docente_input');
         this.docenteHidden = this.form.querySelector('#docente_id');
-        this.docenteList = this.form.querySelector('#docente_results');
-        this.docenteIcon = this.form.querySelector('#docente_icon');
-        this.docenteClear = this.form.querySelector('#docente_clear');
-        this.docenteWrapper = this.form.querySelector('#docente-wrapper');
-        this.docenteSelected = !!(this.docenteHidden && this.docenteHidden.value);
         this.facultadSelect = this.form.querySelector('#facultad_id');
         this.asignaturaInput = this.form.querySelector('#asignatura_input');
         this.asignaturaHidden = this.form.querySelector('#asignatura_id');
@@ -27,8 +22,9 @@ export default class SolicitudFrontera {
         this.eliminarForm = document.getElementById('eliminar-form');
         this.confirmed = false;
         this.registerEvents();
-        this.inicializarDocente();
-        this.inicializarAsignatura();
+        if (this.facultadSelect && this.facultadSelect.value) {
+            this.cargarAsignaturas(this.facultadSelect.value, this.oldAsignatura);
+        }
     }
 
     registerEvents() {
@@ -59,29 +55,13 @@ export default class SolicitudFrontera {
 
         if (this.docenteInput) {
             this.docenteInput.addEventListener('input', e => {
-                if (this.docenteSelected) return;
                 this.buscarDocentes(e.target.value);
             });
-            this.docenteInput.addEventListener('focus', e => {
-                if (this.docenteSelected) return;
-                if (this.docenteList && this.docenteList.children.length) {
-                    this.docenteList.classList.remove('hidden');
-                }
+            this.docenteInput.addEventListener('change', e => {
+                const option = Array.from(this.docenteInput.list.options).find(o => o.value === e.target.value);
+                this.docenteHidden.value = option ? option.dataset.id : '';
             });
         }
-
-        if (this.docenteClear) {
-            this.docenteClear.addEventListener('click', () => this.limpiarDocente());
-        }
-
-        document.addEventListener('click', e => {
-            if (this.docenteWrapper && !this.docenteWrapper.contains(e.target)) {
-                this.docenteList?.classList.add('hidden');
-            }
-            if (this.asignaturaWrapper && !this.asignaturaWrapper.contains(e.target)) {
-                this.asignaturaList?.classList.add('hidden');
-            }
-        });
 
         if (this.facultadSelect) {
             this.facultadSelect.addEventListener('change', () => {
@@ -127,96 +107,19 @@ export default class SolicitudFrontera {
     }
 
     buscarDocentes(query) {
-        if (!this.buscarDocentesUrl || !this.docenteList) return;
+        if (!this.buscarDocentesUrl) return;
         fetch(`${this.buscarDocentesUrl}?q=${encodeURIComponent(query)}`)
             .then(r => r.json())
             .then(data => {
-                this.docenteList.innerHTML = '';
+                const list = this.docenteInput.list;
+                list.innerHTML = '';
                 data.forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = item.nombre;
-                    li.dataset.id = item.id;
-                    li.className = 'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800';
-                    li.addEventListener('click', () => this.seleccionarDocente(item));
-                    this.docenteList.appendChild(li);
+                    const option = document.createElement('option');
+                    option.value = item.nombre;
+                    option.dataset.id = item.id;
+                    list.appendChild(option);
                 });
-                this.docenteList.classList.remove('hidden');
             });
-    }
-
-    seleccionarDocente(item) {
-        this.docenteInput.value = item.nombre;
-        if (this.docenteHidden) this.docenteHidden.value = item.id;
-        this.docenteSelected = true;
-        this.docenteInput.readOnly = true;
-        this.docenteList.classList.add('hidden');
-        this.docenteIcon?.classList.add('hidden');
-        this.docenteClear?.classList.remove('hidden');
-    }
-
-    limpiarDocente() {
-        this.docenteInput.value = '';
-        if (this.docenteHidden) this.docenteHidden.value = '';
-        this.docenteSelected = false;
-        this.docenteInput.readOnly = false;
-        this.docenteClear?.classList.add('hidden');
-        this.docenteIcon?.classList.remove('hidden');
-    }
-
-    buscarAsignaturas(query) {
-        if (!this.buscarAsignaturasUrl || !this.asignaturaList) return;
-        const facultadId = this.facultadSelect ? this.facultadSelect.value : '';
-        const params = new URLSearchParams({ q: query });
-        if (facultadId) params.append('facultad', facultadId);
-        fetch(`${this.buscarAsignaturasUrl}?${params.toString()}`)
-            .then(r => r.json())
-            .then(data => {
-                this.asignaturaList.innerHTML = '';
-                data.forEach(item => {
-                    const li = document.createElement('li');
-                    li.textContent = item.nombre;
-                    li.dataset.id = item.id;
-                    li.className = 'px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800';
-                    li.addEventListener('click', () => this.seleccionarAsignatura(item));
-                    this.asignaturaList.appendChild(li);
-                });
-                this.asignaturaList.classList.remove('hidden');
-            });
-    }
-
-    seleccionarAsignatura(item) {
-        this.asignaturaInput.value = item.nombre;
-        if (this.asignaturaHidden) this.asignaturaHidden.value = item.id;
-        this.asignaturaSelected = true;
-        this.asignaturaInput.readOnly = true;
-        this.asignaturaList.classList.add('hidden');
-        this.asignaturaIcon?.classList.add('hidden');
-        this.asignaturaClear?.classList.remove('hidden');
-    }
-
-    limpiarAsignatura() {
-        if (this.asignaturaInput) this.asignaturaInput.value = '';
-        if (this.asignaturaHidden) this.asignaturaHidden.value = '';
-        this.asignaturaSelected = false;
-        if (this.asignaturaInput) this.asignaturaInput.readOnly = false;
-        this.asignaturaClear?.classList.add('hidden');
-        this.asignaturaIcon?.classList.remove('hidden');
-    }
-
-    inicializarAsignatura() {
-        if (this.asignaturaSelected) {
-            if (this.asignaturaInput) this.asignaturaInput.readOnly = true;
-            this.asignaturaIcon?.classList.add('hidden');
-            this.asignaturaClear?.classList.remove('hidden');
-        }
-    }
-
-    inicializarDocente() {
-        if (this.docenteSelected) {
-            this.docenteInput.readOnly = true;
-            this.docenteIcon?.classList.add('hidden');
-            this.docenteClear?.classList.remove('hidden');
-        }
     }
 
     validate() {

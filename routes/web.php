@@ -13,8 +13,6 @@ use App\Http\Controllers\ModuloSecretaria\FacultadController;
 use App\Http\Controllers\ModuloSecretaria\DocenteController;
 use App\Http\Controllers\ModuloSecretaria\TipoConstanciaController;
 use App\Http\Controllers\ModuloSecretaria\CatalogoController;
-use App\Http\Controllers\ModuloSecretaria\DashboardController;
-use App\Models\ModuloEstudiante\Solicitud;
 use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
 use Illuminate\Support\Facades\Auth;
 
@@ -23,20 +21,12 @@ use Illuminate\Support\Facades\Auth;
 // without requiring authentication.
 
 Route::get('/', function () {
-    $solicitudesListado = [];
-    if (Auth::check() && Auth::user()->hasRole('secretaria')) {
-        $solicitudesListado = Solicitud::latest()->get();
-    }
-    return Auth::check() ? view('dashboard', ['solicitudesListado' => $solicitudesListado]) : view('home');
-})->middleware('throttle:global')->name('home');
+    return Auth::check() ? view('dashboard') : view('home');
+})->name('home');
 
 Route::get('/dashboard', function () {
-    $solicitudesListado = [];
-    if (Auth::user()->hasRole('secretaria')) {
-        $solicitudesListado = Solicitud::latest()->get();
-    }
-    return view('dashboard', ['solicitudesListado' => $solicitudesListado]);
-})->middleware(['auth', 'verified', 'throttle:global'])->name('dashboard');
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 // Profile management still requires authentication once that feature is ready.
 
@@ -69,9 +59,7 @@ Route::middleware(['auth', 'verified', 'role:estudiante', 'throttle:global'])->p
         ]);
 });
 
-Route::middleware(['auth', 'verified', 'role:secretaria', 'throttle:global'])->prefix('secretaria')->name('secretaria.')->group(function () {
-    Route::get('dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
-    Route::get('solicitudes/reporte', [SecretariaSolicitudController::class, 'pdf'])->name('solicitudes.pdf');
+Route::middleware(['auth', 'verified', 'role:secretaria'])->prefix('secretaria')->name('secretaria.')->group(function () {
     Route::resource('solicitudes', SecretariaSolicitudController::class)
         ->only(['index', 'show', 'update'])
         ->parameters([
@@ -86,8 +74,7 @@ Route::middleware(['auth', 'verified', 'role:secretaria', 'throttle:global'])->p
 
         Route::resource('asignaturas', AsignaturaController::class);
         Route::get('asignaturas-importar', [AsignaturaController::class, 'showImport'])->name('asignaturas.import.form');
-        Route::post('asignaturas-importar', [AsignaturaController::class, 'previewImport'])->name('asignaturas.import.preview');
-        Route::post('asignaturas-importar/confirm', [AsignaturaController::class, 'import'])->name('asignaturas.import');
+        Route::post('asignaturas-importar', [AsignaturaController::class, 'import'])->name('asignaturas.import');
 
         Route::resource('facultades', FacultadController::class)->parameters([
             'facultades' => 'facultad'
@@ -96,8 +83,7 @@ Route::middleware(['auth', 'verified', 'role:secretaria', 'throttle:global'])->p
 
         Route::resource('docentes', DocenteController::class);
         Route::get('docentes-importar', [DocenteController::class, 'showImport'])->name('docentes.import.form');
-        Route::post('docentes-importar', [DocenteController::class, 'previewImport'])->name('docentes.import.preview');
-        Route::post('docentes-importar/confirm', [DocenteController::class, 'import'])->name('docentes.import');
+        Route::post('docentes-importar', [DocenteController::class, 'import'])->name('docentes.import');
 
         Route::resource('tipo-constancia', TipoConstanciaController::class)->parameters([
     'tipo-constancia' => 'tipo_constancia'
