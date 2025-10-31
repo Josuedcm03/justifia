@@ -2,7 +2,7 @@
 
 namespace App\Domain\Shared\ValueObjects;
 
-use InvalidArgumentException;
+use App\Domain\Shared\DomainException;
 
 final class ArchivoConstancia
 {
@@ -15,17 +15,23 @@ final class ArchivoConstancia
         $path = trim($path);
 
         if ($path === '') {
-            throw new InvalidArgumentException('La ruta de la constancia no puede estar vacía.');
+            throw DomainException::withMessage('La ruta de la constancia no puede estar vacía.');
         }
 
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
         if ($extension === '') {
-            throw new InvalidArgumentException('El archivo de constancia debe tener extensión.');
+            throw DomainException::withMessage(
+                'El archivo de constancia debe tener extensión.',
+                ['path' => $path],
+            );
         }
 
         if (! in_array($extension, self::EXTENSIONES_PERMITIDAS, true)) {
-            throw new InvalidArgumentException('El archivo de constancia debe ser PDF o JPG.');
+            throw DomainException::withMessage(
+                'El archivo de constancia debe ser PDF o JPG.',
+                ['path' => $path, 'extension' => $extension],
+            );
         }
 
         $this->path = $path;

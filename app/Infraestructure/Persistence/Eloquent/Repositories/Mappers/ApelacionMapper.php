@@ -4,7 +4,7 @@ namespace App\Infraestructure\Persistence\Eloquent\Repositories\Mappers;
 
 use App\Domain\Apelaciones\Entities\Apelacion as ApelacionEntity;
 use App\Domain\Shared\Contracts\Entity;
-use App\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Models\ModuloEstudiante\Apelacion as ApelacionModel;
 use Illuminate\Database\Eloquent\Model;
 

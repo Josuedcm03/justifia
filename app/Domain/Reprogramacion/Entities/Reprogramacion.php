@@ -3,7 +3,7 @@
 namespace App\Domain\Reprogramacion\Entities;
 
 use App\Domain\Shared\Contracts\Entity;
-use App\Enums\EstadoAsistencia;
+use App\Domain\Shared\Enums\EstadoAsistencia;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Hora;
 use App\Domain\Shared\ValueObjects\Texto;

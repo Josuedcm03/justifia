@@ -4,7 +4,7 @@ namespace App\Http\Controllers\ModuloEstudiante;
 
 use App\Application\Catalogo\CatalogoService;
 use App\Application\Solicitudes\SolicitudService;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
 use App\Domain\Catalogo\Entities\Facultad;
 use App\Domain\Solicitud\Entities\Solicitud;

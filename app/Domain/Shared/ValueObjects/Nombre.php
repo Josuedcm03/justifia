@@ -2,7 +2,7 @@
 
 namespace App\Domain\Shared\ValueObjects;
 
-use InvalidArgumentException;
+use App\Domain\Shared\DomainException;
 
 final class Nombre
 {
@@ -13,11 +13,14 @@ final class Nombre
         $value = trim($value);
 
         if ($value === '') {
-            throw new InvalidArgumentException('El nombre es obligatorio.');
+            throw DomainException::withMessage('El nombre es obligatorio.');
         }
 
         if (mb_strlen($value) > 255) {
-            throw new InvalidArgumentException('El nombre no puede superar los 255 caracteres.');
+            throw DomainException::withMessage(
+                'El nombre no puede superar los 255 caracteres.',
+                ['nombre' => $value],
+            );
         }
 
         $this->value = $value;

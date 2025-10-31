@@ -11,7 +11,7 @@ use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloEstudiante\Apelacion;
 use App\Models\ModuloSecretaria\TipoConstancia;
 use App\Models\ModuloDocente\Reprogramacion;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Models\ModuloSecretaria\Docente;
 use App\Models\ModuloSecretaria\Asignatura;
 

@@ -2,7 +2,7 @@
 
 namespace App\Domain\Shared\ValueObjects;
 
-use InvalidArgumentException;
+use App\Domain\Shared\DomainException;
 
 final class Cif
 {
@@ -13,11 +13,14 @@ final class Cif
         $value = strtoupper(trim($value));
 
         if ($value === '') {
-            throw new InvalidArgumentException('El CIF es obligatorio.');
+            throw DomainException::withMessage('El CIF es obligatorio.');
         }
 
         if (! preg_match('/^[A-Z0-9\-]+$/', $value)) {
-            throw new InvalidArgumentException('El CIF solo puede contener letras, números y guiones.');
+            throw DomainException::withMessage(
+                'El CIF solo puede contener letras, números y guiones.',
+                ['cif' => $value],
+            );
         }
 
         $this->value = $value;

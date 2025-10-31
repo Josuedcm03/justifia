@@ -2,15 +2,28 @@
 
 namespace App\Domain\Shared\ValueObjects;
 
-use InvalidArgumentException;
+use App\Domain\Shared\DomainException;
 
 final class EmailInstitucional
 {
-    public function __construct(private readonly string $value)
+    private string $value;
+
+    public function __construct(string $value)
     {
-        if (filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
-            throw new InvalidArgumentException('El correo institucional proporcionado no es válido.');
+        $value = strtolower(trim($value));
+
+        if ($value === '') {
+            throw DomainException::withMessage('El correo institucional es obligatorio.');
         }
+
+        if (filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
+            throw DomainException::withMessage(
+                'El correo institucional proporcionado no es válido.',
+                ['email' => $value],
+            );
+        }
+
+        $this->value = $value;
     }
 
     public function value(): string

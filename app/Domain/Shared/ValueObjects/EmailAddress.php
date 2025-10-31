@@ -2,7 +2,7 @@
 
 namespace App\Domain\Shared\ValueObjects;
 
-use InvalidArgumentException;
+use App\Domain\Shared\DomainException;
 
 final class EmailAddress
 {
@@ -13,11 +13,14 @@ final class EmailAddress
         $value = trim($value);
 
         if ($value === '') {
-            throw new InvalidArgumentException('El correo electrónico es obligatorio.');
+            throw DomainException::withMessage('El correo electrónico es obligatorio.');
         }
 
         if (! filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException('El correo electrónico no es válido.');
+            throw DomainException::withMessage(
+                'El correo electrónico no es válido.',
+                ['email' => $value],
+            );
         }
 
         $this->value = strtolower($value);

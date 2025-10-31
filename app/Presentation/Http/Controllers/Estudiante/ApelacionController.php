@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\ModuloEstudiante;
 
 use App\Application\Apelaciones\ApelacionService;
-use App\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Http\Controllers\Controller;
 use App\Domain\Apelaciones\Entities\Apelacion;
 use App\Domain\Solicitud\Entities\Solicitud;

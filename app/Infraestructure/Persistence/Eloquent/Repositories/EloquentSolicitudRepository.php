@@ -4,8 +4,8 @@ namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Enums\EstadoApelacion;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Infraestructure\Persistence\Eloquent\Repositories\Mappers\SolicitudMapper;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;

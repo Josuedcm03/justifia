@@ -3,7 +3,7 @@
 namespace App\Domain\Apelaciones\Repositories;
 
 use App\Domain\Apelaciones\Entities\Apelacion;
-use App\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoApelacion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface ApelacionRepository

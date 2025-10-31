@@ -4,7 +4,7 @@ namespace App\Models\ModuloEstudiante;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Enums\EstadoApelacion;
+use App\Domain\Shared\Enums\EstadoApelacion;
 
 class Apelacion extends Model
 {

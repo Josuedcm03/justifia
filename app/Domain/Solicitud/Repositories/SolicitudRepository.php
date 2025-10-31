@@ -3,7 +3,7 @@
 namespace App\Domain\Solicitud\Repositories;
 
 use App\Domain\Solicitud\Entities\Solicitud;
-use App\Enums\EstadoSolicitud;
+use App\Domain\Shared\Enums\EstadoSolicitud;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface SolicitudRepository
