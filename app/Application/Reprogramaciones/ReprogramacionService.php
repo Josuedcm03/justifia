@@ -5,10 +5,9 @@ namespace App\Application\Reprogramaciones;
 use App\Application\Solicitudes\SolicitudService;
 use App\Domain\Reprogramacion\Entities\Reprogramacion as ReprogramacionEntity;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
-use App\Domain\Solicitud\Entities\Solicitud;
+use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
 use App\Enums\EstadoAsistencia;
 use App\Mail\RescheduleMail;
-use App\Models\ModuloDocente\Reprogramacion as ReprogramacionModel;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Mail;
@@ -22,7 +21,17 @@ class ReprogramacionService
     ) {
     }
 
-    public function crear(SolicitudModel $solicitud, array $data): ReprogramacionModel
+    public function obtenerPorId(int $id): ReprogramacionEntity
+    {
+        return $this->reprogramaciones->findById($id);
+    }
+
+    public function obtenerSolicitudPorId(int $id): SolicitudEntity
+    {
+        return $this->solicitudes->obtenerPorId($id);
+    }
+
+    public function crear(SolicitudEntity $solicitud, array $data): ReprogramacionEntity
     {
         $fecha = $this->parseFecha($data['fecha'] ?? null);
         $hora = $this->requireHora($data['hora'] ?? null);
@@ -31,50 +40,45 @@ class ReprogramacionService
             $fecha,
             $hora,
             $data['observaciones'] ?? null,
-            $solicitud->id
+            $solicitud->id()?->value() ?? throw new InvalidArgumentException('La solicitud debe existir para reprogramar.')
         );
 
-        $reprogramacion = $this->reprogramaciones->create($entity->toArray());
+        $reprogramacion = $this->reprogramaciones->create($entity);
 
-        $studentUser = $solicitud->estudiante->usuario;
+        $solicitudModel = SolicitudModel::with('estudiante.usuario')->find($solicitud->id()?->value());
 
-        Mail::to($studentUser->email)->queue(new RescheduleMail(
-            $studentUser->name,
-            \Carbon\Carbon::parse($reprogramacion->fecha)->format('d-m-Y'),
-            $reprogramacion->hora,
-            $reprogramacion->observaciones,
-            $studentUser->email
-        ));
+        if ($solicitudModel) {
+            $studentUser = $solicitudModel->estudiante->usuario;
+
+            Mail::to($studentUser->email)->queue(new RescheduleMail(
+                $studentUser->name,
+                \Carbon\Carbon::parse($reprogramacion->fecha()->format('Y-m-d'))->format('d-m-Y'),
+                $reprogramacion->hora()->value(),
+                $reprogramacion->observaciones()?->value(),
+                $studentUser->email
+            ));
+        }
 
         return $reprogramacion;
     }
 
-    public function actualizar(ReprogramacionModel $reprogramacion, array $data): ReprogramacionModel
+    public function actualizar(ReprogramacionEntity $reprogramacion, array $data): ReprogramacionEntity
     {
-        $entity = ReprogramacionEntity::reconstruir(
-            $reprogramacion->id,
-            $this->parseFecha($this->fechaString($reprogramacion->fecha)),
-            $reprogramacion->hora,
-            $reprogramacion->asistencia,
-            $reprogramacion->observaciones,
-            $reprogramacion->solicitud_id
-        );
-
         if (array_key_exists('fecha', $data) || array_key_exists('hora', $data) || array_key_exists('observaciones', $data)) {
-            $fecha = $this->parseFecha($data['fecha'] ?? $this->fechaString($reprogramacion->fecha));
-            $hora = $this->requireHora($data['hora'] ?? $reprogramacion->hora);
-            $observaciones = $data['observaciones'] ?? $reprogramacion->observaciones;
-            $entity->reprogramar($fecha, $hora, $observaciones);
+            $fecha = $this->parseFecha($data['fecha'] ?? $reprogramacion->fecha()->format('Y-m-d'));
+            $hora = $this->requireHora($data['hora'] ?? $reprogramacion->hora()->value());
+            $observaciones = $data['observaciones'] ?? $reprogramacion->observaciones()?->value();
+            $reprogramacion->reprogramar($fecha, $hora, $observaciones);
         }
 
         if (array_key_exists('asistencia', $data) && $data['asistencia'] !== null) {
             $estado = $data['asistencia'] instanceof EstadoAsistencia
                 ? $data['asistencia']
                 : EstadoAsistencia::from($data['asistencia']);
-            $entity->registrarAsistencia($estado);
+            $reprogramacion->registrarAsistencia($estado);
         }
 
-        return $this->reprogramaciones->update($reprogramacion, $entity->toArray());
+        return $this->reprogramaciones->update($reprogramacion);
     }
 
     public function solicitudesAprobadasSinReprogramar(int $docenteId)

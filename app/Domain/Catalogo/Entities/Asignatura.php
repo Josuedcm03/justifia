@@ -2,10 +2,11 @@
 
 namespace App\Domain\Catalogo\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Nombre;
 
-final class Asignatura
+final class Asignatura implements Entity
 {
     private ?EntityId $id;
     private Nombre $nombre;
@@ -64,5 +65,3 @@ final class Asignatura
         ];
     }
 }
-
-\class_alias(Asignatura::class, 'App\\Models\\ModuloSecretaria\\Asignatura');

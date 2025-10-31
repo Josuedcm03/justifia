@@ -30,7 +30,9 @@ class ReprogramacionController extends Controller
 
     public function storeReprogramacion(Request $request, Solicitud $solicitud)
     {
-        $this->reprogramaciones->crear($solicitud, [
+        $solicitudEntity = $this->reprogramaciones->obtenerSolicitudPorId($solicitud->id);
+
+        $this->reprogramaciones->crear($solicitudEntity, [
             'fecha' => $request->input('fecha'),
             'hora' => $request->input('hora'),
             'observaciones' => $request->input('observaciones'),
@@ -43,12 +45,18 @@ class ReprogramacionController extends Controller
 
     public function updateReprogramacion(Request $request, Solicitud $solicitud)
     {
-        $this->reprogramaciones->actualizar($solicitud->reprogramacion, [
-            'fecha' => $request->input('fecha'),
-            'hora' => $request->input('hora'),
-            'asistencia' => $request->input('asistencia'),
-            'observaciones' => $request->input('observaciones'),
-        ]);
+        $reprogramacion = $solicitud->reprogramacion
+            ? $this->reprogramaciones->obtenerPorId($solicitud->reprogramacion->id)
+            : null;
+
+        if ($reprogramacion) {
+            $this->reprogramaciones->actualizar($reprogramacion, [
+                'fecha' => $request->input('fecha'),
+                'hora' => $request->input('hora'),
+                'asistencia' => $request->input('asistencia'),
+                'observaciones' => $request->input('observaciones'),
+            ]);
+        }
         return redirect()
             ->route('docente.solicitudes.index')
             ->with('success', 'Reprogramación actualizada correctamente.');

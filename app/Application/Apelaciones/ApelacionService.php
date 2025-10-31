@@ -5,7 +5,6 @@ namespace App\Application\Apelaciones;
 use App\Domain\Apelaciones\Entities\Apelacion as ApelacionEntity;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;
 use App\Enums\EstadoApelacion;
-use App\Models\ModuloEstudiante\Apelacion as ApelacionModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
@@ -22,17 +21,22 @@ class ApelacionService
         return $this->apelaciones->listarFinalesPorEstudiante($estudianteId);
     }
 
-    public function obtenerUltimaDeSolicitud(int $solicitudId): ?ApelacionModel
+    public function obtenerUltimaDeSolicitud(int $solicitudId): ?ApelacionEntity
     {
         return $this->apelaciones->obtenerUltimaPorSolicitud($solicitudId);
     }
 
-    public function obtenerUltimaRechazada(int $solicitudId): ?ApelacionModel
+    public function obtenerUltimaRechazada(int $solicitudId): ?ApelacionEntity
     {
         return $this->apelaciones->obtenerUltimaRechazada($solicitudId);
     }
 
-    public function crear(array $data): ApelacionModel
+    public function obtenerPorId(int $id): ApelacionEntity
+    {
+        return $this->apelaciones->findById($id);
+    }
+
+    public function crear(array $data): ApelacionEntity
     {
         $observacion = $this->requireTexto($data['observacion'] ?? null);
         $solicitudId = $this->requireInt($data, 'solicitud_id');
@@ -42,33 +46,24 @@ class ApelacionService
 
         $entity = ApelacionEntity::crear($observacion, $solicitudId, $apelacionPadreId);
 
-        return $this->apelaciones->crear($entity->toArray());
+        return $this->apelaciones->crear($entity);
     }
 
-    public function actualizar(ApelacionModel $apelacion, array $data): ApelacionModel
+    public function actualizar(ApelacionEntity $apelacion, array $data): ApelacionEntity
     {
-        $entity = ApelacionEntity::reconstruir(
-            $apelacion->id,
-            $apelacion->observacion,
-            $apelacion->respuesta,
-            $apelacion->estado,
-            $apelacion->solicitud_id,
-            $apelacion->apelacion_id
-        );
-
-        $estado = $data['estado'] ?? $apelacion->estado;
+        $estado = $data['estado'] ?? $apelacion->estado();
         if (! $estado instanceof EstadoApelacion) {
             $estado = EstadoApelacion::from($estado);
         }
 
         if ($estado === EstadoApelacion::Pendiente) {
-            $entity->dejarPendiente();
+            $apelacion->dejarPendiente();
         } else {
             $respuesta = $this->requireTexto($data['respuesta'] ?? null);
-            $entity->registrarRespuesta($respuesta, $estado);
+            $apelacion->registrarRespuesta($respuesta, $estado);
         }
 
-        return $this->apelaciones->actualizar($apelacion, $entity->toArray());
+        return $this->apelaciones->actualizar($apelacion);
     }
 
     public function paginarPorEstado(EstadoApelacion $estado, int $perPage = 9): LengthAwarePaginator

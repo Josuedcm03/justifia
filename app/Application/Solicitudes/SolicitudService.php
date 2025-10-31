@@ -34,7 +34,12 @@ class SolicitudService
         return $this->solicitudes->paginateByEstadoForSecretaria($estado, $sinApelacionesPendientes, $perPage);
     }
 
-    public function crear(array $data, ?UploadedFile $constancia, int $estudianteId): SolicitudModel
+    public function obtenerPorId(int $id): SolicitudEntity
+    {
+        return $this->solicitudes->findById($id);
+    }
+
+    public function crear(array $data, ?UploadedFile $constancia, int $estudianteId): SolicitudEntity
     {
         $fechaAusencia = $this->parseFecha($data['fecha_ausencia'] ?? null);
         $docenteId = $this->requireInt($data, 'docente_id');
@@ -56,92 +61,57 @@ class SolicitudService
             $tipoConstanciaId
         );
 
-        return $this->solicitudes->create($entity->payloadParaCreacion());
+        return $this->solicitudes->create($entity);
     }
 
     public function actualizar(
-        SolicitudModel $solicitud,
+        SolicitudEntity $solicitud,
         array $data,
         ?UploadedFile $constancia = null,
         bool $eliminarConstancia = false
-    ): SolicitudModel {
-        $entity = SolicitudEntity::reconstruir(
-            $solicitud->id,
-            $this->parseFecha($this->fechaString($solicitud->fecha_ausencia)),
-            ArchivoConstancia::fromNullable($solicitud->constancia),
-            $solicitud->observaciones ?? '',
-            $solicitud->respuesta,
-            $solicitud->estado,
-            $solicitud->estudiante_id,
-            $solicitud->docente_id,
-            $solicitud->asignatura_id,
-            $solicitud->tipo_constancia_id
-        );
+    ): SolicitudEntity {
+        $fechaAusencia = $this->parseFecha($data['fecha_ausencia'] ?? $solicitud->fechaAusencia()->format('Y-m-d'));
+        $docenteId = $this->requireInt($data, 'docente_id', $solicitud->docenteId()->value());
+        $asignaturaId = $this->requireInt($data, 'asignatura_id', $solicitud->asignaturaId()->value());
+        $tipoConstanciaId = $this->requireInt($data, 'tipo_constancia_id', $solicitud->tipoConstanciaId()->value());
 
-        $fechaAusencia = $this->parseFecha($data['fecha_ausencia'] ?? $this->fechaString($solicitud->fecha_ausencia));
-        $docenteId = $this->requireInt($data, 'docente_id', $solicitud->docente_id);
-        $asignaturaId = $this->requireInt($data, 'asignatura_id', $solicitud->asignatura_id);
-        $tipoConstanciaId = $this->requireInt($data, 'tipo_constancia_id', $solicitud->tipo_constancia_id);
-
-        $entity->actualizarDatos(
+        $solicitud->actualizarDatos(
             $fechaAusencia,
-            $data['observaciones'] ?? ($solicitud->observaciones ?? ''),
+            $data['observaciones'] ?? $solicitud->observaciones()->value(),
             $docenteId,
             $asignaturaId,
             $tipoConstanciaId
         );
 
+        $constanciaAnterior = $solicitud->constancia();
+
         if ($constancia) {
-            $this->eliminarConstancia($solicitud);
             $rutaConstancia = $this->publicStorage->putFile('constancias', $constancia);
-            $entity->adjuntarConstancia(ArchivoConstancia::fromPath($rutaConstancia));
+            $solicitud->adjuntarConstancia(ArchivoConstancia::fromPath($rutaConstancia));
+            $this->eliminarConstanciaPath($constanciaAnterior?->path());
         } elseif ($eliminarConstancia) {
-            $this->eliminarConstancia($solicitud);
-            $entity->eliminarConstancia();
+            $solicitud->eliminarConstancia();
+            $this->eliminarConstanciaPath($constanciaAnterior?->path());
         }
 
-        return $this->solicitudes->update($solicitud, $entity->payloadParaActualizacion());
+        return $this->solicitudes->update($solicitud);
     }
 
-    public function eliminar(SolicitudModel $solicitud): void
+    public function eliminar(SolicitudEntity $solicitud): void
     {
-        $this->eliminarConstancia($solicitud);
+        $this->eliminarConstanciaPath($solicitud->constancia()?->path());
         $this->solicitudes->delete($solicitud);
     }
 
-    public function actualizarEstado(SolicitudModel $solicitud, EstadoSolicitud $estado, ?string $respuesta): SolicitudModel
+    public function actualizarEstado(SolicitudEntity $solicitud, EstadoSolicitud $estado, ?string $respuesta): SolicitudEntity
     {
-        $entity = SolicitudEntity::reconstruir(
-            $solicitud->id,
-            $this->parseFecha($this->fechaString($solicitud->fecha_ausencia)),
-            ArchivoConstancia::fromNullable($solicitud->constancia),
-            $solicitud->observaciones ?? '',
-            $solicitud->respuesta,
-            $solicitud->estado,
-            $solicitud->estudiante_id,
-            $solicitud->docente_id,
-            $solicitud->asignatura_id,
-            $solicitud->tipo_constancia_id
-        );
+        $solicitud->actualizarEstado($estado, $respuesta);
 
-        $entity->actualizarEstado($estado, $respuesta);
+        $solicitudActualizada = $this->solicitudes->update($solicitud);
 
-        $solicitud = $this->solicitudes->update($solicitud, $entity->payloadParaCambioEstado());
+        $this->notificarCambioEstado($solicitudActualizada);
 
-        $studentUser = $solicitud->estudiante->usuario;
-        $teacherUser = $solicitud->docente->usuario;
-
-        if ($estado === EstadoSolicitud::Aprobada) {
-            Mail::to($studentUser->email)->queue(new ApprovalMail($studentUser->name, $solicitud, $studentUser->email));
-            Mail::to($teacherUser->email)->queue(new ApprovalMail($teacherUser->name, $solicitud, $teacherUser->email));
-        }
-
-        if ($estado === EstadoSolicitud::Rechazada) {
-            Mail::to($studentUser->email)->queue(new RejectionMail($studentUser->name, $solicitud, $studentUser->email));
-            Mail::to($teacherUser->email)->queue(new RejectionMail($teacherUser->name, $solicitud, $teacherUser->email));
-        }
-
-        return $solicitud;
+        return $solicitudActualizada;
     }
 
     /** @return iterable<Solicitud> */
@@ -156,10 +126,32 @@ class SolicitudService
         return $this->solicitudes->reprogramacionesPorDocente($docenteId);
     }
 
-    private function eliminarConstancia(SolicitudModel $solicitud): void
+    private function eliminarConstanciaPath(?string $path): void
     {
-        if ($solicitud->constancia && $this->publicStorage->exists($solicitud->constancia)) {
-            $this->publicStorage->delete($solicitud->constancia);
+        if ($path && $this->publicStorage->exists($path)) {
+            $this->publicStorage->delete($path);
+        }
+    }
+
+    private function notificarCambioEstado(SolicitudEntity $solicitud): void
+    {
+        $solicitudModel = SolicitudModel::with(['estudiante.usuario', 'docente.usuario'])->find($solicitud->id()?->value());
+
+        if (! $solicitudModel) {
+            return;
+        }
+
+        $studentUser = $solicitudModel->estudiante->usuario;
+        $teacherUser = $solicitudModel->docente->usuario;
+
+        if ($solicitud->estado() === EstadoSolicitud::Aprobada) {
+            Mail::to($studentUser->email)->queue(new ApprovalMail($studentUser->name, $solicitudModel, $studentUser->email));
+            Mail::to($teacherUser->email)->queue(new ApprovalMail($teacherUser->name, $solicitudModel, $teacherUser->email));
+        }
+
+        if ($solicitud->estado() === EstadoSolicitud::Rechazada) {
+            Mail::to($studentUser->email)->queue(new RejectionMail($studentUser->name, $solicitudModel, $studentUser->email));
+            Mail::to($teacherUser->email)->queue(new RejectionMail($teacherUser->name, $solicitudModel, $teacherUser->email));
         }
     }
 

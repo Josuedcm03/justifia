@@ -54,13 +54,19 @@ class ApelacionController extends Controller
         $estado = EstadoApelacion::from($request->input('estado'));
         $respuesta = $request->input('respuesta');
 
-        $apelacion = $this->apelaciones->actualizar($apelacion, [
+        $apelacionEntity = $this->apelaciones->obtenerPorId($apelacion->id);
+
+        $this->apelaciones->actualizar($apelacionEntity, [
             'estado' => $estado,
             'respuesta' => $respuesta,
         ]);
 
+        $apelacion->refresh()->load('apelacionPadre', 'solicitud.estudiante.usuario');
+
         if ($estado === EstadoApelacion::Aprobada) {
-            $this->solicitudes->actualizarEstado($apelacion->solicitud, EstadoSolicitud::Aprobada, $respuesta);
+            $solicitudEntity = $this->solicitudes->obtenerPorId($apelacion->solicitud->id);
+            $this->solicitudes->actualizarEstado($solicitudEntity, EstadoSolicitud::Aprobada, $respuesta);
+            $apelacion->refresh()->load('solicitud.estudiante.usuario');
         }
 
         $studentUser = $apelacion->solicitud->estudiante->usuario;

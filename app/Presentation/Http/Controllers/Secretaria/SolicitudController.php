@@ -47,7 +47,9 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::from($request->input('estado'));
         $respuesta = $request->input('respuesta');
 
-        $this->solicitudes->actualizarEstado($solicitud, $estado, $respuesta);
+        $solicitudEntity = $this->solicitudes->obtenerPorId($solicitud->id);
+
+        $this->solicitudes->actualizarEstado($solicitudEntity, $estado, $respuesta);
 
         $redirectEstado = $request->query('estado', 'pendiente');
 

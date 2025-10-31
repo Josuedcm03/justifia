@@ -2,11 +2,12 @@
 
 namespace App\Domain\Apelaciones\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Enums\EstadoApelacion;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Texto;
 
-final class Apelacion
+final class Apelacion implements Entity
 {
     private ?EntityId $id;
     private Texto $observacion;
@@ -156,4 +157,3 @@ final class Apelacion
             throw new \InvalidArgumentException('Una apelación resuelta debe contar con respuesta.');
         }
     }
-}

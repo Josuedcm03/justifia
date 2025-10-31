@@ -2,10 +2,11 @@
 
 namespace App\Domain\Catalogo\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Nombre;
 
-final class TipoConstancia
+final class TipoConstancia implements Entity
 {
     private ?EntityId $id;
     private Nombre $nombre;
@@ -49,5 +50,3 @@ final class TipoConstancia
         return ['nombre' => $this->nombre->value()];
     }
 }
-
-\class_alias(TipoConstancia::class, 'App\\Models\\ModuloSecretaria\\TipoConstancia');

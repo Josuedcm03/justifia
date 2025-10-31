@@ -106,8 +106,10 @@ class SolicitudController extends Controller
     {
         $data = $request->all();
 
+        $solicitudEntity = $this->solicitudes->obtenerPorId($solicitud->id);
+
         $this->solicitudes->actualizar(
-            $solicitud,
+            $solicitudEntity,
             $data,
             $request->hasFile('constancia') ? $request->file('constancia') : null,
             $request->boolean('delete_constancia')
@@ -155,7 +157,9 @@ class SolicitudController extends Controller
      */
     public function destroy(Request $request, Solicitud $solicitud)
     {
-        $this->solicitudes->eliminar($solicitud);
+        $solicitudEntity = $this->solicitudes->obtenerPorId($solicitud->id);
+
+        $this->solicitudes->eliminar($solicitudEntity);
 
         $redirectEstado = $request->query('estado', 'pendiente');
 

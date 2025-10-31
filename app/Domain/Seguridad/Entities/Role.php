@@ -2,10 +2,11 @@
 
 namespace App\Domain\Seguridad\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Nombre;
 
-final class Role
+final class Role implements Entity
 {
     private ?EntityId $id;
     private Nombre $nombre;

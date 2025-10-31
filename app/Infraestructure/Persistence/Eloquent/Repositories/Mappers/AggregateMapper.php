@@ -10,29 +10,41 @@ abstract class AggregateMapper
 {
     abstract protected function modelClass(): string;
 
+    abstract protected function entityClass(): string;
+
+    /**
+     * @param Model $model
+     */
+    abstract protected function mapToEntity(Model $model): Entity;
+
+    /**
+     * @param Entity $entity
+     */
+    abstract protected function mapToModel(Entity $entity): Model;
+
     public function toEntity(Model $model): Entity
     {
-        $class = $this->modelClass();
+        $modelClass = $this->modelClass();
 
-        if (! $model instanceof $class) {
+        if (! $model instanceof $modelClass) {
             throw new InvalidArgumentException(
-                sprintf('Expected instance of %s, got %s.', $class, $model::class)
+                sprintf('Expected instance of %s, got %s.', $modelClass, $model::class)
             );
         }
 
-        return $model;
+        return $this->mapToEntity($model);
     }
 
     public function toModel(Entity $entity): Model
     {
-        $class = $this->modelClass();
+        $entityClass = $this->entityClass();
 
-        if (! $entity instanceof $class) {
+        if (! $entity instanceof $entityClass) {
             throw new InvalidArgumentException(
-                sprintf('Expected instance of %s, got %s.', $class, $entity::class)
+                sprintf('Expected instance of %s, got %s.', $entityClass, $entity::class)
             );
         }
 
-        return $entity;
+        return $this->mapToModel($entity);
     }
 }

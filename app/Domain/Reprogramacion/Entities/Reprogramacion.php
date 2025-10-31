@@ -2,13 +2,14 @@
 
 namespace App\Domain\Reprogramacion\Entities;
 
+use App\Domain\Shared\Contracts\Entity;
 use App\Enums\EstadoAsistencia;
 use App\Domain\Shared\ValueObjects\EntityId;
 use App\Domain\Shared\ValueObjects\Hora;
 use App\Domain\Shared\ValueObjects\Texto;
 use DateTimeImmutable;
 
-final class Reprogramacion
+final class Reprogramacion implements Entity
 {
     private ?EntityId $id;
     private DateTimeImmutable $fecha;

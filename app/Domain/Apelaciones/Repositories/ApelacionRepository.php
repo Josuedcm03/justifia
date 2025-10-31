@@ -15,9 +15,11 @@ interface ApelacionRepository
 
     public function obtenerUltimaRechazada(int $solicitudId): ?Apelacion;
 
-    public function crear(array $data): Apelacion;
+    public function findById(int $id): Apelacion;
 
-    public function actualizar(Apelacion $apelacion, array $data): Apelacion;
+    public function crear(Apelacion $apelacion): Apelacion;
+
+    public function actualizar(Apelacion $apelacion): Apelacion;
 
     public function paginarPorEstado(EstadoApelacion $estado, int $perPage = 9): LengthAwarePaginator;
 }
