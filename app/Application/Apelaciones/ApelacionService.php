@@ -2,11 +2,10 @@
 
 namespace App\Application\Apelaciones;
 
+use App\Domain\Apelaciones\Entities\Apelacion;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;
 use App\Enums\EstadoApelacion;
-use App\Models\ModuloEstudiante\Apelacion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 class ApelacionService
 {
@@ -14,7 +13,8 @@ class ApelacionService
     {
     }
 
-    public function listarFinalesPorEstudiante(int $estudianteId): Collection
+    /** @return iterable<Apelacion> */
+    public function listarFinalesPorEstudiante(int $estudianteId): iterable
     {
         return $this->apelaciones->listarFinalesPorEstudiante($estudianteId);
     }

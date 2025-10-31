@@ -2,12 +2,11 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Solicitud\Entities\Solicitud;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
 use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSolicitud;
-use App\Models\ModuloEstudiante\Solicitud;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 class EloquentSolicitudRepository implements SolicitudRepository
 {
@@ -53,7 +52,7 @@ class EloquentSolicitudRepository implements SolicitudRepository
         $solicitud->delete();
     }
 
-    public function solicitudesAprobadasSinReprogramacion(int $docenteId): Collection
+    public function solicitudesAprobadasSinReprogramacion(int $docenteId): iterable
     {
         return Solicitud::with(['estudiante.usuario', 'asignatura'])
             ->where('estado', EstadoSolicitud::Aprobada)
@@ -63,7 +62,7 @@ class EloquentSolicitudRepository implements SolicitudRepository
             ->get();
     }
 
-    public function reprogramacionesPorDocente(int $docenteId): Collection
+    public function reprogramacionesPorDocente(int $docenteId): iterable
     {
         return Solicitud::with(['reprogramacion', 'estudiante.usuario', 'asignatura'])
             ->where('docente_id', $docenteId)

@@ -2,11 +2,13 @@
 
 namespace App\Domain\Docente\Repositories;
 
-use Illuminate\Support\Collection;
+use App\Domain\Docente\Entities\Docente;
 
 interface DocenteRepository
 {
-    public function allWithUsuario(): Collection;
+    /** @return iterable<Docente> */
+    public function allWithUsuario(): iterable;
 
-    public function searchByNombre(string $nombre, int $limit = 10): Collection;
+    /** @return iterable<Docente> */
+    public function searchByNombre(string $nombre, int $limit = 10): iterable;
 }

@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Models\ModuloSeguridad;
+namespace App\Domain\Seguridad\Entities;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
 {
@@ -13,3 +13,5 @@ class Role extends Model
     public $timestamps = false;
     protected $fillable = ['name'];
 }
+
+\class_alias(Role::class, 'App\\Models\\ModuloSeguridad\\Role');

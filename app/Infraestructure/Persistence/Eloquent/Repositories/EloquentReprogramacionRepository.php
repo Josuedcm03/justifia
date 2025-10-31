@@ -2,8 +2,8 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Reprogramacion\Entities\Reprogramacion;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
-use App\Models\ModuloDocente\Reprogramacion;
 
 class EloquentReprogramacionRepository implements ReprogramacionRepository
 {

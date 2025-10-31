@@ -1,30 +1,27 @@
 <?php
 
-namespace App\Models;
+namespace App\Domain\Usuarios\Entities;
 
+use App\Domain\Docente\Entities\Docente;
+use App\Domain\Estudiante\Entities\Estudiante;
+use App\Domain\Seguridad\Entities\Role;
+use App\Notifications\CustomResetPassword;
+use App\Notifications\CustomVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\ModuloSeguridad\Role;
-use App\Models\ModuloEstudiante\Estudiante;
-use App\Models\ModuloSecretaria\Docente;
-use App\Notifications\CustomVerifyEmail;
-use App\Notifications\CustomResetPassword;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-
     protected $table = 'users';
     public $timestamps = false;
     protected $primaryKey = 'id';
 
     /**
-     * The attributes that are mass assignable.
-     *
      * @var list<string>
      */
     protected $fillable = [
@@ -35,8 +32,6 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
      * @var list<string>
      */
     protected $hidden = [
@@ -45,8 +40,6 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -57,8 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-
-     // Relaciones
+    // Relaciones
 
     public function estudiante()
     {
@@ -80,22 +72,15 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role?->name === $roleName;
     }
 
-    /**
-     * Send the custom email verification notification.
-     */
     public function sendEmailVerificationNotification(): void
     {
         $this->notify(new CustomVerifyEmail());
     }
 
-        /**
-     * Send the password reset notification.
-     */
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new CustomResetPassword($token));
     }
-
-
-
 }
+
+\class_alias(User::class, 'App\\Models\\User');

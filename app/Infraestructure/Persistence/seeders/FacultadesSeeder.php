@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Catalogo\Entities\Facultad;
 use Illuminate\Database\Seeder;
-use App\Models\ModuloSecretaria\Facultad;
-use App\Models\ModuloSecretaria\Carrera;
 
 class FacultadesSeeder extends Seeder
 {

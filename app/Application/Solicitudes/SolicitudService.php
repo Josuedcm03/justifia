@@ -2,11 +2,12 @@
 
 namespace App\Application\Solicitudes;
 
+use App\Domain\Shared\ValueObjects\ArchivoConstancia;
+use App\Domain\Solicitud\Entities\Solicitud;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
 use App\Enums\EstadoSolicitud;
 use App\Mail\ApprovalMail;
 use App\Mail\RejectionMail;
-use App\Models\ModuloEstudiante\Solicitud;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
@@ -33,7 +34,8 @@ class SolicitudService
     public function crear(array $data, ?UploadedFile $constancia, int $estudianteId): Solicitud
     {
         if ($constancia) {
-            $data['constancia'] = $this->publicStorage->putFile('constancias', $constancia);
+            $rutaConstancia = $this->publicStorage->putFile('constancias', $constancia);
+            $data['constancia'] = (string) new ArchivoConstancia($rutaConstancia);
         }
 
         $data['estado'] = EstadoSolicitud::Pendiente;
@@ -46,7 +48,8 @@ class SolicitudService
     {
         if ($constancia) {
             $this->eliminarConstancia($solicitud);
-            $data['constancia'] = $this->publicStorage->putFile('constancias', $constancia);
+            $rutaConstancia = $this->publicStorage->putFile('constancias', $constancia);
+            $data['constancia'] = (string) new ArchivoConstancia($rutaConstancia);
         } elseif ($eliminarConstancia) {
             $this->eliminarConstancia($solicitud);
             $data['constancia'] = null;
@@ -84,11 +87,13 @@ class SolicitudService
         return $solicitud;
     }
 
+    /** @return iterable<Solicitud> */
     public function solicitudesAprobadasSinReprogramar(int $docenteId)
     {
         return $this->solicitudes->solicitudesAprobadasSinReprogramacion($docenteId);
     }
 
+    /** @return iterable<Solicitud> */
     public function reprogramacionesPorDocente(int $docenteId)
     {
         return $this->solicitudes->reprogramacionesPorDocente($docenteId);

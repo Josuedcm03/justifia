@@ -2,9 +2,10 @@
 
 namespace App\Domain\Catalogo\Repositories;
 
-use Illuminate\Support\Collection;
+use App\Domain\Catalogo\Entities\Facultad;
 
 interface FacultadRepository
 {
-    public function allOrdered(): Collection;
+    /** @return iterable<Facultad> */
+    public function allOrdered(): iterable;
 }

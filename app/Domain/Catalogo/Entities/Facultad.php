@@ -1,14 +1,10 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Catalogo\Entities;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
-
-// Models
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloSecretaria\Asignatura;
 
 class Facultad extends Model
 {
@@ -33,3 +29,5 @@ class Facultad extends Model
         return $this->hasMany(Asignatura::class, 'facultad_id', 'id');
     }
 }
+
+\class_alias(Facultad::class, 'App\\Models\\ModuloSecretaria\\Facultad');

@@ -1,13 +1,11 @@
 <?php
 
-namespace App\Models\ModuloDocente;
+namespace App\Domain\Reprogramacion\Entities;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Solicitud\Entities\Solicitud;
 use App\Enums\EstadoAsistencia;
-
-// Models
-use App\Models\ModuloEstudiante\Solicitud;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Reprogramacion extends Model
 {
@@ -38,3 +36,5 @@ class Reprogramacion extends Model
         return $this->belongsTo(Solicitud::class, 'solicitud_id', 'id');
     }
 }
+
+\class_alias(Reprogramacion::class, 'App\\Models\\ModuloDocente\\Reprogramacion');

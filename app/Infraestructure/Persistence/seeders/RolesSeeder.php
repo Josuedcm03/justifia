@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Seguridad\Entities\Role;
 use Illuminate\Database\Seeder;
-use App\Models\ModuloSeguridad\Role;
 
 class RolesSeeder extends Seeder
 {

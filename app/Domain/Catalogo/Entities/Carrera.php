@@ -1,15 +1,11 @@
 <?php
 
-namespace App\Models\ModuloSecretaria;
+namespace App\Domain\Catalogo\Entities;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Domain\Estudiante\Entities\Estudiante;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
-
-// Models
-use App\Models\ModuloEstudiante\Estudiante;
-
-use App\Models\ModuloSecretaria\Facultad;
 
 class Carrera extends Model
 {
@@ -36,3 +32,5 @@ class Carrera extends Model
         return $this->belongsTo(Facultad::class, 'facultad_id', 'id');
     }
 }
+
+\class_alias(Carrera::class, 'App\\Models\\ModuloSecretaria\\Carrera');

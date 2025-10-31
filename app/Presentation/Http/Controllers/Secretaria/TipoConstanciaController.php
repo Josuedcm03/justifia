@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 
 // Models
-use App\Models\ModuloSecretaria\TipoConstancia;
+use App\Domain\Catalogo\Entities\TipoConstancia;
 
 class TipoConstanciaController extends Controller
 {

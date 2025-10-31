@@ -1,36 +1,30 @@
 <?php
 
-namespace App\Models\ModuloEstudiante;
+namespace App\Domain\Estudiante\Entities;
 
+use App\Domain\Catalogo\Entities\Carrera;
+use App\Domain\Solicitud\Entities\Solicitud;
+use App\Domain\Usuarios\Entities\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
-// Models
-use App\Models\User;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloEstudiante\Solicitud;
 
 class Estudiante extends Model
 {
-    use \Illuminate\Database\Eloquent\Factories\HasFactory;
-
+    use HasFactory;
 
     protected $table = 'estudiantes';
     public $timestamps = false;
     protected $primaryKey = 'id';
 
-    
-
     /**
-     * The attributes that are mass assignable.
-     *
      * @var array<string>
      */
     protected $fillable = [
         'cif',
         'usuario_id',
-        'carrera_id'
+        'carrera_id',
     ];
-    
+
     // Relaciones
 
     public function usuario()
@@ -48,3 +42,5 @@ class Estudiante extends Model
         return $this->hasMany(Solicitud::class, 'estudiante_id', 'id');
     }
 }
+
+\class_alias(Estudiante::class, 'App\\Models\\ModuloEstudiante\\Estudiante');

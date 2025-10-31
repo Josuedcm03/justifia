@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Models\ModuloEstudiante;
+namespace App\Domain\Apelaciones\Entities;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Solicitud\Entities\Solicitud;
 use App\Enums\EstadoApelacion;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Apelacion extends Model
 {
@@ -33,12 +34,12 @@ class Apelacion extends Model
 
     public function apelacionPadre()
     {
-        return $this->belongsTo(Apelacion::class, 'apelacion_id', 'id');
+        return $this->belongsTo(self::class, 'apelacion_id', 'id');
     }
 
     public function apelacionesHijas()
     {
-        return $this->hasMany(Apelacion::class, 'apelacion_id', 'id');
+        return $this->hasMany(self::class, 'apelacion_id', 'id');
     }
 
     /**
@@ -74,3 +75,5 @@ class Apelacion extends Model
         return $historial;
     }
 }
+
+\class_alias(Apelacion::class, 'App\\Models\\ModuloEstudiante\\Apelacion');

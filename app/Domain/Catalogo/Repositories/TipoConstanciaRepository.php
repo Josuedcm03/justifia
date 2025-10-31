@@ -2,9 +2,10 @@
 
 namespace App\Domain\Catalogo\Repositories;
 
-use Illuminate\Support\Collection;
+use App\Domain\Catalogo\Entities\TipoConstancia;
 
 interface TipoConstanciaRepository
 {
-    public function all(): Collection;
+    /** @return iterable<TipoConstancia> */
+    public function all(): iterable;
 }

@@ -2,15 +2,14 @@
 
 namespace App\Infraestructure\Persistence\Eloquent\Repositories;
 
+use App\Domain\Apelaciones\Entities\Apelacion;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;
 use App\Enums\EstadoApelacion;
-use App\Models\ModuloEstudiante\Apelacion;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 class EloquentApelacionRepository implements ApelacionRepository
 {
-    public function listarFinalesPorEstudiante(int $estudianteId): Collection
+    public function listarFinalesPorEstudiante(int $estudianteId): iterable
     {
         return Apelacion::whereDoesntHave('apelacionesHijas')
             ->whereHas('solicitud', fn($q) => $q->where('estudiante_id', $estudianteId))

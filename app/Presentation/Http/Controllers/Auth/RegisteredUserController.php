@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Estudiante\Entities\Estudiante;
+use App\Domain\Seguridad\Entities\Role;
+use App\Domain\Shared\ValueObjects\EmailInstitucional;
+use App\Domain\Usuarios\Entities\User;
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,9 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
-use App\Models\ModuloSeguridad\Role;
-use App\Models\ModuloSecretaria\Carrera;
-use App\Models\ModuloEstudiante\Estudiante;
+use App\Domain\Catalogo\Entities\Carrera;
 
 class RegisteredUserController extends Controller
 {
@@ -64,10 +65,11 @@ class RegisteredUserController extends Controller
         }
         
         $estudianteRole = Role::where('name', 'estudiante')->first();
+        $correoInstitucional = (string) new EmailInstitucional($request->email);
 
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'email' => $correoInstitucional,
             'password' => Hash::make($request->password),
             'role_id' => $estudianteRole?->id,
         ]);
