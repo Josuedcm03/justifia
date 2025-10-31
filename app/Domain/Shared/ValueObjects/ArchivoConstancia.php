@@ -6,33 +6,52 @@ use InvalidArgumentException;
 
 final class ArchivoConstancia
 {
-    private const EXTENSIONES_PERMITIDAS = ['pdf', 'jpg', 'jpeg', 'png'];
+    private const EXTENSIONES_PERMITIDAS = ['pdf', 'jpg', 'jpeg'];
 
-    public function __construct(private readonly string $ruta)
+    private string $path;
+
+    private function __construct(string $path)
     {
-        $extension = strtolower(pathinfo($ruta, PATHINFO_EXTENSION));
+        $path = trim($path);
+
+        if ($path === '') {
+            throw new InvalidArgumentException('La ruta de la constancia no puede estar vacía.');
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
         if ($extension === '') {
-            throw new InvalidArgumentException('El archivo de constancia debe tener una extensión.');
+            throw new InvalidArgumentException('El archivo de constancia debe tener extensión.');
         }
 
         if (! in_array($extension, self::EXTENSIONES_PERMITIDAS, true)) {
-            throw new InvalidArgumentException('Extensión de constancia no permitida.');
+            throw new InvalidArgumentException('El archivo de constancia debe ser PDF o JPG.');
         }
+
+        $this->path = $path;
     }
 
-    public function ruta(): string
+    public static function fromPath(string $path): self
     {
-        return $this->ruta;
+        return new self($path);
     }
 
-    public function extension(): string
+    public static function fromNullable(?string $path): ?self
     {
-        return strtolower(pathinfo($this->ruta, PATHINFO_EXTENSION));
+        if ($path === null) {
+            return null;
+        }
+
+        return new self($path);
+    }
+
+    public function path(): string
+    {
+        return $this->path;
     }
 
     public function __toString(): string
     {
-        return $this->ruta;
+        return $this->path;
     }
 }
