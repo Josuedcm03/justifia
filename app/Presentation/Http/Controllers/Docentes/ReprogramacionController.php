@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ModuloDocente;
 
-use App\Application\Reprogramaciones\ReprogramacionService;
+use App\Application\Reprogramaciones\Handlers\ReprogramacionService;
 use App\Http\Controllers\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;

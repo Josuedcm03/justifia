@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\ModuloEstudiante;
 
-use App\Application\Catalogo\CatalogoService;
-use App\Application\Solicitudes\SolicitudService;
+use App\Application\Catalogo\Handlers\CatalogoService;
+use App\Application\Solicitudes\Handlers\SolicitudService;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
 use App\Domain\Catalogo\Entities\Facultad;

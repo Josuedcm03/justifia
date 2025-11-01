@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Application\Catalogo;
+namespace App\Application\Catalogo\Handlers;
 
 use App\Domain\Catalogo\Repositories\AsignaturaRepository;
 use App\Domain\Catalogo\Repositories\FacultadRepository;

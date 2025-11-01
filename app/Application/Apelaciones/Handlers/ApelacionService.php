@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Application\Apelaciones;
+namespace App\Application\Apelaciones\Handlers;
 
 use App\Domain\Apelaciones\Entities\Apelacion as ApelacionEntity;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;

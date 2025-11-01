@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Application\Solicitudes\SolicitudService;
+use App\Application\Solicitudes\Handlers\SolicitudService;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
