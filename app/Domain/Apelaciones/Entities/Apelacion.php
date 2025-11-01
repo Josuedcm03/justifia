@@ -2,6 +2,7 @@
 
 namespace App\Domain\Apelaciones\Entities;
 
+use App\Domain\Apelaciones\Tree\ApelacionHistorialBuilder;
 use App\Domain\Shared\Contracts\Entity;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\ValueObjects\EntityId;
@@ -121,20 +122,17 @@ final class Apelacion implements Entity
      */
     public function historial(?string $respuestaInicial, array $cadena): array
     {
-        $historial = [];
+        $builder = new ApelacionHistorialBuilder();
 
-        if ($respuestaInicial) {
-            $historial[] = ['autor' => 'secretaria', 'mensaje' => trim($respuestaInicial)];
-        }
+        $data = array_map(
+            static fn(self $apelacion): array => [
+                'observacion' => $apelacion->observacion->value(),
+                'respuesta' => $apelacion->respuesta?->value(),
+            ],
+            $cadena
+        );
 
-        foreach ($cadena as $apelacion) {
-            $historial[] = ['autor' => 'estudiante', 'mensaje' => $apelacion->observacion->value()];
-            if ($apelacion->respuesta) {
-                $historial[] = ['autor' => 'secretaria', 'mensaje' => $apelacion->respuesta->value()];
-            }
-        }
-
-        return $historial;
+        return $builder->build($respuestaInicial, $data);
     }
 
     /**

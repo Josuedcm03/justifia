@@ -2,9 +2,10 @@
 
 namespace App\Models\ModuloEstudiante;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Apelaciones\Tree\ApelacionHistorialBuilder;
 use App\Domain\Shared\Enums\EstadoApelacion;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Apelacion extends Model
 {
@@ -49,28 +50,18 @@ class Apelacion extends Model
      */
     public function historial(): array
     {
-        $historial = [];
-
         $cadena = [];
         $actual = $this;
         while ($actual) {
-            $cadena[] = $actual;
+            $cadena[] = [
+                'observacion' => $actual->observacion,
+                'respuesta' => $actual->respuesta,
+            ];
             $actual = $actual->apelacionPadre;
         }
-        $cadena = array_reverse($cadena);
 
-        $respuestaInicial = $this->solicitud->respuesta;
-        if ($respuestaInicial) {
-            $historial[] = ['autor' => 'secretaria', 'mensaje' => $respuestaInicial];
-        }
+        $builder = new ApelacionHistorialBuilder();
 
-        foreach ($cadena as $apelacion) {
-            $historial[] = ['autor' => 'estudiante', 'mensaje' => $apelacion->observacion];
-            if ($apelacion->respuesta) {
-                $historial[] = ['autor' => 'secretaria', 'mensaje' => $apelacion->respuesta];
-            }
-        }
-
-        return $historial;
+        return $builder->build($this->solicitud->respuesta, array_reverse($cadena));
     }
 }
