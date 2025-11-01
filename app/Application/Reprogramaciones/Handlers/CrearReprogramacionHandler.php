@@ -8,7 +8,7 @@ use App\Application\Shared\Contracts\Mailer;
 use App\Domain\Reprogramacion\Entities\Reprogramacion;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Mail\RescheduleMail;
+use App\Infraestructure\Mail\RescheduleMail;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;

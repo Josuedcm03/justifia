@@ -2,15 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Mail\AppealApprovalMail;
-use App\Mail\AppealRejectionMail;
+use App\Application\Apelaciones\Commands\NotificarEstadoApelacionCommand;
+use App\Application\Apelaciones\DTOs\NotificarEstadoApelacionDTO;
+use App\Application\Apelaciones\Handlers\NotificarEstadoApelacionHandler;
 use App\Domain\Apelaciones\Entities\Apelacion;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 
 class SendAppealStatusMail implements ShouldQueue
 {
@@ -23,22 +23,17 @@ class SendAppealStatusMail implements ShouldQueue
         public Apelacion $apelacion,
     ) {}
 
-    public function handle(): void
+    public function handle(NotificarEstadoApelacionHandler $handler): void
     {
-        if ($this->approved) {
-            Mail::to($this->studentEmail)
-                ->queue(new AppealApprovalMail(
+        $handler->handle(
+            new NotificarEstadoApelacionCommand(
+                new NotificarEstadoApelacionDTO(
+                    $this->approved,
+                    $this->studentEmail,
                     $this->studentName,
                     $this->apelacion,
-                    $this->studentEmail
-                ));
-        } else {
-            Mail::to($this->studentEmail)
-                ->queue(new AppealRejectionMail(
-                    $this->studentName,
-                    $this->apelacion,
-                    $this->studentEmail
-                ));
-        }
+                )
+            )
+        );
     }
 }

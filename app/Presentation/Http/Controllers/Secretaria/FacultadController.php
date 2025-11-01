@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\ModuloSecretaria;
+namespace App\Presentation\Http\Controllers\Secretaria;
 
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 

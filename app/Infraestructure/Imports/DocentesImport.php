@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Imports;
+namespace App\Infraestructure\Imports;
 
 use App\Domain\Docente\Entities\Docente;
 use App\Domain\Seguridad\Entities\Role;

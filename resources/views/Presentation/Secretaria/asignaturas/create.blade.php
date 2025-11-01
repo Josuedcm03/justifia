@@ -18,7 +18,7 @@
                         <select name="facultad_id" id="facultad_id" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]">
                             <option value="">Seleccione una facultad</option>
                             @foreach($facultades as $facultad)
-                                <option value="{{ $facultad->id }}" @selected(old('facultad_id') == $facultad->id)>{{ $facultad->nombre }}</option>
+                                <option value="{{ $facultad->id()->value() }}" @selected(old('facultad_id') == $facultad->id()->value())>{{ $facultad->nombre()->value() }}</option>
                             @endforeach
                         </select>
                         <x-input-error class="mt-2" :messages="$errors->get('facultad_id')" />

@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Models\ModuloSeguridad\Role;
 use App\Models\ModuloEstudiante\Estudiante;
 use App\Models\ModuloSecretaria\Docente;
-use App\Notifications\CustomVerifyEmail;
+use App\Infraestructure\Notifications\CustomVerifyEmail;
 use App\Notifications\CustomResetPassword;
 
 class User extends Authenticatable implements MustVerifyEmail

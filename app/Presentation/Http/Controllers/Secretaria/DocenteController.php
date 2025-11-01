@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\ModuloSecretaria;
+namespace App\Presentation\Http\Controllers\Secretaria;
 
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 
@@ -10,7 +10,7 @@ use Illuminate\Database\QueryException;
 use App\Domain\Docente\Entities\Docente;
 use App\Domain\Seguridad\Entities\Role;
 use App\Domain\Usuarios\Entities\User;
-use App\Imports\DocentesImport;
+use App\Infraestructure\Imports\DocentesImport;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;

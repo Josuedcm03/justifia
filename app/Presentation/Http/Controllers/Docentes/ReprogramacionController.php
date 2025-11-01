@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\ModuloDocente;
+namespace App\Presentation\Http\Controllers\Docentes;
 
 use App\Application\Reprogramaciones\Commands\ActualizarReprogramacionCommand;
 use App\Application\Reprogramaciones\Commands\CrearReprogramacionCommand;
@@ -13,7 +13,7 @@ use App\Application\Reprogramaciones\Handlers\ReprogramacionesPorDocenteHandler;
 use App\Application\Reprogramaciones\Handlers\SolicitudesAprobadasSinReprogramarHandler;
 use App\Application\Reprogramaciones\Queries\ReprogramacionesPorDocenteQuery;
 use App\Application\Reprogramaciones\Queries\SolicitudesAprobadasSinReprogramarQuery;
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
 use App\Domain\Shared\Enums\EstadoAsistencia;

@@ -1,19 +1,19 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Presentation\Http\Controllers\Perfil\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-use App\Http\Controllers\ModuloEstudiante\SolicitudController as EstudianteSolicitudController;
-use App\Http\Controllers\ModuloEstudiante\ApelacionController as EstudianteApelacionController;
-use App\Http\Controllers\ModuloSecretaria\SolicitudController as SecretariaSolicitudController;
-use App\Http\Controllers\ModuloSecretaria\ApelacionController as SecretariaApelacionController;
-use App\Http\Controllers\ModuloSecretaria\AsignaturaController;
-use App\Http\Controllers\ModuloSecretaria\CarreraController;
-use App\Http\Controllers\ModuloSecretaria\FacultadController;
-use App\Http\Controllers\ModuloSecretaria\DocenteController;
-use App\Http\Controllers\ModuloSecretaria\TipoConstanciaController;
-use App\Http\Controllers\ModuloSecretaria\CatalogoController;
-use App\Http\Controllers\ModuloDocente\ReprogramacionController as DocenteReprogramacionController;
+use App\Presentation\Http\Controllers\Estudiante\SolicitudController as EstudianteSolicitudController;
+use App\Presentation\Http\Controllers\Estudiante\ApelacionController as EstudianteApelacionController;
+use App\Presentation\Http\Controllers\Secretaria\SolicitudController as SecretariaSolicitudController;
+use App\Presentation\Http\Controllers\Secretaria\ApelacionController as SecretariaApelacionController;
+use App\Presentation\Http\Controllers\Secretaria\AsignaturaController;
+use App\Presentation\Http\Controllers\Secretaria\CarreraController;
+use App\Presentation\Http\Controllers\Secretaria\FacultadController;
+use App\Presentation\Http\Controllers\Secretaria\DocenteController;
+use App\Presentation\Http\Controllers\Secretaria\TipoConstanciaController;
+use App\Presentation\Http\Controllers\Secretaria\CatalogoController;
+use App\Presentation\Http\Controllers\Docentes\ReprogramacionController as DocenteReprogramacionController;
 use Illuminate\Support\Facades\Auth;
 
 // During testing we skip the authentication screens and go straight to the

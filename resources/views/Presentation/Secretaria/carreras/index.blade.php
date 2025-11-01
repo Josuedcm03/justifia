@@ -32,11 +32,11 @@
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse($carreras as $carrera)
                                 <tr>
-                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $carrera->nombre }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $carrera->facultad->nombre }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $carrera->nombre() }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $carrera->facultadNombre() }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 text-right space-x-2">
-                                        <a href="{{ route('secretaria.carreras.edit', $carrera) }}" class="text-[#0099a8] hover:underline">Editar</a>
-                                        <form action="{{ route('secretaria.carreras.destroy', $carrera) }}" method="POST" class="inline">
+                                        <a href="{{ route('secretaria.carreras.edit', $carrera->id()) }}" class="text-[#0099a8] hover:underline">Editar</a>
+                                        <form action="{{ route('secretaria.carreras.destroy', $carrera->id()) }}" method="POST" class="inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('¿Eliminar carrera?')">Eliminar</button>

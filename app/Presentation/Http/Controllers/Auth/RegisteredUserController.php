@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\Auth;
+namespace App\Presentation\Http\Controllers\Auth;
 
 use App\Domain\Estudiante\Entities\Estudiante;
 use App\Domain\Seguridad\Entities\Role;
 use App\Domain\Shared\ValueObjects\EmailInstitucional;
 use App\Domain\Usuarios\Entities\User;
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

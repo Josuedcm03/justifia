@@ -44,11 +44,11 @@
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse($asignaturas as $asignatura)
                                 <tr>
-                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $asignatura->nombre }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $asignatura->facultad->nombre }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $asignatura->nombre() }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $asignatura->facultadNombre() }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 text-right space-x-2">
-                                        <a href="{{ route('secretaria.asignaturas.edit', $asignatura) }}" class="text-[#0099a8] hover:underline">Editar</a>
-                                        <form action="{{ route('secretaria.asignaturas.destroy', $asignatura) }}" method="POST" class="inline">
+                                        <a href="{{ route('secretaria.asignaturas.edit', $asignatura->id()) }}" class="text-[#0099a8] hover:underline">Editar</a>
+                                        <form action="{{ route('secretaria.asignaturas.destroy', $asignatura->id()) }}" method="POST" class="inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('¿Eliminar asignatura?')">Eliminar</button>
