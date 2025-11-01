@@ -2,6 +2,15 @@
 
 namespace App\Application\Solicitudes\Handlers;
 
+use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
+use App\Application\Solicitudes\Commands\ActualizarSolicitudCommand;
+use App\Application\Solicitudes\Commands\CrearSolicitudCommand;
+use App\Application\Solicitudes\Commands\EliminarSolicitudCommand;
+use App\Application\Solicitudes\Queries\ObtenerSolicitudPorIdQuery;
+use App\Application\Solicitudes\Queries\PaginarSolicitudesEstudianteQuery;
+use App\Application\Solicitudes\Queries\PaginarSolicitudesSecretariaQuery;
+use App\Application\Solicitudes\Queries\ReprogramacionesPorDocenteQuery;
+use App\Application\Solicitudes\Queries\SolicitudesAprobadasSinReprogramarQuery;
 use App\Domain\Shared\ValueObjects\ArchivoConstancia;
 use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
@@ -12,7 +21,6 @@ use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use DateTimeImmutable;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
 
@@ -24,29 +32,38 @@ class SolicitudService
     ) {
     }
 
-    public function paginateForEstudiante(int $estudianteId, EstadoSolicitud $estado, int $perPage = 9): LengthAwarePaginator
+    public function paginateForEstudiante(PaginarSolicitudesEstudianteQuery $query): LengthAwarePaginator
     {
-        return $this->solicitudes->paginateByEstadoForEstudiante($estudianteId, $estado, $perPage);
+        return $this->solicitudes->paginateByEstadoForEstudiante(
+            $query->estudianteId(),
+            $query->estado(),
+            $query->perPage()
+        );
     }
 
-    public function paginateForSecretaria(EstadoSolicitud $estado, bool $sinApelacionesPendientes, int $perPage = 9): LengthAwarePaginator
+    public function paginateForSecretaria(PaginarSolicitudesSecretariaQuery $query): LengthAwarePaginator
     {
-        return $this->solicitudes->paginateByEstadoForSecretaria($estado, $sinApelacionesPendientes, $perPage);
+        return $this->solicitudes->paginateByEstadoForSecretaria(
+            $query->estado(),
+            $query->sinApelacionesPendientes(),
+            $query->perPage()
+        );
     }
 
-    public function obtenerPorId(int $id): SolicitudEntity
+    public function obtenerPorId(ObtenerSolicitudPorIdQuery $query): SolicitudEntity
     {
-        return $this->solicitudes->findById($id);
+        return $this->solicitudes->findById($query->solicitudId());
     }
 
-    public function crear(array $data, ?UploadedFile $constancia, int $estudianteId): SolicitudEntity
+    public function crear(CrearSolicitudCommand $command): SolicitudEntity
     {
-        $fechaAusencia = $this->parseFecha($data['fecha_ausencia'] ?? null);
-        $docenteId = $this->requireInt($data, 'docente_id');
-        $asignaturaId = $this->requireInt($data, 'asignatura_id');
-        $tipoConstanciaId = $this->requireInt($data, 'tipo_constancia_id');
+        $fechaAusencia = $this->parseFecha($command->fechaAusencia());
+        $docenteId = $this->requirePositiveInt($command->docenteId(), 'docente_id');
+        $asignaturaId = $this->requirePositiveInt($command->asignaturaId(), 'asignatura_id');
+        $tipoConstanciaId = $this->requirePositiveInt($command->tipoConstanciaId(), 'tipo_constancia_id');
 
         $rutaConstancia = null;
+        $constancia = $command->constancia();
         if ($constancia) {
             $rutaConstancia = $this->publicStorage->putFile('constancias', $constancia);
         }
@@ -54,8 +71,8 @@ class SolicitudService
         $entity = SolicitudEntity::crearNueva(
             $fechaAusencia,
             $rutaConstancia ? ArchivoConstancia::fromPath($rutaConstancia) : null,
-            $data['observaciones'] ?? '',
-            $estudianteId,
+            $command->observaciones() ?? '',
+            $this->requirePositiveInt($command->estudianteId(), 'estudiante_id'),
             $docenteId,
             $asignaturaId,
             $tipoConstanciaId
@@ -64,32 +81,31 @@ class SolicitudService
         return $this->solicitudes->create($entity);
     }
 
-    public function actualizar(
-        SolicitudEntity $solicitud,
-        array $data,
-        ?UploadedFile $constancia = null,
-        bool $eliminarConstancia = false
-    ): SolicitudEntity {
-        $fechaAusencia = $this->parseFecha($data['fecha_ausencia'] ?? $solicitud->fechaAusencia()->format('Y-m-d'));
-        $docenteId = $this->requireInt($data, 'docente_id', $solicitud->docenteId()->value());
-        $asignaturaId = $this->requireInt($data, 'asignatura_id', $solicitud->asignaturaId()->value());
-        $tipoConstanciaId = $this->requireInt($data, 'tipo_constancia_id', $solicitud->tipoConstanciaId()->value());
+    public function actualizar(ActualizarSolicitudCommand $command): SolicitudEntity
+    {
+        $solicitud = $this->solicitudes->findById($command->solicitudId());
+
+        $fechaAusencia = $this->parseFecha($command->fechaAusencia());
+        $docenteId = $this->requirePositiveInt($command->docenteId(), 'docente_id');
+        $asignaturaId = $this->requirePositiveInt($command->asignaturaId(), 'asignatura_id');
+        $tipoConstanciaId = $this->requirePositiveInt($command->tipoConstanciaId(), 'tipo_constancia_id');
 
         $solicitud->actualizarDatos(
             $fechaAusencia,
-            $data['observaciones'] ?? $solicitud->observaciones()->value(),
+            $command->observaciones() ?? $solicitud->observaciones()->value(),
             $docenteId,
             $asignaturaId,
             $tipoConstanciaId
         );
 
         $constanciaAnterior = $solicitud->constancia();
+        $constancia = $command->constancia();
 
         if ($constancia) {
             $rutaConstancia = $this->publicStorage->putFile('constancias', $constancia);
             $solicitud->adjuntarConstancia(ArchivoConstancia::fromPath($rutaConstancia));
             $this->eliminarConstanciaPath($constanciaAnterior?->path());
-        } elseif ($eliminarConstancia) {
+        } elseif ($command->eliminarConstancia()) {
             $solicitud->eliminarConstancia();
             $this->eliminarConstanciaPath($constanciaAnterior?->path());
         }
@@ -97,15 +113,19 @@ class SolicitudService
         return $this->solicitudes->update($solicitud);
     }
 
-    public function eliminar(SolicitudEntity $solicitud): void
+    public function eliminar(EliminarSolicitudCommand $command): void
     {
+        $solicitud = $this->solicitudes->findById($command->solicitudId());
+
         $this->eliminarConstanciaPath($solicitud->constancia()?->path());
         $this->solicitudes->delete($solicitud);
     }
 
-    public function actualizarEstado(SolicitudEntity $solicitud, EstadoSolicitud $estado, ?string $respuesta): SolicitudEntity
+    public function actualizarEstado(ActualizarEstadoSolicitudCommand $command): SolicitudEntity
     {
-        $solicitud->actualizarEstado($estado, $respuesta);
+        $solicitud = $this->solicitudes->findById($command->solicitudId());
+
+        $solicitud->actualizarEstado($command->estado(), $command->respuesta());
 
         $solicitudActualizada = $this->solicitudes->update($solicitud);
 
@@ -115,15 +135,15 @@ class SolicitudService
     }
 
     /** @return iterable<Solicitud> */
-    public function solicitudesAprobadasSinReprogramar(int $docenteId)
+    public function solicitudesAprobadasSinReprogramar(SolicitudesAprobadasSinReprogramarQuery $query)
     {
-        return $this->solicitudes->solicitudesAprobadasSinReprogramacion($docenteId);
+        return $this->solicitudes->solicitudesAprobadasSinReprogramacion($query->docenteId());
     }
 
     /** @return iterable<Solicitud> */
-    public function reprogramacionesPorDocente(int $docenteId)
+    public function reprogramacionesPorDocente(ReprogramacionesPorDocenteQuery $query)
     {
-        return $this->solicitudes->reprogramacionesPorDocente($docenteId);
+        return $this->solicitudes->reprogramacionesPorDocente($query->docenteId());
     }
 
     private function eliminarConstanciaPath(?string $path): void
@@ -169,33 +189,12 @@ class SolicitudService
         return $instancia;
     }
 
-    private function requireInt(array $data, string $key, ?int $default = null): int
+    private function requirePositiveInt(int $valor, string $key): int
     {
-        $valor = $data[$key] ?? $default;
-
-        if ($valor === null) {
-            throw new InvalidArgumentException(sprintf('El campo %s es obligatorio.', $key));
-        }
-
-        if (! is_numeric($valor)) {
-            throw new InvalidArgumentException(sprintf('El campo %s debe ser numérico.', $key));
-        }
-
-        $intValor = (int) $valor;
-
-        if ($intValor <= 0) {
+        if ($valor <= 0) {
             throw new InvalidArgumentException(sprintf('El campo %s debe ser un entero positivo.', $key));
         }
 
-        return $intValor;
-    }
-
-    private function fechaString(mixed $valor): string
-    {
-        if ($valor instanceof \DateTimeInterface) {
-            return $valor->format('Y-m-d');
-        }
-
-        return (string) $valor;
+        return $valor;
     }
 }

@@ -2,7 +2,16 @@
 
 namespace App\Http\Controllers\ModuloEstudiante;
 
+use App\Application\Apelaciones\Commands\ActualizarApelacionCommand;
+use App\Application\Apelaciones\Commands\CrearApelacionCommand;
+use App\Application\Apelaciones\DTOs\ActualizarApelacionDTO;
+use App\Application\Apelaciones\DTOs\ApelacionesPorEstudianteDTO;
+use App\Application\Apelaciones\DTOs\ApelacionPorSolicitudDTO;
+use App\Application\Apelaciones\DTOs\CrearApelacionDTO;
 use App\Application\Apelaciones\Handlers\ApelacionService;
+use App\Application\Apelaciones\Queries\ListarApelacionesPorEstudianteQuery;
+use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionDeSolicitudQuery;
+use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionRechazadaQuery;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Http\Controllers\Controller;
 use App\Domain\Apelaciones\Entities\Apelacion;
@@ -19,7 +28,9 @@ class ApelacionController extends Controller
     {
         $estudianteId = auth()->user()->estudiante->id;
         $apelaciones = $this->apelaciones
-            ->listarFinalesPorEstudiante($estudianteId)
+            ->listarFinalesPorEstudiante(
+                new ListarApelacionesPorEstudianteQuery(new ApelacionesPorEstudianteDTO($estudianteId))
+            )
             ->groupBy(fn($a) => $a->estado->value);
 
         return view('ModuloEstudiante.apelaciones.index', [
@@ -32,7 +43,9 @@ class ApelacionController extends Controller
      */
     public function create(Solicitud $solicitud)
     {
-        $ultimaApelacion = $this->apelaciones->obtenerUltimaDeSolicitud($solicitud->id);
+        $ultimaApelacion = $this->apelaciones->obtenerUltimaDeSolicitud(
+            new ObtenerUltimaApelacionDeSolicitudQuery(new ApelacionPorSolicitudDTO($solicitud->id))
+        );
 
         $respuesta = $ultimaApelacion?->respuesta ?? $solicitud->respuesta;
 
@@ -43,17 +56,19 @@ class ApelacionController extends Controller
     {
         $observacion = $request->input('observacion_estudiante');
 
-        $ultimaRechazada = $this->apelaciones->obtenerUltimaRechazada($solicitud->id);
+        $ultimaRechazada = $this->apelaciones->obtenerUltimaRechazada(
+            new ObtenerUltimaApelacionRechazadaQuery(new ApelacionPorSolicitudDTO($solicitud->id))
+        );
 
-        $data = [
-            'observacion' => $observacion,
-            'estado' => EstadoApelacion::Pendiente,
-            'solicitud_id' => $solicitud->id,
-            'apelacion_id' => $ultimaRechazada?->id,
-            'respuesta' => null,
-        ];
-
-        $apelacion = $this->apelaciones->crear($data);
+        $apelacion = $this->apelaciones->crear(
+            new CrearApelacionCommand(
+                new CrearApelacionDTO(
+                    $observacion,
+                    $solicitud->id,
+                    $ultimaRechazada?->id
+                )
+            )
+        );
         
         $redirectEstado = $request->query('estado', 'rechazada');
     
@@ -94,9 +109,16 @@ class ApelacionController extends Controller
             abort(403);
         }
 
-        $this->apelaciones->actualizar($apelacion, [
-            'observacion' => $request->input('observacion_estudiante'),
-        ]);
+        $this->apelaciones->actualizar(
+            new ActualizarApelacionCommand(
+                new ActualizarApelacionDTO(
+                    $apelacion->id,
+                    null,
+                    null,
+                    $request->input('observacion_estudiante')
+                )
+            )
+        );
 
         return redirect()
             ->route('estudiante.apelaciones.index')

@@ -2,10 +2,18 @@
 
 namespace App\Http\Controllers\ModuloDocente;
 
+use App\Application\Reprogramaciones\Commands\ActualizarReprogramacionCommand;
+use App\Application\Reprogramaciones\Commands\CrearReprogramacionCommand;
+use App\Application\Reprogramaciones\DTOs\ActualizarReprogramacionDTO;
+use App\Application\Reprogramaciones\DTOs\CrearReprogramacionDTO;
+use App\Application\Reprogramaciones\DTOs\DocenteIdDTO;
 use App\Application\Reprogramaciones\Handlers\ReprogramacionService;
+use App\Application\Reprogramaciones\Queries\ReprogramacionesPorDocenteQuery;
+use App\Application\Reprogramaciones\Queries\SolicitudesAprobadasSinReprogramarQuery;
 use App\Http\Controllers\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
+use App\Domain\Shared\Enums\EstadoAsistencia;
 
 class ReprogramacionController extends Controller
 {
@@ -16,8 +24,12 @@ class ReprogramacionController extends Controller
     public function index(Request $request)
     {
         $docenteId = $request->user()->docente->id;
-        $solicitudesAReprogramar = $this->reprogramaciones->solicitudesAprobadasSinReprogramar($docenteId);
-        $reprogramaciones = $this->reprogramaciones->reprogramacionesPorDocente($docenteId);
+        $solicitudesAReprogramar = $this->reprogramaciones->solicitudesAprobadasSinReprogramar(
+            new SolicitudesAprobadasSinReprogramarQuery(new DocenteIdDTO($docenteId))
+        );
+        $reprogramaciones = $this->reprogramaciones->reprogramacionesPorDocente(
+            new ReprogramacionesPorDocenteQuery(new DocenteIdDTO($docenteId))
+        );
 
         return view('ModuloDocente.solicitudes.index', compact('solicitudesAReprogramar', 'reprogramaciones'));
     }
@@ -30,13 +42,16 @@ class ReprogramacionController extends Controller
 
     public function storeReprogramacion(Request $request, Solicitud $solicitud)
     {
-        $solicitudEntity = $this->reprogramaciones->obtenerSolicitudPorId($solicitud->id);
-
-        $this->reprogramaciones->crear($solicitudEntity, [
-            'fecha' => $request->input('fecha'),
-            'hora' => $request->input('hora'),
-            'observaciones' => $request->input('observaciones'),
-        ]);
+        $this->reprogramaciones->crear(
+            new CrearReprogramacionCommand(
+                new CrearReprogramacionDTO(
+                    $solicitud->id,
+                    (string) $request->input('fecha'),
+                    (string) $request->input('hora'),
+                    $request->input('observaciones')
+                )
+            )
+        );
 
         return redirect()
             ->route('docente.solicitudes.index')
@@ -45,17 +60,22 @@ class ReprogramacionController extends Controller
 
     public function updateReprogramacion(Request $request, Solicitud $solicitud)
     {
-        $reprogramacion = $solicitud->reprogramacion
-            ? $this->reprogramaciones->obtenerPorId($solicitud->reprogramacion->id)
-            : null;
+        if ($solicitud->reprogramacion) {
+            $asistencia = $request->filled('asistencia')
+                ? EstadoAsistencia::from($request->input('asistencia'))
+                : null;
 
-        if ($reprogramacion) {
-            $this->reprogramaciones->actualizar($reprogramacion, [
-                'fecha' => $request->input('fecha'),
-                'hora' => $request->input('hora'),
-                'asistencia' => $request->input('asistencia'),
-                'observaciones' => $request->input('observaciones'),
-            ]);
+            $this->reprogramaciones->actualizar(
+                new ActualizarReprogramacionCommand(
+                    new ActualizarReprogramacionDTO(
+                        $solicitud->reprogramacion->id,
+                        $request->input('fecha'),
+                        $request->input('hora'),
+                        $request->input('observaciones'),
+                        $asistencia
+                    )
+                )
+            );
         }
         return redirect()
             ->route('docente.solicitudes.index')

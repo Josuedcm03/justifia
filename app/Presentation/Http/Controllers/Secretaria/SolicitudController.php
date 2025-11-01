@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers\ModuloSecretaria;
 
+use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
+use App\Application\Solicitudes\DTOs\ActualizarEstadoSolicitudDTO;
+use App\Application\Solicitudes\DTOs\PaginarSolicitudesSecretariaDTO;
 use App\Application\Solicitudes\Handlers\SolicitudService;
+use App\Application\Solicitudes\Queries\PaginarSolicitudesSecretariaQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
@@ -19,7 +23,11 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
         $sinPendientes = $estado === EstadoSolicitud::Rechazada;
 
-        $solicitudes = $this->solicitudes->paginateForSecretaria($estado, $sinPendientes, 9);
+        $solicitudes = $this->solicitudes->paginateForSecretaria(
+            new PaginarSolicitudesSecretariaQuery(
+                new PaginarSolicitudesSecretariaDTO($estado, $sinPendientes, 9)
+            )
+        );
 
         return view('ModuloSecretaria.solicitudes.index', [
             'solicitudes' => $solicitudes,
@@ -47,9 +55,11 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::from($request->input('estado'));
         $respuesta = $request->input('respuesta');
 
-        $solicitudEntity = $this->solicitudes->obtenerPorId($solicitud->id);
-
-        $this->solicitudes->actualizarEstado($solicitudEntity, $estado, $respuesta);
+        $this->solicitudes->actualizarEstado(
+            new ActualizarEstadoSolicitudCommand(
+                new ActualizarEstadoSolicitudDTO($solicitud->id, $estado, $respuesta)
+            )
+        );
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
