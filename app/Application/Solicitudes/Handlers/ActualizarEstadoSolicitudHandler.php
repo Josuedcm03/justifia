@@ -3,8 +3,11 @@
 namespace App\Application\Solicitudes\Handlers;
 
 use App\Application\Shared\Contracts\Mailer;
-use App\Application\Shared\Mail\Notifications\SolicitudAprobadaNotification;
-use App\Application\Shared\Mail\Notifications\SolicitudRechazadaNotification;
+use App\Application\Solicitudes\Notifications\SolicitudAprobadaNotifier;
+use App\Application\Solicitudes\Notifications\SolicitudEstadoNotifier;
+use App\Application\Solicitudes\Notifications\SolicitudRechazadaNotifier;
+use App\Application\Solicitudes\Notifications\SolicitudSinNotificacionNotifier;
+use App\Application\Solicitudes\Notifications\ValueObjects\SolicitudNotificacionContext;
 use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Domain\Solicitud\Entities\Solicitud;
@@ -13,10 +16,21 @@ use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 
 final class ActualizarEstadoSolicitudHandler
 {
+    /** @var array<string, SolicitudEstadoNotifier> */
+    private array $notificadoresPorEstado;
+
+    private readonly SolicitudEstadoNotifier $notificadorPorDefecto;
+
     public function __construct(
         private readonly SolicitudRepository $solicitudes,
         private readonly Mailer $mailer
     ) {
+        $this->notificadoresPorEstado = [
+            EstadoSolicitud::Aprobada->value => new SolicitudAprobadaNotifier($mailer),
+            EstadoSolicitud::Rechazada->value => new SolicitudRechazadaNotifier($mailer),
+        ];
+
+        $this->notificadorPorDefecto = new SolicitudSinNotificacionNotifier();
     }
 
     public function handle(ActualizarEstadoSolicitudCommand $command): Solicitud
@@ -44,32 +58,19 @@ final class ActualizarEstadoSolicitudHandler
         $studentUser = $modelo->estudiante->usuario;
         $teacherUser = $modelo->docente->usuario;
 
-        if ($solicitud->estado() === EstadoSolicitud::Aprobada) {
-            $this->mailer->queue(new SolicitudAprobadaNotification(
-                $studentUser->name,
-                $studentUser->email
-            ));
+        $context = new SolicitudNotificacionContext(
+            $studentUser->name,
+            $studentUser->email,
+            $teacherUser->name,
+            $teacherUser->email,
+            $solicitud->respuesta()?->value()
+        );
 
-            $this->mailer->queue(new SolicitudAprobadaNotification(
-                $teacherUser->name,
-                $teacherUser->email
-            ));
-        }
+        $this->resolverNotificador($solicitud->estado())->notify($context);
+    }
 
-        if ($solicitud->estado() === EstadoSolicitud::Rechazada) {
-            $respuesta = $solicitud->respuesta()?->value();
-
-            $this->mailer->queue(new SolicitudRechazadaNotification(
-                $studentUser->name,
-                $studentUser->email,
-                $respuesta
-            ));
-
-            $this->mailer->queue(new SolicitudRechazadaNotification(
-                $teacherUser->name,
-                $teacherUser->email,
-                $respuesta
-            ));
-        }
+    private function resolverNotificador(EstadoSolicitud $estado): SolicitudEstadoNotifier
+    {
+        return $this->notificadoresPorEstado[$estado->value] ?? $this->notificadorPorDefecto;
     }
 }
