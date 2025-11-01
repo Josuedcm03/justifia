@@ -30,7 +30,7 @@ use App\Application\Solicitudes\Handlers\EliminarSolicitudHandler;
 use App\Application\Solicitudes\Handlers\PaginarSolicitudesEstudianteHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesEstudianteQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Domain\Catalogo\Entities\Facultad;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
@@ -65,7 +65,7 @@ class SolicitudController extends Controller
             )
         );
 
-        return view('ModuloEstudiante.solicitudes.index', [
+        return view('presentation.estudiante.solicitudes.index', [
             'solicitudes' => $solicitudes,
             'estado' => $estado->value,
         ]);
@@ -80,7 +80,7 @@ class SolicitudController extends Controller
         $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
         $TiposConstancia = $this->listarTiposConstancia->handle(new ListarTiposConstanciaQuery());
 
-        return view('ModuloEstudiante.solicitudes.create', [
+        return view('presentation.estudiante.solicitudes.create', [
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,
             'facultades' => $facultades,
@@ -119,7 +119,7 @@ class SolicitudController extends Controller
     public function show(Solicitud $solicitud)
     {
         $estado = EstadoSolicitud::tryFrom(request()->query('estado')) ?? EstadoSolicitud::Pendiente;
-        return view('ModuloEstudiante.solicitudes.show', [
+        return view('presentation.estudiante.solicitudes.show', [
             'solicitud' => $solicitud,
             'estado' => $estado->value,
         ]);
@@ -134,7 +134,7 @@ class SolicitudController extends Controller
         $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
         $TiposConstancia = $this->listarTiposConstancia->handle(new ListarTiposConstanciaQuery());
 
-        return view('ModuloEstudiante.solicitudes.edit', [
+        return view('presentation.estudiante.solicitudes.edit', [
             'solicitud' => $solicitud,
             'docentes' => $docentes,
             'TiposConstancia' => $TiposConstancia,

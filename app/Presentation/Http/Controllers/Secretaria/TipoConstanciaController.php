@@ -16,7 +16,7 @@ use App\Application\Catalogo\Handlers\ObtenerTipoConstanciaPorIdHandler;
 use App\Application\Catalogo\Handlers\PaginarTipoConstanciasHandler;
 use App\Application\Catalogo\Queries\ObtenerTipoConstanciaPorIdQuery;
 use App\Application\Catalogo\Queries\PaginarTipoConstanciasQuery;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
@@ -37,14 +37,14 @@ class TipoConstanciaController extends Controller
             new PaginarTipoConstanciasQuery(new PaginarTipoConstanciasDTO(10))
         );
 
-        return view('ModuloSecretaria.tipos-constancia.index', [
+        return view('presentation.secretaria.tipos-constancia.index', [
             'tipos' => $tipos,
         ]);
     }
 
     public function create()
     {
-        return view('ModuloSecretaria.tipos-constancia.create');
+        return view('presentation.secretaria.tipos-constancia.create');
     }
 
     public function store(Request $request)
@@ -67,7 +67,7 @@ class TipoConstanciaController extends Controller
             new ObtenerTipoConstanciaPorIdQuery(new TipoConstanciaIdDTO($tipoConstancia))
         );
 
-        return view('ModuloSecretaria.tipos-constancia.edit', [
+        return view('presentation.secretaria.tipos-constancia.edit', [
             'tipoConstancia' => $tipo,
         ]);
     }

@@ -9,7 +9,7 @@ use App\Application\Solicitudes\Handlers\ActualizarEstadoSolicitudHandler;
 use App\Application\Solicitudes\Handlers\PaginarSolicitudesSecretariaHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesSecretariaQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
 
@@ -33,7 +33,7 @@ class SolicitudController extends Controller
             )
         );
 
-        return view('ModuloSecretaria.solicitudes.index', [
+        return view('presentation.secretaria.solicitudes.index', [
             'solicitudes' => $solicitudes,
             'estado' => $estado->value,
         ]);
@@ -45,7 +45,7 @@ class SolicitudController extends Controller
     public function show(Solicitud $solicitud)
     {
         $estado = EstadoSolicitud::tryFrom(request()->query('estado')) ?? EstadoSolicitud::Pendiente;
-        return view('ModuloSecretaria.solicitudes.show', [
+        return view('presentation.secretaria.solicitudes.show', [
             'solicitud' => $solicitud,
             'estado' => $estado->value,
         ]);

@@ -2,7 +2,7 @@
 
 namespace App\Presentation\Http\Controllers\Auth;
 
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Presentation\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +16,7 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        return view('auth.login');
+        return view('presentation.auth.login');
     }
 
     /**

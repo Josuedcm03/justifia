@@ -2,7 +2,7 @@
 
 namespace App\Presentation\Http\Controllers\Secretaria;
 
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 
@@ -37,7 +37,7 @@ class DocenteController extends Controller
             ->paginate(15)
             ->appends(['search' => $search]);
 
-        return view('ModuloSecretaria.docentes.index', compact('docentes', 'search'));
+        return view('presentation.secretaria.docentes.index', compact('docentes', 'search'));
     }
 
     /**
@@ -45,7 +45,7 @@ class DocenteController extends Controller
      */
     public function create()
     {
-        return view('ModuloSecretaria.docentes.create');
+        return view('presentation.secretaria.docentes.create');
     }
 
     /**
@@ -92,7 +92,7 @@ class DocenteController extends Controller
      */
     public function edit(Docente $docente)
     {
-        return view('ModuloSecretaria.docentes.edit', compact('docente'));
+        return view('presentation.secretaria.docentes.edit', compact('docente'));
     }
 
     /**
@@ -136,7 +136,7 @@ class DocenteController extends Controller
 
     public function showImport()
     {
-        return view('ModuloSecretaria.docentes.import');
+        return view('presentation.secretaria.docentes.import');
     }
 
     public function import(Request $request)
