@@ -2,7 +2,17 @@
 
 namespace App\Application\Reprogramaciones\Handlers;
 
+use App\Application\Reprogramaciones\Commands\ActualizarReprogramacionCommand;
+use App\Application\Reprogramaciones\Commands\CrearReprogramacionCommand;
+use App\Application\Reprogramaciones\Queries\ObtenerReprogramacionPorIdQuery;
+use App\Application\Reprogramaciones\Queries\ReprogramacionesPorDocenteQuery;
+use App\Application\Reprogramaciones\Queries\SolicitudesAprobadasSinReprogramarQuery;
+use App\Application\Solicitudes\DTOs\SolicitudIdDTO;
+use App\Application\Solicitudes\DTOs\SolicitudesDocenteDTO;
 use App\Application\Solicitudes\Handlers\SolicitudService;
+use App\Application\Solicitudes\Queries\ObtenerSolicitudPorIdQuery;
+use App\Application\Solicitudes\Queries\ReprogramacionesPorDocenteQuery as SolicitudesReprogramacionesPorDocenteQuery;
+use App\Application\Solicitudes\Queries\SolicitudesAprobadasSinReprogramarQuery as SolicitudesSolicitudesAprobadasSinReprogramarQuery;
 use App\Domain\Reprogramacion\Entities\Reprogramacion as ReprogramacionEntity;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
 use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
@@ -21,25 +31,29 @@ class ReprogramacionService
     ) {
     }
 
-    public function obtenerPorId(int $id): ReprogramacionEntity
+    public function obtenerPorId(ObtenerReprogramacionPorIdQuery $query): ReprogramacionEntity
     {
-        return $this->reprogramaciones->findById($id);
+        return $this->reprogramaciones->findById($query->reprogramacionId());
     }
 
-    public function obtenerSolicitudPorId(int $id): SolicitudEntity
+    public function obtenerSolicitudPorId(ObtenerSolicitudPorIdQuery $query): SolicitudEntity
     {
-        return $this->solicitudes->obtenerPorId($id);
+        return $this->solicitudes->obtenerPorId($query);
     }
 
-    public function crear(SolicitudEntity $solicitud, array $data): ReprogramacionEntity
+    public function crear(CrearReprogramacionCommand $command): ReprogramacionEntity
     {
-        $fecha = $this->parseFecha($data['fecha'] ?? null);
-        $hora = $this->requireHora($data['hora'] ?? null);
+        $solicitud = $this->solicitudes->obtenerPorId(
+            new ObtenerSolicitudPorIdQuery(new SolicitudIdDTO($command->solicitudId()))
+        );
+
+        $fecha = $this->parseFecha($command->fecha());
+        $hora = $this->requireHora($command->hora());
 
         $entity = ReprogramacionEntity::crear(
             $fecha,
             $hora,
-            $data['observaciones'] ?? null,
+            $command->observaciones(),
             $solicitud->id()?->value() ?? throw new InvalidArgumentException('La solicitud debe existir para reprogramar.')
         );
 
@@ -62,33 +76,36 @@ class ReprogramacionService
         return $reprogramacion;
     }
 
-    public function actualizar(ReprogramacionEntity $reprogramacion, array $data): ReprogramacionEntity
+    public function actualizar(ActualizarReprogramacionCommand $command): ReprogramacionEntity
     {
-        if (array_key_exists('fecha', $data) || array_key_exists('hora', $data) || array_key_exists('observaciones', $data)) {
-            $fecha = $this->parseFecha($data['fecha'] ?? $reprogramacion->fecha()->format('Y-m-d'));
-            $hora = $this->requireHora($data['hora'] ?? $reprogramacion->hora()->value());
-            $observaciones = $data['observaciones'] ?? $reprogramacion->observaciones()?->value();
+        $reprogramacion = $this->reprogramaciones->findById($command->reprogramacionId());
+
+        if ($command->fecha() !== null || $command->hora() !== null || $command->observaciones() !== null) {
+            $fecha = $this->parseFecha($command->fecha() ?? $reprogramacion->fecha()->format('Y-m-d'));
+            $hora = $this->requireHora($command->hora() ?? $reprogramacion->hora()->value());
+            $observaciones = $command->observaciones() ?? $reprogramacion->observaciones()?->value();
             $reprogramacion->reprogramar($fecha, $hora, $observaciones);
         }
 
-        if (array_key_exists('asistencia', $data) && $data['asistencia'] !== null) {
-            $estado = $data['asistencia'] instanceof EstadoAsistencia
-                ? $data['asistencia']
-                : EstadoAsistencia::from($data['asistencia']);
-            $reprogramacion->registrarAsistencia($estado);
+        if ($command->asistencia() !== null) {
+            $reprogramacion->registrarAsistencia($command->asistencia());
         }
 
         return $this->reprogramaciones->update($reprogramacion);
     }
 
-    public function solicitudesAprobadasSinReprogramar(int $docenteId)
+    public function solicitudesAprobadasSinReprogramar(SolicitudesAprobadasSinReprogramarQuery $query)
     {
-        return $this->solicitudes->solicitudesAprobadasSinReprogramar($docenteId);
+        return $this->solicitudes->solicitudesAprobadasSinReprogramar(
+            new SolicitudesSolicitudesAprobadasSinReprogramarQuery(new SolicitudesDocenteDTO($query->docenteId()))
+        );
     }
 
-    public function reprogramacionesPorDocente(int $docenteId)
+    public function reprogramacionesPorDocente(ReprogramacionesPorDocenteQuery $query)
     {
-        return $this->solicitudes->reprogramacionesPorDocente($docenteId);
+        return $this->solicitudes->reprogramacionesPorDocente(
+            new SolicitudesReprogramacionesPorDocenteQuery(new SolicitudesDocenteDTO($query->docenteId()))
+        );
     }
 
     private function parseFecha(?string $fecha): DateTimeImmutable

@@ -2,8 +2,16 @@
 
 namespace App\Http\Controllers\ModuloSecretaria;
 
+use App\Application\Apelaciones\Commands\ActualizarApelacionCommand;
+use App\Application\Apelaciones\DTOs\ActualizarApelacionDTO;
+use App\Application\Apelaciones\DTOs\PaginarApelacionesPorEstadoDTO;
 use App\Application\Apelaciones\Handlers\ApelacionService;
+use App\Application\Apelaciones\Queries\PaginarApelacionesPorEstadoQuery;
+use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
+use App\Application\Solicitudes\DTOs\ActualizarEstadoSolicitudDTO;
+use App\Application\Solicitudes\DTOs\SolicitudIdDTO;
 use App\Application\Solicitudes\Handlers\SolicitudService;
+use App\Application\Solicitudes\Queries\ObtenerSolicitudPorIdQuery;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
@@ -22,7 +30,9 @@ class ApelacionController extends Controller
     public function index(Request $request)
     {
         $estado = EstadoApelacion::tryFrom($request->query('estado')) ?? EstadoApelacion::Pendiente;
-        $apelaciones = $this->apelaciones->paginarPorEstado($estado, 9);
+        $apelaciones = $this->apelaciones->paginarPorEstado(
+            new PaginarApelacionesPorEstadoQuery(new PaginarApelacionesPorEstadoDTO($estado, 9))
+        );
 
         return view('ModuloSecretaria.apelaciones.index', [
             'apelaciones' => $apelaciones,
@@ -54,18 +64,23 @@ class ApelacionController extends Controller
         $estado = EstadoApelacion::from($request->input('estado'));
         $respuesta = $request->input('respuesta');
 
-        $apelacionEntity = $this->apelaciones->obtenerPorId($apelacion->id);
-
-        $this->apelaciones->actualizar($apelacionEntity, [
-            'estado' => $estado,
-            'respuesta' => $respuesta,
-        ]);
+        $this->apelaciones->actualizar(
+            new ActualizarApelacionCommand(
+                new ActualizarApelacionDTO($apelacion->id, $estado, $respuesta, null)
+            )
+        );
 
         $apelacion->refresh()->load('apelacionPadre', 'solicitud.estudiante.usuario');
 
         if ($estado === EstadoApelacion::Aprobada) {
-            $solicitudEntity = $this->solicitudes->obtenerPorId($apelacion->solicitud->id);
-            $this->solicitudes->actualizarEstado($solicitudEntity, EstadoSolicitud::Aprobada, $respuesta);
+            $solicitudEntity = $this->solicitudes->obtenerPorId(
+                new ObtenerSolicitudPorIdQuery(new SolicitudIdDTO($apelacion->solicitud->id))
+            );
+            $this->solicitudes->actualizarEstado(
+                new ActualizarEstadoSolicitudCommand(
+                    new ActualizarEstadoSolicitudDTO($apelacion->solicitud->id, EstadoSolicitud::Aprobada, $respuesta)
+                )
+            );
             $apelacion->refresh()->load('solicitud.estudiante.usuario');
         }
 

@@ -2,6 +2,12 @@
 
 namespace App\Application\Catalogo\Handlers;
 
+use App\Application\Catalogo\Queries\BuscarAsignaturasQuery;
+use App\Application\Catalogo\Queries\BuscarDocentesQuery;
+use App\Application\Catalogo\Queries\ListarAsignaturasPorFacultadQuery;
+use App\Application\Catalogo\Queries\ListarDocentesQuery;
+use App\Application\Catalogo\Queries\ListarFacultadesQuery;
+use App\Application\Catalogo\Queries\ListarTiposConstanciaQuery;
 use App\Domain\Catalogo\Repositories\AsignaturaRepository;
 use App\Domain\Catalogo\Repositories\FacultadRepository;
 use App\Domain\Catalogo\Repositories\TipoConstanciaRepository;
@@ -18,38 +24,38 @@ class CatalogoService
     }
 
     /** @return iterable<\App\Domain\Docente\Entities\Docente> */
-    public function docentes(): iterable
+    public function docentes(ListarDocentesQuery $query): iterable
     {
         return $this->docentes->allWithUsuario();
     }
 
     /** @return iterable<\App\Domain\Catalogo\Entities\Facultad> */
-    public function facultades(): iterable
+    public function facultades(ListarFacultadesQuery $query): iterable
     {
         return $this->facultades->allOrdered();
     }
 
     /** @return iterable<\App\Domain\Catalogo\Entities\TipoConstancia> */
-    public function tiposConstancia(): iterable
+    public function tiposConstancia(ListarTiposConstanciaQuery $query): iterable
     {
         return $this->tiposConstancia->all();
     }
 
     /** @return iterable<\App\Domain\Catalogo\Entities\Asignatura> */
-    public function asignaturasPorFacultad(int $facultadId): iterable
+    public function asignaturasPorFacultad(ListarAsignaturasPorFacultadQuery $query): iterable
     {
-        return $this->asignaturas->listByFacultad($facultadId);
+        return $this->asignaturas->listByFacultad($query->facultadId());
     }
 
     /** @return iterable<\App\Domain\Docente\Entities\Docente> */
-    public function buscarDocentes(string $nombre, int $limit = 10): iterable
+    public function buscarDocentes(BuscarDocentesQuery $query): iterable
     {
-        return $this->docentes->searchByNombre($nombre, $limit);
+        return $this->docentes->searchByNombre($query->termino(), $query->limit());
     }
 
     /** @return iterable<\App\Domain\Catalogo\Entities\Asignatura> */
-    public function buscarAsignaturas(string $termino = '', ?int $facultadId = null, int $limit = 10): iterable
+    public function buscarAsignaturas(BuscarAsignaturasQuery $query): iterable
     {
-        return $this->asignaturas->search($termino, $facultadId, $limit);
+        return $this->asignaturas->search($query->termino(), $query->facultadId(), $query->limit());
     }
 }
