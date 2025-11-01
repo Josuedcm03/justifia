@@ -2,15 +2,15 @@
 
 namespace App\Jobs;
 
+use App\Application\Shared\Contracts\Mailer;
+use App\Application\Shared\Mail\Notifications\SolicitudAprobadaNotification;
+use App\Application\Shared\Mail\Notifications\SolicitudRechazadaNotification;
 use App\Domain\Solicitud\Entities\Solicitud;
-use App\Infraestructure\Mail\ApprovalMail;
-use App\Infraestructure\Mail\RejectionMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 
 class SendStatusMail implements ShouldQueue
 {
@@ -23,14 +23,19 @@ class SendStatusMail implements ShouldQueue
         public Solicitud $solicitud,
     ) {}
 
-    public function handle(): void
+    public function handle(Mailer $mailer): void
     {
         if ($this->approved) {
-            Mail::to($this->studentEmail)
-                ->queue(new ApprovalMail($this->studentName, $this->solicitud, $this->studentEmail));
+            $mailer->queue(new SolicitudAprobadaNotification(
+                $this->studentName,
+                $this->studentEmail
+            ));
         } else {
-            Mail::to($this->studentEmail)
-                ->queue(new RejectionMail($this->studentName, $this->solicitud, $this->studentEmail));
+            $mailer->queue(new SolicitudRechazadaNotification(
+                $this->studentName,
+                $this->studentEmail,
+                $this->solicitud->respuesta()?->value()
+            ));
         }
     }
 }
