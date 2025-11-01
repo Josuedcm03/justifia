@@ -5,7 +5,12 @@ namespace App\Http\Controllers\ModuloEstudiante;
 use App\Application\Catalogo\DTOs\AsignaturasPorFacultadDTO;
 use App\Application\Catalogo\DTOs\BuscarAsignaturasDTO;
 use App\Application\Catalogo\DTOs\BuscarDocentesDTO;
-use App\Application\Catalogo\Handlers\CatalogoService;
+use App\Application\Catalogo\Handlers\BuscarAsignaturasHandler;
+use App\Application\Catalogo\Handlers\BuscarDocentesHandler;
+use App\Application\Catalogo\Handlers\ListarAsignaturasPorFacultadHandler;
+use App\Application\Catalogo\Handlers\ListarDocentesHandler;
+use App\Application\Catalogo\Handlers\ListarFacultadesHandler;
+use App\Application\Catalogo\Handlers\ListarTiposConstanciaHandler;
 use App\Application\Catalogo\Queries\BuscarAsignaturasQuery;
 use App\Application\Catalogo\Queries\BuscarDocentesQuery;
 use App\Application\Catalogo\Queries\ListarAsignaturasPorFacultadQuery;
@@ -19,7 +24,10 @@ use App\Application\Solicitudes\DTOs\ActualizarSolicitudDTO;
 use App\Application\Solicitudes\DTOs\CrearSolicitudDTO;
 use App\Application\Solicitudes\DTOs\PaginarSolicitudesEstudianteDTO;
 use App\Application\Solicitudes\DTOs\SolicitudIdDTO;
-use App\Application\Solicitudes\Handlers\SolicitudService;
+use App\Application\Solicitudes\Handlers\ActualizarSolicitudHandler;
+use App\Application\Solicitudes\Handlers\CrearSolicitudHandler;
+use App\Application\Solicitudes\Handlers\EliminarSolicitudHandler;
+use App\Application\Solicitudes\Handlers\PaginarSolicitudesEstudianteHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesEstudianteQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
@@ -30,8 +38,16 @@ use Illuminate\Http\Request;
 class SolicitudController extends Controller
 {
     public function __construct(
-        private readonly SolicitudService $solicitudes,
-        private readonly CatalogoService $catalogo,
+        private readonly PaginarSolicitudesEstudianteHandler $paginarSolicitudesEstudiante,
+        private readonly CrearSolicitudHandler $crearSolicitud,
+        private readonly ActualizarSolicitudHandler $actualizarSolicitud,
+        private readonly EliminarSolicitudHandler $eliminarSolicitud,
+        private readonly ListarDocentesHandler $listarDocentes,
+        private readonly ListarFacultadesHandler $listarFacultades,
+        private readonly ListarTiposConstanciaHandler $listarTiposConstancia,
+        private readonly ListarAsignaturasPorFacultadHandler $listarAsignaturasPorFacultad,
+        private readonly BuscarDocentesHandler $buscarDocentes,
+        private readonly BuscarAsignaturasHandler $buscarAsignaturas,
     ) {
     }
 
@@ -39,7 +55,7 @@ class SolicitudController extends Controller
     {
         $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
 
-        $solicitudes = $this->solicitudes->paginateForEstudiante(
+        $solicitudes = $this->paginarSolicitudesEstudiante->handle(
             new PaginarSolicitudesEstudianteQuery(
                 new PaginarSolicitudesEstudianteDTO(
                     $request->user()->estudiante->id,
@@ -60,9 +76,9 @@ class SolicitudController extends Controller
      */
     public function create()
     {
-        $docentes = $this->catalogo->docentes(new ListarDocentesQuery());
-        $facultades = $this->catalogo->facultades(new ListarFacultadesQuery());
-        $TiposConstancia = $this->catalogo->tiposConstancia(new ListarTiposConstanciaQuery());
+        $docentes = $this->listarDocentes->handle(new ListarDocentesQuery());
+        $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
+        $TiposConstancia = $this->listarTiposConstancia->handle(new ListarTiposConstanciaQuery());
 
         return view('ModuloEstudiante.solicitudes.create', [
             'docentes' => $docentes,
@@ -88,7 +104,7 @@ class SolicitudController extends Controller
             )
         );
 
-        $this->solicitudes->crear($command);
+        $this->crearSolicitud->handle($command);
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
@@ -114,9 +130,9 @@ class SolicitudController extends Controller
      */
     public function edit(Solicitud $solicitud)
     {
-        $docentes = $this->catalogo->docentes(new ListarDocentesQuery());
-        $facultades = $this->catalogo->facultades(new ListarFacultadesQuery());
-        $TiposConstancia = $this->catalogo->tiposConstancia(new ListarTiposConstanciaQuery());
+        $docentes = $this->listarDocentes->handle(new ListarDocentesQuery());
+        $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
+        $TiposConstancia = $this->listarTiposConstancia->handle(new ListarTiposConstanciaQuery());
 
         return view('ModuloEstudiante.solicitudes.edit', [
             'solicitud' => $solicitud,
@@ -144,7 +160,7 @@ class SolicitudController extends Controller
             )
         );
 
-        $this->solicitudes->actualizar($command);
+        $this->actualizarSolicitud->handle($command);
 
         $redirectEstado = $request->query('estado', 'pendiente');
 
@@ -159,7 +175,7 @@ class SolicitudController extends Controller
     public function asignaturasPorFacultad(Facultad $facultad)
     {
         return response()->json(
-            $this->catalogo->asignaturasPorFacultad(
+            $this->listarAsignaturasPorFacultad->handle(
                 new ListarAsignaturasPorFacultadQuery(new AsignaturasPorFacultadDTO($facultad->id))
             )
         );
@@ -168,10 +184,9 @@ class SolicitudController extends Controller
     public function buscarDocentes(Request $request)
     {
         $query = $request->query('q');
-        $docentes = $this->catalogo
-            ->buscarDocentes(
-                new BuscarDocentesQuery(new BuscarDocentesDTO($query ?? '', 10))
-            )
+        $docentes = collect($this->buscarDocentes->handle(
+            new BuscarDocentesQuery(new BuscarDocentesDTO($query ?? '', 10))
+        ))
             ->map(fn($d) => ['id' => $d->id, 'nombre' => $d->usuario->name]);
 
         return response()->json($docentes);
@@ -182,12 +197,11 @@ class SolicitudController extends Controller
         $query = $request->query('q');
         $facultadId = $request->query('facultad');
 
-        $asignaturas = $this->catalogo
-            ->buscarAsignaturas(
-                new BuscarAsignaturasQuery(
-                    new BuscarAsignaturasDTO($query ?? '', $facultadId ? (int) $facultadId : null, 10)
-                )
+        $asignaturas = collect($this->buscarAsignaturas->handle(
+            new BuscarAsignaturasQuery(
+                new BuscarAsignaturasDTO($query ?? '', $facultadId ? (int) $facultadId : null, 10)
             )
+        ))
             ->map(fn($a) => ['id' => $a->id, 'nombre' => $a->nombre]);
 
         return response()->json($asignaturas);
@@ -198,7 +212,7 @@ class SolicitudController extends Controller
      */
     public function destroy(Request $request, Solicitud $solicitud)
     {
-        $this->solicitudes->eliminar(
+        $this->eliminarSolicitud->handle(
             new EliminarSolicitudCommand(new SolicitudIdDTO($solicitud->id))
         );
 

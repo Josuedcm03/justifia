@@ -5,7 +5,8 @@ namespace App\Http\Controllers\ModuloSecretaria;
 use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
 use App\Application\Solicitudes\DTOs\ActualizarEstadoSolicitudDTO;
 use App\Application\Solicitudes\DTOs\PaginarSolicitudesSecretariaDTO;
-use App\Application\Solicitudes\Handlers\SolicitudService;
+use App\Application\Solicitudes\Handlers\ActualizarEstadoSolicitudHandler;
+use App\Application\Solicitudes\Handlers\PaginarSolicitudesSecretariaHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesSecretariaQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
@@ -14,7 +15,10 @@ use Illuminate\Http\Request;
 
 class SolicitudController extends Controller
 {
-    public function __construct(private readonly SolicitudService $solicitudes)
+    public function __construct(
+        private readonly PaginarSolicitudesSecretariaHandler $paginarSolicitudes,
+        private readonly ActualizarEstadoSolicitudHandler $actualizarEstado
+    )
     {
     }
 
@@ -23,7 +27,7 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::tryFrom($request->query('estado')) ?? EstadoSolicitud::Pendiente;
         $sinPendientes = $estado === EstadoSolicitud::Rechazada;
 
-        $solicitudes = $this->solicitudes->paginateForSecretaria(
+        $solicitudes = $this->paginarSolicitudes->handle(
             new PaginarSolicitudesSecretariaQuery(
                 new PaginarSolicitudesSecretariaDTO($estado, $sinPendientes, 9)
             )
@@ -55,7 +59,7 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::from($request->input('estado'));
         $respuesta = $request->input('respuesta');
 
-        $this->solicitudes->actualizarEstado(
+        $this->actualizarEstado->handle(
             new ActualizarEstadoSolicitudCommand(
                 new ActualizarEstadoSolicitudDTO($solicitud->id, $estado, $respuesta)
             )

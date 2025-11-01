@@ -8,7 +8,11 @@ use App\Application\Apelaciones\DTOs\ActualizarApelacionDTO;
 use App\Application\Apelaciones\DTOs\ApelacionesPorEstudianteDTO;
 use App\Application\Apelaciones\DTOs\ApelacionPorSolicitudDTO;
 use App\Application\Apelaciones\DTOs\CrearApelacionDTO;
-use App\Application\Apelaciones\Handlers\ApelacionService;
+use App\Application\Apelaciones\Handlers\ActualizarApelacionHandler;
+use App\Application\Apelaciones\Handlers\CrearApelacionHandler;
+use App\Application\Apelaciones\Handlers\ListarApelacionesPorEstudianteHandler;
+use App\Application\Apelaciones\Handlers\ObtenerUltimaApelacionDeSolicitudHandler;
+use App\Application\Apelaciones\Handlers\ObtenerUltimaApelacionRechazadaHandler;
 use App\Application\Apelaciones\Queries\ListarApelacionesPorEstudianteQuery;
 use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionDeSolicitudQuery;
 use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionRechazadaQuery;
@@ -20,17 +24,22 @@ use Illuminate\Http\Request;
 
 class ApelacionController extends Controller
 {
-    public function __construct(private readonly ApelacionService $apelaciones)
+    public function __construct(
+        private readonly ListarApelacionesPorEstudianteHandler $listarApelaciones,
+        private readonly ObtenerUltimaApelacionDeSolicitudHandler $obtenerUltimaDeSolicitud,
+        private readonly ObtenerUltimaApelacionRechazadaHandler $obtenerUltimaRechazada,
+        private readonly CrearApelacionHandler $crearApelacion,
+        private readonly ActualizarApelacionHandler $actualizarApelacion
+    )
     {
     }
 
     public function index()
     {
         $estudianteId = auth()->user()->estudiante->id;
-        $apelaciones = $this->apelaciones
-            ->listarFinalesPorEstudiante(
-                new ListarApelacionesPorEstudianteQuery(new ApelacionesPorEstudianteDTO($estudianteId))
-            )
+        $apelaciones = collect($this->listarApelaciones->handle(
+            new ListarApelacionesPorEstudianteQuery(new ApelacionesPorEstudianteDTO($estudianteId))
+        ))
             ->groupBy(fn($a) => $a->estado->value);
 
         return view('ModuloEstudiante.apelaciones.index', [
@@ -43,7 +52,7 @@ class ApelacionController extends Controller
      */
     public function create(Solicitud $solicitud)
     {
-        $ultimaApelacion = $this->apelaciones->obtenerUltimaDeSolicitud(
+        $ultimaApelacion = $this->obtenerUltimaDeSolicitud->handle(
             new ObtenerUltimaApelacionDeSolicitudQuery(new ApelacionPorSolicitudDTO($solicitud->id))
         );
 
@@ -56,11 +65,11 @@ class ApelacionController extends Controller
     {
         $observacion = $request->input('observacion_estudiante');
 
-        $ultimaRechazada = $this->apelaciones->obtenerUltimaRechazada(
+        $ultimaRechazada = $this->obtenerUltimaRechazada->handle(
             new ObtenerUltimaApelacionRechazadaQuery(new ApelacionPorSolicitudDTO($solicitud->id))
         );
 
-        $apelacion = $this->apelaciones->crear(
+        $apelacion = $this->crearApelacion->handle(
             new CrearApelacionCommand(
                 new CrearApelacionDTO(
                     $observacion,
@@ -109,7 +118,7 @@ class ApelacionController extends Controller
             abort(403);
         }
 
-        $this->apelaciones->actualizar(
+        $this->actualizarApelacion->handle(
             new ActualizarApelacionCommand(
                 new ActualizarApelacionDTO(
                     $apelacion->id,

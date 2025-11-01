@@ -7,7 +7,10 @@ use App\Application\Reprogramaciones\Commands\CrearReprogramacionCommand;
 use App\Application\Reprogramaciones\DTOs\ActualizarReprogramacionDTO;
 use App\Application\Reprogramaciones\DTOs\CrearReprogramacionDTO;
 use App\Application\Reprogramaciones\DTOs\DocenteIdDTO;
-use App\Application\Reprogramaciones\Handlers\ReprogramacionService;
+use App\Application\Reprogramaciones\Handlers\ActualizarReprogramacionHandler;
+use App\Application\Reprogramaciones\Handlers\CrearReprogramacionHandler;
+use App\Application\Reprogramaciones\Handlers\ReprogramacionesPorDocenteHandler;
+use App\Application\Reprogramaciones\Handlers\SolicitudesAprobadasSinReprogramarHandler;
 use App\Application\Reprogramaciones\Queries\ReprogramacionesPorDocenteQuery;
 use App\Application\Reprogramaciones\Queries\SolicitudesAprobadasSinReprogramarQuery;
 use App\Http\Controllers\Controller;
@@ -17,17 +20,22 @@ use App\Domain\Shared\Enums\EstadoAsistencia;
 
 class ReprogramacionController extends Controller
 {
-    public function __construct(private readonly ReprogramacionService $reprogramaciones)
+    public function __construct(
+        private readonly SolicitudesAprobadasSinReprogramarHandler $solicitudesSinReprogramar,
+        private readonly ReprogramacionesPorDocenteHandler $reprogramacionesPorDocente,
+        private readonly CrearReprogramacionHandler $crearReprogramacion,
+        private readonly ActualizarReprogramacionHandler $actualizarReprogramacion
+    )
     {
     }
 
     public function index(Request $request)
     {
         $docenteId = $request->user()->docente->id;
-        $solicitudesAReprogramar = $this->reprogramaciones->solicitudesAprobadasSinReprogramar(
+        $solicitudesAReprogramar = $this->solicitudesSinReprogramar->handle(
             new SolicitudesAprobadasSinReprogramarQuery(new DocenteIdDTO($docenteId))
         );
-        $reprogramaciones = $this->reprogramaciones->reprogramacionesPorDocente(
+        $reprogramaciones = $this->reprogramacionesPorDocente->handle(
             new ReprogramacionesPorDocenteQuery(new DocenteIdDTO($docenteId))
         );
 
@@ -42,7 +50,7 @@ class ReprogramacionController extends Controller
 
     public function storeReprogramacion(Request $request, Solicitud $solicitud)
     {
-        $this->reprogramaciones->crear(
+        $this->crearReprogramacion->handle(
             new CrearReprogramacionCommand(
                 new CrearReprogramacionDTO(
                     $solicitud->id,
@@ -65,7 +73,7 @@ class ReprogramacionController extends Controller
                 ? EstadoAsistencia::from($request->input('asistencia'))
                 : null;
 
-            $this->reprogramaciones->actualizar(
+            $this->actualizarReprogramacion->handle(
                 new ActualizarReprogramacionCommand(
                     new ActualizarReprogramacionDTO(
                         $solicitud->reprogramacion->id,

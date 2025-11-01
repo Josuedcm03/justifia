@@ -2,7 +2,8 @@
 
 namespace App\Infraestructure\Providers;
 
-use App\Application\Solicitudes\Handlers\SolicitudService;
+use App\Application\Shared\Contracts\FileStorage;
+use App\Application\Shared\Contracts\Mailer;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;
 use App\Domain\Catalogo\Repositories\AsignaturaRepository;
 use App\Domain\Catalogo\Repositories\FacultadRepository;
@@ -10,6 +11,8 @@ use App\Domain\Catalogo\Repositories\TipoConstanciaRepository;
 use App\Domain\Docente\Repositories\DocenteRepository;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
+use App\Infraestructure\Files\PublicDiskFileStorage;
+use App\Infraestructure\Mail\LaravelMailer;
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentApelacionRepository;
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentAsignaturaRepository;
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentDocenteRepository;
@@ -17,7 +20,6 @@ use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentFacultadReposi
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentReprogramacionRepository;
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentSolicitudRepository;
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentTipoConstanciaRepository;
-use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,10 +35,11 @@ class InfrastructureServiceProvider extends ServiceProvider
         $this->app->bind(ApelacionRepository::class, EloquentApelacionRepository::class);
         $this->app->bind(ReprogramacionRepository::class, EloquentReprogramacionRepository::class);
 
-        $this->app
-            ->when(SolicitudService::class)
-            ->needs(Filesystem::class)
-            ->give(fn() => Storage::disk('public'));
+        $this->app->bind(FileStorage::class, function (): FileStorage {
+            return new PublicDiskFileStorage(Storage::disk('public'));
+        });
+
+        $this->app->bind(Mailer::class, LaravelMailer::class);
     }
 
     public function boot(): void
