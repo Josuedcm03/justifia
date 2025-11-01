@@ -16,7 +16,7 @@ use App\Application\Solicitudes\Handlers\ObtenerSolicitudPorIdHandler;
 use App\Application\Solicitudes\Queries\ObtenerSolicitudPorIdQuery;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\Enums\EstadoSolicitud;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Jobs\SendAppealStatusMail;
 use App\Domain\Apelaciones\Entities\Apelacion;
 use Illuminate\Http\Request;
@@ -38,7 +38,7 @@ class ApelacionController extends Controller
             new PaginarApelacionesPorEstadoQuery(new PaginarApelacionesPorEstadoDTO($estado, 9))
         );
 
-        return view('ModuloSecretaria.apelaciones.index', [
+        return view('presentation.secretaria.apelaciones.index', [
             'apelaciones' => $apelaciones,
             'estado' => $estado,
         ]);
@@ -53,7 +53,7 @@ class ApelacionController extends Controller
         $apelacion->load('apelacionPadre', 'solicitud');
         $historial = $apelacion->historial();
 
-        return view('ModuloSecretaria.apelaciones.show', [
+        return view('presentation.secretaria.apelaciones.show', [
             'apelacion' => $apelacion,
             'estado' => $estado->value,
             'historial' => $historial,

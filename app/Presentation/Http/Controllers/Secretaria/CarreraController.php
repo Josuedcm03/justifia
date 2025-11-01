@@ -18,7 +18,7 @@ use App\Application\Catalogo\Handlers\PaginarCarrerasHandler;
 use App\Application\Catalogo\Queries\ListarFacultadesQuery;
 use App\Application\Catalogo\Queries\ObtenerCarreraPorIdQuery;
 use App\Application\Catalogo\Queries\PaginarCarrerasQuery;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
@@ -40,7 +40,7 @@ class CarreraController extends Controller
             new PaginarCarrerasQuery(new PaginarCarrerasDTO(10))
         );
 
-        return view('ModuloSecretaria.carreras.index', [
+        return view('presentation.secretaria.carreras.index', [
             'carreras' => $carreras,
         ]);
     }
@@ -49,7 +49,7 @@ class CarreraController extends Controller
     {
         $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
 
-        return view('ModuloSecretaria.carreras.create', [
+        return view('presentation.secretaria.carreras.create', [
             'facultades' => $facultades,
         ]);
     }
@@ -78,7 +78,7 @@ class CarreraController extends Controller
         );
         $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
 
-        return view('ModuloSecretaria.carreras.edit', [
+        return view('presentation.secretaria.carreras.edit', [
             'carrera' => $carreraEntity,
             'facultades' => $facultades,
         ]);

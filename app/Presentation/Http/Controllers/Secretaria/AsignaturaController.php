@@ -18,7 +18,7 @@ use App\Application\Catalogo\Handlers\PaginarAsignaturasHandler;
 use App\Application\Catalogo\Queries\ListarFacultadesQuery;
 use App\Application\Catalogo\Queries\ObtenerAsignaturaPorIdQuery;
 use App\Application\Catalogo\Queries\PaginarAsignaturasQuery;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -44,7 +44,7 @@ class AsignaturaController extends Controller
             new PaginarAsignaturasQuery(new PaginarAsignaturasDTO($search, 15))
         );
 
-        return view('ModuloSecretaria.asignaturas.index', [
+        return view('presentation.secretaria.asignaturas.index', [
             'asignaturas' => $asignaturas,
             'search' => $search,
         ]);
@@ -54,7 +54,7 @@ class AsignaturaController extends Controller
     {
         $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
 
-        return view('ModuloSecretaria.asignaturas.create', [
+        return view('presentation.secretaria.asignaturas.create', [
             'facultades' => $facultades,
         ]);
     }
@@ -83,7 +83,7 @@ class AsignaturaController extends Controller
         );
         $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
 
-        return view('ModuloSecretaria.asignaturas.edit', [
+        return view('presentation.secretaria.asignaturas.edit', [
             'asignatura' => $asignaturaEntity,
             'facultades' => $facultades,
         ]);
@@ -123,7 +123,7 @@ class AsignaturaController extends Controller
 
     public function showImport()
     {
-        return view('ModuloSecretaria.asignaturas.import');
+        return view('presentation.secretaria.asignaturas.import');
     }
 
     public function import(Request $request)

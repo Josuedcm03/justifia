@@ -2,7 +2,7 @@
 
 namespace App\Presentation\Http\Controllers\Secretaria;
 
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 
@@ -17,7 +17,7 @@ class FacultadController extends Controller
     public function index()
     {
         $facultades = Facultad::orderBy('nombre')->paginate(10);
-        return view('ModuloSecretaria.facultades.index', compact('facultades'));
+        return view('presentation.secretaria.facultades.index', compact('facultades'));
     }
 
     /**
@@ -25,7 +25,7 @@ class FacultadController extends Controller
      */
     public function create()
     {
-        return view('ModuloSecretaria.facultades.create');
+        return view('presentation.secretaria.facultades.create');
     }
 
     /**
@@ -54,7 +54,7 @@ class FacultadController extends Controller
      */
     public function edit(Facultad $facultad)
     {
-        return view('ModuloSecretaria.facultades.edit', compact('facultad'));
+        return view('presentation.secretaria.facultades.edit', compact('facultad'));
     }
 
     /**

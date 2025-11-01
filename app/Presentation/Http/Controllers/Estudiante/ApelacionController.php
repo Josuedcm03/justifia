@@ -17,7 +17,7 @@ use App\Application\Apelaciones\Queries\ListarApelacionesPorEstudianteQuery;
 use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionDeSolicitudQuery;
 use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionRechazadaQuery;
 use App\Domain\Shared\Enums\EstadoApelacion;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Domain\Apelaciones\Entities\Apelacion;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
@@ -42,7 +42,7 @@ class ApelacionController extends Controller
         ))
             ->groupBy(fn($a) => $a->estado->value);
 
-        return view('ModuloEstudiante.apelaciones.index', [
+        return view('presentation.estudiante.apelaciones.index', [
             'apelaciones' => $apelaciones,
         ]);
     }
@@ -58,7 +58,7 @@ class ApelacionController extends Controller
 
         $respuesta = $ultimaApelacion?->respuesta ?? $solicitud->respuesta;
 
-        return view('ModuloEstudiante.apelaciones.create', compact('solicitud', 'respuesta'));
+        return view('presentation.estudiante.apelaciones.create', compact('solicitud', 'respuesta'));
     }
 
     public function store(Request $request, Solicitud $solicitud)
@@ -95,7 +95,7 @@ class ApelacionController extends Controller
         $apelacion->load('apelacionPadre', 'solicitud');
         $historial = $apelacion->historial();
 
-        return view('ModuloEstudiante.apelaciones.show', [
+        return view('presentation.estudiante.apelaciones.show', [
             'apelacion' => $apelacion,
             'historial' => $historial,
         ]);
@@ -106,7 +106,7 @@ class ApelacionController extends Controller
      */
     public function edit(int $apelacion)
     {
-        return view('ModuloEstudiante.apelaciones.edit');
+        return view('presentation.estudiante.apelaciones.edit');
     }
 
     /**

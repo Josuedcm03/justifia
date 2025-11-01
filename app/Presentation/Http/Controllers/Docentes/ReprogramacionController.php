@@ -13,7 +13,7 @@ use App\Application\Reprogramaciones\Handlers\ReprogramacionesPorDocenteHandler;
 use App\Application\Reprogramaciones\Handlers\SolicitudesAprobadasSinReprogramarHandler;
 use App\Application\Reprogramaciones\Queries\ReprogramacionesPorDocenteQuery;
 use App\Application\Reprogramaciones\Queries\SolicitudesAprobadasSinReprogramarQuery;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
 use App\Domain\Shared\Enums\EstadoAsistencia;
@@ -39,13 +39,13 @@ class ReprogramacionController extends Controller
             new ReprogramacionesPorDocenteQuery(new DocenteIdDTO($docenteId))
         );
 
-        return view('ModuloDocente.solicitudes.index', compact('solicitudesAReprogramar', 'reprogramaciones'));
+        return view('presentation.docente.solicitudes.index', compact('solicitudesAReprogramar', 'reprogramaciones'));
     }
 
     public function show(Solicitud $solicitud)
     {
         $solicitud->load('reprogramacion', 'estudiante.usuario', 'asignatura');
-        return view('ModuloDocente.solicitudes.show', compact('solicitud'));
+        return view('presentation.docente.solicitudes.show', compact('solicitud'));
     }
 
     public function storeReprogramacion(Request $request, Solicitud $solicitud)

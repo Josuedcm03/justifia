@@ -2,7 +2,7 @@
 
 namespace App\Presentation\Http\Controllers\Perfil;
 
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 
 use App\Presentation\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +18,7 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
-        return view('profile.edit', [
+        return view('presentation.profile.edit', [
             'user' => $request->user(),
         ]);
     }

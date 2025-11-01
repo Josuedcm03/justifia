@@ -21,11 +21,11 @@ use Illuminate\Support\Facades\Auth;
 // without requiring authentication.
 
 Route::get('/', function () {
-    return Auth::check() ? view('dashboard') : view('home');
+    return Auth::check() ? view('presentation.dashboard') : view('presentation.home');
 })->name('home');
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    return view('presentation.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Profile management still requires authentication once that feature is ready.

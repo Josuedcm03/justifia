@@ -3,7 +3,7 @@
 namespace App\Presentation\Http\Controllers\Auth;
 
 use App\Domain\Usuarios\Entities\User;
-use App\Presentation\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Shared\Controller;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +20,7 @@ class NewPasswordController extends Controller
      */
     public function create(Request $request): View
     {
-        return view('auth.reset-password', ['request' => $request]);
+        return view('presentation.auth.reset-password', ['request' => $request]);
     }
 
     /**

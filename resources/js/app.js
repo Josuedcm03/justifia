@@ -1,12 +1,18 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
-import SolicitudEstudianteFrontera from './ModuloEstudiante/SolicitudFrontera';
-import ApelacionEstudianteFrontera from './ModuloEstudiante/ApelacionFrontera';
-import SolicitudSecretariaFrontera from './ModuloSecretaria/SolicitudFrontera';
-import ApelacionSecretariaFrontera from './ModuloSecretaria/ApelacionFrontera';
-import ReprogramacionDocenteFrontera from './ModuloDocente/ReprogramacionFrontera';
-import AsistenciaFrontera from './ModuloDocente/AsistenciaFrontera';
+import SolicitudEstudianteFrontera from './presentation/estudiante/SolicitudFrontera';
+import ApelacionEstudianteFrontera from './presentation/estudiante/ApelacionFrontera';
+import SolicitudSecretariaFrontera from './presentation/secretaria/SolicitudFrontera';
+import ApelacionSecretariaFrontera from './presentation/secretaria/ApelacionFrontera';
+import TipoConstanciaFrontera from './presentation/secretaria/TipoConstanciaFrontera';
+import CarreraFrontera from './presentation/secretaria/CarreraFrontera';
+import AsignaturaFrontera from './presentation/secretaria/AsignaturaFrontera';
+import FacultadFrontera from './presentation/secretaria/FacultadFrontera';
+import DocenteFrontera from './presentation/secretaria/DocenteFrontera';
+import ImportFrontera from './presentation/secretaria/ImportFrontera';
+import ReprogramacionDocenteFrontera from './presentation/docente/ReprogramacionFrontera';
+import AsistenciaFrontera from './presentation/docente/AsistenciaFrontera';
 
 window.Alpine = Alpine;
 
@@ -84,7 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-asistencia-card]').forEach(card => {
         new AsistenciaFrontera(card);
     });
-const loader = document.getElementById('page-loader');
+
+    const loader = document.getElementById('page-loader');
     if (loader) {
         window.addEventListener('load', () => loader.classList.add('hidden'));
         window.addEventListener('beforeunload', () => loader.classList.remove('hidden'));
