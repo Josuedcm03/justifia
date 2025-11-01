@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Mail;
+namespace App\Infraestructure\Mail;
 
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Bus\Queueable;

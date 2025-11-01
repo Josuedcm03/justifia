@@ -1,87 +1,103 @@
 <?php
 
-namespace App\Http\Controllers\ModuloSecretaria;
+namespace App\Presentation\Http\Controllers\Secretaria;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Application\Catalogo\Commands\ActualizarTipoConstanciaCommand;
+use App\Application\Catalogo\Commands\CrearTipoConstanciaCommand;
+use App\Application\Catalogo\Commands\EliminarTipoConstanciaCommand;
+use App\Application\Catalogo\DTOs\ActualizarTipoConstanciaDTO;
+use App\Application\Catalogo\DTOs\CrearTipoConstanciaDTO;
+use App\Application\Catalogo\DTOs\PaginarTipoConstanciasDTO;
+use App\Application\Catalogo\DTOs\TipoConstanciaIdDTO;
+use App\Application\Catalogo\Handlers\ActualizarTipoConstanciaHandler;
+use App\Application\Catalogo\Handlers\CrearTipoConstanciaHandler;
+use App\Application\Catalogo\Handlers\EliminarTipoConstanciaHandler;
+use App\Application\Catalogo\Handlers\ObtenerTipoConstanciaPorIdHandler;
+use App\Application\Catalogo\Handlers\PaginarTipoConstanciasHandler;
+use App\Application\Catalogo\Queries\ObtenerTipoConstanciaPorIdQuery;
+use App\Application\Catalogo\Queries\PaginarTipoConstanciasQuery;
+use App\Presentation\Http\Controllers\Controller;
 use Illuminate\Database\QueryException;
-
-// Models
-use App\Domain\Catalogo\Entities\TipoConstancia;
+use Illuminate\Http\Request;
 
 class TipoConstanciaController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $tipos = TipoConstancia::orderBy('nombre')->paginate(10);
-        return view('ModuloSecretaria.tipos-constancia.index', compact('tipos'));
+    public function __construct(
+        private readonly PaginarTipoConstanciasHandler $paginarTipos,
+        private readonly CrearTipoConstanciaHandler $crearTipo,
+        private readonly ActualizarTipoConstanciaHandler $actualizarTipo,
+        private readonly EliminarTipoConstanciaHandler $eliminarTipo,
+        private readonly ObtenerTipoConstanciaPorIdHandler $obtenerTipo,
+    ) {
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+    public function index()
+    {
+        $tipos = $this->paginarTipos->handle(
+            new PaginarTipoConstanciasQuery(new PaginarTipoConstanciasDTO(10))
+        );
+
+        return view('ModuloSecretaria.tipos-constancia.index', [
+            'tipos' => $tipos,
+        ]);
+    }
+
     public function create()
     {
         return view('ModuloSecretaria.tipos-constancia.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        TipoConstancia::create([
-            'nombre' => $request->input('nombre'),
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
         ]);
+
+        $this->crearTipo->handle(
+            new CrearTipoConstanciaCommand(new CrearTipoConstanciaDTO($validated['nombre']))
+        );
 
         return redirect()->route('secretaria.tipo-constancia.index')
             ->with('success', 'Tipo de constancia creado correctamente.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(TipoConstancia $TipoConstancia)
+    public function edit(int $tipoConstancia)
     {
-        //
-    }
+        $tipo = $this->obtenerTipo->handle(
+            new ObtenerTipoConstanciaPorIdQuery(new TipoConstanciaIdDTO($tipoConstancia))
+        );
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(TipoConstancia $TipoConstancia)
-    {
         return view('ModuloSecretaria.tipos-constancia.edit', [
-            'tipoConstancia' => $TipoConstancia,
+            'tipoConstancia' => $tipo,
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, TipoConstancia $TipoConstancia)
+    public function update(Request $request, int $tipoConstancia)
     {
-        $TipoConstancia->update([
-            'nombre' => $request->input('nombre'),
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
         ]);
+
+        $this->actualizarTipo->handle(
+            new ActualizarTipoConstanciaCommand(
+                new ActualizarTipoConstanciaDTO($tipoConstancia, $validated['nombre'])
+            )
+        );
 
         return redirect()->route('secretaria.tipo-constancia.index')
             ->with('success', 'Tipo de constancia actualizado correctamente.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(TipoConstancia $TipoConstancia)
+    public function destroy(int $tipoConstancia)
     {
         try {
-            $TipoConstancia->delete();
+            $this->eliminarTipo->handle(
+                new EliminarTipoConstanciaCommand(new TipoConstanciaIdDTO($tipoConstancia))
+            );
+
             return redirect()->route('secretaria.tipo-constancia.index')
                 ->with('success', 'Tipo de constancia eliminado correctamente.');
-        } catch (QueryException $e) {
+        } catch (QueryException) {
             return redirect()->route('secretaria.tipo-constancia.index')
                 ->with('error', 'No se puede eliminar el tipo de constancia porque está asociado a otros registros.');
         }

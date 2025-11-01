@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\ModuloEstudiante;
+namespace App\Presentation\Http\Controllers\Estudiante;
 
 use App\Application\Catalogo\DTOs\AsignaturasPorFacultadDTO;
 use App\Application\Catalogo\DTOs\BuscarAsignaturasDTO;
@@ -30,7 +30,7 @@ use App\Application\Solicitudes\Handlers\EliminarSolicitudHandler;
 use App\Application\Solicitudes\Handlers\PaginarSolicitudesEstudianteHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesEstudianteQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use App\Domain\Catalogo\Entities\Facultad;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;

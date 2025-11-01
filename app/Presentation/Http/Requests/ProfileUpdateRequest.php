@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Presentation\Http\Requests;
 
 use App\Domain\Shared\ValueObjects\EmailInstitucional;
 use App\Domain\Usuarios\Entities\User;

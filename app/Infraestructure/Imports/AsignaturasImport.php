@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Imports;
+namespace App\Infraestructure\Imports;
 
 use App\Domain\Catalogo\Entities\Asignatura;
 use Maatwebsite\Excel\Concerns\ToModel;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\ModuloEstudiante;
+namespace App\Presentation\Http\Controllers\Estudiante;
 
 use App\Application\Apelaciones\Commands\ActualizarApelacionCommand;
 use App\Application\Apelaciones\Commands\CrearApelacionCommand;
@@ -17,7 +17,7 @@ use App\Application\Apelaciones\Queries\ListarApelacionesPorEstudianteQuery;
 use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionDeSolicitudQuery;
 use App\Application\Apelaciones\Queries\ObtenerUltimaApelacionRechazadaQuery;
 use App\Domain\Shared\Enums\EstadoApelacion;
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use App\Domain\Apelaciones\Entities\Apelacion;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;

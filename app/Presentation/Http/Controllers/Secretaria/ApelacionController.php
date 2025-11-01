@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\ModuloSecretaria;
+namespace App\Presentation\Http\Controllers\Secretaria;
 
 use App\Application\Apelaciones\Commands\ActualizarApelacionCommand;
 use App\Application\Apelaciones\DTOs\ActualizarApelacionDTO;
@@ -16,7 +16,7 @@ use App\Application\Solicitudes\Handlers\ObtenerSolicitudPorIdHandler;
 use App\Application\Solicitudes\Queries\ObtenerSolicitudPorIdQuery;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\Enums\EstadoSolicitud;
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use App\Jobs\SendAppealStatusMail;
 use App\Domain\Apelaciones\Entities\Apelacion;
 use Illuminate\Http\Request;

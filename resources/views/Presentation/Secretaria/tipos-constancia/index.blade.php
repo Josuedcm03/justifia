@@ -33,10 +33,10 @@
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse($tipos as $tipo)
                                 <tr>
-                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $tipo->nombre }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{{ $tipo->nombre()->value() }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 text-right space-x-2">
-                                        <a href="{{ route('secretaria.tipo-constancia.edit', $tipo) }}" class="text-[#0099a8] hover:underline">Editar</a>
-                                        <form action="{{ route('secretaria.tipo-constancia.destroy', $tipo) }}" method="POST" class="inline">
+                                        <a href="{{ route('secretaria.tipo-constancia.edit', $tipo->id()->value()) }}" class="text-[#0099a8] hover:underline">Editar</a>
+                                        <form action="{{ route('secretaria.tipo-constancia.destroy', $tipo->id()->value()) }}" method="POST" class="inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('¿Eliminar tipo de constancia?')">Eliminar</button>

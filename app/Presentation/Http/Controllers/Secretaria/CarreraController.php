@@ -1,88 +1,116 @@
 <?php
 
-namespace App\Http\Controllers\ModuloSecretaria;
+namespace App\Presentation\Http\Controllers\Secretaria;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Application\Catalogo\Commands\ActualizarCarreraCommand;
+use App\Application\Catalogo\Commands\CrearCarreraCommand;
+use App\Application\Catalogo\Commands\EliminarCarreraCommand;
+use App\Application\Catalogo\DTOs\ActualizarCarreraDTO;
+use App\Application\Catalogo\DTOs\CarreraIdDTO;
+use App\Application\Catalogo\DTOs\CrearCarreraDTO;
+use App\Application\Catalogo\DTOs\PaginarCarrerasDTO;
+use App\Application\Catalogo\Handlers\ActualizarCarreraHandler;
+use App\Application\Catalogo\Handlers\CrearCarreraHandler;
+use App\Application\Catalogo\Handlers\EliminarCarreraHandler;
+use App\Application\Catalogo\Handlers\ListarFacultadesHandler;
+use App\Application\Catalogo\Handlers\ObtenerCarreraPorIdHandler;
+use App\Application\Catalogo\Handlers\PaginarCarrerasHandler;
+use App\Application\Catalogo\Queries\ListarFacultadesQuery;
+use App\Application\Catalogo\Queries\ObtenerCarreraPorIdQuery;
+use App\Application\Catalogo\Queries\PaginarCarrerasQuery;
+use App\Presentation\Http\Controllers\Controller;
 use Illuminate\Database\QueryException;
-
-// Models
-use App\Domain\Catalogo\Entities\Carrera;
-use App\Domain\Catalogo\Entities\Facultad;
+use Illuminate\Http\Request;
 
 class CarreraController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct(
+        private readonly PaginarCarrerasHandler $paginarCarreras,
+        private readonly CrearCarreraHandler $crearCarrera,
+        private readonly ActualizarCarreraHandler $actualizarCarrera,
+        private readonly EliminarCarreraHandler $eliminarCarrera,
+        private readonly ObtenerCarreraPorIdHandler $obtenerCarrera,
+        private readonly ListarFacultadesHandler $listarFacultades,
+    ) {
+    }
+
     public function index()
     {
-        $carreras = Carrera::with('facultad')->orderBy('nombre')->paginate(10);
-        return view('ModuloSecretaria.carreras.index', compact('carreras'));
+        $carreras = $this->paginarCarreras->handle(
+            new PaginarCarrerasQuery(new PaginarCarrerasDTO(10))
+        );
+
+        return view('ModuloSecretaria.carreras.index', [
+            'carreras' => $carreras,
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        $facultades = Facultad::orderBy('nombre')->get();
-        return view('ModuloSecretaria.carreras.create', compact('facultades'));
+        $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
+
+        return view('ModuloSecretaria.carreras.create', [
+            'facultades' => $facultades,
+        ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        Carrera::create([
-            'nombre' => $request->input('nombre'),
-            'facultad_id' => $request->input('facultad_id'),
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'facultad_id' => ['required', 'integer'],
         ]);
+
+        $this->crearCarrera->handle(
+            new CrearCarreraCommand(
+                new CrearCarreraDTO($validated['nombre'], (int) $validated['facultad_id'])
+            )
+        );
+
         return redirect()->route('secretaria.carreras.index')
             ->with('success', 'Carrera creada correctamente.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Carrera $carrera)
+    public function edit(int $carrera)
     {
-        //
-    }
+        $carreraEntity = $this->obtenerCarrera->handle(
+            new ObtenerCarreraPorIdQuery(new CarreraIdDTO($carrera))
+        );
+        $facultades = $this->listarFacultades->handle(new ListarFacultadesQuery());
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Carrera $carrera)
-    {
-        $facultades = Facultad::orderBy('nombre')->get();
-        return view('ModuloSecretaria.carreras.edit', compact('carrera','facultades'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Carrera $carrera)
-    {
-        $carrera->update([
-            'nombre' => $request->input('nombre'),
-            'facultad_id' => $request->input('facultad_id'),
+        return view('ModuloSecretaria.carreras.edit', [
+            'carrera' => $carreraEntity,
+            'facultades' => $facultades,
         ]);
+    }
+
+    public function update(Request $request, int $carrera)
+    {
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'facultad_id' => ['required', 'integer'],
+        ]);
+
+        $this->actualizarCarrera->handle(
+            new ActualizarCarreraCommand(
+                new ActualizarCarreraDTO($carrera, $validated['nombre'], (int) $validated['facultad_id'])
+            )
+        );
+
         return redirect()->route('secretaria.carreras.index')
             ->with('success', 'Carrera actualizada correctamente.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Carrera $carrera)
+    public function destroy(int $carrera)
     {
         try {
-            $carrera->delete();
+            $this->eliminarCarrera->handle(
+                new EliminarCarreraCommand(new CarreraIdDTO($carrera))
+            );
+
             return redirect()->route('secretaria.carreras.index')
                 ->with('success', 'Carrera eliminada correctamente.');
-        } catch (QueryException $e) {
+        } catch (QueryException) {
             return redirect()->route('secretaria.carreras.index')
                 ->with('error', 'No se puede eliminar la carrera porque está asociada a otros registros.');
         }

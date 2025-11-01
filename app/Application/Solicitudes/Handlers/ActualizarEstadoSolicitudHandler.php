@@ -7,8 +7,8 @@ use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Domain\Solicitud\Entities\Solicitud;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Mail\ApprovalMail;
-use App\Mail\RejectionMail;
+use App\Infraestructure\Mail\ApprovalMail;
+use App\Infraestructure\Mail\RejectionMail;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 
 final class ActualizarEstadoSolicitudHandler

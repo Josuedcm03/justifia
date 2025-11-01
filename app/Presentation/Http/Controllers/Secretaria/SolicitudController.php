@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\ModuloSecretaria;
+namespace App\Presentation\Http\Controllers\Secretaria;
 
 use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
 use App\Application\Solicitudes\DTOs\ActualizarEstadoSolicitudDTO;
@@ -9,7 +9,7 @@ use App\Application\Solicitudes\Handlers\ActualizarEstadoSolicitudHandler;
 use App\Application\Solicitudes\Handlers\PaginarSolicitudesSecretariaHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesSecretariaQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
-use App\Http\Controllers\Controller;
+use App\Presentation\Http\Controllers\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
 
