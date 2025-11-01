@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Infraestructure\Mail;
+namespace App\Infrastructure\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,13 +17,13 @@ class RescheduleMail extends Mailable implements ShouldQueue
     public ?string $recipientEmail;
     public string $fecha;
     public string $hora;
-    public string $observaciones;
+    public ?string $observaciones;
 
     public function __construct(
         string $recipientName,
         string $fecha,
         string $hora,
-        string $observaciones,
+        ?string $observaciones,
         ?string $recipientEmail = null
     ) {
         $this->recipientName = $recipientName;

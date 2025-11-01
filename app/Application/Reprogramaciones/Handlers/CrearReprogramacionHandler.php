@@ -5,10 +5,10 @@ namespace App\Application\Reprogramaciones\Handlers;
 use App\Application\Reprogramaciones\Commands\CrearReprogramacionCommand;
 use App\Application\Reprogramaciones\Handlers\Concerns\ValidatesReprogramacionData;
 use App\Application\Shared\Contracts\Mailer;
+use App\Application\Shared\Mail\Notifications\ReprogramacionCreadaNotification;
 use App\Domain\Reprogramacion\Entities\Reprogramacion;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Infraestructure\Mail\RescheduleMail;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
@@ -50,16 +50,13 @@ final class CrearReprogramacionHandler
         if ($solicitudModel) {
             $studentUser = $solicitudModel->estudiante->usuario;
 
-            $this->mailer->queue(
+            $this->mailer->queue(new ReprogramacionCreadaNotification(
+                $studentUser->name,
                 $studentUser->email,
-                new RescheduleMail(
-                    $studentUser->name,
-                    Carbon::parse($reprogramacion->fecha()->format('Y-m-d'))->format('d-m-Y'),
-                    $reprogramacion->hora()->value(),
-                    $reprogramacion->observaciones()?->value(),
-                    $studentUser->email
-                )
-            );
+                Carbon::parse($reprogramacion->fecha()->format('Y-m-d'))->format('d-m-Y'),
+                $reprogramacion->hora()->value(),
+                $reprogramacion->observaciones()?->value()
+            ));
         }
 
         return $reprogramacion;

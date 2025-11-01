@@ -4,8 +4,8 @@ namespace App\Application\Apelaciones\Handlers;
 
 use App\Application\Apelaciones\Commands\NotificarEstadoApelacionCommand;
 use App\Application\Shared\Contracts\Mailer;
-use App\Infraestructure\Mail\AppealApprovalMail;
-use App\Infraestructure\Mail\AppealRejectionMail;
+use App\Application\Shared\Mail\Notifications\ApelacionAprobadaNotification;
+use App\Application\Shared\Mail\Notifications\ApelacionRechazadaNotification;
 
 final class NotificarEstadoApelacionHandler
 {
@@ -15,10 +15,10 @@ final class NotificarEstadoApelacionHandler
 
     public function handle(NotificarEstadoApelacionCommand $command): void
     {
-        $mailable = $command->aprobada()
-            ? new AppealApprovalMail($command->nombre(), $command->apelacion(), $command->email())
-            : new AppealRejectionMail($command->nombre(), $command->apelacion(), $command->email());
+        $notification = $command->aprobada()
+            ? new ApelacionAprobadaNotification($command->nombre(), $command->email(), $command->apelacion())
+            : new ApelacionRechazadaNotification($command->nombre(), $command->email(), $command->apelacion());
 
-        $this->mailer->queue($command->email(), $mailable);
+        $this->mailer->queue($notification);
     }
 }

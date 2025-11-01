@@ -3,12 +3,12 @@
 namespace App\Application\Solicitudes\Handlers;
 
 use App\Application\Shared\Contracts\Mailer;
+use App\Application\Shared\Mail\Notifications\SolicitudAprobadaNotification;
+use App\Application\Shared\Mail\Notifications\SolicitudRechazadaNotification;
 use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Domain\Solicitud\Entities\Solicitud;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Infraestructure\Mail\ApprovalMail;
-use App\Infraestructure\Mail\RejectionMail;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 
 final class ActualizarEstadoSolicitudHandler
@@ -45,25 +45,31 @@ final class ActualizarEstadoSolicitudHandler
         $teacherUser = $modelo->docente->usuario;
 
         if ($solicitud->estado() === EstadoSolicitud::Aprobada) {
-            $this->mailer->queue(
-                $studentUser->email,
-                new ApprovalMail($studentUser->name, $modelo, $studentUser->email)
-            );
-            $this->mailer->queue(
-                $teacherUser->email,
-                new ApprovalMail($teacherUser->name, $modelo, $teacherUser->email)
-            );
+            $this->mailer->queue(new SolicitudAprobadaNotification(
+                $studentUser->name,
+                $studentUser->email
+            ));
+
+            $this->mailer->queue(new SolicitudAprobadaNotification(
+                $teacherUser->name,
+                $teacherUser->email
+            ));
         }
 
         if ($solicitud->estado() === EstadoSolicitud::Rechazada) {
-            $this->mailer->queue(
+            $respuesta = $solicitud->respuesta()?->value();
+
+            $this->mailer->queue(new SolicitudRechazadaNotification(
+                $studentUser->name,
                 $studentUser->email,
-                new RejectionMail($studentUser->name, $modelo, $studentUser->email)
-            );
-            $this->mailer->queue(
+                $respuesta
+            ));
+
+            $this->mailer->queue(new SolicitudRechazadaNotification(
+                $teacherUser->name,
                 $teacherUser->email,
-                new RejectionMail($teacherUser->name, $modelo, $teacherUser->email)
-            );
+                $respuesta
+            ));
         }
     }
 }

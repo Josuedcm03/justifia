@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Infraestructure\Mail;
+namespace App\Infrastructure\Mail;
 
 use App\Domain\Apelaciones\Entities\Apelacion;
 use Illuminate\Bus\Queueable;
@@ -10,7 +10,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-final class AppealRejectionMail extends Mailable implements ShouldQueue
+final class AppealApprovalMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
@@ -27,12 +27,12 @@ final class AppealRejectionMail extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Apelación Rechazada');
+        return new Envelope(subject: 'Apelación Aprobada');
     }
 
     public function content(): Content
     {
-        return new Content(view: 'emails.appeal-rejection');
+        return new Content(view: 'emails.appeal-approval');
     }
 
     public function attachments(): array
@@ -40,3 +40,4 @@ final class AppealRejectionMail extends Mailable implements ShouldQueue
         return [];
     }
 }
+

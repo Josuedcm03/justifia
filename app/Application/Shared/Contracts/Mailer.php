@@ -2,9 +2,10 @@
 
 namespace App\Application\Shared\Contracts;
 
-use Illuminate\Mail\Mailable;
+use App\Application\Shared\Mail\MailNotification;
 
 interface Mailer
 {
-    public function queue(string $email, Mailable $mailable): void;
+    public function queue(MailNotification $notification): void;
 }
+
