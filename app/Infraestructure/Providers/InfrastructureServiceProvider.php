@@ -2,7 +2,7 @@
 
 namespace App\Infraestructure\Providers;
 
-use App\Application\Solicitudes\SolicitudService;
+use App\Application\Solicitudes\Handlers\SolicitudService;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;
 use App\Domain\Catalogo\Repositories\AsignaturaRepository;
 use App\Domain\Catalogo\Repositories\FacultadRepository;

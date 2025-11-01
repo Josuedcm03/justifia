@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Application\Solicitudes;
+namespace App\Application\Solicitudes\Handlers;
 
 use App\Domain\Shared\ValueObjects\ArchivoConstancia;
 use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;

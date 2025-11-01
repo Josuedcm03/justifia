@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Application\Reprogramaciones;
+namespace App\Application\Reprogramaciones\Handlers;
 
-use App\Application\Solicitudes\SolicitudService;
+use App\Application\Solicitudes\Handlers\SolicitudService;
 use App\Domain\Reprogramacion\Entities\Reprogramacion as ReprogramacionEntity;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
 use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\ModuloEstudiante;
 
-use App\Application\Apelaciones\ApelacionService;
+use App\Application\Apelaciones\Handlers\ApelacionService;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Http\Controllers\Controller;
 use App\Domain\Apelaciones\Entities\Apelacion;

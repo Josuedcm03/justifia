@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\ModuloSecretaria;
 
-use App\Application\Apelaciones\ApelacionService;
-use App\Application\Solicitudes\SolicitudService;
+use App\Application\Apelaciones\Handlers\ApelacionService;
+use App\Application\Solicitudes\Handlers\SolicitudService;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\Enums\EstadoSolicitud;
 use App\Http\Controllers\Controller;
