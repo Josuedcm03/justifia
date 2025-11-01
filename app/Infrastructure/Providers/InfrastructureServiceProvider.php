@@ -5,6 +5,11 @@ namespace App\Infrastructure\Providers;
 use App\Application\Shared\Contracts\FileStorage;
 use App\Application\Shared\Contracts\Mailer;
 use App\Application\Shared\Contracts\TransactionManager;
+use App\Application\Shared\Event\EventBus;
+use App\Application\Reprogramaciones\Events\ReprogramacionCreada;
+use App\Application\Reprogramaciones\Observers\ReprogramacionCreadaMailerObserver;
+use App\Application\Solicitudes\Events\SolicitudEstadoActualizado;
+use App\Application\Solicitudes\Observers\SolicitudEstadoActualizadoMailerObserver;
 use App\Domain\Apelaciones\Repositories\ApelacionRepository;
 use App\Domain\Catalogo\Repositories\AsignaturaRepository;
 use App\Domain\Catalogo\Repositories\CarreraRepository;
@@ -15,6 +20,7 @@ use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
 use App\Infraestructure\Files\PublicDiskFileStorage;
 use App\Infrastructure\Mail\LaravelMailer;
+use App\Infrastructure\Event\InMemoryEventBus;
 use App\Infrastructure\Persistence\DatabaseTransactionManager;
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentApelacionRepository;
 use App\Infraestructure\Persistence\Eloquent\Repositories\EloquentAsignaturaRepository;
@@ -48,9 +54,21 @@ class InfrastructureServiceProvider extends ServiceProvider
 
         $this->app->bind(Mailer::class, LaravelMailer::class);
         $this->app->bind(TransactionManager::class, DatabaseTransactionManager::class);
+        $this->app->singleton(EventBus::class, InMemoryEventBus::class);
     }
 
     public function boot(): void
     {
+        $bus = $this->app->make(EventBus::class);
+
+        $bus->subscribe(
+            SolicitudEstadoActualizado::class,
+            $this->app->make(SolicitudEstadoActualizadoMailerObserver::class)
+        );
+
+        $bus->subscribe(
+            ReprogramacionCreada::class,
+            $this->app->make(ReprogramacionCreadaMailerObserver::class)
+        );
     }
 }

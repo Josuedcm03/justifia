@@ -4,13 +4,11 @@ namespace App\Application\Reprogramaciones\Handlers;
 
 use App\Application\Reprogramaciones\Commands\CrearReprogramacionCommand;
 use App\Application\Reprogramaciones\Handlers\Concerns\ValidatesReprogramacionData;
-use App\Application\Shared\Contracts\Mailer;
-use App\Application\Shared\Mail\Notifications\ReprogramacionCreadaNotification;
+use App\Application\Shared\Event\EventBus;
+use App\Application\Reprogramaciones\Events\ReprogramacionCreada;
 use App\Domain\Reprogramacion\Entities\Reprogramacion;
 use App\Domain\Reprogramacion\Repositories\ReprogramacionRepository;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
-use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 
 final class CrearReprogramacionHandler
@@ -20,7 +18,7 @@ final class CrearReprogramacionHandler
     public function __construct(
         private readonly ReprogramacionRepository $reprogramaciones,
         private readonly SolicitudRepository $solicitudes,
-        private readonly Mailer $mailer
+        private readonly EventBus $events
     ) {
     }
 
@@ -45,19 +43,7 @@ final class CrearReprogramacionHandler
 
         $reprogramacion = $this->reprogramaciones->create($entity);
 
-        $solicitudModel = SolicitudModel::with('estudiante.usuario')->find($solicitudId);
-
-        if ($solicitudModel) {
-            $studentUser = $solicitudModel->estudiante->usuario;
-
-            $this->mailer->queue(new ReprogramacionCreadaNotification(
-                $studentUser->name,
-                $studentUser->email,
-                Carbon::parse($reprogramacion->fecha()->format('Y-m-d'))->format('d-m-Y'),
-                $reprogramacion->hora()->value(),
-                $reprogramacion->observaciones()?->value()
-            ));
-        }
+        $this->events->publish(new ReprogramacionCreada($reprogramacion));
 
         return $reprogramacion;
     }

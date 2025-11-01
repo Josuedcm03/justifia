@@ -8,11 +8,11 @@ use App\Application\Solicitudes\Notifications\SolicitudEstadoNotifier;
 use App\Application\Solicitudes\Notifications\SolicitudRechazadaNotifier;
 use App\Application\Solicitudes\Notifications\SolicitudSinNotificacionNotifier;
 use App\Application\Solicitudes\Notifications\ValueObjects\SolicitudNotificacionContext;
+use App\Application\Shared\Event\EventBus;
 use App\Application\Solicitudes\Commands\ActualizarEstadoSolicitudCommand;
-use App\Domain\Shared\Enums\EstadoSolicitud;
+use App\Application\Solicitudes\Events\SolicitudEstadoActualizado;
 use App\Domain\Solicitud\Entities\Solicitud;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
-use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 
 final class ActualizarEstadoSolicitudHandler
 {
@@ -23,7 +23,7 @@ final class ActualizarEstadoSolicitudHandler
 
     public function __construct(
         private readonly SolicitudRepository $solicitudes,
-        private readonly Mailer $mailer
+        private readonly EventBus $events
     ) {
         $this->notificadoresPorEstado = [
             EstadoSolicitud::Aprobada->value => new SolicitudAprobadaNotifier($mailer),
@@ -41,7 +41,7 @@ final class ActualizarEstadoSolicitudHandler
 
         $actualizada = $this->solicitudes->update($solicitud);
 
-        $this->notificarCambioEstado($actualizada);
+        $this->events->publish(new SolicitudEstadoActualizado($actualizada));
 
         return $actualizada;
     }
