@@ -9,6 +9,7 @@ use App\Application\Solicitudes\Handlers\ActualizarEstadoSolicitudHandler;
 use App\Application\Solicitudes\Handlers\PaginarSolicitudesSecretariaHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesSecretariaQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
+use App\Domain\Shared\OptimisticLockException;
 use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Domain\Solicitud\Entities\Solicitud;
 use Illuminate\Http\Request;
@@ -59,11 +60,22 @@ class SolicitudController extends Controller
         $estado = EstadoSolicitud::from($request->input('estado'));
         $respuesta = $request->input('respuesta');
 
-        $this->actualizarEstado->handle(
-            new ActualizarEstadoSolicitudCommand(
-                new ActualizarEstadoSolicitudDTO($solicitud->id, $estado, $respuesta)
-            )
-        );
+        try {
+            $this->actualizarEstado->handle(
+                new ActualizarEstadoSolicitudCommand(
+                    new ActualizarEstadoSolicitudDTO(
+                        $solicitud->id,
+                        $estado,
+                        $respuesta,
+                        (int) $request->input('version', 0)
+                    )
+                )
+            );
+        } catch (OptimisticLockException $exception) {
+            return redirect()
+                ->back()
+                ->with('error', 'La solicitud fue actualizada por otro usuario. Recarga la página para ver los cambios antes de aplicar tu respuesta.');
+        }
 
         $redirectEstado = $request->query('estado', 'pendiente');
 

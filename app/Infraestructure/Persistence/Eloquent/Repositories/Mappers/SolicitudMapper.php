@@ -43,7 +43,8 @@ class SolicitudMapper extends AggregateMapper
             (int) $model->estudiante_id,
             (int) $model->docente_id,
             (int) $model->asignatura_id,
-            (int) $model->tipo_constancia_id
+            (int) $model->tipo_constancia_id,
+            (int) ($model->version ?? 0)
         );
     }
 
@@ -67,6 +68,7 @@ class SolicitudMapper extends AggregateMapper
             'docente_id' => $entity->docenteId()->value(),
             'asignatura_id' => $entity->asignaturaId()->value(),
             'tipo_constancia_id' => $entity->tipoConstanciaId()->value(),
+            'version' => $entity->version(),
         ]);
 
         return $model;

@@ -24,6 +24,7 @@
                     data-old-asignatura="{{ old('asignatura_id', $solicitud->asignatura_id) }}">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="version" value="{{ $solicitud->version }}">
                     <div>
                         <label for="fecha_ausencia" class="block font-medium mb-1">Fecha de ausencia</label>
                         <input type="date" name="fecha_ausencia" id="fecha_ausencia" class="w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:text-white focus:ring-[#0099a8] focus:border-[#0099a8]" value="{{ old('fecha_ausencia', $solicitud->fecha_ausencia) }}" required>

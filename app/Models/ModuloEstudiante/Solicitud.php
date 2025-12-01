@@ -33,6 +33,7 @@ class Solicitud extends Model
         'docente_id',
         'asignatura_id',
         'tipo_constancia_id',
+        'version',
     ];
 
     protected $dates = [
@@ -41,6 +42,7 @@ class Solicitud extends Model
 
     protected $casts = [
         'estado' => EstadoSolicitud::class,
+        'version' => 'integer',
     ];
 
     // Relaciones

@@ -30,6 +30,7 @@ use App\Application\Solicitudes\Handlers\EliminarSolicitudHandler;
 use App\Application\Solicitudes\Handlers\PaginarSolicitudesEstudianteHandler;
 use App\Application\Solicitudes\Queries\PaginarSolicitudesEstudianteQuery;
 use App\Domain\Shared\Enums\EstadoSolicitud;
+use App\Domain\Shared\OptimisticLockException;
 use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Domain\Catalogo\Entities\Facultad;
 use App\Domain\Solicitud\Entities\Solicitud;
@@ -156,11 +157,19 @@ class SolicitudController extends Controller
                 (int) $request->input('tipo_constancia_id'),
                 $request->input('observaciones'),
                 $request->hasFile('constancia') ? $request->file('constancia') : null,
-                $request->boolean('delete_constancia')
+                $request->boolean('delete_constancia'),
+                (int) $request->input('version', 0)
             )
         );
 
-        $this->actualizarSolicitud->handle($command);
+        try {
+            $this->actualizarSolicitud->handle($command);
+        } catch (OptimisticLockException $exception) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'La solicitud fue actualizada por otro usuario. Recarga la página y vuelve a intentar.');
+        }
 
         $redirectEstado = $request->query('estado', 'pendiente');
 

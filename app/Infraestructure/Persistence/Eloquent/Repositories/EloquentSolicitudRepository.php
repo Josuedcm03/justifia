@@ -6,6 +6,7 @@ use App\Domain\Solicitud\Entities\Solicitud as SolicitudEntity;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\Enums\EstadoSolicitud;
+use App\Domain\Shared\OptimisticLockException;
 use App\Infraestructure\Persistence\Eloquent\Repositories\Mappers\SolicitudMapper;
 use App\Models\ModuloEstudiante\Solicitud as SolicitudModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -72,10 +73,39 @@ class EloquentSolicitudRepository implements SolicitudRepository
 
     public function update(SolicitudEntity $solicitud): SolicitudEntity
     {
-        $model = $this->mapper->toModel($solicitud);
-        $model->save();
+        $id = $solicitud->id()?->value();
 
-        return $this->mapper->toEntity($model->fresh());
+        if ($id === null) {
+            throw OptimisticLockException::withMessage('No se puede actualizar una solicitud sin identificador.');
+        }
+
+        $expectedVersion = $solicitud->version();
+        $payload = array_merge(
+            $solicitud->payloadParaActualizacion(),
+            [
+                'respuesta' => $solicitud->respuesta()?->value(),
+                'estado' => $solicitud->estado()->value,
+                'version' => $expectedVersion + 1,
+            ]
+        );
+
+        $updated = SolicitudModel::query()
+            ->whereKey($id)
+            ->where('version', $expectedVersion)
+            ->update($payload);
+
+        if ($updated === 0) {
+            $currentVersion = SolicitudModel::query()->whereKey($id)->value('version');
+
+            throw OptimisticLockException::conflicted(
+                'Solicitud',
+                $id,
+                $expectedVersion,
+                $currentVersion !== null ? (int) $currentVersion : null
+            );
+        }
+
+        return $this->mapper->toEntity(SolicitudModel::findOrFail($id));
     }
 
     public function delete(SolicitudEntity $solicitud): void

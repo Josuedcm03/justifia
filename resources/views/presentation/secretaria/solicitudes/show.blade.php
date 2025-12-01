@@ -79,6 +79,7 @@
                         <form method="POST" action="{{ route('secretaria.solicitudes.update', ['solicitud' => $solicitud, 'estado' => $estado]) }}" id="rechazar-form">
                             @csrf
                             @method('PATCH')
+                            <input type="hidden" name="version" value="{{ $solicitud->version }}">
                             <input type="hidden" name="estado" value="rechazada">
                             <input type="hidden" name="respuesta" id="respuesta-input">
                             <button type="button" id="rechazar-btn" class="bg-[#0b545b] text-white px-6 py-2 rounded-md shadow hover:bg-[#094b51] transition font-semibold">
@@ -88,6 +89,7 @@
                         <form method="POST" action="{{ route('secretaria.solicitudes.update', ['solicitud' => $solicitud, 'estado' => $estado]) }}" id="aprobar-form">
                             @csrf
                             @method('PATCH')
+                            <input type="hidden" name="version" value="{{ $solicitud->version }}">
                             <input type="hidden" name="estado" value="aprobada">
                             <input type="hidden" name="respuesta" id="respuesta-aprobar">
                             <button class="bg-[#0099a8] text-white px-6 py-2 rounded-md shadow hover:bg-[#007e8b] transition font-semibold">

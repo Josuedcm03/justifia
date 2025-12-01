@@ -16,6 +16,7 @@ use App\Application\Solicitudes\Handlers\ObtenerSolicitudPorIdHandler;
 use App\Application\Solicitudes\Queries\ObtenerSolicitudPorIdQuery;
 use App\Domain\Shared\Enums\EstadoApelacion;
 use App\Domain\Shared\Enums\EstadoSolicitud;
+use App\Domain\Shared\OptimisticLockException;
 use App\Presentation\Http\Controllers\Shared\Controller;
 use App\Jobs\SendAppealStatusMail;
 use App\Domain\Apelaciones\Entities\Apelacion;
@@ -68,24 +69,35 @@ class ApelacionController extends Controller
         $estado = EstadoApelacion::from($request->input('estado'));
         $respuesta = $request->input('respuesta');
 
-        $this->actualizarApelacion->handle(
-            new ActualizarApelacionCommand(
-                new ActualizarApelacionDTO($apelacion->id, $estado, $respuesta, null)
-            )
-        );
-
-        $apelacion->refresh()->load('apelacionPadre', 'solicitud.estudiante.usuario');
-
-        if ($estado === EstadoApelacion::Aprobada) {
-            $this->obtenerSolicitud->handle(
-                new ObtenerSolicitudPorIdQuery(new SolicitudIdDTO($apelacion->solicitud->id))
-            );
-            $this->actualizarEstadoSolicitud->handle(
-                new ActualizarEstadoSolicitudCommand(
-                    new ActualizarEstadoSolicitudDTO($apelacion->solicitud->id, EstadoSolicitud::Aprobada, $respuesta)
+        try {
+            $this->actualizarApelacion->handle(
+                new ActualizarApelacionCommand(
+                    new ActualizarApelacionDTO($apelacion->id, $estado, $respuesta, null)
                 )
             );
-            $apelacion->refresh()->load('solicitud.estudiante.usuario');
+
+            $apelacion->refresh()->load('apelacionPadre', 'solicitud.estudiante.usuario');
+
+            if ($estado === EstadoApelacion::Aprobada) {
+                $this->obtenerSolicitud->handle(
+                    new ObtenerSolicitudPorIdQuery(new SolicitudIdDTO($apelacion->solicitud->id))
+                );
+                $this->actualizarEstadoSolicitud->handle(
+                    new ActualizarEstadoSolicitudCommand(
+                        new ActualizarEstadoSolicitudDTO(
+                            $apelacion->solicitud->id,
+                            EstadoSolicitud::Aprobada,
+                            $respuesta,
+                            $apelacion->solicitud->version
+                        )
+                    )
+                );
+                $apelacion->refresh()->load('solicitud.estudiante.usuario');
+            }
+        } catch (OptimisticLockException $exception) {
+            return redirect()
+                ->back()
+                ->with('error', 'La solicitud vinculada fue actualizada por otro usuario. Recarga la página y vuelve a intentar.');
         }
 
         $studentUser = $apelacion->solicitud->estudiante->usuario;

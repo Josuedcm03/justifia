@@ -25,4 +25,9 @@ final class ActualizarEstadoSolicitudCommand
     {
         return $this->payload->respuesta();
     }
+
+    public function version(): int
+    {
+        return $this->payload->version();
+    }
 }

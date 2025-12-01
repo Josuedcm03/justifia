@@ -14,7 +14,8 @@ final class ActualizarSolicitudDTO
         private readonly int $tipoConstanciaId,
         private readonly ?string $observaciones,
         private readonly ?UploadedFile $constancia,
-        private readonly bool $eliminarConstancia
+        private readonly bool $eliminarConstancia,
+        private readonly int $version
     ) {
     }
 
@@ -56,5 +57,10 @@ final class ActualizarSolicitudDTO
     public function eliminarConstancia(): bool
     {
         return $this->eliminarConstancia;
+    }
+
+    public function version(): int
+    {
+        return $this->version;
     }
 }

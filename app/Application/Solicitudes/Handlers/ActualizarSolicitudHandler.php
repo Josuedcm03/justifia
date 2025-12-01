@@ -6,6 +6,7 @@ use App\Application\Shared\Contracts\FileStorage;
 use App\Application\Solicitudes\Commands\ActualizarSolicitudCommand;
 use App\Application\Solicitudes\Handlers\Concerns\ValidatesSolicitudCommands;
 use App\Domain\Shared\ValueObjects\ArchivoConstancia;
+use App\Domain\Shared\OptimisticLockException;
 use App\Domain\Solicitud\Entities\Solicitud;
 use App\Domain\Solicitud\Repositories\SolicitudRepository;
 
@@ -22,6 +23,16 @@ final class ActualizarSolicitudHandler
     public function handle(ActualizarSolicitudCommand $command): Solicitud
     {
         $solicitud = $this->solicitudes->findById($command->solicitudId());
+        $expectedVersion = $command->version();
+
+        if ($solicitud->version() !== $expectedVersion) {
+            throw OptimisticLockException::conflicted(
+                'Solicitud',
+                $solicitud->id()?->value() ?? 0,
+                $expectedVersion,
+                $solicitud->version()
+            );
+        }
 
         $fechaAusencia = $this->parseFecha($command->fechaAusencia());
         $docenteId = $this->requirePositiveInt($command->docenteId(), 'docente_id');

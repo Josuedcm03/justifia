@@ -22,6 +22,7 @@ final class Solicitud implements Entity
     private EntityId $docenteId;
     private EntityId $asignaturaId;
     private EntityId $tipoConstanciaId;
+    private int $version;
 
     private function __construct(
         ?EntityId $id,
@@ -33,7 +34,8 @@ final class Solicitud implements Entity
         EntityId $estudianteId,
         EntityId $docenteId,
         EntityId $asignaturaId,
-        EntityId $tipoConstanciaId
+        EntityId $tipoConstanciaId,
+        int $version
     ) {
         $this->id = $id;
         $this->fechaAusencia = $fechaAusencia;
@@ -45,6 +47,7 @@ final class Solicitud implements Entity
         $this->docenteId = $docenteId;
         $this->asignaturaId = $asignaturaId;
         $this->tipoConstanciaId = $tipoConstanciaId;
+        $this->version = $version;
 
         $this->ensureRespuestaConsistente();
     }
@@ -56,7 +59,8 @@ final class Solicitud implements Entity
         int $estudianteId,
         int $docenteId,
         int $asignaturaId,
-        int $tipoConstanciaId
+        int $tipoConstanciaId,
+        int $version = 0
     ): self {
         return new self(
             null,
@@ -68,7 +72,8 @@ final class Solicitud implements Entity
             EntityId::fromInt($estudianteId),
             EntityId::fromInt($docenteId),
             EntityId::fromInt($asignaturaId),
-            EntityId::fromInt($tipoConstanciaId)
+            EntityId::fromInt($tipoConstanciaId),
+            $version
         );
     }
 
@@ -82,7 +87,8 @@ final class Solicitud implements Entity
         int $estudianteId,
         int $docenteId,
         int $asignaturaId,
-        int $tipoConstanciaId
+        int $tipoConstanciaId,
+        int $version = 0
     ): self {
         return new self(
             EntityId::fromInt($id),
@@ -94,7 +100,8 @@ final class Solicitud implements Entity
             EntityId::fromInt($estudianteId),
             EntityId::fromInt($docenteId),
             EntityId::fromInt($asignaturaId),
-            EntityId::fromInt($tipoConstanciaId)
+            EntityId::fromInt($tipoConstanciaId),
+            $version
         );
     }
 
@@ -186,6 +193,11 @@ final class Solicitud implements Entity
         return $this->observaciones;
     }
 
+    public function version(): int
+    {
+        return $this->version;
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -201,6 +213,7 @@ final class Solicitud implements Entity
             'docente_id' => $this->docenteId->value(),
             'asignatura_id' => $this->asignaturaId->value(),
             'tipo_constancia_id' => $this->tipoConstanciaId->value(),
+            'version' => $this->version,
         ];
     }
 

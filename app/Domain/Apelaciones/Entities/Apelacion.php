@@ -155,3 +155,4 @@ final class Apelacion implements Entity
             throw new \InvalidArgumentException('Una apelación resuelta debe contar con respuesta.');
         }
     }
+}

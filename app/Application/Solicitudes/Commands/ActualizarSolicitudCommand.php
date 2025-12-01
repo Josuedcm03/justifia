@@ -50,4 +50,9 @@ final class ActualizarSolicitudCommand
     {
         return $this->payload->eliminarConstancia();
     }
+
+    public function version(): int
+    {
+        return $this->payload->version();
+    }
 }

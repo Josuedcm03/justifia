@@ -9,7 +9,8 @@ final class ActualizarEstadoSolicitudDTO
     public function __construct(
         private readonly int $solicitudId,
         private readonly EstadoSolicitud $estado,
-        private readonly ?string $respuesta
+        private readonly ?string $respuesta,
+        private readonly int $version
     ) {
     }
 
@@ -26,5 +27,10 @@ final class ActualizarEstadoSolicitudDTO
     public function respuesta(): ?string
     {
         return $this->respuesta;
+    }
+
+    public function version(): int
+    {
+        return $this->version;
     }
 }
