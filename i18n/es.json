@@ -1,0 +1,130 @@
+{
+  "common": {
+    "appName": "Backoffice Justifia",
+    "search": "Buscar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "loading": "Cargando...",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "users": "Usuarios",
+    "settings": "Configuración"
+  },
+  "theme": {
+    "toggle": "Cambiar tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "locale": {
+    "label": "Idioma",
+    "es": "Español",
+    "en": "Inglés"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "subtitle": "Resumen de tu backoffice",
+    "totalUsers": "Usuarios totales",
+    "activeUsers": "Usuarios activos"
+  },
+  "users": {
+    "title": "Usuarios",
+    "subtitle": "Gestiona las cuentas del backoffice",
+    "newButton": "Nuevo usuario",
+    "columns": {
+      "name": "Nombre",
+      "login": "Usuario",
+      "role": "Rol",
+      "status": "Estado",
+      "createdAt": "Creado"
+    },
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "empty": "Aún no hay usuarios",
+    "new": {
+      "title": "Crear cuenta de staff",
+      "nameLabel": "Nombre completo",
+      "loginLabel": "Usuario",
+      "passwordLabel": "Contraseña",
+      "emailLabel": "Correo",
+      "phoneLabel": "Teléfono",
+      "roleLabel": "Rol",
+      "rolePlaceholder": "Selecciona un rol",
+      "careerLabel": "Carrera que coordina",
+      "careerPlaceholder": "Selecciona una carrera",
+      "submit": "Crear usuario",
+      "submitting": "Creando…",
+      "roles": {
+        "docente": "Docente",
+        "secretaria": "Secretaria",
+        "coordinacion": "Coordinación",
+        "administrador": "Administrador"
+      },
+      "errors": {
+        "invalid": "Revisa los datos ingresados",
+        "careerRequired": "Selecciona la carrera que coordina",
+        "invalidCarrera": "La carrera seleccionada no es válida",
+        "duplicate": "El usuario o CIF ya existe"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Iniciar sesión",
+      "subtitle": "Accede al backoffice con tu cuenta institucional",
+      "loginLabel": "Usuario",
+      "passwordLabel": "Contraseña",
+      "submit": "Ingresar",
+      "submitting": "Ingresando…",
+      "isStudent": "¿Sos estudiante?",
+      "registerLink": "Registrate"
+    },
+    "register": {
+      "title": "Crear cuenta de estudiante",
+      "subtitle": "Registrate para enviar tus justificaciones",
+      "nameLabel": "Nombre completo",
+      "loginLabel": "Usuario",
+      "passwordLabel": "Contraseña",
+      "confirmPasswordLabel": "Confirmar contraseña",
+      "emailLabel": "Correo",
+      "phoneLabel": "Teléfono",
+      "cifLabel": "CIF",
+      "careerLabel": "Carrera",
+      "careerPlaceholder": "Selecciona una carrera",
+      "submit": "Crear cuenta",
+      "submitting": "Creando…",
+      "hasAccount": "¿Ya tenés cuenta?",
+      "signIn": "Iniciar sesión",
+      "errors": {
+        "invalid": "Revisa los datos ingresados",
+        "invalidCarrera": "La carrera seleccionada no es válida",
+        "duplicate": "El usuario o CIF ya existe",
+        "passwordMismatch": "Las contraseñas no coinciden"
+      }
+    },
+    "errors": {
+      "invalid": "Usuario o contraseña incorrectos"
+    },
+    "userMenu": {
+      "signedInAs": "{login} · {rol}",
+      "viewProfile": "Ver perfil",
+      "logout": "Cerrar sesión"
+    }
+  },
+  "profile": {
+    "title": "Mi perfil",
+    "subtitle": "Tus datos de cuenta",
+    "loginLabel": "Usuario",
+    "roleLabel": "Rol",
+    "emailLabel": "Correo",
+    "phoneLabel": "Teléfono",
+    "cifLabel": "CIF",
+    "careerLabel": "Carrera",
+    "memberSinceLabel": "Miembro desde"
+  }
+}

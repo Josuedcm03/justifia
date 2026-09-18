@@ -1,0 +1,130 @@
+{
+  "common": {
+    "appName": "Justifia Backoffice",
+    "search": "Search",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "settings": "Settings"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "locale": {
+    "label": "Language",
+    "es": "Spanish",
+    "en": "English"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Overview of your backoffice",
+    "totalUsers": "Total users",
+    "activeUsers": "Active users"
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "Manage backoffice accounts",
+    "newButton": "New user",
+    "columns": {
+      "name": "Name",
+      "login": "Username",
+      "role": "Role",
+      "status": "Status",
+      "createdAt": "Created"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "empty": "No users yet",
+    "new": {
+      "title": "Create staff account",
+      "nameLabel": "Full name",
+      "loginLabel": "Username",
+      "passwordLabel": "Password",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "roleLabel": "Role",
+      "rolePlaceholder": "Select a role",
+      "careerLabel": "Coordinated career",
+      "careerPlaceholder": "Select a career",
+      "submit": "Create user",
+      "submitting": "Creating…",
+      "roles": {
+        "docente": "Faculty",
+        "secretaria": "Secretary",
+        "coordinacion": "Coordination",
+        "administrador": "Administrator"
+      },
+      "errors": {
+        "invalid": "Check the entered data",
+        "careerRequired": "Select the coordinated career",
+        "invalidCarrera": "The selected career is not valid",
+        "duplicate": "The username or CIF already exists"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Access the backoffice with your institutional account",
+      "loginLabel": "Username",
+      "passwordLabel": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "isStudent": "Are you a student?",
+      "registerLink": "Sign up"
+    },
+    "register": {
+      "title": "Create student account",
+      "subtitle": "Sign up to submit your absence justifications",
+      "nameLabel": "Full name",
+      "loginLabel": "Username",
+      "passwordLabel": "Password",
+      "confirmPasswordLabel": "Confirm password",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "cifLabel": "CIF",
+      "careerLabel": "Career",
+      "careerPlaceholder": "Select a career",
+      "submit": "Create account",
+      "submitting": "Creating…",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "errors": {
+        "invalid": "Check the entered data",
+        "invalidCarrera": "The selected career is not valid",
+        "duplicate": "The username or CIF already exists",
+        "passwordMismatch": "Passwords do not match"
+      }
+    },
+    "errors": {
+      "invalid": "Incorrect username or password"
+    },
+    "userMenu": {
+      "signedInAs": "{login} · {rol}",
+      "viewProfile": "View profile",
+      "logout": "Sign out"
+    }
+  },
+  "profile": {
+    "title": "My profile",
+    "subtitle": "Your account details",
+    "loginLabel": "Username",
+    "roleLabel": "Role",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone",
+    "cifLabel": "CIF",
+    "careerLabel": "Career",
+    "memberSinceLabel": "Member since"
+  }
+}

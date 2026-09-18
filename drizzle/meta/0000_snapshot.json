@@ -1,0 +1,126 @@
+{
+  "id": "a0a42ee8-1e29-4976-9612-7f9e92847ca7",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.Usuario": {
+      "name": "Usuario",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Usuario_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Login": {
+          "name": "Login",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "HashClave": {
+          "name": "HashClave",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Rol": {
+          "name": "Rol",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "NombreCompleto": {
+          "name": "NombreCompleto",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Correo": {
+          "name": "Correo",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Telefono": {
+          "name": "Telefono",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Cif": {
+          "name": "Cif",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CarreraId": {
+          "name": "CarreraId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Usuario_Login_unique": {
+          "name": "Usuario_Login_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Login"
+          ]
+        },
+        "Usuario_Cif_unique": {
+          "name": "Usuario_Cif_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Cif"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
