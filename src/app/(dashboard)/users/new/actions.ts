@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/dal";
 import { hashPassword } from "@/lib/auth/password";
+import { rolesQueGestionanUsuarios } from "@/lib/auth/permissions";
 import { listCarreras } from "@/lib/data/carreras";
 import { createUsuario } from "@/lib/data/users";
 import { crearStaffSchema } from "@/lib/validations/users";
@@ -15,7 +16,7 @@ export async function createStaffAction(
   _prev: CreateStaffState,
   formData: FormData,
 ): Promise<CreateStaffState> {
-  await requireRole("administrador");
+  await requireRole(...rolesQueGestionanUsuarios);
   const t = await getTranslations("users.new");
 
   const parsed = crearStaffSchema.safeParse({

@@ -1,0 +1,79 @@
+# openspec/config.yaml — SDD configuration for justifia
+# Shared through git. Keep it free of machine-specific paths and secrets.
+schema: spec-driven
+
+context: |
+  Project: justifia (Universidad Americana, Nicaragua) — student/staff web app. Locale-aware UI (es/en).
+  Stack: Next.js 16.3.4 App Router (RSC), React 19, TypeScript 5 strict, Tailwind v4, shadcn/ui (base-nova, @base-ui/react, NOT Radix), next-intl 4.
+  Data: Drizzle ORM + Neon Postgres (postgres driver). Auth: custom JWT (jose) + bcryptjs under src/lib/auth; roles estudiante, docente, coordinacion, secretaria, administrador.
+  Layout: src/app route groups (auth) and (dashboard); src/components (+ui); src/lib (auth, data, validations); src/db; drizzle/ migrations; i18n/{es,en}.json.
+  Testing: vitest 5 + jsdom + Testing Library, colocated src/**/*.test.ts(x). Strict TDD enabled. No E2E, no coverage tool.
+  Style: prettier (double quotes, semicolons, trailing commas, width 80) + eslint core-web-vitals/typescript. UI source of truth is docs/design-system.md.
+
+strict_tdd: true
+
+testing:
+  runner:
+    command: npm test
+    watch_command: npm run test:watch
+    framework: vitest
+    environment: jsdom
+    include: "src/**/*.{test,spec}.{ts,tsx}"
+  layers:
+    unit: { available: true, tool: vitest }
+    integration: { available: true, tool: "@testing-library/react + user-event" }
+    e2e: { available: false, tool: null }
+  coverage:
+    available: false
+    command: null
+  quality:
+    linter: { available: true, command: npm run lint }
+    type_checker: { available: true, command: npm run typecheck }
+    formatter: { available: true, command: npm run format:check }
+    build: { available: true, command: npm run build }
+
+conventions:
+  - "UI source of truth is docs/design-system.md (extracted from uam.edu.ni), enforced by tokens in src/app/globals.css. New screens MUST NOT introduce colours, radii, type sizes or spacing steps absent from that document; if one is needed, add it to the document first."
+  - "Tests are colocated next to the code as *.test.ts(x) and run with vitest (globals enabled)."
+  - "Server actions MUST re-check authorization (requireUser/requireRole from src/lib/auth/dal.ts); actions do not inherit page guards."
+  - "Role-based access policy lives in src/lib/auth/permissions.ts; do not scatter role checks."
+  - "Read functions backing UI listings return { data, degraded } (fail-soft); security-critical or mutating data functions fail loud."
+  - "Every user-facing string goes through next-intl; add keys to BOTH i18n/es.json and i18n/en.json."
+  - "shadcn primitives are base-ui based: Select.Root needs an items prop for trigger labels; DropdownMenuLabel must be wrapped in DropdownMenuGroup."
+  - "Read node_modules/next/dist/docs/ before writing Next.js code; this Next version has breaking changes (see AGENTS.md)."
+
+gotchas:
+  - "Source files in the Windows working tree are CRLF (git core.autocrlf=true, index is LF), so npm run lint reports thousands of pre-existing 'Delete ␍' prettier errors. Real errors: npx eslint src | rg -v 'Delete .␍.' (or grep -v if rg is not installed)"
+  - "middleware.ts still uses the pre-Next-16 name; Next 16 calls it proxy.ts (same behavior). Not yet migrated."
+  - "Database is a shared Neon instance. NEVER run drizzle-kit migrate/push, db:seed, db:seed:carreras, neon deploy/config apply or any write SQL without explicit per-command user confirmation (project CLAUDE.md). Read-only inspection is allowed."
+  - ".atl/ is gitignored on purpose (local skill-registry cache). openspec/ MUST stay tracked."
+
+rules:
+  proposal:
+    - Include a rollback plan for risky changes
+    - State whether the change touches the database schema; schema changes need explicit user confirmation before any migration is applied
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - For UI work, reference docs/design-system.md tokens instead of new values
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Write the failing test task before the implementation task (Strict TDD)
+  apply:
+    tdd: true
+    test_command: npm test
+    guidelines:
+      - Follow existing code patterns
+      - Never run DB-mutating commands (migrate, push, seed) without explicit user confirmation
+  verify:
+    test_command: npm test
+    typecheck_command: npm run typecheck
+    lint_command: "npx eslint src"
+    build_command: npm run build
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

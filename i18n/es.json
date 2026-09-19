@@ -6,12 +6,15 @@
     "cancel": "Cancelar",
     "loading": "Cargando...",
     "showPassword": "Mostrar contraseña",
-    "hidePassword": "Ocultar contraseña"
+    "hidePassword": "Ocultar contraseña",
+    "tagline": "Tus justificaciones académicas, en un solo lugar.",
+    "institution": "Universidad Americana"
   },
   "nav": {
     "dashboard": "Panel",
     "users": "Usuarios",
-    "settings": "Configuración"
+    "settings": "Configuración",
+    "sectionLabel": "Navegación"
   },
   "theme": {
     "toggle": "Cambiar tema",
@@ -70,8 +73,10 @@
         "careerRequired": "Selecciona la carrera que coordina",
         "invalidCarrera": "La carrera seleccionada no es válida",
         "duplicate": "El usuario o CIF ya existe"
-      }
-    }
+      },
+      "subtitle": "Creá una cuenta para el personal del backoffice."
+    },
+    "degraded": "No se pudo conectar con la base de datos. Volvé a intentarlo en unos minutos."
   },
   "auth": {
     "login": {
@@ -105,6 +110,11 @@
         "invalidCarrera": "La carrera seleccionada no es válida",
         "duplicate": "El usuario o CIF ya existe",
         "passwordMismatch": "Las contraseñas no coinciden"
+      },
+      "sections": {
+        "identity": "Tus datos",
+        "access": "Acceso",
+        "contact": "Contacto"
       }
     },
     "errors": {
