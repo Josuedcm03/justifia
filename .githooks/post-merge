@@ -1,0 +1,8 @@
+#!/bin/sh
+# Import Engram memory chunks that arrived with a pull/merge into the local DB.
+# Skips silently when engram is not installed.
+if ! command -v engram >/dev/null 2>&1; then
+  exit 0
+fi
+engram sync --import >/dev/null 2>&1 || echo "[engram] import failed; run: engram sync --import" >&2
+exit 0

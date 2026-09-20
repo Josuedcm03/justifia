@@ -109,7 +109,7 @@ handoff:
     - "DATABASE_URL in .env is the -pooler URL; drizzle-kit migrate must use the DIRECT (non-pooled) URL, exported in the shell only for that command. Never commit or print it."
     - "neonctl is not installed on the original machine; create the rehearsal branch (5.18) with `npm i -g neonctl && neonctl auth` or from the Neon console, then point the DIRECT URL of that branch at 5.19-5.22."
   resume_procedure:
-    - "git checkout feature/rolManagement && git pull"
+    - "git checkout feature/rolManagement && git pull   # post-merge hook imports .engram/ chunks into your local Engram; first time or if hooks are not active yet: npm ci (installs hooks via prepare) then `engram sync --import`"
     - "npm ci && npm test  (expect 201/201)"
     - "gentle-ai sdd-status roles-lookup-table --cwd <repo> --json --instructions  (expect apply ready, 65/76)"
     - "continue with tasks.md 5.18 -> 5.28 in order; [CONFIRM] means ask the user before running that exact command"
