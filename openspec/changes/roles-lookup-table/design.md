@@ -529,8 +529,8 @@ the "new user" button. The existing `degraded` pill (`:48-55`) is kept verbatim.
 
 | Key | es | en |
 |---|---|---|
-| `denied.title` | `No tenés permiso para ver esta página` | `You do not have permission to view this page` |
-| `denied.message` | `Tu cuenta no tiene acceso a esta sección. Si creés que es un error, consultá con quien administra el sistema.` | `Your account does not have access to this section. If you think this is a mistake, contact whoever administers the system.` |
+| `denied.title` | `No tienes permiso para ver esta página` | `You do not have permission to view this page` |
+| `denied.message` | `Tu cuenta no tiene acceso a esta sección. Si crees que es un error, consulta con quien administra el sistema.` | `Your account does not have access to this section. If you think this is a mistake, contact whoever administers the system.` |
 | `denied.back` | `Volver al panel` | `Back to the dashboard` |
 | `users.search.label` | `Buscar usuarios` | `Search users` |
 | `users.search.placeholder` | `Nombre, usuario o correo` | `Name, username or email` |
@@ -539,7 +539,7 @@ the "new user" button. The existing `degraded` pill (`:48-55`) is kept verbatim.
 | `users.count` | `{count, plural, =0 {Sin usuarios} one {# usuario} other {# usuarios}}` | `{count, plural, =0 {No users} one {# user} other {# users}}` |
 | `users.tableCaption` | `Lista de usuarios` | `Users list` |
 | `users.noResults.title` | `Sin resultados para «{q}»` | `No results for “{q}”` |
-| `users.noResults.hint` | `Probá con otro nombre, usuario o correo.` | `Try another name, username or email.` |
+| `users.noResults.hint` | `Prueba con otro nombre, usuario o correo.` | `Try another name, username or email.` |
 | `users.pagination.region` | `Paginación de usuarios` | `Users pagination` |
 | `users.pagination.previous` | `Anterior` | `Previous` |
 | `users.pagination.next` | `Siguiente` | `Next` |
@@ -1088,7 +1088,7 @@ per-command confirmation under the project rule.
 - [ ] **Route name `/denied`.** English, like `/users`, `/login`, `/profile`, and
       deliberately not `/forbidden` so it is never confused with Next's
       `forbidden.tsx` convention. Confirm, or pick a localized path.
-- [ ] **Copy register.** `i18n/es.json` is mixed today: voseo in state and
+- [x] **Copy register.** RESOLVED 2026-09-20 by the user: the whole `es.json` uses tuteo (formal, neutral Spanish); every voseo string, pre-existing and new, was rewritten in the WU3b follow-up commit. Original note kept for history: `i18n/es.json` is mixed today: voseo in state and
       subtitle strings (`Volvé a intentarlo`, `Creá una cuenta`, `¿Sos
       estudiante?`) but tuteo in field and action strings (`Selecciona un rol`,
       `Revisa los datos`, `Gestiona las cuentas`). The new `denied.*` and
