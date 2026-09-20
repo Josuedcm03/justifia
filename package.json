@@ -16,8 +16,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts",
-    "db:seed:carreras": "tsx src/db/seed-carreras.ts"
+    "db:seed:roles": "tsx src/db/seed-roles.ts",
+    "db:seed": "npm run db:seed:roles && tsx src/db/seed.ts",
+    "db:seed:carreras": "tsx src/db/seed-carreras.ts",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

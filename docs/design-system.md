@@ -66,6 +66,7 @@ the teal.
 | `ring` | `teal-brand` | `teal-brand` | Focus is always the bright teal |
 | `highlight` | `lime` | `lime` | Reserved, see 2.3 |
 | `destructive` | `danger` | lifted `danger` | |
+| `denied` | `oklch(0.505 0.196 28.8)` | `oklch(0.6 0.196 28.8)` | Accent (icon badge) on the permission-denied screen, see 2.4 |
 | `sidebar` | `ink-900` | `ink-900` | Dark in both themes, see 4.2 |
 
 **Deviation, interactive primary.** `#0099a8` carries only about 3.3:1 against
@@ -88,6 +89,26 @@ So in this app the lime means **"you are here"** and nothing else:
 It is never a button fill, never a background wash, never decoration. At
 `oklch(0.935 0.217 122)` it is the loudest thing on screen: one accent, spent
 deliberately. Text on lime is always `ink-900`.
+
+### 2.4 The denied accent
+
+The permission-denied screen (`/denied`) sits on the ordinary `--background`
+with `--foreground` text and the primary button, so it reads as the same
+family as every other screen. Warning red appears in exactly one place: a
+`bg-denied/10` circle holding a `text-denied` icon. There is no full-bleed
+state surface anywhere in the app.
+
+`--denied` is a per-theme token, like `--destructive`, because the icon must
+clear the 3:1 non-text floor (§7) against a background that changes with the
+theme. It stays separate from `--destructive`, which keeps carrying inline
+errors, degraded-state pills and the destructive button variant, so one token
+never has to do both jobs. It has no foreground partner: the accent never
+carries text.
+
+| Theme | `--denied` | Measured contrast on `--background` |
+| --- | --- | --- |
+| Light | `oklch(0.505 0.196 28.8)` | **6.00:1** |
+| Dark | `oklch(0.6 0.196 28.8)` | **4.01:1** (the light value measures 2.68:1 here) |
 
 ---
 
@@ -255,6 +276,12 @@ Non-negotiable, and far cheaper to keep than to retrofit:
 `<html data-brand="fia">` swaps the hue channel to engineering azure and leaves
 structure, type, spacing and the lime rule untouched. When you add a colour, add
 its FIA counterpart in the same commit or the second brand silently drifts.
+
+**Exception: state colours are brand-invariant.** `--destructive` has no FIA
+block today, and `--denied` (§2.4) follows the same rule on purpose: a denial
+or an error is not a brand moment, so these tokens stay identical across
+brands. The rule above governs interactive and structural colour, not state
+colour.
 
 ---
 

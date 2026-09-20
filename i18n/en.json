@@ -33,6 +33,11 @@
     "totalUsers": "Total users",
     "activeUsers": "Active users"
   },
+  "denied": {
+    "title": "You do not have permission to view this page",
+    "message": "Your account does not have access to this section. If you think this is a mistake, contact whoever administers the system.",
+    "back": "Back to the dashboard"
+  },
   "users": {
     "title": "Users",
     "subtitle": "Manage backoffice accounts",
@@ -49,6 +54,24 @@
       "inactive": "Inactive"
     },
     "empty": "No users yet",
+    "search": {
+      "label": "Search users",
+      "placeholder": "Name, username or email",
+      "submit": "Search",
+      "clear": "Clear search"
+    },
+    "count": "{count, plural, =0 {No users} one {# user} other {# users}}",
+    "tableCaption": "Users list",
+    "noResults": {
+      "title": "No results for “{q}”",
+      "hint": "Try another name, username or email."
+    },
+    "pagination": {
+      "region": "Users pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "status": "Page {page} of {pages}"
+    },
     "new": {
       "title": "Create staff account",
       "nameLabel": "Full name",

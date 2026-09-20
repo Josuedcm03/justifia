@@ -6,6 +6,8 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+import type { RolUsuario } from "@/lib/validations/auth";
+
 /**
  * Facultad — catálogo de facultades (modelo_datos_sql.md §3.1).
  */
@@ -34,13 +36,33 @@ export type Carrera = typeof carrera.$inferSelect;
 export type NuevaCarrera = typeof carrera.$inferInsert;
 
 /**
+ * Rol — catálogo de roles de usuario (roles-lookup-table, design.md decisions
+ * 1 and 5). `Codigo` mirrors the code-level `rolesUsuario` constant (single
+ * source of truth for VALID values); `Nombre` is a documentation display
+ * name, not the i18n source (state.yaml assumption).
+ */
+export const rol = pgTable("Rol", {
+  id: bigint("Id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  codigo: varchar("Codigo", { length: 20 })
+    .$type<RolUsuario>()
+    .notNull()
+    .unique(),
+  nombre: varchar("Nombre", { length: 60 }).notNull(),
+});
+
+export type Rol = typeof rol.$inferSelect;
+export type NuevoRol = typeof rol.$inferInsert;
+
+/**
  * Usuario — identidad y credenciales de acceso.
  *
  * Fuente: modelo_datos_sql.md §1 (entidad 4) y DDL §3.1.
  *
  * Notas del modelo:
- * - `rol` se mantiene como VARCHAR (enumeración diferida, §2):
- *   estudiante | docente | coordinacion | secretaria | administrador.
+ * - `rolId` referencia el catálogo `Rol` (roles-lookup-table). El código de
+ *   rol (estudiante | docente | coordinacion | secretaria | administrador)
+ *   se resuelve por join en `src/lib/data/users.ts` y `src/lib/data/roles.ts`;
+ *   el legado `rol` VARCHAR fue eliminado por la migración 0002.
  * - `cif` es único y solo lo llevan los estudiantes; NULL para el resto.
  * - `carreraId` es la carrera del estudiante o la que coordina
  *   coordinación; NULL para docente, secretaría y administración (§4 nota 2).
@@ -49,7 +71,9 @@ export const usuario = pgTable("Usuario", {
   id: bigint("Id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   login: varchar("Login", { length: 60 }).notNull().unique(),
   hashClave: varchar("HashClave", { length: 255 }).notNull(),
-  rol: varchar("Rol", { length: 20 }).notNull(),
+  rolId: bigint("RolId", { mode: "number" })
+    .notNull()
+    .references(() => rol.id),
   nombreCompleto: varchar("NombreCompleto", { length: 160 }).notNull(),
   correo: varchar("Correo", { length: 160 }),
   telefono: varchar("Telefono", { length: 30 }),

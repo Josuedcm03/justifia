@@ -33,6 +33,11 @@
     "totalUsers": "Usuarios totales",
     "activeUsers": "Usuarios activos"
   },
+  "denied": {
+    "title": "No tienes permiso para ver esta página",
+    "message": "Tu cuenta no tiene acceso a esta sección. Si crees que es un error, consulta con quien administra el sistema.",
+    "back": "Volver al panel"
+  },
   "users": {
     "title": "Usuarios",
     "subtitle": "Gestiona las cuentas del backoffice",
@@ -49,6 +54,24 @@
       "inactive": "Inactivo"
     },
     "empty": "Aún no hay usuarios",
+    "search": {
+      "label": "Buscar usuarios",
+      "placeholder": "Nombre, usuario o correo",
+      "submit": "Buscar",
+      "clear": "Limpiar búsqueda"
+    },
+    "count": "{count, plural, =0 {Sin usuarios} one {# usuario} other {# usuarios}}",
+    "tableCaption": "Lista de usuarios",
+    "noResults": {
+      "title": "Sin resultados para «{q}»",
+      "hint": "Prueba con otro nombre, usuario o correo."
+    },
+    "pagination": {
+      "region": "Paginación de usuarios",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "status": "Página {page} de {pages}"
+    },
     "new": {
       "title": "Crear cuenta de staff",
       "nameLabel": "Nombre completo",
@@ -74,9 +97,9 @@
         "invalidCarrera": "La carrera seleccionada no es válida",
         "duplicate": "El usuario o CIF ya existe"
       },
-      "subtitle": "Creá una cuenta para el personal del backoffice."
+      "subtitle": "Crea una cuenta para el personal del backoffice."
     },
-    "degraded": "No se pudo conectar con la base de datos. Volvé a intentarlo en unos minutos."
+    "degraded": "No se pudo conectar con la base de datos. Vuelve a intentarlo en unos minutos."
   },
   "auth": {
     "login": {
@@ -86,12 +109,12 @@
       "passwordLabel": "Contraseña",
       "submit": "Ingresar",
       "submitting": "Ingresando…",
-      "isStudent": "¿Sos estudiante?",
-      "registerLink": "Registrate"
+      "isStudent": "¿Eres estudiante?",
+      "registerLink": "Regístrate"
     },
     "register": {
       "title": "Crear cuenta de estudiante",
-      "subtitle": "Registrate para enviar tus justificaciones",
+      "subtitle": "Regístrate para enviar tus justificaciones",
       "nameLabel": "Nombre completo",
       "loginLabel": "Usuario",
       "passwordLabel": "Contraseña",
@@ -103,7 +126,7 @@
       "careerPlaceholder": "Selecciona una carrera",
       "submit": "Crear cuenta",
       "submitting": "Creando…",
-      "hasAccount": "¿Ya tenés cuenta?",
+      "hasAccount": "¿Ya tienes cuenta?",
       "signIn": "Iniciar sesión",
       "errors": {
         "invalid": "Revisa los datos ingresados",

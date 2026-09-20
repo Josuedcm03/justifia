@@ -17,12 +17,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { canManageUsers } from "@/lib/auth/permissions";
+import { canCreateUsers } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 const items = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
-  { key: "users", href: "/users", icon: Users, requiresUserManagement: true },
+  { key: "users", href: "/users", icon: Users, requiresUserCreation: true },
   { key: "settings", href: "/settings", icon: Settings },
 ] as const;
 
@@ -31,7 +31,7 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
   const tCommon = useTranslations("common");
   const pathname = usePathname();
   const visibleItems = items.filter(
-    (item) => !("requiresUserManagement" in item) || canManageUsers(rol),
+    (item) => !("requiresUserCreation" in item) || canCreateUsers(rol),
   );
 
   return (

@@ -13,8 +13,8 @@ phases:
   spec: done      # revision 4: 4 domains; check (b) redirects, denied screen links to "/", users-listing added
   design: done      # revision 4: (b) redirect, users listing, six chained work units; NEEDS the user's budget decision before tasks
   tasks: done     # 76 tasks, 5 phases, strict TDD, [CONFIRM] gates on every Neon command
-  apply: pending
-  verify: pending
+  apply: done   # 76/76 tasks; WU1b, WU1a, WU3a, WU3b, WU2 delivered; migration 0002 applied on the shared Neon DB 2026-09-20
+  verify: done   # 2026-09-20 PASS_WITH_WARNINGS, 27/27 requirements, 87/87 scenarios; report at verify-report.md
   archive: pending
 artifacts:
   explore:
@@ -32,8 +32,8 @@ artifacts:
   design:
     - openspec/changes/roles-lookup-table/design.md
     - "engram:sdd/roles-lookup-table/design (revision 4)"
-# BLOCKED on a user decision: combined size is ~1585 authored lines against the 800 budget (delivery_strategy ask-on-risk).
-next_recommended: tasks (the user ruled on the review budget: FIVE units, WU3b and WU3c merged)
+# (resolved) the review-budget decision below was taken before apply started.
+next_recommended: archive (verify passed 2026-09-20; archive after PR #2 merges to main; then delete the three Neon rehearsal/backup branches)
 review_budget_decision:
   chosen: "five units: WU1b -> WU1a -> WU3a -> WU3b(+WU3c, ~485 lines) -> WU2"
   rejected: ["six chained units", "cut the users list into a separate change"]
@@ -46,6 +46,7 @@ defaults_applied_pending_confirmation:
   - "WU3 (users list) lands before WU2 (migration); WU2 adapts one column reference"
 # Product decisions taken by the user.
 decisions:
+  # Revised 2026-09-19 after the WU1b visual checkpoint: the full-bleed red was ruled too aggressive.
   key_type: surrogate_id   # user chose this over the recommended natural key
   table_name: Rol          # singular PascalCase, per schema convention
   columns: [Id, Codigo, Nombre]   # Codigo is unique; it is what the JWT carries
@@ -61,7 +62,7 @@ decisions:
   # Added by the user after design (revision 4 of the proposal):
   users_module_visible_only_to: [administrador, coordinacion, secretaria]   # docente and estudiante cannot see or open it
   denial_behaviour: "authenticated non-allowed -> REDIRECT to a permission-denied screen; unauthenticated -> login (replaces redirect to /)"
-  permission_denied_screen: "generic, entirely warning red, design-system destructive tokens, accessible contrast, used by any role guard"
+  permission_denied_screen: "generic, neutral app background with warning red only as an icon accent (bg-denied/10 + text-denied), design-system tokens, accessible contrast, used by any role guard; --denied is per-theme (dark lifted to L 0.60 for the 3:1 icon floor), --denied-foreground removed"
   # Added by the user after design review (proposal revision 5):
   check_b_refusal: "REDIRECT to the permission-denied screen (reverses design decision 10: no form error)"
   denied_screen_way_back: "a control that takes the user to /"
@@ -81,3 +82,46 @@ corrections_to_earlier_artifacts:
   - "permissions.ts in the working tree is [secretaria, administrador] (untracked file). docente is NOT a user manager, so the exploration's 'docente creates administrador' is stale; the real hole was secretaria creating administrador"
   - "npm test is red before this change: permissions.test.ts:25 expects every non-student role in the users-module policy"
   - "Migrator transactionality is CONFIRMED: drizzle-orm pg-core dialect.js:60-71 wraps all pending migrations in session.transaction (postgres-js client.begin)"
+
+# ---------------------------------------------------------------------------
+# HANDOFF (2026-09-20). Read this first when resuming on any machine.
+# Engram memory is per machine; everything needed to continue is in this
+# file, tasks.md and the git history of feature/rolManagement.
+handoff:
+  branch: feature/rolManagement   # all work is pushed here; main only has the foundation PR #1
+  delivered_commits:
+    - "91f027d fix(users): carreraId null bug found at the WU1b checkpoint"
+    - "a2b4262 feat WU1b: /denied screen + requireRole redirect (revised: accent red on neutral background, decision 17 withdrawn)"
+    - "e3a633d feat WU1a: assignment hierarchy, two server checks, sidebar/module reservation"
+    - "b361cb6 feat WU3a: rolesVisibles, sql-like, list-params, scoped paginated listUsuarios"
+    - "2f01e10 + 656b044 feat WU3b: generic DataTable/Search/Pagination, users page wired (delivered as two review slices, user decision)"
+    - "d35be6a fix(i18n): whole es.json switched to tuteo (user decision: formal register; never voseo from now on)"
+    - "cb64a8f feat WU2 code slice: Rol table, migration 0002, seeds, join projections (size:exception accepted: 317 lines are the generated snapshot)"
+  warning: |
+    Migration 0002 IS applied on the shared Neon database (2026-09-20). Code
+    older than cb64a8f (main before WU2 merges) fails at login against it
+    because Usuario.Rol no longer exists. Merge WU2 to main promptly.
+  db_apply_record:
+    applied_at_utc: "2026-09-20T18:33Z"
+    target: "Neon project damp-recipe-21839554, branch production (br-restless-hat-ayjwtjqw), endpoint ep-orange-math-ay4rhpc0, DIRECT URL via env only"
+    restore_point: "Neon branch backup-before-0002-roles (br-tiny-bread-aypqu93y) cloned from production at 2026-09-20T18:30:05Z; instant-restore timestamp 2026-09-20T18:30:05Z"
+    rehearsal_branch: "rehearsal-0002-roles (br-rough-band-ayu3kv9t): 5.19-5.22 all passed, incl. temp '%' row inserted and deleted"
+    post_apply_counts_5_26: { administrador: 2, docente: 1, estudiante: 1, secretaria: 1, coordinacion: 0 }   # equals 5.1; 0 NULL RolId; FK present; Usuario.Rol gone; 3 rows in __drizzle_migrations
+    seed_roles_on_target: "no-op (5 rows already inserted by the migration; onConflictDoNothing)"
+    manual_pass_5_26: "user confirmed login, /users list and /profile show the role code"
+    abort_rehearsal_5_29: "2026-09-20 on Neon branch abort-rehearsal-0002 (br-dry-base-ayngeqfm, cloned from backup-before-0002-roles): with a legacy Usuario.Rol='profesor' row, db:migrate exits 1; statement #5 SET NOT NULL fails with PostgresError 23502 (1 NULL RolId after backfill); rollback verified: no Rol table, Usuario.Rol intact, 2 migration rows"
+    fresh_seed_rehearsal_5_30: "2026-09-20 on Neon branch abort-rehearsal-0002: created an empty Rol table with statement #1 of 0002, npm run db:seed:roles -> 5 rows (ids 1-5, codes and display names as roles-seed-data.ts); second run -> still 5 rows"
+    cleanup_todo: "delete Neon branches rehearsal-0002-roles, backup-before-0002-roles and abort-rehearsal-0002 once WU2 is merged and stable"
+  verified_at_handoff: "5.27: npm test 201/201, npm run typecheck clean, npm run build ok (8 routes), eslint filter clean"
+  preflight_used: { execution_mode: interactive, artifact_store: hybrid, delivery_strategy: ask-on-risk, review_budget_lines: 800 }
+  db_precheck_counts_5_1: { administrador: 2, secretaria: 1, estudiante: 1, docente: 1 }   # compare in 5.21 and 5.26
+  resume_procedure:
+    - "git checkout feature/rolManagement && git pull   # post-merge hook imports .engram/ chunks into your local Engram; first time or if hooks are not active yet: npm ci (installs hooks via prepare) then `engram sync --import`"
+    - "npm ci && npm test  (expect 201/201)"
+    - "gentle-ai sdd-status roles-lookup-table --cwd <repo> --json --instructions  (expect apply done, 76/76)"
+    - "next: sdd-verify, then PR feature/rolManagement -> main, then sdd-archive"
+  conventions_agreed_this_week:
+    - "Conventional Commits in Spanish, scope = feature name (rolManagement); one commit per work unit; push right after each approved commit"
+    - "Spanish UI copy: tuteo, neutral register"
+    - "Working tree files are CRLF; drizzle-kit generated files stay LF"
+    - "Engram memories are shared through git: .engram/ chunks + .githooks (pre-commit exports, post-merge imports), activated by `npm ci` (prepare script). Both developers MUST run engram 2.0.0 (stable, 2026-09-18): `gentle-ai upgrade engram`, or the release zip from github.com/Gentleman-Programming/engram/releases. Back up ~/.engram/engram.db before upgrading. The 1.x binary must not import chunks written by 2.0."
