@@ -33,6 +33,11 @@
     "totalUsers": "Total users",
     "activeUsers": "Active users"
   },
+  "denied": {
+    "title": "You do not have permission to view this page",
+    "message": "Your account does not have access to this section. If you think this is a mistake, contact whoever administers the system.",
+    "back": "Back to the dashboard"
+  },
   "users": {
     "title": "Users",
     "subtitle": "Manage backoffice accounts",

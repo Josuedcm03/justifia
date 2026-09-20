@@ -44,29 +44,40 @@ that any guard can use it unchanged.
 - WHEN they activate the way-back control
 - THEN they are on `/` and not on the users list, so no redirect loop occurs
 
-### Requirement: Warning-red treatment across the whole screen
+### Requirement: Warning-red accent on a neutral surface
 
-The entire screen MUST be red, using the design system's destructive tokens and
-not ad hoc colours. Text and the way-back control MUST meet the accessibility
-floor in `docs/design-system.md` section 7 (4.5:1 for text, 3:1 for large text
-and UI borders) in BOTH the light and the dark theme. Colour MUST NOT be the only
-signal: the message text carries the meaning. If the existing tokens cannot meet
-the floor, a token MUST be added to `docs/design-system.md` first (see open
-questions).
+The screen MUST sit on the app background (`--background` / `--foreground`) in
+both themes, and warning red MUST appear only as an accent: an icon badge using
+the design system's `--denied` token, never as a page or panel fill. The
+way-back control MUST be the primary button. Every colour MUST come from
+`docs/design-system.md`. The red icon MUST meet the non-text UI floor in
+`docs/design-system.md` section 7 (3:1 against `--background`) in BOTH the
+light and the dark theme; the title and message use the design system's text
+tokens, whose floors are already covered there. Colour MUST NOT be the only
+signal: the message text carries the meaning.
+(Previously: "Warning-red treatment across the whole screen"; revised after the
+WU1b visual checkpoint because the full-bleed red was ruled too aggressive.)
 
-#### Scenario: Only design-system colours are used
+#### Scenario: Neutral surface in both themes
+
+- GIVEN the light theme, and separately the dark theme
+- WHEN the screen renders
+- THEN its background is the app `--background` and its text the app
+  `--foreground` / `--muted-foreground`, not a red fill
+
+#### Scenario: Red appears only in the icon badge
 
 - GIVEN the screen's styling
 - WHEN its colours are inspected
-- THEN every red comes from a destructive token defined in the design system
+- THEN the only element using `--denied` is the icon badge (a `bg-denied/10`
+  circle with a `text-denied` icon)
+- AND the way-back control is the primary button with the global focus ring
 
-#### Scenario: Contrast in both themes (table-driven)
+#### Scenario: Icon contrast in both themes (table-driven)
 
 - GIVEN the light theme, and separately the dark theme
-- WHEN contrast is computed for body text, the title and the way-back control
-  label against their backgrounds, and for the control border against its
-  surroundings
-- THEN text is at least 4.5:1 (large text 3:1) and UI borders at least 3:1
+- WHEN contrast is computed for `--denied` against `--background`
+- THEN it is at least 3:1 (non-text UI component floor)
 
 #### Scenario: Meaning survives without colour
 

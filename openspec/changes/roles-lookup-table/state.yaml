@@ -46,6 +46,7 @@ defaults_applied_pending_confirmation:
   - "WU3 (users list) lands before WU2 (migration); WU2 adapts one column reference"
 # Product decisions taken by the user.
 decisions:
+  # Revised 2026-09-19 after the WU1b visual checkpoint: the full-bleed red was ruled too aggressive.
   key_type: surrogate_id   # user chose this over the recommended natural key
   table_name: Rol          # singular PascalCase, per schema convention
   columns: [Id, Codigo, Nombre]   # Codigo is unique; it is what the JWT carries
@@ -61,7 +62,7 @@ decisions:
   # Added by the user after design (revision 4 of the proposal):
   users_module_visible_only_to: [administrador, coordinacion, secretaria]   # docente and estudiante cannot see or open it
   denial_behaviour: "authenticated non-allowed -> REDIRECT to a permission-denied screen; unauthenticated -> login (replaces redirect to /)"
-  permission_denied_screen: "generic, entirely warning red, design-system destructive tokens, accessible contrast, used by any role guard"
+  permission_denied_screen: "generic, neutral app background with warning red only as an icon accent (bg-denied/10 + text-denied), design-system tokens, accessible contrast, used by any role guard; --denied is per-theme (dark lifted to L 0.60 for the 3:1 icon floor), --denied-foreground removed"
   # Added by the user after design review (proposal revision 5):
   check_b_refusal: "REDIRECT to the permission-denied screen (reverses design decision 10: no form error)"
   denied_screen_way_back: "a control that takes the user to /"

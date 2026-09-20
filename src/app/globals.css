@@ -66,6 +66,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-denied: var(--denied);
   --color-highlight-foreground: var(--highlight-foreground);
   --color-highlight: var(--highlight);
   --color-brand-ink: var(--brand-ink);
@@ -136,6 +137,12 @@
   --highlight-foreground: oklch(0.261 0.026 278);
 
   --destructive: oklch(0.577 0.222 28.8);
+  /* Permission-denied accent only: the icon badge on /denied
+     (bg-denied/10 + text-denied) over --background. Per-theme like
+     --destructive so the icon clears the 3:1 non-text floor in both themes;
+     see design-system.md §2.4. Do not reuse for anything else; --destructive
+     keeps carrying inline errors and the destructive button variant. */
+  --denied: oklch(0.505 0.196 28.8);
   --border: oklch(0.918 0.008 229); /* #dfe5e8 */
   --input: oklch(0.918 0.008 229);
   --ring: oklch(0.729 0.127 211); /* #00bcd4 */
@@ -183,6 +190,9 @@
   --highlight-foreground: oklch(0.261 0.026 278);
 
   --destructive: oklch(0.704 0.191 22.2);
+  /* Lifted from L 0.505 so the icon accent reads 4.01:1 on the dark
+     --background (the :root value measures only 2.68:1 here). */
+  --denied: oklch(0.6 0.196 28.8);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.729 0.127 211);

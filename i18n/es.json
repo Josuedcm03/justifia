@@ -33,6 +33,11 @@
     "totalUsers": "Usuarios totales",
     "activeUsers": "Usuarios activos"
   },
+  "denied": {
+    "title": "No tenés permiso para ver esta página",
+    "message": "Tu cuenta no tiene acceso a esta sección. Si creés que es un error, consultá con quien administra el sistema.",
+    "back": "Volver al panel"
+  },
   "users": {
     "title": "Usuarios",
     "subtitle": "Gestiona las cuentas del backoffice",
