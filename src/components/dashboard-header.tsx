@@ -33,7 +33,7 @@ export async function DashboardHeader({ user }: { user: SessionPayload }) {
   const t = await getTranslations("auth.userMenu");
 
   return (
-    <header className="flex h-14 items-center gap-2 border-b px-4">
+    <header className="bg-card/85 sticky top-0 z-10 flex h-14 items-center gap-2 border-b px-4 backdrop-blur-sm md:px-8">
       <SidebarTrigger />
       <div className="ml-auto flex items-center gap-2">
         <LocaleSwitcher current={locale} />

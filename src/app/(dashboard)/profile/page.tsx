@@ -1,9 +1,30 @@
 import { getFormatter, getTranslations } from "next-intl/server";
+import { cn } from "cn";
 
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/dal";
 import { listCarreras } from "@/lib/data/carreras";
 import { getUsuarioByLogin } from "@/lib/data/users";
+
+function Row({
+  label,
+  value,
+  capitalize,
+}: {
+  label: string;
+  value: string;
+  capitalize?: boolean;
+}) {
+  return (
+    <div className="border-border flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b py-3 last:border-b-0">
+      <dt className="text-muted-foreground text-sm">{label}</dt>
+      <dd className={cn("text-sm font-medium", capitalize && "capitalize")}>
+        {value}
+      </dd>
+    </div>
+  );
+}
 
 export default async function ProfilePage() {
   const session = await requireUser();
@@ -19,60 +40,43 @@ export default async function ProfilePage() {
     ? carreras.find((c) => c.id === usuario.carreraId)
     : null;
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
-      </div>
+  const rows: { label: string; value: string; capitalize?: boolean }[] = [
+    { label: t("loginLabel"), value: usuario?.login ?? session.login },
+    {
+      label: t("roleLabel"),
+      value: usuario?.rol ?? session.rol,
+      capitalize: true,
+    },
+  ];
 
-      <Card className="max-w-lg">
+  if (usuario?.correo)
+    rows.push({ label: t("emailLabel"), value: usuario.correo });
+  if (usuario?.telefono)
+    rows.push({ label: t("phoneLabel"), value: usuario.telefono });
+  if (usuario?.cif) rows.push({ label: t("cifLabel"), value: usuario.cif });
+  if (carrera) rows.push({ label: t("careerLabel"), value: carrera.nombre });
+  if (usuario)
+    rows.push({
+      label: t("memberSinceLabel"),
+      value: format.dateTime(usuario.creadoEn, { dateStyle: "medium" }),
+    });
+
+  return (
+    <div className="flex flex-col gap-8">
+      <PageHeader title={t("title")} description={t("subtitle")} />
+
+      <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>{usuario?.nombreCompleto ?? session.nombre}</CardTitle>
+          <CardTitle className="text-h3">
+            {usuario?.nombreCompleto ?? session.nombre}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{t("loginLabel")}</span>
-            <span>{usuario?.login ?? session.login}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{t("roleLabel")}</span>
-            <span className="capitalize">{usuario?.rol ?? session.rol}</span>
-          </div>
-          {usuario?.correo ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">{t("emailLabel")}</span>
-              <span>{usuario.correo}</span>
-            </div>
-          ) : null}
-          {usuario?.telefono ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">{t("phoneLabel")}</span>
-              <span>{usuario.telefono}</span>
-            </div>
-          ) : null}
-          {usuario?.cif ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">{t("cifLabel")}</span>
-              <span>{usuario.cif}</span>
-            </div>
-          ) : null}
-          {carrera ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">{t("careerLabel")}</span>
-              <span>{carrera.nombre}</span>
-            </div>
-          ) : null}
-          {usuario ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">
-                {t("memberSinceLabel")}
-              </span>
-              <span>
-                {format.dateTime(usuario.creadoEn, { dateStyle: "medium" })}
-              </span>
-            </div>
-          ) : null}
+        <CardContent>
+          <dl className="flex flex-col">
+            {rows.map((row) => (
+              <Row key={row.label} {...row} />
+            ))}
+          </dl>
         </CardContent>
       </Card>
     </div>

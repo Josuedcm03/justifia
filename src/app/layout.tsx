@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
-import { Encode_Sans_Semi_Expanded, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Libre_Franklin, Source_Sans_3 } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,11 +9,20 @@ import { brand } from "@/lib/brand";
 import { getUserLocale } from "@/i18n/locale";
 import "./globals.css";
 
-const encodeSans = Encode_Sans_Semi_Expanded({
+// Libre Franklin + Source Sans 3 are the two families UAM actually ships.
+// See docs/design-system.md §3.1 for why Montserrat was dropped.
+const libreFranklin = Libre_Franklin({
+  variable: "--font-display",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["600", "700"],
+});
+
+const sourceSans = Source_Sans_3({
   variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -38,7 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang={locale}
       data-brand={brand}
       suppressHydrationWarning
-      className={`${encodeSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sourceSans.variable} ${libreFranklin.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider locale={locale} messages={messages}>

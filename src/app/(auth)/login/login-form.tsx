@@ -7,13 +7,6 @@ import { useActionState } from "react";
 import { loginAction, type LoginState } from "@/app/(auth)/login/actions";
 import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -28,60 +21,67 @@ export function LoginForm({ next }: { next: string }) {
   );
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("subtitle")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
-          <input type="hidden" name="next" value={next} />
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-h1">{t("title")}</h1>
+        <p className="text-muted-foreground max-w-prose">{t("subtitle")}</p>
+      </header>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="login">{t("loginLabel")}</Label>
-            <Input
-              id="login"
-              name="login"
-              autoComplete="username"
-              autoFocus
-              required
-            />
-          </div>
+      <form action={formAction} className="flex flex-col gap-5">
+        <input type="hidden" name="next" value={next} />
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">{t("passwordLabel")}</Label>
-            <PasswordInput
-              id="password"
-              name="password"
-              autoComplete="current-password"
-              required
-              showLabel={tCommon("showPassword")}
-              hideLabel={tCommon("hidePassword")}
-            />
-          </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="login">{t("loginLabel")}</Label>
+          <Input
+            id="login"
+            name="login"
+            autoComplete="username"
+            autoFocus
+            required
+            aria-invalid={state.error ? true : undefined}
+            aria-describedby={state.error ? "login-error" : undefined}
+          />
+        </div>
 
-          {state.error ? (
-            <p
-              role="alert"
-              className="text-destructive text-sm"
-              aria-live="polite"
-            >
-              {state.error}
-            </p>
-          ) : null}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">{t("passwordLabel")}</Label>
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="current-password"
+            required
+            showLabel={tCommon("showPassword")}
+            hideLabel={tCommon("hidePassword")}
+            aria-invalid={state.error ? true : undefined}
+            aria-describedby={state.error ? "login-error" : undefined}
+          />
+        </div>
 
-          <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? t("submitting") : t("submit")}
-          </Button>
-
-          <p className="text-muted-foreground text-center text-sm">
-            {t("isStudent")}{" "}
-            <Link href="/register" className="underline underline-offset-4">
-              {t("registerLink")}
-            </Link>
+        {state.error ? (
+          <p
+            id="login-error"
+            role="alert"
+            aria-live="polite"
+            className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
+          >
+            {state.error}
           </p>
-        </form>
-      </CardContent>
-    </Card>
+        ) : null}
+
+        <Button type="submit" size="lg" disabled={isPending} className="w-full">
+          {isPending ? t("submitting") : t("submit")}
+        </Button>
+      </form>
+
+      <p className="text-muted-foreground border-border border-t pt-6 text-sm">
+        {t("isStudent")}{" "}
+        <Link
+          href="/register"
+          className="text-primary rounded-sm font-medium underline underline-offset-4"
+        >
+          {t("registerLink")}
+        </Link>
+      </p>
+    </div>
   );
 }

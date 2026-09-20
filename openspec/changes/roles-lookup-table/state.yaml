@@ -1,0 +1,83 @@
+# DAG state for the roles-lookup-table change. Owned by the SDD orchestrator.
+change: roles-lookup-table
+project: justifia
+artifact_store: hybrid
+execution_mode: interactive
+delivery_strategy: ask-on-risk
+review_budget_lines: 800
+# No PRs, commits or pushes are created by agents; the user validates and delivers manually.
+touches_database_schema: true
+phases:
+  explore: done   # note: its docente/escalation text is stale, see corrections below
+  propose: done   # revision 3: role-assignment hierarchy
+  spec: done      # revision 4: 4 domains; check (b) redirects, denied screen links to "/", users-listing added
+  design: done      # revision 4: (b) redirect, users listing, six chained work units; NEEDS the user's budget decision before tasks
+  tasks: done     # 76 tasks, 5 phases, strict TDD, [CONFIRM] gates on every Neon command
+  apply: pending
+  verify: pending
+  archive: pending
+artifacts:
+  explore:
+    - openspec/changes/roles-lookup-table/exploration.md
+    - "engram:sdd/roles-lookup-table/explore"
+  propose:
+    - openspec/changes/roles-lookup-table/proposal.md
+    - "engram:sdd/roles-lookup-table/proposal"
+  spec:
+    - openspec/changes/roles-lookup-table/specs/user-roles/spec.md
+    - openspec/changes/roles-lookup-table/specs/staff-account-creation/spec.md
+    - openspec/changes/roles-lookup-table/specs/permission-denied-screen/spec.md
+    - openspec/changes/roles-lookup-table/specs/users-listing/spec.md
+    - "engram:sdd/roles-lookup-table/spec (revision 4)"
+  design:
+    - openspec/changes/roles-lookup-table/design.md
+    - "engram:sdd/roles-lookup-table/design (revision 4)"
+# BLOCKED on a user decision: combined size is ~1585 authored lines against the 800 budget (delivery_strategy ask-on-risk).
+next_recommended: tasks (the user ruled on the review budget: FIVE units, WU3b and WU3c merged)
+review_budget_decision:
+  chosen: "five units: WU1b -> WU1a -> WU3a -> WU3b(+WU3c, ~485 lines) -> WU2"
+  rejected: ["six chained units", "cut the users list into a separate change"]
+  note: "WU2 (destructive migration) never shares a review; the user delivers each unit manually"
+defaults_applied_pending_confirmation:
+  - "page size 10 (spec assumption; the design said 20 and was aligned)"
+  - "search covers nombre, login and correo, not cif; submits on Enter, no debounce"
+  - "no @tanstack/react-table: three small in-repo components (DataTable, DataTableSearch, DataTablePagination)"
+  - "administrador and coordinacion see estudiante rows too ('todos los usuarios' read literally)"
+  - "WU3 (users list) lands before WU2 (migration); WU2 adapts one column reference"
+# Product decisions taken by the user.
+decisions:
+  key_type: surrogate_id   # user chose this over the recommended natural key
+  table_name: Rol          # singular PascalCase, per schema convention
+  columns: [Id, Codigo, Nombre]   # Codigo is unique; it is what the JWT carries
+  roles_editable_at_runtime: false   # fixed roles; permissions stay in permissions.ts
+  privilege_escalation: in_scope     # user chose to fix it inside this change
+  # Rule v2 replaced the earlier "only administrador creates staff" (strictest option).
+  assignment_hierarchy:
+    administrador: [coordinacion]
+    coordinacion: [secretaria]
+    secretaria: [docente]
+    docente: []
+    estudiante: []
+  # Added by the user after design (revision 4 of the proposal):
+  users_module_visible_only_to: [administrador, coordinacion, secretaria]   # docente and estudiante cannot see or open it
+  denial_behaviour: "authenticated non-allowed -> REDIRECT to a permission-denied screen; unauthenticated -> login (replaces redirect to /)"
+  permission_denied_screen: "generic, entirely warning red, design-system destructive tokens, accessible contrast, used by any role guard"
+  # Added by the user after design review (proposal revision 5):
+  check_b_refusal: "REDIRECT to the permission-denied screen (reverses design decision 10: no form error)"
+  denied_screen_way_back: "a control that takes the user to /"
+  users_list_viewer_scope: {administrador: all, coordinacion: all, secretaria: "only role docente"}   # enforced in the SQL query
+  users_list_ui: "data table, server-side pagination, working search, page and term in the URL; no sorting/filters/export"
+consequences_accepted:
+  - "Hand-written migration with backfill; drizzle-kit alone cannot emit it"
+  - "Drops Usuario.Rol, which is destructive; rollback path is a Neon branch rehearsal"
+  - "Login, users listing and profile need a join to resolve the role code"
+assumptions_to_confirm:
+  - "The users module (list + new-user entry point) is reachable by every creator role, which adds coordinacion to its access policy"
+  - "CONFIRMED by the user: the hierarchy is literal. administrador creates only coordinacion; no in-app path creates an administrador; admins come from the seed"
+  - "A disallowed target role from an authenticated creator returns a form error, not a redirect"
+  - "The migration aborts if any Usuario.Rol value is outside the 5 codes"
+  - "Nombre is documentation, not the i18n source"
+corrections_to_earlier_artifacts:
+  - "permissions.ts in the working tree is [secretaria, administrador] (untracked file). docente is NOT a user manager, so the exploration's 'docente creates administrador' is stale; the real hole was secretaria creating administrador"
+  - "npm test is red before this change: permissions.test.ts:25 expects every non-student role in the users-module policy"
+  - "Migrator transactionality is CONFIRMED: drizzle-orm pg-core dialect.js:60-71 wraps all pending migrations in session.transaction (postgres-js client.begin)"

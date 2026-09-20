@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
@@ -8,7 +9,7 @@ import {
   type CreateStaffState,
 } from "@/app/(dashboard)/users/new/actions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,8 +24,33 @@ import { rolesStaff } from "@/lib/validations/users";
 
 const initialState: CreateStaffState = { error: null };
 
+function Field({
+  htmlFor,
+  label,
+  hint,
+  children,
+}: {
+  htmlFor: string;
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {children}
+      {hint ? (
+        <p id={`${htmlFor}-hint`} className="text-muted-foreground text-xs">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function NewUserForm({ carreras }: { carreras: Carrera[] }) {
   const t = useTranslations("users.new");
+  const tCommon = useTranslations("common");
   const [state, formAction, isPending] = useActionState(
     createStaffAction,
     initialState,
@@ -33,45 +59,50 @@ export function NewUserForm({ carreras }: { carreras: Carrera[] }) {
   const esCoordinacion = rol === "coordinacion";
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="nombreCompleto">{t("nameLabel")}</Label>
-            <Input id="nombreCompleto" name="nombreCompleto" required />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="login">{t("loginLabel")}</Label>
-            <Input id="login" name="login" autoComplete="off" required />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">{t("passwordLabel")}</Label>
+    <form action={formAction}>
+      <Card className="mx-auto w-full max-w-2xl [--card-spacing:--spacing(6)]">
+        <CardContent className="flex flex-col gap-5">
+          <Field htmlFor="nombreCompleto" label={t("nameLabel")}>
             <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
+              id="nombreCompleto"
+              name="nombreCompleto"
+              autoComplete="name"
               required
             />
+          </Field>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field htmlFor="login" label={t("loginLabel")}>
+              <Input id="login" name="login" autoComplete="off" required />
+            </Field>
+
+            <Field htmlFor="password" label={t("passwordLabel")}>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+              />
+            </Field>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="correo">{t("emailLabel")}</Label>
-            <Input id="correo" name="correo" type="email" />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field htmlFor="correo" label={t("emailLabel")}>
+              <Input
+                id="correo"
+                name="correo"
+                type="email"
+                autoComplete="email"
+              />
+            </Field>
+
+            <Field htmlFor="telefono" label={t("phoneLabel")}>
+              <Input id="telefono" name="telefono" autoComplete="tel" />
+            </Field>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="telefono">{t("phoneLabel")}</Label>
-            <Input id="telefono" name="telefono" autoComplete="tel" />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="rol">{t("roleLabel")}</Label>
+          <Field htmlFor="rol" label={t("roleLabel")}>
             <Select
               name="rol"
               required
@@ -93,11 +124,12 @@ export function NewUserForm({ carreras }: { carreras: Carrera[] }) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
+          {/* Coordination is the only role tied to a career, so the field
+              appears when it becomes relevant instead of sitting disabled. */}
           {esCoordinacion ? (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="carreraId">{t("careerLabel")}</Label>
+            <Field htmlFor="carreraId" label={t("careerLabel")}>
               <Select
                 name="carreraId"
                 required
@@ -117,24 +149,29 @@ export function NewUserForm({ carreras }: { carreras: Carrera[] }) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           ) : null}
 
           {state.error ? (
             <p
               role="alert"
-              className="text-destructive text-sm"
               aria-live="polite"
+              className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
             >
               {state.error}
             </p>
           ) : null}
+        </CardContent>
 
-          <Button type="submit" disabled={isPending} className="w-full">
+        <CardFooter className="border-border flex justify-end gap-3 border-t py-4">
+          <Button variant="ghost" render={<Link href="/users" />}>
+            {tCommon("cancel")}
+          </Button>
+          <Button type="submit" disabled={isPending}>
             {isPending ? t("submitting") : t("submit")}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </CardFooter>
+      </Card>
+    </form>
   );
 }

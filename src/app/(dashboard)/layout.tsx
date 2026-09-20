@@ -14,10 +14,12 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar rol={user.rol} />
       <SidebarInset>
         <DashboardHeader user={user} />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 px-4 py-6 md:px-8 md:py-10">
+          <div className="shell">{children}</div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
