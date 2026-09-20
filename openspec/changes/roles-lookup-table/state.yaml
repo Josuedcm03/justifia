@@ -118,3 +118,4 @@ handoff:
     - "Conventional Commits in Spanish, scope = feature name (rolManagement); one commit per work unit; push right after each approved commit"
     - "Spanish UI copy: tuteo, neutral register"
     - "Working tree files are CRLF; drizzle-kit generated files stay LF"
+    - "Engram memories are shared through git: .engram/ chunks + .githooks (pre-commit exports, post-merge imports), activated by `npm ci` (prepare script). Both developers MUST run engram 2.0.0 (stable, 2026-09-18): `gentle-ai upgrade engram`, or the release zip from github.com/Gentleman-Programming/engram/releases. Back up ~/.engram/engram.db before upgrading. The 1.x binary must not import chunks written by 2.0."
