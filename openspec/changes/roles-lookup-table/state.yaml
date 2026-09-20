@@ -13,7 +13,7 @@ phases:
   spec: done      # revision 4: 4 domains; check (b) redirects, denied screen links to "/", users-listing added
   design: done      # revision 4: (b) redirect, users listing, six chained work units; NEEDS the user's budget decision before tasks
   tasks: done     # 76 tasks, 5 phases, strict TDD, [CONFIRM] gates on every Neon command
-  apply: pending
+  apply: in-progress   # 65/76 tasks; WU1b, WU1a, WU3a, WU3b delivered; WU2 code slice (5.1-5.17) committed, DB steps 5.18-5.28 pending
   verify: pending
   archive: pending
 artifacts:
@@ -32,8 +32,8 @@ artifacts:
   design:
     - openspec/changes/roles-lookup-table/design.md
     - "engram:sdd/roles-lookup-table/design (revision 4)"
-# BLOCKED on a user decision: combined size is ~1585 authored lines against the 800 budget (delivery_strategy ask-on-risk).
-next_recommended: tasks (the user ruled on the review budget: FIVE units, WU3b and WU3c merged)
+# (resolved) the review-budget decision below was taken before apply started.
+next_recommended: apply (resume at task 5.18 — Neon branch rehearsal; every [CONFIRM] command needs explicit per-command user confirmation)
 review_budget_decision:
   chosen: "five units: WU1b -> WU1a -> WU3a -> WU3b(+WU3c, ~485 lines) -> WU2"
   rejected: ["six chained units", "cut the users list into a separate change"]
@@ -82,3 +82,39 @@ corrections_to_earlier_artifacts:
   - "permissions.ts in the working tree is [secretaria, administrador] (untracked file). docente is NOT a user manager, so the exploration's 'docente creates administrador' is stale; the real hole was secretaria creating administrador"
   - "npm test is red before this change: permissions.test.ts:25 expects every non-student role in the users-module policy"
   - "Migrator transactionality is CONFIRMED: drizzle-orm pg-core dialect.js:60-71 wraps all pending migrations in session.transaction (postgres-js client.begin)"
+
+# ---------------------------------------------------------------------------
+# HANDOFF (2026-09-20). Read this first when resuming on any machine.
+# Engram memory is per machine; everything needed to continue is in this
+# file, tasks.md and the git history of feature/rolManagement.
+handoff:
+  branch: feature/rolManagement   # all work is pushed here; main only has the foundation PR #1
+  delivered_commits:
+    - "91f027d fix(users): carreraId null bug found at the WU1b checkpoint"
+    - "a2b4262 feat WU1b: /denied screen + requireRole redirect (revised: accent red on neutral background, decision 17 withdrawn)"
+    - "e3a633d feat WU1a: assignment hierarchy, two server checks, sidebar/module reservation"
+    - "b361cb6 feat WU3a: rolesVisibles, sql-like, list-params, scoped paginated listUsuarios"
+    - "2f01e10 + 656b044 feat WU3b: generic DataTable/Search/Pagination, users page wired (delivered as two review slices, user decision)"
+    - "d35be6a fix(i18n): whole es.json switched to tuteo (user decision: formal register; never voseo from now on)"
+    - "cb64a8f feat WU2 code slice: Rol table, migration 0002, seeds, join projections (size:exception accepted: 317 lines are the generated snapshot)"
+  warning: |
+    The branch HEAD (cb64a8f and later) expects Usuario.RolId and the Rol table.
+    The shared Neon database is NOT migrated yet. Running the app from this
+    branch against the shared DB fails at login until task 5.24 is applied.
+    Do not merge to main before 5.24-5.27 pass.
+  verified_at_handoff: "npm test 201/201, npm run typecheck clean, npm run build ok, eslint filter clean"
+  preflight_used: { execution_mode: interactive, artifact_store: hybrid, delivery_strategy: ask-on-risk, review_budget_lines: 800 }
+  db_precheck_counts_5_1: { administrador: 2, secretaria: 1, estudiante: 1, docente: 1 }   # compare in 5.21 and 5.26
+  blockers_for_db_steps:
+    - "DATABASE_URL in .env is the -pooler URL; drizzle-kit migrate must use the DIRECT (non-pooled) URL, exported in the shell only for that command. Never commit or print it."
+    - "neonctl is not installed on the original machine; create the rehearsal branch (5.18) with `npm i -g neonctl && neonctl auth` or from the Neon console, then point the DIRECT URL of that branch at 5.19-5.22."
+  resume_procedure:
+    - "git checkout feature/rolManagement && git pull"
+    - "npm ci && npm test  (expect 201/201)"
+    - "gentle-ai sdd-status roles-lookup-table --cwd <repo> --json --instructions  (expect apply ready, 65/76)"
+    - "continue with tasks.md 5.18 -> 5.28 in order; [CONFIRM] means ask the user before running that exact command"
+    - "after 5.24 succeeds on the shared DB: run 5.25-5.27, then commit `chore(rolManagement): aplica la migración 0002 en Neon` if anything changed, then sdd-verify, then sdd-archive"
+  conventions_agreed_this_week:
+    - "Conventional Commits in Spanish, scope = feature name (rolManagement); one commit per work unit; push right after each approved commit"
+    - "Spanish UI copy: tuteo, neutral register"
+    - "Working tree files are CRLF; drizzle-kit generated files stay LF"
