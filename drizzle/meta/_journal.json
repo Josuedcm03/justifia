@@ -15,6 +15,13 @@
       "when": 1789703997319,
       "tag": "0001_talented_fixer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789876447244,
+      "tag": "0002_roles_lookup_table",
+      "breakpoints": true
     }
   ]
 }

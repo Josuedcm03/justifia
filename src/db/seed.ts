@@ -2,9 +2,16 @@ import "dotenv/config";
 
 import { db, schema } from "@/db";
 import { hashPassword } from "@/lib/auth/password";
+import { getRolIdByCodigo } from "@/lib/data/roles";
 
 async function main() {
   const hash = await hashPassword("Cambiar123");
+  // Roles must be seeded first (db:seed chains db:seed:roles before this
+  // script); resolve the codes to catalog ids before inserting users.
+  const [administradorId, secretariaId] = await Promise.all([
+    getRolIdByCodigo("administrador"),
+    getRolIdByCodigo("secretaria"),
+  ]);
 
   await db
     .insert(schema.usuario)
@@ -12,21 +19,21 @@ async function main() {
       {
         login: "bratty",
         hashClave: hash,
-        rol: "administrador",
+        rolId: administradorId,
         nombreCompleto: "Armando Alguera",
         correo: "analguera@uam.edu.ni",
       },
       {
         login: "jdkno",
         hashClave: hash,
-        rol: "secretaria",
+        rolId: secretariaId,
         nombreCompleto: "Josue Cano",
         correo: "jdcano@uam.edu.ni",
       },
       {
         login: "administrador",
         hashClave: hash,
-        rol: "administrador",
+        rolId: administradorId,
         nombreCompleto: "administrador fia",
         correo: "admin@uam.edu.ni",
       },

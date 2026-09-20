@@ -21,9 +21,9 @@ function toSql(
 }
 
 describe("buildUsersWhere + buildListUsuariosQuery — toSQL proof (no database)", () => {
-  it("scopes the where clause to exactly the viewer's visible codes", () => {
+  it("scopes the where clause to exactly the viewer's visible codes, via the joined Rol.Codigo (WU2)", () => {
     const { sql, params } = toSql(buildUsersWhere("secretaria", ""), 1, 10);
-    expect(sql).toContain('"Rol" in ($1)');
+    expect(sql).toContain('"Rol"."Codigo" in ($1)');
     expect(params[0]).toBe("docente");
     expect(params).not.toContain("administrador");
   });
@@ -46,8 +46,9 @@ describe("buildUsersWhere + buildListUsuariosQuery — toSQL proof (no database)
     expect(sql).toContain("where false");
   });
 
-  it("orders newest first with the Id as a tie-break", () => {
+  it("orders newest first with the Id as a tie-break, and joins Rol", () => {
     const { sql } = toSql(buildUsersWhere("administrador", ""), 1, 10);
+    expect(sql).toContain('inner join "Rol"');
     expect(sql).toContain(
       'order by "Usuario"."CreadoEn" desc, "Usuario"."Id" desc',
     );

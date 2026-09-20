@@ -8,6 +8,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { canAssignRole, rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { listCarreras } from "@/lib/data/carreras";
+import { RolDesconocidoError } from "@/lib/data/roles";
 import { createUsuario } from "@/lib/data/users";
 import { crearStaffSchema } from "@/lib/validations/users";
 
@@ -69,7 +70,11 @@ export async function createStaffAction(
       cif: null,
       carreraId: esCoordinacion ? (parsed.data.carreraId ?? null) : null,
     });
-  } catch {
+  } catch (err) {
+    // A config error (an assignable role missing from the catalog) is not a
+    // duplicate login; only rethrow narrows the catch-all (design.md
+    // decision 7).
+    if (err instanceof RolDesconocidoError) throw err;
     return { error: t("errors.duplicate") };
   }
 

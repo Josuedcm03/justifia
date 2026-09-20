@@ -1,13 +1,44 @@
 import "server-only";
 
-import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type { QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
-import { usuario, type NuevoUsuario, type Usuario } from "@/db/schema";
+import { rol, usuario, type NuevoUsuario, type Usuario } from "@/db/schema";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
 import { containsPattern } from "@/lib/data/sql-like";
+import { getRolIdByCodigo } from "@/lib/data/roles";
 import type { RolUsuario } from "@/lib/validations/auth";
+
+/**
+ * Read DTO: the field is still named `rol` and still carries the CODE, via
+ * `innerJoin` (design.md decision 3). Every existing consumer of `.rol`
+ * (login, users list, profile) keeps working unchanged.
+ */
+export type UsuarioConRol = Omit<Usuario, "rolId"> & { rol: RolUsuario };
+
+/**
+ * Write DTO: callers pass the CODE; `createUsuario` resolves it to the
+ * catalog id internally (design.md decision 4).
+ */
+export type NuevoUsuarioConRol = Omit<NuevoUsuario, "rolId"> & {
+  rol: RolUsuario;
+};
+
+/** Columns shared by every `UsuarioConRol` projection (login, list, byLogin). */
+const usuarioConRolColumns = {
+  id: usuario.id,
+  login: usuario.login,
+  hashClave: usuario.hashClave,
+  nombreCompleto: usuario.nombreCompleto,
+  correo: usuario.correo,
+  telefono: usuario.telefono,
+  cif: usuario.cif,
+  carreraId: usuario.carreraId,
+  activo: usuario.activo,
+  creadoEn: usuario.creadoEn,
+  rol: rol.codigo,
+} as const;
 
 export type ListUsuariosParams = {
   /** From the SESSION only — never from `searchParams` (design.md decision 18). */
@@ -20,7 +51,7 @@ export type ListUsuariosParams = {
 };
 
 export type UsuarioListResult = {
-  data: Usuario[];
+  data: UsuarioConRol[];
   total: number;
   /** The CLAMPED page actually rendered. */
   page: number;
@@ -33,11 +64,11 @@ export type UsuarioListResult = {
  * page query (design.md decision 19). The scope is a branch-free `inArray`
  * fed by `rolesVisiblesPara`: an unknown or empty scope makes `inArray` emit
  * a literal `false`, i.e. zero rows — it fails closed, never open
- * (design.md decision 18, finding 8). Written against the existing
- * `Usuario.Rol` column; WU2 swaps this one column reference to `Rol.Codigo`.
+ * (design.md decision 18, finding 8). WU2: the scope now names
+ * `"Rol"."Codigo"` (via the join), never the dropped `Usuario.Rol` column.
  */
 export function buildUsersWhere(viewerRol: RolUsuario | undefined, q: string) {
-  const scope = inArray(usuario.rol, [...rolesVisiblesPara(viewerRol)]);
+  const scope = inArray(rol.codigo, [...rolesVisiblesPara(viewerRol)]);
   const term = q
     ? or(
         ilike(usuario.nombreCompleto, containsPattern(q)),
@@ -68,7 +99,8 @@ export function clampPage(
  * and no `@/db` import). `listUsuarios` below composes the same `where`
  * (`buildUsersWhere`) against the real `db`, so the security-critical
  * predicate is never written twice; only this inert order/limit/offset shape
- * is, which carries no scope logic to drift.
+ * is, which carries no scope logic to drift. WU2 adds the `innerJoin` that
+ * `buildUsersWhere`'s scope now depends on.
  */
 export function buildListUsuariosQuery(
   qb: QueryBuilder,
@@ -78,6 +110,7 @@ export function buildListUsuariosQuery(
   return qb
     .select()
     .from(usuario)
+    .innerJoin(rol, eq(usuario.rolId, rol.id))
     .where(where)
     .orderBy(desc(usuario.creadoEn), desc(usuario.id))
     .limit(page.pageSize)
@@ -89,11 +122,17 @@ export async function listUsuarios(
 ): Promise<UsuarioListResult> {
   try {
     const where = buildUsersWhere(p.viewerRol, p.q);
-    const total = await db.$count(usuario, where);
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(usuario)
+      .innerJoin(rol, eq(usuario.rolId, rol.id))
+      .where(where);
+    const total = count;
     const page = clampPage(p.page, total, p.pageSize);
     const data = await db
-      .select()
+      .select(usuarioConRolColumns)
       .from(usuario)
+      .innerJoin(rol, eq(usuario.rolId, rol.id))
       .where(where)
       .orderBy(desc(usuario.creadoEn), desc(usuario.id))
       .limit(p.pageSize)
@@ -130,16 +169,36 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export async function getUsuarioByLogin(
   login: string,
-): Promise<Usuario | null> {
+): Promise<UsuarioConRol | null> {
   const [row] = await db
-    .select()
+    .select(usuarioConRolColumns)
     .from(usuario)
+    .innerJoin(rol, eq(usuario.rolId, rol.id))
     .where(eq(usuario.login, login))
     .limit(1);
   return row ?? null;
 }
 
-export async function createUsuario(data: NuevoUsuario): Promise<Usuario> {
-  const [row] = await db.insert(usuario).values(data).returning();
-  return row;
+export async function createUsuario(
+  data: NuevoUsuarioConRol,
+): Promise<UsuarioConRol> {
+  const { rol: codigo, ...resto } = data;
+  const rolId = await getRolIdByCodigo(codigo);
+  const [row] = await db
+    .insert(usuario)
+    .values({ ...resto, rolId })
+    .returning();
+  return {
+    id: row.id,
+    login: row.login,
+    hashClave: row.hashClave,
+    nombreCompleto: row.nombreCompleto,
+    correo: row.correo,
+    telefono: row.telefono,
+    cif: row.cif,
+    carreraId: row.carreraId,
+    activo: row.activo,
+    creadoEn: row.creadoEn,
+    rol: codigo,
+  };
 }

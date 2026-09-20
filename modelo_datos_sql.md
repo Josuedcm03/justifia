@@ -48,7 +48,6 @@
 
 | Tabla.Columna                | Valores previstos                                                                                                                         |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `Usuario.Rol`                | estudiante, docente, coordinacion, secretaria, administrador                                                                              |
 | `Solicitud.CanalRecepcion`   | correo, fisico                                                                                                                            |
 | `Solicitud.Estado`           | recibida, en_verificacion, en_coordinacion, distribuida, en_revision_docente, devuelta, aprobada, rechazada, caducada                     |
 | `Solicitud.MotivoCierre`     | reincidencia, causa_no_elegible, documento_alterado, fuera_de_plazo_injustificado, coordinacion_no_acepta                                 |
@@ -57,6 +56,12 @@
 | `Adjunto.TipoDocumento`      | constancia_medica, constancia_deportiva, epicrisis, acta_defuncion, formato_especial, otro                                                |
 | `Notificacion.Canal`         | correo, whatsapp, presencial, sistema                                                                                                     |
 | `SolicitudBitacora.Motivo`   | (libre por ahora: reincidencia, presunta_alteracion, limite_20_excedido, documento_ilegible, fecha_incongruente, solicitud_incompleta, …) |
+
+**`Usuario.Rol` (retirado de esta lista, roles-lookup-table):** dejó de ser un
+`VARCHAR` con enumeración diferida. Ahora es un catálogo referenciado:
+`Usuario.RolId` (bigint, `NOT NULL`) apunta a `Rol.Id`, y `Rol.Codigo`
+contiene exactamente los cinco valores anteriores (estudiante, docente,
+coordinacion, secretaria, administrador). Ver §3.1.
 
 ---
 
@@ -94,11 +99,23 @@ CREATE TABLE "Asignatura" (
     CONSTRAINT "CK_Asignatura_Horas" CHECK ("HorasTotales" > 0)
 );
 
+-- Catálogo de roles (roles-lookup-table). `Codigo` es el valor que antes
+-- vivía como texto libre en `Usuario.Rol` (§2); `Nombre` es solo
+-- documentación/UI, no la fuente de verdad de los valores válidos (esa
+-- sigue siendo el enum de la aplicación).
+CREATE TABLE "Rol" (
+    "Id"      BIGINT GENERATED ALWAYS AS IDENTITY,
+    "Codigo"  VARCHAR(20) NOT NULL,                   -- estudiante | docente | coordinacion | secretaria | administrador
+    "Nombre"  VARCHAR(60) NOT NULL,
+    CONSTRAINT "PK_Rol" PRIMARY KEY ("Id"),
+    CONSTRAINT "UQ_Rol_Codigo" UNIQUE ("Codigo")
+);
+
 CREATE TABLE "Usuario" (
     "Id"              BIGINT GENERATED ALWAYS AS IDENTITY,
     "Login"           VARCHAR(60)  NOT NULL,
     "HashClave"       VARCHAR(255) NOT NULL,
-    "Rol"             VARCHAR(20)  NOT NULL,          -- §2 (RNF-07)
+    "RolId"           BIGINT NOT NULL,                -- FK a Rol.Id (antes: "Rol" VARCHAR(20), §2)
     "NombreCompleto"  VARCHAR(160) NOT NULL,
     "Correo"          VARCHAR(160),                   -- solicitado a cada estudiante (02:09)
     "Telefono"        VARCHAR(30),                    -- aviso por WhatsApp (14:58)
@@ -109,6 +126,7 @@ CREATE TABLE "Usuario" (
     CONSTRAINT "PK_Usuario" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_Usuario_Login" UNIQUE ("Login"),
     CONSTRAINT "UQ_Usuario_Cif" UNIQUE ("Cif"),
+    CONSTRAINT "FK_Usuario_Rol" FOREIGN KEY ("RolId") REFERENCES "Rol" ("Id"),
     CONSTRAINT "FK_Usuario_Carrera" FOREIGN KEY ("CarreraId") REFERENCES "Carrera" ("Id")
 );
 

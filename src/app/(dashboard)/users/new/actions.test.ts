@@ -2,9 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
+import { RolDesconocidoError } from "@/lib/data/roles";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
+// RolDesconocidoError is imported directly (below) from the real, unmocked
+// `@/lib/data/roles` module so the two errors compared in the "rethrows"
+// test are the exact same class; only its `@/db` import needs a stub so
+// module evaluation never runs `src/env.ts` in the test runner.
+vi.mock("@/db", () => ({ db: {} }));
 
 const {
   redirectMock,
@@ -188,4 +194,31 @@ describe("createStaffAction", () => {
       );
     },
   );
+
+  it("rethrows RolDesconocidoError from createUsuario (decision 7: a config error is not a duplicate)", async () => {
+    allowSession("administrador");
+    listCarrerasMock.mockResolvedValue([{ id: 7, nombre: "Ingeniería" }]);
+    createUsuarioMock.mockRejectedValue(
+      new RolDesconocidoError("coordinacion"),
+    );
+    const fd = buildFormData({
+      ...validPayload,
+      rol: "coordinacion",
+      carreraId: "7",
+    });
+
+    await expect(createStaffAction({ error: null }, fd)).rejects.toBeInstanceOf(
+      RolDesconocidoError,
+    );
+  });
+
+  it("keeps errors.duplicate for any other createUsuario failure", async () => {
+    allowSession("secretaria");
+    createUsuarioMock.mockRejectedValue(new Error("duplicate key value"));
+    const fd = buildFormData({ ...validPayload, rol: "docente" });
+
+    const result = await createStaffAction({ error: null }, fd);
+
+    expect(result).toEqual({ error: "errors.duplicate" });
+  });
 });

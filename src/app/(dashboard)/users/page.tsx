@@ -6,10 +6,9 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { DataTableSearch } from "@/components/data-table-search";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import type { Usuario } from "@/db/schema";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
-import { listUsuarios } from "@/lib/data/users";
+import { listUsuarios, type UsuarioConRol } from "@/lib/data/users";
 import {
   USERS_PAGE_SIZE,
   parseUsersListParams,
@@ -79,7 +78,7 @@ export default async function UsersPage({
     pageSize: USERS_PAGE_SIZE,
   });
 
-  const columns: readonly DataTableColumn<Usuario>[] = [
+  const columns: readonly DataTableColumn<UsuarioConRol>[] = [
     {
       key: "name",
       header: t("columns.name"),

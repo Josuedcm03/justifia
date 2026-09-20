@@ -7,7 +7,7 @@ import { clearSessionCookie, setSessionCookie } from "@/lib/auth/cookies";
 import { verifyPassword } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/session";
 import { getUsuarioByLogin } from "@/lib/data/users";
-import { loginSchema, type RolUsuario } from "@/lib/validations/auth";
+import { loginSchema } from "@/lib/validations/auth";
 
 export type LoginState = { error: string | null };
 
@@ -44,7 +44,7 @@ export async function loginAction(
   const token = await signSession({
     sub: String(user.id),
     login: user.login,
-    rol: user.rol as RolUsuario,
+    rol: user.rol,
     nombre: user.nombreCompleto,
   });
   await setSessionCookie(token);
