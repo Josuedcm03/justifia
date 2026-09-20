@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/dal";
-import { rolesQueGestionanUsuarios } from "@/lib/auth/permissions";
+import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { listUsuarios } from "@/lib/data/users";
 
 function StatusPill({ active, label }: { active: boolean; label: string }) {
@@ -30,7 +30,7 @@ function StatusPill({ active, label }: { active: boolean; label: string }) {
 }
 
 export default async function UsersPage() {
-  await requireRole(...rolesQueGestionanUsuarios);
+  await requireRole(...rolesQueCreanUsuarios);
   const t = await getTranslations("users");
   const format = await getFormatter();
   const { data, degraded } = await listUsuarios();

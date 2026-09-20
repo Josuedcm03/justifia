@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/dal";
 import { hashPassword } from "@/lib/auth/password";
-import { rolesQueGestionanUsuarios } from "@/lib/auth/permissions";
+import { canAssignRole, rolesQueCreanUsuarios } from "@/lib/auth/permissions";
+import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { listCarreras } from "@/lib/data/carreras";
 import { createUsuario } from "@/lib/data/users";
 import { crearStaffSchema } from "@/lib/validations/users";
@@ -16,7 +17,9 @@ export async function createStaffAction(
   _prev: CreateStaffState,
   formData: FormData,
 ): Promise<CreateStaffState> {
-  await requireRole(...rolesQueGestionanUsuarios);
+  // Check (a): the caller's role must be able to assign at least one role.
+  // Runs before any parsing (design.md decision 9).
+  const session = await requireRole(...rolesQueCreanUsuarios);
   const t = await getTranslations("users.new");
 
   const parsed = crearStaffSchema.safeParse({
@@ -32,6 +35,13 @@ export async function createStaffAction(
   });
   if (!parsed.success) {
     return { error: t("errors.invalid") };
+  }
+
+  // Check (b): the requested role must be inside the caller's assignable
+  // set. Runs after parsing (the target role must exist), before any
+  // carrera check, hash or write (design.md decisions 9-10).
+  if (!canAssignRole(session.rol, parsed.data.rol)) {
+    redirect(ACCESS_DENIED_PATH);
   }
 
   const esCoordinacion = parsed.data.rol === "coordinacion";

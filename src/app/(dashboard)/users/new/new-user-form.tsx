@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Carrera } from "@/db/schema";
-import { rolesStaff } from "@/lib/validations/users";
+import type { RolUsuario } from "@/lib/validations/auth";
 
 const initialState: CreateStaffState = { error: null };
 
@@ -48,7 +48,13 @@ function Field({
   );
 }
 
-export function NewUserForm({ carreras }: { carreras: Carrera[] }) {
+export function NewUserForm({
+  carreras,
+  rolesAsignables,
+}: {
+  carreras: Carrera[];
+  rolesAsignables: readonly RolUsuario[];
+}) {
   const t = useTranslations("users.new");
   const tCommon = useTranslations("common");
   const [state, formAction, isPending] = useActionState(
@@ -108,7 +114,7 @@ export function NewUserForm({ carreras }: { carreras: Carrera[] }) {
               required
               value={rol}
               onValueChange={(value) => setRol(value ?? "")}
-              items={rolesStaff.map((r) => ({
+              items={rolesAsignables.map((r) => ({
                 value: r,
                 label: t(`roles.${r}`),
               }))}
@@ -117,7 +123,7 @@ export function NewUserForm({ carreras }: { carreras: Carrera[] }) {
                 <SelectValue placeholder={t("rolePlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                {rolesStaff.map((r) => (
+                {rolesAsignables.map((r) => (
                   <SelectItem key={r} value={r}>
                     {t(`roles.${r}`)}
                   </SelectItem>

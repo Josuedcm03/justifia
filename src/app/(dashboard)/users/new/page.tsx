@@ -12,11 +12,14 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { requireRole } from "@/lib/auth/dal";
-import { rolesQueGestionanUsuarios } from "@/lib/auth/permissions";
+import {
+  rolesAsignablesPor,
+  rolesQueCreanUsuarios,
+} from "@/lib/auth/permissions";
 import { listCarreras } from "@/lib/data/carreras";
 
 export default async function NewUserPage() {
-  await requireRole(...rolesQueGestionanUsuarios);
+  const session = await requireRole(...rolesQueCreanUsuarios);
   const carreras = await listCarreras();
   const t = await getTranslations("users");
 
@@ -43,7 +46,10 @@ export default async function NewUserPage() {
         <PageHeader title={t("new.title")} description={t("new.subtitle")} />
       </div>
 
-      <NewUserForm carreras={carreras} />
+      <NewUserForm
+        carreras={carreras}
+        rolesAsignables={rolesAsignablesPor(session.rol)}
+      />
     </div>
   );
 }
