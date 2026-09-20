@@ -26,7 +26,9 @@ export async function createStaffAction(
     correo: formData.get("correo"),
     telefono: formData.get("telefono"),
     rol: formData.get("rol"),
-    carreraId: formData.get("carreraId"),
+    // The career select is only rendered for coordinacion, so the field is
+    // absent (null) for every other role; the schema accepts "" but not null.
+    carreraId: formData.get("carreraId") ?? "",
   });
   if (!parsed.success) {
     return { error: t("errors.invalid") };
