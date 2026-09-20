@@ -54,6 +54,24 @@
       "inactive": "Inactivo"
     },
     "empty": "Aún no hay usuarios",
+    "search": {
+      "label": "Buscar usuarios",
+      "placeholder": "Nombre, usuario o correo",
+      "submit": "Buscar",
+      "clear": "Limpiar búsqueda"
+    },
+    "count": "{count, plural, =0 {Sin usuarios} one {# usuario} other {# usuarios}}",
+    "tableCaption": "Lista de usuarios",
+    "noResults": {
+      "title": "Sin resultados para «{q}»",
+      "hint": "Probá con otro nombre, usuario o correo."
+    },
+    "pagination": {
+      "region": "Paginación de usuarios",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "status": "Página {page} de {pages}"
+    },
     "new": {
       "title": "Crear cuenta de staff",
       "nameLabel": "Nombre completo",

@@ -54,6 +54,24 @@
       "inactive": "Inactive"
     },
     "empty": "No users yet",
+    "search": {
+      "label": "Search users",
+      "placeholder": "Name, username or email",
+      "submit": "Search",
+      "clear": "Clear search"
+    },
+    "count": "{count, plural, =0 {No users} one {# user} other {# users}}",
+    "tableCaption": "Users list",
+    "noResults": {
+      "title": "No results for “{q}”",
+      "hint": "Try another name, username or email."
+    },
+    "pagination": {
+      "region": "Users pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "status": "Page {page} of {pages}"
+    },
     "new": {
       "title": "Create staff account",
       "nameLabel": "Full name",
