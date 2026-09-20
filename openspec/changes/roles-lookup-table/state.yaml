@@ -13,7 +13,7 @@ phases:
   spec: done      # revision 4: 4 domains; check (b) redirects, denied screen links to "/", users-listing added
   design: done      # revision 4: (b) redirect, users listing, six chained work units; NEEDS the user's budget decision before tasks
   tasks: done     # 76 tasks, 5 phases, strict TDD, [CONFIRM] gates on every Neon command
-  apply: in-progress   # 65/76 tasks; WU1b, WU1a, WU3a, WU3b delivered; WU2 code slice (5.1-5.17) committed, DB steps 5.18-5.28 pending
+  apply: done   # 76/76 tasks; WU1b, WU1a, WU3a, WU3b, WU2 delivered; migration 0002 applied on the shared Neon DB 2026-09-20
   verify: pending
   archive: pending
 artifacts:
@@ -33,7 +33,7 @@ artifacts:
     - openspec/changes/roles-lookup-table/design.md
     - "engram:sdd/roles-lookup-table/design (revision 4)"
 # (resolved) the review-budget decision below was taken before apply started.
-next_recommended: apply (resume at task 5.18 — Neon branch rehearsal; every [CONFIRM] command needs explicit per-command user confirmation)
+next_recommended: verify (apply complete; migration 0002 live on Neon production since 2026-09-20T18:33Z)
 review_budget_decision:
   chosen: "five units: WU1b -> WU1a -> WU3a -> WU3b(+WU3c, ~485 lines) -> WU2"
   rejected: ["six chained units", "cut the users list into a separate change"]
@@ -98,22 +98,26 @@ handoff:
     - "d35be6a fix(i18n): whole es.json switched to tuteo (user decision: formal register; never voseo from now on)"
     - "cb64a8f feat WU2 code slice: Rol table, migration 0002, seeds, join projections (size:exception accepted: 317 lines are the generated snapshot)"
   warning: |
-    The branch HEAD (cb64a8f and later) expects Usuario.RolId and the Rol table.
-    The shared Neon database is NOT migrated yet. Running the app from this
-    branch against the shared DB fails at login until task 5.24 is applied.
-    Do not merge to main before 5.24-5.27 pass.
-  verified_at_handoff: "npm test 201/201, npm run typecheck clean, npm run build ok, eslint filter clean"
+    Migration 0002 IS applied on the shared Neon database (2026-09-20). Code
+    older than cb64a8f (main before WU2 merges) fails at login against it
+    because Usuario.Rol no longer exists. Merge WU2 to main promptly.
+  db_apply_record:
+    applied_at_utc: "2026-09-20T18:33Z"
+    target: "Neon project damp-recipe-21839554, branch production (br-restless-hat-ayjwtjqw), endpoint ep-orange-math-ay4rhpc0, DIRECT URL via env only"
+    restore_point: "Neon branch backup-before-0002-roles (br-tiny-bread-aypqu93y) cloned from production at 2026-09-20T18:30:05Z; instant-restore timestamp 2026-09-20T18:30:05Z"
+    rehearsal_branch: "rehearsal-0002-roles (br-rough-band-ayu3kv9t): 5.19-5.22 all passed, incl. temp '%' row inserted and deleted"
+    post_apply_counts_5_26: { administrador: 2, docente: 1, estudiante: 1, secretaria: 1, coordinacion: 0 }   # equals 5.1; 0 NULL RolId; FK present; Usuario.Rol gone; 3 rows in __drizzle_migrations
+    seed_roles_on_target: "no-op (5 rows already inserted by the migration; onConflictDoNothing)"
+    manual_pass_5_26: "user confirmed login, /users list and /profile show the role code"
+    cleanup_todo: "delete Neon branches rehearsal-0002-roles and backup-before-0002-roles once WU2 is merged and stable"
+  verified_at_handoff: "5.27: npm test 201/201, npm run typecheck clean, npm run build ok (8 routes), eslint filter clean"
   preflight_used: { execution_mode: interactive, artifact_store: hybrid, delivery_strategy: ask-on-risk, review_budget_lines: 800 }
   db_precheck_counts_5_1: { administrador: 2, secretaria: 1, estudiante: 1, docente: 1 }   # compare in 5.21 and 5.26
-  blockers_for_db_steps:
-    - "DATABASE_URL in .env is the -pooler URL; drizzle-kit migrate must use the DIRECT (non-pooled) URL, exported in the shell only for that command. Never commit or print it."
-    - "neonctl is not installed on the original machine; create the rehearsal branch (5.18) with `npm i -g neonctl && neonctl auth` or from the Neon console, then point the DIRECT URL of that branch at 5.19-5.22."
   resume_procedure:
     - "git checkout feature/rolManagement && git pull   # post-merge hook imports .engram/ chunks into your local Engram; first time or if hooks are not active yet: npm ci (installs hooks via prepare) then `engram sync --import`"
     - "npm ci && npm test  (expect 201/201)"
-    - "gentle-ai sdd-status roles-lookup-table --cwd <repo> --json --instructions  (expect apply ready, 65/76)"
-    - "continue with tasks.md 5.18 -> 5.28 in order; [CONFIRM] means ask the user before running that exact command"
-    - "after 5.24 succeeds on the shared DB: run 5.25-5.27, then commit `chore(rolManagement): aplica la migración 0002 en Neon` if anything changed, then sdd-verify, then sdd-archive"
+    - "gentle-ai sdd-status roles-lookup-table --cwd <repo> --json --instructions  (expect apply done, 76/76)"
+    - "next: sdd-verify, then PR feature/rolManagement -> main, then sdd-archive"
   conventions_agreed_this_week:
     - "Conventional Commits in Spanish, scope = feature name (rolManagement); one commit per work unit; push right after each approved commit"
     - "Spanish UI copy: tuteo, neutral register"
