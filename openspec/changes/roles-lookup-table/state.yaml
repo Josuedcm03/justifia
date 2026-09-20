@@ -14,7 +14,7 @@ phases:
   design: done      # revision 4: (b) redirect, users listing, six chained work units; NEEDS the user's budget decision before tasks
   tasks: done     # 76 tasks, 5 phases, strict TDD, [CONFIRM] gates on every Neon command
   apply: done   # 76/76 tasks; WU1b, WU1a, WU3a, WU3b, WU2 delivered; migration 0002 applied on the shared Neon DB 2026-09-20
-  verify: pending
+  verify: done   # 2026-09-20 PASS_WITH_WARNINGS, 27/27 requirements, 87/87 scenarios; report at verify-report.md
   archive: pending
 artifacts:
   explore:
@@ -33,7 +33,7 @@ artifacts:
     - openspec/changes/roles-lookup-table/design.md
     - "engram:sdd/roles-lookup-table/design (revision 4)"
 # (resolved) the review-budget decision below was taken before apply started.
-next_recommended: verify (apply complete; migration 0002 live on Neon production since 2026-09-20T18:33Z)
+next_recommended: archive (verify passed 2026-09-20; archive after PR #2 merges to main; then delete the three Neon rehearsal/backup branches)
 review_budget_decision:
   chosen: "five units: WU1b -> WU1a -> WU3a -> WU3b(+WU3c, ~485 lines) -> WU2"
   rejected: ["six chained units", "cut the users list into a separate change"]
@@ -109,7 +109,9 @@ handoff:
     post_apply_counts_5_26: { administrador: 2, docente: 1, estudiante: 1, secretaria: 1, coordinacion: 0 }   # equals 5.1; 0 NULL RolId; FK present; Usuario.Rol gone; 3 rows in __drizzle_migrations
     seed_roles_on_target: "no-op (5 rows already inserted by the migration; onConflictDoNothing)"
     manual_pass_5_26: "user confirmed login, /users list and /profile show the role code"
-    cleanup_todo: "delete Neon branches rehearsal-0002-roles and backup-before-0002-roles once WU2 is merged and stable"
+    abort_rehearsal_5_29: "2026-09-20 on Neon branch abort-rehearsal-0002 (br-dry-base-ayngeqfm, cloned from backup-before-0002-roles): with a legacy Usuario.Rol='profesor' row, db:migrate exits 1; statement #5 SET NOT NULL fails with PostgresError 23502 (1 NULL RolId after backfill); rollback verified: no Rol table, Usuario.Rol intact, 2 migration rows"
+    fresh_seed_rehearsal_5_30: "2026-09-20 on Neon branch abort-rehearsal-0002: created an empty Rol table with statement #1 of 0002, npm run db:seed:roles -> 5 rows (ids 1-5, codes and display names as roles-seed-data.ts); second run -> still 5 rows"
+    cleanup_todo: "delete Neon branches rehearsal-0002-roles, backup-before-0002-roles and abort-rehearsal-0002 once WU2 is merged and stable"
   verified_at_handoff: "5.27: npm test 201/201, npm run typecheck clean, npm run build ok (8 routes), eslint filter clean"
   preflight_used: { execution_mode: interactive, artifact_store: hybrid, delivery_strategy: ask-on-risk, review_budget_lines: 800 }
   db_precheck_counts_5_1: { administrador: 2, secretaria: 1, estudiante: 1, docente: 1 }   # compare in 5.21 and 5.26

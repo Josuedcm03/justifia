@@ -553,9 +553,10 @@ the distinct **no-results-for-this-search** state, because "there are none" and
 "none matched you" are different facts and only the second one offers a clear
 control. The copy names no module and no role, which is what makes one denial
 screen serve every guard. Register follows the state/error messages already in
-`es.json` (`users.degraded`: "Volvé a intentarlo"; `users.new.subtitle`: "Creá
-una cuenta"), i.e. voseo; "Volver al panel" is an infinitive and reuses the
-wording of `nav.dashboard` ("Panel" / "Dashboard").
+`es.json`. **Amended 2026-09-20:** the register was settled as tuteo for the
+whole file (see "Copy register" in Open questions), so the shipped strings read
+"Vuelve a intentarlo" / "Crea una cuenta"; "Volver al panel" is an infinitive
+and reuses the wording of `nav.dashboard` ("Panel" / "Dashboard").
 
 ## Migration SQL (`drizzle/0002_roles_lookup_table.sql`)
 
