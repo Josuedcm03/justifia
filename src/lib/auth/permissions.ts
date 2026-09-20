@@ -45,3 +45,25 @@ export function canAssignRole(
 /** Derived, never hand-listed — spread into `requireRole` at every call site. */
 export const rolesQueCreanUsuarios: RolUsuario[] =
   rolesUsuario.filter(canCreateUsers);
+
+/**
+ * WHICH USERS a viewer may see, by role CODE. Not derived from
+ * `rolesAsignables`: `coordinacion` assigns only `secretaria` but sees
+ * everyone. "Everyone" is written out rather than signalled, so the query
+ * never needs an `if` that could omit the filter (design.md decision 18). An
+ * empty row makes `inArray` emit literal `false`, i.e. zero rows — it fails
+ * closed.
+ */
+export const rolesVisibles = {
+  administrador: rolesUsuario,
+  coordinacion: rolesUsuario,
+  secretaria: ["docente"],
+  docente: [],
+  estudiante: [],
+} as const satisfies Record<RolUsuario, readonly RolUsuario[]>;
+
+export function rolesVisiblesPara(
+  rol: RolUsuario | undefined,
+): readonly RolUsuario[] {
+  return rol ? rolesVisibles[rol] : [];
+}

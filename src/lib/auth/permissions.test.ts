@@ -5,6 +5,8 @@ import {
   canCreateUsers,
   rolesAsignablesPor,
   rolesQueCreanUsuarios,
+  rolesVisibles,
+  rolesVisiblesPara,
 } from "@/lib/auth/permissions";
 import * as perms from "@/lib/auth/permissions";
 import { rolesUsuario } from "@/lib/validations/auth";
@@ -69,5 +71,49 @@ describe("single source of truth", () => {
   it("no longer exports the superseded module-policy names", () => {
     expect(perms).not.toHaveProperty("canManageUsers");
     expect(perms).not.toHaveProperty("rolesQueGestionanUsuarios");
+  });
+});
+
+describe("rolesVisibles", () => {
+  it("is total over every role", () => {
+    expect(Object.keys(rolesVisibles).sort()).toEqual([...rolesUsuario].sort());
+  });
+
+  it.each(["administrador", "coordinacion"] as const)(
+    "%s sees every role",
+    (rol) => {
+      expect([...rolesVisibles[rol]].sort()).toEqual([...rolesUsuario].sort());
+    },
+  );
+
+  it("secretaria sees exactly docente, not administrador", () => {
+    expect(rolesVisibles.secretaria).toEqual(["docente"]);
+    expect(rolesVisibles.secretaria).not.toContain("administrador");
+  });
+
+  it.each(["docente", "estudiante"] as const)("%s sees nobody", (rol) => {
+    expect(rolesVisibles[rol]).toEqual([]);
+  });
+});
+
+describe("rolesVisiblesPara", () => {
+  it("returns an empty list for a missing viewer role", () => {
+    expect(rolesVisiblesPara(undefined)).toEqual([]);
+  });
+
+  it.each(["docente", "estudiante"] as const)(
+    "returns an empty list for %s",
+    (rol) => {
+      expect(rolesVisiblesPara(rol)).toEqual([]);
+    },
+  );
+});
+
+describe("viewing right matches module access", () => {
+  it("roles with a non-empty visibility row equal rolesQueCreanUsuarios", () => {
+    const canSee = rolesUsuario.filter(
+      (rol) => rolesVisiblesPara(rol).length > 0,
+    );
+    expect([...canSee].sort()).toEqual([...rolesQueCreanUsuarios].sort());
   });
 });

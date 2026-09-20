@@ -30,10 +30,18 @@ function StatusPill({ active, label }: { active: boolean; label: string }) {
 }
 
 export default async function UsersPage() {
-  await requireRole(...rolesQueCreanUsuarios);
+  const session = await requireRole(...rolesQueCreanUsuarios);
   const t = await getTranslations("users");
   const format = await getFormatter();
-  const { data, degraded } = await listUsuarios();
+  // Interim wiring (WU3a): the viewer scope now applies, but pagination and
+  // search land in WU3b. The 100-row cap and the fixed page 1 keep today's
+  // visible behaviour otherwise unchanged.
+  const { data, degraded } = await listUsuarios({
+    viewerRol: session.rol,
+    q: "",
+    page: 1,
+    pageSize: 100,
+  });
 
   return (
     <div className="flex flex-col gap-8">
