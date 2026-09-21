@@ -36,6 +36,7 @@ const usuarioConRolColumns = {
   cif: usuario.cif,
   carreraId: usuario.carreraId,
   activo: usuario.activo,
+  debeCambiarClave: usuario.debeCambiarClave,
   creadoEn: usuario.creadoEn,
   rol: rol.codigo,
 } as const;
@@ -179,6 +180,48 @@ export async function getUsuarioByLogin(
   return row ?? null;
 }
 
+/**
+ * Identity resolution by email (IAP). The input is trimmed and lowercased and
+ * the column is compared through `lower()`, so a stored mixed-case address
+ * still matches. Returns the first match; `Usuario.Correo` is unique.
+ */
+export async function getUsuarioByCorreo(
+  correo: string,
+): Promise<UsuarioConRol | null> {
+  const normalized = correo.trim().toLowerCase();
+  const [row] = await db
+    .select(usuarioConRolColumns)
+    .from(usuario)
+    .innerJoin(rol, eq(usuario.rolId, rol.id))
+    .where(sql`lower(${usuario.correo}) = ${normalized}`)
+    .limit(1);
+  return row ?? null;
+}
+
+/** Identity resolution by CIF (IAP). `Usuario.Cif` is unique. */
+export async function getUsuarioByCif(
+  cif: string,
+): Promise<UsuarioConRol | null> {
+  const [row] = await db
+    .select(usuarioConRolColumns)
+    .from(usuario)
+    .innerJoin(rol, eq(usuario.rolId, rol.id))
+    .where(eq(usuario.cif, cif))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Sets or clears the forced-password-change flag (FPC). */
+export async function setDebeCambiarClave(
+  id: number,
+  value: boolean,
+): Promise<void> {
+  await db
+    .update(usuario)
+    .set({ debeCambiarClave: value })
+    .where(eq(usuario.id, id));
+}
+
 export async function createUsuario(
   data: NuevoUsuarioConRol,
 ): Promise<UsuarioConRol> {
@@ -198,6 +241,7 @@ export async function createUsuario(
     cif: row.cif,
     carreraId: row.carreraId,
     activo: row.activo,
+    debeCambiarClave: row.debeCambiarClave,
     creadoEn: row.creadoEn,
     rol: codigo,
   };

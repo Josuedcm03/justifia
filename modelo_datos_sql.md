@@ -122,9 +122,11 @@ CREATE TABLE "Usuario" (
     "Cif"             VARCHAR(20),                    -- solo estudiantes; clave de identificacion (02:09)
     "CarreraId"       BIGINT,                         -- carrera del estudiante o carrera que coordina
     "Activo"          BOOLEAN NOT NULL DEFAULT TRUE,
+    "DebeCambiarClave" BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE en cuentas creadas por importación (catalog-excel-import)
     "CreadoEn"        TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT "PK_Usuario" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_Usuario_Login" UNIQUE ("Login"),
+    CONSTRAINT "UQ_Usuario_Correo" UNIQUE ("Correo"),  -- varios NULL pueden coexistir; clave natural de docentes en la importación
     CONSTRAINT "UQ_Usuario_Cif" UNIQUE ("Cif"),
     CONSTRAINT "FK_Usuario_Rol" FOREIGN KEY ("RolId") REFERENCES "Rol" ("Id"),
     CONSTRAINT "FK_Usuario_Carrera" FOREIGN KEY ("CarreraId") REFERENCES "Carrera" ("Id")
@@ -136,6 +138,7 @@ CREATE TABLE "Grupo" (
     "Periodo"       VARCHAR(12) NOT NULL,             -- p. ej. '2026-S2'
     "NumeroGrupo"   VARCHAR(12) NOT NULL,             -- "hay 40 grupos de matematicas" (23:07)
     "DocenteId"     BIGINT NOT NULL,                  -- Usuario con Rol = 'docente'
+    "Activo"        BOOLEAN NOT NULL DEFAULT TRUE,    -- la importación desactiva, nunca borra
     CONSTRAINT "PK_Grupo" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_Grupo_Seccion" UNIQUE ("AsignaturaId", "Periodo", "NumeroGrupo"),
     CONSTRAINT "FK_Grupo_Asignatura" FOREIGN KEY ("AsignaturaId") REFERENCES "Asignatura" ("Id"),
@@ -145,6 +148,7 @@ CREATE TABLE "Grupo" (
 CREATE TABLE "Inscripcion" (
     "EstudianteId"  BIGINT NOT NULL,                  -- Usuario con Rol = 'estudiante'
     "GrupoId"       BIGINT NOT NULL,
+    "Activo"        BOOLEAN NOT NULL DEFAULT TRUE,    -- la importación desactiva, nunca borra
     CONSTRAINT "PK_Inscripcion" PRIMARY KEY ("EstudianteId", "GrupoId"),
     CONSTRAINT "FK_Inscripcion_Estudiante" FOREIGN KEY ("EstudianteId") REFERENCES "Usuario" ("Id"),
     CONSTRAINT "FK_Inscripcion_Grupo" FOREIGN KEY ("GrupoId") REFERENCES "Grupo" ("Id")
@@ -281,7 +285,7 @@ CREATE INDEX "IX_Notificacion_Solicitud" ON "Notificacion" ("SolicitudId");
 
 2. **`Cif` y `CarreraId` viven en `Usuario`.** `Cif` es único y solo lo llevan los estudiantes; `CarreraId` es la carrera del estudiante o la carrera que coordina el coordinador. Ambos son `NULL` para secretaría y administración.
 
-3. **`Grupo` e `Inscripcion` son tablas propias.** La institución no expone ninguna consulta, así que estos datos se cargan por importación (CSV del sistema académico) o manualmente cada periodo. Esto es lo que hoy la secretaria hace a mano al buscar por CIF (02:09); el sistema solo puede automatizarlo si tiene los datos cargados.
+3. **`Grupo` e `Inscripcion` son tablas propias.** La institución no expone ninguna consulta, así que estos datos se cargan por importación de un archivo `.xlsx` cada periodo (RF-35 es la fuente de autoridad; el «CSV del sistema académico» de versiones anteriores de esta nota ya no aplica). La carga manual sigue siendo una necesidad futura real, pero no se construye en F2. Esto es lo que hoy la secretaria hace a mano al buscar por CIF (02:09); el sistema solo puede automatizarlo si tiene los datos cargados.
 
 4. **`SolicitudDetalle` es la unidad de trabajo del docente.** Una solicitud afecta varias asignaturas y fechas; cada fila se remite a un docente (vía `Grupo.DocenteId`) y ese docente responde en `Resultado` / `Efecto`. El caso «misma inasistencia el mismo día en varias asignaturas» no está resuelto en la entrevista (hallazgo 3); el modelo lo soporta, la regla de negocio queda pendiente.
 
