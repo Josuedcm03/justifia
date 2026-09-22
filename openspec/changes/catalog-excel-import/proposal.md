@@ -9,10 +9,17 @@
 ## Intent
 
 RF-35 / RNF-10 require the internal catalog (facultades, carreras, asignaturas,
-docentes, inscripciones) to be owned by the system and maintained by secretaría
-through bulk Excel import, with no external integration. Today only `Facultad`,
-`Carrera`, `Rol` and `Usuario` exist: there is no `Asignatura`, `Grupo` or
-`Inscripcion`, and no load path at all. Without them RF-03 (auto-resolve
+docentes, inscripciones) to be owned by the system, with no external
+integration. **Scope reduction (product-owner decision)**: the bulk Excel
+import itself now covers only **asignaturas, docentes and grupos** — the three
+entities that actually need bulk maintenance. `Facultad`/`Carrera` are a small,
+rarely-changing catalog seeded once outside this feature (a future, separate
+admin screen will let them be CRUD'd; out of scope here), and `estudiantes`/
+`inscripciones` are not bulk-imported at all: secretaría MUST NOT create
+student accounts (this resolves design.md's open risk X5), and enrollment
+tracking is not this feature's goal. Today only `Facultad`, `Carrera`, `Rol`
+and `Usuario` exist: there is no `Asignatura`, `Grupo` or `Inscripcion`, and no
+load path at all. Without them RF-03 (auto-resolve
 docente/grupo), RF-31 (verify enrollment in the absence period) and RNF-08
 (zero manual search) cannot be built. Secretaría's only alternative is
 hand-creating every docente one by one at `/users/new` and every student by
@@ -57,10 +64,15 @@ not after it.
   all-or-nothing `db.transaction`** as the data writes, so a failed import
   leaves no audit row. Credentials — temporary passwords, hashes, any secret —
   must never enter an audit payload.
-- **Upsert keys**: `Facultad.Nombre`, `Carrera.Nombre`, `Asignatura.Codigo`,
-  `Grupo`(Asignatura, Periodo, NumeroGrupo), `Inscripcion` PK,
-  docente `Usuario.Correo`, estudiante `Usuario.Cif`.
-- **Account provisioning**: the import CREATES docente and estudiante accounts.
+- **Upsert keys**: `Asignatura.Codigo`, `Grupo`(Asignatura, Periodo,
+  NumeroGrupo), docente `Usuario.Correo`. `Asignatura.CarreraId` is a NOT NULL
+  FK: the Asignaturas sheet's `Carrera` column MUST resolve by name to a
+  `Carrera` that already exists in the database (seeded once, outside this
+  feature); a row whose `Carrera` does not exist is a row-level error, the same
+  shape as every other unresolved natural-key reference in
+  `catalog-excel-import`. `Facultad` and `Carrera` are never written by the
+  import.
+- **Account provisioning**: the import CREATES **docente** accounts only.
   `Login` is derived from the institutional email; each new account gets a
   generated temporary password (bcryptjs, 12 rounds), exported once to
   secretaría with the apply result and never re-shown, and is flagged
@@ -68,9 +80,10 @@ not after it.
 - **Forced password change**: the flag travels in the session; an authenticated
   user carrying it is redirected to a change-password screen from every guarded
   route until they set their own password.
-- **Re-import lifecycle**: "deactivate what is absent" — `Grupo` and
-  `Inscripcion` rows missing from a re-import are marked inactive, never
-  deleted. Downstream checks (RF-31) read only active rows.
+- **Re-import lifecycle**: "deactivate what is absent" — `Grupo` rows missing
+  from a re-import are marked inactive, never deleted. `Inscripcion` is out of
+  this import's scope (scope reduction) and is never written or deactivated by
+  it. Downstream checks (RF-31) read only active rows.
 - **Permission**: `canImportCatalog(rol) = canAssignRole(rol, "docente")`, so
   only `secretaria`. Enforced in the sidebar, the page, both server actions and
   the template route handler.
@@ -88,6 +101,11 @@ not after it.
   account activation links.
 - Per-carrera or per-facultad scoping of an import; import history persistence;
   CSV or legacy `.xls`.
+- **Bulk Excel import of facultades, carreras, estudiantes or inscripciones**
+  (scope reduction). `Facultad`/`Carrera` rows are loaded by a one-off seed,
+  maintained outside this change; a dedicated admin screen to CRUD
+  `Facultad`/`Carrera` is a **future, separate initiative**. The import creates
+  no student account, ever — secretaría MUST NOT create estudiante accounts.
 - Any change to `rolesAsignables`, `rolesVisibles`, `/users/new`, or the
   `roles-lookup-table` specs.
 
@@ -101,9 +119,10 @@ not after it.
 - `catalog-excel-import`: who may import, the workbook and template contract,
   file guards, the dry-run report, all-or-nothing apply, upsert keys and
   deactivate-absent semantics.
-- `imported-account-provisioning`: how the import creates docente and estudiante
-  accounts, identity resolution by email/CIF, temporary-password generation and
-  its one-time export, and what happens to accounts that already exist.
+- `imported-account-provisioning`: how the import creates **docente** accounts
+  (student account creation is out of scope), identity resolution by email,
+  temporary-password generation and its one-time export, and what happens to
+  accounts that already exist.
 - `forced-password-change`: the `DebeCambiarClave` marker, its propagation into
   the session, and the enforcement that blocks the app until the user changes it.
 - `audit-log`: the append-only write-audit record — what an audit row contains,
@@ -266,7 +285,7 @@ absorbed into WU2c. WU1b must branch from WU1a because both append to
 | 4 | Period format `YYYY-S1` \| `YYYY-S2` only | Changes the `Grupo.Periodo` validation |
 | 5 | Maintenance is re-import only; no manual per-record CRUD | Adds CRUD screens (large) |
 | 6 | Stateless two-step flow: the user re-uploads to confirm | Server-side draft state and cleanup |
-| 7 | Estudiante upsert key is `Cif`; `Login` derived from email when present, else `Cif` | Changes student identity resolution |
+| 7 | **SUPERSEDED by the scope reduction**: the import no longer creates estudiante accounts at all, so there is no estudiante upsert key or student identity resolution to assume. Kept here, marked superseded, for numbering stability across documents. | N/A |
 | 8 | An account that already exists is updated but keeps its password and is not flagged `DebeCambiarClave` | Re-credentialing on every import |
 | 9 | `Asignatura`, `Carrera`, `Facultad` rows absent from a re-import stay active (no `Activo` column) | Adds `Activo` to those tables |
 | 10 | `HorasTotales` is required and must be > 0; a missing value is a row error | Needs a default or a nullable column |
@@ -287,12 +306,14 @@ absorbed into WU2c. WU1b must branch from WU1a because both append to
 - [ ] Confirming applies everything in one transaction; an invalid row leaves
       the database untouched.
 - [ ] Re-importing the same workbook is a no-op (all "unchanged").
-- [ ] A `Grupo`/`Inscripcion` absent from a re-import becomes inactive and is
-      not deleted; active-only reads exclude it.
-- [ ] New docente and estudiante accounts are created with a temporary password
-      exported exactly once, and cannot use the app until they change it.
-- [ ] An existing account matched by `Correo`/`Cif` is updated, not duplicated,
-      and its password is unchanged.
+- [ ] A `Grupo` absent from a re-import becomes inactive and is not deleted;
+      active-only reads exclude it. (`Inscripcion` is out of this import's
+      scope — see the scope reduction above.)
+- [ ] New docente accounts are created with a temporary password exported
+      exactly once, and cannot use the app until they change it. No estudiante
+      account is ever created by the import.
+- [ ] An existing docente account matched by `Correo` is updated, not
+      duplicated, and its password is unchanged.
 - [ ] Only `secretaria` can open the import page, call either action or download
       the template; every other role is sent to the denied screen.
 - [ ] Uploading a non-`.xlsx`, an oversized or a malformed file fails with a

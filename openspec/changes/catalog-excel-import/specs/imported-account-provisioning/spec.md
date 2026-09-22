@@ -2,37 +2,33 @@
 
 ## Purpose
 
-The catalog import creates the docente and estudiante accounts it needs, so that
-groups and enrollments can reference real users. Students are outside the
-role-assignment hierarchy (`staff-account-creation`); the import provisions them
-through its own path and does not widen that hierarchy. Each new account gets a
-generated temporary password that is returned to the importer once and never
-stored in plaintext, and is flagged for a forced change (`forced-password-change`).
-Accounts that already exist are matched and updated but never re-credentialed.
-Import mechanics (dry-run, atomicity, guards) are in `catalog-excel-import`.
+The catalog import creates the **docente** accounts it needs, so that groups can
+reference real users. **Scope reduction (product-owner decision)**: the import
+creates no estudiante account, ever — secretaría MUST NOT create student
+accounts. Students remain outside the role-assignment hierarchy
+(`staff-account-creation`) and outside this import entirely; they exist only via
+self-registration, which this change does not touch. Each new docente account
+gets a generated temporary password that is returned to the importer once and
+never stored in plaintext, and is flagged for a forced change
+(`forced-password-change`). Accounts that already exist are matched and updated
+but never re-credentialed. Import mechanics (dry-run, atomicity, guards) are in
+`catalog-excel-import`.
 
 ## Requirements
 
 ### Requirement: Identity resolution
 
-A docente row MUST be matched to an account by normalized `Correo`. An estudiante
-row MUST be matched by `Cif`. A matching account MUST be reused and updated; a
-non-matching row MUST create a new account. Email comparison MUST be
-case-insensitive and ignore surrounding whitespace. `Correo` MUST be unique
-across all users.
+A docente row MUST be matched to an account by normalized `Correo`. A matching
+account MUST be reused and updated; a non-matching row MUST create a new
+account. Email comparison MUST be case-insensitive and ignore surrounding
+whitespace. `Correo` MUST be unique across all users. The import performs no
+identity resolution for any other role: it creates no estudiante account.
 
 #### Scenario: Docente matched by email regardless of case
 
 - GIVEN an existing docente with `Correo` "ana.perez@uni.edu"
 - WHEN a workbook lists " Ana.Perez@UNI.edu "
 - THEN no second account is created and the existing one is used
-
-#### Scenario: Estudiante matched by Cif
-
-- GIVEN an existing estudiante with `Cif` "2023-0456" (for example after
-  self-registration)
-- WHEN the workbook lists the same `Cif`
-- THEN that account is updated and reused, and no duplicate is created
 
 #### Scenario: Two rows normalize to the same email
 
@@ -47,27 +43,14 @@ across all users.
 - WHEN it is planned
 - THEN the row is an error and neither role nor account is changed
 
-#### Scenario: Estudiante email already used by another user
-
-- GIVEN an Estudiantes row whose email equals another user's `Correo`
-- WHEN it is planned
-- THEN the row is an error and no account is created
-
-#### Scenario: Cif exists on a non-estudiante user
-
-- GIVEN an Estudiantes row whose `Cif` belongs to a user who is not an estudiante
-- WHEN it is planned
-- THEN the row is an error
-
 ### Requirement: Login derivation
 
-A new account's `Login` MUST be derived from its normalized full email, not from
-its local part alone, so that `Correo` uniqueness guarantees `Login` uniqueness.
-A new estudiante without an email MUST use its `Cif` as `Login`. A derived
-`Login` that collides with an existing `Login` MUST be reported as a row error
-and MUST NOT be silently altered or suffixed. The exact normalization is fixed at
-design; it MUST be deterministic and MUST yield the same `Login` for the same
-input on every import.
+A new docente account's `Login` MUST be derived from its normalized full email,
+not from its local part alone, so that `Correo` uniqueness guarantees `Login`
+uniqueness. A derived `Login` that collides with an existing `Login` MUST be
+reported as a row error and MUST NOT be silently altered or suffixed. The exact
+normalization is fixed at design; it MUST be deterministic and MUST yield the
+same `Login` for the same input on every import.
 
 #### Scenario: Docente Login from email
 
@@ -82,18 +65,6 @@ input on every import.
 - WHEN both are created
 - THEN their logins differ and both accounts exist
 
-#### Scenario: Estudiante with email
-
-- GIVEN a new estudiante with `Cif` "2023-0456" and a valid email
-- WHEN the account is created
-- THEN `Login` is derived from the email and `Correo` is the normalized email
-
-#### Scenario: Estudiante without email falls back to Cif
-
-- GIVEN a new estudiante with `Cif` "2023-0789" and no email
-- WHEN the account is created
-- THEN `Login` is "2023-0789" and `Correo` is null
-
 #### Scenario: Login collision is an error
 
 - GIVEN an existing user whose `Login` equals the one derived for a new row
@@ -106,7 +77,7 @@ Each account created by an apply MUST receive a freshly generated random
 temporary password with enough entropy to be unguessable, unique per account.
 Only its bcrypt hash, at 12 rounds, MUST be stored in `HashClave`. The stored
 value MUST NOT be a plaintext password, and no fixed or pattern-based password
-(such as the Cif or the email) MAY be used.
+(such as the email) MAY be used.
 
 #### Scenario: Hash stored, not plaintext
 
@@ -125,7 +96,7 @@ value MUST NOT be a plaintext password, and no fixed or pattern-based password
 #### Scenario: Not derivable from data
 
 - GIVEN a new account
-- WHEN its temporary password is compared with its `Cif`, email and `Login`
+- WHEN its temporary password is compared with its email and `Login`
 - THEN it equals none of them
 
 ### Requirement: Temporary password is shown once and never persisted or logged
@@ -173,20 +144,20 @@ or return any password.
 ### Requirement: New accounts are flagged for password change
 
 Every account created by an apply MUST have `DebeCambiarClave` true, an active
-state, and the correct role (`docente` or `estudiante`). The mechanism that
-enforces the change is specified in `forced-password-change`.
+state, and the role `docente`. The mechanism that enforces the change is
+specified in `forced-password-change`.
 
 #### Scenario: Created accounts
 
-- GIVEN a workbook with new docentes and estudiantes
+- GIVEN a workbook with new docentes
 - WHEN it is applied
-- THEN each created docente has role `docente`, each created estudiante has role
-  `estudiante`, all are active and all have `DebeCambiarClave` true
+- THEN each created docente has role `docente`, is active and has
+  `DebeCambiarClave` true
 
 ### Requirement: Existing accounts keep their credentials
 
-An account matched by `Correo` or `Cif` MUST be updated only in its
-non-credential attributes (for example name). Its `HashClave` MUST NOT change,
+An account matched by `Correo` MUST be updated only in its non-credential
+attributes (for example name). Its `HashClave` MUST NOT change,
 `DebeCambiarClave` MUST NOT be set true by the import, no temporary password MUST
 be generated for it, and its role MUST NOT change.
 
@@ -197,13 +168,6 @@ be generated for it, and its role MUST NOT change.
 - WHEN the same workbook is imported again
 - THEN their `HashClave` is unchanged and `DebeCambiarClave` is false
 - AND the export contains no entry for them
-
-#### Scenario: Existing self-registered student
-
-- GIVEN a student who self-registered with a `Cif`
-- WHEN a workbook including that `Cif` is applied
-- THEN the account is updated without a credential change, no flag is set and it
-  is absent from the export
 
 #### Scenario: Changed name on an existing account
 
@@ -230,9 +194,9 @@ MUST produce one audit record (per `audit-log`) with the actor, the action
 (create or update), entity type user and the account id, in the same transaction
 as the account write. An account counted `unchanged` MUST NOT produce a record.
 No audit record MAY contain a temporary password, a password hash or any other
-credential. The payload MUST identify the account by its id and `Cif` or
-normalized `Correo` only as needed, and for updates MUST name the changed fields
-without any credential field.
+credential. The payload MUST identify the account by its id and normalized
+`Correo` only as needed, and for updates MUST name the changed fields without
+any credential field.
 
 #### Scenario: Created accounts are audited
 
@@ -271,14 +235,16 @@ without any credential field.
   write events only); read-access auditing is deferred.
 - Assumption (from proposal): temporary credentials are exported as a file to
   the importer, not emailed (default 12); existing accounts keep their password
-  and are not flagged (default 8); estudiante upsert key is `Cif`, with `Login`
-  from email when present and `Cif` otherwise (default 7).
-- Assumption: a workbook email or `Cif` matching an account of the wrong role is
-  a row error; the import never changes an existing account's role.
+  and are not flagged (default 8). Default 7 (estudiante upsert key) is
+  **superseded**: the import creates no estudiante account, so there is no
+  student identity resolution left to assume.
+- Assumption: a workbook email matching an account of the wrong role is a row
+  error; the import never changes an existing account's role.
 - Assumption: an existing account matched by the import that is inactive is
   updated but not reactivated by this change. Confirm at design.
 - Assumption: the export file format, the password length and alphabet, and the
   `Login` normalization are design decisions; the requirements above constrain
   only the observable properties.
-- Assumption: no `Correo` is required for an estudiante; a missing email is
-  allowed only for estudiantes.
+- **Decision (product-owner scope reduction)**: the import creates no
+  estudiante account. Secretaría MUST NOT create student accounts; students
+  exist only via self-registration, unaffected by this change.

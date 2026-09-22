@@ -2,24 +2,33 @@
 
 ## Purpose
 
-Secretaría loads and maintains the academic catalog (facultades, carreras,
-asignaturas, docentes, estudiantes, grupos, inscripciones) by uploading one
-multi-sheet `.xlsx` workbook (RF-35). The flow is stateless and two-step: an
-upload produces a dry-run report and persists nothing; confirming re-uploads the
-file, which is re-parsed and re-planned before an all-or-nothing apply. No
-external integration is involved (RNF-10). The scope is institution-wide.
+Secretaría loads and maintains the actually-bulk-maintained part of the academic
+catalog (asignaturas, docentes, grupos) by uploading one multi-sheet `.xlsx`
+workbook (RF-35). **Scope reduction (product-owner decision)**: the workbook
+covers only these three sheets. `Facultad` and `Carrera` are a small,
+rarely-changing catalog loaded by a one-off seed outside this feature (a future,
+separate admin screen will let them be CRUD'd); the import never creates or
+touches a `Facultad`/`Carrera` row. `Estudiante` accounts and `Inscripcion`
+enrollments are **not** bulk-imported at all — secretaría MUST NOT create
+student accounts, and enrollment tracking is not this feature's goal. The flow
+is stateless and two-step: an upload produces a dry-run report and persists
+nothing; confirming re-uploads the file, which is re-parsed and re-planned
+before an all-or-nothing apply. No external integration is involved (RNF-10).
+The scope is institution-wide.
 
 Sheets, in dependency order:
 
 | Order | Sheet | Natural key |
 |---|---|---|
-| 1 | Facultades | `Facultad.Nombre` |
-| 2 | Carreras | `Carrera.Nombre` |
-| 3 | Asignaturas | `Asignatura.Codigo` |
-| 4 | Docentes | `Usuario.Correo` |
-| 5 | Estudiantes | `Usuario.Cif` |
-| 6 | Grupos | (`Asignatura`, `Periodo`, `NumeroGrupo`) |
-| 7 | Inscripciones | (`Estudiante`, `Grupo`) |
+| 1 | Asignaturas | `Asignatura.Codigo` |
+| 2 | Docentes | `Usuario.Correo` |
+| 3 | Grupos | (`Asignatura`, `Periodo`, `NumeroGrupo`) |
+
+An Asignaturas row's `Carrera` column MUST resolve, by name, to a `Carrera`
+that already exists in the database; the import never creates a `Facultad` or
+`Carrera` row. An unresolved `Carrera` is a row-level error, the same shape as
+any other unresolved natural-key reference in this specification (for example
+an unresolved docente reference in Grupos).
 
 Entity rules live in `academic-catalog`; account creation in
 `imported-account-provisioning`. "Denied" is as defined in the
@@ -93,14 +102,14 @@ parsing and no write.
 ### Requirement: Template download
 
 The system MUST offer a template `.xlsx` at a role-guarded route. It MUST contain
-the seven sheets of the Purpose table, in that order, each with its header row.
+the three sheets of the Purpose table, in that order, each with its header row.
 Its column names MUST be the ones the importer accepts.
 
 #### Scenario: Secretaria downloads the template
 
 - GIVEN an authenticated `secretaria`
 - WHEN they request the template
-- THEN they receive a valid `.xlsx` whose sheets, in order, are the seven listed
+- THEN they receive a valid `.xlsx` whose sheets, in order, are the three listed
 - AND the file, when uploaded unchanged, parses with zero rows and zero errors
 
 #### Scenario: Denied roles get no template
@@ -169,9 +178,9 @@ carrying at least the sheet name, the row number and a reason. The report MUST
 list all errors found, not only the first. Validation covers at least:
 required fields present; `Periodo` format (`YYYY-S1|S2`); `HorasTotales`
 integer greater than zero; email syntax for docentes; references resolving to a
-row in the workbook or an existing catalog row; docente references resolving to
-a docente and estudiante references to an estudiante; duplicate natural keys
-within one sheet.
+row in the workbook or an existing catalog row (including an Asignaturas row's
+`Carrera`, which MUST resolve to an existing `Carrera`); docente references
+resolving to a docente; duplicate natural keys within one sheet.
 
 #### Scenario: Invalid rows are reported with location
 
@@ -187,19 +196,22 @@ within one sheet.
 - WHEN it is planned
 - THEN that row is an error and no default is applied
 
-#### Scenario: Unresolvable reference
+#### Scenario: Unresolvable reference (table-driven)
 
-- GIVEN a Grupos row whose asignatura code is in neither the workbook nor the
-  database
+| Sheet | Unresolvable reference |
+|---|---|
+| Asignaturas | `Carrera` name matches no existing carrera |
+| Grupos | asignatura code is in neither the workbook nor the database |
+
+- GIVEN a row with the unresolvable reference from the row
 - WHEN it is planned
 - THEN that row is an error naming the reference
 
 #### Scenario: Role integrity violations
 
-- GIVEN a Grupos row whose docente email belongs to an existing non-docente user,
-  and an Inscripciones row whose student is an existing non-estudiante user
+- GIVEN a Grupos row whose docente email belongs to an existing non-docente user
 - WHEN it is planned
-- THEN both rows are errors and neither is applicable
+- THEN the row is an error and the grupo is not applicable
 
 #### Scenario: Duplicate key inside one sheet
 
@@ -209,10 +221,11 @@ within one sheet.
 
 #### Scenario: References across sheets in one workbook
 
-- GIVEN a new carrera, a new asignatura of that carrera and a new grupo of that
-  asignatura, all in the same workbook and none in the database
+- GIVEN an existing carrera, a new asignatura of that carrera and a new grupo of
+  that asignatura, all in the same workbook and none in the database except the
+  carrera
 - WHEN it is planned
-- THEN all three are valid creates
+- THEN the asignatura and the grupo are valid creates
 
 ### Requirement: Dry-run report persists nothing
 
@@ -232,8 +245,7 @@ create accounts, generate credentials to persist, or store the file.
 
 - GIVEN a database with grupos that the workbook omits
 - WHEN it is previewed
-- THEN the report shows a non-zero `deactivate` count for grupos and, separately,
-  for inscripciones
+- THEN the report shows a non-zero `deactivate` count for grupos
 
 #### Scenario: Preview with errors blocks confirmation
 
@@ -333,12 +345,13 @@ MUST write no audit record.
 
 ### Requirement: Natural-key upserts
 
-Rows MUST be matched by natural key: `Facultad.Nombre`, `Carrera.Nombre`,
-`Asignatura.Codigo`, grupo (`Asignatura`, `Periodo`, `NumeroGrupo`), inscripcion
-(`Estudiante`, `Grupo`), docente `Usuario.Correo`, estudiante `Usuario.Cif`. A
-matching row MUST be updated in place, never duplicated; a non-matching row MUST
-be created. A row whose non-key values equal the stored values MUST be counted as
-`unchanged` and MUST NOT be written.
+Rows MUST be matched by natural key: `Asignatura.Codigo`, grupo (`Asignatura`,
+`Periodo`, `NumeroGrupo`), docente `Usuario.Correo`. A matching row MUST be
+updated in place, never duplicated; a non-matching row MUST be created. A row
+whose non-key values equal the stored values MUST be counted as `unchanged` and
+MUST NOT be written. `Facultad` and `Carrera` have no upsert key here because the
+import never writes them — an Asignatura's `Carrera` is resolved by name against
+existing rows only.
 
 #### Scenario: New rows are created
 
@@ -375,12 +388,14 @@ zero new accounts and no temporary passwords.
 
 ### Requirement: Deactivate absent, never delete
 
-On apply, active `Grupo` and `Inscripcion` rows absent from the workbook MUST be
-set inactive (`Activo` false). The import MUST NOT delete any row of any entity.
-Rows for `Facultad`, `Carrera` and `Asignatura` absent from the workbook MUST be
-left as they are. A later import that includes a previously deactivated row MUST
+On apply, active `Grupo` rows absent from the workbook MUST be set inactive
+(`Activo` false). The import MUST NOT delete any row of any entity. Rows for
+`Facultad`, `Carrera` and `Asignatura` absent from the workbook MUST be left as
+they are. A later import that includes a previously deactivated grupo MUST
 reactivate it. Downstream readers (RF-31) consume only active rows, per
-`academic-catalog`.
+`academic-catalog`. `Inscripcion` is out of this import's scope (scope
+reduction) and is never written or deactivated by it; its own lifecycle is
+governed entirely by `academic-catalog`.
 
 #### Scenario: Absent grupo is deactivated
 
@@ -388,18 +403,11 @@ reactivate it. Downstream readers (RF-31) consume only active rows, per
 - WHEN applied
 - THEN G is inactive and still stored
 
-#### Scenario: Absent inscripcion is deactivated
-
-- GIVEN an active inscripcion and a workbook that omits it
-- WHEN applied
-- THEN it is inactive, still stored, and enrollment verification no longer finds
-  it
-
 #### Scenario: Corrected re-import reactivates
 
-- GIVEN an inactive grupo and inscripcion
-- WHEN a workbook containing them is applied
-- THEN both are active again and are counted as `update`
+- GIVEN an inactive grupo
+- WHEN a workbook containing it is applied
+- THEN it is active again and counted as `update`
 
 #### Scenario: Catalog parents are not deactivated
 
@@ -420,11 +428,28 @@ text available in Spanish and English catalogs. The result screen MUST show the
 per-entity summary. After an apply that created accounts, it MUST offer the
 temporary-credentials export defined in `imported-account-provisioning`.
 
+Before the file input, the upload step MUST display the workbook contract so
+`secretaria` can prepare or check the file before selecting it: the three
+required sheet names in order (Asignaturas, Docentes, Grupos), each sheet's
+required and optional columns from `SHEETS`, and the validation rules that
+most commonly reject a file — no `Id` column accepted (natural keys only),
+`Carrera` in Asignaturas must already exist in the system, `HorasTotales` must
+be a positive integer, `Periodo` must match `YYYY-S1`/`YYYY-S2`, and
+`CorreoDocente` in Grupos must match a docente in the same workbook or already
+in the system. This is static copy, not derived from parsing an uploaded file.
+
 #### Scenario: Locales
 
 - GIVEN the Spanish and English catalogs
 - WHEN every import, template and error message key is compared
 - THEN both catalogs contain the same keys
+
+#### Scenario: Contract shown before upload
+
+- GIVEN `secretaria` opens the import page
+- WHEN the page renders, before any file is selected
+- THEN the three sheet names, their required/optional columns, and the
+  validation rules above are visible
 
 ## Assumptions and open questions
 
@@ -437,17 +462,24 @@ temporary-credentials export defined in `imported-account-provisioning`.
   persisted import history; the uploaded file itself is never stored.
 - Assumption: the import-level record is written even when an apply changes
   nothing (idempotent re-import), since it records that the import was run.
-- Assumption: row-level catalog writes (facultad, carrera, asignatura, grupo,
-  inscripcion) are covered by the import-level counts; per-row audit records are
-  required only for accounts (`imported-account-provisioning`).
+- Assumption: row-level catalog writes (asignatura, grupo) are covered by the
+  import-level counts; per-row audit records are required only for accounts
+  (`imported-account-provisioning`).
 - Assumption: maintenance is re-import only; there is no per-record CRUD
   (default 5).
-- Assumption: exact sheet and column names, size cap and row cap are fixed at
-  design, from a real sample workbook. Scenarios reference "the configured
-  maximum".
+- Assumption: exact sheet and column names are frozen from the real sample
+  workbook (`docs/PlantillaCatalogo.xlsx`, 2026-09-22 — headers only, no data
+  rows). Size cap and row cap remain provisional defaults, not calibrated
+  against real row volume; scenarios reference "the configured maximum".
 - Assumption: the spreadsheet library is a design choice; the spec constrains
   only behavior (guards, no formula evaluation, server-side).
 - Assumption: a docente row whose email matches an existing user of another role
   is a row error, never a role change.
-- Assumption: the "Inscripciones" sheet references estudiantes by `Cif` and
-  grupos by (`Asignatura` code, `Periodo`, `NumeroGrupo`).
+- **Decision (product-owner scope reduction, supersedes the original 7-sheet
+  scope)**: the workbook drops `Facultades`, `Carreras`, `Estudiantes` and
+  `Inscripciones`. `Facultad`/`Carrera` rows are loaded by a one-off seed
+  maintained outside this change (a future, separate admin screen will let them
+  be CRUD'd); the import never creates or updates a `Facultad` or `Carrera` row.
+  The import creates no `Estudiante` account and writes no `Inscripcion` row —
+  this fully resolves design.md's open risk X5 (secretaría MUST NOT create
+  student accounts).
