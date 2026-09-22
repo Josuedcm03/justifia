@@ -63,6 +63,7 @@ export async function loadCatalogSnapshot(
           correo: usuario.correo,
           cif: usuario.cif,
           nombreCompleto: usuario.nombreCompleto,
+          telefono: usuario.telefono,
           carreraId: usuario.carreraId,
           activo: usuario.activo,
           rol: rol.codigo,

@@ -1,3 +1,4 @@
+import type { AuditableUserField } from "@/lib/audit/types";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 /**
@@ -25,6 +26,7 @@ export type UsuarioRow = {
   correo: string | null;
   cif: string | null;
   nombreCompleto: string;
+  telefono: string | null;
   carreraId: number | null;
   activo: boolean;
   rol: RolUsuario;
@@ -95,14 +97,83 @@ export type ParsedWorkbook = {
   sheets: Record<"Asignaturas" | "Docentes" | "Grupos", ParsedRow[]>;
 };
 
+/** `Asignatura` create/update payloads (WU2b-1, `plan.ts`). `Carrera` is
+ *  resolved to an id by read-only lookup against the snapshot — the import
+ *  never writes `Carrera` (scope reduction, X5). */
+export type AsignaturaWrite =
+  | {
+      kind: "create";
+      codigo: string;
+      nombre: string;
+      carreraId: number;
+      horasTotales: number;
+    }
+  | {
+      kind: "update";
+      id: number;
+      nombre: string;
+      carreraId: number;
+      horasTotales: number;
+    };
+
+/** `Usuario` (docente) create/update payloads. `changedFields` names only
+ *  `AUDITABLE_USER_FIELDS` that actually differ from the snapshot row — it
+ *  feeds `buildAuditEvents` (WU2b-2) directly, unchanged. Re-importing an
+ *  existing docente never touches `login`/`hashClave` (decision 7): an
+ *  `update` carries no credential. */
+export type UsuarioWrite =
+  | {
+      kind: "create";
+      correo: string;
+      login: string;
+      nombreCompleto: string;
+      telefono: string | null;
+    }
+  | {
+      kind: "update";
+      id: number;
+      nombreCompleto: string;
+      telefono: string | null;
+      changedFields: readonly AuditableUserField[];
+    };
+
+/** `Grupo` create/update payloads. Cross-sheet references travel as
+ *  NATURAL KEYS (never an id): the referenced Asignatura/Usuario may itself
+ *  be a same-workbook `create`, whose id does not exist yet when the plan is
+ *  built (pure, no DB) — `apply.ts` (WU2c) resolves both after the
+ *  Asignatura/Usuario writes land, in dependency order. `kind: "update"`
+ *  covers both a docente reassignment and a reactivation (deactivated grupo
+ *  reappearing in the workbook): `EntityCounts.update` covers both, there is
+ *  no separate "reactivate" count (task 4.9). */
+export type GrupoWrite =
+  | {
+      kind: "create";
+      asignaturaCodigo: string;
+      periodo: string;
+      numeroGrupo: string;
+      docenteCorreo: string;
+    }
+  | {
+      kind: "update";
+      id: number;
+      docenteCorreo: string;
+      reactivated: boolean;
+    };
+
+export type ImportWrites = {
+  asignaturas: AsignaturaWrite[];
+  usuarios: UsuarioWrite[];
+  grupos: GrupoWrite[];
+};
+
 /** The pure planner's output (decision: preview leaves the database
- *  untouched). Shape only here — `plan.ts` (WU2b-1) supplies the logic. */
+ *  untouched). */
 export type ImportPlan = {
   ok: boolean; // false when errors.length > 0
   errors: RowError[]; // ALL of them, never just the first
   counts: Record<EntityName, EntityCounts>;
   accountsToCreate: number;
-  writes: Record<string, unknown>; // per-entity create/update payloads, in dependency order
+  writes: ImportWrites; // per-entity create/update payloads, in dependency order
   deactivateGrupoIds: number[];
   // No `deactivateInscripcionKeys`: Inscripciones is not imported (scope
   // reduction). `Inscripcion` rows stay under academic-catalog's own lifecycle.

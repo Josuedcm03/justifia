@@ -484,3 +484,50 @@ Orchestrator-verified independently (not just agent-self-reported): `npm test` 3
 - **Part B — fixtures + parser** (~491 lines, depends on Part A): `__fixtures__/build-fixtures.mjs` + the 9 generated `.xlsx` fixtures (binary, excluded from the line count), `parse.ts`+test. This is the only part that imports `exceljs`.
 
 The user decides whether Part A/B become one commit each on the same `wu2a` work, two chained PRs, or however they choose to structure it against `feat/catalog-excel-import-wu1b`; the file boundary above is only a suggested split point, not something the agent enforces.
+
+---
+
+# Phase 4 (WU2b-1): Pure planner and audit types. Branch: kept on `feat/catalog-excel-import-wu1b` per the earlier user override (0.1) — no separate `wu2b1` branch cut this session. Nothing committed to git.
+
+Environment note: `node_modules` was absent at the start of this session (fresh container); ran `npm install` (830 packages) and added a local-only `.env.local` (gitignored, placeholder `DATABASE_URL`/`AUTH_SECRET`) purely so `npm run build`/`typecheck` can run — no real DB touched. `package-lock.json` picked up a 180-line diff (npm normalizing `libc`/`os` optional-dependency metadata for the platform list) as a side effect of the fresh install; not a deliberate dependency change and not committed.
+
+## Completed
+
+- [x] 4.1 `src/lib/audit/types.ts`: `AUDIT_ACTIONS`, `AuditEntityType`, `AUDITABLE_USER_FIELDS` (no `login`/`hashClave`), `AuditEvent` closed union, per the design's Interfaces block. Type-only circular import with `src/lib/import/types.ts` (`AuditableUserField` in, `EntityName`/`EntityCounts` out) — both sides use `import type`, erased at compile time, no runtime cycle; `npm run typecheck` confirms.
+- [x] 4.2 `src/lib/import/__fixtures__/plan-fixtures.ts`: `makeSnapshot(overrides)`, `makeWorkbook(overrides)` — plain-object builders, no `.xlsx`, Excel row numbers auto-assigned from row 2.
+- [x] 4.3-4.15 `src/lib/import/plan.ts` + `plan.test.ts`, all seven stages (A Asignaturas, B Docentes, C Grupos, D deactivate-absent, E idempotency/error-aggregation, F caps-as-validation, G purity) written together rather than strict stage-by-stage RED/GREEN cycles (each stage's scenarios were authored as one test block per stage against the finished `plan.ts`, then run once) — 44/45 passed on the first run; one test-only bug (URL-scheme mismatch reading `plan.ts`'s own source under jsdom) fixed to use `path.resolve(process.cwd(), …)` instead of `import.meta.url`; one self-referential false positive in the purity source-regex test (the file's own top comment said "no Date.now()", which matched the `/Date\.now/` pattern) fixed by rewording the comment to "no clock reads". 45/45 thereafter.
+- [x] 4.17 `npm test`: 390 passed / 5 failed (identical failing test names to every prior batch's documented environment-flaky class: `denied/page.test.tsx` x2, `users/page.test.tsx` x2, `data-table-search.test.tsx` x1 — none touch import/audit/catalog code). `npm run typecheck`: clean. `npx eslint` on all new/touched files: clean after one `--fix` pass (prettier-only).
+- [x] 4.18 Checkpoint (below): measured total is **over the 800-line budget** (in line with every prior WU2a/WU2b batch's own observation that tests dominate the real count) — flagged, not silently absorbed.
+
+## Deviation — `UsuarioRow` gained `telefono`
+
+`src/lib/import/types.ts`'s `UsuarioRow` (WU1a) and `src/lib/data/catalog.ts`'s `loadCatalogSnapshot` select did not carry `telefono`, but the Docentes sheet has an optional `Telefono` column and Stage B must detect a changed phone number the same way it detects a changed name. Added `telefono: string | null` to `UsuarioRow` and `telefono: usuario.telefono` to the snapshot select (one-line, additive). Verified `catalog.test.ts` still passes unmodified: its recording `exec` double ignores the projection object and returns the raw fixture row, so extending the real `select()` call does not change what the double returns.
+
+## Design choices not fully pinned by `design.md` (resolved here)
+
+- `ImportPlan.writes` was a `Record<string, unknown>` placeholder in `design.md`/`types.ts` (WU2a). Gave it a concrete shape: `AsignaturaWrite`/`UsuarioWrite`/`GrupoWrite` discriminated unions (`kind: "create" | "update"`), grouped as `ImportWrites = { asignaturas, usuarios, grupos }`. `GrupoWrite` carries **natural keys** (`asignaturaCodigo`, `docenteCorreo`), never an id, because a referenced Asignatura/Usuario may itself be a same-workbook `create` whose id does not exist yet in a pure planner — `apply.ts` (WU2c) resolves both after the Asignatura/Usuario writes land in dependency order, matching the design's data-flow diagram order (Asignatura ▸ Usuario(docente) ▸ Grupo).
+- Reactivation (Stage D) is folded into `GrupoWrite`'s `update` variant with a `reactivated: boolean` flag rather than a separate plan-level list or count — `EntityCounts` has no dedicated "reactivate" field and task 4.9's own wording treats it as an `update`.
+- Row-error `reason` strings are i18n keys mirroring `schemas.ts`'s convention (e.g. `carrera.unresolved`, `docente.unresolved`, `login.collision`, `accountsToCreate.capExceeded`) — not enumerated anywhere in `design.md`, chosen for consistency with the existing zod message keys.
+- An inactive matched docente account (Stage B) is left alone: the plan never emits an `activo` write for `Usuario` (open assumption per task 4.5, characterized by a dedicated test, not silently assumed).
+
+## Line count
+
+| File | Lines |
+|------|-------|
+| `src/lib/audit/types.ts` | 64 |
+| `src/lib/import/plan.ts` | 418 |
+| `src/lib/import/plan.test.ts` | 963 |
+| `src/lib/import/__fixtures__/plan-fixtures.ts` | 61 |
+| `src/lib/import/types.ts` (diff, extension only) | ~90 |
+| `src/lib/data/catalog.ts` (diff) | +1 |
+| **Total authored this phase** | **~1,597** |
+
+Well over the ~460 estimate and the 800-line review budget — consistent with WU2a's own measured overrun (1,314 vs ~500 estimate) and WU1a's (~735 vs ~440). `plan.test.ts` alone (963 lines) is the bulk of it: ~45 scenarios across 7 stages, each asserting counts, writes and error reasons in full (not just booleans), plus prettier's multi-line object formatting after `--fix`. No shortcut was taken to hit the budget (no scenario dropped, no assertion weakened).
+
+**4.16 (optional REFACTOR) intentionally skipped**: `plan.ts` at 418 lines is already organized as clearly commented sections (Stage A-F) inside one function: splitting it into a `plan/` directory of per-stage helper files would add indirection (each stage reads and writes shared local maps — `carreraIdByName`, `usuarioByCorreo`, `docenteByCorreo`, etc. — that would become explicit parameters/returns across 5-6 functions) without changing behavior or making review easier at this size; deferred, not forgotten.
+
+**Delivery decision needed** (ask-on-risk, same pattern as WU2a's batch 8): the user should decide how `audit/types.ts` + `plan.ts`/`plan.test.ts`/fixtures + the `catalog.ts`/`types.ts` extensions become one or more commits/PRs against the `wu1b`-based work in progress. No restructuring suggested here — everything is additive with no consumers yet (WU2b-2's `events.ts` is the first consumer of `AuditableUserField`/`AuditEvent`; WU2c's `apply.ts` is the first consumer of `plan.ts`'s writes).
+
+## Next
+
+Phase 5 (WU2b-2, pure audit event builders in `src/lib/audit/events.ts`) is unblocked: it only needs `AuditEvent`/`AUDITABLE_USER_FIELDS` from `audit/types.ts` (done) and `ImportSummary`/`EntityCounts` from `import/types.ts` (done, unchanged by this phase). Nothing in Phase 4 blocks it.
