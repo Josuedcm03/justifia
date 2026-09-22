@@ -531,3 +531,35 @@ Well over the ~460 estimate and the 800-line review budget — consistent with W
 ## Next
 
 Phase 5 (WU2b-2, pure audit event builders in `src/lib/audit/events.ts`) is unblocked: it only needs `AuditEvent`/`AUDITABLE_USER_FIELDS` from `audit/types.ts` (done) and `ImportSummary`/`EntityCounts` from `import/types.ts` (done, unchanged by this phase). Nothing in Phase 4 blocks it.
+
+---
+
+# Phase 5 (WU2b-2): Pure audit event builders. Branch kept on `feat/catalog-excel-import-wu1b` per the 0.1 override — no separate `wu2b2` branch cut this session. Nothing committed to git during this phase (committed together with the rest of the work-so-far per the user's git-push cadence — see the commit history on `claude/excel-upload-module-kuyaot`, not the `feat/*` chain named in tasks.md's original branch plan).
+
+## Completed
+
+- [x] 5.1-5.2 `src/lib/audit/events.ts` (103 lines) + `events.test.ts` (230 lines, 13 tests), written together against the design's exact Interfaces block and run once: 13/13 passed on the first attempt, no fix cycle needed.
+- [x] 5.3 Two `// @ts-expect-error` pins (a `clave` key on `accountUpdatedEvent`'s payload; a `TemporaryCredential`-shaped object passed to `accountCreatedEvent`) plus a recursive forbidden-key sweep (`clave`, `password`, `hash`, `hashClave`) over a 4-entry fixture matrix (empty import, create-only, update-only, both). All pass; `npm run typecheck` confirms neither `@ts-expect-error` is unused (i.e. both really do fail to typecheck without the comment).
+- [x] 5.4 No gap exposed by 5.3 — `audit/types.ts`'s closed union already rejected both cases; not a characterization-pin situation since the directives are genuinely load-bearing (removing either one now fails `typecheck`, verified).
+- [x] 5.5 `npm test`: 403 passed / 5 failed (same 5 pre-existing environment-flaky tests as every prior batch, unrelated to audit/import code — unchanged set of failing test names). `npm run typecheck`: clean. `npx eslint --fix` on both new files: one pass, prettier-only (multi-line object wraps), no real errors.
+- [x] 5.6 Checkpoint (below).
+
+## Ambiguity resolved — `accountCreatedEvent`'s `campos`
+
+`design.md`'s interface for `accountCreatedEvent` takes no `campos` parameter (`{ usuarioId, rol, importacionSha256 }` only), yet its `AuditEvent` variant's payload type (`UserChangedPayload`) requires `campos: readonly AuditableUserField[]`. Resolved by having `accountCreatedEvent` always set `campos: AUDITABLE_USER_FIELDS` (the full closed list) internally: a freshly created account has every auditable field set at once, so reporting the whole field-name list (never a value, per decision 22) is the natural reading of "what changed" for a creation. Pinned by a dedicated test (`accountCreatedEvent > … campos ⇒ AUDITABLE_USER_FIELDS`).
+
+`buildAuditEvents`'s design signature also omits a separate `importacionSha256` parameter — resolved by reading it from `summary.fileSha256` (already on `ImportSummary`) for every generated account event, so there is exactly one source of truth for the file hash, never re-derived or passed twice. Pinned by the "propagates from summary.fileSha256, not re-derived" test.
+
+## Line count
+
+| File | Lines |
+|------|-------|
+| `src/lib/audit/events.ts` | 103 |
+| `src/lib/audit/events.test.ts` | 230 |
+| **Total** | **333** |
+
+Under the 800-line budget (and much closer to the ~170 estimate than WU1a/WU2a/WU2b-1 landed relative to theirs) — no scope was cut to hit this; the estimate for a small, purely-typed builder module was simply closer to reality here.
+
+## Next
+
+Phase 6 (Gate G-DB, the shared-instance apply of `0003`+`0004`) is the next item in `tasks.md`'s order, but every one of its tasks is `[READ-ONLY]` or `[CONFIRM]` against the real Neon instance — it needs the user's per-command "yes" and is not something to proceed on without that. Phase 7 (WU2c: temp passwords, CSV, `createUsuariosBulk`, `apply.ts`, the audit writer wired in-tx) is the next phase with pure/local work, but per design decision 23/24 it must NOT be started before Phase 6, because `apply.ts` is meant to be exercised against the real, migrated schema in the transaction-critical slice — WU2c's own rollback boundary assumes `0003`/`0004` already exist. Recommend pausing here for the user to decide on Phase 6 (the DB apply), rather than starting Phase 7's code against an unmigrated schema.
