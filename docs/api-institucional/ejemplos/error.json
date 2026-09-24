@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "recurso": "grupos",
+    "version": "1.0",
+    "generadoEn": "2026-09-24T08:00:00-06:00"
+  },
+  "error": {
+    "codigo": "PERIODO_INVALIDO",
+    "mensaje": "El periodo '2026-3' no existe o no tiene el formato esperado.",
+    "detalle": { "parametro": "periodo", "valorRecibido": "2026-3" }
+  }
+}

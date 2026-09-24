@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "recurso": "asignaturas",
+    "version": "1.0",
+    "generadoEn": "2026-09-24T08:00:00-06:00",
+    "total": 3,
+    "pagina": 1,
+    "porPagina": 500,
+    "totalPaginas": 1
+  },
+  "data": [
+    {
+      "codigo": "MAT-101",
+      "nombre": "Matemática I",
+      "carrera": { "codigo": "ISI", "nombre": "Ingeniería en Sistemas de Información" },
+      "horasTotales": 64,
+      "activo": true
+    },
+    {
+      "codigo": "PRG-110",
+      "nombre": "Programación I",
+      "carrera": { "codigo": "ISI", "nombre": "Ingeniería en Sistemas de Información" },
+      "horasTotales": 80,
+      "activo": true
+    },
+    {
+      "codigo": "EST-201",
+      "nombre": "Estática",
+      "carrera": { "codigo": "ICI", "nombre": "Ingeniería Civil" },
+      "horasTotales": 64,
+      "activo": true
+    }
+  ]
+}

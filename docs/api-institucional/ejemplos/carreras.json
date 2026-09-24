@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "recurso": "carreras",
+    "version": "1.0",
+    "generadoEn": "2026-09-24T08:00:00-06:00",
+    "total": 2,
+    "pagina": 1,
+    "porPagina": 500,
+    "totalPaginas": 1
+  },
+  "data": [
+    {
+      "codigo": "ISI",
+      "nombre": "Ingeniería en Sistemas de Información",
+      "facultad": { "codigo": "FIA", "nombre": "Facultad de Ingeniería y Arquitectura" },
+      "activo": true
+    },
+    {
+      "codigo": "ICI",
+      "nombre": "Ingeniería Civil",
+      "facultad": { "codigo": "FIA", "nombre": "Facultad de Ingeniería y Arquitectura" },
+      "activo": true
+    }
+  ]
+}

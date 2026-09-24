@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "recurso": "estudiantes",
+    "version": "1.0",
+    "generadoEn": "2026-09-24T08:00:00-06:00",
+    "periodo": "2026-S2",
+    "snapshotCompleto": true,
+    "total": 2,
+    "pagina": 1,
+    "porPagina": 500,
+    "totalPaginas": 1
+  },
+  "data": [
+    {
+      "cif": "22010457",
+      "nombreCompleto": "María José López Gutiérrez",
+      "correo": "maria.lopez@est.ejemplo.edu.ni",
+      "telefono": "+505 8700 0002",
+      "carrera": { "codigo": "ISI", "nombre": "Ingeniería en Sistemas de Información" },
+      "activo": true
+    },
+    {
+      "cif": "23011890",
+      "nombreCompleto": "José Antonio Ruiz Mendoza",
+      "correo": "jose.ruiz@est.ejemplo.edu.ni",
+      "telefono": null,
+      "carrera": { "codigo": "ICI", "nombre": "Ingeniería Civil" },
+      "activo": true
+    }
+  ]
+}
