@@ -4,3 +4,9 @@
  * string (design.md decision 13).
  */
 export const ACCESS_DENIED_PATH = "/denied";
+
+/**
+ * The forced-password-change screen's route (FPC). Same rule as above: one
+ * copy of the string for `dal.ts`, the page and every test (design.md D12).
+ */
+export const PASSWORD_CHANGE_PATH = "/change-password";

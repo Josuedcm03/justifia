@@ -49,3 +49,32 @@ describe("session JWT", () => {
     expect(await verifySession(bad)).toBeNull();
   });
 });
+
+describe("session debeCambiarClave flag (FPC)", () => {
+  const signRaw = (claims: Record<string, unknown>) =>
+    new SignJWT(claims)
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("8h")
+      .sign(new TextEncoder().encode(SECRET));
+
+  it("accepts a pre-existing token that has no flag (F6)", async () => {
+    const result = await verifySession(await signRaw({ ...payload }));
+    expect(result).toMatchObject(payload);
+    expect(result?.debeCambiarClave).toBeUndefined();
+  });
+
+  it.each([true, false])("accepts and preserves %s", async (flag) => {
+    const token = await signSession({ ...payload, debeCambiarClave: flag });
+    const result = await verifySession(token);
+    expect(result?.debeCambiarClave).toBe(flag);
+  });
+
+  it.each(["yes", 1, "true", null])(
+    "rejects a non-boolean flag (%s)",
+    async (flag) => {
+      const token = await signRaw({ ...payload, debeCambiarClave: flag });
+      expect(await verifySession(token)).toBeNull();
+    },
+  );
+});

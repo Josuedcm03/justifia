@@ -10,6 +10,11 @@ export type SessionPayload = {
   login: string;
   rol: RolUsuario;
   nombre: string;
+  /**
+   * Forced-password-change marker (FPC). Optional so a JWT issued before the
+   * flag existed stays valid and reads as "no change required" (design D14).
+   */
+  debeCambiarClave?: boolean;
 };
 
 function getKey(): Uint8Array {
@@ -38,7 +43,9 @@ function isSessionPayload(value: unknown): value is SessionPayload {
     typeof v.login === "string" &&
     typeof v.nombre === "string" &&
     typeof v.rol === "string" &&
-    (rolesUsuario as readonly string[]).includes(v.rol)
+    (rolesUsuario as readonly string[]).includes(v.rol) &&
+    (v.debeCambiarClave === undefined ||
+      typeof v.debeCambiarClave === "boolean")
   );
 }
 

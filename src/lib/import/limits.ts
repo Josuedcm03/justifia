@@ -14,3 +14,7 @@ export const MULTIPART_OVERHEAD_BYTES = 64 * 1024; // F3
 export const SERVER_ACTION_BODY_LIMIT =
   MAX_FILE_BYTES + MULTIPART_OVERHEAD_BYTES;
 export const WRITE_CHUNK_ROWS = 500; // <= 65 535 bind params per statement
+/** Server Actions timeout of the import page, in seconds (design F4). bcrypt
+ *  at cost 12 costs ~0.25 s per new account, so the 250-account cap needs
+ *  about a minute; 300 leaves headroom for parsing and the transaction. */
+export const IMPORT_MAX_DURATION_SECONDS = 300;
