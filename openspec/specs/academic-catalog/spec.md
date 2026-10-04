@@ -139,35 +139,43 @@ database schema alone.
 
 ### Requirement: Estudiante role integrity of Inscripcion.EstudianteId
 
-`Inscripcion.EstudianteId` MUST reference a `Usuario` whose role is `estudiante`,
-and `GrupoId` MUST reference an existing `Grupo`. A duplicate
-(`EstudianteId`, `GrupoId`) pair MUST NOT be stored. This integrity MUST be
-enforced by the application.
+The `Inscripcion` table MUST have the composite key (`EstudianteId`,
+`GrupoId`), a foreign key from `EstudianteId` to `Usuario`, a foreign key from
+`GrupoId` to `Grupo`, and an `Activo` column. Any writer of `Inscripcion` MUST
+ensure that `EstudianteId` references a `Usuario` whose role is `estudiante`,
+and MUST NOT store a duplicate (`EstudianteId`, `GrupoId`) pair; this role
+integrity MUST be enforced by the application, because the role lives on a
+separate lookup table. This change ships no writer of `Inscripcion`: the
+Inscripciones sheet was removed from the import by the product owner's scope
+reduction to three sheets, so the rule is specified here for the future writer
+and is not enforced by any code in this change.
 
-#### Scenario: Estudiante is enrolled
+#### Scenario: No code path in this change writes Inscripcion
 
-- GIVEN a `Usuario` with role `estudiante` and an existing grupo
-- WHEN the inscripcion is stored
-- THEN it is accepted and active
+- GIVEN every production module under `src`
+- WHEN it is checked structurally for an insert, update or delete against the
+  `inscripcion` table
+- THEN none is found; the table is only read
 
-#### Scenario: Non-estudiante is rejected (table-driven)
+**Deferred behaviour (not a scenario of this change): a future writer enforces
+the estudiante role.** Not demonstrable here because no writer exists; it is
+written as a note rather than under a scenario heading so that this change's
+scenario count holds only what this change can prove. The change that
+introduces a writer of `Inscripcion` MUST turn the table below into scenarios
+with tests.
 
-| Role of referenced user |
-|---|
-| `docente` |
-| `secretaria` |
-| `coordinacion` |
-| `administrador` |
+| Role of referenced user | Expected result |
+|---|---|
+| `estudiante` | accepted and active |
+| `docente` | refused |
+| `secretaria` | refused |
+| `coordinacion` | refused |
+| `administrador` | refused |
 
-- GIVEN a `Usuario` with the role from the row
-- WHEN an inscripcion referencing it as `EstudianteId` is stored
-- THEN the write is refused
-
-#### Scenario: Duplicate enrollment is rejected
-
-- GIVEN a stored inscripcion for (estudiante E, grupo G)
-- WHEN the same pair is stored again
-- THEN the write is refused and exactly one row exists for the pair
+- GIVEN a `Usuario` with the role from the row and an existing grupo
+- WHEN a future writer stores an inscripcion referencing it as `EstudianteId`
+- THEN the result is the one in the row, and storing the same
+  (`EstudianteId`, `GrupoId`) pair twice is refused with exactly one row kept
 
 ### Requirement: Active-only reads for downstream consumers
 
@@ -251,3 +259,8 @@ NOT be applied to a shared database without explicit user confirmation.
   and not asserted here.
 - Assumption: role integrity is checked at the application layer because the
   role lives on a separate lookup table; the database MAY add further guards.
+- Assumption (scope reduction): no code in this change writes `Inscripcion`, so
+  "Estudiante role integrity of Inscripcion.EstudianteId" binds the future
+  writer only. The one demonstrable scenario is the structural check that no
+  module under `src` inserts, updates or deletes the table; the role and
+  duplicate scenarios are deferred until that writer exists.

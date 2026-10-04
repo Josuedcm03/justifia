@@ -1,7 +1,7 @@
 # Academic Catalog Specification (delta)
 
-> Base for this delta: `openspec/changes/catalog-excel-import/specs/academic-catalog/spec.md`
-> (`openspec/specs/` is empty because that change is not archived yet). Apply
+> Base for this delta: `openspec/specs/academic-catalog/spec.md`
+> (archived from `catalog-excel-import` on 2026-10-04). Apply
 > this delta after it. Requirements not named here are unchanged. The Purpose
 > sentence "`Facultad`, `Carrera` and `Asignatura` have no `Activo` column" and
 > the table row for `Grupo` change as described below: `Asignatura` gains

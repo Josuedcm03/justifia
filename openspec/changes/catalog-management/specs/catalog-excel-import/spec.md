@@ -1,7 +1,7 @@
 # Catalog Excel Import Specification (delta)
 
-> Base for this delta: `openspec/changes/catalog-excel-import/specs/catalog-excel-import/spec.md`
-> (`openspec/specs/` is empty because that change is not archived yet). Apply
+> Base for this delta: `openspec/specs/catalog-excel-import/spec.md`
+> (archived from `catalog-excel-import` on 2026-10-04). Apply
 > this delta after it. Requirements not named here are unchanged. Precedence
 > rule (binding owner decision): the import wins over manual edits and keeps
 > its specified behaviour, except for the changes below.
@@ -56,6 +56,12 @@ Counts and warnings MUST match
 what an apply of the same file against the same data would do. A preview writes
 nothing.
 
+On the import screen, row-level errors (including `asignatura.inactive`) stay in
+their own block before the preview, as defined for the import page. The new
+figures, the warning and the replaced-edit statement belong to the preview,
+which holds the counts and, only when the file has no row errors, the confirm
+control. The upload has no submit control: taking a file runs the preview.
+
 #### Scenario: Manual groups among deactivations
 
 - GIVEN 5 active grupos absent from the workbook, 2 of them with origin `manual`
@@ -78,9 +84,9 @@ nothing.
 
 #### Scenario: Warning does not block confirmation
 
-- GIVEN a preview with the manual-groups warning and no row errors
-- WHEN the user looks for the confirm action
-- THEN it is offered
+- GIVEN a file with no row errors whose preview shows the manual-groups warning
+- WHEN the user looks for the confirm control in that preview
+- THEN it is offered, and the warning does not replace or disable it
 
 #### Scenario: Only grupos that will be deactivated are counted
 
@@ -269,8 +275,8 @@ MUST NOT be written. An Asignaturas row matching an **inactive** `Asignatura`
 MUST reactivate it (`Activo` true) and MUST be counted as `update` even when
 name, carrera and hours equal the stored values. A Grupo created by the import
 MUST get origin `importacion`; a Grupo updated by the import keeps its existing
-origin. `Facultad` and `Carrera` have no upsert key here because the import
-never writes them; an Asignatura's `Carrera` is resolved by name against
+origin. `Facultad` and `Carrera` have no upsert key here because the
+import never writes them — an Asignatura's `Carrera` is resolved by name against
 existing rows only.
 
 #### Scenario: New rows are created
@@ -321,8 +327,8 @@ exempt. The import MUST NOT delete any row of any entity. Rows for `Facultad`,
 (an absent `Asignatura` is never deactivated nor reactivated by the import). A
 later import that includes a previously deactivated grupo MUST reactivate it.
 Downstream readers (RF-31) consume only active rows, per `academic-catalog`.
-`Inscripcion` is out of this import's scope and is never written or
-deactivated by it; its own lifecycle is governed entirely by
+`Inscripcion` is out of this import's scope (scope
+reduction) and is never written or deactivated by it; its own lifecycle is governed entirely by
 `academic-catalog`.
 
 #### Scenario: Absent grupo is deactivated

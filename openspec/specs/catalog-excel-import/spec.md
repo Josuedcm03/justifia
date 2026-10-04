@@ -45,7 +45,11 @@ true if and only if `canAssignRole(rol, "docente")` is true, which today means
 only `secretaria`. It MUST be derived from that predicate, not from a separate
 role list. It MUST be enforced on the server on the import page, the preview
 action, the apply action and the template route handler, independently of the
-sidebar. The sidebar item MUST be present only when the predicate is true.
+sidebar. The import entry MUST be a child of the collapsible "Administración"
+sidebar group and MUST be present only when the predicate is true. The group
+itself is rendered only when at least one of its children is visible, so other
+staff roles MAY still see the group because of its other child (the users
+entry), but never the import entry.
 
 #### Scenario: Predicate per role (table-driven)
 
@@ -63,7 +67,8 @@ sidebar. The sidebar item MUST be present only when the predicate is true.
 
 - GIVEN an authenticated `secretaria`
 - WHEN they request the import page
-- THEN the upload form is rendered and the sidebar shows the import item
+- THEN the contract card containing the file dropzone is rendered
+- AND the sidebar shows the import entry inside the "Administración" group
 
 #### Scenario: Other roles are denied on every entry point (table-driven)
 
@@ -148,8 +153,10 @@ configured maximum requires.
 | workbook with rows above the row cap | too many rows |
 
 - GIVEN an authenticated `secretaria`
-- WHEN they submit the upload from the row
+- WHEN they drop or pick the file from the row
 - THEN a clear error is shown, nothing is persisted, and no plan is produced
+- AND an obviously invalid name or size MAY be rejected client-side before any
+  request, the server guards remaining the authority
 
 #### Scenario: Extension check is case-insensitive
 
@@ -424,7 +431,12 @@ governed entirely by `academic-catalog`.
 ### Requirement: Import UI flow and copy
 
 The import page MUST present upload, then preview, then confirm, with all user
-text available in Spanish and English catalogs. The result screen MUST show the
+text available in Spanish and English catalogs. Taking a file (by drop or by the
+file picker) MUST run the preview immediately; there is no separate submit
+control for the upload. Row-level errors MUST be presented in their own block
+before the preview, only when the analysed file has errors. A preview with
+errors MUST offer no confirm control, and the preview is hidden while another
+file is being analysed. The result screen MUST show the
 per-entity summary. After an apply that created accounts, it MUST offer the
 temporary-credentials export defined in `imported-account-provisioning`.
 

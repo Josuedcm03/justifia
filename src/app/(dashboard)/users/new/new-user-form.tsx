@@ -8,7 +8,7 @@ import {
   createStaffAction,
   type CreateStaffState,
 } from "@/app/(dashboard)/users/new/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,9 +170,9 @@ export function NewUserForm({
         </CardContent>
 
         <CardFooter className="border-border flex justify-end gap-3 border-t py-4">
-          <Button variant="ghost" render={<Link href="/users" />}>
+          <Link href="/users" className={buttonVariants({ variant: "ghost" })}>
             {tCommon("cancel")}
-          </Button>
+          </Link>
           <Button type="submit" disabled={isPending}>
             {isPending ? t("submitting") : t("submit")}
           </Button>

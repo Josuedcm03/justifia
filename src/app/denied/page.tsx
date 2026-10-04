@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 /**
  * Generic permission-denied screen (design.md decisions 13-15). It has no
@@ -39,9 +39,9 @@ export default async function DeniedPage() {
             {t("message")}
           </p>
         </div>
-        <Button size="lg" render={<Link href="/" />}>
+        <Link href="/" className={buttonVariants({ size: "lg" })}>
           {t("back")}
-        </Button>
+        </Link>
       </div>
     </main>
   );

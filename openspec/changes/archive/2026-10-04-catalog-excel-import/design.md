@@ -1042,3 +1042,37 @@ run with the apply, never after it.
       reactivate. Confirm.
 - [ ] **xlsx advisory status (decision 1)**: this phase had no web or registry
       tool. The gate must be executed at WU2a before the dependency is committed.
+
+---
+
+## Post-implementation notes (2026-10-04)
+
+Deviations between this design and what shipped. The decisions and the file
+table above are left as written.
+
+- Import form split: `src/app/(dashboard)/catalog/import/import-form.tsx`
+  composes `workbook-contract.tsx`, `file-dropzone.tsx` and `import-errors.tsx`
+  (plus `import-preview.tsx` and `credentials-download.tsx`).
+- Auto-preview: taking a file in `file-dropzone.tsx` (drop or picker) runs the
+  preview immediately; there is no submit button. A client-side pre-check
+  rejects a non-`.xlsx` name or an oversized file before any request.
+- Sidebar i18n: `nav.administration` and `nav.catalogImport` replace
+  `nav.catalog` (`src/components/app-sidebar.tsx`).
+- Sidebar structure: a collapsible "Administración" group holding the import
+  and users entries, built on `src/components/ui/collapsible.tsx`.
+- `applyImport(tx, plan, credentials, ctx)` in `src/lib/import/apply.ts` takes
+  a fourth argument, `ctx` (`ApplyContext`: snapshot, actor id and login,
+  timestamp, file SHA-256).
+- `runImportApply` (`src/lib/import/apply.ts`) plans twice: once outside the
+  transaction to decide which accounts need credentials, and again inside the
+  transaction on a freshly read snapshot.
+- `maxDuration` is the literal `300` in
+  `src/app/(dashboard)/catalog/import/page.tsx`.
+- `src/app/change-password/layout.tsx` was added for the forced-password-change
+  screen.
+- `logImportFailure` was added in `src/lib/import/summary.ts` and is used by
+  `actions.ts`.
+- The `Inscripcion` requirement in `specs/academic-catalog` was reworded as
+  deferred: no writer ships, because the Inscripciones sheet was cut.
+- Migration `0003` was found already applied to the shared instance; `0004`
+  (`drizzle/0004_audit_log.sql`) was applied on 2026-10-04.

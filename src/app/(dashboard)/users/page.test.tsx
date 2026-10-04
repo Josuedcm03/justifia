@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import enMessages from "../../../../i18n/en.json";
 import esMessages from "../../../../i18n/es.json";
@@ -52,6 +52,18 @@ async function renderUsersPage(searchParams: Promise<Record<string, string>>) {
 }
 
 describe("UsersPage", () => {
+  // The first dynamic import transforms the whole page tree. Paying for it
+  // inside the first test made that test race the 5s default under load.
+  beforeAll(async () => {
+    await import("@/app/(dashboard)/users/page");
+  }, 60_000);
+
+  // Calls from earlier tests must not satisfy later toHaveBeenCalledWith.
+  beforeEach(() => {
+    requireRoleMock.mockClear();
+    listUsuariosMock.mockClear();
+  });
+
   it("guards with exactly rolesQueCreanUsuarios", async () => {
     requireRoleMock.mockResolvedValue(sessionFor("secretaria"));
     listUsuariosMock.mockResolvedValue({

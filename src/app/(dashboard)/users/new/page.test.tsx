@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -43,6 +43,12 @@ function sessionFor(rol: RolUsuario) {
 }
 
 describe("NewUserPage", () => {
+  // Warm the cold module transform outside any test, so it cannot eat the
+  // 5s default of the first test under load.
+  beforeAll(async () => {
+    await import("@/app/(dashboard)/users/new/page");
+  }, 60_000);
+
   it("guards with exactly rolesQueCreanUsuarios and passes the caller's assignable roles to the form", async () => {
     const session = sessionFor("coordinacion");
     requireRoleMock.mockResolvedValue(session);

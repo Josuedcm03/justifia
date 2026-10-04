@@ -1,10 +1,10 @@
 # Catalog Management Specification (new capability)
 
 > Delta type: this whole file is ADDED. There is no base spec for
-> `catalog-management`. It builds on the (still unarchived) change
-> `catalog-excel-import`, whose specs under
-> `openspec/changes/catalog-excel-import/specs/` are the base for the sibling
-> deltas, because `openspec/specs/` is currently empty.
+> `catalog-management`. It builds on the archived change
+> `catalog-excel-import` (archived on 2026-10-04), whose specs under
+> `openspec/specs/` are the base for the sibling
+> deltas.
 
 ## Purpose
 
@@ -648,10 +648,14 @@ Dialog, AlertDialog or Tabs primitive.
 
 ### Requirement: CM-NAV-1 Sidebar reachability
 
-The three destinations Asignaturas, Grupos and Docentes MUST be reachable from
-the sidebar "Administración" group by the three staff roles, and MUST NOT be
-shown to `docente` or `estudiante`. The existing import item MUST keep its
-current rule (only where `canImportCatalog` is true). No destination may mark
+The three destinations Asignaturas, Grupos and Docentes MUST be added as further
+children of the existing collapsible sidebar "Administración" group, which
+already holds "Carga de catálogo" (the import entry) and "Usuarios"; this change
+does not create, rename or restructure that group, and the group keeps rendering
+only when at least one of its children is visible. The three destinations MUST
+be reachable there by the three staff roles, and MUST NOT be shown to `docente`
+or `estudiante`. The existing import item MUST keep its current rule (only where
+`canImportCatalog` is true). No destination may mark
 itself active on `/catalog/import`, and `/catalog/import` MUST NOT mark any new
 destination active. Visibility is a convenience only; CM-ACC-1 is the control.
 

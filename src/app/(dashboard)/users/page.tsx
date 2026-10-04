@@ -5,7 +5,7 @@ import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { DataTableSearch } from "@/components/data-table-search";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { listUsuarios, type UsuarioConRol } from "@/lib/data/users";
@@ -54,7 +54,9 @@ function EmptyOrNoResultsState({
       ) : (
         <>
           <p className="text-muted-foreground max-w-prose">{emptyLabel}</p>
-          <Button render={<Link href="/users/new" />}>{newButtonLabel}</Button>
+          <Link href="/users/new" className={buttonVariants()}>
+            {newButtonLabel}
+          </Link>
         </>
       )}
     </div>
@@ -124,7 +126,9 @@ export default async function UsersPage({
         title={t("title")}
         description={t("subtitle")}
         action={
-          <Button render={<Link href="/users/new" />}>{t("newButton")}</Button>
+          <Link href="/users/new" className={buttonVariants()}>
+            {t("newButton")}
+          </Link>
         }
       />
 

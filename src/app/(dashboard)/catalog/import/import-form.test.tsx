@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -344,7 +351,12 @@ describe("ImportForm dropzone (a taken file is previewed at once)", () => {
 
     drop(WORKBOOK);
 
-    await screen.findByRole("heading", { level: 2, name: en.preview.title });
+    // The preview round-trips a mocked action; give a loaded pool room.
+    await screen.findByRole(
+      "heading",
+      { level: 2, name: en.preview.title },
+      { timeout: 5000 },
+    );
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -420,7 +432,7 @@ describe("ImportForm dropzone (a taken file is previewed at once)", () => {
       () => new Promise<PreviewArm>((resolve) => (answer = resolve)),
     );
     drop(SECOND);
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
 
     // The counts on screen belong to the first file: showing them under the
     // second file's name would describe a workbook nobody analysed.
@@ -442,7 +454,7 @@ describe("ImportForm dropzone (a taken file is previewed at once)", () => {
     await screen.findByRole("button", { name: en.preview.confirm });
 
     drop(SECOND);
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
     expect(
       (previewAction.mock.calls[1][1] as FormData).get("file"),
     ).toHaveProperty("name", "segundo.xlsx");
@@ -531,7 +543,7 @@ describe("ImportForm flow (preview, then confirm)", () => {
 
     await user.upload(screen.getByLabelText(en.upload.dropTitle), WORKBOOK);
 
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
     expect(previewAction.mock.calls[1][0]).toEqual({ kind: "idle" });
     expect(JSON.stringify(previewAction.mock.calls)).not.toContain(
       "ZK9TQ2M4XW7HB3PD",
@@ -547,7 +559,7 @@ describe("ImportForm flow (preview, then confirm)", () => {
       await screen.findByRole("button", { name: en.preview.confirm }),
     );
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(document.querySelector('input[name="fileSha256"]')).toHaveValue(
         "d".repeat(64),
       ),
@@ -705,7 +717,7 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
       () => new Promise<PreviewArm>((resolve) => (answer = resolve)),
     );
     drop(SECOND);
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
 
     // Those errors belong to the first file, not to the one being analysed.
     expect(

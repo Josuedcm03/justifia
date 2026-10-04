@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -49,9 +49,12 @@ export function DataTableSearch({
         {submitLabel}
       </Button>
       {value ? (
-        <Button variant="ghost" size="lg" render={<Link href={action} />}>
+        <Link
+          href={action}
+          className={buttonVariants({ variant: "ghost", size: "lg" })}
+        >
           {clearLabel}
-        </Button>
+        </Link>
       ) : null}
     </form>
   );

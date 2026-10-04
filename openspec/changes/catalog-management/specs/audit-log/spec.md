@@ -1,7 +1,7 @@
 # Audit Log Specification (delta)
 
-> Base for this delta: `openspec/changes/catalog-excel-import/specs/audit-log/spec.md`
-> (`openspec/specs/` is empty because that change is not archived yet). Apply
+> Base for this delta: `openspec/specs/audit-log/spec.md`
+> (archived from `catalog-excel-import` on 2026-10-04). Apply
 > this delta after it. Existing requirements are unchanged; this delta only
 > adds requirements.
 
