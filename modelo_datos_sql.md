@@ -122,9 +122,11 @@ CREATE TABLE "Usuario" (
     "Cif"             VARCHAR(20),                    -- solo estudiantes; clave de identificacion (02:09)
     "CarreraId"       BIGINT,                         -- carrera del estudiante o carrera que coordina
     "Activo"          BOOLEAN NOT NULL DEFAULT TRUE,
+    "DebeCambiarClave" BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE en cuentas creadas por importación (catalog-excel-import)
     "CreadoEn"        TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT "PK_Usuario" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_Usuario_Login" UNIQUE ("Login"),
+    CONSTRAINT "UQ_Usuario_Correo" UNIQUE ("Correo"),  -- varios NULL pueden coexistir; clave natural de docentes en la importación
     CONSTRAINT "UQ_Usuario_Cif" UNIQUE ("Cif"),
     CONSTRAINT "FK_Usuario_Rol" FOREIGN KEY ("RolId") REFERENCES "Rol" ("Id"),
     CONSTRAINT "FK_Usuario_Carrera" FOREIGN KEY ("CarreraId") REFERENCES "Carrera" ("Id")
@@ -136,6 +138,7 @@ CREATE TABLE "Grupo" (
     "Periodo"       VARCHAR(12) NOT NULL,             -- p. ej. '2026-S2'
     "NumeroGrupo"   VARCHAR(12) NOT NULL,             -- "hay 40 grupos de matematicas" (23:07)
     "DocenteId"     BIGINT NOT NULL,                  -- Usuario con Rol = 'docente'
+    "Activo"        BOOLEAN NOT NULL DEFAULT TRUE,    -- la importación desactiva, nunca borra
     CONSTRAINT "PK_Grupo" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_Grupo_Seccion" UNIQUE ("AsignaturaId", "Periodo", "NumeroGrupo"),
     CONSTRAINT "FK_Grupo_Asignatura" FOREIGN KEY ("AsignaturaId") REFERENCES "Asignatura" ("Id"),
@@ -145,6 +148,7 @@ CREATE TABLE "Grupo" (
 CREATE TABLE "Inscripcion" (
     "EstudianteId"  BIGINT NOT NULL,                  -- Usuario con Rol = 'estudiante'
     "GrupoId"       BIGINT NOT NULL,
+    "Activo"        BOOLEAN NOT NULL DEFAULT TRUE,    -- la importación desactiva, nunca borra
     CONSTRAINT "PK_Inscripcion" PRIMARY KEY ("EstudianteId", "GrupoId"),
     CONSTRAINT "FK_Inscripcion_Estudiante" FOREIGN KEY ("EstudianteId") REFERENCES "Usuario" ("Id"),
     CONSTRAINT "FK_Inscripcion_Grupo" FOREIGN KEY ("GrupoId") REFERENCES "Grupo" ("Id")
@@ -160,6 +164,24 @@ CREATE TABLE "TipoCausa" (
     CONSTRAINT "PK_TipoCausa" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_TipoCausa_Nombre" UNIQUE ("Nombre")
 );
+
+-- Bitácora de escrituras (RNF-02), append-only, particionada por año.
+-- Definida a mano en drizzle/0004_audit_log.sql; drizzle-kit no la ve (src/db/audit-schema.ts solo la tipa).
+CREATE TABLE "EventoAuditoria" (
+    "Id"          BIGINT GENERATED ALWAYS AS IDENTITY,   -- identity confirmado en el padre particionado (sonda S1, PG 18)
+    "ActorId"     BIGINT NOT NULL,                       -- usuario autenticado que ejecutó la acción
+    "OcurridoEn"  TIMESTAMPTZ NOT NULL DEFAULT now(),    -- clave de partición
+    "Accion"      VARCHAR(60) NOT NULL,
+    "EntidadTipo" VARCHAR(40) NOT NULL,                  -- 'Usuario' | 'Importacion' | ...
+    "EntidadId"   BIGINT,                                -- NULL solo para operaciones completas ('Importacion')
+    "Datos"       JSONB NOT NULL DEFAULT '{}'::jsonb,    -- resumen estructurado; nunca credenciales
+    CONSTRAINT "PK_EventoAuditoria" PRIMARY KEY ("Id", "OcurridoEn"),  -- la clave de partición debe estar en la PK
+    CONSTRAINT "FK_EventoAuditoria_Actor" FOREIGN KEY ("ActorId") REFERENCES "Usuario" ("Id"),
+    CONSTRAINT "CK_EventoAuditoria_Entidad" CHECK ("EntidadTipo" <> 'Usuario' OR "EntidadId" IS NOT NULL)
+) PARTITION BY RANGE ("OcurridoEn");
+-- Índices: IX_EventoAuditoria_Entidad (EntidadTipo, EntidadId, OcurridoEn DESC),
+--          IX_EventoAuditoria_Actor (ActorId, OcurridoEn DESC), IX_EventoAuditoria_Ocurrido (OcurridoEn).
+-- Particiones anuales 2026..2030 con límites +00 y una partición DEFAULT (ver §4, notas 12 y 13).
 ```
 
 ### 3.2 Solicitud y ciclo de vida
@@ -281,7 +303,7 @@ CREATE INDEX "IX_Notificacion_Solicitud" ON "Notificacion" ("SolicitudId");
 
 2. **`Cif` y `CarreraId` viven en `Usuario`.** `Cif` es único y solo lo llevan los estudiantes; `CarreraId` es la carrera del estudiante o la carrera que coordina el coordinador. Ambos son `NULL` para secretaría y administración.
 
-3. **`Grupo` e `Inscripcion` son tablas propias.** La institución no expone ninguna consulta, así que estos datos se cargan por importación (CSV del sistema académico) o manualmente cada periodo. Esto es lo que hoy la secretaria hace a mano al buscar por CIF (02:09); el sistema solo puede automatizarlo si tiene los datos cargados.
+3. **`Grupo` e `Inscripcion` son tablas propias.** La institución no expone ninguna consulta, así que estos datos se cargan por importación de un archivo `.xlsx` cada periodo (RF-35 es la fuente de autoridad; el «CSV del sistema académico» de versiones anteriores de esta nota ya no aplica). La carga manual sigue siendo una necesidad futura real, pero no se construye en F2. Esto es lo que hoy la secretaria hace a mano al buscar por CIF (02:09); el sistema solo puede automatizarlo si tiene los datos cargados.
 
 4. **`SolicitudDetalle` es la unidad de trabajo del docente.** Una solicitud afecta varias asignaturas y fechas; cada fila se remite a un docente (vía `Grupo.DocenteId`) y ese docente responde en `Resultado` / `Efecto`. El caso «misma inasistencia el mismo día en varias asignaturas» no está resuelto en la entrevista (hallazgo 3); el modelo lo soporta, la regla de negocio queda pendiente.
 
@@ -298,3 +320,7 @@ CREATE INDEX "IX_Notificacion_Solicitud" ON "Notificacion" ("SolicitudId");
 10. **Configuración diferida.** Plazo (48 h), umbral (20 % sobre horas) y textos de plantilla se manejarán con una tabla `Configuracion` (clave/valor) cuando se implemente CU-09 (RNF-09, RNF-10; 04:41; 19:55; divergencia c-4).
 
 11. **Sin evidencia sobre:** si hoy se guarda registro escrito del rechazo (hallazgo 14), volumen de solicitudes por periodo y tipo, y tiempos de trámite. Los `CHECK` y cardinalidades de esas zonas son tentativos.
+
+12. **`EventoAuditoria` es append-only, con límites honestos.** Un `TRIGGER` de fila `BEFORE UPDATE OR DELETE` en la tabla padre (PostgreSQL lo clona a cada partición existente y futura) más un `TRIGGER` `BEFORE TRUNCATE` **por partición** (los triggers de sentencia no se clonan; la sonda S2 confirmó que el padre acepta uno propio, así que hay uno en el padre y uno en cada partición) rechazan la escritura con `42501`. `REVOKE UPDATE, DELETE, TRUNCATE ... FROM PUBLIC` por relación es solo defensa en profundidad, no el mecanismo. **Límites**: el rol de la aplicación es el dueño de la tabla y las migraciones lo usan también, así que puede ejecutar `DISABLE TRIGGER`, `DROP TABLE` y `DROP`/`DETACH PARTITION`; una restauración de Neon (point-in-time) revierte la tabla. No se afirma inmutabilidad absoluta: se garantiza contra las sentencias de datos de la aplicación. La purga por retención no está implementada; sus restricciones están en design.md (Migration/Rollout 9).
+
+13. **Ventana de particiones de `EventoAuditoria`.** Hay particiones anuales 2026..2030 (límites UTC con `+00`) y una partición `DEFAULT`. La ventana expira el **`2030-12-31`**: antes de esa fecha una migración escrita por una persona debe añadir la siguiente ventana, y **cada partición nueva necesita su propio trigger `BEFORE TRUNCATE` y su `REVOKE`** (PostgreSQL no los proporciona). Chequeo de salud: `SELECT count(*) FROM "EventoAuditoria_default";` (un valor distinto de cero indica que la ventana venció). Trampa del `DEFAULT`: una fila en `DEFAULT` impide crear la partición de ese año y el trigger de inmutabilidad impide moverla. Quién es responsable del calendario es una decisión abierta (ver la sección final de design.md).

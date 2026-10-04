@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "recurso": "grupos",
+    "version": "1.0",
+    "generadoEn": "2026-09-24T08:00:00-06:00",
+    "periodo": "2026-S2",
+    "snapshotCompleto": true,
+    "total": 3,
+    "pagina": 1,
+    "porPagina": 500,
+    "totalPaginas": 1
+  },
+  "data": [
+    {
+      "asignatura": { "codigo": "MAT-101", "nombre": "Matemática I" },
+      "periodo": "2026-S2",
+      "numeroGrupo": "1",
+      "docente": { "codigo": "DOC-00123", "correo": "ana.martinez@ejemplo.edu.ni" },
+      "activo": true
+    },
+    {
+      "asignatura": { "codigo": "MAT-101", "nombre": "Matemática I" },
+      "periodo": "2026-S2",
+      "numeroGrupo": "2",
+      "docente": { "codigo": "DOC-00456", "correo": "carlos.perez@ejemplo.edu.ni" },
+      "activo": true
+    },
+    {
+      "asignatura": { "codigo": "PRG-110", "nombre": "Programación I" },
+      "periodo": "2026-S2",
+      "numeroGrupo": "1",
+      "docente": { "codigo": "DOC-00456", "correo": "carlos.perez@ejemplo.edu.ni" },
+      "activo": true
+    }
+  ]
+}

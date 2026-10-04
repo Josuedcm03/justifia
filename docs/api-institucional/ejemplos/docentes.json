@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "recurso": "docentes",
+    "version": "1.0",
+    "generadoEn": "2026-09-24T08:00:00-06:00",
+    "total": 2,
+    "pagina": 1,
+    "porPagina": 500,
+    "totalPaginas": 1
+  },
+  "data": [
+    {
+      "codigo": "DOC-00123",
+      "nombreCompleto": "Ana Lucía Martínez Rivas",
+      "correo": "ana.martinez@ejemplo.edu.ni",
+      "telefono": "+505 8800 0001",
+      "activo": true
+    },
+    {
+      "codigo": "DOC-00456",
+      "nombreCompleto": "Carlos Eduardo Pérez Luna",
+      "correo": "carlos.perez@ejemplo.edu.ni",
+      "telefono": null,
+      "activo": true
+    }
+  ]
+}

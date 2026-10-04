@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "recurso": "periodos",
+    "version": "1.0",
+    "generadoEn": "2026-09-24T08:00:00-06:00",
+    "total": 2,
+    "pagina": 1,
+    "porPagina": 500,
+    "totalPaginas": 1
+  },
+  "data": [
+    {
+      "codigo": "2026-S1",
+      "nombre": "Primer semestre 2026",
+      "fechaInicio": "2026-01-19",
+      "fechaFin": "2026-05-30",
+      "vigente": false
+    },
+    {
+      "codigo": "2026-S2",
+      "nombre": "Segundo semestre 2026",
+      "fechaInicio": "2026-07-27",
+      "fechaFin": "2026-12-05",
+      "vigente": true
+    }
+  ]
+}
