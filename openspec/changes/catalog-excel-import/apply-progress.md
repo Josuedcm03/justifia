@@ -563,3 +563,602 @@ Under the 800-line budget (and much closer to the ~170 estimate than WU1a/WU2a/W
 ## Next
 
 Phase 6 (Gate G-DB, the shared-instance apply of `0003`+`0004`) is the next item in `tasks.md`'s order, but every one of its tasks is `[READ-ONLY]` or `[CONFIRM]` against the real Neon instance — it needs the user's per-command "yes" and is not something to proceed on without that. Phase 7 (WU2c: temp passwords, CSV, `createUsuariosBulk`, `apply.ts`, the audit writer wired in-tx) is the next phase with pure/local work, but per design decision 23/24 it must NOT be started before Phase 6, because `apply.ts` is meant to be exercised against the real, migrated schema in the transaction-critical slice — WU2c's own rollback boundary assumes `0003`/`0004` already exist. Recommend pausing here for the user to decide on Phase 6 (the DB apply), rather than starting Phase 7's code against an unmigrated schema.
+
+---
+
+# Phase 7 (WU2c) batch 1: tasks 7.1-7.8 (temp password, credentials CSV, bulk user insert, summary). Branch kept on `feat/catalog-excel-import-wu1b`. Nothing committed; no database access.
+
+## Completed
+
+- [x] 7.1/7.2 `temp-password.ts` + test. RED: `npx vitest run` failed with "Failed to resolve import @/lib/import/temp-password" (module absent). GREEN: 5/5. `node:crypto.randomInt` default, injectable RNG, called as `(0, 32)`.
+- [x] 7.3/7.4 `credentials-csv.ts` + test. RED: failed on the missing module. GREEN: 12/12 (BOM, header `Login,NombreCompleto,Clave`, CRLF rows, RFC 4180 quoting, `'` prefix for `= + - @ \t \r`, accents kept).
+- [x] 7.5/7.6 `createUsuariosBulk(tx, rows)` in `users.ts` + `src/lib/data/users.test.ts`. RED: 5/5 failed with "createUsuariosBulk is not a function". GREEN: 5/5; `npx vitest run src/lib/data` 36/36. Chunks at `WRITE_CHUNK_ROWS` (501 rows -> 2 statements), ids in input order via `.returning({ id })`, forces `debeCambiarClave: true`.
+- [x] 7.7/7.8 `summary.ts` + test. RED: failed on the missing module. GREEN: 5/5 (`buildImportSummary`, `logImportSummary`, `expectTypeOf` key pin).
+
+## Ambiguity resolved
+
+- Task 7.5 names `src/lib/data/users.test.ts`; the existing data tests live in `users-data.test.ts` (drizzle.mock based). Created the new file named by the task, since it uses a different, hand-rolled `tx` double.
+- Alphabet: the task text says "no `0 O 1 I L`", but the pinned alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (D8) contains `L` and omits `I`/`O`/`0`/`1`. Kept the pinned string; the test asserts only `0 O 1 I` are absent.
+- `createUsuariosBulk` rows are `NuevaCuentaImportada = Omit<NuevoUsuario, "debeCambiarClave">` (carries `rolId`, already resolved, and the bcrypt `hashClave`); the executor type reuses `CatalogExecutor`.
+- `buildImportSummary(input: ImportSummary)` copies the six fields explicitly (so extra keys cannot ride along); `actor`, `at`, `fileSha256`, counts and account totals are supplied by the caller (the clock and actor are not read here). `logImportSummary(summary, logger = console.info)` emits one `JSON.stringify` line with `event: "catalog.import.applied"`. Credentials CSV header names (`Login,NombreCompleto,Clave`) and the event name are not fixed by the spec; chosen here.
+- Small test-authoring slip: the credentials CSV and summary tests were lightly edited (escape fix, wording) after their first RED run; the RED reason (module missing) was unchanged.
+
+## Verification
+
+`npm test`: 435 total, 430 passed, 5 failed (the known flaky set: `users/page.test.tsx` "renders users.noResults.* and a clear control..." and "shows the new-user button to every creator"; `denied/page.test.tsx` x2; `data-table-search.test.tsx` "renders a clear link..."). `npm run typecheck`: clean. `npx eslint` on touched files: clean after `--fix` on new files, apart from pre-existing CRLF `Delete ␍` noise on `users.ts`. `npm run build` not run.
+
+## Line count
+
+| File | Lines |
+|------|-------|
+| `src/lib/import/temp-password.ts` | 23 |
+| `src/lib/import/temp-password.test.ts` | 61 |
+| `src/lib/import/credentials-csv.ts` | 24 |
+| `src/lib/import/credentials-csv.test.ts` | 84 |
+| `src/lib/import/summary.ts` | 27 |
+| `src/lib/import/summary.test.ts` | 91 |
+| `src/lib/data/users.test.ts` | 93 |
+| `src/lib/data/users.ts` (diff, additive) | ~+28 |
+| **Batch total** | **~431** |
+
+Against the 800-line WU2c budget: ~431 used; 7.9-7.19 (audit writer, `apply.ts`, tests) must fit in ~370 or WU2c will exceed it. Flagged, not cut.
+
+## Next
+
+7.9 (RED audit writer test, `src/lib/data/audit.test.ts`) onward.
+
+---
+
+# Phase 7 (WU2c) batch 2: tasks 7.9-7.19 (audit writer, `apply.ts`, in-transaction audit, `runImportApply`) plus the batch 1 hardening item. Branch kept on `feat/catalog-excel-import-wu1b`. Nothing committed; no database access of any kind (every test uses hand-rolled recording `tx` doubles; `npm run build` ran without a live database).
+
+Mode: Strict TDD. Cycles were done pair by pair (7.9/7.10, 7.11/7.12, 7.13/7.14, 7.15/7.16, then 7.17), each RED run before its GREEN code. `size:exception` for WU2c is accepted by the user (single PR, review budget 800 lines exceeded).
+
+## Completed
+
+- [x] Post-review change to 7.5/7.6: `createUsuariosBulk` no longer trusts `RETURNING` order.
+- [x] 7.9/7.10 `src/lib/data/audit.ts` + `audit.test.ts`
+- [x] 7.11/7.12 `src/lib/import/apply.ts` `applyImport` entity writes + `apply.test.ts`
+- [x] 7.13/7.14 audit written last, same `tx`, inside `applyImport`
+- [x] 7.15/7.16 `runImportApply` orchestration
+- [x] 7.17 REFACTOR into per-entity writers (`writeAsignaturas`, `writeUsuarios`, `writeGrupos`, `deactivateGrupos`)
+- [x] 7.18 verification (below)
+- [x] 7.19 checkpoint notes (below)
+
+## TDD Cycle Evidence (batch 2)
+
+| Task | Test file | RED (run before GREEN code) | GREEN | REFACTOR |
+|------|-----------|-----------------------------|-------|----------|
+| 7.5/7.6 hardening | src/lib/data/users.test.ts | 4 failed / 5 passed: shuffled `RETURNING` returned ids reversed, unknown login did not throw, missing id did not throw, duplicate input login did not throw | 9/9 | none; test double now returns `{ id, login }` (old cases unchanged and still pass) |
+| 7.9/7.10 | src/lib/data/audit.test.ts | suite failed: `Failed to resolve import "@/lib/data/audit"` | 7/7; `npm run typecheck` clean, which also proves the `@ts-expect-error` (passing `db` is a compile error) is load-bearing | none needed |
+| 7.11/7.12 | src/lib/import/apply.test.ts | suite failed: `Failed to resolve import "@/lib/import/apply"` | 14/14 | none yet (see 7.17) |
+| 7.13/7.14 | apply.test.ts (new `in-transaction audit` block, 8 tests) | 4 failed (no audit rows existed: last-statement order, ids/actor, idempotent single import row, failing audit insert propagates) / 4 passed vacuously (negative guards: invalid plan, entity failure, late throw, no credentials in payload) | 22/22 after two 7.11 tests were narrowed to entity statements (`entityStatements(buffer)`), because the audit insert now shares the buffer | none |
+| 7.15/7.16 | apply.test.ts (new `runImportApply` block, 9 tests) | 9 failed: `runImportApply` and `ImportRejectedError` not exported | 31/31 | none |
+| 7.17 | apply.test.ts | n/a (no new behaviour) | 31/31 unchanged after extraction; `src/lib/data` + apply 78/78, typecheck clean | per-entity writers extracted; `applyImport` is now a 30-line sequence |
+
+## Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused tests | `npx vitest run src/lib/import src/lib/data/audit.test.ts src/lib/data/users.test.ts`: 13 files, 215 passed, 0 failed |
+| Runtime harness | N/A: no database in this batch by instruction. The doubles prove statement order, handle identity, chunking and rollback-by-discard only. The real transaction, the partitioned `EventoAuditoria` insert and `RETURNING` behaviour are proven only by Phase 6 / Phase 9 evidence |
+| Rollback boundary | Delete `src/lib/data/audit.ts`, `audit.test.ts`, `src/lib/import/apply.ts`, `apply.test.ts`; revert the batch 2 hunk of `src/lib/data/users.ts` (`createUsuariosBulk` login mapping) and the batch 2 additions of `src/lib/data/users.test.ts`. Nothing else in the tree references these files yet (no action calls them until WU3b) |
+
+## Ambiguity resolved
+
+- **Final signature of `applyImport` is `(tx, plan, credentials, ctx)`**, not the 3-argument form in the task text. It needs the snapshot to resolve `GrupoWrite` natural keys for rows that already exist (`asignaturaCodigo` to id, `docenteCorreo` to id), and the actor, timestamp and file hash to build the audit events. `ctx = { snapshot, actorId, actor, at, fileSha256 }`. The 7.11 tests were written with this final shape from the start; 7.14 only added behaviour.
+- **`Transaction` type** is exported from `src/lib/data/audit.ts` as `Parameters<Parameters<typeof db.transaction>[0]>[0]` (type-only import of `db`). It is assignable to `CatalogExecutor`, so `loadCatalogSnapshot(tx)` and `createUsuariosBulk(tx, ...)` accept it, while `db` is not assignable to it (the 7.9 type test).
+- **Docente role id** is resolved inside `applyImport` with one `select` on `Rol` through `tx` (only when the plan creates accounts) and fails loudly if absent. `getRolIdByCodigo` uses the `db` singleton, so it cannot be used inside the transaction, and the snapshot carries no role ids.
+- **Credentials shape**: `ProvisionedAccount = TemporaryCredential & { hashClave }`. The plaintext `clave` is only copied into the returned `credentials[]`; only `hashClave` reaches an insert. Returned credentials cover exactly the accounts created by this apply (not every provisioned one).
+- **`runImportApply` plans twice**: a preview-time plan on `db` (read-only) decides which accounts are new so passwords are generated and hashed before the transaction; the in-transaction plan on `tx` is the one applied. If the database moved in between: a plan that now has errors throws `ImportRejectedError`; a new account with no pre-hashed credential throws (rollback); an account that appeared meanwhile is simply not created and its hash is discarded (no credential returned). `ImportRejectedError` carries the row errors.
+- **Summary fields supplied here**: `actor` is the actor login (the type is `string`), `at` comes from an injectable `now()` (default `new Date()`), `fileSha256` is the `sha256` argument, `accountsCreated`/`accountsUpdated` are counted from what was actually written (`unchanged` is neither).
+- **Logging is not done in `runImportApply`**. `logImportSummary` exists (7.8) and the task text for 7.15 does not list a log assertion; the action layer (WU3b) calls it after commit with the returned summary. Flagged so the one-structured-line requirement (D16) is not forgotten there.
+- **Updates are one statement per row** (Asignatura, Usuario, Grupo updates). Drizzle has no bulk update; the cap `MAX_ACCOUNT_EVENTS_PER_APPLY = 2 000` bounds Usuario updates. Inserts and deactivations are chunked at `WRITE_CHUNK_ROWS`. Group creates have no `RETURNING` (nothing consumes their ids).
+- Task 7.13 says a throw after the entity writes "leaves zero audit statements committed"; the `db` double commits its buffer only if the callback resolves, so this is proven against the double, not against Postgres.
+
+## Deviations
+
+- Hardening (post-review of batch 1): `createUsuariosBulk` now selects `{ id, login }`, maps ids back by login, and throws on an unknown returned login, an input row that gets no id, or duplicate input logins. Public contract unchanged (ids in input order). The pre-existing batch 1 tests were not changed except that the double now also returns `login`.
+- Two 7.11 tests were edited in the 7.13 step (narrowed to `entityStatements(buffer)`), because the audit insert legitimately joined the same buffer. No assertion weakened.
+
+## Verification (7.18)
+
+- `npx vitest run src/lib/import src/lib/data/audit.test.ts src/lib/data/users.test.ts`: 13 files, 215 passed.
+- `npm test`: 477 total, 472 passed, 5 failed. Failing names (the known environment-flaky set, none touch import code): `data-table-search.test.tsx` "renders a clear link to the bare action only when the value is non-empty"; `denied/page.test.tsx` "renders one h1, the explanation and a single control leading to /" and "gives the way-back control the 44px touch floor and leaves the global focus ring alone"; `users/page.test.tsx` "renders users.noResults.* and a clear control when a search has no results" and "shows the new-user button to every creator".
+- `npm run typecheck`: clean.
+- `npm run build`: succeeded without a database (compiled, typechecked, 10 static pages).
+- `npx eslint` on `apply.ts`, `apply.test.ts`, `audit.ts`, `audit.test.ts`, `users.test.ts`: 0 problems (ran `--fix` on the new files). `users.ts`: 304 pre-existing prettier `Delete ␍` CRLF errors and nothing else.
+- Credential sweep `rg "clave|password|hash" src/lib/import/summary.ts src/lib/audit` interpreted: `summary.ts:5` is a comment saying credentials cannot ride along; `audit/types.ts:19` is a comment explaining why `login`/`hashClave` are absent from `AUDITABLE_USER_FIELDS`; every `events.test.ts` hit is a test asserting absence (forbidden-key sweep, two `@ts-expect-error` pins, the "import hash" test name is the file digest). No production audit or summary code mentions a credential field. In addition `apply.test.ts` asserts the serialized audit rows match neither `clave|password|hash` nor the plaintext/hash values, and that the written rows and the `ImportSummary` never contain the plaintext password.
+
+## Checkpoint for the user (7.19)
+
+- Audit call is last and on the same `tx`: `applyImport` ends with `insertAuditEvents(tx, ctx.actorId, buildAuditEvents(summary, written.touched))` after `deactivateGrupos`; `insertAuditEvents` is typed on `Transaction`, so passing `db` does not compile. Proven against doubles only.
+- bcrypt is outside the transaction: `runImportApply` calls `generate`/`hash` before `db.transaction`; the test records call order and asserts no `hash`/`generate` call after the transaction opens.
+- No delete anywhere: no `.delete(` in `apply.ts` or `audit.ts` (asserted by a source test and a recording double that would capture one); absent groups are deactivated with `Activo = false`.
+- Not proven here: the real transaction, `RETURNING` on a live table, the partitioned audit insert, and bcrypt wall-clock. Those wait for Phase 6 / Phase 9.
+- Open for WU3b: call `logImportSummary` once after commit; pass `hashPassword` and `generateTemporaryPassword` as `hash`/`generate`; map `ImportRejectedError` to the preview report.
+
+## Line count
+
+| File | Lines |
+|------|-------|
+| `src/lib/data/audit.ts` | 36 |
+| `src/lib/data/audit.test.ts` | 119 |
+| `src/lib/import/apply.ts` | 345 |
+| `src/lib/import/apply.test.ts` | 938 |
+| `src/lib/data/users.test.ts` (batch 2 additions: 93 to 134) | +41 |
+| `src/lib/data/users.ts` (batch 2 hunk: 56 total diff minus 28 from batch 1) | ~+28 |
+| **Batch 2 total** | **~1,507** |
+| Batch 1 (7.1-7.8) | ~431 |
+| **WU2c cumulative** | **~1,938** |
+
+Far over the 800-line budget and the ~625 estimate (tests are about 2.7x the implementation: 31 tests in `apply.test.ts` alone, with prettier expanding multi-line literals). Covered by the accepted `size:exception`; no test or scope was cut or padded.
+
+## Next
+
+Phase 8 (WU3a, forced password change) or Phase 9 / WU3b (the server action that calls `runImportApply` and the UI) per `tasks.md`. Recommended before WU3b: Phase 6 evidence so the real transaction path can be exercised.
+
+---
+
+# Phase 6 (Gate G-DB): pre-apply checks, 2026-10-03. Read-only only; nothing written to any database.
+
+Target verified as the shared instance: Neon project `damp-recipe-21839554`, default branch `production` (`br-restless-hat-ayjwtjqw`), endpoint `ep-orange-math-ay4rhpc0`. The `.env` `DATABASE_URL` host is that endpoint's pooled host (`ep-orange-math-ay4rhpc0-pooler...`), host part inspected only.
+
+## Completed
+
+- [x] 6.1 Migration files unchanged since the rehearsal: `sha256sum` of `drizzle/0003_late_groot.sql` = `62e422f6...76f3f` and `drizzle/0004_audit_log.sql` = `d8832f7d...d720`, both equal to the hashes frozen in 2.28. No re-rehearsal needed.
+- [x] 6.2 Correo duplicate query from 1.1 against `production`: zero rows. `Usuario` has 5 rows, none with a NULL `Correo`.
+- [x] 6.3 `server_version_num` = `180006` (PostgreSQL 18.6), database `neondb`; endpoint kind is still the pooled host. Both match 1.2 and 2.1.
+
+## Finding — `0003` is already applied to the shared instance
+
+`drizzle."__drizzle_migrations"` on `production` holds 4 rows. Row 4 has hash `e49886a2...c082` and `created_at` `1789957305259`, which equal the sha256 of the committed (LF) content of `drizzle/0003_late_groot.sql` and its `when` in `drizzle/meta/_journal.json`. The schema agrees: `Asignatura`, `Grupo` and `Inscripcion` exist (0 rows each), `Usuario` has `DebeCambiarClave` (NOT NULL) and `Usuario_Correo_unique`. `"EventoAuditoria"` does not exist (`to_regclass` is NULL), so `0004` is the only pending migration.
+
+This contradicts the plan recorded in tasks 1.13 and 6.4, which assumed both `0003` and `0004` were still unapplied on the shared instance. When and by whom `0003` was applied is not recorded here; the migrations table stores the journal timestamp, not the apply time.
+
+Consequences for the remaining Phase 6 steps:
+
+- 6.4 will apply `0004` only, not `0003` and `0004` in one transaction as its wording says.
+- 6.5 should verify `0004` objects (parent table, six partitions, triggers, empty default partition) and that the 5 existing `Usuario` rows survived.
+- The Neon branch `rehearsal-audit` used for 2.19-2.29 no longer exists in the project (branches present: `production`, `backup-before-0002-roles`, `rehearsal-0002-roles`, `abort-rehearsal-0002`). Task 9.26 needs a fresh rehearsal branch.
+- The working-tree copies of `0000`-`0003` are CRLF and hash differently from the LF content recorded in the migrations table; `0004` is LF in both. Recorded as an observation, not acted on.
+
+## Next
+
+6.4 (`npm run db:migrate` against the shared instance) waits for the user's explicit "yes" for that exact command.
+
+## Backup branch before the shared apply (user-confirmed, 2026-10-04 01:46 UTC)
+
+Created Neon branch `backup-before-0004-audit` (`br-still-feather-ay7d87p7`) from `production` (`br-restless-hat-ayjwtjqw`) at parent LSN `0/2022840`, without a compute endpoint. It holds the pre-`0004` state of the shared instance (migrations `0000`-`0003`, 5 `Usuario` rows). Not a task in `tasks.md`; added on the user's request, mirroring `backup-before-0002-roles`.
+
+## Shared-instance apply (6.4) and post-apply verification (6.5), 2026-10-04 UTC
+
+- [x] 6.4 `npm run db:migrate` against the shared instance (`production`, via the pooled host in `.env`), run after the user's explicit "yes" for that exact command. Exit 0, `migrations applied successfully!`. Only notices emitted: `schema "drizzle" already exists` and `relation "__drizzle_migrations" already exists`. As recorded above, only `0004_audit_log` was pending, so the task's "wrapped `0003` and `0004` in one transaction" wording did not apply; `0003` was already in place.
+- [x] 6.5 Post-apply verification (read-only, Neon `run_sql` on `production`):
+  - `drizzle."__drizzle_migrations"` now has 5 rows; the last is hash `d8832f7d...d720` at `1789963712521`, equal to `drizzle/0004_audit_log.sql` and its journal `when`.
+  - `"EventoAuditoria"` exists with `relkind = 'p'` (partitioned) and six partitions: `EventoAuditoria_2026` through `EventoAuditoria_2030` with yearly bounds at `00:00:00+00`, plus `EventoAuditoria_default` (DEFAULT).
+  - `SELECT count(*)` is 0 on `"EventoAuditoria"` and on `"EventoAuditoria_default"`.
+  - Triggers: 14, all enabled. `TR_EventoAuditoria_inmutable` (BEFORE DELETE OR UPDATE, FOR EACH ROW) on the parent and cloned onto all six partitions; a BEFORE TRUNCATE statement trigger on the parent (`TR_EventoAuditoria_truncate`) and one per partition (`TR_EventoAuditoria_<partition>_truncate`). This matches the set asserted by `src/db/migration-0004.test.ts` (one row trigger declared on the parent, a truncate trigger on the parent and on every partition).
+  - `Asignatura`, `Grupo` and `Inscripcion` exist; `Usuario` still has 5 rows.
+  - Not checked here: the `REVOKE UPDATE, DELETE, TRUNCATE` grants, and the append-only behaviour by attempting a write (that would be a write probe; it was exercised in the 2.19-2.26 rehearsal).
+- [ ] 6.6 (optional `db:seed`) not run; skipped by default.
+
+Rollback reference: Neon branch `backup-before-0004-audit` (`br-still-feather-ay7d87p7`) holds the pre-`0004` state. Any correction to `0004` goes through a compensating migration, never an edit to the applied file.
+
+---
+
+# Phase 8 (WU3a) batch 1: tasks 8.1-8.10 (session flag, DAL enforcement, login payload, `changePasswordSchema`, `updateClaveAndClearFlag`). Branch kept on `feat/catalog-excel-import-wu1b`. Nothing committed; no database access of any kind (the data test uses a hand-rolled `db.update` double).
+
+Next.js docs read: `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/redirect.md` (redirect throws; call it outside `try`). The login action only gained one payload field, so cookies and redirect usage are unchanged.
+
+## Completed
+
+- [x] 8.1/8.2 `session.ts` + test. RED: 4 failed, 7 passed; the failures are the non-boolean cases (`"yes"`, `1`, `"true"`, `null`) which the old validator accepted. The no-flag and `true`/`false` round-trip cases already passed on RED (the payload is spread into the JWT, so the flag always survived signing); the test pins them anyway. GREEN: 11/11. `isSessionPayload` accepts `undefined | boolean` (D14).
+- [x] 8.3/8.4 `routes.ts`, `dal.ts` + `dal.test.ts`. RED: 9 failed of 19 (`PASSWORD_CHANGE_PATH` and `requireUserAllowingPasswordChange` absent, so flagged cases did not redirect). GREEN: 19/19. `requireUser` redirects `debeCambiarClave === true` to `PASSWORD_CHANGE_PATH` after the anonymous check and before returning; `requireRole` inherits it, so the flag beats the role check (table over all five roles asserts exactly one redirect and never `/denied`). `requireUserAllowingPasswordChange` only checks for a session. `rg requireUserAllowingPasswordChange src` shows only `dal.ts` and `dal.test.ts` (callers arrive with 8.12/8.14).
+- [x] 8.5/8.6 `login/actions.ts` + new `login/actions.test.ts`. RED: 2 failed, 1 passed (signSession payload lacked the flag; the no-guard test passes by construction). GREEN: 3/3. Payload now carries `debeCambiarClave: user.debeCambiarClave` from the 1.10 projection (confirmed in `usuarioConRolColumns`).
+- [x] 8.7/8.8 `validations/auth.ts` + test. RED: 5 failed (`changePasswordSchema` not exported). GREEN: 10/10. Current password required; new password 8 to 128 (same as registration); confirmation mismatch -> issue on `confirmPassword`; new equals current -> issue on `newPassword`.
+- [x] 8.9/8.10 `updateClaveAndClearFlag(id, hashClave)` in `users.ts` + test appended to `users.test.ts`. RED: 1 failed (not a function). GREEN: 10/10. One `db.update(usuario).set({ hashClave, debeCambiarClave: false }).where(eq(usuario.id, id))`; the test renders the WHERE through `PgDialect` and asserts `"Usuario"."Id" = $1` with params `[42]`.
+
+## TDD Cycle Evidence (batch 1)
+
+| Task | RED | GREEN | REFACTOR |
+|------|-----|-------|----------|
+| 8.1/8.2 | 4 failed / 11 | 11/11 | none |
+| 8.3/8.4 | 9 failed / 19 | 19/19 | none |
+| 8.5/8.6 | 2 failed / 3 | 3/3 | none |
+| 8.7/8.8 | 5 failed / 10 | 10/10 | none |
+| 8.9/8.10 | 1 failed / 10 | 10/10 | none |
+
+## Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/lib/auth src/lib/validations src/lib/data "src/app/(auth)"`: 12 files, 136 passed |
+| Runtime harness | N/A for this batch: no runtime boundary is exercised without the page and action (8.11-8.14) and a database; manual harness is 8.20 |
+| Rollback boundary | Revert `session.ts`, `dal.ts`, `routes.ts`, `login/actions.ts`, `validations/auth.ts` hunks, the appended `updateClaveAndClearFlag` block in `users.ts`, and their tests; `login/actions.test.ts` is a new file. No unrelated work is touched |
+
+## Ambiguity resolved
+
+- "Same strength rule as registration": registration (`registroEstudianteSchema`) is `min(8)`/`max(128)` with no composition rule, and it lives in `validations/users.ts`, which imports from `auth.ts`. To avoid a circular import the rule is repeated inline in `changePasswordSchema` (same limits and Spanish message) instead of extracting a shared constant, and `loginSchema` is not touched.
+- Messages in the schema are Spanish literals, matching the existing schemas; i18n copy is 8.15/8.16.
+- The `requireRole` flagged-before-role order needed no `requireRole` edit: it already calls `requireUser` first.
+- `users.test.ts` keeps its existing `vi.mock("@/db", () => ({ db: {} }))`; the new test assigns `db.update` on that object rather than altering the mock.
+
+## Deviations
+
+None from design.md.
+
+## Verification
+
+`npm test`: 504 total, 499 passed, 5 failed, all in the known flaky set (`denied/page.test.tsx` "renders one h1, the explanation and a single control leading to /" and "gives the way-back control the 44px touch floor..."; `data-table-search.test.tsx` "renders a clear link..."; `users/page.test.tsx` "renders users.noResults.* and a clear control..." and "shows the new-user button to every creator"). No existing test needed changing for the new `requireUser` contract (existing guarded-page tests mock the DAL). `npm run typecheck`: clean. `npx eslint` on touched files: only the pre-existing CRLF `Delete ␍` noise remains on CRLF files; `--fix` applied to the new `actions.test.ts` (LF); two real prettier findings in `dal.test.ts` fixed by hand. `npm run build` not run (8.19).
+
+Existing tests extended (not weakened): `dal.test.ts` (`sessionFor` takes an optional flag; imports extended), `session.test.ts`, `validations/auth.test.ts`, `users.test.ts` (appended).
+
+## Line count (WU3a batch 1, authored lines only)
+
+| File | Added |
+|------|-------|
+| `src/lib/auth/session.ts` | +8 / -1 |
+| `src/lib/auth/session.test.ts` | +29 |
+| `src/lib/auth/routes.ts` | +6 |
+| `src/lib/auth/dal.ts` | +14 / -1 |
+| `src/lib/auth/dal.test.ts` | +88 / -5 |
+| `src/app/(auth)/login/actions.ts` | +1 |
+| `src/app/(auth)/login/actions.test.ts` (new) | 101 |
+| `src/lib/validations/auth.ts` | +30 |
+| `src/lib/validations/auth.test.ts` | +55 / -1 |
+| `src/lib/data/users.ts` (WU3a hunk only) | +15 |
+| `src/lib/data/users.test.ts` (WU3a hunk only) | +30 |
+| **Batch total** | **+377 / -8 (385 changed)** |
+
+Against the 800-line WU3a budget (estimate ~560): 385 used for 10 of 20 tasks. Remaining 8.11-8.20 (action + test, page and form, i18n and parity test, structural pin) has ~415 lines of room. No `size:exception` granted for WU3a.
+
+## Next
+
+8.11 (RED `src/app/change-password/actions.test.ts`) onward.
+
+# Phase 8 (WU3a) batch 2: tasks 8.11-8.20 (change-password action, page, form, i18n, parity test, logout pin, call-site pin, verification, checkpoint). Branch kept on `feat/catalog-excel-import-wu1b`. Nothing committed; no database access of any kind (every data call is a mock).
+
+Next.js docs read: `node_modules/next/dist/docs/01-app/01-getting-started/07-mutating-data.md` (Server Functions are directly POSTable, so the guard goes inside the action; forms and `useActionState`), `.../04-functions/redirect.md` (redirect throws; call it outside `try`; in a Server Action it navigates client-side), `.../04-functions/cookies.md` (`cookies().set` is valid in a Server Function, and the updated UI comes back in the same roundtrip). The repo uses `middleware.ts`; it lets any signed-in session through to `/change-password` and sends an anonymous one to `/login`, so it needed no change.
+
+## Completed
+
+- [x] 8.11/8.12 `src/app/change-password/actions.ts` + `actions.test.ts`. RED: suite failed to load (`Failed to resolve import "@/app/change-password/actions"`; 0 tests ran, the module did not exist). GREEN: 22/22 on the first run. The flow is: `requireUserAllowingPasswordChange()` first (ordered before `getTranslations` and the user lookup, asserted by call order; `requireUser`/`requireRole` never called; a source check forbids the words), schema parse, lookup of the session's own account, `verifyPassword(current, storedHash)`, `hashPassword(new)` (the project helper), `updateClaveAndClearFlag(id, hash)`, then a **re-signed session with `debeCambiarClave: false`** set via `setSessionCookie`, then `redirect("/")`. The success test asserts update < sign < setCookie < redirect by invocation order, and that the token is signed from exactly `{ sub, login, rol, nombre, debeCambiarClave: false }` (the session's `iat`/`exp` are not carried over). Failure paths (wrong current, weak, mismatch, equals-current, empty current, missing fields, user missing, inactive, id mismatch, data update throws) each assert no update, no signing, no cookie, no redirect. No-leak tests: action state never contains a password or hash; `console.*` is never called, including when the thrown error embeds the stored hash.
+- [x] 8.13/8.14 `page.tsx`, `change-password-form.tsx` (+ `layout.tsx`, see Deviations) and `page.test.tsx`, `change-password-form.test.tsx`. RED: both suites failed to load (modules absent). After writing the components but before the catalogs existed: 12 failed / 38 in `src/app/change-password` (every test that needs real copy failed; the structural and guard tests passed). GREEN after 8.16: 38/38 (22 action + 8 page + 8 form). The page asserts: a flagged user of each of the five roles renders the form with no redirect; non-flagged and legacy (no flag) sessions render the voluntary variant; anonymous goes to `/login` through the guard; only the sibling guard is called; a sign-out control exists in its own form; a `readFileSync` check requires the import of `requireUserAllowingPasswordChange` and forbids `requireUser`, `requireRole` and `redirect` in `page.tsx`. The form asserts: three password fields with the right names, `type=password`, `required` and `autocomplete`; three `PasswordInput` toggles; forced vs voluntary subtitle; no alert before submit; the action-state error is rendered in `role="alert"` and the submitted FormData carries the three fields. Both locales are rendered with the real catalogs.
+- [x] 8.15/8.16 `src/i18n/catalog-parity.test.ts` (new) + `changePassword.*` in `i18n/es.json` and `i18n/en.json` (inserted after `denied`, CRLF preserved). RED: 3 failed / 4 (section absent in both catalogs; the pure key-equality test passes vacuously while both are empty, which is why an explicit "exists" test and an exact required-key list were added). GREEN: 4/4, and the 8.13 suites pass. Keys: `title, subtitle, subtitleForced, currentPasswordLabel, newPasswordLabel, newPasswordHint, confirmPasswordLabel, submit, submitting, errors.{invalid, wrongCurrent, weak, mismatch, sameAsCurrent, unexpected}`. The test keeps a `GUARDED_SECTIONS` list for WU3b to extend.
+- [x] 8.17 Characterization pin in `login/actions.test.ts`: `logoutAction` with all three guards rigged to throw clears the cookie, redirects to `/login`, calls no guard; and a logout followed by a login of a flagged account signs `debeCambiarClave: true` again. **Expected to pass immediately and did (5/5 in the file: 3 from batch 1 + 2 new); no RED was manufactured.**
+- [x] 8.18 Structural pin, recorded below.
+- [x] 8.19 Verification, results below.
+- [x] 8.20 Checkpoint written below. **The manual run is pending; nothing was executed against the database.**
+
+## TDD Cycle Evidence (batch 2)
+
+| Task | RED | GREEN | REFACTOR |
+|------|-----|-------|----------|
+| 8.11/8.12 | suite did not load (module absent), 0 ran | 22/22 | prettier only (`eslint --fix` on created files) |
+| 8.13/8.14 | suites did not load; later 12 failed / 38 with components but no copy | 38/38 (after 8.16) | prettier only |
+| 8.15/8.16 | 3 failed / 4 | 4/4 | none |
+| 8.17 | n/a, characterization pin | 5/5 in file, passes immediately | none |
+
+## Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/lib/auth src/app/change-password "src/app/(auth)" src/i18n`: 8 files, 122 passed, 0 failed |
+| Runtime harness | Not run: needs Phase 6 applied and a flagged account (a database write). Exact steps and unexecuted SQL under "8.20 checkpoint". `npm run build` compiled `/change-password` as a dynamic route without a database |
+| Rollback boundary | Delete `src/app/change-password/` (7 files incl. tests), delete `src/i18n/catalog-parity.test.ts`, remove the `changePassword` block from `i18n/es.json` and `i18n/en.json`, remove the `logoutAction` describe and the extra imports in `login/actions.test.ts`. Batch 1 and WU2c are untouched |
+
+## 8.18 call-site list (`rg "requireUser|requireRole" "src/app/(dashboard)" src/app/api`, non-test)
+
+`src/app/api` does not exist yet (the template route arrives in 9.5; it must call `requireRole`, which inherits the flag redirect).
+
+| Site | Guard | Covered by the 8.3 redirect table |
+|---|---|---|
+| `src/app/(dashboard)/layout.tsx:13` | `requireUser()` | yes, every dashboard page (including `(dashboard)/page.tsx`, which has no guard of its own) inherits it |
+| `src/app/(dashboard)/profile/page.tsx:30` | `requireUser()` | yes |
+| `src/app/(dashboard)/users/page.tsx:69` | `requireRole(...rolesQueCreanUsuarios)` | yes, flag beats role |
+| `src/app/(dashboard)/users/new/page.tsx:22` | `requireRole(...rolesQueCreanUsuarios)` | yes |
+| `src/app/(dashboard)/users/new/actions.ts:23` | `requireRole(...rolesQueCreanUsuarios)` | yes, action blocked before any effect |
+
+Only callers of `requireUserAllowingPasswordChange` outside `dal.ts`: `src/app/change-password/page.tsx` and `actions.ts`. Existing tests for the guarded pages and actions mock the DAL, so none needed changes.
+
+## 8.20 checkpoint for the user (NOT executed)
+
+Prerequisite: Phase 6 (Gate G-DB) applied, i.e. migration 0003 with `Usuario.DebeCambiarClave` present on the target database. Use a throwaway test account whose password you know.
+
+1. Flag one account (a database write; confirm before running; replace `<test-login>` with the account's `Login`). NOT EXECUTED:
+   ```sql
+   UPDATE "Usuario" SET "DebeCambiarClave" = true WHERE "Login" = '<test-login>';
+   ```
+   Revert (same confirmation). NOT EXECUTED:
+   ```sql
+   UPDATE "Usuario" SET "DebeCambiarClave" = false WHERE "Login" = '<test-login>';
+   ```
+   Note: a successful change in step 3 also clears the flag and replaces the password hash, so after the run use a throwaway account or restore its previous hash.
+2. Start the app yourself and sign in as that account: expected redirect to `/change-password` (also try `/`, `/profile`, `/users`: all bounce there; the sign-out button works).
+3. Submit a wrong current password (form error, nothing changes), a weak or mismatched new one (error), the same password as current (error), then a valid change: expected landing on the dashboard.
+4. Reload and open `/profile`: stays on the dashboard (the cookie was re-issued with the flag false). Sign out and sign in with the new password; the old one must fail.
+
+## Verification (8.19)
+
+- Focused: `npx vitest run src/lib/auth src/app/change-password "src/app/(auth)" src/i18n`: 8 files, 122 passed.
+- `npm test`: 548 total, 543 passed, 5 failed. The 5 are exactly the known environment-flaky set: `denied/page.test.tsx` "renders one h1, the explanation and a single control leading to /" and "gives the way-back control the 44px touch floor and leaves the global focus ring alone"; `data-table-search.test.tsx` "renders a clear link to the bare action only when the value is non-empty"; `users/page.test.tsx` "renders users.noResults.* and a clear control when a search has no results" and "shows the new-user button to every creator". No failure outside that set.
+- `npm run typecheck`: clean.
+- `npm run build`: succeeded (Next.js 16.3.4, Turbopack); routes include `/change-password` as a dynamic route; no database connection attempted.
+- `npx eslint` on the created files and `login/actions.test.ts`: exit 0, no findings (`--fix` was applied to the files I created, which only reformatted them; `login/actions.test.ts` is also a batch 1 creation and is LF).
+
+## Ambiguity resolved
+
+- **Session refresh requirement**: no conflict. The spec ("Flag travels in the session", scenario "Session refreshed after change") and design D14 ("After a successful change the action re-signs and re-sets the cookie") already require it. Implemented and covered by RED tests in 8.11 as the batch 1 review asked.
+- **"Stored hash for the session's own user id"**: no lookup by id exists in the data layer, and adding one was outside the batch. The action looks the account up with `getUsuarioByLogin(session.login)` (the login comes from the signed session, never the form) and requires `account.id === Number(session.sub)`; the write uses that id. Mismatch, missing or inactive account return a generic `errors.unexpected` with no write. An inactive account is refused because login refuses it too; the task text did not say.
+- **Data-update failure**: the action returns `errors.unexpected` and does not log (driver errors can embed the bound hash) instead of letting the error propagate; the cookie stays untouched either way.
+- **Error mapping**: the first schema issue maps by path to a catalog message (`confirmPassword` -> mismatch, `newPassword` custom -> sameAsCurrent, other `newPassword` -> weak, else invalid), so the Spanish literals in the schema are never shown.
+- **Sign-out on the screen**: a flagged user must be able to sign out from this screen (spec), and the screen has no dashboard header. The page renders a separate `<form action={logoutAction}>` (nested forms are invalid) reusing the existing `auth.userMenu.logout` copy rather than a duplicate key.
+- **Voluntary vs forced copy**: the page passes `forced = session.debeCambiarClave === true` to the form, which swaps only the subtitle; the spec allows a non-flagged user to open the screen, and telling them they use a temporary password would be false.
+- **Task 8.14 verify wording**: the form and page tests use the real catalogs, so they can only pass after 8.16; the GREEN number for 8.13/8.14 is recorded after the catalogs landed, as 8.16's own verify line says.
+
+## Deviations
+
+- Added `src/app/change-password/layout.tsx` (4 lines, re-exports the `(auth)` layout), not listed in design.md's file table. Without it the screen, being outside `(auth)` and `(dashboard)`, would render unstyled outside the app's two-panel shell. It reuses the shell instead of duplicating it; no new tokens or colours. It carries no guard and does not affect the no-loop proof (the page still owns the guard).
+- Test line counts are well above the ~560 forecast; the user accepted `size:exception` for WU3a.
+
+## Line count (WU3a batch 2, authored lines, as written after prettier)
+
+| File | Added |
+|------|-------|
+| `src/app/change-password/actions.ts` (new) | 85 |
+| `src/app/change-password/actions.test.ts` (new) | 388 |
+| `src/app/change-password/page.tsx` (new) | 38 |
+| `src/app/change-password/page.test.tsx` (new) | 177 |
+| `src/app/change-password/change-password-form.tsx` (new) | 104 |
+| `src/app/change-password/change-password-form.test.tsx` (new) | 146 |
+| `src/app/change-password/layout.tsx` (new) | 4 |
+| `src/i18n/catalog-parity.test.ts` (new) | 98 |
+| `i18n/es.json`, `i18n/en.json` | +19 each (38) |
+| `src/app/(auth)/login/actions.test.ts` (8.17 hunk) | +45 |
+| **Batch total** | **1123** |
+
+Cumulative WU3a: 385 (batch 1) + 1123 = **1508 changed lines**, against the 800 budget; covered by the user's `size:exception` for WU3a (roughly three quarters of it is tests).
+
+## Next
+
+WU3a is complete pending the user's manual harness (8.20). Recommended: `sdd-verify` for Phase 8, then the user commits by hand. WU3b (Phase 9) follows: the template route must call `requireRole` (8.18), and it extends `GUARDED_SECTIONS` in `catalog-parity.test.ts` with `catalog.import` and `nav.catalog`.
+
+# Phase 9 (WU3b) batch 1: tasks 9.1-9.10 (server side: `canImportCatalog`, template builder and route, `previewAction`, `applyAction`). Branch kept on `feat/catalog-excel-import-wu1b`. Nothing committed; no database access of any kind (the DAL, the snapshot read, `runImportApply` and `@/db` are mocks; `npm run build` ran without a connection).
+
+Next.js docs read: `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route.md` (Route Handler signature, `Response`, headers), `.../01-app/01-getting-started/15-route-handlers.md` (a `GET` handler is not cached unless opted in, and ours reads the session, so it is dynamic; confirmed by the build listing `/api/catalog/template` as dynamic), `.../04-functions/redirect.md` (usable in Route Handlers and Server Functions, throws, must stay outside `try`), `.../01-app/02-guides/server-actions.md` (an action is a directly POSTable endpoint, so authenticate and authorize inside it; return values are serialized to the client; 1 MB default body limit, raised in 9.19/9.20 in batch 2).
+
+## Completed
+
+- [x] 9.1/9.2 `canImportCatalog(rol) = canAssignRole(rol, "docente")` in `permissions.ts`. RED: 7 failed / 52 (`canImportCatalog is not a function`). GREEN: 52/52. Tests: `secretaria` true; `administrador`, `coordinacion`, `docente`, `estudiante`, `undefined` false; a derivation test over `rolesUsuario` asserting equality with `canAssignRole(rol, "docente")`.
+- [x] 9.3/9.4 `src/lib/import/template.ts` + `template.test.ts`. RED: suite failed to load (`Cannot find module './template'`, 0 ran). GREEN: 5/5. The builder is split in two so the test never imports the library: `buildTemplateWorkbook()` (sheets and header row from `SHEETS`, bold header) and `buildTemplate()` (bytes). Tests: sheet order equals `SHEETS` and the literal three names; row 1 equals required then optional headers for every sheet, plus two pinned literals (all-required `Asignaturas`; required + optional `Docentes`); one row only and no `Id` column; bytes start with `PK`; the bytes re-parse through the real `parseWorkbook` to `ok` with three sheets of zero rows.
+- [x] 9.5/9.6 `src/app/api/catalog/template/route.ts` + `route.test.ts`. RED: suite failed to load (module absent). GREEN: 9/9. The REAL `dal.ts` runs over a mocked `getSession`, so the flag redirect, the role check and the predicate are the production ones. Tests: `secretaria` gets 200, xlsx content type, `attachment; filename="PlantillaCatalogo.xlsx"` and bytes that parse as the template; `Cache-Control: private, no-store`; `administrador`, `coordinacion`, `docente`, `estudiante` redirect to `/denied` with `buildTemplate` never called (spy wraps the real builder); anonymous redirects to `/login`, flagged `secretaria` to `PASSWORD_CHANGE_PATH`, both with no bytes built; a `secretaria` with the flag explicitly false is served.
+- [x] 9.7/9.8 `previewAction` in `src/app/(dashboard)/catalog/import/actions.ts` + `actions.test.ts`. RED: suite failed to load (module absent). GREEN: after writing `previewAction` only, 34 passed and 28 failed, every failure being `applyAction is not a function` (the 9.9 tests, still RED by design).
+- [x] 9.9/9.10 `applyAction`. RED: the 28 failures above. GREEN: 62/62.
+- Mutation checks (temporary, reverted, file diffed against a backup): removing the hash comparison made 3 tests fail; removing the `canImportCatalog` line made 10 fail.
+
+## TDD Cycle Evidence (batch 1)
+
+| Task | RED | GREEN | REFACTOR |
+|------|-----|-------|----------|
+| 9.1/9.2 | 7 failed / 52 | 52/52 | none |
+| 9.3/9.4 | suite did not load, 0 ran | 5/5 | split builder into workbook + bytes so the test needs no library import |
+| 9.5/9.6 | suite did not load, 0 ran | 9/9 | none |
+| 9.7/9.8 | suite did not load | 34 passed, 28 failed (all `applyAction`) | `eslint --fix` (prettier) on created files only |
+| 9.9/9.10 | 28 failed (`applyAction is not a function`) | 62/62 | none |
+
+## Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/app/api "src/app/(dashboard)/catalog" src/lib/import src/lib/auth`: 17 files, 357 passed, 0 failed |
+| Runtime harness | Not run: the real transaction path is only exercised by the user's manual smoke (9.25/9.26, batch 2). The template bytes ARE exercised for real (real exceljs, real `parseWorkbook`) |
+| Rollback boundary | Delete `src/lib/import/template.ts` + test, `src/app/api/catalog/template/` (2 files), `src/app/(dashboard)/catalog/import/actions.ts` + test; remove `canImportCatalog` and its describe from `permissions.ts` / `permissions.test.ts`; remove the `catalog` block from `i18n/es.json` and `i18n/en.json`. No batch 8/7 file is touched |
+
+## Carried requirements: where each is covered (`actions.test.ts` unless noted)
+
+1. Summary log (D16): "logs the summary exactly once, after the apply resolved" (call order and the single `console.info` line equal to `{ event, ...summary }`); "never logs on rejection or on a thrown apply"; "still returns the credentials when the log line cannot be written"; "passes no credential, password or hash to any console method".
+2. Guard order: `describe.each` over both actions: four denied roles and anonymous never call `FormData.get`, the parser, the snapshot read or `runImportApply`; "runs requireRole, then canImportCatalog, then the first formData.get" (call-order array); "takes the actor from the session, never from the form" (spoofed `actor`, `actorId`, `login` fields; actor is `{ id: 7, login: "caller" }`). Route: `route.test.ts` denied-role, anonymous and flagged cases.
+3. Hash never trusted: "re-previews and applies nothing for a different hidden hash" and "...for no hidden hash"; "validates and plans file B on its own when the hidden hash is file A's".
+4. Credentials never persist: the applied state is asserted equal to `{ kind, summary, credentials }`; every error and re-preview state has no `credentials` key; no console method receives the password (all five methods, success and failure paths); preview JSON contains no `clave|password|credential|hash`; a source pin forbids `next/headers`, `cookies`, `node:fs`, `fs/promises`, `localStorage`, `sessionStorage` and any line-start `let`/`var` (module-level state) in `actions.ts`.
+5. Containment: see the `rg` result below.
+6. Guards before parsing: `describe.each` "rejects ... before parsing" asserts the parser spy (wrapping the real `parseWorkbook`) was never called for no file, empty, `.xls`, `.csv`, plain text named `.xlsx` and a 5 MiB + 1 file; parse failures assert the planner was not called.
+
+## Ambiguity resolved
+
+- **Guard roles for `requireRole`**: the design leaves the argument list as `...`. Used `requireRole(...rolesUsuario)` (any authenticated role) so `canImportCatalog` is the only authority on who may import; passing `rolesQueCreanUsuarios` would have made a second, implicit role list. Same in the route. Observable result is identical (denied roles reach `/denied`).
+- **Error messages**: `PreviewState` carries `message: string`, so the action translates with `getTranslations("catalog.import")` (the `users/new` pattern) and the test mock returns the key (plus the interpolation values as JSON for `sheetMissing`/`columnMissing`). Added `catalog.import.errors.{noFile, wrongExtension, invalidWorkbook, tooLarge, tooManyRows, sheetMissing, columnMissing, applyFailed}` to BOTH catalogs, neutral Spanish with accents; the guard reason `notAZip` and the parser reason `workbook.invalid` share `invalidWorkbook` ("not a valid workbook" in the spec table). Batch 2 (9.21/9.22) adds the rest of `catalog.import.*` and `nav.catalog` around these keys and extends the parity test; a test here already asserts these eight exist in both locales.
+- **Planner caps**: `accountsToCreate.capExceeded` and `accountEvents.capExceeded` are plan errors, so they come back as a `preview` with errors (confirmation blocked), not as `{ kind: "error" }` and not as a timeout. Pinned with a stubbed plan because building a 250+ docente workbook would need the library in the test.
+- **Apply rejected by the in-transaction plan** (`ImportRejectedError`): the action returns a fresh preview (re-planned against a new snapshot) so the user sees counts and errors, with no credentials. Any other throw returns `{ kind: "error", message: errors.applyFailed }` and is deliberately NOT logged (driver errors can embed bound hashes).
+- **Hash comparison**: the digest the action compares is the one `parseWorkbook` computes from the received bytes (its `fileSha256`), not the client's field. That is the "recomputed sha256 of the uploaded bytes"; no second hashing helper was added.
+- **Stale preview**: `applyAction` passes `runImportApply` the parsed workbook and never a plan, and keeps no state, so a database change between preview and confirm is re-planned inside `runImportApply` (that function is mocked here; its re-plan is proven by the WU2c `apply.test.ts`). At action level the test shows two previews over different snapshots give different counts (nothing cached) and that the apply input has exactly `db, parsed, sha256, actor, hash, generate`.
+- **Log-sink failure**: the summary log is wrapped in a `try/catch` that swallows, because the transaction is already committed and the credentials exist only in the return value; a throwing logger must not cost the caller their one delivery. Covered by a test.
+- **Actor id**: `Number(session.sub)`, as `change-password/actions.ts` already does.
+
+## Deviations
+
+- `design.md` lists `PreviewState`'s preview arm as `counts, errors, fileSha256`; it also carries `accountsToCreate` (the D5 cost visibility the dry-run spec and 9.13 require). Additive.
+- `src/lib/import/__fixtures__/build-fixtures.mjs` (pre-existing one-off script, not app code) still matches the `rg` for the library; see below.
+- Test line counts exceed the WU3b estimate for the whole unit; see the line count and the budget flag.
+
+## Verification
+
+- `npx vitest run src/app/api "src/app/(dashboard)/catalog" src/lib/import src/lib/auth`: 17 files, 357 passed.
+- `npm test`: 631 total, 626 passed, 5 failed. The 5 are exactly the known environment-flaky set: `denied/page.test.tsx` "renders one h1, the explanation and a single control leading to /" and "gives the way-back control the 44px touch floor and leaves the global focus ring alone"; `data-table-search.test.tsx` "renders a clear link to the bare action only when the value is non-empty"; `users/page.test.tsx` "renders users.noResults.* and a clear control when a search has no results" and "shows the new-user button to every creator".
+- `npm run typecheck`: clean (one fix during the batch: `new File([new Uint8Array(bytes)])` in the test, a `Uint8Array<ArrayBufferLike>` vs `BlobPart` error).
+- `npm run build`: succeeded (Next.js 16.3.4, Turbopack); `/api/catalog/template` is listed as dynamic; no database connection attempted. The actions file is not yet reachable from a page, so the build does not compile it; typecheck and the tests do.
+- `npx eslint` on the created files (after `--fix`, which only reformatted them): no findings. `permissions.ts` / `permissions.test.ts` show only the pre-existing `Delete ␍` noise (their working copy is CRLF); no other finding.
+- `rg "exceljs|read-excel-file|write-excel-file" src`: code imports are only `src/lib/import/parse.ts` and `src/lib/import/template.ts` (`from "exceljs"`), plus the pre-existing one-off script `__fixtures__/build-fixtures.mjs` (not part of the app or its build) and comments in tests/guards. No `read-excel-file` or `write-excel-file` anywhere.
+
+## Line count (WU3b batch 1, authored lines, as written after prettier)
+
+| File | Added |
+|------|-------|
+| `src/lib/auth/permissions.ts` | 8 |
+| `src/lib/auth/permissions.test.ts` | 23 |
+| `src/lib/import/template.ts` (new) | 23 |
+| `src/lib/import/template.test.ts` (new) | 79 |
+| `src/app/api/catalog/template/route.ts` (new) | 27 |
+| `src/app/api/catalog/template/route.test.ts` (new) | 120 |
+| `src/app/(dashboard)/catalog/import/actions.ts` (new) | 186 |
+| `src/app/(dashboard)/catalog/import/actions.test.ts` (new) | 643 |
+| `i18n/es.json`, `i18n/en.json` | +14 each (28) |
+| **Batch total** | **1137** |
+
+This is batch 1 of 2 and already exceeds the 800-line review budget for the whole WU3b unit (estimate ~660 for both batches). No `size:exception` has been granted for WU3b; the user must decide before batch 2 adds the components, page, sidebar, config and copy. Roughly 860 of the 1137 lines are tests.
+
+## Next
+
+9.11 (RED `credentials-download.test.tsx`) onward: client components, page with `maxDuration`, sidebar, `next.config.ts` `bodySizeLimit`, the remaining `catalog.import.*` / `nav.catalog` copy and the parity test extension (the `GUARDED_SECTIONS` list in `catalog-parity.test.ts`), then the 9.24 verification. Needs the user's decision on the line budget first.
+
+
+# Phase 9 (WU3b) batch 2: tasks 9.11-9.24 (client components, page, sidebar, config, copy, verification) plus one post-review change to 9.9/9.10. Branch kept on `feat/catalog-excel-import-wu1b`. Nothing committed; no database access of any kind (`npm run build` ran with no connection; every action is a mock in the component tests). `size:exception` for WU3b in a single PR is accepted by the user.
+
+Next.js docs read before writing: `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/maxDuration.md` (a page-level export covers every Server Action the page uses), `.../05-config/01-next-config-js/serverActions.md` (`bodySizeLimit` takes a byte count and counts the raw multipart body), plus the batch 1 guides for Server Actions and `redirect`. React 19 form-action behaviour was checked empirically in the test environment (see finding 1).
+
+## Post-review change to 9.9/9.10 (applied first, RED test first)
+
+A non-`ImportRejectedError` failure of `runImportApply` used to return `errors.applyFailed` and log nothing. It now also emits ONE sanitized line, `catalog.import.failed`, through the new `logImportFailure` in `src/lib/import/summary.ts` (injectable logger, default `console.error`, next to `logImportSummary`). The line carries `event`, `actor` (the session login), `fileSha256`, `errorName` and, when it is a string, `errorCode`. It never carries the message, stack, cause, detail, query or parameters.
+
+- RED `summary.test.ts`: 6 failed / 11 (`logImportFailure is not a function`). GREEN: 11/11.
+- RED `actions.test.ts`: 2 failed / 66 (the line was absent; the "emits nothing" and "sink fails" guards pass before the change by construction). GREEN: 66/66.
+- Tests: one single-line event with the exact key set; SQLSTATE `code` surfaced; code ignored when not a string; a non-`Error` throw named by `typeof` with its content absent; an error whose message, cause, detail, query and params hold a bcrypt-looking hash and a plaintext password yields a line containing neither (and no `$2b$`); emitted exactly once on a failed apply; not emitted for `ImportRejectedError` or on success; a throwing log sink does not change the returned state (the call is wrapped in `try/catch`, like `logImportSummary`, which is untouched).
+- Ambiguity resolved: Drizzle wraps driver failures in `DrizzleQueryError`, which has no `code`; the SQLSTATE sits on `error.cause.code`. The helper reads `code` from the error and, failing that, from `cause`, and nothing else from `cause`. Without this the SQLSTATE would never appear for a real database failure. Covered by a test where the wrapper message holds a hash and the cause holds the code.
+- One existing test renamed, assertions unchanged: "returns an error without credentials or a log when the apply throws" is now "...or a summary log...", because a failure line is now expected on `console.error`.
+
+## Completed
+
+- [x] 9.11/9.12 `credentials-download.tsx` + test. RED: suite failed to load (module absent). GREEN: 9/9 on the first run. The Blob is built from `buildCredentialsCsv`, typed `text/csv;charset=utf-8`; the test reads the bytes and asserts `EF BB BF` first and that the decoded text equals the builder output. The object URL is assigned to the anchor through a ref in `useEffect` (not through state), so each effect run owns exactly one URL: a StrictMode test shows two creations, one revocation, the link on the live URL, and a last revocation on unmount. Tests also pin: no `fetch`, no `Storage.setItem`, cookie unchanged, no hidden input, the password never rendered into the DOM, and an empty list renders nothing and creates no URL (a remount shows nothing).
+- [x] 9.13/9.14 `import-form.tsx`, `import-preview.tsx` + two test files, against the real `es`/`en` catalogs through `NextIntlClientProvider`. RED: both suites failed to load. GREEN: 28/28 (15 form + 13 preview) after the test-side and design fixes recorded in the findings.
+- [x] 9.15/9.16 `page.tsx` + test. RED: suite failed to load. GREEN: 9/9. The REAL `dal.ts` runs over a mocked session source (as in the template route test): `secretaria` renders title, subtitle and the form; each of the four other roles gets `/denied` with the form never rendered; anonymous gets `/login`; a flagged `secretaria` gets `/change-password`; the role table is asserted to admit exactly `secretaria`. `maxDuration` is pinned to 300 and to `IMPORT_MAX_DURATION_SECONDS`.
+- [x] 9.17/9.18 sidebar + test. RED: 2 failed / 20 (the positive `secretaria` cases; the hide cases pass before the change by construction). GREEN: 20/20. The test pins the item `href` and the full ordered link list for all five roles (existing items unchanged: `["/", "/users", "/settings"]` for administrador and coordinacion, `["/", "/settings"]` for docente and estudiante, `["/", "/users", "/catalog/import", "/settings"]` for secretaria).
+- [x] 9.19/9.20 `next.config.ts` + `src/lib/import/next-config.test.ts`. RED: first test failed (`typeof` was `undefined`). GREEN: 2/2. The second test (the next-intl plugin is still applied, via `turbopack.resolveAlias`) is a regression guard that passed before the change too. `npm run build` accepts the config (see Verification).
+- [x] 9.21/9.22 parity test extension + copy. RED: 6 failed / 14 (`nav.catalog` absent, `catalog.import.reasons` and `catalog.import.entities` absent; the other `catalog.import` parity checks already passed because batch 1 had put `errors` in both catalogs). GREEN: 14/14. Done before the component pairs because their tests render the real catalogs.
+- [x] 9.23 REFACTOR: not needed. The form and the preview share no block near ~30 lines; the only repeated markup is the alert class string, which already repeats across the project forms. The shared `CountsTable` is used by both the preview and the result.
+- [x] 9.24 Verification: see below.
+- [ ] 9.25, 9.26: NOT done by design; they belong to the user (instructions below).
+- [ ] 9.27: checkpoint notes written below; the checkbox stays unchecked until the user has run 9.25/9.26.
+
+## Findings that shaped the code
+
+1. **React clears a form's inputs when its `action` settles.** A `<form action={fn}>` would empty the file input right after the preview, and the confirm step has to re-upload the same file. The upload form is therefore submitted with `onSubmit` (reading `input.files[0]` through a ref, building the `FormData` by hand, then `startTransition(dispatch)`), and the `File` is kept in component state for the confirm step, where the confirm form `action` adds it to the `FormData` next to the hidden `fileSha256`. A side effect that also made the tests honest: user-event overrides `input.files`, so jsdom `new FormData(form)` sees an empty file; reading `input.files` gives the real one.
+2. **One reducer, and the previous state is never sent to the server.** `useActionState` forwards the previous state to the action. After an apply that state holds the temporary credentials, so a later request would have carried them back. `runFlow` ignores the previous state and calls `previewAction(IDLE, fd)` / `applyAction(IDLE, fd)`. A test uploads again after an apply and asserts the second call received `{ kind: "idle" }` and that the password string appears nowhere in the call arguments.
+3. **An unresolved action promise leaks across tests.** A "pending" test that never settled blocked React's transition queue for later tests (a Spanish end-to-end test timed out only in the full file run). The test now resolves it inside `act`. A second test-side fix: the contract heading selector had to be scoped to the sheet list (the rules block is also an h3).
+4. **`maxDuration` cannot be an imported constant.** First attempt: `export const maxDuration = IMPORT_MAX_DURATION_SECONDS`. `npm run build` failed with "Invalid segment configuration export detected" (Next reads segment config statically). The page keeps a literal `300`; `IMPORT_MAX_DURATION_SECONDS = 300` lives in `limits.ts` and `page.test.tsx` asserts both equal each other and 300, so they cannot drift silently. `bodySizeLimit` in `next.config.ts` does import the constant (the config is plain Node code).
+
+## Ambiguity resolved
+
+- **Contract panel**: sheet names and columns come straight from `SHEETS` (static data, never an uploaded file) so they cannot drift from the parser; the labels and the five validation rules are catalog copy. The rule sentences quote the column identifiers (`Id`, `Carrera`, `HorasTotales`, `Periodo`, `CorreoDocente`) as the workbook spells them, in both locales.
+- **Row-error reasons**: `RowError.reason` is a machine code (the zod messages are i18n keys by design, `schemas.ts`). The preview translates it through `catalog.import.reasons.<code>`, with 32 codes in both catalogs, and falls back to the raw code when the catalog has none (for example a default validator message). `catalog-parity.test.ts` pins the full code list the schemas, parser and planner can emit, so a new code without copy fails the suite. The two cap reasons interpolate `MAX_NEW_ACCOUNTS_PER_APPLY` / `MAX_ACCOUNT_EVENTS_PER_APPLY`, so the copy cannot drift from the limits. Workbook-wide errors have `row: 0` and show an em dash.
+- **File-size hint** uses `MAX_FILE_BYTES / 1024 / 1024` as an ICU argument, not a hardcoded "5".
+- **Deactivations line** reads `counts.Grupo.deactivate` (the only entity the planner deactivates) and says "No group will be deactivated" at zero, so absence is explicit too. It is still shown when errors exist, next to the blocked notice.
+- **Confirm absent, not disabled, when errors exist** (9.13 allows either): there is no confirm control and no hidden digest field at all.
+- **The `Usuario` entity is labelled "Docentes" / "Teachers"** in the counts table, since the import only creates or updates teacher accounts.
+- **`en` entity names** "Subjects / Teachers / Groups" (the project `en` catalog already calls the docente role "Faculty"; the sheet names stay Spanish because they are the workbook identifiers).
+- **Template link** is a plain `<a href="/api/catalog/template">` styled with `buttonVariants` (a `next/link` would prefetch an API route).
+- **Sidebar item key** is `catalog` (`nav.catalog`) with href `/catalog/import`, placed after Users; each item now carries its own `visibleTo` predicate (`canCreateUsers`, `canImportCatalog`) instead of a `requiresUserCreation` flag, so the menu and the page cannot disagree.
+
+## Deviations
+
+- `maxDuration` is a literal `300` in `page.tsx` (Next requires it), pinned by a test to the constant in `limits.ts`; the task asked for it to come from the decided constant. Only `bodySizeLimit` is imported.
+- `ImportPreview` receives a `pending` flag and an `action` callback rather than owning `useActionState`; `ImportForm` owns the single state machine. The result screen (`ImportResult`) lives in `import-preview.tsx` beside the preview rather than in its own file.
+- The contract panel does not use `Card`: its title is a `div`, and the panel needs a named `section` with real headings (region role, h2/h3 levels). It reuses the same border, radius and padding tokens as the users empty state.
+- RED/GREEN order: 9.21/9.22 ran before 9.11-9.14 because those tests render the real catalogs. Each pair still has its own RED run.
+
+## TDD Cycle Evidence (batch 2)
+
+| Task | Test file | RED | GREEN | Triangulation / REFACTOR |
+|------|-----------|-----|-------|--------------------------|
+| post-review (summary) | `summary.test.ts` | 6 failed / 11 | 11/11 | 6 cases: shape, SQLSTATE, non-string code, cause code, non-Error throw, secrets absent |
+| post-review (action) | `actions.test.ts` | 2 failed / 66 | 66/66 | success and rejected paths silent; sink failure |
+| 9.21/9.22 | `catalog-parity.test.ts` | 6 failed / 14 | 14/14 | reasons list and entity names pinned |
+| 9.11/9.12 | `credentials-download.test.tsx` | suite did not load | 9/9 | StrictMode, BOM bytes, es and en, empty list |
+| 9.13/9.14 | `import-form.test.tsx`, `import-preview.test.tsx` | 2 suites did not load | 28/28 | 4 failures fixed on the way (findings 1 and 3); mutation checks below |
+| 9.15/9.16 | `page.test.tsx`, `limits.test.ts` | suite did not load; limits 1 failed / 9 | 9/9; limits 9/9 | 4 denied roles, anonymous, flagged |
+| 9.17/9.18 | `app-sidebar.test.tsx` | 2 failed / 20 | 20/20 | five-role ordered link table |
+| 9.19/9.20 | `next-config.test.ts` | 1 failed (the second test had a wrong shape guess, corrected) | 2/2 | second test is a regression guard |
+| 9.23 | n/a | n/a | green | none needed |
+
+Mutation checks (temporary, reverted, suites re-run green afterwards): forcing the preview to always show confirm made 4 tests fail; removing the re-attached file from the confirm submission made the "re-submits the same file" test fail.
+
+## Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/app/api "src/app/(dashboard)/catalog" src/lib/import src/components/app-sidebar.test.tsx src/i18n`: 21 files, 368 passed, 0 failed |
+| Runtime harness | Not run: the page, the real database and a browser are the user's manual smoke (9.25/9.26). `npm run build` was run and compiled the page, the client components, the actions and the config (see below) |
+| Rollback boundary | Delete `src/app/(dashboard)/catalog/import/{credentials-download,import-form,import-preview,page}.tsx` and their tests; revert `next.config.ts`, `src/components/app-sidebar.tsx` and its test; remove `src/lib/import/next-config.test.ts`; remove `IMPORT_MAX_DURATION_SECONDS` from `limits.ts` and its test; remove `logImportFailure` from `summary.ts` and its tests, and the `logImportFailure` call and test block from `actions.ts` / `actions.test.ts`; remove the batch 2 keys from `i18n/{es,en}.json` and the added blocks in `catalog-parity.test.ts`. Batch 1 and Phases 6-8 are untouched |
+
+## Verification (9.24)
+
+- `npm test`: 54 files, 710 tests, 705 passed, 5 failed. The 5 are exactly the known environment-flaky set: `denied/page.test.tsx` "renders one h1, the explanation and a single control leading to /" and "gives the way-back control the 44px touch floor and leaves the global focus ring alone"; `data-table-search.test.tsx` "renders a clear link to the bare action only when the value is non-empty"; `users/page.test.tsx` "renders users.noResults.* and a clear control when a search has no results" and "shows the new-user button to every creator". No failure outside that set.
+- `npm run typecheck`: clean (one fix: `IDLE` typed `as const` so it fits both actions `prev` parameters).
+- `npm run build`: succeeded (Next.js 16.3.4, Turbopack). The route list includes `/catalog/import` and `/api/catalog/template` (both dynamic) and prints "Experiments: serverActions", so the config is accepted. The build artefacts confirm both numbers: `.next/required-server-files.json` has `"bodySizeLimit": 5308416` and `.next/server/functions-config-manifest.json` has `"/catalog/import": { "maxDuration": 300 }`. No database connection was attempted.
+- `npx eslint` on the touched directories and files: no finding other than the `Delete ␍` prettier noise of the CRLF working copy of tracked files; `--fix` was run only on files created in this batch. One real finding in `app-sidebar.tsx` (import wrapping) was fixed by hand, keeping its CRLF.
+- `rg "exceljs|read-excel-file|write-excel-file" src`: code imports (`from "exceljs"`) only in `src/lib/import/parse.ts` and `src/lib/import/template.ts`, plus the one-off `__fixtures__/build-fixtures.mjs` script (not part of the app) and comments in guards, tests and `sheets.test.ts`. No `read-excel-file` or `write-excel-file` anywhere.
+
+## Line count (WU3b batch 2, authored lines, as written after prettier)
+
+| File | Added |
+|------|-------|
+| `credentials-download.tsx` (new) | 58 |
+| `credentials-download.test.tsx` (new) | 173 |
+| `import-form.tsx` (new) | 183 |
+| `import-form.test.tsx` (new) | 335 |
+| `import-preview.tsx` (new) | 224 |
+| `import-preview.test.tsx` (new) | 353 |
+| `page.tsx` (new) | 28 |
+| `page.test.tsx` (new) | 111 |
+| `next.config.ts` | 9 |
+| `src/lib/import/next-config.test.ts` (new) | 23 |
+| `src/components/app-sidebar.tsx` | 17 |
+| `src/components/app-sidebar.test.tsx` | 34 |
+| `src/lib/import/limits.ts`, `limits.test.ts` | 4 + 5 |
+| `src/lib/import/summary.ts`, `summary.test.ts` | 39 + 88 |
+| `actions.ts`, `actions.test.ts` (post-review) | 10 + 68 |
+| `src/i18n/catalog-parity.test.ts` | 64 |
+| `i18n/es.json`, `i18n/en.json` | 135 each (270) |
+| **Batch total** | **2096** (1826 without the JSON copy) |
+
+Cumulative WU3b: 1137 (batch 1) + 2096 = **3233**. This is far above the 800-line budget and the ~660 estimate; accepted by the user as `size:exception` in a single PR. The bulk is tests and bilingual copy (32 reason strings plus the contract text, twice).
+
+## 9.27 Checkpoint notes (checkbox left unchecked: it waits for the user's manual run)
+
+Look at, in this order:
+1. **Template route guards**: `src/app/api/catalog/template/route.ts`; `requireRole` then `canImportCatalog`, no bytes before both; the proxy cannot see `/api` (F2).
+2. **Action ordering**: `actions.ts` `authorize()` is the first statement of both actions and runs before any `formData.get`; the failure trace (`logImportFailure`) is the only new behaviour in that file.
+3. **Credentials never leave memory**: they exist only in the `applied` action state, become a Blob behind an object URL in `credentials-download.tsx` (revoked on unmount), are never rendered, never in storage, a cookie, a hidden field or a log, and `runFlow` never sends the previous state back (finding 2).
+4. **Sidebar per role**: only `secretaria` sees the import item; both the item and the page derive from `canImportCatalog`.
+5. **`bodySizeLimit` in the build output**: `.next/required-server-files.json` `"bodySizeLimit": 5308416`; `maxDuration` 300 for `/catalog/import` in `.next/server/functions-config-manifest.json`.
+
+Revert: see the rollback boundary above. The import is inert without its route.
+
+## Manual steps for the user: 9.25 and 9.26 (NOT run by me)
+
+9.25 (preview only, no write): `npm run dev`, sign in as `secretaria`, open "Catálogo" in the sidebar, confirm the contract panel shows the three sheets before the file input, download the template, upload the real sample workbook and read the dry-run report: counts per entity, the deactivation line, the new-account line and any row errors. Check the caps in `limits.ts` (rows, 250 new accounts, 2000 account events, 5 MB) and the 300 s ceiling against the real row counts, or record a decision to change them. The preview itself writes nothing.
+
+9.26 (a database write, needs your explicit confirmation for the run): do it on a Neon rehearsal branch cloned from the target, not the shared instance, and restate the target host first. If `DATABASE_URL` is `-pooler`, decide `prepare: false` before the first bulk apply (task 1.2 and the Phase 6 note). Then confirm the import and check: the credentials CSV downloads once and a reload shows no password anywhere; the audit rows are present (read-only `SELECT`); a second identical import shows every row `unchanged` and adds one more import audit row. If an apply fails, the server log now shows one `catalog.import.failed` line with the actor, file digest, error name and SQLSTATE.
+
+## Next
+
+User: 9.25 and 9.26, then tick 9.27. After that the change is ready for `sdd-verify`.
+
+---
+
+# Post-implementation UI change to WU3b (user-requested, 2026-10-04). Direct work, not an SDD phase.
+
+The user asked for a visual redesign of the workbook-contract panel on `/catalog/import` and for a dropzone that runs the preview as soon as a file is taken. Tasks 9.13/9.14 are affected; the spec's "upload, then preview, then confirm" flow and "contract before the file input" requirement are kept.
+
+- `import-form.tsx` split into `workbook-contract.tsx` (each sheet drawn as a one-row table of its Excel headers, optional columns labelled in words) and `file-dropzone.tsx` (drop or pick; no submit button; states idle, dragging, analysing, loaded, error). Two columns from `lg`, contract first in DOM order.
+- Taking a file dispatches the preview immediately. A client-side pre-check rejects a non-`.xlsx` name or a file over `MAX_FILE_BYTES` without a request; the server guards are unchanged and remain the authority.
+- When a preview arrives, focus and scroll move to its heading (`headingRef` on `ImportPreview`).
+- While a second file is analysed, the previous preview is hidden (it would otherwise show the first file's counts under the second file's name). Found as an intermittent test failure; pinned by "hides the previous preview while a new file is analysed".
+- i18n: added `contract.columnsCaption`, `contract.optional`, `contract.legend`, `upload.dropTitle`, `upload.dropActive`, `upload.choose`, `upload.change`, `upload.analysing`, `upload.selected`; removed `contract.requiredColumns`, `contract.optionalColumns`, `contract.noOptionalColumns`, `upload.fileLabel`, `upload.submit`, `upload.submitting`; `contract.intro` no longer says "in this order" (the parser resolves sheets and columns by name).
+- Security pins unchanged: previous action state never sent to the server; confirm re-sends the kept `File` with the hidden `fileSha256`; no confirm control when the preview has errors.
+- Not verified here: the rendered layout and real browser drag-and-drop (the page needs a `secretaria` session).
+
+## Follow-up layout changes on `/catalog/import` (user-requested, 2026-10-04)
+
+- Template link tinted with the theme-aware `accent` / `accent-foreground` pair instead of the neutral outline.
+- Single column: the dropzone is now the last block inside the workbook-structure card (`WorkbookContract` takes `children`), on `bg-background`; the two-column grid and sticky wrapper are gone.
+- Row errors moved out of `ImportPreview` into `ImportErrors` (`import-errors.tsx`, copy under `catalog.import.errorsPanel.*`), rendered between the structure card and the preview only when the analysed file has errors, with a centred summary; focus and scroll go to its heading when a preview arrives with errors. A preview with errors still offers no confirm control.
+- The per-sheet column strips, legend and rules stay: the user chose to keep the spec's "contract shown before upload" requirement as written. `spec.md` was not changed.

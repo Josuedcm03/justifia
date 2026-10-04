@@ -46,6 +46,7 @@ export async function loginAction(
     login: user.login,
     rol: user.rol,
     nombre: user.nombreCompleto,
+    debeCambiarClave: user.debeCambiarClave,
   });
   await setSessionCookie(token);
 

@@ -42,6 +42,14 @@ export function canAssignRole(
   return (rolesAsignablesPor(caller) as readonly string[]).includes(target);
 }
 
+/**
+ * Who may run the catalog import. Derived from the assignment hierarchy (only
+ * the role that provisions `docente` accounts), never a second role list.
+ */
+export function canImportCatalog(rol: RolUsuario | undefined): boolean {
+  return canAssignRole(rol, "docente");
+}
+
 /** Derived, never hand-listed — spread into `requireRole` at every call site. */
 export const rolesQueCreanUsuarios: RolUsuario[] =
   rolesUsuario.filter(canCreateUsers);

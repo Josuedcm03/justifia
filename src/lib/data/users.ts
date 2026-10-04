@@ -7,7 +7,9 @@ import { db } from "@/db";
 import { rol, usuario, type NuevoUsuario, type Usuario } from "@/db/schema";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
 import { containsPattern } from "@/lib/data/sql-like";
+import type { CatalogExecutor } from "@/lib/data/catalog";
 import { getRolIdByCodigo } from "@/lib/data/roles";
+import { WRITE_CHUNK_ROWS } from "@/lib/import/limits";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 /**
@@ -222,6 +224,21 @@ export async function setDebeCambiarClave(
     .where(eq(usuario.id, id));
 }
 
+/**
+ * Replaces the hash and clears the forced-change flag in ONE statement scoped
+ * to one id, so the two columns cannot diverge (FPC: Successful change). The
+ * caller has already hashed the new password; nothing here sees plaintext.
+ */
+export async function updateClaveAndClearFlag(
+  id: number,
+  hashClave: string,
+): Promise<void> {
+  await db
+    .update(usuario)
+    .set({ hashClave, debeCambiarClave: false })
+    .where(eq(usuario.id, id));
+}
+
 export async function createUsuario(
   data: NuevoUsuarioConRol,
 ): Promise<UsuarioConRol> {
@@ -245,4 +262,58 @@ export async function createUsuario(
     creadoEn: row.creadoEn,
     rol: codigo,
   };
+}
+
+/**
+ * One import-created account. The caller has already hashed the temporary
+ * password (bcrypt, outside the transaction); `debeCambiarClave` is forced to
+ * `true` here and is deliberately not part of the input.
+ */
+export type NuevaCuentaImportada = Omit<NuevoUsuario, "debeCambiarClave">;
+
+/**
+ * Bulk insert for the import, on the TRANSACTION handle (never `db`). Chunked
+ * at `WRITE_CHUNK_ROWS`; returns the new ids in input order. PostgreSQL does
+ * not formally promise that `RETURNING` follows VALUES order, so each chunk
+ * returns `Login` with `Id` and ids are mapped back by login (unique). A
+ * mismatch throws: a silent one would attach audit events and group
+ * references to the wrong account.
+ */
+export async function createUsuariosBulk(
+  tx: CatalogExecutor,
+  rows: readonly NuevaCuentaImportada[],
+): Promise<number[]> {
+  const indexByLogin = new Map<string, number>();
+  rows.forEach((r, i) => {
+    if (indexByLogin.has(r.login)) {
+      throw new Error(`createUsuariosBulk: duplicate login "${r.login}"`);
+    }
+    indexByLogin.set(r.login, i);
+  });
+
+  const ids: (number | undefined)[] = new Array(rows.length).fill(undefined);
+  for (let i = 0; i < rows.length; i += WRITE_CHUNK_ROWS) {
+    const chunk = rows
+      .slice(i, i + WRITE_CHUNK_ROWS)
+      .map((r) => ({ ...r, debeCambiarClave: true }));
+    const inserted = await tx
+      .insert(usuario)
+      .values(chunk)
+      .returning({ id: usuario.id, login: usuario.login });
+    for (const r of inserted) {
+      const index = indexByLogin.get(r.login);
+      if (index === undefined) {
+        throw new Error(`createUsuariosBulk: unexpected login "${r.login}"`);
+      }
+      ids[index] = r.id;
+    }
+  }
+
+  return rows.map((r, i) => {
+    const id = ids[i];
+    if (id === undefined) {
+      throw new Error(`createUsuariosBulk: no id returned for "${r.login}"`);
+    }
+    return id;
+  });
 }

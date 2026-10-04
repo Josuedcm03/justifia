@@ -12,6 +12,8 @@
   },
   "nav": {
     "dashboard": "Panel",
+    "administration": "Administración",
+    "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
     "settings": "Configuración",
     "sectionLabel": "Navegación"
@@ -32,6 +34,178 @@
     "subtitle": "Resumen de tu backoffice",
     "totalUsers": "Usuarios totales",
     "activeUsers": "Usuarios activos"
+  },
+  "changePassword": {
+    "title": "Cambia tu contraseña",
+    "subtitle": "Elige una contraseña nueva para tu cuenta.",
+    "subtitleForced": "Tu cuenta usa una contraseña temporal. Define una contraseña propia para continuar.",
+    "currentPasswordLabel": "Contraseña actual",
+    "newPasswordLabel": "Contraseña nueva",
+    "newPasswordHint": "Entre 8 y 128 caracteres.",
+    "confirmPasswordLabel": "Confirma la contraseña nueva",
+    "submit": "Cambiar contraseña",
+    "submitting": "Guardando…",
+    "errors": {
+      "invalid": "Revisa los datos ingresados",
+      "wrongCurrent": "La contraseña actual no es correcta",
+      "weak": "La contraseña nueva debe tener entre 8 y 128 caracteres",
+      "mismatch": "La confirmación no coincide con la contraseña nueva",
+      "sameAsCurrent": "La contraseña nueva debe ser distinta de la actual",
+      "unexpected": "No se pudo cambiar la contraseña. Inténtalo de nuevo"
+    }
+  },
+  "catalog": {
+    "import": {
+      "title": "Importar catálogo",
+      "subtitle": "Carga un libro de Excel con asignaturas, docentes y grupos. Verás una vista previa y no se guardará nada hasta que confirmes.",
+      "contract": {
+        "title": "Estructura del libro",
+        "intro": "El libro debe tener estas tres hojas con estas columnas. Los nombres de hojas y columnas deben coincidir con los de la plantilla.",
+        "columnsCaption": "Columnas de la hoja {sheet}",
+        "optional": "opcional",
+        "legend": "Las columnas marcadas como opcionales pueden quedar vacías. El orden de las columnas no importa; los nombres sí.",
+        "rulesTitle": "Reglas de validación",
+        "rules": {
+          "noId": "No se acepta ninguna columna Id: las hojas se relacionan por código, correo o nombre.",
+          "carreraExists": "La Carrera de cada asignatura debe existir ya en el sistema; la importación no crea carreras.",
+          "horasPositive": "HorasTotales debe ser un número entero mayor que cero.",
+          "periodoFormat": "Periodo debe tener el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1.",
+          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente de la hoja Docentes o ya registrado en el sistema."
+        },
+        "template": "Descargar plantilla"
+      },
+      "upload": {
+        "dropTitle": "Arrastra aquí tu libro de Excel",
+        "dropActive": "Suelta el archivo para ver la vista previa",
+        "fileHint": "Archivo .xlsx de hasta {size} MB.",
+        "choose": "Elegir archivo",
+        "change": "Cambiar archivo",
+        "analysing": "Analizando {name}…",
+        "selected": "{name} · {size}"
+      },
+      "preview": {
+        "title": "Vista previa",
+        "notSaved": "Todavía no se ha guardado nada. Revisa el resultado y confirma para aplicar los cambios.",
+        "file": "Archivo: {name}",
+        "countsCaption": "Cambios por entidad",
+        "columns": {
+          "entity": "Entidad",
+          "create": "Crear",
+          "update": "Actualizar",
+          "unchanged": "Sin cambios",
+          "deactivate": "Desactivar",
+          "error": "Con error"
+        },
+        "accountsToCreate": "{count, plural, =0 {No se crearán cuentas nuevas de docente.} one {Se creará # cuenta nueva de docente.} other {Se crearán # cuentas nuevas de docente.}}",
+        "accountsCost": "Cada cuenta nueva genera una contraseña temporal, por lo que confirmar puede tardar más cuantas más cuentas se creen.",
+        "deactivations": "{count, plural, =0 {No se desactivará ningún grupo.} one {Se desactivará # grupo que no aparece en el libro.} other {Se desactivarán # grupos que no aparecen en el libro.}}",
+        "confirm": "Confirmar e importar",
+        "confirming": "Importando…"
+      },
+      "errorsPanel": {
+        "title": "{count, plural, one {Se encontró # error en el libro} other {Se encontraron # errores en el libro}}",
+        "help": "Corrige el libro y súbelo de nuevo. No se puede confirmar mientras haya errores.",
+        "caption": "Filas con error",
+        "columns": {
+          "sheet": "Hoja",
+          "row": "Fila",
+          "reason": "Motivo",
+          "value": "Valor"
+        }
+      },
+      "result": {
+        "title": "Importación completada",
+        "countsCaption": "Cambios aplicados por entidad",
+        "accountsCreated": "{count, plural, =0 {No se creó ninguna cuenta nueva.} one {Se creó # cuenta nueva.} other {Se crearon # cuentas nuevas.}}",
+        "accountsUpdated": "{count, plural, =0 {No se actualizó ninguna cuenta existente.} one {Se actualizó # cuenta existente.} other {Se actualizaron # cuentas existentes.}}"
+      },
+      "credentials": {
+        "notice": "Este archivo contiene las contraseñas temporales y solo se muestra ahora: no se puede recuperar más tarde. Descárgalo y guárdalo en un lugar seguro.",
+        "count": "{count, plural, one {El archivo incluye # cuenta.} other {El archivo incluye # cuentas.}}",
+        "download": "Descargar credenciales (CSV)"
+      },
+      "entities": {
+        "Asignatura": "Asignaturas",
+        "Usuario": "Docentes",
+        "Grupo": "Grupos"
+      },
+      "reasons": {
+        "codigo": {
+          "required": "El código es obligatorio",
+          "tooLong": "El código supera los 32 caracteres",
+          "duplicate": "El código está repetido en la hoja"
+        },
+        "nombre": {
+          "required": "El nombre es obligatorio",
+          "tooLong": "El nombre supera los 160 caracteres"
+        },
+        "carrera": {
+          "required": "La carrera es obligatoria",
+          "tooLong": "La carrera supera los 160 caracteres",
+          "unresolved": "La carrera no existe en el sistema"
+        },
+        "horasTotales": {
+          "required": "HorasTotales es obligatorio",
+          "invalid": "HorasTotales debe ser un número entero mayor que cero"
+        },
+        "correo": {
+          "required": "El correo es obligatorio",
+          "tooLong": "El correo supera los 160 caracteres",
+          "invalid": "El correo no tiene un formato válido",
+          "loginTooLong": "El correo es demasiado largo para generar el usuario (máximo 60 caracteres)",
+          "duplicate": "El correo está repetido en la hoja",
+          "assignedToOtherRole": "El correo pertenece a un usuario que no es docente"
+        },
+        "telefono": {
+          "tooLong": "El teléfono supera los 30 caracteres"
+        },
+        "login": {
+          "collision": "El usuario generado a partir del correo ya lo usa otra cuenta"
+        },
+        "codigoAsignatura": {
+          "required": "El código de asignatura es obligatorio",
+          "tooLong": "El código de asignatura supera los 32 caracteres"
+        },
+        "periodo": {
+          "required": "El periodo es obligatorio",
+          "invalid": "El periodo debe tener el formato AAAA-S1 o AAAA-S2"
+        },
+        "numGrupo": {
+          "required": "El número de grupo es obligatorio",
+          "tooLong": "El número de grupo supera los 12 caracteres"
+        },
+        "correoDocente": {
+          "required": "El correo del docente es obligatorio",
+          "tooLong": "El correo del docente supera los 160 caracteres",
+          "invalid": "El correo del docente no tiene un formato válido"
+        },
+        "asignatura": {
+          "unresolved": "La asignatura no existe en el libro ni en el sistema"
+        },
+        "docente": {
+          "unresolved": "El docente no existe en el libro ni en el sistema"
+        },
+        "grupo": {
+          "duplicate": "El grupo está repetido en la hoja"
+        },
+        "accountsToCreate": {
+          "capExceeded": "Se crearían más de {maxAccounts} cuentas nuevas en una sola importación. Divide el libro en partes más pequeñas."
+        },
+        "accountEvents": {
+          "capExceeded": "La importación crearía o modificaría más de {maxEvents} cuentas. Divide el libro en partes más pequeñas."
+        }
+      },
+      "errors": {
+        "noFile": "Selecciona un archivo .xlsx para continuar",
+        "wrongExtension": "El archivo debe ser un libro de Excel con extensión .xlsx",
+        "invalidWorkbook": "El archivo no es un libro de Excel válido",
+        "tooLarge": "El archivo supera el tamaño máximo permitido",
+        "tooManyRows": "El libro supera el número máximo de filas permitido",
+        "sheetMissing": "Falta la hoja \"{sheet}\" en el libro",
+        "columnMissing": "Falta la columna \"{column}\" en la hoja \"{sheet}\"",
+        "applyFailed": "No se pudo aplicar la importación. No se guardó ningún cambio"
+      }
+    }
   },
   "denied": {
     "title": "No tienes permiso para ver esta página",

@@ -12,6 +12,8 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "administration": "Administration",
+    "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
     "sectionLabel": "Navigation"
@@ -32,6 +34,178 @@
     "subtitle": "Overview of your backoffice",
     "totalUsers": "Total users",
     "activeUsers": "Active users"
+  },
+  "changePassword": {
+    "title": "Change your password",
+    "subtitle": "Choose a new password for your account.",
+    "subtitleForced": "Your account uses a temporary password. Set a password of your own to continue.",
+    "currentPasswordLabel": "Current password",
+    "newPasswordLabel": "New password",
+    "newPasswordHint": "Between 8 and 128 characters.",
+    "confirmPasswordLabel": "Confirm new password",
+    "submit": "Change password",
+    "submitting": "Saving…",
+    "errors": {
+      "invalid": "Check the entered data",
+      "wrongCurrent": "The current password is not correct",
+      "weak": "The new password must be between 8 and 128 characters",
+      "mismatch": "The confirmation does not match the new password",
+      "sameAsCurrent": "The new password must be different from the current one",
+      "unexpected": "The password could not be changed. Try again"
+    }
+  },
+  "catalog": {
+    "import": {
+      "title": "Import catalog",
+      "subtitle": "Upload an Excel workbook with subjects, teachers and groups. You will see a preview first, and nothing is saved until you confirm.",
+      "contract": {
+        "title": "Workbook structure",
+        "intro": "The workbook must have these three sheets with these columns. Sheet and column names must match the template.",
+        "columnsCaption": "Columns of the {sheet} sheet",
+        "optional": "optional",
+        "legend": "Columns marked as optional may be left empty. The order of the columns does not matter; their names do.",
+        "rulesTitle": "Validation rules",
+        "rules": {
+          "noId": "No Id column is accepted: sheets refer to each other by code, email or name.",
+          "carreraExists": "The Carrera of each subject must already exist in the system; the import does not create careers.",
+          "horasPositive": "HorasTotales must be a whole number greater than zero.",
+          "periodoFormat": "Periodo must use the format YYYY-S1 or YYYY-S2, for example 2026-S1.",
+          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match a teacher on the Docentes sheet or one already in the system."
+        },
+        "template": "Download template"
+      },
+      "upload": {
+        "dropTitle": "Drag your Excel workbook here",
+        "dropActive": "Drop the file to see the preview",
+        "fileHint": ".xlsx file, up to {size} MB.",
+        "choose": "Choose file",
+        "change": "Change file",
+        "analysing": "Analyzing {name}…",
+        "selected": "{name} · {size}"
+      },
+      "preview": {
+        "title": "Preview",
+        "notSaved": "Nothing has been saved yet. Review the result and confirm to apply the changes.",
+        "file": "File: {name}",
+        "countsCaption": "Changes by entity",
+        "columns": {
+          "entity": "Entity",
+          "create": "Create",
+          "update": "Update",
+          "unchanged": "Unchanged",
+          "deactivate": "Deactivate",
+          "error": "With errors"
+        },
+        "accountsToCreate": "{count, plural, =0 {No new teacher accounts will be created.} one {# new teacher account will be created.} other {# new teacher accounts will be created.}}",
+        "accountsCost": "Each new account generates a temporary password, so confirming takes longer the more accounts are created.",
+        "deactivations": "{count, plural, =0 {No group will be deactivated.} one {# group missing from the workbook will be deactivated.} other {# groups missing from the workbook will be deactivated.}}",
+        "confirm": "Confirm and import",
+        "confirming": "Importing…"
+      },
+      "errorsPanel": {
+        "title": "{count, plural, one {# error found in the workbook} other {# errors found in the workbook}}",
+        "help": "Fix the workbook and upload it again. It cannot be confirmed while there are errors.",
+        "caption": "Rows with errors",
+        "columns": {
+          "sheet": "Sheet",
+          "row": "Row",
+          "reason": "Reason",
+          "value": "Value"
+        }
+      },
+      "result": {
+        "title": "Import completed",
+        "countsCaption": "Changes applied by entity",
+        "accountsCreated": "{count, plural, =0 {No new account was created.} one {# new account was created.} other {# new accounts were created.}}",
+        "accountsUpdated": "{count, plural, =0 {No existing account was updated.} one {# existing account was updated.} other {# existing accounts were updated.}}"
+      },
+      "credentials": {
+        "notice": "This file contains the temporary passwords and is shown only now: it cannot be recovered later. Download it and keep it somewhere safe.",
+        "count": "{count, plural, one {The file includes # account.} other {The file includes # accounts.}}",
+        "download": "Download credentials (CSV)"
+      },
+      "entities": {
+        "Asignatura": "Subjects",
+        "Usuario": "Teachers",
+        "Grupo": "Groups"
+      },
+      "reasons": {
+        "codigo": {
+          "required": "The code is required",
+          "tooLong": "The code exceeds 32 characters",
+          "duplicate": "The code is repeated on the sheet"
+        },
+        "nombre": {
+          "required": "The name is required",
+          "tooLong": "The name exceeds 160 characters"
+        },
+        "carrera": {
+          "required": "The career is required",
+          "tooLong": "The career exceeds 160 characters",
+          "unresolved": "The career does not exist in the system"
+        },
+        "horasTotales": {
+          "required": "HorasTotales is required",
+          "invalid": "HorasTotales must be a whole number greater than zero"
+        },
+        "correo": {
+          "required": "The email is required",
+          "tooLong": "The email exceeds 160 characters",
+          "invalid": "The email is not valid",
+          "loginTooLong": "The email is too long to derive the username (60 characters at most)",
+          "duplicate": "The email is repeated on the sheet",
+          "assignedToOtherRole": "The email belongs to a user who is not a teacher"
+        },
+        "telefono": {
+          "tooLong": "The phone number exceeds 30 characters"
+        },
+        "login": {
+          "collision": "The username derived from the email is already used by another account"
+        },
+        "codigoAsignatura": {
+          "required": "The subject code is required",
+          "tooLong": "The subject code exceeds 32 characters"
+        },
+        "periodo": {
+          "required": "The period is required",
+          "invalid": "The period must use the format YYYY-S1 or YYYY-S2"
+        },
+        "numGrupo": {
+          "required": "The group number is required",
+          "tooLong": "The group number exceeds 12 characters"
+        },
+        "correoDocente": {
+          "required": "The teacher email is required",
+          "tooLong": "The teacher email exceeds 160 characters",
+          "invalid": "The teacher email is not valid"
+        },
+        "asignatura": {
+          "unresolved": "The subject is in neither the workbook nor the system"
+        },
+        "docente": {
+          "unresolved": "The teacher is in neither the workbook nor the system"
+        },
+        "grupo": {
+          "duplicate": "The group is repeated on the sheet"
+        },
+        "accountsToCreate": {
+          "capExceeded": "More than {maxAccounts} new accounts would be created in a single import. Split the workbook into smaller parts."
+        },
+        "accountEvents": {
+          "capExceeded": "The import would create or modify more than {maxEvents} accounts. Split the workbook into smaller parts."
+        }
+      },
+      "errors": {
+        "noFile": "Select an .xlsx file to continue",
+        "wrongExtension": "The file must be an Excel workbook with the .xlsx extension",
+        "invalidWorkbook": "The file is not a valid Excel workbook",
+        "tooLarge": "The file exceeds the maximum allowed size",
+        "tooManyRows": "The workbook exceeds the maximum number of rows allowed",
+        "sheetMissing": "The workbook is missing the \"{sheet}\" sheet",
+        "columnMissing": "The \"{sheet}\" sheet is missing the \"{column}\" column",
+        "applyFailed": "The import could not be applied. No changes were saved"
+      }
+    }
   },
   "denied": {
     "title": "You do not have permission to view this page",

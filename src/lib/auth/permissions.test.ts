@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canAssignRole,
   canCreateUsers,
+  canImportCatalog,
   rolesAsignablesPor,
   rolesQueCreanUsuarios,
   rolesVisibles,
@@ -58,6 +59,28 @@ describe("canCreateUsers", () => {
 
   it("denies a missing caller role", () => {
     expect(canCreateUsers(undefined)).toBe(false);
+  });
+});
+
+describe("canImportCatalog (CEI: Only secretaria may import)", () => {
+  it("allows secretaria", () => {
+    expect(canImportCatalog("secretaria")).toBe(true);
+  });
+
+  it.each([
+    "administrador",
+    "coordinacion",
+    "docente",
+    "estudiante",
+    undefined,
+  ] as const)("denies %s", (rol) => {
+    expect(canImportCatalog(rol)).toBe(false);
+  });
+
+  it("tracks canAssignRole(rol, 'docente') for every role", () => {
+    for (const rol of rolesUsuario) {
+      expect(canImportCatalog(rol)).toBe(canAssignRole(rol, "docente"));
+    }
   });
 });
 

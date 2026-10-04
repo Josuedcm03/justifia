@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  IMPORT_MAX_DURATION_SECONDS,
   MAX_ACCOUNT_EVENTS_PER_APPLY,
   MAX_FILE_BYTES,
   MAX_NEW_ACCOUNTS_PER_APPLY,
@@ -43,6 +44,10 @@ describe("import limits (CEI: File guards / All-or-nothing apply)", () => {
   it("raises the server-action body limit exactly MAX_FILE_BYTES + 64 KiB (F3)", () => {
     expect(SERVER_ACTION_BODY_LIMIT).toBe(MAX_FILE_BYTES + 64 * 1024);
     expect(SERVER_ACTION_BODY_LIMIT).toBe(5_308_416);
+  });
+
+  it("decides the import page's Server Actions ceiling at 300 seconds (design F4)", () => {
+    expect(IMPORT_MAX_DURATION_SECONDS).toBe(300);
   });
 
   it("has zero import statements, because next.config.ts consumes this file directly", () => {
