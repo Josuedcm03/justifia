@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cn } from "cn";
 
 const controlClassName =
-  "inline-flex h-11 items-center rounded-full px-4 text-sm font-medium transition-colors";
+  "inline-flex h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors";
 
 /**
  * Real `<Link>` elements, not client-side handlers, so paging works with
@@ -46,7 +46,7 @@ export function DataTablePagination({
       ) : (
         <Link
           href={hrefFor(page - 1)}
-          className={cn(controlClassName, "hover:bg-muted")}
+          className={cn(controlClassName, "text-primary hover:bg-primary/5")}
         >
           {labels.previous}
         </Link>
@@ -66,7 +66,7 @@ export function DataTablePagination({
       ) : (
         <Link
           href={hrefFor(page + 1)}
-          className={cn(controlClassName, "hover:bg-muted")}
+          className={cn(controlClassName, "text-primary hover:bg-primary/5")}
         >
           {labels.next}
         </Link>

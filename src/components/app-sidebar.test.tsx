@@ -62,8 +62,10 @@ const ALL_ROLES: readonly RolUsuario[] = [
   "administrador",
 ];
 
-// The lime "you are here" bar (docs/design-system.md §2.3).
-const LIME_MARKER = "data-active:shadow-[inset_3px_0_0_0_var(--highlight)]";
+// The "you are here" bar: 4px of primary on the leading edge
+// (docs/design-system.md §2.3).
+const CURRENT_MARKER =
+  "data-active:shadow-[inset_4px_0_0_0_var(--sidebar-primary)]";
 
 function sidebarTree(rol: RolUsuario) {
   return (
@@ -354,7 +356,7 @@ describe("AppSidebar 'you are here' marker", () => {
     ["/users/new", "Usuarios", "Carga de catálogo"],
     ["/catalog/import", "Carga de catálogo", "Usuarios"],
   ])(
-    "marks the active child on %s with aria-current and the lime bar",
+    "marks the active child on %s with aria-current and the primary bar",
     (pathname, active, inactive) => {
       env.pathname = pathname;
       renderSidebar("secretaria");
@@ -364,7 +366,7 @@ describe("AppSidebar 'you are here' marker", () => {
 
       expect(activeLink).toHaveAttribute("aria-current", "page");
       expect(activeLink).toHaveAttribute("data-active");
-      expect(activeLink).toHaveClass(LIME_MARKER);
+      expect(activeLink).toHaveClass(CURRENT_MARKER);
 
       expect(inactiveLink).not.toHaveAttribute("aria-current");
       expect(inactiveLink).not.toHaveAttribute("data-active");
@@ -378,14 +380,14 @@ describe("AppSidebar 'you are here' marker", () => {
 
     expect(dashboard).toHaveAttribute("aria-current", "page");
     expect(dashboard).toHaveAttribute("data-active");
-    expect(dashboard).toHaveClass(LIME_MARKER);
+    expect(dashboard).toHaveClass(CURRENT_MARKER);
     expect(
       screen.getByRole("link", { name: "Configuración" }),
     ).not.toHaveAttribute("aria-current");
   });
 
   it.each(["/", "/users", "/catalog/import"])(
-    "never gives the trigger aria-current or the lime bar (on %s)",
+    "never gives the trigger aria-current or the primary bar (on %s)",
     async (pathname) => {
       const user = userEvent.setup();
       env.pathname = pathname;
@@ -393,7 +395,7 @@ describe("AppSidebar 'you are here' marker", () => {
 
       for (let toggles = 0; toggles < 2; toggles += 1) {
         expect(getTrigger()).not.toHaveAttribute("aria-current");
-        expect(getTrigger().className).not.toContain("--highlight");
+        expect(getTrigger().className).not.toContain("shadow-[inset");
 
         await user.click(getTrigger());
       }
@@ -411,7 +413,7 @@ describe("AppSidebar 'you are here' marker", () => {
     await user.click(getTrigger());
 
     expect(getTrigger()).toHaveAttribute("data-active");
-    expect(getTrigger().className).not.toContain("--highlight");
+    expect(getTrigger().className).not.toContain("shadow-[inset");
   });
 
   it("does not hint on a collapsed group that holds no current page", () => {

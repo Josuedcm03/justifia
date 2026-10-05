@@ -153,12 +153,12 @@ describe("ImportErrors (CEI: Preview with errors blocks confirmation)", () => {
     expect(cellsOf(table)[1][1]).toBe("—");
   });
 
-  it("uses the destructive pair through tokens only, never the lime", () => {
+  it("uses the destructive pair through tokens only, never the current-location marker", () => {
     const { container } = renderErrors(THREE);
 
     const block = screen.getByRole("region");
     expect(block).toHaveClass("border-destructive/30", "bg-destructive/8");
-    expect(container.innerHTML).not.toContain("highlight");
+    expect(container.innerHTML).not.toContain("is-current");
     expect(container.innerHTML).not.toMatch(/dark:bg-/);
     expect(container.innerHTML).not.toContain("shadow");
   });

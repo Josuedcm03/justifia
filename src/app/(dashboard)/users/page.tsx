@@ -20,7 +20,7 @@ function StatusPill({ active, label }: { active: boolean; label: string }) {
     <span
       className={
         active
-          ? "bg-accent text-accent-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+          ? "bg-success/10 text-success-ink inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
           : "bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
       }
     >
@@ -135,7 +135,7 @@ export default async function UsersPage({
       {result.degraded ? (
         <p
           role="status"
-          className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
+          className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
         >
           {t("degraded")}
         </p>
@@ -150,11 +150,15 @@ export default async function UsersPage({
             clearLabel={t("search.clear")}
           />
 
-          <p role="status" aria-live="polite">
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-muted-foreground text-sm"
+          >
             {t("count", { count: result.total })}
           </p>
 
-          <div className="border-border bg-card overflow-hidden rounded-xl border">
+          <div className="border-border bg-card shadow-soft overflow-hidden rounded-xl border">
             <DataTable
               columns={columns}
               rows={result.data}

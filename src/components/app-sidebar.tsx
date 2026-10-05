@@ -73,9 +73,11 @@ const items = [
   { key: "settings", href: "/settings", icon: Settings },
 ] as const satisfies readonly (NavLink | NavGroup)[];
 
-// The lime bar is the "you are here" signal (docs/design-system.md §2.3);
-// aria-current carries the same information for anyone not reading colour.
-const currentMarker = "data-active:shadow-[inset_3px_0_0_0_var(--highlight)]";
+// The 4px primary bar is the "you are here" signal (docs/design-system.md
+// §2.3); aria-current carries the same information for anyone not reading
+// colour.
+const currentMarker =
+  "data-active:shadow-[inset_4px_0_0_0_var(--sidebar-primary)]";
 
 function isCurrent(pathname: string, href: string) {
   return href === "/"
@@ -121,7 +123,7 @@ function NavGroupItem({
         aria-controls={listId}
         render={
           // Collapsed around the current page, the trigger takes the accent
-          // background as a hint. Never the lime bar: that belongs to the
+          // background as a hint. Never the primary bar: that belongs to the
           // page itself.
           <SidebarMenuButton isActive={holdsCurrent && !open} />
         }
@@ -148,7 +150,7 @@ function NavGroupItem({
             <SidebarMenuSubItem key={link.key}>
               <SidebarMenuSubButton
                 isActive={isActive}
-                className={cn("h-8", currentMarker)}
+                className={currentMarker}
                 render={
                   <Link
                     href={link.href}
@@ -174,8 +176,8 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-sidebar-border border-b">
-        <div className="flex items-center gap-2.5 px-2 py-2">
+      <SidebarHeader className="border-sidebar-border h-16 justify-center border-b p-0">
+        <div className="flex items-center gap-3 px-6">
           <Image
             src="/uam-seeklogo.png"
             alt=""
@@ -184,7 +186,7 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
             className="shrink-0"
             priority
           />
-          <span className="font-display text-sidebar-accent-foreground truncate text-sm font-semibold">
+          <span className="text-title text-sidebar-primary truncate font-bold">
             {tCommon("appName")}
           </span>
         </div>

@@ -244,12 +244,12 @@ describe("ImportForm upload step (CEI: Contract shown before upload)", () => {
     ).toHaveAttribute("href", "/api/catalog/template");
   });
 
-  it("has no separate preview button and never uses the lime highlight", () => {
+  it("has no separate preview button and never uses the current-location marker", () => {
     const { container } = renderForm();
 
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(container.querySelector('[type="submit"]')).toBeNull();
-    expect(container.innerHTML).not.toContain("highlight");
+    expect(container.innerHTML).not.toContain("is-current");
   });
 });
 
@@ -679,7 +679,7 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
     expect(container.querySelector("form")).toBeNull();
     expect(document.querySelector('input[name="fileSha256"]')).toBeNull();
     expect(applyAction).not.toHaveBeenCalled();
-    expect(container.innerHTML).not.toContain("highlight");
+    expect(container.innerHTML).not.toContain("is-current");
   });
 
   it("moves focus to the warning heading instead of the preview heading, once", async () => {

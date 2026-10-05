@@ -410,9 +410,11 @@ src/app/(dashboard)/catalog/
   pattern. Degraded: the existing `role="status"` notice. Every edit form
   carries one muted line stating that the next catalog import can overwrite
   these values (the silent half of D3).
-- **Design system.** No new colour, radius, type size or spacing step. The lime
-  appears only on the sidebar marker and the current breadcrumb segment; the
-  status filter is a filter, not a location, so it uses `accent`. Interactive
+- **Design system.** No new colour, radius, type size or spacing step. The "you
+  are here" marker (the primary bar on the sidebar item and the `.is-current`
+  underline on the current breadcrumb segment, design-system.md §2.3) appears
+  only in those two places; the status filter is a filter, not a location, so
+  it uses `accent`. Interactive
   targets keep the 44px floor (`size="lg"`).
 
 ### 9. Sidebar

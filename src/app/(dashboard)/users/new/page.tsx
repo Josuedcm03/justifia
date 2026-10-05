@@ -35,7 +35,7 @@ export default async function NewUserPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              {/* The lime rule — docs/design-system.md §2.3 */}
+              {/* The "you are here" rule — docs/design-system.md §2.3 */}
               <BreadcrumbPage className="is-current">
                 {t("new.title")}
               </BreadcrumbPage>

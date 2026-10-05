@@ -1,9 +1,9 @@
 # Justifia Design System
 
-The visual base for every screen in this project. It is derived from the
-Universidad Americana site (`uam.edu.ni`) by reading the shipped markup and the
-theme stylesheet, not by eyeballing screenshots. Every value below is traceable
-to a source rule; where we deviate, the reason is stated.
+The visual base for every screen in this project. It adopts, in full, the
+Stitch design system **"Academic Governance"** (template "Justifia: Gestión
+Académica Institucional"). Every value below is traceable to that source; where
+we deviate, the reason is stated and the measurement is given.
 
 **Rule of thumb:** a new screen should not introduce a colour, a font size, a
 radius or a spacing step that is not in this document. If you need one, add it
@@ -13,11 +13,30 @@ here first.
 
 ## 1. Source of truth
 
-| Extracted from | What it gave us |
-| --- | --- |
-| `uam.edu.ni` homepage markup | Brand teal `#0099a8`, deep teal `#0b545b`, accent blue `#128be0` |
-| `wp-content/uploads/thegem/css/custom-*.css` | Full neutral ramp, interactive teal `#00bcd4`, lime highlight, type scale, button states |
-| Google Fonts request in `<head>` | `Libre Franklin`, `Montserrat`, `Source Sans Pro`, `Roboto` |
+| Source                                                                                            | What it gives us                                                                  |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Stitch project `projects/16844897803785859098`, design system "Academic Governance" (`DESIGN.md`) | Colour tokens, type scale, radius, spacing, elevation and component rules         |
+| Stitch screen exports (login, registro, dashboards, detalle, nueva solicitud)                     | Layout, hierarchy and component styling. References, never pasted code or content |
+| This repository                                                                                   | The dark theme and the FIA brand, which Stitch does not ship (see 2.2 and 8)      |
+
+Personality: professional, institutional, authoritative. The style is
+corporate and modern: clarity and functional hierarchy over decoration, white
+cards on a cool page, data as the most prominent thing on screen.
+
+### 1.1 What was retired, and why
+
+The previous system was derived from `uam.edu.ni`. The owner replaced it with
+the Stitch system; these pieces no longer exist and must not come back:
+
+| Retired                                                                                | Replaced by                                                     | Why                                                                   |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| The dark rail: an ink `#212331` sidebar in both themes                                 | A white sidebar with a border on the trailing edge (4.2)        | Stitch treats the sidebar as a Level 1 surface, like a card           |
+| The lime highlight `#d1ff30` / `#e7ff89` and its `--highlight` tokens                  | The primary colour (2.3)                                        | Stitch has one accent family; "you are here" is said with the primary |
+| Libre Franklin (display) and Source Sans 3 (body)                                      | Inter for both (3.1)                                            | Stitch sets the whole product in one systematic family                |
+| The UAM type scale (`h1` 50/69 … `caption`) and forced `letter-spacing: 0` on headings | The Stitch scale (3.2), with tight tracking on the display step | Same                                                                  |
+| Pill buttons, 12px base radius                                                         | 8px base radius; pills for status badges only (4.1)             | Same                                                                  |
+| The violet-leaning navy neutrals (`#212331` … `#dfe5e8`)                               | Cool neutral surfaces (`#f6fafb`, `#f0f4f5`, `#e2e8f0`)         | Same                                                                  |
+| The two-panel auth split with an ink brand panel                                       | A centred card on the page background (4.3)                     | Follows the Stitch login and registro screens                         |
 
 ---
 
@@ -25,70 +44,105 @@ here first.
 
 ### 2.1 Raw palette
 
-These are the literal UAM values. They are the vocabulary; section 2.2 assigns
-them roles.
+The Stitch values the roles in 2.2 draw from. Names are Stitch's own.
 
-| Token | Hex | oklch | Origin |
-| --- | --- | --- | --- |
-| `teal-logo` | `#0099a8` | `oklch(0.624 0.107 207)` | Logo ink, homepage markup |
-| `teal-brand` | `#00bcd4` | `oklch(0.729 0.127 211)` | Theme interactive accent (55 occurrences) |
-| `teal-deep` | `#0b545b` | `oklch(0.409 0.066 205)` | Dark teal, headings on light teal |
-| `teal-mist` | `#a3e7f0` | `oklch(0.886 0.069 206)` | Quote marks, soft fills |
-| `lime` | `#d1ff30` | `oklch(0.935 0.217 122)` | Signature citrus |
-| `lime-soft` | `#e7ff89` | `oklch(0.958 0.146 119)` | Active breadcrumb and its 3px underline |
-| `ink-900` | `#212331` | `oklch(0.261 0.026 278)` | Menu overlay, darkest surface |
-| `ink-800` | `#3c3950` | `oklch(0.358 0.040 290)` | Body headings, button hover |
-| `ink-700` | `#494c64` | `oklch(0.424 0.040 279)` | Default button fill |
-| `slate-600` | `#5f727f` | `oklch(0.541 0.030 238)` | Secondary text |
-| `slate-400` | `#99a9b5` | `oklch(0.726 0.025 240)` | Tertiary text, tag borders |
-| `slate-300` | `#b6c6c9` | `oklch(0.815 0.018 210)` | Muted button fill |
-| `line` | `#dfe5e8` | `oklch(0.918 0.008 229)` | Hairlines, dividers |
-| `surface` | `#f4f6f7` | `oklch(0.972 0.003 229)` | Section background |
-| `danger` | `#f44336` | `oklch(0.643 0.215 29)` | Error state |
+| Stitch token                    | Hex       | oklch                    | Used for                                 |
+| ------------------------------- | --------- | ------------------------ | ---------------------------------------- |
+| `background` / `surface-bright` | `#f6fafb` | `oklch(0.982 0.004 214)` | Page                                     |
+| `surface`                       | `#ffffff` | `oklch(1 0 0)`           | Cards, sidebar, top bar                  |
+| `surface-container-low`         | `#f0f4f5` | `oklch(0.964 0.004 214)` | Muted fills, table header, sidebar hover |
+| `surface-container`             | `#eaeff0` | `oklch(0.949 0.006 211)` | Secondary fills                          |
+| `border`                        | `#e2e8f0` | `oklch(0.929 0.013 256)` | Hairlines, card outlines                 |
+| `outline-variant`               | `#bcc9ca` | `oklch(0.826 0.014 202)` | Stitch field border, deepened (see 2.2)  |
+| `on-surface`                    | `#181c1d` | `oklch(0.223 0.006 214)` | Text on the page                         |
+| `text-main`                     | `#1f2937` | `oklch(0.278 0.03 257)`  | Text on cards                            |
+| `on-surface-variant`            | `#3d494a` | `oklch(0.395 0.016 203)` | Sidebar items, secondary labels          |
+| `text-muted`                    | `#64748b` | `oklch(0.554 0.041 257)` | Not used as is, see 2.2                  |
+| `primary`                       | `#006971` | `oklch(0.475 0.081 204)` | Buttons, links, active states            |
+| `on-primary-fixed-variant`      | `#004f55` | `oklch(0.39 0.066 204)`  | Primary hover                            |
+| `primary-container`             | `#00a6b2` | `oklch(0.661 0.113 204)` | Brand turquoise                          |
+| `inverse-surface`               | `#2c3132` | `oklch(0.309 0.007 211)` | Dark theme cards                         |
+| `inverse-on-surface`            | `#edf1f2` | `oklch(0.955 0.004 214)` | Dark theme text                          |
+| `inverse-primary`               | `#5bd8e4` | `oklch(0.817 0.111 204)` | Dark theme primary                       |
+| `error`                         | `#dc2626` | `oklch(0.577 0.215 27)`  | Error state                              |
+| `on-error-container`            | `#93000a` | `oklch(0.417 0.17 27)`   | Error text on a tint                     |
+| `success`                       | `#16a34a` | `oklch(0.627 0.17 149)`  | Success state                            |
+| `warning`                       | `#f59e0b` | `oklch(0.769 0.165 70)`  | Warning state                            |
 
-Notice what the neutrals actually are: **violet-leaning navy**, not grey.
-`#212331` carries a measurable `0.026` chroma at hue `278`. Reaching for a
-neutral grey anywhere in this app is a bug; it reads cold and generic next to
-the teal.
+The neutrals are **cool, close to grey, leaning cyan** (hue ~210, chroma under
+0.01). Do not reach for the old violet navy or for a warm grey.
 
 ### 2.2 Roles
 
-| Role | Light | Dark | Notes |
-| --- | --- | --- | --- |
-| `background` | `surface` | `ink-900` | Page sits on the soft surface, cards float in white |
-| `card` / `popover` | white | `ink-800` | |
-| `foreground` | `ink-900` | near-white | |
-| `primary` | `oklch(0.52 0.095 206)` | `teal-brand` | Deviation, see below |
-| `secondary` | `line` | `ink-700` | |
-| `muted-foreground` | `slate-600` | `slate-400` | 5.0:1 on white |
-| `accent` | soft `teal-mist` | teal at low lightness | Hover and selected rows |
-| `border` / `input` | `line` | white at 10% | |
-| `ring` | `teal-brand` | `teal-brand` | Focus is always the bright teal |
-| `highlight` | `lime` | `lime` | Reserved, see 2.3 |
-| `destructive` | `danger` | lifted `danger` | |
-| `denied` | `oklch(0.505 0.196 28.8)` | `oklch(0.6 0.196 28.8)` | Accent (icon badge) on the permission-denied screen, see 2.4 |
-| `sidebar` | `ink-900` | `ink-900` | Dark in both themes, see 4.2 |
+The token names are the ones the components already use; only their values
+changed. Contrast figures are WCAG 2 ratios measured from the values in
+`globals.css`.
 
-**Deviation, interactive primary.** `#0099a8` carries only about 3.3:1 against
-white, which fails WCAG AA for button labels. Interactive primary is therefore
-deepened to `oklch(0.52 0.095 206)`, measured at 5.1:1. `#0099a8` stays the brand
-ink for logo lockups and large display type, where 3:1 is sufficient.
+| Role                                | Light                     | Dark                    | Notes                                                                                          |
+| ----------------------------------- | ------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `background`                        | `#f6fafb`                 | `#181c1d`               | The page. In dark, one step below the cards                                                    |
+| `card` / `popover`                  | `#ffffff`                 | `#2c3132`               | Level 1 surfaces                                                                               |
+| `foreground`                        | `#181c1d`                 | `#edf1f2`               | 16.3:1 light, 15.1:1 dark on the page                                                          |
+| `card-foreground`                   | `#1f2937`                 | `#edf1f2`               | 14.7:1 light, 11.6:1 dark on a card                                                            |
+| `primary`                           | `#006971`                 | `#5bd8e4`               | Buttons, links, active states. White label at 6.44:1 (light); `#002023` label at 10.1:1 (dark) |
+| `primary-hover`                     | `#004f55`                 | `#84f3ff`               | Darker in light. Lighter in dark, where the label is dark                                      |
+| `brand-ink`                         | `#00a6b2`                 | `#5bd8e4`               | Brand turquoise. See the restriction below                                                     |
+| `secondary`                         | `#eaeff0`                 | `#3a4041`               | Quiet fills, with `secondary-foreground`                                                       |
+| `muted`                             | `#f0f4f5`                 | `#363c3d`               | Table header, inactive badge                                                                   |
+| `muted-foreground`                  | `#5b6b82`                 | `#a9b6b8`               | Deviation, see below                                                                           |
+| `accent`                            | `#e5f6f7`                 | `#1f4347`               | Menu focus, tinted buttons. `accent-foreground` at 8.4:1 / 8.5:1                               |
+| `border`                            | `#e2e8f0`                 | white at 10%            | Card outlines, dividers                                                                        |
+| `input`                             | `#838f90`                 | white at 40%            | Form field borders. Deviation, see below                                                       |
+| `ring`                              | `#0099a5`                 | `#5bd8e4`               | Focus ring. Deviation, see below and 7                                                         |
+| `destructive`, `success`, `warning` | see 2.5                   | see 2.5                 | State colours                                                                                  |
+| `denied`                            | `oklch(0.505 0.196 28.8)` | `oklch(0.6 0.196 28.8)` | Accent on the permission-denied screen, see 2.4                                                |
+| `sidebar`                           | `#ffffff`                 | `#2c3132`               | See 4.2                                                                                        |
 
-### 2.3 The lime is a rule, not a colour
+**Restriction, brand turquoise.** `#00a6b2` measures 2.96:1 against white and
+2.81:1 against the page. It is therefore used for tinted
+icon chips (`bg-brand-ink/10` with the icon in `primary`) and for decoration
+such as the dotted field behind the auth screens. It is **never a background
+under white text and never a text colour**. Where Stitch draws a solid
+turquoise button or a turquoise wordmark, we use `primary`.
 
-On the UAM site `#e7ff89` appears in exactly one place: the *current*
-breadcrumb, with a 3px underline of the same colour. It is a positional signal.
+**Deviation, focus ring and field border.** Both are UI graphics and owe 3:1
+against every surface they sit on. Stitch draws the ring in `#00a6b2` (2.96:1
+on white) and field borders in `#bcc9ca` (1.70:1). Each is deepened on its own
+hue until it clears the floor on white, the page and the `muted` surface:
 
-So in this app the lime means **"you are here"** and nothing else:
+| Token   | Light value                        | White  | Page   | `muted` |
+| ------- | ---------------------------------- | ------ | ------ | ------- |
+| `ring`  | `oklch(0.62 0.113 204)`, `#0099a5` | 3.44:1 | 3.27:1 | 3.10:1  |
+| `input` | `oklch(0.64 0.014 202)`, `#838f90` | 3.34:1 | 3.18:1 | 3.02:1  |
 
-- active sidebar item (3px inset bar on the leading edge)
-- current breadcrumb segment (3px underline, the `.is-current` utility)
-- the active step in a multi-step flow
-- the selected tab underline
+In the dark theme `input` is white at 40%: 3.47:1 on a card and 3.80:1 on the
+page. `brand-ink` keeps the Stitch turquoise; only `ring` moved.
 
-It is never a button fill, never a background wash, never decoration. At
-`oklch(0.935 0.217 122)` it is the loudest thing on screen: one accent, spent
-deliberately. Text on lime is always `ink-900`.
+**Deviation, muted text.** Stitch's `text-muted` `#64748b` measures 4.53:1 on
+the page but 4.30:1 on `muted` (the table header) and 4.42:1 on a hovered row.
+`muted-foreground` is darkened to `#5b6b82`: 5.16:1 on the page, 5.43:1 on a
+card, 4.90:1 on `muted`, 5.05:1 on a hovered row.
+
+**The dark theme is derived.** Stitch ships light mode only. Dark is built from
+its inverse tokens: `inverse-surface` for cards, `inverse-on-surface` for text,
+`inverse-primary` as the interactive colour, and `on-surface` (`#181c1d`) as a
+page darker than the cards. `muted-foreground` `#a9b6b8` measures 8.24:1 on the
+page, 6.32:1 on a card and 5.39:1 on `muted`.
+
+### 2.3 "You are here" is the primary colour
+
+The position signal is said with `primary`, and it is said the same way
+everywhere:
+
+- active sidebar item: `#f0f4f5` background, primary text, bold, and a 4px
+  primary bar on the leading edge (see 4.2)
+- current breadcrumb segment: a 3px primary underline, the `.is-current`
+  utility
+- the active step in a multi-step flow and the selected tab: the same underline
+
+It is always paired with `aria-current`, so the signal never rests on colour
+alone. A collapsed sidebar group that holds the current page takes the tinted
+background as a hint, but never the bar: the bar belongs to the page itself.
 
 ### 2.4 The denied accent
 
@@ -101,14 +155,39 @@ state surface anywhere in the app.
 `--denied` is a per-theme token, like `--destructive`, because the icon must
 clear the 3:1 non-text floor (§7) against a background that changes with the
 theme. It stays separate from `--destructive`, which keeps carrying inline
-errors, degraded-state pills and the destructive button variant, so one token
+errors, degraded-state alerts and the destructive button variant, so one token
 never has to do both jobs. It has no foreground partner: the accent never
 carries text.
 
-| Theme | `--denied` | Measured contrast on `--background` |
-| --- | --- | --- |
-| Light | `oklch(0.505 0.196 28.8)` | **6.00:1** |
-| Dark | `oklch(0.6 0.196 28.8)` | **4.01:1** (the light value measures 2.68:1 here) |
+| Theme | `--denied`                | Measured contrast on `--background`               |
+| ----- | ------------------------- | ------------------------------------------------- |
+| Light | `oklch(0.505 0.196 28.8)` | **6.18:1**                                        |
+| Dark  | `oklch(0.6 0.196 28.8)`   | **3.96:1** (the light value measures 2.65:1 here) |
+
+### 2.5 State colours
+
+Success, warning and error are reserved for status badges, inline alerts and
+validation messages. Each has two tokens:
+
+| Token             | Light     | Dark                      | Job                                   |
+| ----------------- | --------- | ------------------------- | ------------------------------------- |
+| `destructive`     | `#dc2626` | `oklch(0.704 0.191 22.2)` | Fills, borders, icons, 8 to 20% tints |
+| `destructive-ink` | `#93000a` | `#ffb4ab`                 | Text on a destructive tint            |
+| `success`         | `#16a34a` | `#4ade80`                 | Fills, borders, icons, 10% tints      |
+| `success-ink`     | `#116d34` | `#4ade80`                 | Text on a success tint                |
+| `warning`         | `#f59e0b` | `#fbbf24`                 | Fills, borders, 10% tints             |
+| `warning-ink`     | `#a14a08` | `#fbbf24`                 | Text on a warning tint                |
+
+**Deviation, the `-ink` tokens.** Stitch writes badge and alert text in the
+state colour itself over a 10% tint of it. In light mode that fails AA:
+`#dc2626` on its own 8% tint measures 4.27:1, `#16a34a` on white 3.30:1 and
+`#f59e0b` 2.14:1. The `-ink` shade carries the text instead: 8.27:1
+(destructive), 5.78:1 (success) and 5.57:1 (warning) on their tints. In dark
+mode the fills are already bright enough, so each ink equals its fill.
+
+`warning` at 2.14:1 on white does not reach the 3:1 non-text floor either. It
+never stands alone as an icon or a thin border on a light surface: pair it with
+`warning-ink` text.
 
 ---
 
@@ -116,44 +195,36 @@ carries text.
 
 ### 3.1 Families
 
-| Role | Family | Weights | CSS var |
-| --- | --- | --- | --- |
-| Display and headings | **Libre Franklin** | 600, 700 | `--font-display` |
-| Body and UI | **Source Sans 3** | 300, 400, 600 | `--font-sans` |
-| Numeric / code | Geist Mono | 400 | `--font-mono` |
+| Role                  | Family               | Weights            | CSS var       |
+| --------------------- | -------------------- | ------------------ | ------------- |
+| Body, UI and headings | **Inter** (variable) | 400, 500, 600, 700 | `--font-sans` |
+| Numeric / code        | Geist Mono           | 400                | `--font-mono` |
 
-UAM ships three text families (Libre Franklin, Montserrat, Source Sans Pro). We
-carry two. Montserrat did one job there, uppercase 14px nav labels, and Libre
-Franklin covers that without a third webfont payload. Source Sans 3 is the
-maintained successor to Source Sans Pro.
-
-The pairing is deliberate: Libre Franklin is a grotesque with tight, flat
-terminals; Source Sans is humanist with open apertures. They are distinct enough
-to read as two voices at a glance, which is the whole point of pairing.
+One family for everything. Hierarchy comes from size, weight and tracking, not
+from a second typeface. `font-heading` exists only as an alias of the same
+stack, because the shadcn primitives ask for it.
 
 ### 3.2 Scale
 
-Line heights are UAM's own (`h1` 50/69, `h2` 36/53, body-tiny 14/21.875; that
-odd `21.875px` is a 1.5625 ratio, so we express it as a ratio).
+| Token            | Utility                         | Size / line height | Weight | Tracking | Use                                          |
+| ---------------- | ------------------------------- | ------------------ | ------ | -------- | -------------------------------------------- |
+| `display`        | `text-display`                  | 32 / 40            | 700    | -0.02em  | Page titles from `md`, metric figures        |
+| `display-mobile` | `text-display-mobile`           | 24 / 32            | 700    | -0.01em  | Page titles below `md`                       |
+| `headline`       | `text-headline`                 | 20 / 28            | 600    | 0        | Section and card headings, auth form titles  |
+| `title`          | `text-title`                    | 16 / 24            | 600    | 0        | Sub-headings, card titles, emphasised values |
+| `body`           | `text-base`                     | 16 / 24            | 400    | 0        | Running text                                 |
+| `body-sm`        | `text-sm`                       | 14 / 20            | 400    | 0        | Table cells, controls, helper copy           |
+| `label`          | `text-label`                    | 12 / 16            | 500    | 0        | Field labels, metadata                       |
+| `label-caps`     | `text-label-caps` + `uppercase` | 12 / 16            | 600    | +0.05em  | Table headers, group labels                  |
 
-| Token | Size | Line height | Weight | Family |
-| --- | --- | --- | --- | --- |
-| `display` | `clamp(2.5rem, 5vw, 3.125rem)` | 1.38 | 700 | display |
-| `h1` | `clamp(1.875rem, 4vw, 2.25rem)` | 1.47 | 700 | display |
-| `h2` | `1.75rem` | 1.3 | 700 | display |
-| `h3` | `1.375rem` | 1.36 | 600 | display |
-| `h4` | `1.125rem` | 1.44 | 600 | display |
-| `body` | `1rem` | 1.6 | 400 | sans |
-| `body-lead` | `1.125rem` | 1.6 | 300 | sans |
-| `small` | `0.875rem` | 1.5625 | 400 | sans |
-| `caption` | `0.75rem` | 1.5 | 500 | sans |
-
-Headings use `letter-spacing: 0`. UAM sets this explicitly for `h1` and `h2`,
-and it holds for the rest. Do not track out headings.
+A page title is written `text-display-mobile md:text-display`. Headings carry
+no forced `letter-spacing`: the tracking comes from the step they use.
 
 ### 3.3 Writing rules
 
-- Sentence case everywhere. No ALL-CAPS labels.
+- Copy is written in sentence case. The only uppercase on screen is the
+  `label-caps` step, applied with CSS (`uppercase`) to table headers and group
+  labels; the source string stays in sentence case.
 - Buttons name the outcome: "Save changes", not "Submit". The label survives
   into the confirmation: "Publish" becomes "Published".
 - Errors say what happened and what to do next. They do not apologise.
@@ -165,81 +236,136 @@ and it holds for the rest. Do not track out headings.
 
 ### 4.1 Space and shape
 
-Base unit **4px**. Allowed steps: `4 8 12 16 24 32 40 56 80`.
+Base unit **4px**, stacked on an 8px rhythm. Allowed steps:
+`4 8 12 16 24 32 40 48 64`.
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--radius` | `0.75rem` (12px) | Cards, inputs, popovers |
-| `--radius-pill` | `9999px` | Buttons, tags, avatars |
-| container | `1200px` | Matches UAM's grid |
-| section gap | `80px` desktop, `56px` tablet, `40px` mobile | |
+| Token           | Value                                         | Use                                              |
+| --------------- | --------------------------------------------- | ------------------------------------------------ |
+| `stack-sm`      | 8px (`gap-2`)                                 | Label to input                                   |
+| `stack-md`      | 16px (`gap-4`)                                | Fields in a form                                 |
+| `stack-lg`      | 24px (`gap-6`)                                | Blocks in a card, cards in a grid (the gutter)   |
+| page margin     | 32px desktop (`md:p-8`), 16px mobile (`px-4`) | Around the content area                          |
+| sidebar         | 260px                                         | Fixed width, see 4.2                             |
+| container       | 1440px                                        | `--container-content`, the `.shell` utility      |
+| `--radius`      | `0.5rem` (8px)                                | Buttons, inputs, selects, popovers: `rounded-lg` |
+| next step up    | 12px                                          | Cards and panels: `rounded-xl`                   |
+| `--radius-pill` | `9999px`                                      | Status badges and avatars only: `rounded-full`   |
 
-UAM buttons are pills (`border-radius: 30px`); panels sit at `10` to `16px`.
-That split is intentional and we keep it: **round the things you press, soften
-the things you read.** One radius on everything is exactly the templated look
-we are avoiding.
+Buttons are **not** pills. The pill shape separates "status" from "action": a
+badge is round, a button is an 8px rectangle.
 
-Elevation is carried by the surface split (white card on `#f4f6f7`) plus a
-hairline. Shadows are for things that genuinely float, meaning popovers,
-dropdowns and sheets, and never for static cards.
+**Elevation** is tonal layers plus low-contrast outlines:
 
-### 4.2 The dark rail
+- Level 0, the page: `background`.
+- Level 1, cards, sidebar and top bar: `card` with a 1px `border`.
+- One shadow, `shadow-soft`
+  (`0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)`), for
+  cards and for floating surfaces (dropdowns, select popups, sheets). There is
+  no second, heavier shadow.
 
-UAM's navigation overlay is `#212331` regardless of page. We make that
-permanent: **the sidebar is dark ink in both light and dark themes.** It gives
-the app a fixed anchor, lets the lime active marker read at full strength, and
-it is the structural detail that makes a screenshot identifiable as this product
-rather than a default shadcn install.
+Depth is carried by the contrast between the page and the white surfaces, so
+the data stays the most prominent thing on screen.
 
-Everything else stays quiet. That is the trade.
+### 4.2 The sidebar
+
+A Level 1 surface: white with a 1px border on the trailing edge. In the dark
+theme it is a dark surface level with the cards (`#2c3132`), with the same
+treatment.
+
+| State  | Light                                                                         | Dark                              |
+| ------ | ----------------------------------------------------------------------------- | --------------------------------- |
+| Item   | `#3d494a` on white, 9.34:1                                                    | `#bcc9ca` on `#2c3132`, 7.74:1    |
+| Hover  | primary text on `#f0f4f5`, 5.81:1                                             | primary text on `#3a4041`, 6.23:1 |
+| Active | `#f0f4f5` background, primary text, bold, 4px primary bar on the leading edge | Same, with the dark values        |
+
+Rows are full-bleed (no radius) and 44px tall, so the active bar sits flush on
+the edge of the sidebar. Sub-items are indented but still full-bleed, for the
+same reason. The group label uses `label-caps`. The brand-dependent sidebar
+tokens (`--sidebar-primary`, `--sidebar-accent-foreground`, `--sidebar-ring`)
+alias the page tokens, so the FIA brand follows without a block of its own.
+
+`aria-current="page"` marks the active link; see 2.3.
 
 ### 4.3 Screen skeleton
 
 ```
-+----------+----------------------------------------------+
-|          |  header  .  breadcrumb / user / theme        |  56px, white, hairline under
-|  ink-900 +----------------------------------------------+
-|   rail   |                                              |
-|          |   h1 title                                   |
-| | active |   one line of muted context                  |  <- page header, 24px gap below
-|          |                                              |
-|  256px   |   +--------+ +--------+ +--------+           |
-|          |   |  card  | |  card  | |  card  |           |  white on surface, 16px gutter
-|          |   +--------+ +--------+ +--------+           |
-|          |                                              |
-+----------+----------------------------------------------+
++-----------+----------------------------------------------+
+|  logo     |  top bar  .  menu / locale / theme / user    |  64px, white, hairline under
+|-----------+----------------------------------------------+
+|  white    |                                              |
+|  sidebar  |   display title                              |
+|           |   one line of muted context                  |  <- page header, 32px gap below
+| | active  |                                              |
+|           |   +--------+ +--------+ +--------+           |
+|  260px    |   |  card  | |  card  | |  card  |           |  white on the page, 24px gutter
+|           |   +--------+ +--------+ +--------+           |
+|           |                                              |
++-----------+----------------------------------------------+
 ```
 
-Content is left-aligned. Centre alignment is reserved for the auth screens,
-where there is a single focal object and nothing to scan.
+Content is left-aligned inside a 1440px container, with 32px margins on desktop
+and 16px on mobile. Grids use the 24px gutter. Below `md` the sidebar becomes a
+sheet opened from the top bar.
 
-Auth screens get a two-panel split above `lg`: an ink-900 brand panel on the
-left carrying the institutional mark, the form on white at the right. Below
-`lg` the panel collapses and the form centres.
+Centre alignment is reserved for the auth screens (sign-in, sign-up, change
+password), where there is a single focal object. They stack three things on the
+page background, over a dotted field of brand turquoise at low alpha
+(`.auth-mesh`): the brand block (logo, product name in `primary`, tagline), the
+form inside a card (`AuthCard`: 440px for sign-in and change password, wider
+for sign-up) and the institution line. The permission-denied screen is centred
+too, but sits directly on the page (2.4).
 
 ---
 
 ## 5. Components
 
-**Button.** Pill. Primary is the deepened teal. UAM hovers *up* into
-`#00bcd4` (`.gem-button:hover { background-color: #00bcd4 }`), which would drop
-a white label to about 2.3:1, so we hover *down* toward `teal-deep` instead:
-same teal relationship, legible label. Secondary is a `line` fill with `ink-800`
-text. Ghost is transparent with an `accent` hover. Destructive is `danger`.
-Focus is a 2px `teal-brand` ring with a 2px offset.
+**Sidebar.** See 4.2.
 
-**Card.** White, `--radius`, 1px `line` border, no shadow. The header holds a
-`caption` label and an `h3`; figures use the display face at `h1` size.
+**Button.** 8px radius, 40px tall by default (`lg` is 44px, for touch).
+Primary is solid `primary` with a white label; hover goes darker, to
+`primary-hover`. Stitch hovers a turquoise button; that would put a white label
+at 2.96:1, so the solid is `primary` in both states. Secondary is `outline`: a
+`primary` border and label on a clear ground, hover at 5% primary. `ghost` is
+transparent with a `muted` hover, for toolbar icons and quiet actions such as
+"Cancel". `secondary` is a quiet neutral fill. `destructive` is a 10%
+destructive tint with `destructive-ink` text. Focus is a 2px ring with a 2px
+offset (see 7).
 
-**Input.** `--radius`, 1px `line`, white. On focus the border goes `teal-brand`
-and the ring appears. Errors put the message directly under the field with
-`role="alert"`, never as a bare red outline.
+**Metric card.** A card with 24px padding: a 48px tinted icon chip
+(`bg-brand-ink/10`, icon in `primary`), the label on the `label` step in muted
+text, then the figure on the `display` step with `tabular-nums`. The icon is
+decoration (`aria-hidden`); the label carries the meaning.
 
-**Table.** Header row in `surface` with `caption` type. Rows separated by
-hairlines, hovered with `accent`. No zebra striping.
+**Card.** `card` surface, 12px radius, 1px `border`, `shadow-soft`, 24px
+padding. The title uses `title`, or `headline` when the card is the main object
+of the screen.
 
-**Breadcrumb.** `slate-600` links, `/` separators, current segment styled by the
-lime rule from 2.3.
+**Table.** Header row on `muted` with `label-caps` uppercase headers in muted
+text. Horizontal dividers only, no vertical rules, no zebra striping. Cells are
+padded 24px / 16px. Row hover is `primary` at 5%. The table sits in a card
+frame (12px radius, 1px border, clipped).
+
+**Badge.** A pill: `rounded-full`, 12px medium text, a 10% tint of the state
+colour with the matching `-ink` text (2.5). A neutral or inactive badge is
+`muted` with `muted-foreground`.
+
+**Form.** Label above the input, on the `label` step in `foreground`, 8px
+apart. Inputs and selects are 40px tall, 8px radius, with a 1px `input` border
+on the `card` surface. On focus the border goes `primary` and the `ring`
+glows around it. Errors put the message directly under the field or the form
+with `role="alert"`, never as a bare red outline.
+
+**Alert.** A slim banner: an 8% tint of the state colour, a 1px border of it
+at 30%, a solid 4px edge on the leading side, text in the `-ink` shade.
+
+**Breadcrumb.** Muted links that go `primary` on hover, chevron separators,
+current segment styled by the rule in 2.3.
+
+**Pagination.** Real links, 44px tall, 8px radius, `primary` text with a 5%
+primary hover. At an edge the control is muted text with `aria-disabled`.
+
+**Dropdown, select popup, sheet.** `popover` surface, 8px radius, 1px
+`border`, `shadow-soft`. Items highlight with the `accent` pair.
 
 **Empty state.** One sentence naming what would be here, and the button that
 creates the first one. No illustration, no apology.
@@ -262,10 +388,17 @@ action: open, expand, confirm.
 
 Non-negotiable, and far cheaper to keep than to retrofit:
 
-- Body text at 4.5:1 or better; large text and UI borders at 3:1 or better.
-- Focus is always visible and always the teal ring. Never `outline: none`.
-- Colour never carries meaning alone: the lime marker is always paired with
-  `aria-current`, the error colour always with text.
+- Body text at 4.5:1 or better; large text and UI graphics at 3:1 or better.
+  The figures in section 2 are measured, not estimated; re-measure when a token
+  changes.
+- Focus is always visible. Never `outline: none` without a ring in its place.
+  The ring is `--ring`, a deepened brand turquoise that measures 3.44:1 on
+  white and 3.27:1 on the page in the light theme (2.2). Controls that have a
+  border also switch it to `primary` on focus (6.44:1 on white). In the dark
+  theme the ring is `#5bd8e4`, 7.8:1 or better.
+- Colour never carries meaning alone: the "you are here" marker is always
+  paired with `aria-current`, a state colour always with text.
+- White text never sits on the brand turquoise (2.2).
 - Every interactive target is at least 44x44px on touch.
 - One `h1` per screen; heading levels never skip.
 
@@ -274,14 +407,26 @@ Non-negotiable, and far cheaper to keep than to retrofit:
 ## 8. Second brand (FIA)
 
 `<html data-brand="fia">` swaps the hue channel to engineering azure and leaves
-structure, type, spacing and the lime rule untouched. When you add a colour, add
-its FIA counterpart in the same commit or the second brand silently drifts.
+structure, type, spacing and every rule above untouched. The FIA palette keeps
+the lightness steps of the default one and moves the hue from 204 to about 255:
 
-**Exception: state colours are brand-invariant.** `--destructive` has no FIA
-block today, and `--denied` (§2.4) follows the same rule on purpose: a denial
-or an error is not a brand moment, so these tokens stay identical across
-brands. The rule above governs interactive and structural colour, not state
-colour.
+| Role            | Light                                          | Dark                                         |
+| --------------- | ---------------------------------------------- | -------------------------------------------- |
+| `primary`       | `oklch(0.475 0.15 255)`, white label at 6.76:1 | `oklch(0.817 0.1 250)`, dark label at 9.81:1 |
+| `primary-hover` | `oklch(0.39 0.13 257)`                         | `oklch(0.902 0.06 250)`                      |
+| `brand-ink`     | `oklch(0.661 0.14 250)`                        | `oklch(0.817 0.1 250)`                       |
+| `ring`          | `oklch(0.64 0.14 250)`, 3.35:1 on white        | `oklch(0.817 0.1 250)`                       |
+| `accent`        | `oklch(0.961 0.02 255)`                        | `oklch(0.358 0.06 258)`                      |
+
+Neutrals, surfaces and the sidebar surface are shared. When you add a
+brand-dependent colour, add its FIA counterpart in the same commit or the
+second brand silently drifts.
+
+**Exception: state colours are brand-invariant.** `--destructive`, `--success`,
+`--warning`, their `-ink` partners and `--denied` (§2.4) have no FIA block on
+purpose: a denial or an error is not a brand moment, so these tokens stay
+identical across brands. The rule above governs interactive and structural
+colour, not state colour.
 
 ---
 

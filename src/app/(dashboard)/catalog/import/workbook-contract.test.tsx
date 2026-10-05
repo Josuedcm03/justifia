@@ -153,10 +153,10 @@ describe("WorkbookContract (CEI: Contract shown before upload)", () => {
     expect(contract.lastElementChild).toBe(slot);
   });
 
-  it("never uses the lime highlight", () => {
+  it("never uses the current-location marker", () => {
     const { container } = renderContract();
 
-    expect(container.innerHTML).not.toContain("highlight");
+    expect(container.innerHTML).not.toContain("is-current");
   });
 
   it("renders in Spanish with the untranslated Excel headers", () => {

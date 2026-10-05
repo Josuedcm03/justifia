@@ -127,3 +127,47 @@ describe("active-only readers (AC: Active-only reads for downstream consumers)",
     );
   });
 });
+
+describe("active-only readers require an active Asignatura (AC-READ, D10)", () => {
+  it("hasActiveEnrollment joins Asignatura through Grupo and requires Asignatura.Activo", () => {
+    const { sql } = buildActiveEnrollmentQuery(qb, {
+      cif: "C-1",
+      grupoId: 7,
+    }).toSQL();
+    expect(sql).toMatch(
+      /inner join "Asignatura" on "Grupo"."AsignaturaId" = "Asignatura"."Id"/,
+    );
+    expect(sql).toContain('"Asignatura"."Activo"');
+    // the older predicates stay
+    expect(sql).toContain('"Inscripcion"."Activo"');
+    expect(sql).toContain('"Grupo"."Activo"');
+    expect(sql).toContain('"Usuario"."Cif" = $');
+  });
+
+  it("listActiveGruposForEstudiante requires Asignatura.Activo next to the older predicates", () => {
+    const { sql } = buildActiveGruposForEstudianteQuery(qb, {
+      cif: "C-1",
+      codigoAsignatura: "MAT-101",
+      periodo: "2026-S1",
+    }).toSQL();
+    expect(sql).toContain('"Asignatura"."Activo"');
+    expect(sql).toContain('"Inscripcion"."Activo"');
+    expect(sql).toContain('"Grupo"."Activo"');
+    expect(sql).toContain('"Asignatura"."Codigo" = $');
+    expect(sql).not.toMatch(/limit/);
+  });
+
+  it("the Asignatura.Activo predicate sits in the WHERE clause, not only in the select list", () => {
+    for (const { sql } of [
+      buildActiveEnrollmentQuery(qb, { cif: "C-1", grupoId: 7 }).toSQL(),
+      buildActiveGruposForEstudianteQuery(qb, {
+        cif: "C-1",
+        codigoAsignatura: "MAT-101",
+        periodo: "2026-S1",
+      }).toSQL(),
+    ]) {
+      const where = sql.slice(sql.toLowerCase().indexOf(" where "));
+      expect(where).toContain('"Asignatura"."Activo"');
+    }
+  });
+});

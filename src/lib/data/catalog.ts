@@ -100,8 +100,9 @@ export type ActiveGruposParams = {
 
 /**
  * Pure query shape (RF-03): the groups in which the student is CURRENTLY
- * enrolled for an asignatura and period. `Activo` is required on both
- * `Inscripcion` and `Grupo`; there is no `limit` because more than one active
+ * enrolled for an asignatura and period. `Activo` is required on
+ * `Inscripcion`, `Grupo` and `Asignatura` (an active group of an inactive
+ * asignatura is hidden; catalog-management AC-READ); there is no `limit` because more than one active
  * group must reach the caller (RF-02, X8).
  */
 export function buildActiveGruposForEstudianteQuery(
@@ -126,13 +127,14 @@ export function buildActiveGruposForEstudianteQuery(
         eq(grupo.periodo, p.periodo),
         eq(inscripcion.activo, true),
         eq(grupo.activo, true),
+        eq(asignatura.activo, true),
       ),
     );
 }
 
 /**
  * Pure query shape (RF-31): is the student enrolled in this group right now?
- * Both the enrollment and its group must be active.
+ * The enrollment, its group and the group's asignatura must all be active.
  */
 export function buildActiveEnrollmentQuery(
   qb: QueryBuilder,
@@ -143,12 +145,14 @@ export function buildActiveEnrollmentQuery(
     .from(inscripcion)
     .innerJoin(usuario, eq(inscripcion.estudianteId, usuario.id))
     .innerJoin(grupo, eq(inscripcion.grupoId, grupo.id))
+    .innerJoin(asignatura, eq(grupo.asignaturaId, asignatura.id))
     .where(
       and(
         eq(usuario.cif, p.cif),
         eq(inscripcion.grupoId, p.grupoId),
         eq(inscripcion.activo, true),
         eq(grupo.activo, true),
+        eq(asignatura.activo, true),
       ),
     );
 }

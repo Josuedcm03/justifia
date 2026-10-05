@@ -6,7 +6,9 @@
 
 /*
  * Justifia design tokens — the executable half of docs/design-system.md.
- * Values are extracted from uam.edu.ni (markup + thegem custom stylesheet).
+ * Values come from the Stitch design system "Academic Governance"
+ * (projects/16844897803785859098). Stitch ships light mode only: the dark
+ * theme and the FIA brand are derived here, see design-system.md §2.2 and §8.
  * Read that document before adding a token here.
  */
 
@@ -14,40 +16,42 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
+  /* One family for body and headings: Inter. `font-heading` is kept as an
+     alias because the shadcn primitives ask for it. */
   --font-sans:
     var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;
-  --font-display:
-    var(--font-display), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-heading:
-    var(--font-display), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
   --font-mono:
     var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
 
-  /* Type scale — sizes and line heights from the UAM theme (h1 50/69, h2 36/53,
-     small 14/21.875 → 1.5625). */
-  --text-display: clamp(2.5rem, 5vw, 3.125rem);
-  --text-display--line-height: 1.38;
+  /* Type scale — the Stitch scale, design-system.md §3.2. Body copy uses
+     Tailwind's own `text-base` (16/24) and `text-sm` (14/20), which already
+     match body-base and body-sm. */
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
   --text-display--font-weight: 700;
-  --text-h1: clamp(1.875rem, 4vw, 2.25rem);
-  --text-h1--line-height: 1.47;
-  --text-h1--font-weight: 700;
-  --text-h2: 1.75rem;
-  --text-h2--line-height: 1.3;
-  --text-h2--font-weight: 700;
-  --text-h3: 1.375rem;
-  --text-h3--line-height: 1.36;
-  --text-h3--font-weight: 600;
-  --text-h4: 1.125rem;
-  --text-h4--line-height: 1.44;
-  --text-h4--font-weight: 600;
-  --text-lead: 1.125rem;
-  --text-lead--line-height: 1.6;
-  --text-lead--font-weight: 300;
-  --text-caption: 0.75rem;
-  --text-caption--line-height: 1.5;
-  --text-caption--font-weight: 500;
+  --text-display--letter-spacing: -0.02em;
+  --text-display-mobile: 1.5rem;
+  --text-display-mobile--line-height: 2rem;
+  --text-display-mobile--font-weight: 700;
+  --text-display-mobile--letter-spacing: -0.01em;
+  --text-headline: 1.25rem;
+  --text-headline--line-height: 1.75rem;
+  --text-headline--font-weight: 600;
+  --text-title: 1rem;
+  --text-title--line-height: 1.5rem;
+  --text-title--font-weight: 600;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-label--font-weight: 500;
+  --text-label-caps: 0.75rem;
+  --text-label-caps--line-height: 1rem;
+  --text-label-caps--font-weight: 600;
+  --text-label-caps--letter-spacing: 0.05em;
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -65,10 +69,13 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning: var(--warning);
+  --color-success-ink: var(--success-ink);
+  --color-success: var(--success);
+  --color-destructive-ink: var(--destructive-ink);
   --color-destructive: var(--destructive);
   --color-denied: var(--denied);
-  --color-highlight-foreground: var(--highlight-foreground);
-  --color-highlight: var(--highlight);
   --color-brand-ink: var(--brand-ink);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -84,17 +91,22 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Round the things you press, soften the things you read. */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  /* 8px is the base (`rounded-lg`: buttons, inputs); cards take the next
+     step up (`rounded-xl`, 12px). Pills are for status badges and avatars. */
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.5);
+  --radius-4xl: calc(var(--radius) * 3);
   --radius-pill: 9999px;
 
-  --container-content: 1200px;
+  /* The single ambient shadow: cards and floating surfaces. See §4.1. */
+  --shadow-soft:
+    0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+
+  --container-content: 1440px;
 
   --ease-ui: cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -102,148 +114,164 @@
 /*
  * Brand palettes
  * -----------------------------------------------------------------------------
- * Default (:root / .dark)  Universidad Americana — teal #0099a8 / #00bcd4 over
- *                          the violet-leaning navy neutrals #212331…#dfe5e8.
+ * Default (:root / .dark)  Academic Governance — primary teal #006971 with the
+ *                          brand turquoise #00a6b2 over cool neutral surfaces
+ *                          (#f6fafb page, white cards).
  * [data-brand="fia"]       Facultad de Ingeniería — engineering azure, a
  *                          hue-shifted sibling that leaves structure untouched.
  * The <html data-brand> attribute selects the palette; light/dark is still the
  * .dark class from next-themes.
  */
 :root {
-  --background: oklch(0.972 0.003 229); /* #f4f6f7 */
-  --foreground: oklch(0.261 0.026 278); /* #212331 */
+  --background: oklch(0.982 0.004 214); /* #f6fafb */
+  --foreground: oklch(0.223 0.006 214); /* #181c1d */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.261 0.026 278);
+  --card-foreground: oklch(0.278 0.03 257); /* #1f2937 */
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.261 0.026 278);
+  --popover-foreground: oklch(0.278 0.03 257);
 
-  /* #0099a8 deepened to clear 4.5:1 against white. */
-  --primary: oklch(0.52 0.095 206);
-  --primary-foreground: oklch(0.99 0.008 206);
-  /* UAM hovers up to #00bcd4, which drops white labels to ~2.3:1. We hover
-     into the deep teal instead and keep the relationship legible. */
-  --primary-hover: oklch(0.44 0.085 205); /* toward #0b545b */
-  --brand-ink: oklch(0.624 0.107 207); /* #0099a8 — logo + display only */
+  /* The interactive colour: 6.44:1 under white labels. */
+  --primary: oklch(0.475 0.081 204); /* #006971 */
+  --primary-foreground: oklch(1 0 0);
+  /* Hover goes darker, never up into the turquoise. */
+  --primary-hover: oklch(0.39 0.066 204); /* #004f55 */
+  /* Brand turquoise: focus ring, tinted icon chips, decoration. It measures
+     2.96:1 on white, so it never sits under white text and never carries
+     text itself. See design-system.md §2.2. */
+  --brand-ink: oklch(0.661 0.113 204); /* #00a6b2 */
 
-  --secondary: oklch(0.918 0.008 229); /* #dfe5e8 */
-  --secondary-foreground: oklch(0.358 0.04 290); /* #3c3950 */
-  --muted: oklch(0.962 0.004 229);
-  --muted-foreground: oklch(0.541 0.03 238); /* #5f727f */
-  --accent: oklch(0.955 0.026 206); /* #a3e7f0 thinned */
-  --accent-foreground: oklch(0.409 0.066 205); /* #0b545b */
+  --secondary: oklch(0.949 0.006 211); /* #eaeff0 */
+  --secondary-foreground: oklch(0.395 0.016 203); /* #3d494a */
+  --muted: oklch(0.964 0.004 214); /* #f0f4f5 */
+  /* Stitch's #64748b darkened: that one reads 4.53:1 on the page but 4.30:1
+     on --muted. This one clears 4.5:1 on every surface. */
+  --muted-foreground: oklch(0.523 0.041 257); /* #5b6b82 */
+  --accent: oklch(0.961 0.018 201); /* #e5f6f7, turquoise at 10% on white */
+  --accent-foreground: oklch(0.39 0.066 204); /* #004f55 */
 
-  /* "You are here" and nothing else. See design-system.md §2.3. */
-  --highlight: oklch(0.935 0.217 122); /* #d1ff30 */
-  --highlight-foreground: oklch(0.261 0.026 278);
-
-  --destructive: oklch(0.577 0.222 28.8);
+  /* State colours. The plain token is for fills, borders, icons and 10%
+     tints; the `-ink` partner is the text-grade shade for copy on those
+     tints. See design-system.md §2.5. */
+  --destructive: oklch(0.577 0.215 27); /* #dc2626 */
+  --destructive-ink: oklch(0.417 0.17 27); /* #93000a */
+  --success: oklch(0.627 0.17 149); /* #16a34a */
+  --success-ink: oklch(0.47 0.121 150); /* #116d34 */
+  --warning: oklch(0.769 0.165 70); /* #f59e0b */
+  --warning-ink: oklch(0.512 0.133 49); /* #a14a08 */
   /* Permission-denied accent only: the icon badge on /denied
      (bg-denied/10 + text-denied) over --background. Per-theme like
      --destructive so the icon clears the 3:1 non-text floor in both themes;
      see design-system.md §2.4. Do not reuse for anything else; --destructive
      keeps carrying inline errors and the destructive button variant. */
   --denied: oklch(0.505 0.196 28.8);
-  --border: oklch(0.918 0.008 229); /* #dfe5e8 */
-  --input: oklch(0.918 0.008 229);
-  --ring: oklch(0.729 0.127 211); /* #00bcd4 */
+  --border: oklch(0.929 0.013 256); /* #e2e8f0 */
+  /* Stitch draws field borders in #bcc9ca (1.70:1) and the ring in #00a6b2
+     (2.96:1). Both are deepened on the same hue to clear the 3:1 non-text
+     floor on white, the page and the muted surface. See design-system.md §7. */
+  --input: oklch(0.64 0.014 202); /* #838f90 */
+  --ring: oklch(0.62 0.113 204); /* #0099a5 */
 
-  --chart-1: oklch(0.624 0.107 207);
-  --chart-2: oklch(0.729 0.127 211);
-  --chart-3: oklch(0.409 0.066 205);
-  --chart-4: oklch(0.815 0.018 210);
-  --chart-5: oklch(0.424 0.04 279);
+  --chart-1: oklch(0.475 0.081 204); /* #006971 */
+  --chart-2: oklch(0.661 0.113 204); /* #00a6b2 */
+  --chart-3: oklch(0.482 0.102 244); /* #206393 */
+  --chart-4: oklch(0.826 0.014 202); /* #bcc9ca */
+  --chart-5: oklch(0.395 0.016 203); /* #3d494a */
 
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 
-  /* The dark rail — ink in both themes. See design-system.md §4.2. */
-  --sidebar: oklch(0.261 0.026 278); /* #212331 */
-  --sidebar-foreground: oklch(0.88 0.008 240);
-  --sidebar-primary: oklch(0.935 0.217 122); /* lime */
-  --sidebar-primary-foreground: oklch(0.261 0.026 278);
-  --sidebar-accent: oklch(0.358 0.04 290); /* #3c3950 */
-  --sidebar-accent-foreground: oklch(0.98 0.005 240);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.729 0.127 211);
+  /* A white surface with a border on the trailing edge. The brand-dependent
+     slots alias the page tokens, so FIA follows without a second block. See
+     design-system.md §4.2. */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.395 0.016 203); /* #3d494a */
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.964 0.004 214); /* #f0f4f5 */
+  --sidebar-accent-foreground: var(--primary);
+  --sidebar-border: oklch(0.929 0.013 256); /* #e2e8f0 */
+  --sidebar-ring: var(--ring);
 }
 
+/* Derived from Stitch's inverse tokens: inverse-surface for cards, a darker
+   page below it, inverse-primary as the interactive colour. */
 .dark {
-  --background: oklch(0.219 0.024 278);
-  --foreground: oklch(0.97 0.005 240);
-  --card: oklch(0.278 0.031 283);
-  --card-foreground: oklch(0.97 0.005 240);
-  --popover: oklch(0.278 0.031 283);
-  --popover-foreground: oklch(0.97 0.005 240);
+  --background: oklch(0.223 0.006 214); /* #181c1d */
+  --foreground: oklch(0.955 0.004 214); /* #edf1f2 */
+  --card: oklch(0.309 0.007 211); /* #2c3132 */
+  --card-foreground: oklch(0.955 0.004 214);
+  --popover: oklch(0.309 0.007 211);
+  --popover-foreground: oklch(0.955 0.004 214);
 
-  --primary: oklch(0.729 0.127 211); /* #00bcd4 reads as the bright one here */
-  --primary-foreground: oklch(0.219 0.024 278);
-  --primary-hover: oklch(0.8 0.115 207);
-  --brand-ink: oklch(0.729 0.127 211);
+  --primary: oklch(0.817 0.111 204); /* #5bd8e4 */
+  --primary-foreground: oklch(0.222 0.038 204); /* #002023 */
+  /* On a dark page the label is dark, so hover goes lighter here. */
+  --primary-hover: oklch(0.902 0.103 205); /* #84f3ff */
+  --brand-ink: oklch(0.817 0.111 204);
 
-  --secondary: oklch(0.334 0.036 285);
-  --secondary-foreground: oklch(0.97 0.005 240);
-  --muted: oklch(0.316 0.032 283);
-  --muted-foreground: oklch(0.726 0.025 240); /* #99a9b5 */
-  --accent: oklch(0.36 0.05 220);
-  --accent-foreground: oklch(0.93 0.04 206);
-
-  --highlight: oklch(0.935 0.217 122);
-  --highlight-foreground: oklch(0.261 0.026 278);
+  --secondary: oklch(0.366 0.008 209); /* #3a4041 */
+  --secondary-foreground: oklch(0.955 0.004 214);
+  --muted: oklch(0.351 0.008 209); /* #363c3d */
+  --muted-foreground: oklch(0.767 0.015 208); /* #a9b6b8 */
+  --accent: oklch(0.358 0.042 205); /* #1f4347 */
+  --accent-foreground: oklch(0.914 0.054 203); /* #b9eef3 */
 
   --destructive: oklch(0.704 0.191 22.2);
-  /* Lifted from L 0.505 so the icon accent reads 4.01:1 on the dark
-     --background (the :root value measures only 2.68:1 here). */
+  --destructive-ink: oklch(0.838 0.089 27); /* #ffb4ab */
+  /* Bright enough here to carry text, so each ink equals its fill. */
+  --success: oklch(0.8 0.182 152); /* #4ade80 */
+  --success-ink: oklch(0.8 0.182 152);
+  --warning: oklch(0.837 0.164 84); /* #fbbf24 */
+  --warning-ink: oklch(0.837 0.164 84);
+  /* Lifted from L 0.505 so the icon accent reads 3.96:1 on the dark
+     --background (the :root value measures 2.65:1 here). */
   --denied: oklch(0.6 0.196 28.8);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.729 0.127 211);
+  --input: oklch(1 0 0 / 40%);
+  --ring: oklch(0.817 0.111 204);
 
-  --chart-1: oklch(0.729 0.127 211);
-  --chart-2: oklch(0.886 0.069 206);
-  --chart-3: oklch(0.624 0.107 207);
-  --chart-4: oklch(0.815 0.018 210);
-  --chart-5: oklch(0.541 0.03 238);
+  --chart-1: oklch(0.817 0.111 204); /* #5bd8e4 */
+  --chart-2: oklch(0.661 0.113 204); /* #00a6b2 */
+  --chart-3: oklch(0.826 0.091 248); /* #96ccff */
+  --chart-4: oklch(0.567 0.015 209); /* #6d797b */
+  --chart-5: oklch(0.826 0.014 202); /* #bcc9ca */
 
-  --sidebar: oklch(0.261 0.026 278);
-  --sidebar-foreground: oklch(0.88 0.008 240);
-  --sidebar-primary: oklch(0.935 0.217 122);
-  --sidebar-primary-foreground: oklch(0.261 0.026 278);
-  --sidebar-accent: oklch(0.358 0.04 290);
-  --sidebar-accent-foreground: oklch(0.98 0.005 240);
+  /* A dark surface, level with the cards; same active treatment. */
+  --sidebar: oklch(0.309 0.007 211); /* #2c3132 */
+  --sidebar-foreground: oklch(0.826 0.014 202); /* #bcc9ca */
+  --sidebar-accent: oklch(0.366 0.008 209); /* #3a4041 */
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.729 0.127 211);
 }
 
-/* Facultad de Ingeniería (FIA) — engineering azure. Same structure, same lime. */
+/* Facultad de Ingeniería (FIA) — engineering azure. Same structure, same
+   lightness steps as the default palette, hue moved from 204 to ~255. */
 [data-brand="fia"] {
-  --primary: oklch(0.48 0.15 255);
-  --primary-foreground: oklch(0.985 0.012 255);
-  --primary-hover: oklch(0.62 0.16 250);
-  --brand-ink: oklch(0.55 0.16 255);
-  --accent: oklch(0.955 0.028 255);
-  --accent-foreground: oklch(0.4 0.12 255);
-  --ring: oklch(0.62 0.16 250);
-  --chart-1: oklch(0.55 0.16 255);
-  --chart-2: oklch(0.62 0.13 240);
+  --primary: oklch(0.475 0.15 255);
+  --primary-foreground: oklch(1 0 0);
+  --primary-hover: oklch(0.39 0.13 257);
+  --brand-ink: oklch(0.661 0.14 250);
+  --accent: oklch(0.961 0.02 255);
+  --accent-foreground: oklch(0.39 0.13 257);
+  --ring: oklch(0.64 0.14 250);
+  --chart-1: oklch(0.475 0.15 255);
+  --chart-2: oklch(0.661 0.14 250);
   --chart-3: oklch(0.45 0.14 265);
   --chart-4: oklch(0.7 0.11 230);
   --chart-5: oklch(0.38 0.11 270);
-  --sidebar-ring: oklch(0.62 0.16 250);
 }
 
 [data-brand="fia"].dark {
-  --primary: oklch(0.7 0.15 255);
-  --primary-foreground: oklch(0.18 0.04 255);
-  --primary-hover: oklch(0.79 0.12 252);
-  --brand-ink: oklch(0.7 0.15 255);
-  --accent: oklch(0.36 0.07 258);
-  --accent-foreground: oklch(0.95 0.02 255);
-  --ring: oklch(0.68 0.15 255);
-  --chart-1: oklch(0.7 0.15 255);
+  --primary: oklch(0.817 0.1 250);
+  --primary-foreground: oklch(0.222 0.05 255);
+  --primary-hover: oklch(0.902 0.06 250);
+  --brand-ink: oklch(0.817 0.1 250);
+  --accent: oklch(0.358 0.06 258);
+  --accent-foreground: oklch(0.914 0.04 250);
+  --ring: oklch(0.817 0.1 250);
+  --chart-1: oklch(0.817 0.1 250);
   --chart-2: oklch(0.64 0.12 240);
   --chart-3: oklch(0.78 0.1 260);
   --chart-4: oklch(0.55 0.11 230);
   --chart-5: oklch(0.46 0.1 270);
-  --sidebar-ring: oklch(0.68 0.15 255);
 }
 
 @layer base {
@@ -261,16 +289,14 @@
     @apply font-sans;
   }
 
-  /* Headings carry the display face. UAM sets letter-spacing: 0 explicitly on
-     h1/h2 — do not track them out. */
+  /* Size, weight and tracking come from the type scale utilities
+     (`text-display`, `text-headline`, `text-title`); nothing is forced here. */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply font-display;
-    letter-spacing: 0;
     text-wrap: balance;
   }
 
@@ -284,12 +310,13 @@
 }
 
 @layer components {
-  /* "You are here", the UAM way: a 3px lime underline on the current
-     breadcrumb segment. Always pair it with aria-current so the signal is not
-     colour-only. The sidebar variant is a 3px inset bar on the leading edge. */
+  /* "You are here" on the current breadcrumb segment: a 3px underline in the
+     primary colour. Always pair it with aria-current so the signal is not
+     colour-only. The sidebar variant is a 4px bar on the leading edge. See
+     design-system.md §2.3. */
   .is-current {
     @apply text-foreground font-medium;
-    box-shadow: inset 0 -3px 0 0 var(--highlight);
+    box-shadow: inset 0 -3px 0 0 var(--primary);
   }
 }
 
@@ -298,6 +325,16 @@
     width: 100%;
     max-width: var(--container-content);
     margin-inline: auto;
+  }
+
+  /* The dotted field behind the auth screens: brand turquoise at low alpha on
+     the page background. Decoration only. */
+  .auth-mesh {
+    background-image: radial-gradient(
+      color-mix(in oklch, var(--brand-ink) 14%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
   }
 }
 

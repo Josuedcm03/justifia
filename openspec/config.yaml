@@ -33,7 +33,7 @@ testing:
     build: { available: true, command: npm run build }
 
 conventions:
-  - "UI source of truth is docs/design-system.md (extracted from uam.edu.ni), enforced by tokens in src/app/globals.css. New screens MUST NOT introduce colours, radii, type sizes or spacing steps absent from that document; if one is needed, add it to the document first."
+  - "UI source of truth is docs/design-system.md (the Stitch "Academic Governance" design system), enforced by tokens in src/app/globals.css. New screens MUST NOT introduce colours, radii, type sizes or spacing steps absent from that document; if one is needed, add it to the document first."
   - "Tests are colocated next to the code as *.test.ts(x) and run with vitest (globals enabled)."
   - "Server actions MUST re-check authorization (requireUser/requireRole from src/lib/auth/dal.ts); actions do not inherit page guards."
   - "Role-based access policy lives in src/lib/auth/permissions.ts; do not scatter role checks."

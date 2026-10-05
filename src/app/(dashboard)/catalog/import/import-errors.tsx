@@ -87,8 +87,8 @@ export function ImportErrors({
           tabIndex={-1}
           // Read together with the instruction when focus lands here.
           aria-describedby="import-errors-help"
-          // Clears the 56px sticky header when scrolled into view.
-          className="text-h3 focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          // Clears the 64px sticky header when scrolled into view.
+          className="text-headline focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
           {t("title", { count: errors.length })}
         </h2>

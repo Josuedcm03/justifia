@@ -34,8 +34,10 @@ export default async function DeniedPage() {
           <ShieldOff className="size-8" strokeWidth={1.75} />
         </div>
         <div className="flex flex-col gap-3">
-          <h1 className="text-h1 text-foreground">{t("title")}</h1>
-          <p className="text-lead text-muted-foreground max-w-prose">
+          <h1 className="text-display-mobile md:text-display text-foreground">
+            {t("title")}
+          </h1>
+          <p className="text-muted-foreground max-w-prose text-base">
             {t("message")}
           </p>
         </div>

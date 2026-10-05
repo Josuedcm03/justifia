@@ -12,6 +12,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+import type { GrupoOrigen } from "@/lib/catalog/origen";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 /**
@@ -104,6 +105,7 @@ export type NuevoUsuario = typeof usuario.$inferInsert;
 /**
  * Asignatura — catálogo de asignaturas; `Codigo` es la clave natural usada por
  * la importación (catalog-excel-import). `HorasTotales` debe ser positivo (X9).
+ * `Activo` permite desactivar en vez de borrar (catalog-management, AC-LIFE).
  */
 export const asignatura = pgTable(
   "Asignatura",
@@ -117,6 +119,7 @@ export const asignatura = pgTable(
       .notNull()
       .references(() => carrera.id),
     horasTotales: integer("HorasTotales").notNull(),
+    activo: boolean("Activo").notNull().default(true),
   },
   (t) => [check("CK_Asignatura_Horas", sql`${t.horasTotales} > 0`)],
 );
@@ -127,7 +130,8 @@ export type NuevaAsignatura = typeof asignatura.$inferInsert;
 /**
  * Grupo — sección de una asignatura en un periodo. Clave natural:
  * (AsignaturaId, Periodo, NumeroGrupo). `NumeroGrupo` es texto (X3). `Activo`
- * permite desactivar en vez de borrar (X1).
+ * permite desactivar en vez de borrar (X1). `Origen` registra cómo se creó la
+ * fila (importación o manual); se fija al crear y nunca se reescribe.
  */
 export const grupo = pgTable(
   "Grupo",
@@ -144,9 +148,14 @@ export const grupo = pgTable(
       .notNull()
       .references(() => usuario.id),
     activo: boolean("Activo").notNull().default(true),
+    origen: varchar("Origen", { length: 12 })
+      .$type<GrupoOrigen>()
+      .notNull()
+      .default("importacion"),
   },
   (t) => [
     unique().on(t.asignaturaId, t.periodo, t.numeroGrupo),
+    check("CK_Grupo_Origen", sql`${t.origen} in ('importacion', 'manual')`),
     index("IX_Grupo_Docente").on(t.docenteId),
     index("IX_Grupo_Activo")
       .on(t.asignaturaId, t.periodo)

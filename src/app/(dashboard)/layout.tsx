@@ -17,7 +17,7 @@ export default async function DashboardLayout({
       <AppSidebar rol={user.rol} />
       <SidebarInset>
         <DashboardHeader user={user} />
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-10">
+        <main className="flex-1 px-4 py-6 md:p-8">
           <div className="shell">{children}</div>
         </main>
       </SidebarInset>

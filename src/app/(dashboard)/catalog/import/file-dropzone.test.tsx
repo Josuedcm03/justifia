@@ -87,13 +87,13 @@ describe("FileDropzone idle state", () => {
     expect(click).toHaveBeenCalledTimes(2);
   });
 
-  it("gives the button a 44px target and never uses the lime highlight", () => {
+  it("gives the button a 44px target and never uses the current-location marker", () => {
     const { container } = renderZone();
 
     expect(screen.getByRole("button", { name: en.choose }).className).toContain(
       "h-11",
     );
-    expect(container.innerHTML).not.toContain("highlight");
+    expect(container.innerHTML).not.toContain("is-current");
   });
 
   it("sits on the page surface so it reads as an inset area inside a card", () => {

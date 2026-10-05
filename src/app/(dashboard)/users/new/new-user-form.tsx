@@ -66,7 +66,7 @@ export function NewUserForm({
 
   return (
     <form action={formAction}>
-      <Card className="mx-auto w-full max-w-2xl [--card-spacing:--spacing(6)]">
+      <Card className="mx-auto w-full max-w-2xl">
         <CardContent className="flex flex-col gap-5">
           <Field htmlFor="nombreCompleto" label={t("nameLabel")}>
             <Input
@@ -162,7 +162,7 @@ export function NewUserForm({
             <p
               role="alert"
               aria-live="polite"
-              className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
+              className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
             >
               {state.error}
             </p>

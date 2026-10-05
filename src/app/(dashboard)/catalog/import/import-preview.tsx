@@ -90,8 +90,8 @@ export function ImportPreview({
           ref={headingRef}
           id="import-preview-title"
           tabIndex={-1}
-          // Clears the 56px sticky header when scrolled into view.
-          className="text-h3 focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          // Clears the 64px sticky header when scrolled into view.
+          className="text-headline focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
           {t("preview.title")}
         </h2>
@@ -147,7 +147,7 @@ export function ImportResult({ state }: { state: AppliedArm }) {
       aria-labelledby="import-result-title"
       className="flex flex-col gap-6"
     >
-      <h2 id="import-result-title" className="text-h3">
+      <h2 id="import-result-title" className="text-headline">
         {t("result.title")}
       </h2>
 
