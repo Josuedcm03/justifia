@@ -130,9 +130,9 @@ describe("AppSidebar", () => {
   });
 
   it.each([
-    ["administrador", ["/users"]],
-    ["coordinacion", ["/users"]],
-    ["secretaria", ["/catalog/import", "/users"]],
+    ["administrador", ["/catalog/asignaturas", "/users"]],
+    ["coordinacion", ["/catalog/asignaturas", "/users"]],
+    ["secretaria", ["/catalog/asignaturas", "/catalog/import", "/users"]],
   ] as const)(
     "shows the Administración group to %s with exactly its permitted children, in order",
     (rol, hrefs) => {
@@ -170,9 +170,12 @@ describe("AppSidebar", () => {
   );
 
   it.each([
-    ["administrador", ["/", "/users", "/settings"]],
-    ["coordinacion", ["/", "/users", "/settings"]],
-    ["secretaria", ["/", "/catalog/import", "/users", "/settings"]],
+    ["administrador", ["/", "/catalog/asignaturas", "/users", "/settings"]],
+    ["coordinacion", ["/", "/catalog/asignaturas", "/users", "/settings"]],
+    [
+      "secretaria",
+      ["/", "/catalog/asignaturas", "/catalog/import", "/users", "/settings"],
+    ],
     ["docente", ["/", "/settings"]],
     ["estudiante", ["/", "/settings"]],
   ] as const)("offers exactly the permitted links to %s", (rol, hrefs) => {
@@ -218,6 +221,59 @@ describe("AppSidebar catalog import item (CEI: Only secretaria may import)", () 
       expect(
         document.querySelector('a[href="/catalog/import"]'),
       ).not.toBeInTheDocument();
+    },
+  );
+});
+
+describe("AppSidebar Asignaturas item (CM-NAV-1)", () => {
+  it.each(["administrador", "coordinacion", "secretaria"] as const)(
+    "links Asignaturas to its own list page for %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        within(getGroupList()).getByRole("link", {
+          name: "Asignaturas",
+          hidden: true,
+        }),
+      ).toHaveAttribute("href", "/catalog/asignaturas");
+    },
+  );
+
+  it.each(["docente", "estudiante"] as const)(
+    "hides Asignaturas for %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(screen.queryByText("Asignaturas")).not.toBeInTheDocument();
+      expect(
+        document.querySelector('a[href="/catalog/asignaturas"]'),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("never claims the bare /catalog path", () => {
+    renderSidebar("secretaria");
+
+    expect(
+      document.querySelector('a[href="/catalog"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["/catalog/import", "Carga de catálogo"],
+    ["/catalog/asignaturas", "Asignaturas"],
+    ["/catalog/asignaturas/12/edit", "Asignaturas"],
+  ])(
+    "marks exactly one item current on %s, and it is %s",
+    (pathname, current) => {
+      env.pathname = pathname;
+      renderSidebar("secretaria");
+
+      const marked = document.querySelectorAll("[aria-current]");
+
+      expect(marked).toHaveLength(1);
+      expect(marked[0]).toHaveTextContent(current);
     },
   );
 });
@@ -320,6 +376,10 @@ describe("AppSidebar Administración group trigger", () => {
     expect(screen.getByRole("link", { name: "Configuración" })).toHaveFocus();
 
     await user.click(getTrigger());
+    await user.tab();
+
+    expect(screen.getByRole("link", { name: "Asignaturas" })).toHaveFocus();
+
     await user.tab();
 
     expect(

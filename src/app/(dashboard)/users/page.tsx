@@ -5,6 +5,7 @@ import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { DataTableSearch } from "@/components/data-table-search";
 import { PageHeader } from "@/components/page-header";
+import { StatusPill } from "@/components/status-pill";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
@@ -14,20 +15,6 @@ import {
   parseUsersListParams,
   usersListHref,
 } from "@/lib/users/list-params";
-
-function StatusPill({ active, label }: { active: boolean; label: string }) {
-  return (
-    <span
-      className={
-        active
-          ? "bg-success/10 text-success-ink inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-          : "bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-      }
-    >
-      {label}
-    </span>
-  );
-}
 
 function EmptyOrNoResultsState({
   q,

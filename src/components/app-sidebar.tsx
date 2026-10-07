@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BookOpen,
   Briefcase,
   ChevronRight,
   FileSpreadsheet,
@@ -35,7 +36,11 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { canCreateUsers, canImportCatalog } from "@/lib/auth/permissions";
+import {
+  canCreateUsers,
+  canImportCatalog,
+  canManageCatalog,
+} from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 type NavLink = {
@@ -61,6 +66,12 @@ const items = [
     key: "administration",
     icon: Briefcase,
     children: [
+      {
+        key: "catalogAsignaturas",
+        href: "/catalog/asignaturas",
+        icon: BookOpen,
+        visibleTo: canManageCatalog,
+      },
       {
         key: "catalogImport",
         href: "/catalog/import",

@@ -98,6 +98,64 @@ describe("loadCatalogSnapshot (AC: snapshot includes inactive rows)", () => {
   });
 });
 
+describe("loadCatalogSnapshot projects the lifecycle columns (CEI-UPS, CEI-PREV)", () => {
+  /** Records the select list of each read, then renders it as SQL. */
+  function makeProjectingExec() {
+    const projected = new Map<string, string>();
+    const exec = {
+      select: (fields: never) => ({
+        from: (table: never) => {
+          const name = getTableName(table);
+          // Usuario is read through a join and is not asserted here.
+          if (name === "Asignatura" || name === "Grupo") {
+            projected.set(name, qb.select(fields).from(table).toSQL().sql);
+          }
+          const result = Promise.resolve([]);
+          return Object.assign(result, { innerJoin: () => result });
+        },
+      }),
+    };
+    return { exec: exec as unknown as CatalogExecutor, projected };
+  }
+
+  it("selects Asignatura.Activo and Grupo.Origen and adds no filter", async () => {
+    const { exec, projected } = makeProjectingExec();
+    await loadCatalogSnapshot(exec);
+    const asignaturaSql = projected.get("Asignatura") ?? "";
+    const grupoSql = projected.get("Grupo") ?? "";
+    // a single-table select renders its columns unqualified
+    expect(asignaturaSql).toContain('"Activo"');
+    expect(grupoSql).toContain('"Origen"');
+    // inactive rows stay visible: neither read is filtered
+    expect(asignaturaSql).not.toMatch(/\bwhere\b/i);
+    expect(grupoSql).not.toMatch(/\bwhere\b/i);
+  });
+
+  it("returns the projected values untouched, inactive and manual rows included", async () => {
+    const asignatura = {
+      id: 2,
+      codigo: "X1",
+      nombre: "N",
+      carreraId: 1,
+      horasTotales: 8,
+      activo: false,
+    };
+    const grupo = {
+      id: 1,
+      asignaturaId: 2,
+      periodo: "2026-S1",
+      numeroGrupo: "1",
+      docenteId: 3,
+      activo: true,
+      origen: "manual",
+    };
+    const { exec } = makeExec({ Asignatura: [asignatura], Grupo: [grupo] });
+    const snapshot = await loadCatalogSnapshot(exec);
+    expect(snapshot.asignaturas).toEqual([asignatura]);
+    expect(snapshot.grupos).toEqual([grupo]);
+  });
+});
+
 describe("active-only readers (AC: Active-only reads for downstream consumers)", () => {
   it("hasActiveEnrollment filters Activo on BOTH Inscripcion and Grupo", () => {
     const { sql, params } = buildActiveEnrollmentQuery(qb, {

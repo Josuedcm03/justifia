@@ -282,3 +282,71 @@ revisited with the user at the tasks phase.** This proposal does not decide it.
 - [ ] `npm test`, `npm run typecheck`, `npx eslint src` and `npm run build`
       pass; `0005` was rehearsed on a fresh Neon branch before the shared
       database.
+
+## Amendment 2026-10-07: meeting days of a Grupo
+
+> **This amendment adds a second schema change** (one more additive migration).
+> The per-command confirmation rule for Neon applies to it exactly as to `0005`.
+
+### Intent
+
+The owner asked to add days to the catalog because a later change will build
+the justification request, which must select the class and the affected day.
+
+### Owner decision and rationale
+
+The days belong to the **Grupo**, not to the Asignatura. A justification
+request already targets a group and a date (`SolicitudDetalle.GrupoId` and
+`FechaInasistencia`, `modelo_datos_sql.md` §3.2), and two groups of one
+Asignatura can meet on different days.
+
+### Scope added
+
+- Each Grupo carries a set of meeting days from a closed list of seven weekdays
+  (Monday to Sunday); a set, shown in week order. Days only: no hours,
+  classroom or calendar.
+- Existing groups have no days; an empty set is valid and shown as "days not
+  set". The schema change is additive.
+- Manual create and edit pick the days with an accessible multi-select; the
+  Grupos list shows them.
+- The `Grupos` sheet of the workbook gains an optional `Dias` column, with
+  precisely defined tokens, a row-error reason `dias.invalid`, and a
+  documented template.
+- `dias` joins the closed list of auditable Grupo fields (field names only).
+- Scope and access are unchanged; days follow the Grupo's rules.
+
+### Decisions confirmed by the owner on 2026-10-07
+
+Confirmed as written: A-DIAS-REQ (at least one day required on manual create and
+edit), A-DIAS-REACT, A-DIAS-NOSEARCH, A-DIAS-IMP-a, A-DIAS-IMP-c and
+A-DIAS-IMP-d. Decided by the owner with a change: **A-DIAS-IMP-b**. When the
+`Dias` column is present, a non-empty cell replaces the stored days (the import
+wins), while an empty cell leaves the stored days untouched; the import can
+never clear days, a new group from an empty cell is created with no days, and a
+row with an empty cell and no other difference counts as `unchanged`. Reason:
+the template ships the column, so most future workbooks will carry it, and a
+blank cell must not silently erase days entered by hand. Each decision is
+recorded at the end of the delta specs (`catalog-management`,
+`catalog-excel-import`).
+
+### Out of scope
+
+The justification-request form, validating `FechaInasistencia` against the
+meeting days, hours, and exposing the days to students. A later change will
+read the days to offer only valid dates.
+
+### Impact
+
+- **Schema**: one more additive, drizzle-generated migration (to follow `0005`),
+  same rehearsal gates as `0005` (fresh Neon branch, per-command confirmation,
+  never `push`). Existing groups read as empty.
+- **Import**: new optional column, parsing, plan and apply, preview counts a
+  days-only change as an update, template and contract copy.
+- **Affected units**: `src/db/schema.ts`, `drizzle/`, `modelo_datos_sql.md`,
+  `src/lib/import/{sheets,schemas,plan,apply,types}.ts` and their tests, audit
+  field list, Grupos data layer, form, actions and list, `es`/`en` catalogs,
+  the combobox/multi-select primitive decision (design).
+- **Tension with earlier text**: the previous rule "Grupo edits limited to the
+  docente" (design Decision 1 area, "Points the specs must pin" item 3,
+  assumption A-GRP-2) now also covers the days. Phases 10 to 14 of the task
+  plan are not yet applied, so they absorb it.

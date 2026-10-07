@@ -213,6 +213,24 @@ export async function getUsuarioByCif(
   return row ?? null;
 }
 
+/**
+ * The caller's stored Carrera, by primary key, for the catalog guard. It
+ * projects ONLY `carreraId` (never the hash, CIF or email) and is fail-loud:
+ * no `try/catch`, no fallback. It is security-critical, so a database error
+ * must reject the request rather than guess a scope. `null` means the row no
+ * longer exists.
+ */
+export async function getCatalogActor(
+  id: number,
+): Promise<{ carreraId: number | null } | null> {
+  const [row] = await db
+    .select({ carreraId: usuario.carreraId })
+    .from(usuario)
+    .where(eq(usuario.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
 /** Sets or clears the forced-password-change flag (FPC). */
 export async function setDebeCambiarClave(
   id: number,

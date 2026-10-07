@@ -59,7 +59,7 @@ authenticated session user, never a value from the request.
 | deactivate Asignatura | 1 (`asignatura.desactivada`) |
 | reactivate Asignatura | 1 (`asignatura.reactivada`) |
 | create Grupo | 1 (`grupo.creado`) |
-| change docente of Grupo | 1 (`grupo.actualizado`) |
+| edit Grupo with a changed docente, changed days, or both | 1 (`grupo.actualizado`) |
 | deactivate Grupo | 1 (`grupo.desactivado`) |
 | reactivate Grupo | 1 (`grupo.reactivado`) |
 
@@ -105,7 +105,11 @@ payload needs to relate a record to its parent it MUST use stable identifiers
 (for example the parent record id), not names or other personal data. No
 payload may contain any credential (password, temporary password or hash).
 Only a closed list of auditable field names is allowed; a field not on the list
-can never be reported as changed.
+can never be reported as changed. Amendment 2026-10-07: the closed list of
+auditable `Grupo` fields MUST include `dias` (the meeting days). A change to the
+set of days is reported by the name `dias` only, never by the day values, and
+never by the number of days. Two selections of the same set in a different
+order are not a change.
 
 #### Scenario: Update lists names, not values
 
@@ -113,6 +117,26 @@ can never be reported as changed.
 - WHEN its audit payload is read
 - THEN it names the two fields and `origen` is `manual`
 - AND neither the old nor the new `Nombre` nor hours appear anywhere in it
+
+#### Scenario: Days-only update names `dias` and no day
+
+- GIVEN a Grupo meeting on Monday whose days are edited to Monday and Thursday
+  and nothing else changes
+- WHEN its audit payload is read
+- THEN the field list is exactly `dias` and `origen` is `manual`
+- AND the serialized payload contains no day name, day number or count of days
+
+#### Scenario: Created Grupo payload carries no day values
+
+- GIVEN a Grupo created manually with Tuesday and Friday
+- WHEN its `grupo.creado` payload is serialized and searched
+- THEN it may list the field name `dias` and contains no day value
+
+#### Scenario: Same set in another order is not audited
+
+- GIVEN a Grupo meeting on Monday and Wednesday
+- WHEN an edit submits Wednesday and Monday and nothing else changes
+- THEN no audit row is written
 
 #### Scenario: Origin discriminator present
 

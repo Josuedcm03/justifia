@@ -17,6 +17,8 @@ export function DataTableSearch({
   placeholder,
   submitLabel,
   clearLabel,
+  hidden,
+  clearHref,
 }: {
   action: string;
   value: string;
@@ -24,6 +26,10 @@ export function DataTableSearch({
   placeholder: string;
   submitLabel: string;
   clearLabel: string;
+  /** Extra query fields sent with the search (e.g. the catalog status). */
+  hidden?: Readonly<Record<string, string>>;
+  /** Target of the clear control; defaults to the bare `action`. */
+  clearHref?: string;
 }) {
   return (
     <form
@@ -32,6 +38,9 @@ export function DataTableSearch({
       role="search"
       className="flex flex-wrap items-end gap-2"
     >
+      {Object.entries(hidden ?? {}).map(([name, fieldValue]) => (
+        <input key={name} type="hidden" name={name} value={fieldValue} />
+      ))}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="q" className="sr-only">
           {label}
@@ -50,7 +59,7 @@ export function DataTableSearch({
       </Button>
       {value ? (
         <Link
-          href={action}
+          href={clearHref ?? action}
           className={buttonVariants({ variant: "ghost", size: "lg" })}
         >
           {clearLabel}

@@ -14,7 +14,8 @@ When the import and manual management (`catalog-management`) have changed the
 same row, the import MUST win: its apply writes exactly what it would write if
 no manual change had happened, except as stated in the modified requirements
 below. Manual field edits on `Asignatura` (name, hours, carrera) and on `Grupo`
-(docente) that the apply overwrites MUST be overwritten silently; the
+(docente, and the meeting days when the workbook has a `Dias` column and the
+cell is not empty, see "Days semantics on apply") that the apply overwrites MUST be overwritten silently; the
 system is not required to detect or report them. This is an accepted residual
 and the preview copy MUST say that manual edits can be replaced (see "Preview
 reports manual-group deactivations and reactivations").
@@ -35,8 +36,8 @@ reports manual-group deactivations and reactivations").
 
 #### Scenario: Apply writes what it wrote before this change
 
-- GIVEN a workbook with no manual groups to deactivate and no inactive
-  asignatura declared
+- GIVEN a workbook with no manual groups to deactivate, no inactive
+  asignatura declared and no `Dias` column
 - WHEN applied before and after this change on the same data
 - THEN the resulting rows and the per-entity counts are identical
 
@@ -154,6 +155,247 @@ here.
 - GIVEN an apply that was reported busy and the manual write has since finished
 - WHEN the user confirms again
 - THEN the apply runs as it would have without contention
+
+### Requirement: Grupos sheet accepts an optional days column (CEI-DIAS-1)
+
+Amendment 2026-10-07. The `Grupos` sheet MUST accept one further OPTIONAL column,
+`Dias`, holding the meeting days of the group. It is optional in the same sense
+as the existing optional columns: its absence from a workbook MUST NOT be a
+structural error, and its header is matched like the other headers. The
+required columns of every sheet are unchanged. The column is read only for the
+`Grupos` sheet.
+
+#### Scenario: Workbook without the column is accepted
+
+- GIVEN a workbook whose Grupos sheet has only the four existing columns
+- WHEN it is uploaded
+- THEN no structural error is raised for `Dias`
+
+#### Scenario: Workbook with the column is accepted
+
+- GIVEN a workbook whose Grupos sheet also has a `Dias` column
+- WHEN it is uploaded
+- THEN the column is read for every Grupos row
+
+### Requirement: Day tokens in the Dias cell (CEI-DIAS-2)
+
+The `Dias` cell MUST be a list of day tokens separated by commas. Each token,
+after trimming whitespace and ignoring case and accents (composed or
+decomposed), MUST be exactly one of these, which are the only accepted tokens:
+
+| Day | Full name | Abbreviation |
+|---|---|---|
+| Monday | `Lunes` | `Lun` |
+| Tuesday | `Martes` | `Mar` |
+| Wednesday | `Miércoles` | `Mié` |
+| Thursday | `Jueves` | `Jue` |
+| Friday | `Viernes` | `Vie` |
+| Saturday | `Sábado` | `Sáb` |
+| Sunday | `Domingo` | `Dom` |
+
+The cell denotes a set: a day named twice, or once by its full name and once by
+its abbreviation, counts once, and the order of tokens is irrelevant. An empty
+segment between or after commas is ignored. A cell with no token denotes the
+empty set, which on apply means "no change to the stored days" (see "Days
+semantics on apply"). Any other token (English names, ranges such as `Lun-Vie`, other
+separators, numbers, or any other text) MUST be a row-level error (see
+"Days semantics on apply").
+
+#### Scenario: Accepted spellings (table-driven)
+
+| Cell | Resulting set |
+|---|---|
+| `Lunes, Miércoles` | Monday, Wednesday |
+| `lun,MIE` | Monday, Wednesday |
+| `miercoles ,  SABADO` | Wednesday, Saturday |
+| `Vie,Lunes,vie` | Monday, Friday |
+| `Lunes,,Martes,` | Monday, Tuesday |
+| empty cell | empty set (stored days left untouched on apply) |
+
+- GIVEN a Grupos row otherwise valid and the cell from the row
+- WHEN it is planned
+- THEN the row has the resulting set and no error
+
+#### Scenario: Unrecognised tokens (table-driven)
+
+| Cell |
+|---|
+| `Monday` |
+| `Lunes;Martes` |
+| `Lun-Vie` |
+| `Lunes y Martes` |
+| `Luness` |
+| `1` |
+
+- GIVEN a Grupos row otherwise valid and the cell from the row
+- WHEN it is planned
+- THEN the row is an error
+
+### Requirement: Days semantics on apply (CEI-DIAS-3)
+
+Amendment 2026-10-07, under decisions A-DIAS-IMP-a to -c (A-DIAS-IMP-b decided
+by the owner: an empty cell leaves the stored days untouched). The meaning of
+the `Dias` column on apply MUST be:
+
+- **Column absent from the workbook**: a matched `Grupo` keeps its stored days
+  untouched, and a created `Grupo` gets the empty set.
+- **Column present, non-empty cell**: the cell's set replaces the stored days of
+  the matched `Grupo`, and is the days of a created `Grupo`. The import wins
+  over manual days edits, consistent with "Import precedence over manual
+  edits", and such an overwrite is silent.
+- **Column present, empty cell** (no token, only blanks or separators): the
+  stored days of a matched `Grupo` MUST be left untouched; the import MUST NOT
+  clear the days of an existing `Grupo`, so days can only be set or replaced by
+  import, never erased. A `Grupo` created from such a row is created with the
+  empty set. The preview MUST NOT report a days change for an empty cell.
+- **Unrecognised token**: the row MUST be a row-level error with the reason code
+  `dias.invalid`, naming the offending token. It is reported with the other
+  errors, blocks confirmation and the apply like any other row error, and
+  writes nothing.
+- **Counting**: when the column is present and the cell is not empty, a row
+  whose other values and whose set of days equal the stored ones MUST be counted
+  as `unchanged` and not written. A row with a non-empty cell whose only
+  difference is the set of days MUST be counted as `update`, in the preview and
+  in the apply alike. When the column is absent, or the cell is empty, the days
+  play no part in `unchanged` or `update`: a row with an empty cell and no other
+  difference MUST be counted as `unchanged`.
+- **Groups absent from the workbook** are deactivated as before and their days
+  are not changed.
+- An import MUST NOT write any per-record `grupo.*` audit event because of the
+  days; they are covered by the import-level counts only (see
+  "Import-level audit record").
+
+#### Scenario: Column absent keeps stored days
+
+- GIVEN an existing Grupo meeting on Monday and Wednesday and a workbook with no
+  `Dias` column that lists it with the same docente
+- WHEN applied
+- THEN the Grupo still meets on Monday and Wednesday and is counted `unchanged`
+
+#### Scenario: Column absent creates groups without days
+
+- GIVEN a workbook with no `Dias` column listing a new Grupo
+- WHEN applied
+- THEN the Grupo is created with the empty set of days
+
+#### Scenario: Column present replaces the days
+
+- GIVEN an existing Grupo meeting on Monday and a workbook whose `Dias` cell for
+  it is `Martes, Jueves`
+- WHEN applied
+- THEN the Grupo meets on Tuesday and Thursday only
+
+#### Scenario: Empty cell leaves the stored days untouched
+
+- GIVEN an existing Grupo meeting on Monday and a workbook with a `Dias` column
+  whose cell for it is empty, and every other value of the row equal to the
+  stored one
+- WHEN previewed and applied
+- THEN the Grupo still meets on Monday and is counted `unchanged`
+- AND the preview reports no days change for it
+
+#### Scenario: Empty cell with another difference keeps the days
+
+- GIVEN an existing Grupo meeting on Monday and a workbook with a `Dias` column
+  whose cell for it is empty and whose docente differs from the stored one
+- WHEN applied
+- THEN the docente is the workbook's, the row is counted `update`, and the Grupo
+  still meets on Monday
+
+#### Scenario: Empty cell on a new Grupo creates it without days
+
+- GIVEN a workbook with a `Dias` column and a new Grupo whose cell is empty
+- WHEN applied
+- THEN the Grupo is created with the empty set of days
+
+#### Scenario: Created Grupo takes the days of the cell
+
+- GIVEN a workbook with a `Dias` column and a new Grupo whose cell is `Lun, Vie`
+- WHEN applied
+- THEN the Grupo is created meeting on Monday and Friday
+
+#### Scenario: Invalid token blocks everything
+
+- GIVEN a workbook with 200 valid rows and a Grupos row 9 whose `Dias` cell is
+  `Lunes, Funday`
+- WHEN it is previewed and then confirmed
+- THEN the report has one error for Grupos row 9 with reason `dias.invalid`
+  naming `Funday`
+- AND no confirm control is offered and no row of the workbook is written
+
+#### Scenario: A workbook that changes only days
+
+- GIVEN stored data equal to a workbook in every value except that one Grupo's
+  `Dias` cell differs
+- WHEN previewed and applied
+- THEN the report and the summary show exactly one `update` for grupos and no
+  create, no deactivate and no new account
+- AND the import-level audit record counts that one update and no per-record
+  `grupo.*` event exists
+
+#### Scenario: Same set in another spelling is unchanged
+
+- GIVEN a Grupo stored with Monday and Wednesday and a workbook whose cell is
+  `mie, Lunes`
+- WHEN previewed
+- THEN the row is counted `unchanged`
+
+#### Scenario: Manual days edit is overwritten only when the column is present
+
+- GIVEN a Grupo whose days were changed manually
+- WHEN a workbook with the `Dias` column and a non-empty cell, a workbook with
+  the column and an empty cell, and a workbook without the column are applied
+  to copies of the same data
+- THEN the first replaces the manual days with the workbook's, and the second
+  and the third leave the manual days unchanged
+
+#### Scenario: Idempotent re-import with the column
+
+- GIVEN a workbook with a `Dias` column already applied successfully
+- WHEN the same workbook is applied again
+- THEN every entity reports `unchanged` only
+
+#### Scenario: Absent and reactivated groups
+
+- GIVEN an active Grupo with days that the workbook omits, and an inactive Grupo
+  that the workbook lists with a non-empty `Dias` cell
+- WHEN applied
+- THEN the omitted Grupo is inactive with its days unchanged
+- AND the listed Grupo is active with the days of its cell
+
+### Requirement: Template and contract document the days column (CEI-DIAS-4)
+
+The downloadable template MUST include the `Dias` column in its `Grupos` sheet,
+and its header row MUST still be exactly the columns the importer accepts. The
+template, when uploaded unchanged, MUST still parse with zero rows and zero
+errors. The contract shown on the import page before upload MUST list `Dias` as
+an optional column of `Grupos` and state, in static copy, that it takes the day
+names or abbreviations from "Day tokens in the Dias cell" separated by commas,
+that leaving the column out keeps the stored days, that a non-empty cell
+replaces the stored days, and that an empty cell leaves them untouched (the
+import never clears days). All new text (the
+contract lines, the `dias.invalid` reason, and any template note) MUST exist in
+both `es` and `en` with identical keys.
+
+#### Scenario: Template includes the column
+
+- GIVEN an authenticated `secretaria`
+- WHEN they download the template
+- THEN its Grupos sheet header contains `Dias` and the file, uploaded
+  unchanged, parses with zero rows and zero errors
+
+#### Scenario: Contract mentions the column
+
+- GIVEN `secretaria` opens the import page
+- WHEN the page renders before any file is selected
+- THEN `Dias` appears among the optional Grupos columns with the rule on days
+  and what an absent column or an empty cell does
+
+#### Scenario: Locale parity
+
+- GIVEN the `es` and `en` catalogs
+- WHEN their key sets are compared
+- THEN they are identical, including the days contract and `dias.invalid` keys
 
 ## MODIFIED Requirements
 
@@ -465,5 +707,31 @@ covered by the import-level counts" in the base Assumptions are handled below.
   delayed by manual writes; the preview writes nothing either way.
 - **Documented residual (accepted by the owner)**: manual field edits
   overwritten by an import are not detected or reported.
+- **Amendment 2026-10-07 (meeting days), decisions of the owner.** The owner
+  decided that the days belong to the `Grupo` and that the import gains an
+  optional column. On 2026-10-07 the owner confirmed every default below as
+  written, except A-DIAS-IMP-b, which the owner changed. The ids are kept so
+  other artifacts can cite them:
+  - **A-DIAS-IMP-a (confirmed by the owner on 2026-10-07).** Column absent:
+    stored days untouched, new groups get no days.
+  - **A-DIAS-IMP-b (decided by the owner on 2026-10-07: an empty cell leaves
+    stored days untouched).** Column present: a non-empty cell replaces the
+    stored days (the import wins); an empty cell leaves the stored days of an
+    existing group untouched and creates a new group with no days. The import
+    can never clear days, a row with an empty cell and no other difference is
+    `unchanged`, and the preview never reports a days change for an empty cell.
+    Reason: the template ships the column, so most future workbooks will carry
+    it, and a blank cell must not silently erase days entered by hand.
+  - **A-DIAS-IMP-c (confirmed by the owner on 2026-10-07).** An unrecognised
+    token is a row error `dias.invalid` that blocks the apply.
+  - **A-DIAS-IMP-d (confirmed by the owner on 2026-10-07).** Accepted tokens are
+    Spanish only (full names and three-letter abbreviations, case- and
+    accent-insensitive, comma-separated; empty segments ignored).
+  - The preview counts a days-only change (non-empty cell) as an `update`; no
+    extra preview figure is added for it.
+  - A manual create requires at least one day (A-DIAS-REQ in
+    `catalog-management`) while the import may create a group with none; the
+    import is deliberately the more lenient writer, so the empty set remains
+    valid data.
 - **Known gap, unchanged**: an inactive docente still resolves in the import
   (it never reads `Usuario.Activo`); fixing it belongs to the users module.

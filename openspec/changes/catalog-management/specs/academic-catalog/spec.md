@@ -116,6 +116,72 @@ with a schema-push command.
 - WHEN the import and the catalog readers run
 - THEN they behave as before
 
+### Requirement: Grupo meeting days (AC-DIAS)
+
+Amendment 2026-10-07 (owner decision: the days belong to the `Grupo`, not to
+the `Asignatura`; two groups of one Asignatura may meet on different days). In
+addition to the attributes listed in "Grupo shape, natural key and period
+format", a `Grupo` MUST carry a set of meeting days drawn from a closed list of
+seven weekdays, Monday to Sunday. The set MUST NOT contain a value twice,
+MUST NOT depend on order, MAY be empty, and MUST be presented in week order. A
+value outside the seven MUST be rejected by the application. Only days are
+stored: no start or end time, no classroom, no per-date calendar. An empty set
+means "days not recorded" and is valid for every `Grupo`, including active
+ones. The days are part of the `Grupo` row and are not part of its natural key.
+Active-only readers (see "Active-only reads for downstream consumers") apply to
+the days exactly as to the rest of the `Grupo`.
+
+#### Scenario: Set semantics (table-driven)
+
+| Days written | Days stored and presented |
+|---|---|
+| Wednesday, Monday | Monday, Wednesday |
+| Monday, Monday | Monday |
+| none | empty set |
+| Monday to Sunday | all seven, in week order |
+| a value outside the seven | rejected |
+
+- GIVEN otherwise valid group data
+- WHEN stored with the days from the row
+- THEN the outcome is as shown
+
+#### Scenario: Days are not part of the natural key
+
+- GIVEN a stored grupo for (A, `2026-S1`, "1") meeting on Monday
+- WHEN another grupo for the same triple meeting on Tuesday is stored
+- THEN the write is refused as a duplicate
+
+#### Scenario: Two groups of one Asignatura differ in days
+
+- GIVEN grupos (A, `2026-S1`, "1") on Monday and (A, `2026-S1`, "2") on Friday
+- WHEN both are stored
+- THEN both are accepted and each keeps its own days
+
+### Requirement: Additive schema for meeting days (AC-DIAS-ADD)
+
+Amendment 2026-10-07. The schema change that stores the days MUST be additive:
+it adds only what is needed to store the set on `Grupo`, MUST NOT drop, rename
+or rewrite any existing column or row, and every `Grupo` existing before it MUST
+read as an empty set of days with no manual action. It MUST NOT require an
+audit-table change. The migration MUST NOT be applied to a shared database
+without explicit user confirmation for each command, MUST NOT be applied with a
+schema-push command, and MUST be rehearsed on a fresh database branch under the
+same gates as migration `0005` before the shared database. The storage
+representation is a design decision.
+
+#### Scenario: Existing data survives
+
+- GIVEN a database populated by the earlier migrations including `0005`
+- WHEN the migration is applied
+- THEN every existing `Grupo` is unchanged and has an empty set of days
+- AND every row of every other table is unchanged
+
+#### Scenario: Old code keeps working
+
+- GIVEN the migration applied and the previous code running
+- WHEN the import and the catalog readers run
+- THEN they behave as before
+
 ## MODIFIED Requirements
 
 ### Requirement: Active-only reads for downstream consumers
@@ -276,5 +342,10 @@ gives them one.
   a design decision as long as the two values and the default hold.
 - Assumption (flagged): the downstream readers' Asignatura condition (see
   modified "Active-only reads") is new and changes an existing reader.
+- Amendment 2026-10-07: the storage representation of the days (one column,
+  a child table, a bit set) is a design decision, as long as the set semantics
+  of "Grupo meeting days" and the additive guarantee hold. Required-day rules
+  for manual writes live in `catalog-management` (A-DIAS-REQ), not here: the
+  data shape allows the empty set.
 - The earlier assumption "`Asignatura`, `Carrera` and `Facultad` have no
   `Activo` column (default 9)" is withdrawn for `Asignatura` only.

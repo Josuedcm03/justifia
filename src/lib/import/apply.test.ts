@@ -7,10 +7,18 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: {} }));
 vi.mock("@/lib/data/catalog", () => ({ loadCatalogSnapshot: vi.fn() }));
+vi.mock("@/lib/data/catalog-write", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/data/catalog-write")>()),
+  acquireCatalogWriteLock: vi.fn(),
+}));
 
 import { eventoAuditoria } from "@/db/audit-schema";
 import { asignatura, grupo, rol, usuario } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/data/catalog";
+import {
+  acquireCatalogWriteLock,
+  CatalogBusyError,
+} from "@/lib/data/catalog-write";
 import type { Transaction } from "@/lib/data/audit";
 import { WRITE_CHUNK_ROWS } from "@/lib/import/limits";
 import {
@@ -151,6 +159,8 @@ function makePlan(
       grupos: writes.grupos ?? [],
     },
     deactivateGrupoIds,
+    asignaturasToReactivate: 0,
+    manualGruposToDeactivate: 0,
     ...overrides,
   };
 }
@@ -163,6 +173,7 @@ const snapshot = makeSnapshot({
       nombre: "Matematica",
       carreraId: 1,
       horasTotales: 60,
+      activo: true,
     },
   ],
   usuarios: [
@@ -793,6 +804,11 @@ function setup(
     calls.push(onDb ? "snapshot:db" : "snapshot:tx");
     return onDb ? first : second;
   });
+  vi.mocked(acquireCatalogWriteLock)
+    .mockReset()
+    .mockImplementation(async () => {
+      calls.push("lock");
+    });
   const generate = vi.fn(() => {
     calls.push("generate");
     return "CLAVE-GENERADA";
@@ -933,6 +949,150 @@ describe("runImportApply (IAP: Temporary password, CEI: Stateless confirm)", () 
   it("a failure mid-apply rolls everything back and returns no credentials", async () => {
     const { run, committed } = setup({ failOn: (s) => s.table === grupo });
     await expect(run()).rejects.toThrow("boom");
+    expect(committed).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WU4-B (4.19) - Asignatura reactivation, per-record events, the catalog lock
+// ---------------------------------------------------------------------------
+
+const reactivate = {
+  kind: "update" as const,
+  id: 10,
+  nombre: "Matematica",
+  carreraId: 1,
+  horasTotales: 60,
+  reactivated: true as const,
+};
+const inactiveSnapshot = {
+  ...snapshot,
+  asignaturas: [{ ...snapshot.asignaturas[0], activo: false }],
+};
+
+describe("applyImport - Asignatura reactivation (CEI-UPS, AL-IMP)", () => {
+  it("writes Activo = true only for a reactivation", async () => {
+    const { tx, buffer } = makeTx();
+    const plain = { ...reactivate, id: 11, reactivated: undefined };
+    await applyImport(
+      tx,
+      makePlan({ asignaturas: [reactivate, plain] }),
+      [],
+      ctx,
+    );
+    expect(buffer[0].set).toEqual({
+      nombre: "Matematica",
+      carreraId: 1,
+      horasTotales: 60,
+      activo: true,
+    });
+    expect(buffer[1].set).not.toHaveProperty("activo");
+  });
+
+  it("inserts name neither activo nor origen (the defaults apply)", async () => {
+    const { tx, buffer } = makeTx();
+    const plan = makePlan({
+      asignaturas: [
+        {
+          kind: "create",
+          codigo: "F",
+          nombre: "F",
+          carreraId: 1,
+          horasTotales: 8,
+        },
+      ],
+      grupos: [
+        {
+          kind: "create",
+          asignaturaCodigo: "MAT1",
+          periodo: "2026-S1",
+          numeroGrupo: "1",
+          docenteCorreo: "ana@uni.edu",
+        },
+      ],
+    });
+    await applyImport(tx, plan, [], ctx);
+    const inserted = buffer.filter((s) => s.op === "insert" && s.values);
+    const keys = inserted.flatMap((s) => Object.keys(s.values![0]));
+    expect(keys).not.toContain("activo");
+    expect(keys).not.toContain("origen");
+  });
+
+  it("appends one asignatura.reactivada per reactivated id after the import and account events", async () => {
+    const { tx, buffer } = makeTx();
+    const second = { ...reactivate, id: 11 };
+    await applyImport(
+      tx,
+      makePlan({
+        asignaturas: [reactivate, second],
+        usuarios: [createUsuario],
+      }),
+      [nuevaCuenta],
+      ctx,
+    );
+    expect(buffer.filter((s) => s.table === eventoAuditoria)).toHaveLength(1);
+    const rows = auditRows(buffer);
+    expect(rows.map((r) => [r.accion, r.entidadTipo, r.entidadId])).toEqual([
+      ["catalogo.importacion.aplicada", "Importacion", null],
+      ["usuario.creado", "Usuario", 1000],
+      ["asignatura.reactivada", "Asignatura", 10],
+      ["asignatura.reactivada", "Asignatura", 11],
+    ]);
+    expect(rows[2].datos).toEqual({
+      campos: ["activo"],
+      origen: "importacion",
+      importacionSha256: ctx.fileSha256,
+    });
+    expect(JSON.stringify(rows[2])).not.toMatch(/MAT1|Matematica|clave|hash/i);
+  });
+
+  it("emits no asignatura or grupo event when nothing is reactivated", async () => {
+    const { tx, buffer } = makeTx();
+    const plain = { ...reactivate, reactivated: undefined };
+    await applyImport(tx, makePlan({ asignaturas: [plain] }, [5]), [], ctx);
+    expect(auditRows(buffer).map((r) => r.accion)).toEqual([
+      "catalogo.importacion.aplicada",
+    ]);
+  });
+});
+
+describe("runImportApply - catalog write lock (CEI-BUSY, AL-IMP)", () => {
+  it("takes the lock first inside the transaction, before the snapshot read and the audit", async () => {
+    const { run, calls, handles, committed } = setup({
+      dbSnapshot: inactiveSnapshot,
+    });
+    await run();
+    expect(calls.slice(calls.indexOf("transaction"))).toEqual([
+      "transaction",
+      "lock",
+      "snapshot:tx",
+    ]);
+    expect(acquireCatalogWriteLock).toHaveBeenCalledTimes(1);
+    expect(acquireCatalogWriteLock).toHaveBeenCalledWith(handles[0]);
+    expect(committed.at(-1)!.table).toBe(eventoAuditoria);
+    expect(auditRows(committed).map((r) => r.accion)).toContain(
+      "asignatura.reactivada",
+    );
+  });
+
+  it("a busy lock aborts before any statement, audit row or credential", async () => {
+    const { run, calls, committed, handles } = setup();
+    vi.mocked(acquireCatalogWriteLock).mockRejectedValueOnce(
+      new CatalogBusyError(),
+    );
+    await expect(run()).rejects.toBeInstanceOf(CatalogBusyError);
+    expect(calls).not.toContain("snapshot:tx");
+    expect(handles).toHaveLength(1);
+    expect(committed).toHaveLength(0);
+  });
+
+  it("a failure after planning inserts no audit row", async () => {
+    const { run, committed } = setup({
+      dbSnapshot: inactiveSnapshot,
+      failOn: (s) => s.op === "update" && s.table === asignatura,
+    });
+    await expect(run()).rejects.toThrow("boom");
+    expect(auditRows(committed)).toHaveLength(0);
     expect(committed).toHaveLength(0);
   });
 });

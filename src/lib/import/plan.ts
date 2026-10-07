@@ -83,6 +83,13 @@ export function planImport(
   const knownAsignaturaCodigos = new Set(
     snapshot.asignaturas.map((a) => a.codigo),
   );
+  /** Codigos the Asignaturas sheet resolved OK this run (declared), and the
+   *  snapshot codes that are inactive: a Grupos row may reference an inactive
+   *  Asignatura only when the workbook declares it (it is reactivated then). */
+  const declaredAsignaturaCodigos = new Set<string>();
+  const inactiveAsignaturaCodigos = new Set(
+    snapshot.asignaturas.filter((a) => !a.activo).map((a) => a.codigo),
+  );
 
   for (const r of workbook.sheets.Asignaturas) {
     const parsed = AsignaturaRowSchema.safeParse(r.cells);
@@ -120,6 +127,7 @@ export function planImport(
     }
 
     knownAsignaturaCodigos.add(Codigo);
+    declaredAsignaturaCodigos.add(Codigo);
     const existing = asignaturaByCodigo.get(Codigo);
     if (!existing) {
       asignaturaWrites.push({
@@ -131,16 +139,20 @@ export function planImport(
       });
       counts.Asignatura.create++;
     } else if (
+      !existing.activo ||
       existing.nombre !== Nombre ||
       existing.carreraId !== carreraId ||
       existing.horasTotales !== HorasTotales
     ) {
+      // A match on an inactive row is always an update: the workbook lists the
+      // subject, so the import reactivates it (CEI-UPS, counted as `update`).
       asignaturaWrites.push({
         kind: "update",
         id: existing.id,
         nombre: Nombre,
         carreraId,
         horasTotales: HorasTotales,
+        ...(existing.activo ? {} : { reactivated: true as const }),
       });
       counts.Asignatura.update++;
     } else {
@@ -304,6 +316,22 @@ export function planImport(
       continue;
     }
 
+    // Reactivating a subject the workbook never listed would be a write the
+    // operator did not ask for: refuse the row instead (design decision 7).
+    if (
+      inactiveAsignaturaCodigos.has(CodigoAsignatura) &&
+      !declaredAsignaturaCodigos.has(CodigoAsignatura)
+    ) {
+      errors.push({
+        sheet: "Grupos",
+        row: r.row,
+        reason: "asignatura.inactive",
+        value: CodigoAsignatura,
+      });
+      counts.Grupo.error++;
+      continue;
+    }
+
     const docenteCorreo = normalizeEmail(CorreoDocente);
     const docente =
       docenteByCorreo.get(docenteCorreo) ??
@@ -383,6 +411,13 @@ export function planImport(
     .filter((g) => g.activo && !matchedGrupoIds.has(g.id))
     .map((g) => g.id);
   counts.Grupo.deactivate = deactivateGrupoIds.length;
+  // Hand-created groups are not exempt (D3); the preview only needs to say how
+  // many of the deactivations above are of that kind, so it is derived from
+  // the very same list the apply executes.
+  const deactivatedIds = new Set(deactivateGrupoIds);
+  const manualGruposToDeactivate = snapshot.grupos.filter(
+    (g) => deactivatedIds.has(g.id) && g.origen === "manual",
+  ).length;
 
   // ---------------------------------------------------------------------
   // Stage F — caps as validation, not throws.
@@ -414,5 +449,9 @@ export function planImport(
       grupos: grupoWrites,
     },
     deactivateGrupoIds,
+    asignaturasToReactivate: asignaturaWrites.filter(
+      (w) => w.kind === "update" && w.reactivated,
+    ).length,
+    manualGruposToDeactivate,
   };
 }

@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-import { deriveLogin, PERIODO_RE } from "./normalize";
+import {
+  CODIGO_MAX,
+  NOMBRE_MAX,
+  horasTotalesSchema,
+  numGrupoSchema,
+  periodoSchema,
+  requiredString,
+} from "@/lib/validations/catalog-fields";
+
+import { deriveLogin } from "./normalize";
 
 // Per-sheet zod schemas (D6, decision noted in design.md's File Changes
 // table: "Per-sheet zod schemas"). Pure: no I/O, no xlsx import here.
@@ -15,21 +24,8 @@ import { deriveLogin, PERIODO_RE } from "./normalize";
 //   grupo.numeroGrupo   varchar("NumeroGrupo", { length: 12 })
 //   usuario.correo      varchar("Correo", { length: 160 })
 //   usuario.telefono    varchar("Telefono", { length: 30 })
-const CODIGO_MAX = 32;
-const NOMBRE_MAX = 160;
-const NUMERO_GRUPO_MAX = 12;
 const CORREO_MAX = 160;
 const TELEFONO_MAX = 30;
-
-/** Required, trimmed string with a min length of 1 (empty counts as
- *  missing) and a max length matching the target DB column. */
-function requiredString(key: string, max: number) {
-  return z
-    .string({ error: `${key}.required` })
-    .trim()
-    .min(1, { message: `${key}.required` })
-    .max(max, { message: `${key}.tooLong` });
-}
 
 /** Required email, syntax-checked, trimmed, capped at the DB column length.
  *  Deliberately does NOT normalize (lowercase/trim beyond whitespace) the
@@ -40,35 +36,6 @@ function requiredEmail(key: string, max: number) {
     z.string().email({ message: `${key}.invalid` }),
   );
 }
-
-/** `HorasTotales`: missing, `0`, negative, non-integer or non-numeric are
- *  all row errors (AC: Non-positive or missing HorasTotales is rejected).
- *  Accepts a number or numeric string (Excel cells are numbers), never
- *  defaults a missing value (CEI: HorasTotales missing is a row error). */
-const horasTotalesSchema = z
-  .union([z.string(), z.number()], { error: "horasTotales.required" })
-  .transform((value, ctx) => {
-    const raw = typeof value === "number" ? value : value.trim();
-    if (raw === "") {
-      ctx.addIssue({ code: "custom", message: "horasTotales.required" });
-      return z.NEVER;
-    }
-    const num = typeof raw === "number" ? raw : Number(raw);
-    if (!Number.isInteger(num) || num <= 0) {
-      ctx.addIssue({ code: "custom", message: "horasTotales.invalid" });
-      return z.NEVER;
-    }
-    return num;
-  });
-
-/** `NumGrupo` cells arrive as either a string or a number (Excel stores a
- *  cell like `1` as a JS number). Both are coerced to a trimmed string
- *  before the length cap is enforced (X3: NumeroGrupo policy is trim only,
- *  never numeric normalization). */
-const numGrupoSchema = z.preprocess(
-  (value) => (typeof value === "number" ? String(value) : value),
-  requiredString("numGrupo", NUMERO_GRUPO_MAX),
-);
 
 /** Adds a row error at `Correo`/`CorreoDocente` when the normalized email
  *  exceeds `deriveLogin`'s LOGIN_MAX (60), even though the DB column allows
@@ -110,16 +77,6 @@ export const DocenteRowSchema = z
   .superRefine(checkLoginLength("Correo"));
 
 export type DocenteRow = z.infer<typeof DocenteRowSchema>;
-
-// `Periodo` is checked WITHOUT trimming: PERIODO_RE is anchored and
-// whitespace-sensitive by design (normalize.ts: "case and content are left
-// untouched so PERIODO_RE can reject anything that does not match exactly"),
-// so a value with trailing whitespace must fail here rather than be
-// silently trimmed into a valid period.
-const periodoSchema = z
-  .string({ error: "periodo.required" })
-  .min(1, { message: "periodo.required" })
-  .regex(PERIODO_RE, { message: "periodo.invalid" });
 
 export const GrupoRowSchema = z
   .object({

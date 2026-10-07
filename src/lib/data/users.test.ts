@@ -9,6 +9,7 @@ import { usuario } from "@/db/schema";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import {
   createUsuariosBulk,
+  getCatalogActor,
   updateClaveAndClearFlag,
   type NuevaCuentaImportada,
 } from "@/lib/data/users";
@@ -160,5 +161,66 @@ describe("updateClaveAndClearFlag (FPC: Successful change)", () => {
     );
     expect(text).toBe('"Usuario"."Id" = $1');
     expect(params).toEqual([42]);
+  });
+});
+
+describe("getCatalogActor (CM-SCOPE-1, CM-SCOPE-2: scope follows the stored Carrera)", () => {
+  function stubSelect(rows: unknown[]) {
+    const calls: { projection: unknown; table: unknown; where: unknown }[] = [];
+    (db as unknown as Record<string, unknown>).select = (
+      projection: unknown,
+    ) => ({
+      from: (table: unknown) => ({
+        where: (where: unknown) => ({
+          limit: async () => {
+            calls.push({ projection, table, where });
+            return rows;
+          },
+        }),
+      }),
+    });
+    return calls;
+  }
+
+  it("selects ONLY carreraId, by primary key", async () => {
+    const calls = stubSelect([{ carreraId: 7 }]);
+    await getCatalogActor(42);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].table).toBe(usuario);
+    const projection = calls[0].projection as Record<string, unknown>;
+    expect(Object.keys(projection)).toEqual(["carreraId"]);
+    expect(projection).not.toHaveProperty("hashClave");
+    expect(projection).not.toHaveProperty("cif");
+    expect(projection).not.toHaveProperty("correo");
+    const { sql: text, params } = new PgDialect().sqlToQuery(
+      calls[0].where as Parameters<PgDialect["sqlToQuery"]>[0],
+    );
+    expect(text).toBe('"Usuario"."Id" = $1');
+    expect(params).toEqual([42]);
+  });
+
+  it("returns the carrera, including null", async () => {
+    stubSelect([{ carreraId: 7 }]);
+    expect(await getCatalogActor(1)).toEqual({ carreraId: 7 });
+    stubSelect([{ carreraId: null }]);
+    expect(await getCatalogActor(1)).toEqual({ carreraId: null });
+  });
+
+  it("returns null when the row is missing", async () => {
+    stubSelect([]);
+    expect(await getCatalogActor(1)).toBeNull();
+  });
+
+  it("fails loud: a database error propagates", async () => {
+    (db as unknown as Record<string, unknown>).select = () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            throw new Error("db down");
+          },
+        }),
+      }),
+    });
+    await expect(getCatalogActor(1)).rejects.toThrow("db down");
   });
 });

@@ -358,6 +358,18 @@ with `role="alert"`, never as a bare red outline.
 **Alert.** A slim banner: an 8% tint of the state colour, a 1px border of it
 at 30%, a solid 4px edge on the leading side, text in the `-ink` shade.
 
+**Two-step confirmation (inline).** For a reversible mutation such as
+deactivating a catalog record, no dialog is used. The control sits in the page
+(a status pill and one button). The first step is the `secondary` button
+variant. Pressing it reveals, in place, one sentence that names the record and
+states what happens and that it can be undone, then a confirm button and a
+cancel. Only the confirm uses `destructive`; cancel is `ghost`. All three are
+`lg` (44px). Focus moves to the confirm; cancel (or an answer) returns it to the
+first step. The outcome is written as text in an `aria-live="polite"` region
+that stays mounted, so it is never conveyed by colour alone. The control is a
+form POST, never a link. Reversing it (reactivating) is a single press. No new
+token or primitive.
+
 **Breadcrumb.** Muted links that go `primary` on hover, chevron separators,
 current segment styled by the rule in 2.3.
 
@@ -366,6 +378,19 @@ primary hover. At an edge the control is muted text with `aria-disabled`.
 
 **Dropdown, select popup, sheet.** `popover` surface, 8px radius, 1px
 `border`, `shadow-soft`. Items highlight with the `accent` pair.
+
+**Combobox.** For a choice among tens to thousands of options, where a plain
+select list cannot be scanned. A text input that filters the options as the
+user types, styled exactly like the form input (40px, 8px radius, 1px `input`
+border, the `primary` border and `ring` on focus, a muted chevron as decoration
+only). The popup is the dropdown surface above, as wide as the input, with
+44px-tall options and the `accent` pair on the highlighted one; the chosen
+option carries a check. When nothing matches, one muted sentence replaces the
+list. When the option list was cut at its cap, one muted `text-xs` line under
+the input says so, and it is part of the input's `aria-describedby`. It is
+labelled and described by the Form pattern, and it submits the chosen option's
+id through a hidden field, never its text. Keyboard: ArrowDown opens and moves,
+Enter chooses, Escape closes. No new token.
 
 **Empty state.** One sentence naming what would be here, and the button that
 creates the first one. No illustration, no apology.

@@ -105,4 +105,73 @@ describe("DataTableSearch", () => {
     const clear = screen.getByRole("link", { name: "Clear search" });
     expect(clear).toHaveAttribute("href", "/users");
   });
+
+  describe("optional hidden and clearHref props", () => {
+    const base = {
+      action: "/catalog/asignaturas",
+      label: "Search subjects",
+      placeholder: "Code or name",
+      submitLabel: "Search",
+      clearLabel: "Clear search",
+    };
+
+    it("renders one hidden input per entry, so the status survives a search", () => {
+      const { container } = render(
+        <DataTableSearch
+          {...base}
+          value=""
+          hidden={{ status: "inactive", other: "x" }}
+        />,
+      );
+
+      const hidden = Array.from(
+        container.querySelectorAll<HTMLInputElement>('input[type="hidden"]'),
+      );
+      expect(hidden.map((i) => [i.name, i.value])).toEqual([
+        ["status", "inactive"],
+        ["other", "x"],
+      ]);
+      expect(container.querySelector('[name="page"]')).toBeNull();
+    });
+
+    it("renders no hidden input by default", () => {
+      const { container } = render(<DataTableSearch {...base} value="" />);
+
+      expect(container.querySelector('input[type="hidden"]')).toBeNull();
+    });
+
+    it("points the clear control at clearHref instead of the bare action", () => {
+      render(
+        <DataTableSearch
+          {...base}
+          value="calc"
+          clearHref="/catalog/asignaturas?status=all"
+        />,
+      );
+
+      expect(
+        screen.getByRole("link", { name: "Clear search" }),
+      ).toHaveAttribute("href", "/catalog/asignaturas?status=all");
+    });
+
+    it("still renders no clear control for an empty value, even with clearHref", () => {
+      render(
+        <DataTableSearch {...base} value="" clearHref="/catalog/asignaturas" />,
+      );
+
+      expect(
+        screen.queryByRole("link", { name: "Clear search" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("keeps the bare action as the clear target when clearHref is omitted", () => {
+      render(
+        <DataTableSearch {...base} value="calc" hidden={{ status: "all" }} />,
+      );
+
+      expect(
+        screen.getByRole("link", { name: "Clear search" }),
+      ).toHaveAttribute("href", "/catalog/asignaturas");
+    });
+  });
 });

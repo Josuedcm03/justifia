@@ -4,6 +4,8 @@ import { AUDITABLE_USER_FIELDS } from "@/lib/audit/types";
 
 import {
   CARRERA,
+  makeAsignaturaRow,
+  makeGrupoRow,
   makeSnapshot,
   makeWorkbook,
 } from "./__fixtures__/plan-fixtures";
@@ -12,7 +14,7 @@ import {
   MAX_NEW_ACCOUNTS_PER_APPLY,
 } from "./limits";
 import { planImport } from "./plan";
-import type { AsignaturaRow, UsuarioRow } from "./types";
+import type { GrupoRow, UsuarioRow } from "./types";
 
 function reasons(plan: ReturnType<typeof planImport>) {
   return plan.errors.map((e) => e.reason);
@@ -51,13 +53,13 @@ describe("planImport — Stage A: Asignaturas", () => {
   });
 
   it("updates an Asignatura in place when a value changed", () => {
-    const existing: AsignaturaRow = {
+    const existing = makeAsignaturaRow({
       id: 9,
       codigo: "MAT-101",
       nombre: "Cálculo I",
       carreraId: CARRERA.id,
       horasTotales: 64,
-    };
+    });
     const plan = planImport(
       makeWorkbook({
         asignaturas: [
@@ -88,13 +90,13 @@ describe("planImport — Stage A: Asignaturas", () => {
   });
 
   it("counts an unchanged Asignatura as unchanged and writes nothing for it", () => {
-    const existing: AsignaturaRow = {
+    const existing = makeAsignaturaRow({
       id: 9,
       codigo: "MAT-101",
       nombre: "Cálculo I",
       carreraId: CARRERA.id,
       horasTotales: 64,
-    };
+    });
     const plan = planImport(
       makeWorkbook({
         asignaturas: [
@@ -159,13 +161,13 @@ describe("planImport — Stage A: Asignaturas", () => {
   });
 
   it("never deactivates an Asignatura absent from the workbook", () => {
-    const existing: AsignaturaRow = {
+    const existing = makeAsignaturaRow({
       id: 9,
       codigo: "MAT-101",
       nombre: "Cálculo I",
       carreraId: CARRERA.id,
       horasTotales: 64,
-    };
+    });
     const plan = planImport(
       makeWorkbook({}),
       makeSnapshot({ asignaturas: [existing] }),
@@ -381,13 +383,13 @@ describe("planImport — Stage C: Grupos", () => {
   function baseSnapshot() {
     return makeSnapshot({
       asignaturas: [
-        {
+        makeAsignaturaRow({
           id: 1,
           codigo: "MAT-101",
           nombre: "Cálculo",
           carreraId: CARRERA.id,
           horasTotales: 64,
-        },
+        }),
       ],
       usuarios: [
         {
@@ -574,14 +576,15 @@ describe("planImport — Stage C: Grupos", () => {
       activo: true,
       rol: "docente",
     });
-    snapshot.grupos.push({
-      id: 10,
-      asignaturaId: 1,
-      periodo: "2026-S1",
-      numeroGrupo: "1",
-      docenteId: 2,
-      activo: true,
-    });
+    snapshot.grupos.push(
+      makeGrupoRow({
+        id: 10,
+        asignaturaId: 1,
+        periodo: "2026-S1",
+        numeroGrupo: "1",
+        docenteId: 2,
+      }),
+    );
     const plan = planImport(
       makeWorkbook({
         grupos: [
@@ -611,13 +614,13 @@ describe("planImport — Stage D: deactivate absent, never delete", () => {
   it("a grupo present in the snapshot and absent from the workbook is deactivated", () => {
     const snapshot = makeSnapshot({
       asignaturas: [
-        {
+        makeAsignaturaRow({
           id: 1,
           codigo: "MAT-101",
           nombre: "Cálculo",
           carreraId: CARRERA.id,
           horasTotales: 64,
-        },
+        }),
       ],
       usuarios: [
         {
@@ -633,14 +636,13 @@ describe("planImport — Stage D: deactivate absent, never delete", () => {
         },
       ],
       grupos: [
-        {
+        makeGrupoRow({
           id: 10,
           asignaturaId: 1,
           periodo: "2026-S1",
           numeroGrupo: "1",
           docenteId: 2,
-          activo: true,
-        },
+        }),
       ],
     });
     const plan = planImport(makeWorkbook({}), snapshot);
@@ -651,13 +653,13 @@ describe("planImport — Stage D: deactivate absent, never delete", () => {
   it("a corrected re-import reactivates a deactivated grupo as an update", () => {
     const snapshot = makeSnapshot({
       asignaturas: [
-        {
+        makeAsignaturaRow({
           id: 1,
           codigo: "MAT-101",
           nombre: "Cálculo",
           carreraId: CARRERA.id,
           horasTotales: 64,
-        },
+        }),
       ],
       usuarios: [
         {
@@ -673,14 +675,14 @@ describe("planImport — Stage D: deactivate absent, never delete", () => {
         },
       ],
       grupos: [
-        {
+        makeGrupoRow({
           id: 10,
           asignaturaId: 1,
           periodo: "2026-S1",
           numeroGrupo: "1",
           docenteId: 2,
           activo: false,
-        },
+        }),
       ],
     });
     const plan = planImport(
@@ -719,6 +721,359 @@ describe("planImport — Stage D: deactivate absent, never delete", () => {
   });
 });
 
+// Shared by the WU4 scenarios below (reactivation, inactive references, manual
+// groups, precedence): one subject MAT-101 and one docente doc@uam.edu.
+const MAT = {
+  id: 1,
+  codigo: "MAT-101",
+  nombre: "Cálculo",
+  carreraId: CARRERA.id,
+  horasTotales: 64,
+};
+const matCells = (over: Record<string, string> = {}) => ({
+  Codigo: "MAT-101",
+  Nombre: "Cálculo",
+  Carrera: CARRERA.nombre,
+  HorasTotales: "64",
+  ...over,
+});
+const grupoCells = (over: Record<string, string> = {}) => ({
+  CodigoAsignatura: "MAT-101",
+  Periodo: "2026-S1",
+  NumGrupo: "1",
+  CorreoDocente: "doc@uam.edu",
+  ...over,
+});
+const docente = (id: number, correo: string): UsuarioRow => ({
+  id,
+  login: correo,
+  correo,
+  cif: null,
+  nombreCompleto: "Doc",
+  telefono: null,
+  carreraId: null,
+  activo: true,
+  rol: "docente",
+});
+/** Group `id` of MAT-101, period 2026-S1, number = id, docente 2. */
+const grupo = (id: number, over: Partial<GrupoRow> = {}) =>
+  makeGrupoRow({
+    id,
+    asignaturaId: 1,
+    periodo: "2026-S1",
+    numeroGrupo: String(id),
+    docenteId: 2,
+    ...over,
+  });
+
+describe("planImport — reactivation of an inactive Asignatura (CEI-UPS, CEI-PREV, AC-LIFE)", () => {
+  const inactive = makeSnapshot({
+    asignaturas: [makeAsignaturaRow({ ...MAT, activo: false })],
+  });
+
+  it("reactivates an inactive match even when every field equals the stored value", () => {
+    const plan = planImport(
+      makeWorkbook({ asignaturas: [matCells()] }),
+      inactive,
+    );
+    expect(plan.writes.asignaturas).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        nombre: "Cálculo",
+        carreraId: CARRERA.id,
+        horasTotales: 64,
+        reactivated: true,
+      },
+    ]);
+    expect(plan.counts.Asignatura).toMatchObject({ update: 1, unchanged: 0 });
+    expect(plan.asignaturasToReactivate).toBe(1);
+  });
+
+  it("reactivates and carries the new values when fields also changed", () => {
+    const plan = planImport(
+      makeWorkbook({ asignaturas: [matCells({ HorasTotales: "96" })] }),
+      inactive,
+    );
+    expect(plan.writes.asignaturas).toEqual([
+      expect.objectContaining({ horasTotales: 96, reactivated: true }),
+    ]);
+    expect(plan.counts.Asignatura.update).toBe(1);
+  });
+
+  it("an active match stays unchanged, or is an ordinary update, never flagged", () => {
+    const active = makeSnapshot({ asignaturas: [makeAsignaturaRow(MAT)] });
+    const same = planImport(
+      makeWorkbook({ asignaturas: [matCells()] }),
+      active,
+    );
+    expect(same.writes.asignaturas).toEqual([]);
+    expect(same.counts.Asignatura.unchanged).toBe(1);
+    const edited = planImport(
+      makeWorkbook({ asignaturas: [matCells({ HorasTotales: "96" })] }),
+      active,
+    );
+    expect(edited.writes.asignaturas).toHaveLength(1);
+    expect(edited.writes.asignaturas[0]).not.toHaveProperty("reactivated");
+    expect(same.asignaturasToReactivate).toBe(0);
+    expect(edited.asignaturasToReactivate).toBe(0);
+  });
+
+  it("asignaturasToReactivate equals the number of reactivated writes", () => {
+    const plan = planImport(
+      makeWorkbook({
+        asignaturas: [
+          matCells(),
+          matCells({ Codigo: "FIS-1", Nombre: "Física" }),
+          matCells({ Codigo: "NEW-1", Nombre: "Nueva" }),
+        ],
+      }),
+      makeSnapshot({
+        asignaturas: [
+          makeAsignaturaRow({ ...MAT, activo: false }),
+          makeAsignaturaRow({
+            ...MAT,
+            id: 2,
+            codigo: "FIS-1",
+            nombre: "Física",
+            activo: false,
+          }),
+        ],
+      }),
+    );
+    const flagged = plan.writes.asignaturas.filter(
+      (w) => w.kind === "update" && w.reactivated,
+    );
+    expect(flagged).toHaveLength(2);
+    expect(plan.asignaturasToReactivate).toBe(2);
+    expect(plan.counts.Asignatura).toMatchObject({ create: 1, update: 2 });
+  });
+});
+
+describe("planImport — inactive Asignatura references (CEI-VAL, CEI-UPS, CEI-DEA, AC-LIFE)", () => {
+  const snapshot = makeSnapshot({
+    asignaturas: [makeAsignaturaRow({ ...MAT, activo: false })],
+    usuarios: [docente(2, "doc@uam.edu")],
+  });
+
+  it("a Grupos row for an inactive Asignatura absent from the workbook is a row error naming it", () => {
+    const plan = planImport(makeWorkbook({ grupos: [grupoCells()] }), snapshot);
+    expect(plan.ok).toBe(false);
+    expect(plan.errors).toEqual([
+      {
+        sheet: "Grupos",
+        row: 2,
+        reason: "asignatura.inactive",
+        value: "MAT-101",
+      },
+    ]);
+    expect(plan.counts.Grupo.error).toBe(1);
+    // not reactivated, and its Grupo is not created
+    expect(plan.writes.asignaturas).toEqual([]);
+    expect(plan.writes.grupos).toEqual([]);
+    expect(plan.asignaturasToReactivate).toBe(0);
+  });
+
+  it("an Asignatura declared in the workbook is not an error on account of its inactive state", () => {
+    const plan = planImport(
+      makeWorkbook({ asignaturas: [matCells()], grupos: [grupoCells()] }),
+      snapshot,
+    );
+    expect(plan.ok).toBe(true);
+    expect(plan.asignaturasToReactivate).toBe(1);
+    expect(plan.writes.grupos).toEqual([
+      expect.objectContaining({ kind: "create", asignaturaCodigo: "MAT-101" }),
+    ]);
+  });
+
+  it("a code in neither the workbook nor the database keeps asignatura.unresolved", () => {
+    const plan = planImport(
+      makeWorkbook({ grupos: [grupoCells({ CodigoAsignatura: "NOPE-1" })] }),
+      snapshot,
+    );
+    expect(plan.errors.map((e) => e.reason)).toEqual(["asignatura.unresolved"]);
+  });
+
+  it("an inactive Asignatura whose own row is invalid is not resolved by the workbook", () => {
+    const plan = planImport(
+      makeWorkbook({
+        asignaturas: [matCells({ Carrera: "Carrera Fantasma" })],
+        grupos: [grupoCells()],
+      }),
+      snapshot,
+    );
+    expect(plan.errors.map((e) => e.reason)).toEqual([
+      "carrera.unresolved",
+      "asignatura.inactive",
+    ]);
+    expect(plan.asignaturasToReactivate).toBe(0);
+  });
+
+  it("an inactive Asignatura absent from the workbook gets no write", () => {
+    const plan = planImport(makeWorkbook({}), snapshot);
+    expect(plan.ok).toBe(true);
+    expect(plan.writes.asignaturas).toEqual([]);
+    expect(plan.counts.Asignatura).toMatchObject({ update: 0, deactivate: 0 });
+  });
+
+  it("inactive groups of a reactivated Asignatura that the workbook omits get no write", () => {
+    const plan = planImport(
+      makeWorkbook({ asignaturas: [matCells()] }),
+      makeSnapshot({
+        ...snapshot,
+        grupos: [grupo(10, { activo: false })],
+      }),
+    );
+    expect(plan.asignaturasToReactivate).toBe(1);
+    expect(plan.writes.grupos).toEqual([]);
+    expect(plan.deactivateGrupoIds).toEqual([]);
+    expect(plan.counts.Grupo).toMatchObject({ update: 0, deactivate: 0 });
+  });
+});
+
+describe("planImport — manual groups (CEI-PREV, CEI-DEA, CM-GRP-5, AC-ORIG)", () => {
+  const snapshotWith = (grupos: GrupoRow[]) =>
+    makeSnapshot({
+      asignaturas: [makeAsignaturaRow(MAT)],
+      usuarios: [docente(2, "doc@uam.edu"), docente(3, "otro@uam.edu")],
+      grupos,
+    });
+
+  it.each([
+    { absent: 0, manual: 0 },
+    { absent: 4, manual: 0 },
+    { absent: 4, manual: 1 },
+    { absent: 4, manual: 4 },
+  ])(
+    "counts $manual manual of $absent deactivated grupos",
+    ({ absent, manual }) => {
+      const grupos = Array.from({ length: absent }, (_, i) =>
+        grupo(i + 1, { origen: i < manual ? "manual" : "importacion" }),
+      );
+      const plan = planImport(makeWorkbook({}), snapshotWith(grupos));
+      expect(plan.deactivateGrupoIds).toHaveLength(absent);
+      expect(plan.counts.Grupo.deactivate).toBe(absent);
+      expect(plan.manualGruposToDeactivate).toBe(manual);
+    },
+  );
+
+  it("counts only what the apply deactivates: not an inactive manual group, not a listed one", () => {
+    const plan = planImport(
+      makeWorkbook({ grupos: [grupoCells()] }),
+      snapshotWith([
+        grupo(1, { origen: "manual" }), // listed in the workbook
+        grupo(2, { origen: "manual" }), // absent: deactivated and counted
+        grupo(3, { origen: "manual", activo: false }), // already inactive
+      ]),
+    );
+    expect(plan.deactivateGrupoIds).toEqual([2]);
+    expect(plan.manualGruposToDeactivate).toBe(1);
+  });
+
+  it("updates a listed manual group (reassigned or reactivated) and carries no origin", () => {
+    const reassigned = planImport(
+      makeWorkbook({ grupos: [grupoCells({ CorreoDocente: "otro@uam.edu" })] }),
+      snapshotWith([grupo(1, { origen: "manual" })]),
+    );
+    expect(reassigned.writes.grupos).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "otro@uam.edu",
+        reactivated: false,
+      },
+    ]);
+    const reactivated = planImport(
+      makeWorkbook({ grupos: [grupoCells()] }),
+      snapshotWith([grupo(1, { origen: "manual", activo: false })]),
+    );
+    expect(reactivated.writes.grupos).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "doc@uam.edu",
+        reactivated: true,
+      },
+    ]);
+    expect(reactivated.manualGruposToDeactivate).toBe(0);
+  });
+});
+
+describe("planImport — precedence: the workbook wins (CEI-PREC)", () => {
+  it("overwrites a manual Asignatura name and a manual docente as plain updates, with no warning field", () => {
+    const plan = planImport(
+      makeWorkbook({ asignaturas: [matCells()], grupos: [grupoCells()] }),
+      makeSnapshot({
+        asignaturas: [makeAsignaturaRow({ ...MAT, nombre: "Editado a mano" })],
+        usuarios: [docente(2, "doc@uam.edu"), docente(3, "otro@uam.edu")],
+        grupos: [grupo(1, { docenteId: 3, origen: "manual" })],
+      }),
+    );
+    expect(plan.writes.asignaturas).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        nombre: "Cálculo",
+        carreraId: CARRERA.id,
+        horasTotales: 64,
+      },
+    ]);
+    expect(plan.writes.grupos).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "doc@uam.edu",
+        reactivated: false,
+      },
+    ]);
+  });
+
+  it("with no manual groups and no inactive asignatura the plan is what it was before the change", () => {
+    const plan = planImport(
+      makeWorkbook({
+        asignaturas: [
+          matCells({ HorasTotales: "96" }),
+          matCells({ Codigo: "FIS-1", Nombre: "Física", HorasTotales: "32" }),
+        ],
+      }),
+      makeSnapshot({
+        asignaturas: [makeAsignaturaRow(MAT)],
+        grupos: [grupo(20)],
+      }),
+    );
+    expect(plan.writes).toEqual({
+      asignaturas: [
+        {
+          kind: "update",
+          id: 1,
+          nombre: "Cálculo",
+          carreraId: CARRERA.id,
+          horasTotales: 96,
+        },
+        {
+          kind: "create",
+          codigo: "FIS-1",
+          nombre: "Física",
+          carreraId: CARRERA.id,
+          horasTotales: 32,
+        },
+      ],
+      usuarios: [],
+      grupos: [],
+    });
+    expect(plan.counts.Asignatura).toEqual({
+      create: 1,
+      update: 1,
+      unchanged: 0,
+      deactivate: 0,
+      error: 0,
+    });
+    expect(plan.deactivateGrupoIds).toEqual([20]);
+    expect(plan.asignaturasToReactivate).toBe(0);
+    expect(plan.manualGruposToDeactivate).toBe(0);
+  });
+});
+
 describe("planImport — Stage E: idempotency and error aggregation", () => {
   it("importing the same workbook twice yields all unchanged", () => {
     const workbook = makeWorkbook({
@@ -744,13 +1099,13 @@ describe("planImport — Stage E: idempotency and error aggregation", () => {
 
     const snapshotAfterApply = makeSnapshot({
       asignaturas: [
-        {
+        makeAsignaturaRow({
           id: 1,
           codigo: "MAT-101",
           nombre: "Cálculo",
           carreraId: CARRERA.id,
           horasTotales: 64,
-        },
+        }),
       ],
       usuarios: [
         {
@@ -766,14 +1121,13 @@ describe("planImport — Stage E: idempotency and error aggregation", () => {
         },
       ],
       grupos: [
-        {
+        makeGrupoRow({
           id: 10,
           asignaturaId: 1,
           periodo: "2026-S1",
           numeroGrupo: "1",
           docenteId: 2,
-          activo: true,
-        },
+        }),
       ],
     });
     const second = planImport(workbook, snapshotAfterApply);

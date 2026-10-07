@@ -54,6 +54,7 @@ export async function loadCatalogSnapshot(
           nombre: asignatura.nombre,
           carreraId: asignatura.carreraId,
           horasTotales: asignatura.horasTotales,
+          activo: asignatura.activo,
         })
         .from(asignatura),
       exec
@@ -78,6 +79,7 @@ export async function loadCatalogSnapshot(
           numeroGrupo: grupo.numeroGrupo,
           docenteId: grupo.docenteId,
           activo: grupo.activo,
+          origen: grupo.origen,
         })
         .from(grupo),
       exec

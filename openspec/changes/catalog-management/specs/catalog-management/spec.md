@@ -383,13 +383,15 @@ MUST be an existing, active `Asignatura` in the actor's scope; `Periodo` MUST
 match `YYYY-S1` or `YYYY-S2` exactly (no trimming, no case change);
 `NumeroGrupo` required, trimmed, at most 12 characters, never numerically
 normalised; `Docente` selected by id and MUST be an existing, active `Usuario`
-with the `docente` role. A new `Grupo` MUST be created active with origin
-`manual`. Messages MUST say what is wrong and what to do.
+with the `docente` role. The meeting days MUST be validated as specified in
+CM-GRP-6 (amendment 2026-10-07). A new `Grupo` MUST be created active with
+origin `manual`. Messages MUST say what is wrong and what to do.
 
 #### Scenario: Valid create
 
 - GIVEN an active in-scope Asignatura and an active docente
-- WHEN a Grupo with `2026-S1` and number " 1 " is submitted
+- WHEN a Grupo with `2026-S1`, number " 1 " and at least one meeting day is
+  submitted
 - THEN it is created active with `NumeroGrupo` "1" and origin `manual`
 
 #### Scenario: Invalid values are refused (table-driven)
@@ -431,13 +433,16 @@ with the `docente` role. A new `Grupo` MUST be created active with origin
 
 ### Requirement: CM-GRP-2 Editable Grupo fields
 
-After creation only the `Docente` and the active state MAY change.
-`Asignatura`, `Periodo` and `NumeroGrupo` (the natural key) MUST be immutable:
-the edit screen MUST show them read-only and the edit action MUST ignore or
-refuse any change to them. A new `Docente` MUST satisfy the same rule as on
-create. Leaving the current `Docente` unchanged MUST NOT be refused even if
-that docente has since become inactive. A no-change edit MUST write nothing and
-no audit row. An inactive `Grupo` MUST NOT be editable (reactivate first).
+After creation only the `Docente`, the meeting days (CM-GRP-6) and the active
+state MAY change. `Asignatura`, `Periodo` and `NumeroGrupo` (the natural key)
+MUST be immutable: the edit screen MUST show them read-only and the edit action
+MUST ignore or refuse any change to them. A new `Docente` MUST satisfy the same
+rule as on create. Leaving the current `Docente` unchanged MUST NOT be refused
+even if that docente has since become inactive. A no-change edit MUST write
+nothing and no audit row. An inactive `Grupo` MUST NOT be editable (reactivate
+first).
+(Amendment 2026-10-07: "the meeting days" added to the editable fields;
+previously only the `Docente` and the active state.)
 
 #### Scenario: Change docente
 
@@ -530,6 +535,113 @@ import. Existing rows, created before the origin existed, MUST be `importacion`.
 - GIVEN grupos stored before this change
 - WHEN the change is applied
 - THEN each has origin `importacion`
+
+### Requirement: CM-GRP-6 Meeting days of a Grupo in the manual flow
+
+Amendment 2026-10-07. Each `Grupo` MUST carry the set of weekdays on which it
+meets, chosen from a closed list of seven values: Monday, Tuesday, Wednesday,
+Thursday, Friday, Saturday, Sunday. The set has no duplicates, is independent
+of the order of selection and is always presented in week order (Monday first).
+Only days are recorded: there is no start time, end time, classroom or
+per-date calendar. The create and edit forms MUST offer a multi-select control
+that works by keyboard, exposes each day and its selected state to assistive
+technology, and shows the selected state in text or shape and not by colour
+alone. Under assumption A-DIAS-REQ, a manual create or edit MUST be refused,
+with nothing written, when no day is selected, with a message saying that at
+least one meeting day is required. A value outside the seven MUST be refused
+on the server even if the control cannot produce it. Days follow the Grupo's
+scope and access rules (CM-ACC-1, CM-SCOPE-1) with no additional rule.
+Deactivation and reactivation MUST NOT depend on the days. Day names MUST come
+from the `es` and `en` catalogs (CM-I18N-1).
+
+#### Scenario: Create with days
+
+- GIVEN an active in-scope Asignatura and an active docente
+- WHEN a Grupo is submitted with Wednesday and Monday selected, in that order
+- THEN it is created and its days are Monday and Wednesday, shown in week order
+
+#### Scenario: Create without days is refused (A-DIAS-REQ)
+
+- GIVEN otherwise valid Grupo data and no day selected
+- WHEN the create is submitted
+- THEN nothing is written, no audit row exists and the days field shows an
+  error saying at least one meeting day is required
+
+#### Scenario: Edit changes the days
+
+- GIVEN an active Grupo meeting on Monday
+- WHEN the edit selects Monday and Thursday and is submitted
+- THEN the Grupo meets on Monday and Thursday
+
+#### Scenario: Pre-existing Grupo with no days
+
+- GIVEN a Grupo stored before this amendment, with an empty set of days
+- WHEN it is opened for edit
+- THEN no day is selected, the empty set is not shown as an error, and
+  submitting without selecting a day is refused as in "Create without days is
+  refused"
+
+#### Scenario: Reselecting the same days is a no-change edit
+
+- GIVEN an active Grupo meeting on Monday and Wednesday
+- WHEN the edit submits Wednesday and Monday and changes nothing else
+- THEN nothing is written, no audit row is created and a "no changes" message
+  is shown
+
+#### Scenario: Days-only edit is a real update
+
+- GIVEN an active Grupo and an edit that changes only its days
+- WHEN the edit is submitted
+- THEN the days are stored, exactly one `grupo.actualizado` audit row exists
+  and its field list contains `dias` and nothing else
+
+#### Scenario: Invalid day value is refused
+
+- GIVEN a hand-crafted request carrying a day value outside the seven
+- WHEN the create or edit action runs
+- THEN it is refused and nothing is written
+
+#### Scenario: Deactivate and reactivate ignore the days
+
+- GIVEN an inactive Grupo with an empty set of days whose Asignatura and
+  docente are active
+- WHEN it is reactivated
+- THEN it is active and its days are still empty
+
+#### Scenario: Control is accessible
+
+- GIVEN the Grupo form
+- WHEN it is navigated with the keyboard only
+- THEN every day can be reached, selected and cleared, and each day exposes
+  its name and selected state
+
+### Requirement: CM-GRP-7 The Grupos list shows the days
+
+Amendment 2026-10-07. Each row of `/catalog/grupos` MUST show the meeting days
+of the Grupo, in week order, using the day names of the user's language (a
+short form is acceptable if the full name remains available to assistive
+technology). A Grupo with an empty set MUST show a "days not set" text, never
+an error and never a blank cell. The days are not part of the search fields of
+CM-LST-1 and are not a filter.
+
+#### Scenario: Days are listed in week order
+
+- GIVEN a Grupo stored with Friday and Monday
+- WHEN `/catalog/grupos` is opened
+- THEN its row shows Monday then Friday
+
+#### Scenario: Empty set shows days not set
+
+- GIVEN a Grupo with no days
+- WHEN `/catalog/grupos` is opened
+- THEN its row shows the "days not set" text and no error styling or
+  announcement
+
+#### Scenario: Both locales
+
+- GIVEN a Grupo meeting on Saturday
+- WHEN the list is opened in `es` and in `en`
+- THEN the row shows the Saturday name of that language
 
 ### Requirement: CM-LST-1 Lists, filters, search and pagination
 
@@ -700,10 +812,19 @@ refusal message MUST say what happened and what to do next.
 | coordinacion without Carrera | that no Carrera is assigned and who to ask |
 | reactivate Grupo with inactive parent | which parent, and to fix it first |
 | write cannot start (busy, CM-NFR-4) | that nothing was saved and to try again |
+| Grupo submitted without a day (CM-GRP-6) | that at least one meeting day is required and to select one |
 
 - GIVEN the refusal from the row
 - WHEN it is shown in either locale
 - THEN it contains the content from the row
+
+#### Scenario: Day names and days messages exist in both locales
+
+- GIVEN the `es` and `en` catalogs
+- WHEN the keys for the seven day names (full and short forms, if used), the
+  "days not set" text, the days field label and the days error messages are
+  looked up
+- THEN each exists in both catalogs and the full key sets remain identical
 
 ### Requirement: CM-NFR-1 Nothing is physically deleted
 
@@ -820,8 +941,8 @@ owner to overrule.
   row-level error naming the Asignatura; the import reactivates only what the
   workbook declares. Specified in the `catalog-excel-import` delta.
   *Assumption, not confirmed by the owner.*
-- **A-GRP-2 (question 2).** Editable Grupo fields: docente and active state
-  only (CM-GRP-2). *Assumption.*
+- **A-GRP-2 (question 2).** Editable Grupo fields: docente, meeting days (added
+  by the 2026-10-07 amendment) and active state only (CM-GRP-2). *Assumption.*
 - **A-DUP-3 (question 3).** Create over an inactive natural-key match is
   refused with a pointer to reactivation; over an active match it is a plain
   duplicate (CM-ASG-2, CM-GRP-1). *Assumption.*
@@ -876,3 +997,21 @@ owner to overrule.
   confirmed by the owner.*
 - **A-C12.** An inactive docente can still resolve in the import (known gap C12
   of the exploration); the module does not change that.
+- **Amendment 2026-10-07 (meeting days of a Grupo).** Decided by the owner: the
+  days belong to the `Grupo`, not to the `Asignatura`; days only, no hours.
+  On 2026-10-07 the owner confirmed the items below as written:
+  - **A-DIAS-REQ (confirmed by the owner on 2026-10-07).** At least one day is
+    required on manual create and edit (CM-GRP-6); editing a pre-existing Grupo
+    without days therefore asks for them.
+  - **A-DIAS-REACT (confirmed by the owner on 2026-10-07).** Reactivation and
+    deactivation never depend on the days.
+  - **A-DIAS-NOSEARCH (confirmed by the owner on 2026-10-07).** The days are
+    neither searched nor filtered in the Grupos list (CM-GRP-7).
+  - The import-side decisions (A-DIAS-IMP-a to -d, with A-DIAS-IMP-b decided by
+    the owner: an empty cell leaves stored days untouched, so the import never
+    clears days) are in the `catalog-excel-import` delta. Manual edit remains
+    the only way to clear or reduce days, subject to A-DIAS-REQ.
+  - Out of scope: the justification-request form, validating
+    `FechaInasistencia` against the meeting days, hours, and exposing the
+    days to students. A later change will read the days to offer only valid
+    dates.

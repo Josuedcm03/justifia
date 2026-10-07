@@ -17,6 +17,12 @@
 Binding inputs: `proposal.md` (D1-D5, A1-A12 with A4 decided and A5
 withdrawn), `exploration.md` (C1-C13), and the owner decisions of 2026-10-04.
 
+> **Amended on 2026-10-07.** The section *Amendment 2026-10-07: meeting days of
+> a Grupo* at the end of this document adds a second additive migration
+> (`0006`), a day set on `Grupo`, an optional import column and a checkbox
+> group. Passages below that it makes false carry a dated note; the original
+> text is kept.
+
 ---
 
 ## Verified findings
@@ -143,6 +149,11 @@ ALTER TABLE "Grupo" DROP CONSTRAINT "CK_Grupo_Origen";--> statement-breakpoint
 ALTER TABLE "Grupo" DROP COLUMN "Origen";--> statement-breakpoint
 ALTER TABLE "Asignatura" DROP COLUMN "Activo";
 ```
+
+> **Note 2026-10-07.** The number `0006` is now taken by the meeting-days
+> migration (amendment, decision D-2). A compensating migration for `0005`
+> would be generated with the next free number and would also have to follow
+> the removal of `Grupo.Dias` if that column were to go.
 
 ### 2. Carrera scope
 
@@ -278,6 +289,9 @@ unfiltered snapshot with scoped UI queries in one file.
 - The table is not migrated: `Accion` is `varchar(60)`, `EntidadTipo`
   `varchar(40)`, `Datos` `jsonb`.
 
+> **Note 2026-10-07.** The closed list of auditable Grupo fields gains `dias`
+> (amendment, decision D-4). The audit table is still not migrated.
+
 **Rejected.** Widening `UserChangedPayload.origen` (it would touch the import's
 account events for no manual `usuario` writer in this change); a free-form
 `Record<string, unknown>` payload; before/after values (RNF-05); extending
@@ -334,6 +348,9 @@ names); reusing `AsignaturaRowSchema` (it takes a carrera *name*).
   transaction snapshot read. Until it does, a manual write can commit between
   the import's snapshot and its writes.
 - Inserts are untouched: new groups get `Origen` from the column default.
+  (**Note 2026-10-07:** still true for `Origen`. The import now also reads an
+  optional `Dias` column and its Grupo insert carries `dias` only for rows
+  whose cell names at least one day; see amendment, decision D-3.)
 
 **Existing tests that change:** `plan.test.ts` (snapshot fixtures need the two
 fields; new scenarios), `catalog.test.ts` (projection), `apply.test.ts` (the
@@ -399,6 +416,8 @@ src/app/(dashboard)/catalog/
 - **Editable fields.** Asignatura: `nombre`, `horasTotales`, and `carreraId`
   for unscoped roles; `Codigo` is rendered as text, not as an input (A1).
   Grupo: `docenteId` only; its natural key is rendered as text.
+  (**Note 2026-10-07:** superseded. A Grupo edit now changes the docente, the
+  meeting days, or both; see amendment, decisions D-5 and D-6.)
 - **Shared pieces.** `StatusPill` moves to `src/components/status-pill.tsx`
   (`users/page.tsx` imports it); new `form-field.tsx` (label, hint, and the
   error under the field with `role="alert"`, per design system §5) and
@@ -549,9 +568,18 @@ db.transaction(tx):
 
 No file is deleted.
 
+> **Note 2026-10-07.** The amendment adds files and modifies some already
+> applied ones; see its *File changes* table.
+
 ---
 
 ## Interfaces / Contracts
+
+> **Note 2026-10-07.** Four entries of this block are extended by the
+> amendment and are no longer complete as written: `AUDITABLE_GRUPO_FIELDS`
+> (gains `dias`), `GrupoListItem` (gains `dias`), the inputs of `createGrupo`
+> and `updateGrupo`, and `grupoCreateSchema` / `grupoUpdateSchema`. The
+> authoritative signatures are in the amendment's *Interfaces* block.
 
 ```ts
 // src/lib/catalog/origen.ts — PURE
@@ -967,7 +995,9 @@ with a screen and for WU4's preview.
    and a different submitted carrera is refused.
 3. Editable fields: Asignatura `nombre`, `horasTotales`, and `carreraId` for
    unscoped roles only; Grupo `docenteId` only. `Codigo` and the Grupo natural
-   key are immutable after creation.
+   key are immutable after creation. (**Note 2026-10-07:** the Grupo's
+   editable fields are now the docente and the meeting days; pinned by
+   CM-GRP-2 and CM-GRP-6.)
 4. `Codigo` comparison is exact after trimming, identical to the import.
 5. Creating a record whose natural key already exists is refused, whether the
    existing row is active or inactive; the message points to reactivation only
@@ -1016,7 +1046,8 @@ with a screen and for WU4's preview.
       (designed), or reactivate automatically?
 - [ ] **Grupo edits limited to the docente** (designed). Is correcting a wrong
       period or group number by deactivating and creating a new group
-      acceptable?
+      acceptable? (**Note 2026-10-07:** the owner added the meeting days to
+      the editable fields; the natural key stays immutable.)
 - [ ] **Moving an Asignatura to another carrera** is allowed for
       `administrador` and `secretaria` (designed). Confirm.
 - [ ] **Workbook Grupo row for an inactive Asignatura not in the workbook**:
@@ -1028,3 +1059,591 @@ with a screen and for WU4's preview.
 - [ ] **Delivery strategy**: ten slices or more against an 800-line budget;
       chained PRs, a size exception, or a reduced scope. Decided at the tasks
       phase.
+
+---
+---
+
+# Amendment 2026-10-07: meeting days of a Grupo
+
+> **Second DB-touching change.** This section plans commands; it runs none.
+> Every Neon step is tagged `[READ-ONLY]` or `[CONFIRM]` (one explicit user
+> "yes" per command). `drizzle-kit push` is never used.
+
+Contract: `proposal.md` "Amendment 2026-10-07" and the delta specs (new
+CM-GRP-6, CM-GRP-7, AC-DIAS, AC-DIAS-ADD, CEI-DIAS-1..4; modified CM-GRP-1,
+CM-GRP-2, CM-I18N-1, AL-PAY, AL-SET). Binding owner rules: A-DIAS-REQ,
+A-DIAS-REACT, A-DIAS-NOSEARCH, A-DIAS-IMP-a, -c, -d as written, and
+**A-DIAS-IMP-b as flipped by the owner: an empty `Dias` cell leaves the stored
+days untouched; the import never clears days.** Where this section says
+"design decision", the spec is silent and the choice is made here.
+
+State this amendment is written against: Phases 0-9 applied and uncommitted on
+`0a45737`, `0005` applied on production, Phase 11 in progress, Phases 10, 12,
+13, 14, 15 not started.
+
+Decisions are numbered **D-1 to D-8** so they cannot be confused with decisions
+1-13 above. Gates are **DG1 to DG10**.
+
+## A. Verified findings (2026-10-07)
+
+| # | Finding | Evidence | Consequence |
+|---|---|---|---|
+| F-A | `parse.ts` writes `""` for an optional column whose header is absent, so "column absent" and "empty cell" are indistinguishable today | `src/lib/import/parse.ts:128-133` | D-3 changes this for `Grupos.Dias` only |
+| F-B | `issuesToRowErrors` puts the **field name** in `RowError.value`, not the cell text | `src/lib/import/plan.ts:37-48` | `dias.invalid` must name the offending token, so it is raised by the planner, not by a zod message |
+| F-C | The template and the contract card iterate `SHEETS[i].required` then `.optional` | `src/lib/import/template.ts:14`, `workbook-contract.tsx:41-62` | Declaring `Dias` in `SHEETS` updates both with no code change (CEI-DIAS-4) |
+| F-D | No checkbox primitive exists (`src/components/ui/`: avatar, breadcrumb, button, card, collapsible, combobox, dropdown-menu, input, label, select, separator, sheet, sidebar, skeleton, sonner, table, tooltip); `docs/design-system.md` §5 has no checkbox entry | glob, grep | D-6 adds the smallest token-only one |
+| F-E | `FormField` renders `<Label htmlFor={id}>` and hands `id` / `aria-describedby` / `aria-invalid` to **one** control | `src/components/form-field.tsx` | It cannot label a group of seven inputs; D-6 adds a sibling with the same visual pattern |
+| F-F | `AUDITABLE_GRUPO_FIELDS` follows the column order of `schema.ts`; `types.test.ts` pins the exact array; `events.test.ts:365` spreads the constant | `src/lib/audit/types.ts:74-81` | D-4: one line of production code, one pinned test |
+| F-G | `grupoUpdateSchema` is `{ docenteId }` and `CATALOG_FIELD_ERROR_KEYS` has 15 keys; both applied in Phase 5 and pinned by `validations/catalog.test.ts` and the parity test | `src/lib/validations/catalog.ts:83-106` | D-5 modifies applied code |
+| F-H | The only application statements on `Grupo` today are the import's insert and two updates, the snapshot select (explicit projection), a `count(*)` in `asignaturas.ts`, and two reader joins | grep `(from\|insert\|update\|innerJoin)(grupo` | Only the import's insert is affected by declaring a new column before it exists (D-2 ordering rule) |
+| F-I | `migration-0005.test.ts` looks up `idx: 5` and the `0004`-to-`0005` snapshot chain; nothing in it counts journal entries | `src/db/migration-0005.test.ts:80-101` | It stays green, unmodified, after `0006` is generated |
+| F-J | AC "Manual writes require an active Asignatura and an active docente" lists create, docente change and reactivation only | `specs/academic-catalog/spec.md:73-95` | A days-only edit triggers no parent check (D-5) |
+
+## B. Decisions
+
+### D-1. Storage: one `smallint` bitmask column
+
+**Choice.** `Grupo."Dias" smallint NOT NULL DEFAULT 0`, with the named
+constraint `CK_Grupo_Dias CHECK ("Dias" BETWEEN 0 AND 127)`. Bit `i` (value
+`1 << i`) is the `i`-th day of the week, **Monday = bit 0 … Sunday = bit 6**,
+so the bit index equals Postgres `isodow - 1`. `0` is the empty set.
+
+| Option | Additive, safe default | DB guarantees "only the seven" | "Unchanged" detection | drizzle-kit risk | Verdict |
+|---|---|---|---|---|---|
+| **`smallint` bitmask + CHECK range** | Yes: constant default, metadata-only `ADD COLUMN`; an insert that omits it stores `0` | Yes, completely: every integer in 0..127 is a valid set and nothing else passes. Duplicates and order cannot be represented at all | `a === b` on two numbers, in the planner, in `updateGrupo` and in `changedFields` (`Object.is`) | Same two statement kinds `0005` already emitted cleanly (`ADD COLUMN ... DEFAULT ... NOT NULL`, `ADD CONSTRAINT ... CHECK`) | **Chosen** |
+| Postgres array (`smallint[]` or `varchar[]`) | Yes | Partly: `<@ ARRAY[...]` rejects foreign values but admits duplicates and any order, so set equality needs normalisation on every write and a deep comparison on every read | Array comparison after sorting | Array defaults (`'{}'`) and array CHECK text are a kind of emission this repository has never reviewed | Rejected |
+| Child table `GrupoDia (GrupoId, Dia)` | Yes | Yes (PK + CHECK) | Set comparison across rows; a days edit becomes delete-and-insert, which collides with "no delete statement exists in the catalog modules" (CM-NFR-1 pins) | New table, FK, PK | Rejected: also adds a join to every list row and to the snapshot |
+| Seven boolean columns | Yes | Yes | Seven comparisons | Seven columns | Rejected: seven audit names or a synthetic one; noisy schema |
+
+The cost of the bitmask is that the value is opaque in ad-hoc SQL; it is paid
+once, in `modelo_datos_sql.md` §3.1, which documents the bit table.
+
+**Single TypeScript source of truth**, mirroring `origen.ts`:
+`src/lib/catalog/dias.ts` (pure; see *Interfaces*). Codes are the unaccented
+Spanish names (`lunes` … `domingo`), consistent with the repository's Spanish
+domain identifiers (`importacion`, `manual`, role codes); they are the form's
+wire values and the i18n key suffixes. **The mask exists only in the database
+row, the import snapshot/plan and inside the data layer; pages, forms, actions
+and list items carry `DiaSemana[]` in week order** (`decodeDias`).
+
+`schema.ts` writes the bounds as literals inside the `sql` template (see
+*Interfaces*): an interpolated number would become a bind parameter in
+generated DDL.
+`schema.test.ts` pins that the literal upper bound equals `DIAS_MASK_MAX`.
+
+**Future read (not built here).** In TypeScript, `decodeDias(row.dias)`; in SQL,
+`("Dias" & (1 << (extract(isodow from <date>)::int - 1))) <> 0`. Note for that
+change: JavaScript `Date.getDay()` is Sunday = 0, so the bit index is
+`(getDay() + 6) % 7`, and the date's time zone must be decided there.
+
+**No index** (A-DIAS-NOSEARCH: the days are never searched or filtered).
+
+### D-2. Migration `0006` and the ordering rule
+
+**Generation.** `[CONFIRM]` `npm run db:generate -- --name grupo_dias` (local,
+no connection). Expected output: `drizzle/0006_grupo_dias.sql`,
+`drizzle/meta/0006_snapshot.json` (`prevId` = the `0005` snapshot id), journal
+entry `idx: 6`. Expected SQL, **exactly two statements**:
+
+```sql
+-- EXPECTED shape; the emitted file is the source of truth and is hand-reviewed.
+ALTER TABLE "Grupo" ADD COLUMN "Dias" smallint DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "Grupo" ADD CONSTRAINT "CK_Grupo_Dias" CHECK ("Grupo"."Dias" between 0 and 127);
+```
+
+Hand review stops the unit and reports to the user on: any third statement;
+anything touching `EventoAuditoria`, `Asignatura`, `CK_Grupo_Origen` or the
+unique constraint; any `DROP`, `RENAME`, `ALTER COLUMN`, data statement or
+transaction control; a rename prompt (answer "create", never "rename").
+`src/db/migration-0006.test.ts` copies the shape of `migration-0005.test.ts`
+(file looked up by pattern, two statements, additive-only regexes, CHECK bounds
+`0` and `DIAS_MASK_MAX`, journal `idx: 6`, snapshot chained to `0005`, no
+`EventoAuditoria`).
+
+**Gates** (same discipline as G1-G10; one step each, nothing batched; HC before
+every write):
+
+| Gate | Tag | Step |
+|---|---|---|
+| DG1 | `[READ-ONLY]` | On `production`: current row counts of `Asignatura` and `Grupo` (do **not** reuse the 2/2 of 2026-10-04); `Grupo.Dias` absent in `information_schema.columns`; six migration rows, the last with the `0005` hash `160ac32b…52ae`; shared host re-read from `.env` (host part only) |
+| — | `[USER]` | Written approval of the emitted SQL and the `schema.ts` diff. A later edit to the file restarts at DG2 |
+| DG-H | `[READ-ONLY]` | Freeze: sha256 of `drizzle/0006_*.sql` as in the working tree and with LF endings |
+| DG2 | `[CONFIRM]` | Create a **fresh** Neon branch `rehearsal-0006` from `production` (AC-DIAS-ADD requires a fresh branch) |
+| DG3 | `[CONFIRM]` | `npm run db:migrate` with a shell-scoped `DATABASE_URL` pointing at the branch; abort if the host equals the shared host |
+| DG4 | `[READ-ONLY]` | On the branch: `Dias` is `smallint`, `NOT NULL`, default `0`; zero `Grupo` rows with `"Dias" <> 0`; `CK_Grupo_Dias` in `pg_constraint`; `Origen`, `Activo` and every count equal DG1; `CK_Grupo_Origen` still present; seven migration rows, the last with the DG-H LF hash |
+| DG5 | `[CONFIRM]` | Probes on the branch, each inside a transaction ending in `ROLLBACK`: (a) `UPDATE "Grupo" SET "Dias" = 128` and `= -1`, and an `INSERT` with `128`, each fail with `23514`; (b) an insert that **omits** `Dias` stores `0` (what code predating the column does); (c) inserts with `Dias = 5` and `= 127` succeed, and an `UPDATE` back to `0` succeeds (the empty set is valid data); (d) `SELECT ("Dias" & 1) <> 0` type-checks on a `smallint`. Counts before and after are equal |
+| DG6 | — | **Not repeated.** No new locking mechanism is introduced; the G6 evidence of 2026-10-04 stands |
+| DG7 | `[CONFIRM]` | Optional: `backup-before-0006` from `production` (the owner decides whether it replaces `backup-before-0005`) |
+| DG8a | `[READ-ONLY]` | Pre-apply re-check on `production`: repeat DG1; `.env` host equals the shared host; file hash equals DG-H |
+| DG8 | `[CONFIRM]` | `npm run db:migrate` against `production`, exact command and host restated first |
+| DG9 | `[READ-ONLY]` | Repeat DG4 on `production`. **Ordering gate: record "0006 applied and verified on production"** |
+| DG10 | `[CONFIRM]` | Cleanup, see "Rehearsal branches" below |
+
+**Ordering rule (hard), stated for the current reality.** drizzle's insert
+builder names every declared column (using `default` for omitted ones), so from
+the moment `src/db/schema.ts` in a working tree declares `grupo.dias`, **any
+Grupo insert issued by that tree fails (`42703`) against a database that lacks
+the column**. Today the only such insert is the import apply (F-H); later also
+`createGrupo`. And from the moment the snapshot or `grupos.ts` project
+`grupo.dias`, the import **preview** and the Grupos pages fail the same way.
+Therefore:
+
+1. `schema.ts` with the new column is not merged, deployed, or used by an app
+   write flow against the shared database before DG9.
+2. While everything is uncommitted, the rule applies to the **working tree and
+   whatever database a running process points at**. From the task that edits
+   `schema.ts` until DG9, no `npm run dev` session may run the import apply
+   against `production` (the `.env` target), and none against
+   `rehearsal-catalog-ui` either, because that branch was cut on 2026-10-07 at
+   `0005` and lacks the column too. Asignatura screens and their write smokes
+   are unaffected (no statement of theirs inserts into `Grupo` or reads
+   `Dias`). The failure mode is a rolled-back transaction, not corrupted data,
+   but it is still forbidden.
+3. To keep that window short, the `schema.ts` edit, the generation and the
+   hand review are the **last** code tasks of their unit and are followed
+   directly by the gates. The pure pieces (`dias.ts`, the audit list) come
+   first and carry no risk.
+4. Code that only needs `dias.ts` and is exercised through doubles (the
+   checkbox group, `grupos.ts` and the Grupo actions under test) may be written
+   while the gates wait. Nothing that selects or writes `Grupo.Dias` is run
+   against any database before that database has `0006`.
+5. The three `drizzle/` files of `0006` must be committed together with (or
+   before) the `schema.ts` change, as recorded for `0005`.
+
+**Rehearsal branches.** `rehearsal-catalog-ui` is **not** used to rehearse
+`0006`: the spec requires a fresh branch, and that one carries smoke data.
+Default (design decision; each step is the user's `[CONFIRM]`): after DG9,
+`rehearsal-0006` already has `0006` and becomes the target of the Grupo write
+smokes (13.13, 15.6); `rehearsal-catalog-ui` is deleted once the pending
+Asignatura smoke (9.12) is done, or, if the user wants to keep its data, gets
+`0006` through one more `[CONFIRM]` `db:migrate` with HC before any Grupo
+screen is pointed at it. DG10 deletes `rehearsal-0006` at the end of Phase 15.
+
+**Rollback.** Preferred: leave the column; its default makes older code behave
+exactly as before (DG5b). If it must go, revert `schema.ts` and *generate* the
+compensating migration (`DROP CONSTRAINT "CK_Grupo_Dias"`, `DROP COLUMN
+"Dias"`), with confirmation; it loses every stored day.
+
+### D-3. Import: optional `Dias` column
+
+- **Contract.** `SHEETS` (`sheets.ts`): the `Grupos` entry gets
+  `optional: ["Dias"]`. By F-C the template and the contract card follow.
+  `sheets.ts` also exports `ABSENCE_SIGNIFICANT = { Grupos: ["Dias"] }`.
+- **Absent versus empty.** In `parse.ts`, an optional column listed in
+  `ABSENCE_SIGNIFICANT` whose header is absent is **omitted from `cells`**; a
+  present header with a blank cell yields `Dias: ""`. Every other optional
+  column keeps today's `""` (changing `Telefono` would turn stored `""` into
+  `null`: out of scope). `GrupoRowSchema` gains `Dias: z.string().optional()`
+  (structural only, no cap: nothing of the raw text is stored). Both cases mean
+  "do not touch the stored days", so the planner needs no branch on them; they
+  stay distinguishable so that the two spec scenarios are driven by different
+  inputs and so that a future reversal of A-DIAS-IMP-b is one planner line.
+  Existing planner fixtures, which have no `Dias` key, already mean "column
+  absent".
+- **Token parser.** New pure module `src/lib/import/dias.ts`:
+  `parseDiasCell(raw)`. It splits on `,`, trims, drops empty segments, looks
+  each token up by `normalizeKey` (trim, lower-case, NFD, strip diacritics:
+  covers composed and decomposed accents) in a closed table of fourteen keys
+  (`lunes`/`lun` … `domingo`/`dom`), and returns `{ ok: true, mask }` or
+  `{ ok: false, token }` with the **first** unrecognised token, trimmed, as
+  written. `mask === 0` means "no token". Spanish tokens are a data contract,
+  not UI copy: they never come from the i18n catalogs.
+- **Planner (Stage C).** Directly after `GrupoRowSchema` succeeds and before
+  the reference checks, `parseDiasCell(Dias ?? "")`. A failure pushes
+  `{ sheet: "Grupos", row, reason: "dias.invalid", value: token }`, counts one
+  `error` and skips the row, like the other non-schema row errors (design
+  decision: the cell-format error wins over a reference error on the same
+  row). For a new group the `create` write carries `dias: mask` **only when
+  `mask > 0`**. For a matched group, `diasChanged = mask > 0 && mask !==
+  existing.dias`; the row is an `update` when `docenteChanged || reactivated ||
+  diasChanged`, and the write carries `dias: mask` only when `diasChanged`.
+  Otherwise it is `unchanged`. A plan can therefore never contain `dias: 0`:
+  the import cannot clear days. Deactivate-absent is untouched.
+- **Snapshot.** `GrupoRow` gains `dias: number` (the mask);
+  `loadCatalogSnapshot` projects `grupo.dias`.
+- **Apply.** `writeGrupos` spreads `...(w.dias ? { dias: w.dias } : {})` into
+  the insert values and into the update `.set`. **The values object names
+  `dias` only when the row carries days**; a falsy mask is treated as absent,
+  so even a planner bug could not clear days. (drizzle may still render the
+  column with the `default` keyword for the other rows of a chunk; that is the
+  ordering rule's reason, not a write of days.) No per-record `grupo.*` event.
+- **Preview, summary, audit payload.** No new count, field or line: a days-only
+  change is one `update` in `counts.Grupo` (CEI-DIAS-3). `ImportPlan`,
+  `ImportSummary`, `PreviewState` and `buildAuditEvents` do not change.
+- **Template and contract card.** No code change in `template.ts` or the
+  header strip. `workbook-contract.tsx` adds two entries to `RULES`:
+  `diasTokens` (names or three-letter abbreviations in Spanish, comma
+  separated) and `diasEffect` (column left out keeps the stored days; a
+  non-empty cell replaces them; an empty cell leaves them untouched; the import
+  never clears days).
+- **Rejected.** A zod refinement for the tokens (F-B: the token would be
+  lost); a workbook-level "column present" flag (every `ParsedWorkbook` literal
+  in the tests would need it); English tokens (A-DIAS-IMP-d); a preview figure
+  for days changes (the spec asks for none).
+
+### D-4. Audit
+
+`AUDITABLE_GRUPO_FIELDS` becomes `["asignaturaId", "periodo", "numeroGrupo",
+"docenteId", "activo", "origen", "dias"]`: **`dias` is appended last**, because
+the list mirrors the column order of `schema.ts` (F-F) and `Dias` is the last
+column. No stored audit row carries the old list (no manual Grupo write has
+shipped). Consequences, with no builder edited:
+
+- `grupoCreatedEvent` lists the full closed list, now including `dias`.
+- `grupoUpdatedEvent` receives `campos` from `changedFields(["docenteId",
+  "dias"], before, after)` where both records hold the **mask**; a days-only
+  edit yields exactly `["dias"]`, a docente-and-days edit `["docenteId",
+  "dias"]`. Two selections of the same set give the same mask, so nothing is
+  reported.
+- No payload carries a day name, a mask or a count: the builders accept field
+  names only. Pinned by an exact-equality test
+  (`datos` is `{ campos: ["dias"], origen: "manual" }`) and by extending the
+  leak sweep of task 12.9 with day sentinels.
+
+**Applied Phase 2 code and tests that change:** `src/lib/audit/types.ts` (one
+line), `types.test.ts` (the pinned array of task 2.4), `events.test.ts` (new
+days-only case; the `created` expectation follows the constant). The two
+`@ts-expect-error` credential pins do not move.
+
+### D-5. Grupos data layer, manual schema and actions
+
+- **Reads.** `buildGruposWhere` gains nothing (pin: its SQL never mentions
+  `"Dias"`). `listGrupos` and `getGrupoById` project `grupo.dias` and map it
+  with `decodeDias`; `GrupoListItem` gains `dias: readonly DiaSemana[]`.
+- **`createGrupo`.** Input gains `dias: readonly DiaSemana[]`; the insert sets
+  `dias: encodeDias(input.dias)` next to `origen: "manual"`.
+- **`updateGrupo`.** Input becomes `{ docenteId: number; dias: readonly
+  DiaSemana[] }`. After the scoped read (which now returns the stored mask) and
+  the `inactive` refusal: `docenteChanged`, `diasChanged = encodeDias(input.dias)
+  !== row.dias`. Neither: `unchanged`, with no docente validation (the
+  unchanged-inactive-docente exemption is kept). `docenteChanged`: the existing
+  parent checks. **A days-only change runs no parent check** (F-J; design
+  decision where CM-GRP-2 is silent). The `.set` keys are exactly the changed
+  fields (a subset of `docenteId`, `dias`); `campos` is the same subset in list
+  order. Result unions are unchanged: **`unchanged` detection includes the
+  days**, and no new result kind is needed.
+- **`setGrupoActivo`.** Untouched: it neither reads nor writes the days
+  (A-DIAS-REACT). Pin: its `.set` names only `activo`.
+- **"At least one day" lives in one place, the manual schema.** The data layer
+  accepts an empty array (the data shape allows the empty set, and the import
+  creates groups without days). Action tests with a hand-built `FormData` pin
+  the refusal.
+- **Manual schema** (`validations/catalog.ts`, applied in Phase 5, modified
+  here). Wire format: seven checkboxes sharing `name="dias"`, each with a
+  `DiaSemana` code as `value`; the action passes `formData.getAll("dias")`.
+  `diasSchema` accepts only an array: an empty array is `dias.required`; a
+  non-string entry (a `File`), a string outside `DIAS_SEMANA`, or more than
+  seven raw entries is `dias.invalid`; duplicates collapse; the output is
+  `DiaSemana[]` in week order. `grupoCreateSchema` gains `dias`;
+  `grupoUpdateSchema` becomes `{ docenteId, dias }`.
+  `CATALOG_FIELD_ERROR_KEYS` gains `dias.required` and `dias.invalid` (17
+  keys), and the copy lands in the same task because the parity test requires
+  `catalog.shared.fieldErrors` to hold exactly that list.
+- **Edit rule.** A Grupo edit changes the docente, the days, or both. Since the
+  edit schema requires at least one day (A-DIAS-REQ), editing a pre-existing
+  group with no days is refused with `dias.required` until a day is chosen,
+  **even when the user only wants to change the docente**. That is the
+  owner-confirmed rule, not a side effect.
+- **Concurrency.** `updateGrupo` runs inside `withCatalogWrite`, and
+  `runImportApply` takes the same advisory lock, so a days edit and an import
+  cannot interleave; last writer wins, as for every other field.
+
+### D-6. UI
+
+**Control: native checkboxes in a `fieldset` with a `legend`.**
+
+| Option | Verdict |
+|---|---|
+| **Seven native `<input type="checkbox" name="dias">` in a `fieldset`/`legend`** | **Chosen.** Tab reaches each box, Space toggles; assistive technology announces the group name once and each day with "checked"/"not checked"; the check mark is a shape, not a colour; it submits through plain `FormData` with no client state, so values survive an `invalid` answer under the hand-dispatched submit (R7) |
+| Base UI `CheckboxGroup` | Rejected: a hidden-input and indicator layer for seven fixed options, plus another jsdom-stability risk like the combobox |
+| Multi-select `Combobox` | Rejected: hides seven options behind a popup and a chip list; more keystrokes, worse overview |
+| Toggle buttons (`aria-pressed`) | Rejected: needs hidden inputs and a pressed style that risks colour-only state |
+
+- **Primitive (smallest token-only addition).** `src/components/ui/checkbox.tsx`:
+  a native input, 20px, `accent-primary` (native `accent-color`), the standard
+  focus ring of §7. No new colour, radius, type size or spacing step.
+- **Group.** `src/components/checkbox-group.tsx` (client-free, generic):
+  props `legend`, `name`, `options: { value; label }[]`, `defaultValues`,
+  `hint?`, `error?`, `id`. It renders `<fieldset aria-describedby="hint
+  error">`, the `legend` styled with the `Label` classes, then one
+  `<label class="inline-flex min-h-11 items-center gap-2">` per option (44px
+  target, the whole row clickable) in a wrapping row, then the hint
+  (`text-muted-foreground text-xs`) and the error (`role="alert"`,
+  `text-destructive-ink text-sm`), exactly the visual pattern of `FormField`.
+  **`FormField` is not reused** (F-E). `aria-invalid` and `aria-required` are
+  not set on the `fieldset` (not supported on the `group` role); the
+  requirement is said in the hint text and the error is announced by its alert
+  role.
+- **Design-system entry** (`docs/design-system.md` §5, added by the unit that
+  builds the component, not by this document): "Checkbox group. For a small
+  fixed set of independent options. A `fieldset` whose `legend` is the field
+  label; native checkboxes tinted `primary`, each inside a 44px-tall label;
+  hint and error as in Form. No new token."
+- **Form.** `GrupoForm` renders the group in create and edit mode, options in
+  `DIAS_SEMANA` order with the **long** names, `defaultValues` from the record
+  (empty for a pre-existing group: nothing selected and no error shown until
+  submit, CM-GRP-6).
+- **List column.** A "Days" column between the docente and the state. Non-empty:
+  short names in week order joined by ", " in an `aria-hidden` span, plus an
+  `sr-only` span with the long names (CM-GRP-7). Empty: the plain muted text
+  "days not set", no role, no error colour.
+- **i18n** (`es` and `en`, identical keys):
+
+  | Namespace | Keys |
+  |---|---|
+  | `catalog.shared.dias.long` | `lunes` … `domingo` (es "Lunes" …, en "Monday" …) |
+  | `catalog.shared.dias.short` | `lunes` … `domingo` (es "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"; en "Mon" … "Sun") |
+  | `catalog.shared.dias` | `notSet` |
+  | `catalog.shared.fieldErrors.dias` | `required`, `invalid` |
+  | `catalog.grupos` (form and list keys, named as the Asignaturas ones) | days label, days hint ("select at least one"), days column header |
+  | `catalog.import.reasons.dias` | `invalid` (names the token through `{value}`, as the existing reasons do) |
+  | `catalog.import.contract.rules` | `diasTokens`, `diasEffect` |
+
+  The parity test gains: `ROW_REASONS` + `dias.invalid`; the two contract
+  rules; a pinned list asserting `dias.long` and `dias.short` hold exactly
+  `DIAS_SEMANA`.
+
+### D-7. Work-unit plan for `sdd-tasks`
+
+New phases are numbered after the existing ones so no task id moves.
+
+| Unit | Phase | Goal | Files | Depends on | Authored lines (honest) | Seam |
+|---|---|---|---|---|---|---|
+| WU-D1 | **16 (new)** | Day-set module, audit list, schema column, `0006`, gates DG1-DG10, data-model doc | `src/lib/catalog/dias.ts` (+test); `src/lib/audit/types.ts`, `types.test.ts`, `events.test.ts`; `src/db/schema.ts`, `schema.test.ts`; `drizzle/0006_*`, `drizzle/meta/*`; `src/db/migration-0006.test.ts`; `modelo_datos_sql.md` | Phase 1 closed | 300-450 | 16A pure (`dias.ts`, audit list) / 16B `schema.ts`, generation, review, gates |
+| WU-D3 | **18 (new)** | `Checkbox` primitive, `CheckboxGroup`, day-name copy, design-system entry | `src/components/ui/checkbox.tsx` (+test), `src/components/checkbox-group.tsx` (+test), `i18n/{es,en}.json`, `catalog-parity.test.ts`, `docs/design-system.md` | 16A only | 350-550 | components / copy |
+| WU-D2 | **17 (new)** | Import `Dias` column end to end | `src/lib/import/{sheets,parse,schemas,types,plan,apply}.ts` and their tests, new `src/lib/import/dias.ts` (+test), `__fixtures__/plan-fixtures.ts`, `template.test.ts`, `src/lib/data/catalog.ts` (+test), `catalog/import/workbook-contract.tsx` (+test), `catalog/import/actions.test.ts`, `i18n/{es,en}.json`, `catalog-parity.test.ts` | **DG9**, 16A | 600-900 | 17A parse, token parser, schema, snapshot type and projection, planner / 17B apply, contract card, copy |
+| WU3a | 10 (existing, absorbs) | Grupos data layer with days | as planned | 16A; DG9 before any runtime use | +120-200, new range 950-1,500 | reads / writes (unchanged) |
+| WU3b-2 | 12 (existing, absorbs) | Manual schema with days, Grupo actions | as planned + `validations/catalog.ts` (+test), `i18n` field errors | Phase 10 | +150-250, new range 750-1,150 | schema and create / update and toggle |
+| WU3b-3 | 13 (existing, absorbs) | Form with the group, list column, pages | as planned | Phases 12 and 18 | +200-300, new range 1,200-1,800 | form / pages and copy (unchanged) |
+| WU3b-1 | 11 | **Unaffected.** The combobox stays single-select; the days do not use it | — | — | — | — |
+| WU5 | 14 | **Unaffected.** Docentes carry no days | — | — | — | — |
+| Closing | 15 (existing, absorbs) | Extra smoke, housekeeping, records | — | all | bookkeeping | — |
+
+Added authored lines: roughly **1,700-2,650** on top of the existing forecast.
+Each new unit fits the 800-line budget except WU-D2 at its upper bound, which
+has a named seam.
+
+**Existing tasks that change** (ids as in `tasks.md`):
+
+| Task | Change |
+|---|---|
+| Header, forecast, unit tables | Add the spec ids (CM-GRP-6, CM-GRP-7, AC-DIAS, AC-DIAS-ADD, CEI-DIAS-1..4), gates DG1-DG10, Phases 16-18, the new estimates and order |
+| "Decisions still open" #5 | Record the owner's answer: docente and days |
+| 10.2 / 10.3 | Projection and `GrupoListItem.dias` (decoded, week order); pin that the where clause and `q` never mention `"Dias"` |
+| 10.6 / 10.7 | `createGrupo` input carries `dias`; the insert stores `encodeDias` (selection order irrelevant, duplicates collapse) |
+| 10.8 / 10.9 | Rewrite: input `{ docenteId, dias }`; four cases (nothing, docente only, days only, both); days-only runs no parent check; `.set` keys equal the changed fields; `campos` is `["docenteId"]`, `["dias"]` or `["docenteId", "dias"]`; same set in another order is `unchanged` |
+| 10.10 / 10.11 | Add: a group with mask `0` reactivates; `.set` still names only `activo` |
+| 10.12 | Add to the structural pin: `setGrupoActivo` never mentions `dias` |
+| 10.15 | Checkpoint also looks at the days-only path |
+| 12.1 | Read `validations/catalog.ts` and its test as well |
+| new 12.1a / 12.1b | RED/GREEN `diasSchema`, both Grupo schemas, the two error keys and their copy (modifies applied Phase 5 code and its pinned tests) |
+| 12.2 / 12.3 | `formData.getAll("dias")`; no day -> `dias.required` under the field, nothing written; a foreign value or a non-string entry -> `dias.invalid`; a valid create passes the days in week order |
+| 12.4 / 12.5 | Rewrite: input to `updateGrupo` is `{ docenteId, dias }`; a pre-existing group without days is refused with `dias.required`; days-only edit -> one `grupo.actualizado` with `campos: ["dias"]`; same set reordered -> `unchanged` |
+| 12.6 / 12.7 | Add one case: reactivation of a group without days succeeds |
+| 12.9 | Leak sweep gains day sentinels (a day code, a long name, a mask) |
+| 12.10 / 12.11 | Covered by 12.1a/b for the field errors; nothing else |
+| 13.2 / 13.3 | The form renders the group in both modes; edit prefilled; selections survive `invalid`; the error sits under the group with `role="alert"`; keyboard reach and toggle of every day; a pre-existing group shows nothing selected and no error |
+| 13.4 / 13.5 | The list shows the days column (short visible, long for assistive technology, "days not set"), in both locales; no days filter or search field |
+| 13.6 / 13.7 | The edit page passes the record's days to the form |
+| 13.10 / 13.11 | Grupo form and list day keys |
+| 13.13 | Smoke adds the checkbox group in a real browser, both themes |
+| 15.2 | Sweep adds: no `.set` or values object with a literal `dias: 0` in `src/lib/import` |
+| 15.5 | Re-read the `Dias` entry of `modelo_datos_sql.md` and the checkbox entry of the design system |
+| 15.6 | See below |
+| 15.7 | Housekeeping also covers `rehearsal-0006`, `rehearsal-catalog-ui`, `backup-before-0006` |
+| 15.10 | Records DG1-DG10 evidence and the `0006` hash |
+
+**Phase 15.6, additional coverage of the final rehearsal smoke** (on a branch
+that has `0006`): create a Grupo with days chosen out of order and see week
+order in the list; create without days refused; open a pre-existing group (no
+days selected, no error) and see the refusal on submit; a days-only edit, then
+a read-only `SELECT` of its audit row (`campos` is `["dias"]`, no day value); a
+no-change resubmit; reactivate a group that has no days; import with a
+non-empty `Dias` cell (replaces), with an empty cell (keeps), without the
+column (keeps), with `Lunes, Funday` (one `dias.invalid` naming `Funday`, no
+confirm control); re-import of the same file (`unchanged` only); no `grupo.*`
+audit row from any import; download the template, check `Dias` in the Grupos
+header and upload it unchanged (zero rows, zero errors); a read-only `SELECT
+"Dias"` to compare stored masks with what the screens show.
+
+**Recommended order from the current state:** finish Phase 11 → **16A** → 16B
+code → gates DG1-DG9 (user-paced; Phase 18 and the code of Phase 10 may proceed
+under doubles meanwhile) → **17** → 10 → 12 → 13 → 14 → 15. Phase 14 is
+independent and may move earlier. Phases 17, 18, 12 and 13 all edit
+`i18n/*.json` and `catalog-parity.test.ts`, and Phases 10 and 12 edit
+`catalog/types.ts` / `validations/catalog.ts`: they are applied one at a time,
+never in parallel. Phase 17 goes before the Grupo phases only to close the
+already-reviewed import surface first; unlike WU4 there is no correctness
+reason, because an import that does not know the column never touches it.
+
+### D-8. Risks and unknowns
+
+| Risk | Likelihood | Handling |
+|---|---|---|
+| drizzle-kit emits something other than the two expected statements (for example re-emits `CK_Grupo_Origen`, or renders the CHECK differently) | Low: `0005` emitted the same two statement kinds verbatim | Hand review with a stop rule; `migration-0006.test.ts`; if the CHECK text is equivalent but different, the test is adjusted in the same batch and recorded |
+| The ordering window: `schema.ts` declares the column while `production` and `rehearsal-catalog-ui` lack it | Certain, short | D-2 rules 1-5; the `schema.ts` edit is the last code task before the gates |
+| drizzle renders a multi-row insert whose rows have different key sets incorrectly | Low | `apply.test.ts` pins the values handed to the double; the rendered SQL is only proven by the rehearsal smoke (15.6). Not verified here |
+| Concurrent writers on the days | Covered | The existing advisory lock already serialises every `withCatalogWrite` and the import apply; no new protocol. Last writer wins |
+| `23505` and aborted transactions | Unchanged | The days are not part of any unique key, so no new `23505` path exists. A `23514` on `CK_Grupo_Dias` is unreachable through `encodeDias`; if it ever fires it is an unexpected failure: the transaction is aborted, no further statement (including the audit insert) may run on it, it is **not** mapped to a typed result, and it follows the generic logged path |
+| Tests that pin exact shapes | Certain | `types.test.ts` (array), `sheets.test.ts` (`grupos.optional` is `[]`), `template.test.ts` and `workbook-contract.test.tsx` (header literals), `validations/catalog.test.ts` (schema key sets, 15 keys), `catalog-parity.test.ts` (`ROW_REASONS`, field errors, contract rules), `plan.test.ts` / `apply.test.ts` / `import/actions.test.ts` (snapshot `GrupoRow` literals; `makeGrupoRow` absorbs most), `data/catalog.test.ts` (projection). `migration-0005.test.ts` does **not** change (F-I) |
+| `accent-color` check-mark contrast is chosen by the browser, per theme | Low-Med | Checked in the browser smoke (13.13) in both themes; fallback is `appearance-none` with a drawn check using existing tokens, still no new token |
+| `Telefono` keeps the old "absent equals empty" behaviour while `Dias` does not | Certain, deliberate | `ABSENCE_SIGNIFICANT` names the one exception; a parse test pins both columns |
+| A coordinator cannot change only the docente of a legacy group without also choosing days | Certain, by A-DIAS-REQ | Stated in D-5; the hint says a day is required |
+| The opaque mask is misread in ad-hoc SQL or by the future request feature (Sunday-first `getDay()`) | Med | Bit table in `modelo_datos_sql.md`; note in D-1; only `dias.ts` converts |
+| Spec text still saying "an empty cell clears the days" | Was true while this was written | The owner's flipped rule wins; the delta read on 2026-10-07 already states "left untouched" |
+
+**Applied code that contradicts the amendment and must be modified:**
+`src/lib/import/parse.ts` (F-A), `src/lib/import/sheets.ts` and its pinned
+test, `src/lib/import/schemas.ts`, `types.ts`, `plan.ts`, `apply.ts`,
+`__fixtures__/plan-fixtures.ts`, `src/lib/data/catalog.ts`,
+`catalog/import/workbook-contract.tsx`, `src/lib/audit/types.ts` and
+`types.test.ts`, `src/lib/validations/catalog.ts` (the comment "Only the
+docente may change" and both Grupo schemas) and its test, `src/db/schema.ts`,
+`modelo_datos_sql.md`, `i18n/{es,en}.json`, `catalog-parity.test.ts`.
+`docs/PlantillaCatalogo.xlsx` (the frozen sample) has no `Dias` column and
+stays valid because the column is optional.
+
+## C. Interfaces (authoritative for the amended entries)
+
+```ts
+// src/lib/catalog/dias.ts — PURE. The only place a day set is encoded/decoded.
+export const DIAS_SEMANA = [
+  "lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo",
+] as const;                                   // week order; index = bit
+export type DiaSemana = (typeof DIAS_SEMANA)[number];
+export const DIAS_MASK_MAX = 127;             // (1 << DIAS_SEMANA.length) - 1
+export function isDiaSemana(value: unknown): value is DiaSemana;
+/** OR of `1 << index`; duplicates and order collapse by construction. */
+export function encodeDias(dias: Iterable<DiaSemana>): number;
+/** Week order. Throws RangeError unless an integer in 0..DIAS_MASK_MAX. */
+export function decodeDias(mask: number): DiaSemana[];
+
+// src/db/schema.ts — additions to `grupo`
+dias: smallint("Dias").notNull().default(0),
+check("CK_Grupo_Dias", sql`${t.dias} between 0 and 127`),
+
+// src/lib/import/sheets.ts
+// Grupos: optional: ["Dias"]
+export const ABSENCE_SIGNIFICANT: Readonly<Record<string, readonly string[]>>;
+
+// src/lib/import/dias.ts — PURE
+export type DiasCell = { ok: true; mask: number } | { ok: false; token: string };
+export function parseDiasCell(raw: string): DiasCell;      // mask 0 = no token
+
+// src/lib/import/types.ts
+export type GrupoRow = { ...; dias: number };              // snapshot: the mask
+// GrupoWrite "create": dias?: number   present only when the cell names a day
+// GrupoWrite "update": dias?: number   present only when non-empty AND different
+
+// src/lib/audit/types.ts
+export const AUDITABLE_GRUPO_FIELDS = ["asignaturaId", "periodo", "numeroGrupo",
+  "docenteId", "activo", "origen", "dias"] as const;
+
+// src/lib/catalog/types.ts
+export type GrupoListItem = { ...; dias: readonly DiaSemana[] };   // week order
+
+// src/lib/data/grupos.ts
+createGrupo(tx, scope, input: { asignaturaId; periodo; numeroGrupo; docenteId;
+  dias: readonly DiaSemana[] }): Promise<GrupoWriteResult>;
+updateGrupo(tx, scope, id, input: { docenteId: number;
+  dias: readonly DiaSemana[] }): Promise<GrupoWriteResult>;
+// setGrupoActivo: unchanged.
+
+// src/lib/validations/catalog.ts
+export const diasSchema;           // unknown -> DiaSemana[] (week order, >= 1)
+export const grupoCreateSchema;    // + dias
+export const grupoUpdateSchema;    // { docenteId, dias }
+// CATALOG_FIELD_ERROR_KEYS += "dias.required", "dias.invalid"
+
+// src/components/ui/checkbox.tsx, src/components/checkbox-group.tsx
+export function Checkbox(props: ComponentProps<"input">): JSX.Element;
+export function CheckboxGroup(props: {
+  id: string; legend: string; name: string;
+  options: readonly { value: string; label: string }[];
+  defaultValues?: readonly string[]; hint?: string; error?: string;
+}): JSX.Element;
+```
+
+## D. File changes (amendment)
+
+| File | Action | Description |
+|---|---|---|
+| `src/lib/catalog/dias.ts` (+test) | Create | D-1 source of truth and helpers |
+| `src/db/schema.ts`, `schema.test.ts` | Modify | `grupo.dias`, `CK_Grupo_Dias` |
+| `drizzle/0006_grupo_dias.sql`, `drizzle/meta/0006_snapshot.json`, `_journal.json` | Create/Modify | Generated; hand-reviewed |
+| `src/db/migration-0006.test.ts` | Create | SQL and journal assertions |
+| `modelo_datos_sql.md` | Modify | §3.1 `Grupo."Dias"`, `CK_Grupo_Dias`, the bit table, "empty means not recorded" |
+| `src/lib/audit/types.ts`, `types.test.ts`, `events.test.ts` | Modify | D-4 |
+| `src/lib/import/dias.ts` (+test) | Create | Token parser |
+| `src/lib/import/{sheets,parse,schemas,types,plan,apply}.ts` + tests, `__fixtures__/plan-fixtures.ts`, `template.test.ts` | Modify | D-3 |
+| `src/lib/data/catalog.ts` (+test) | Modify | Snapshot projects `grupo.dias` |
+| `src/app/(dashboard)/catalog/import/workbook-contract.tsx` (+test), `actions.test.ts` | Modify | Two contract rules; fixture literals |
+| `src/lib/validations/catalog.ts` (+test) | Modify | D-5 manual schema |
+| `src/lib/catalog/types.ts` | Modify | `GrupoListItem.dias` (with Phase 10) |
+| `src/lib/data/grupos.ts` (+test) | Create (Phase 10) | With days from the start |
+| `src/app/(dashboard)/catalog/grupos/**` | Create (Phases 12, 13) | With days from the start |
+| `src/components/ui/checkbox.tsx`, `src/components/checkbox-group.tsx` (+tests) | Create | D-6 |
+| `docs/design-system.md` | Modify | §5 "Checkbox group" entry |
+| `i18n/es.json`, `i18n/en.json`, `src/i18n/catalog-parity.test.ts` | Modify | D-6 key table |
+
+No file is deleted. `template.ts`, `summary.ts`, `events.ts`,
+`catalog-write.ts`, `catalog-scope-sql.ts`, `import-preview.tsx`,
+`form-field.tsx` and `combobox.tsx` are **not** modified.
+
+## E. Testing additions (strict TDD, each a failing test first)
+
+| Layer | What |
+|---|---|
+| Unit, pure | `dias.ts`: order and tuple pin; encode/decode round trip over all 128 masks; duplicates and order collapse; `decodeDias` rejects `-1`, `128`, `1.5`; type test rejecting a foreign code |
+| Unit, pure | `parseDiasCell`: both spec tables of CEI-DIAS-2 (accepted spellings, unrecognised tokens), decomposed accents, the first bad token returned as written |
+| Unit, SQL text | `migration-0006.test.ts` (D-2); `schema.test.ts` column and CHECK bounds against `DIAS_MASK_MAX` |
+| Unit, parse | Header absent: no `Dias` key; header present and blank: `Dias: ""`; `Telefono` unchanged in both cases; the template uploaded unchanged parses to zero rows and zero errors |
+| Unit, planner | Every scenario of CEI-DIAS-3, with "column absent" and "empty cell" as separate cases; no write ever carries `dias: 0`; an invalid token blocks the plan with one error naming the token |
+| Integration, `tx` double | `apply`: the insert values and the update `.set` name `dias` only for writes that carry it; no `grupo.*` event. `grupos.ts`: the four update cases, `.set` keys, `campos`, days-only without parent reads, `setGrupoActivo` blind to days |
+| Integration, actions | `getAll("dias")` parsing; `dias.required`; a foreign value and a `File` entry refused; exactly one event with `campos: ["dias"]`; guard still runs before any `formData` read |
+| Component | `Checkbox`, `CheckboxGroup` (legend as group name, `aria-describedby`, alert, keyboard toggle, 44px label rows by class), `GrupoForm` with the group, list cell rendering in `es` and `en` |
+| i18n | Parity for the new keys; `dias.long` / `dias.short` equal `DIAS_SEMANA` |
+
+**Proved only by the Neon rehearsal:** the default, the CHECK firing at both
+bounds, an insert that omits the column (DG4, DG5), and the rendered SQL of a
+mixed-key multi-row insert (smoke 15.6).
+
+## F. Threat matrix (amendment)
+
+Standard rows remain N/A (no shell, subprocess, VCS or PR automation). Added
+boundaries:
+
+| Boundary | Adversarial case | Design response | Planned RED tests |
+|---|---|---|---|
+| Hand-crafted `dias` | A value outside the seven, a `File`, hundreds of entries, no entry | `diasSchema` validates against `DIAS_SEMANA`, bounds the entry count, requires one; `CK_Grupo_Dias` is the backstop | Action and schema tests |
+| Audit payload | A day name, mask or count in `datos` | Builders take field names only | Exact-equality test; leak sweep with day sentinels |
+| Import clearing days | An empty cell, or a planner defect producing `0` | The planner never emits `dias` for an empty cell; the apply treats a falsy mask as absent | Planner and apply tests |
+| Scope | A coordinator editing the days of a foreign group | Unchanged: the scoped statement and the A-6 pre-check cover every field of the record | Existing sentinel and foreign-id tests extended to the days path |
+
+## G. Choices made where the spec is silent
+
+1. Storage as a `smallint` bitmask, the column and constraint names, no index.
+2. Bit order (Monday = bit 0) and the codes `lunes` … `domingo`.
+3. `dias` appended last in `AUDITABLE_GRUPO_FIELDS`.
+4. A days-only edit runs no Asignatura or docente check.
+5. The "at least one day" rule is enforced in the manual schema only.
+6. More than seven raw `dias` entries in a request is `dias.invalid`.
+7. `dias.invalid` is checked right after the row schema and wins over a
+   reference error on the same row; it names the first bad token only.
+8. Absent versus empty travels as "key absent" versus `""`, for `Grupos.Dias`
+   only.
+9. Native checkboxes in a `fieldset`; a new `CheckboxGroup` beside `FormField`;
+   no `aria-invalid` on the `fieldset`.
+10. List cell: short names visible, long names for assistive technology,
+    comma separated.
+11. Two contract rule keys (`diasTokens`, `diasEffect`); no template note.
+12. Migration name `0006_grupo_dias`; fresh branch `rehearsal-0006`;
+    `rehearsal-catalog-ui` not reused for the rehearsal.
+13. Phase 17 before the Grupo phases (ordering preference, not a dependency).
+
+## H. Not done by this amendment
+
+The justification-request form; validating `FechaInasistencia` against the
+days; hours, classrooms or calendars; showing the days to students; a days
+search or filter; English import tokens; a preview figure for days changes; an
+index; any change to `Asignatura`, `Usuario`, `Inscripcion` or the audit table.
