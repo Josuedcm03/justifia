@@ -150,7 +150,11 @@ describe("AppSidebar", () => {
       expect(
         document.querySelector('[data-sidebar="menu-sub"]'),
       ).not.toBeInTheDocument();
-      expect(topLevelLabels()).toEqual(["Panel", "Configuración"]);
+      expect(topLevelLabels()).toEqual(
+        rol === "estudiante"
+          ? ["Panel", "Nueva solicitud", "Configuración"]
+          : ["Panel", "Configuración"],
+      );
     },
   );
 
@@ -172,7 +176,7 @@ describe("AppSidebar", () => {
     ["coordinacion", ["/", "/users", "/settings"]],
     ["secretaria", ["/", "/catalog/import", "/users", "/settings"]],
     ["docente", ["/", "/settings"]],
-    ["estudiante", ["/", "/settings"]],
+    ["estudiante", ["/", "/requests/new", "/settings"]],
   ] as const)("offers exactly the permitted links to %s", (rol, hrefs) => {
     renderSidebar(rol);
 
@@ -192,6 +196,38 @@ describe("AppSidebar", () => {
     ).map((link) => link.getAttribute("href"));
 
     expect(topLevelHrefs).toEqual(["/", "/settings"]);
+  });
+});
+
+describe("AppSidebar new request item (justification-intake, canFileRequests)", () => {
+  it("offers estudiante a top-level link to the intake flow", () => {
+    renderSidebar("estudiante");
+
+    expect(
+      screen.getByRole("link", { name: "Nueva solicitud" }),
+    ).toHaveAttribute("href", "/requests/new");
+  });
+
+  it.each(["docente", "coordinacion", "secretaria", "administrador"] as const)(
+    "hides it from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        screen.queryByRole("link", { name: "Nueva solicitud" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("marks it current inside the flow and labels it in English", () => {
+    env.pathname = "/requests/new";
+    env.locale = "en";
+    renderSidebar("estudiante");
+
+    expect(screen.getByRole("link", { name: "New request" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 });
 

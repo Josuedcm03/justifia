@@ -12,6 +12,7 @@
   },
   "nav": {
     "dashboard": "Panel",
+    "newRequest": "Nueva solicitud",
     "administration": "Administración",
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
@@ -333,5 +334,90 @@
     "cifLabel": "CIF",
     "careerLabel": "Carrera",
     "memberSinceLabel": "Miembro desde"
+  },
+  "intake": {
+    "title": "Nueva solicitud de justificación",
+    "subtitle": "Completa los pasos para presentar tu justificación de ausencia.",
+    "degraded": "No pudimos cargar tu borrador. Inténtalo de nuevo en unos minutos.",
+    "stepper": {
+      "label": "Pasos de la solicitud",
+      "stepOf": "Paso {current} de {total}",
+      "steps": {
+        "details": "Causa y fechas",
+        "subjects": "Asignaturas",
+        "documents": "Documentos",
+        "review": "Revisión"
+      }
+    },
+    "causes": {
+      "maternidad_paternidad": "Maternidad, paternidad o lactancia",
+      "actividad_representativa": "Actividad cultural o deportiva en representación de la UAM",
+      "intercambio_academico": "Intercambio académico",
+      "medica": "Causa médica",
+      "fuerza_mayor": "Otra causa de fuerza mayor"
+    },
+    "actions": {
+      "next": "Continuar",
+      "back": "Atrás",
+      "saving": "Guardando…"
+    },
+    "details": {
+      "title": "Causa y fechas",
+      "description": "Indica el motivo de tu ausencia y el periodo que abarca.",
+      "causeLabel": "Causa de la ausencia",
+      "startLabel": "Fecha de inicio",
+      "endLabel": "Fecha de fin"
+    },
+    "subjects": {
+      "title": "Asignaturas afectadas",
+      "description": "Marca las asignaturas en las que faltaste. Mostramos tu grupo y docente.",
+      "datesRequired": "Indica primero las fechas de la ausencia para ver tus asignaturas.",
+      "goToDates": "Ir a causa y fechas",
+      "degraded": "No pudimos cargar tus asignaturas. Inténtalo de nuevo en unos minutos.",
+      "empty": "No tienes asignaturas activas en las que estés inscrito.",
+      "group": "Grupo {number}",
+      "teacher": "Docente: {name}",
+      "noTeacher": "Sin docente asignado",
+      "chooseGroup": "Elige el grupo de esta asignatura"
+    },
+    "documents": {
+      "title": "Documentos de respaldo",
+      "description": "Adjunta al menos un documento que respalde tu ausencia.",
+      "hint": "PDF, PNG o JPEG de hasta {size} MB. Máximo {max} documentos.",
+      "count": "{count} de {max} documentos",
+      "empty": "Aún no has adjuntado documentos.",
+      "add": "Adjuntar documento",
+      "uploading": "Subiendo {name}…",
+      "remove": "Quitar {name}",
+      "removing": "Quitando…"
+    },
+    "errors": {
+      "causa_required": "Elige la causa de tu ausencia.",
+      "causa_invalid": "Elige una de las causas de la lista.",
+      "start_required": "Indica la fecha de inicio.",
+      "start_invalid": "Indica una fecha de inicio válida.",
+      "end_required": "Indica la fecha de fin.",
+      "end_invalid": "Indica una fecha de fin válida.",
+      "end_before_start": "La fecha de fin no puede ser anterior a la de inicio.",
+      "end_too_old": "La fecha de fin no puede ser anterior a 30 días antes de hoy.",
+      "subjects_required": "Marca al menos una asignatura.",
+      "subject_not_eligible": "Esta asignatura no está disponible para tu inscripción.",
+      "subject_duplicate": "Esta asignatura está repetida.",
+      "group_required": "Elige el grupo de esta asignatura.",
+      "group_not_in_subject": "El grupo elegido no pertenece a esta asignatura.",
+      "documents_required": "Adjunta al menos un documento de respaldo.",
+      "no_draft": "No encontramos tu borrador. Recarga la página para empezar de nuevo.",
+      "invalid_input": "Revisa los datos ingresados.",
+      "dates_required": "Indica primero las fechas de la ausencia.",
+      "submit_conflict": "La solicitud cambió mientras la enviabas. Recarga la página y revísala.",
+      "profile_incomplete": "Tu cuenta no tiene todos los datos necesarios. Contacta a la secretaría.",
+      "unsupported_format": "Formato no admitido. Sube un PDF, PNG o JPEG.",
+      "too_large": "El archivo supera los 10 MB.",
+      "empty_file": "El archivo está vacío.",
+      "not_found": "No encontramos el archivo. Inténtalo de nuevo.",
+      "not_allowed": "No tienes permiso para esta operación.",
+      "too_many_documents": "Ya adjuntaste el máximo de 5 documentos. Quita uno para subir otro.",
+      "upload_failed": "No se pudo subir el archivo. Inténtalo de nuevo."
+    }
   }
 }

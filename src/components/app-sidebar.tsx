@@ -3,6 +3,7 @@
 import {
   Briefcase,
   ChevronRight,
+  FilePlus,
   FileSpreadsheet,
   LayoutDashboard,
   type LucideIcon,
@@ -35,7 +36,11 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { canCreateUsers, canImportCatalog } from "@/lib/auth/permissions";
+import {
+  canCreateUsers,
+  canFileRequests,
+  canImportCatalog,
+} from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 type NavLink = {
@@ -57,6 +62,12 @@ type NavGroup = {
 // new back-office page is one more entry in `children`.
 const items = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
+  {
+    key: "newRequest",
+    href: "/requests/new",
+    icon: FilePlus,
+    visibleTo: canFileRequests,
+  },
   {
     key: "administration",
     icon: Briefcase,

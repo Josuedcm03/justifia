@@ -144,3 +144,59 @@ Production about 765 lines (actions 214, solicitudes 350, enrollment 82, validat
 
 - Real transaction behaviour (row lock, rollback on audit failure, unique-index race) is covered only by double-based tests; verify against a dev database before merge.
 - The three failing test files outside this slice should be confirmed as pre-existing on the base branch.
+
+## Slice 4 (Phase 4, PR 4) - UI primitives, stepper, steps 1-3, i18n, sidebar
+
+Mode: Strict TDD. Branch: `feat/justification-intake-s4-stepper` (from slice 3 branch). Status: 8/8 Phase 4 tasks complete (4.1-4.8).
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.1 | `src/components/ui/{checkbox,radio-group,stepper,alert-dialog}.test.tsx` | Component (Testing Library) | N/A (new) | 4 files failed (modules missing) | 14/14 | toggle/keyboard/disabled; none preselected, controlled, arrows; aria-current, earlier links only, first step; open, cancel, action, Escape | prettier |
+| 4.7 | `src/i18n/intake-messages.test.ts` | Unit | catalog parity tests green | 5 of 6 failed (no `intake.*`, no `nav.newRequest`) | 6/6 | es+en, 26 error codes, 5 causes, 4 step labels | none |
+| 4.8 | `src/components/app-sidebar.test.tsx` | Component | 48/48 | 4 failed (estudiante lists, new item tests) | 54/54 | estudiante only, 4 other roles hidden, current page, English label | prettier |
+| 4.2 (pure) | `steps.test.ts` | Unit | N/A (new) | module missing | 22/22 | parse valid/invalid/array/clamp, resume point x3, range x4 | none |
+| 4.3 | `intake-stepper.test.tsx` | Component | N/A (new) | module missing | 5/5 | es, en, current + "Paso n de 4", earlier links, first step | none |
+| 4.4 | `cause-dates-step.test.tsx` | Component | N/A (new) | module missing | 9/9 | five causes none chosen, resume, save+navigate, empty payload, three errors at once with aria, English, form error, retry clears, pending | prettier |
+| 4.5 | `subjects-step.test.tsx` | Component | N/A (new) | module missing | 13/13 (one failed first: Button `render=Link` has role button, replaced by a styled `Link`) | single group, no teacher, ambiguous radio none preselected, resume, no dates, degraded, empty, save payload, untick, per-subject error, step error, back | `BackLink` extracted to form-field |
+| 4.6 | `documents-step.test.tsx` | Component (mocked SDK and actions) | N/A (new) | module missing | 21/21 | empty, list, full, upload+finalize, png/jpeg, progress, 6 server reasons + retry, upload failure, 3 prechecks, exact 10 MiB, remove ok/fail, English | `Object.hasOwn` instead of `in` |
+| 4.2 | `page.test.tsx` | Integration (mocked dal/data/deps) | N/A (new) | module missing | 17/17 | guard, redirect reads nothing, session user, resume step, explicit step, saved subjects, no dates, degraded, only valid docs, clamp, bad values, fail-soft x2 | async child component inlined (RTL cannot render it) |
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/components/ui src/components/app-sidebar.test.tsx src/i18n "src/app/(dashboard)/requests/new"` -> 14 files, 218 tests passed. `npm run typecheck` clean. eslint: only the CRLF `Delete` noise. Full `npx vitest run src`: 1193 passed, 5 failed in 3 files NOT touched here (`src/app/denied/page.test.tsx`, `src/app/(dashboard)/users/page.test.tsx`, `src/components/data-table-search.test.tsx`: all `Button render={<Link/>}` exposing role button instead of link) |
+| Runtime harness | NOT RUN: `npm run dev` walk of steps 1-3 needs a student session, a dev database with an enrolled student and a dev Blob token (`vercel env pull`); manual pre-merge check |
+| Rollback boundary | Revert `src/components/ui/{checkbox,radio-group,stepper,alert-dialog}*`, `src/app/(dashboard)/requests/new/{page,steps,intake-stepper,form-field,cause-dates-step,subjects-step,documents-step,test-support}*`, `intake` and `nav.newRequest` in `i18n/*.json`, `src/i18n/intake-messages.test.ts`, and the `newRequest` item plus tests in `src/components/app-sidebar*` |
+
+### Size (owner budget rule: production only)
+
+Production about 1,356 lines (i18n 172, UI primitives 266, page+steps+stepper 180, form-field 123, step components 602, sidebar 13) against the 800 budget; tests and support about 1,558 lines. Over budget by about 550: the forecast of ~750 assumed leaner steps; no code, comments or tests were cut to fit. Recommend `size:exception` for PR 4, or splitting out the primitives (alert-dialog has no consumer until slice 5, 127 lines).
+
+### Deviations / notes
+
+- Design-system compatibility: only semantic tokens that exist in both systems (`primary`, `foreground`, `muted`, `border`, `destructive`, `card`); no lime/highlight. Active step = `shadow-[inset_0_-3px_0_0_var(--primary)]` plus `aria-current="step"` (not the `.is-current` utility, which still uses lime on this branch). Labels above inputs, errors under fields with `role="alert"`.
+- `checkbox.tsx` is an interim primitive (plain base-ui `checked`/`onCheckedChange` API, shadcn style). The teammate's `Checkbox`/`CheckboxGroup` is not on any branch; swap at the final merge (F.3).
+- Step 4 (review) is not built: `AVAILABLE_STEPS = 3`; `?step=4` clamps to 3, the stepper lists "Review" as plain text and step 3 has only a Back link. Slice 5 raises the constant and adds the Continue link.
+- "Resume at last step": the schema stores no step, so an unqualified visit resumes at the first incomplete step (`defaultStep`: no details -> 1, no subjects -> 2, else 3); `?step=` overrides it.
+- The SDK `upload()` throws a generic "Failed to retrieve the client token" and drops the token route's JSON, so the client cannot show `too_many_documents` from a token refusal. The UI instead disables Attach at 5 documents and shows that reason permanently; any other token refusal shows `upload_failed` and the page is re-read (`router.refresh()`).
+- Every step test mounts the real catalogs with `onError` throwing, so a missing `intake.*` key fails the test. Error codes `intake.errors.*`: 25 from the actions plus client-only `upload_failed` (26 per locale).
+- `draftRange` duplicates the private `rangeOf` of `actions.ts` (a `"use server"` file can only export async functions); same logic, tested.
+- `documents-step.tsx` imports `formatFileSize` from `catalog/import/file-dropzone.tsx` (existing exported helper) and defines its own `errorKey` to keep zod out of the client bundle.
+- The page redirect for non-students is `requireRole` -> `/denied` (existing guard); the page does not render for other roles.
+- Server actions return a key per field; step components render them with the root translator, so any future code only needs an `intake.errors.<code>` entry.
+- Base-ui `Select` was not used: the cause is a radio list (five visible options read better at 360 px than a popup).
+- No `Field`/`StepShell` own test file: covered through the three step tests (alerts, aria wiring, footer).
+
+### Open items
+
+- Manual runtime walk of steps 1-3 and a real upload against a dev Blob store.
+- 360 px behaviour is by construction (stacked cards, full-width buttons, collapsed stepper, truncated names); the per-step no-horizontal-scroll test is task 5.6.
+- Three pre-existing failing test files (see above) remain on the base branch.
+
+## Delivery decision (slice 4)
+
+- Owner accepted `size:exception` for PR 4: 1,355 production lines (172 i18n) and 1,556 test lines, no split. Attempt objective reset by the owner (`ji-s4-reset-size-exception-001`).
+- Slice 5 forecast (~450) to be re-estimated before starting.

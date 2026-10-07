@@ -74,14 +74,14 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 4: Slice 4 - Steps 1-3, primitives, i18n (PR 4)
 
-- [ ] 4.1 Add `alert-dialog`, `radio-group`, `stepper` in `src/components/ui/` with tests; reuse `catalog-management`'s `Checkbox` if it is on `main`, else create it with the same API (RNF-11, tokens from the current "Academic Governance" design system, no lime)
-- [ ] 4.2 RED+GREEN: `page.tsx` guard, step from searchParams, fail-soft draft load (A7, RNF-01)
-- [ ] 4.3 RED+GREEN: `intake-stepper.tsx` with `aria-current="step"` and the primary-underline active step, "Step n of 4" at 360 px; layout per the Stitch "nueva solicitud" reference (RF-01, RNF-11)
-- [ ] 4.4 RED+GREEN: `cause-dates-step.tsx` field errors (RN-01, RN-05, RN-23)
-- [ ] 4.5 RED+GREEN: `subjects-step.tsx` radio for ambiguous groups, no-teacher label (RF-04, D15)
-- [ ] 4.6 RED+GREEN: `documents-step.tsx` `upload()`, reason messages, remove (RF-02, RN-03, RN-04, D12)
-- [ ] 4.7 Add `intake.*`, `nav.newRequest` to `i18n/es.json` and `i18n/en.json`; key-parity test (RNF-11)
-- [ ] 4.8 Sidebar entry in `src/components/app-sidebar.tsx` with `visibleTo: canFileRequests` + test
+- [x] 4.1 Add `alert-dialog`, `radio-group`, `stepper` in `src/components/ui/` with tests; reuse `catalog-management`'s `Checkbox` if it is on `main`, else create it with the same API (RNF-11, tokens from the current "Academic Governance" design system, no lime)
+- [x] 4.2 RED+GREEN: `page.tsx` guard, step from searchParams, fail-soft draft load (A7, RNF-01)
+- [x] 4.3 RED+GREEN: `intake-stepper.tsx` with `aria-current="step"` and the primary-underline active step, "Step n of 4" at 360 px; layout per the Stitch "nueva solicitud" reference (RF-01, RNF-11)
+- [x] 4.4 RED+GREEN: `cause-dates-step.tsx` field errors (RN-01, RN-05, RN-23)
+- [x] 4.5 RED+GREEN: `subjects-step.tsx` radio for ambiguous groups, no-teacher label (RF-04, D15)
+- [x] 4.6 RED+GREEN: `documents-step.tsx` `upload()`, reason messages, remove (RF-02, RN-03, RN-04, D12)
+- [x] 4.7 Add `intake.*`, `nav.newRequest` to `i18n/es.json` and `i18n/en.json`; key-parity test (RNF-11)
+- [x] 4.8 Sidebar entry in `src/components/app-sidebar.tsx` with `visibleTo: canFileRequests` + test
 
 ## Phase 5: Slice 5 - Review, dialogs, cron, 360 px (PR 5)
 
