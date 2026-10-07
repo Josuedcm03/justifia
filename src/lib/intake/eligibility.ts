@@ -47,6 +47,25 @@ export function groupOptionsBySubject(
   }));
 }
 
+/**
+ * Fill the group of a subject whose enrollment determines exactly one (RF-04
+ * b), so a draft can store it. An ambiguous or unknown subject keeps its null
+ * and is reported by `validateSubjectSelections`.
+ */
+export function resolveGroupChoices(
+  selections: readonly SubjectSelection[],
+  eligible: readonly EligibleGroup[],
+): SubjectSelection[] {
+  const options = new Map(
+    groupOptionsBySubject(eligible).map((o) => [o.asignaturaId, o]),
+  );
+  return selections.map(({ asignaturaId, grupoId }) => {
+    const option = options.get(asignaturaId);
+    const only = option && !option.ambiguous ? option.grupoIds[0] : null;
+    return { asignaturaId, grupoId: grupoId ?? only ?? null };
+  });
+}
+
 /** Every problem with the picked subjects, in selection order. */
 export function validateSubjectSelections(
   selections: readonly SubjectSelection[],

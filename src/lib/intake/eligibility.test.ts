@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   groupOptionsBySubject,
+  resolveGroupChoices,
   validateSubjectSelections,
   type EligibleGroup,
 } from "./eligibility";
@@ -102,5 +103,34 @@ describe("validateSubjectSelections", () => {
       { code: "subject_not_eligible", asignaturaId: 99 },
       { code: "group_required", asignaturaId: 20 },
     ]);
+  });
+});
+
+describe("resolveGroupChoices (RF-04 b, c)", () => {
+  it("fills the only eligible group of an unambiguous subject", () => {
+    expect(
+      resolveGroupChoices([{ asignaturaId: 10, grupoId: null }], ELIGIBLE),
+    ).toEqual([{ asignaturaId: 10, grupoId: 100 }]);
+  });
+
+  it("keeps an explicit choice and leaves an ambiguous subject unresolved", () => {
+    expect(
+      resolveGroupChoices(
+        [
+          { asignaturaId: 20, grupoId: 201 },
+          { asignaturaId: 20, grupoId: null },
+        ],
+        ELIGIBLE,
+      ),
+    ).toEqual([
+      { asignaturaId: 20, grupoId: 201 },
+      { asignaturaId: 20, grupoId: null },
+    ]);
+  });
+
+  it("leaves a subject outside the enrollment untouched", () => {
+    expect(
+      resolveGroupChoices([{ asignaturaId: 99, grupoId: null }], ELIGIBLE),
+    ).toEqual([{ asignaturaId: 99, grupoId: null }]);
   });
 });

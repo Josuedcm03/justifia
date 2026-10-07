@@ -62,15 +62,15 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 3: Slice 3 - Actions, enrollment, audit, permissions (PR 3)
 
-- [ ] 3.1 RED+GREEN: `permissions.ts` `rolesSolicitantes`, `canFileRequests`, `canViewDocument` with tests (RNF-01, D15)
-- [ ] 3.2 RED+GREEN: `src/lib/audit/events.ts` five builders and `AuditEntityType` additions; payload minimisation + leak tests (RNF-06, RNF-02, D13, D14)
-- [ ] 3.3 RED+GREEN: `src/lib/data/enrollment.ts` active groups, teacher label (RF-04, RN-21, D15)
-- [ ] 3.4 RED: `solicitudes.test.ts` for one-draft concurrency, resume, 30-day expiry, discard, no audit rows (D8, D14)
-- [ ] 3.5 GREEN: `src/lib/data/solicitudes.ts` draft CRUD setting `ActualizadoEn` explicitly
-- [ ] 3.6 RED+GREEN: `src/lib/validations/solicitud.ts` zod step schemas with i18n-key messages (RF-03)
-- [ ] 3.7 RED: `actions.test.ts` for authz, forged snapshot/timestamp, double submit, audit rollback, port re-check (RN-02, RN-06, RF-04)
-- [ ] 3.8 GREEN: `src/app/(dashboard)/requests/new/actions.ts` (save step, finalize, remove, discard, `submitRequest`)
-- [ ] 3.9 Wire `documento.descargado` insert before bytes in download route; extend its tests (D13)
+- [x] 3.1 RED+GREEN: `permissions.ts` `rolesSolicitantes`, `canFileRequests`, `canViewDocument` with tests (RNF-01, D15)
+- [x] 3.2 RED+GREEN: `src/lib/audit/events.ts` five builders and `AuditEntityType` additions; payload minimisation + leak tests (RNF-06, RNF-02, D13, D14). Four document builders came in slice 2; `solicitudPresentadaEvent` added in slice 3
+- [x] 3.3 RED+GREEN: `src/lib/data/enrollment.ts` active groups, teacher label (RF-04, RN-21, D15)
+- [x] 3.4 RED: `solicitudes.test.ts` for one-draft concurrency, resume, 30-day expiry, discard, no audit rows (D8, D14)
+- [x] 3.5 GREEN: `src/lib/data/solicitudes.ts` draft CRUD setting `ActualizadoEn` explicitly
+- [x] 3.6 RED+GREEN: `src/lib/validations/solicitud.ts` zod step schemas with i18n-key messages (RF-03)
+- [x] 3.7 RED: `actions.test.ts` for authz, forged snapshot/timestamp, double submit, audit rollback, port re-check (RN-02, RN-06, RF-04)
+- [x] 3.8 GREEN: `src/app/(dashboard)/requests/new/actions.ts` (save step, finalize, remove, discard, `submitRequest`)
+- [x] 3.9 Wire `documento.descargado` insert before bytes in download route; extend its tests (D13)
 
 ## Phase 4: Slice 4 - Steps 1-3, primitives, i18n (PR 4)
 

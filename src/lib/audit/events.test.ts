@@ -10,6 +10,7 @@ import {
   documentRejectedEvent,
   documentRemovedEvent,
   importAppliedEvent,
+  solicitudPresentadaEvent,
   type TouchedAccount,
 } from "./events";
 import { AUDIT_ACTIONS, AUDITABLE_USER_FIELDS } from "./types";
@@ -310,5 +311,36 @@ describe("document events (justification-intake D13, D14)", () => {
     for (const json of payloads) {
       expect(json).not.toMatch(/nombre|pathname|url|http|token/i);
     }
+  });
+});
+
+describe("solicitudPresentadaEvent (justification-intake RNF-06, RNF-02)", () => {
+  it("targets the Solicitud and carries only counts", () => {
+    expect(
+      solicitudPresentadaEvent({
+        solicitudId: 4,
+        asignaturas: 2,
+        documentos: 3,
+      }),
+    ).toEqual({
+      accion: "solicitud.presentada",
+      entidadTipo: "Solicitud",
+      entidadId: 4,
+      datos: { asignaturas: 2, documentos: 3 },
+    });
+  });
+
+  it("is registered in AUDIT_ACTIONS and the payload holds no personal data", () => {
+    expect(AUDIT_ACTIONS).toContain("solicitud.presentada");
+    const json = JSON.stringify(
+      solicitudPresentadaEvent({
+        solicitudId: 9,
+        asignaturas: 1,
+        documentos: 1,
+      }).datos,
+    );
+    expect(json).not.toMatch(
+      /causa|fecha|nombre|cif|correo|carrera|pathname|url|http|token/i,
+    );
   });
 });

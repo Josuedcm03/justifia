@@ -9,6 +9,7 @@ export const AUDIT_ACTIONS = [
   "catalogo.importacion.aplicada",
   "usuario.creado",
   "usuario.actualizado",
+  "solicitud.presentada",
   "documento.adjuntado",
   "documento.rechazado",
   "documento.eliminado",
@@ -49,6 +50,9 @@ type UserChangedPayload = {
   origen: "importacion";
   importacionSha256: string;
 };
+
+/** Counts only: no cause, dates or student data (RNF-02, RN-02). */
+type RequestSubmittedPayload = { asignaturas: number; documentos: number };
 
 /** Reason codes of a rejected finalize (supporting-documents). */
 export type DocumentRejectionReason =
@@ -92,6 +96,12 @@ export type AuditEvent =
       entidadTipo: "Usuario";
       entidadId: number;
       datos: UserChangedPayload;
+    }
+  | {
+      accion: "solicitud.presentada";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: RequestSubmittedPayload;
     }
   | {
       accion: "documento.adjuntado";

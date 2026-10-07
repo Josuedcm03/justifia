@@ -69,6 +69,19 @@ export function accountUpdatedEvent(args: {
   };
 }
 
+export function solicitudPresentadaEvent(args: {
+  solicitudId: number;
+  asignaturas: number;
+  documentos: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.presentada",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: { asignaturas: args.asignaturas, documentos: args.documentos },
+  };
+}
+
 export function documentAttachedEvent(args: {
   documentoId: number;
   solicitudId: number;

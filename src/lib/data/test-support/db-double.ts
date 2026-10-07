@@ -14,6 +14,7 @@ export type LoggedStatement = {
   table?: unknown;
   values?: unknown;
   set?: unknown;
+  where?: unknown;
   inTransaction: boolean;
 };
 
@@ -38,6 +39,12 @@ function builder(
       if (prop === "values") {
         return (values: unknown) => {
           record({ values });
+          return proxy;
+        };
+      }
+      if (prop === "where") {
+        return (where: unknown) => {
+          record({ where });
           return proxy;
         };
       }

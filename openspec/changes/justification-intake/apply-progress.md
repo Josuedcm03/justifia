@@ -95,3 +95,52 @@ Mode: Strict TDD. Branch: `feat/justification-intake-s2-documents` (from slice 1
 - Owner accepted `size:exception` for PR 2: 2,423 changed lines (~1,600 tests and test support, ~820 production), no split. Attempt objective reset by the owner (`ji-s2-reset-size-exception-001`).
 - New budget rule from slice 3 on: the 800-line budget counts production code only; tests travel in the same PR and are reported separately.
 - Open items from slice 2: task 2.1 needs `BLOB_READ_WRITE_TOKEN=` and `CRON_SECRET=` added to `.env.example` by hand (agent access denied); `content-disposition.test.ts` was not seen failing first (TDD slip); `TamanoBytes = 1` placeholder on the claim row should be reviewed at verify; data-layer tests use a drizzle double (no real lock/constraint coverage); runtime check against a dev Blob store is a manual pre-merge item.
+
+## Slice 3 (Phase 3, PR 3) - Actions, enrollment, audit, permissions
+
+Mode: Strict TDD. Branch: `feat/justification-intake-s3-actions` (from slice 2 branch). Status: 9/9 Phase 3 tasks complete (3.1 and 3.9 were delivered in slice 2 and re-verified here: 117 safety-net tests green).
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.1 (slice 2) | `src/lib/auth/permissions.test.ts` | Unit | 117/117 (audit, permissions, intake routes) | done in slice 2 | still green | 5 roles + owner/other/staff | none |
+| 3.2 | `src/lib/audit/events.test.ts` | Unit | 19/19 baseline | 2 failed (`solicitudPresentadaEvent` missing, action not registered) | 21/21 | builder shape, registry, no-personal-data scan | prettier |
+| 3.3 | `src/lib/data/enrollment.test.ts` | Unit (db double) | N/A (new) | module missing | 7/7 | teacher/no teacher, port filter, null range, empty enrollment, fail-loud, fail-soft ok/degraded; rendered WHERE asserts own student + active enrollment + active group | prettier |
+| 3.4/3.5 | `src/lib/data/solicitudes.test.ts` | Unit (db double) | N/A (new) | module missing | 26/26 | resume, create, concurrent create, expired purge, no audit, 30-day cutoff param, save details/subjects, discard x5, submit x7 | prettier |
+| (helper) | `src/lib/intake/eligibility.test.ts` | Unit | 10/10 baseline | 3 failed (`resolveGroupChoices` missing) | 13/13 | unambiguous, explicit/ambiguous, unknown | prettier |
+| 3.6 | `src/lib/validations/solicitud.test.ts` | Unit | N/A (new) | module missing | 14/14 | valid, boundary 30 days, future, empty, invalid, end<start, too old, subjects, documents | prettier |
+| 3.7/3.8 | `src/app/(dashboard)/requests/new/actions.test.ts` | Integration (mocked deps) | N/A (new) | module missing | 40/40 | authz x6 actions, foreign id == missing id, forged payload x2, RN-23 Managua, subjects x8, documents x7, discard x2, submit x12 | prettier |
+| 3.9 (slice 2) | `src/app/api/intake/documents/[id]/route.test.ts` | Integration | included in 117 | done in slice 2 | still green | audit order, two downloads, denials write no row | none |
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/lib src/app src/env.test.ts src/db` -> 995 passed, 5 failed in 3 files NOT touched by this slice (`src/app/denied/page.test.tsx`, `src/app/(dashboard)/users/page.test.tsx`, `src/app/(dashboard)/catalog/import/import-form.test.tsx`: link/focus rendering assertions); all slice 3 files green. `npm run typecheck` clean. eslint: only the CRLF `Delete` noise, no real errors. |
+| Runtime harness | N/A: no UI or route in this slice; actions covered by mocked deps and a scripted drizzle double (no real row lock, constraint or transaction rollback exercised) |
+| Rollback boundary | Revert `src/app/(dashboard)/requests/`, `src/lib/data/{enrollment,solicitudes}*`, `src/lib/validations/solicitud*`, `solicitudPresentadaEvent` in `src/lib/audit/`, `resolveGroupChoices` in `src/lib/intake/eligibility*`, and the `where` capture in `src/lib/data/test-support/db-double.ts` |
+
+### Size (owner budget rule: production only)
+
+Production about 765 lines (actions 214, solicitudes 350, enrollment 82, validations 77, audit 23, eligibility 19) against the 800 budget. Tests and support about 1,504 lines, reported separately.
+
+### Deviations / notes
+
+- Slice 2 already delivered `canFileRequests`, `canViewDocument`, four document builders and the download audit hook: 3.1 and 3.9 were verified, not rewritten.
+- Actions take no draft id: the draft is found through the session user (`getLiveDraft(userId)`), so another student's draft cannot be named. `submitRequestAction()` takes no payload; snapshot comes from the account inside the submit transaction, `PresentadaEn` from the action's single `now` (A5).
+- `SolicitudAsignatura` stores only `GrupoId` (NOT NULL), so a draft can only hold a subject once its group is resolved. New pure helper `resolveGroupChoices` fills the single group of an unambiguous subject before saving; an ambiguous subject without a choice returns `group_required` at step 2 and cannot be stored.
+- `submitDraft` guards its UPDATE with owner, `borrador`, liveness (30 days) and the validated cause/dates, then re-reads groups and counts valid documents inside the transaction; any drift throws a private sentinel (rollback) and returns `conflict`. This closes the window between validation and write. An account missing CIF, email or career returns `snapshot_incomplete` (otherwise `CK_Solicitud_Presentada` would raise a raw DB error).
+- Expired draft not yet swept: `openDraft` purges it (rows plus best-effort blobs, no audit) so the partial unique index does not block the new draft.
+- Error shape for every action: `{ ok: false, errors: [{ field, key, asignaturaId? }] }` with `key = intake.errors.<code>`. Codes used beyond slice 1: `no_draft`, `invalid_input`, `dates_required`, `submit_conflict`, `profile_incomplete`, plus the finalize reasons (`unsupported_format`, `too_large`, `empty_file`, `not_found`, `not_allowed`, `too_many_documents`). Slice 4 must add all of them to both i18n files.
+- Submit redirects to `/requests/new/confirmation` (page lands in slice 5); discard redirects to `/requests/new`.
+- Without valid dates `listEligibleGroups` skips the schedule port (enrollment only), so a draft with no dates reports date errors only.
+- `Grupo.DocenteId` is NOT NULL in the current schema; the teacher is left-joined and typed nullable so a future nullable column (or catalog-management) needs no code change (D15).
+- Fail-soft read `listEnrollmentFailSoft` returns `{ data, degraded }` for the UI; submit and step 2 use the fail-loud `listEligibleGroups`.
+- `src/lib/data/test-support/db-double.ts` now records `where`; tests render it with `PgDialect` to assert ownership, state, cutoff and active-row filters in the SQL.
+- `.env.example` shows as modified in the working tree (placeholder lines from slice 2 task 2.1, not from this slice).
+
+### Open items
+
+- Real transaction behaviour (row lock, rollback on audit failure, unique-index race) is covered only by double-based tests; verify against a dev database before merge.
+- The three failing test files outside this slice should be confirmed as pre-existing on the base branch.
