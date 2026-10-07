@@ -1,11 +1,5 @@
 # Especificación de requisitos — línea base
 
-> **Fuente:** matriz de requisitos de la tesis (`matrices/matriz_requisitos.md`
-> del repositorio de la tesis), versión del 2026-10-06.
->
-> **Este archivo es una copia y no se edita aquí.** Todo cambio se hace primero
-> en la matriz de la tesis y luego se copia a este archivo.
->
 > **Convenciones de redacción:**
 >
 > - Notación EARS: cada requisito es una oración con un patrón ubicuo («El
@@ -14,9 +8,6 @@
 > - Un requisito, una función.
 > - Las reglas de negocio van aparte y se vinculan a los requisitos por la
 >   columna «Aplicada por».
->
-> Se omite la columna «Origen» de la matriz, porque remite a archivos del
-> repositorio de la tesis que aquí no existen.
 
 ## 1. Requisitos funcionales
 
@@ -84,7 +75,7 @@
 
 ## 4. Fuera de alcance y no sustentados
 
-No se construyen, salvo que la matriz de la tesis cambie.
+No se construyen.
 
 **Fuera de alcance por decisión registrada:**
 
