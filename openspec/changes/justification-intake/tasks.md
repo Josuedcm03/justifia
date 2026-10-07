@@ -50,7 +50,7 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 2: Slice 2 - Blob adapter and routes (PR 2)
 
-- [ ] 2.1 Add `@vercel/blob` >= 2.3 to `package.json`; add `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET` to `src/env.ts` and `.env.example` (D1, D10). **Status: PARTIAL** (`@vercel/blob@^2.8.1` and `src/env.ts` done with tests; `.env.example` edit was denied by the sandbox, add `BLOB_READ_WRITE_TOKEN=` and `CRON_SECRET=` placeholder lines by hand, then tick)
+- [x] 2.1 Add `@vercel/blob` >= 2.3 to `package.json`; add `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET` to `src/env.ts` and `.env.example` (D1, D10). (`.env.example` placeholders added by the owner)
 - [x] 2.2 RED+GREEN: `adapters/vercel-blob-store.ts` (`server-only`, private access) with mocked SDK tests (RNF-02)
 - [x] 2.3 RED+GREEN: `src/lib/intake/deps.ts` `getIntakeDeps()` with fakes helper for tests (supporting-documents: Storage behind a port)
 - [x] 2.4 RED: `upload-token/route.test.ts` for 401, non-student, foreign/expired draft, 6th doc `too_many_documents`, limits payload (RN-04, D2, D12, RNF-01)
