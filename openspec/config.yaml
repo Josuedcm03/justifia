@@ -35,12 +35,18 @@ testing:
 conventions:
   - "UI source of truth is docs/design-system.md (extracted from uam.edu.ni), enforced by tokens in src/app/globals.css. New screens MUST NOT introduce colours, radii, type sizes or spacing steps absent from that document; if one is needed, add it to the document first."
   - "Tests are colocated next to the code as *.test.ts(x) and run with vitest (globals enabled)."
-  - "Server actions MUST re-check authorization (requireUser/requireRole from src/lib/auth/dal.ts); actions do not inherit page guards."
+  - "Server actions MUST re-check authorization (requireUser/requireRole from src/lib/auth/dal.ts); actions do not inherit page guards. (RNF-01)"
   - "Role-based access policy lives in src/lib/auth/permissions.ts; do not scatter role checks."
   - "Read functions backing UI listings return { data, degraded } (fail-soft); security-critical or mutating data functions fail loud."
   - "Every user-facing string goes through next-intl; add keys to BOTH i18n/es.json and i18n/en.json."
   - "shadcn primitives are base-ui based: Select.Root needs an items prop for trigger labels; DropdownMenuLabel must be wrapped in DropdownMenuGroup."
   - "Read node_modules/next/dist/docs/ before writing Next.js code; this Next version has breaking changes (see AGENTS.md)."
+  - "Every new change MUST cite in its specs the RF, RNF and RN identifiers from docs/requirements.md that it covers. docs/roadmap.md lists the planned changes."
+  - "Business time zone is America/Managua: server-assigned dates and times, deadlines and business-day calculations use it."
+  - "Cross-cutting RNF-02: personal data and supporting documents are encrypted in transit and at rest."
+  - "Cross-cutting RNF-05: passwords are stored only as a salted cryptographic hash."
+  - "Cross-cutting RNF-06: every operation on requests and catalogs is recorded in a tamper-proof audit log with author, date and time."
+  - "Cross-cutting RNF-12: irreversible actions ask the user for confirmation before executing."
 
 gotchas:
   - "Source files in the Windows working tree are CRLF (git core.autocrlf=true, index is LF), so npm run lint reports thousands of pre-existing 'Delete ␍' prettier errors. Real errors: npx eslint src | rg -v 'Delete .␍.' (or grep -v if rg is not installed)"
