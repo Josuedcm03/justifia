@@ -36,6 +36,8 @@ vi.mock("@/app/(dashboard)/requests/new/actions", () => ({
   saveSubjectsAction: vi.fn(),
   finalizeDocumentAction: vi.fn(),
   removeDocumentAction: vi.fn(),
+  submitRequestAction: vi.fn(),
+  discardDraftAction: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
@@ -211,13 +213,70 @@ describe("NewRequestPage step from the URL (A7)", () => {
     expect(listEnrollmentFailSoft).not.toHaveBeenCalled();
   });
 
-  it.each([{ step: "4" }, { step: "99" }])(
+  it.each([{ step: "5" }, { step: "99" }])(
     "keeps %j on the last step that exists",
     async (params) => {
       await renderPage(params);
-      expect(screen.getByText("Paso 3 de 4")).toBeInTheDocument();
+      expect(screen.getByText("Paso 4 de 4")).toBeInTheDocument();
+      expect(heading("Revisa y presenta tu solicitud")).toBeInTheDocument();
     },
   );
+
+  it("reviews the draft at step 4 with only the groups it holds", async () => {
+    const other = {
+      ...GROUP,
+      grupoId: 2,
+      asignaturaId: 11,
+      asignaturaCodigo: "FIS-201",
+    };
+    openDraft.mockResolvedValue({
+      ...WITH_DETAILS,
+      subjects: [{ grupoId: 1, asignaturaId: 10 }],
+      documents: [
+        {
+          id: 1,
+          nombreOriginal: "listo.pdf",
+          tipo: "pdf",
+          tamanoBytes: 10,
+          estado: "valido",
+        },
+        {
+          id: 2,
+          nombreOriginal: "a-medias.pdf",
+          tipo: null,
+          tamanoBytes: 1,
+          estado: "pendiente",
+        },
+      ],
+    });
+    listEnrollmentFailSoft.mockResolvedValue({
+      data: [GROUP, other],
+      degraded: false,
+    });
+    await renderPage({ step: "4" });
+
+    expect(screen.getByText("Paso 4 de 4")).toBeInTheDocument();
+    expect(screen.getByText("Causa médica")).toBeInTheDocument();
+    expect(screen.getByText(/MAT-101/)).toBeInTheDocument();
+    expect(screen.queryByText(/FIS-201/)).toBeNull();
+    expect(screen.getByText("listo.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("a-medias.pdf")).toBeNull();
+    expect(listEnrollmentFailSoft).toHaveBeenCalledWith(
+      7,
+      { from: "2026-10-01", to: "2026-10-03" },
+      deps.schedule,
+    );
+  });
+
+  it("reviews a draft without dates without reading enrollment", async () => {
+    openDraft.mockResolvedValue({
+      ...EMPTY,
+      subjects: [{ grupoId: 1, asignaturaId: 10 }],
+    });
+    await renderPage({ step: "4" });
+    expect(heading("Revisa y presenta tu solicitud")).toBeInTheDocument();
+    expect(listEnrollmentFailSoft).not.toHaveBeenCalled();
+  });
 
   // Unusable values resume at step 2 (details saved); a repeated parameter
   // uses its first value.

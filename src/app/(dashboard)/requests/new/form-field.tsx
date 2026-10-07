@@ -121,3 +121,16 @@ export function BackLink({ href }: { href: string }) {
     </Link>
   );
 }
+
+/** Forward to the next step without saving: a link, as its target saves nothing. */
+export function ContinueLink({ href }: { href: string }) {
+  const t = useTranslations("intake.actions");
+  return (
+    <Link
+      href={href}
+      className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
+    >
+      {t("next")}
+    </Link>
+  );
+}

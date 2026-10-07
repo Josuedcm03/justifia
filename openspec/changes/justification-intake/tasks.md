@@ -85,12 +85,14 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 5: Slice 5 - Review, dialogs, cron, 360 px (PR 5)
 
-- [ ] 5.1 RED+GREEN: `review-step.tsx` read-only, edit links, per-field errors (RF-01, RF-03)
-- [ ] 5.2 RED+GREEN: `submit-dialog.tsx`, `discard-dialog.tsx`; cancel changes nothing (RNF-12)
-- [ ] 5.3 RED: `api/cron/intake-sweep/route.test.ts` for Bearer, expiry, pendiente docs, orphans, continue-on-failure, no audit, non-borrador untouched (D8, D14)
-- [ ] 5.4 GREEN: `src/app/api/cron/intake-sweep/route.ts` (constant-time compare, counts log)
-- [ ] 5.5 Add `vercel.json` cron `0 9 * * *` and `regions` matching Neon (D10, D11); create Blob store same region
-- [ ] 5.6 Test no horizontal scroll at 360 px per step and dialog (RNF-11); manual harness check
+- [x] 5.1 RED+GREEN: `review-step.tsx` read-only, edit links, per-field errors (RF-01, RF-03)
+- [x] 5.1a Gap from slice 4: `AVAILABLE_STEPS = 4` and a "Continue" link on step 3 to the review step (`steps.ts`, `documents-step.tsx`, `ContinueLink` in `form-field.tsx`); page renders step 4
+- [x] 5.1b Gap from slice 3: `/requests/new/confirmation` page that `submitRequestAction` redirects to (student guard, static text, links to dashboard and a new request)
+- [x] 5.2 RED+GREEN: `submit-dialog.tsx`, `discard-dialog.tsx`; cancel changes nothing (RNF-12)
+- [x] 5.3 RED: `api/cron/intake-sweep/route.test.ts` for Bearer, expiry, pendiente docs, orphans, continue-on-failure, no audit, non-borrador untouched (D8, D14)
+- [x] 5.4 GREEN: `src/app/api/cron/intake-sweep/route.ts` (constant-time compare, counts log)
+- [ ] 5.5 Add `vercel.json` cron `0 9 * * *` and `regions` matching Neon (D10, D11); create Blob store same region. **PARTIAL**: cron done and tested; `regions` pending owner input (Neon region unknown); Blob store creation is a dashboard action by the owner
+- [x] 5.6 Test no horizontal scroll at 360 px per step and dialog (RNF-11); manual harness check. Automated static guard done (`layout-360.test.tsx`); the manual 360 px harness walk stays a **pending manual item**
 - [ ] 5.7 Update `docs/roadmap.md` status note for `justification-intake` at archive time
 
 ## Final merge checklist (feature branch -> main)

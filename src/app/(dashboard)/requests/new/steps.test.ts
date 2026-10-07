@@ -13,6 +13,7 @@ describe("parseStep (A7: the step lives in the URL)", () => {
     ["1", 1],
     ["2", 2],
     ["3", 3],
+    ["4", 4],
   ])("accepts %s", (raw, expected) => {
     expect(parseStep(raw)).toBe(expected);
   });
@@ -28,9 +29,9 @@ describe("parseStep (A7: the step lives in the URL)", () => {
     },
   );
 
-  it("clamps steps that are not built yet to the last available one", () => {
-    expect(AVAILABLE_STEPS).toBe(3);
-    expect(parseStep("4")).toBe(AVAILABLE_STEPS);
+  it("clamps steps beyond the review step to the last one", () => {
+    expect(AVAILABLE_STEPS).toBe(4);
+    expect(parseStep("5")).toBe(AVAILABLE_STEPS);
     expect(parseStep("99")).toBe(AVAILABLE_STEPS);
   });
 });

@@ -200,3 +200,64 @@ Production about 1,356 lines (i18n 172, UI primitives 266, page+steps+stepper 18
 
 - Owner accepted `size:exception` for PR 4: 1,355 production lines (172 i18n) and 1,556 test lines, no split. Attempt objective reset by the owner (`ji-s4-reset-size-exception-001`).
 - Slice 5 forecast (~450) to be re-estimated before starting.
+
+## Slice 5 (Phase 5, PR 5) - Review step, dialogs, confirmation, cron sweep, 360 px
+
+Mode: Strict TDD. Branch: `feat/justification-intake-s5-review` (from slice 4 branch). Status: 5.1, 5.1a, 5.1b, 5.2, 5.3, 5.4, 5.6 complete (5.6 with the manual walk pending); 5.5 PARTIAL (cron done, `regions` pending owner); 5.7 not in scope (archive time).
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 5.1a | `steps.test.ts`, `page.test.tsx`, `documents-step.test.tsx` | Unit + component | steps/page/documents tests green (slice 4) | first run: 10 test files failed (`AVAILABLE_STEPS` 3, no Continue link, no review step, modules missing) | steps + documents + page green | step 4 and 5/99 clamp, Continue es/en, with/without documents | none |
+| 5.2 | `submit-dialog.test.tsx`, `discard-dialog.test.tsx` | Component (mocked actions) | `alert-dialog.test.tsx` 4/4 | modules missing | 11/11 | closed until opened, cancel, Escape, confirm once, pending blocks a second run, refusal closes and hands errors over, English | shared `confirm-dialog.tsx` extracted; wrappers are thin |
+| 5.1 | `review-step.test.tsx` | Component | N/A (new) | module missing | 11/11 (one fixture bug fixed in the test: two groups shared a number) | all parts shown, missing data, degraded, read-only (no controls), 3 edit links, back link, errors per section/subject/form, no alert before submit | none |
+| 5.1 (page) | `page.test.tsx` | Integration (mocked dal/data) | 17/17 | step 4 cases failed | green | only held groups, only valid documents, no dates means no enrollment read | none |
+| 5.1b | `confirmation/page.test.tsx` | Integration | N/A (new) | module missing | 3/3 | guard, content + two links, guard redirect reads nothing | none |
+| i18n | `src/i18n/intake-messages.test.ts` | Unit | 6/6 | review/confirmation keys missing | green (es + en) | es, en | none |
+| 5.3/5.4 (logic) | `src/lib/data/intake-sweep.test.ts` | Unit (scripted db double) | N/A (new) | module missing | 15/15 (one assertion corrected, see notes) | filters (borrador, 30 d, pendiente, 1 h, 24 h), blob failure, row failure, idempotent, full batch continues, no-progress batch stops, fresh/referenced kept, paging, list failure, no audit | prettier |
+| 5.3/5.4 (route) | `src/app/api/cron/intake-sweep/route.test.ts` | Integration (mocked sweep/env) | N/A (new) | module missing | 13/13 | 7 bad credentials, secret unset, GET only, counts + headers, counts-only log, failures reported, generic 500 | none |
+| 5.5 | `src/lib/intake/vercel-config.test.ts` | Unit (reads JSON) | N/A (new) | 2 failed (no file) | 2/2 | schedule, no `regions` | none |
+| 5.6 | `layout-360.test.tsx` | Component (static guard) | steps tests green | NOT seen failing against the real UI: the layout was already built to these rules, so the guards passed first time; the width guard itself is triangulated by a deliberately wide fixture it must flag | 15/15 | 4 steps x (no width over 360, full-row actions), long names truncate/wrap, stepper collapse, both dialogs | prettier |
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run "src/app/(dashboard)/requests/new" src/app/api src/lib/data src/lib/intake src/i18n src/components/ui src/components/app-sidebar.test.tsx` -> 48 files; first parallel run 538 passed, 1 failed (`cause-dates-step.test.tsx` "clears old errors once a retry succeeds": untouched file, timing flake under load; passes alone, 9/9). `npm run typecheck` clean. eslint on all touched files: only the CRLF `Delete` noise. |
+| Runtime harness | NOT RUN: `npm run dev` at 360 px (steps 1-4, both dialogs, a real submit landing on the confirmation page) and a Bearer call to the cron route need a student session, a dev database and a dev Blob store. Manual pre-merge items. |
+| Rollback boundary | Revert `src/app/(dashboard)/requests/new/{review-step,confirm-dialog,submit-dialog,discard-dialog,layout-360}*`, `confirmation/`, the step 4 branch in `page.tsx`, `AVAILABLE_STEPS`/`StepNumber` in `steps.ts`, `ContinueLink` in `form-field.tsx` and the footer in `documents-step.tsx`, `intake.review`/`intake.confirmation` in `i18n/*.json`, `src/lib/data/intake-sweep*`, `src/app/api/cron/`, `vercel.json`, `export` on `cutoffOf` in `solicitudes.ts`, and the `error` support in `test-support/db-double.ts` |
+
+### Size (owner budget rule: production only)
+
+Production about 760 lines (i18n 68, review-step 216, confirm/submit/discard dialogs 161, confirmation page 38, sweep 188, route 46, vercel.json 4, about 40 across page, steps, form-field, documents-step and solicitudes). Within the 800 budget. Tests and test support about 1,326 lines, reported separately.
+
+### Deviations / notes
+
+- Sweep logic lives in `src/lib/data/intake-sweep.ts` (data layer, takes `now` and the store); the route only authenticates, calls it, logs counts and answers. Task 5.3 listed everything under the route test; the route test covers Bearer, counts, log and failure, the data test covers expiry, pendiente, orphans, continue-on-failure, no audit and non-borrador untouched. Same coverage, testable without a database.
+- Per draft: select its pathnames, delete the row (guarded by `Estado = borrador`), then delete blobs best effort. A blob failure keeps the draft counted as deleted and adds one failure; the orphan step removes the file later. A batch is 100 drafts; the loop stops on a short batch or a full batch that deleted nothing (a stuck row cannot loop), with a hard cap of 50 batches.
+- Pending documents are removed only when their request is still a `borrador` (inner join), in one `DELETE ... WHERE id IN` per batch; a failing batch counts one failure and stops that step.
+- Orphans: an old file is deleted only if no `DocumentoRespaldo.Pathname` equals it, looked up per listed page. `uploadedAt <= now - 24 h` counts as old.
+- Route: Bearer compared as SHA-256 digests with `timingSafeEqual` (equal length, constant time); a missing `CRON_SECRET` rejects everything (fail closed); only `GET` is exported; 401 body `{error: "unauthorized"}`, 500 body `{error: "sweep_failed"}` without details; response and log carry counts only (`{event: "intake.sweep", draftsDeleted, pendingDocumentsDeleted, orphanBlobsDeleted, failures}`).
+- Task 5.5 PARTIAL: `vercel.json` has the cron `0 9 * * *` and no `regions` (a test pins its absence): the Neon region is not known. Blob store creation and region choice are dashboard actions by the owner. Design open question D11 (Hobby region selection) stays open.
+- The review step takes subject labels from the fail-soft enrollment read filtered to the groups the draft holds. If enrollment degrades the section says so (reusing `subjects.degraded`) and submit still works because the server re-checks everything. A group that left the enrollment since the draft was saved is simply not listed; submit would report `subject_not_eligible` under the subjects section.
+- Review errors are placed by `field`: `causa`, `fechaInicio`, `fechaFin` under cause and dates; `subjects` with `asignaturaId` under that subject; `subjects` without it under the section; `documents` under documents; anything else, including `form`, at the bottom of the card.
+- Discard lives on the review step only (next to Submit); earlier steps have no discard control.
+- `confirm-dialog.tsx` shares the dialog frame: it ignores close requests while the action runs, a success redirects (server action `redirect`), a refusal closes it and lifts the errors to `ReviewStep`. The slice 4 `AlertDialog` primitive now has its consumer.
+- The confirmation page reads no request data (static text, links to `/` and `/requests/new`); there is no request list yet.
+- `db-double.ts` gained `error?` on a step (the statement rejects) to script failing items; `cutoffOf` in `solicitudes.ts` is now exported so the sweep and the draft rules share one 30-day cutoff.
+- `layout-360.test.tsx` asserts utility class names (the strict TDD module discourages that) because jsdom has no layout; it is explicitly a static guard, not proof of "no horizontal scroll".
+- Design-system compatibility: same semantic tokens as slice 4 plus the existing `destructive` button variant; no lime, no new tokens.
+- Test script note: the sweep "stops after a full batch" test first asserted `exhausted === false`; the scripted trailing statement is consumed by the next step, so the assertion was corrected to `true` with a comment explaining that a second batch would surface as a 101st failure.
+
+### Open items
+
+- Manual: 360 px walk of steps 1-4 and both dialogs; a real submit landing on `/requests/new/confirmation`; a Bearer call to the cron route on the dev server (the secret comes from the owner's environment, it was never read here).
+- Owner: Neon region for `regions` in `vercel.json`; create the Blob store in that region; set `CRON_SECRET` (at least 16 characters) in Vercel.
+- Cron data access is covered by doubles only: list pagination, `del` batching and the `DELETE ... IN` statement have not run against Postgres or a Blob store.
+- Flaky under parallel load: `cause-dates-step.test.tsx` "clears old errors once a retry succeeds" (not touched here).
+- 5.7 (roadmap) is for archive time. Final merge checklist untouched.
+
+## Orchestrator note (slice 5)
+
+- Fixed a race in `cause-dates-step.test.tsx` ("clears old errors once a retry succeeds"): it failed under parallel load because the retry click could land while the button was still disabled. The test now waits for the button to be enabled and asserts the alert removal inside `waitFor`. Focused suite: 539/539 twice.

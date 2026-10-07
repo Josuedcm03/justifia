@@ -13,6 +13,7 @@ import {
 import { formatFileSize } from "@/app/(dashboard)/catalog/import/file-dropzone";
 import {
   BackLink,
+  ContinueLink,
   FieldErrors,
   StepShell,
 } from "@/app/(dashboard)/requests/new/form-field";
@@ -138,7 +139,12 @@ export function DocumentsStep({
     <StepShell
       title={t("documents.title")}
       description={t("documents.description")}
-      footer={<BackLink href={stepHref(2)} />}
+      footer={
+        <>
+          <BackLink href={stepHref(2)} />
+          <ContinueLink href={stepHref(4)} />
+        </>
+      }
     >
       <p className="text-muted-foreground text-sm">
         {t("documents.hint", {

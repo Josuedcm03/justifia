@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { CauseDatesStep } from "@/app/(dashboard)/requests/new/cause-dates-step";
 import { DocumentsStep } from "@/app/(dashboard)/requests/new/documents-step";
 import { IntakeStepper } from "@/app/(dashboard)/requests/new/intake-stepper";
+import { ReviewStep } from "@/app/(dashboard)/requests/new/review-step";
 import {
   defaultStep,
   draftRange,
@@ -62,11 +63,15 @@ export default async function NewRequestPage({
 
   const step = parseStep((await searchParams).step) ?? defaultStep(draft);
   const range = draftRange(draft);
-  // Enrollment is read only for the step that lists it, and only with dates.
+  // Enrollment is read only by the steps that list it (subjects, review), and
+  // only with dates.
   const enrollment =
-    step === 2 && range
+    (step === 2 || step === 4) && range
       ? await listEnrollmentFailSoft(userId, range, getIntakeDeps().schedule)
       : { data: [], degraded: false };
+
+  const validDocuments = draft.documents.filter((d) => d.estado === "valido");
+  const heldGroups = new Set(draft.subjects.map((s) => s.grupoId));
 
   return (
     <div className="flex flex-col gap-8">
@@ -90,9 +95,14 @@ export default async function NewRequestPage({
         />
       ) : null}
       {step === 3 ? (
-        <DocumentsStep
-          draftId={draft.id}
-          documents={draft.documents.filter((d) => d.estado === "valido")}
+        <DocumentsStep draftId={draft.id} documents={validDocuments} />
+      ) : null}
+      {step === 4 ? (
+        <ReviewStep
+          draft={draft}
+          groups={enrollment.data.filter((g) => heldGroups.has(g.grupoId))}
+          documents={validDocuments}
+          degraded={enrollment.degraded}
         />
       ) : null}
     </div>

@@ -79,6 +79,22 @@ describe("DocumentsStep: what is shown (RF-02, D12)", () => {
     );
   });
 
+  it("continues to the review step (4) even before a document is attached", () => {
+    renderIntl(ui());
+    expect(screen.getByRole("link", { name: "Continuar" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=4",
+    );
+  });
+
+  it("offers the same continue link with documents attached, in English", () => {
+    renderIntl(ui([DOC(7, "receta.pdf")]), "en");
+    expect(screen.getByRole("link", { name: "Continue" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=4",
+    );
+  });
+
   it("lists the attached documents with name, size and a remove button", () => {
     renderIntl(ui([DOC(7, "receta.pdf", 2048), DOC(8, "foto.png", 3_145_728)]));
     expect(screen.getByText("2 de 5 documentos")).toBeInTheDocument();

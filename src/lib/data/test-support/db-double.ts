@@ -7,7 +7,8 @@
 
 export type StatementKind = "select" | "insert" | "update" | "delete";
 
-export type Step = { kind: StatementKind; rows?: unknown };
+/** `error` makes the statement reject, to script a failing item. */
+export type Step = { kind: StatementKind; rows?: unknown; error?: unknown };
 
 export type LoggedStatement = {
   kind: StatementKind;
@@ -21,6 +22,7 @@ export type LoggedStatement = {
 function builder(
   rows: unknown,
   record: (patch: Partial<LoggedStatement>) => void,
+  error?: unknown,
 ) {
   const proxy: unknown = new Proxy(function () {}, {
     get(_target, prop) {
@@ -28,7 +30,11 @@ function builder(
         return (
           resolve: (value: unknown) => unknown,
           reject: (reason: unknown) => unknown,
-        ) => Promise.resolve(rows).then(resolve, reject);
+        ) =>
+          (error === undefined
+            ? Promise.resolve(rows)
+            : Promise.reject(error)
+          ).then(resolve, reject);
       }
       if (prop === "from") {
         return (table: unknown) => {
@@ -76,7 +82,11 @@ export function createDbDouble(script: readonly Step[]) {
     }
     const entry: LoggedStatement = { kind, table, inTransaction };
     log.push(entry);
-    return builder(step.rows ?? [], (patch) => Object.assign(entry, patch));
+    return builder(
+      step.rows ?? [],
+      (patch) => Object.assign(entry, patch),
+      step.error,
+    );
   }
 
   const handle = {

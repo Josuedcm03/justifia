@@ -50,7 +50,7 @@ export type DraftDetails = {
 };
 
 /** Drafts idle for longer than this are expired (D8), whether swept or not. */
-function cutoffOf(now: Date): Date {
+export function cutoffOf(now: Date): Date {
   return new Date(now.getTime() - DRAFT_TTL_DAYS * DAY_MS);
 }
 

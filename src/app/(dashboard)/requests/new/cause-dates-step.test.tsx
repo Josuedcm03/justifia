@@ -164,9 +164,11 @@ describe("CauseDatesStep", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await screen.findByRole("alert");
 
-    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    const retry = await screen.findByRole("button", { name: "Continuar" });
+    await waitFor(() => expect(retry).toBeEnabled());
+    await userEvent.click(retry);
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole("alert")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it("disables the button while saving", async () => {

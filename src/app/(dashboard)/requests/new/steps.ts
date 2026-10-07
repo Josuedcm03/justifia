@@ -13,10 +13,10 @@ export const STEP_KEYS = [
   "review",
 ] as const;
 
-/** Steps that can be opened. The review step (4) arrives with slice 5. */
-export const AVAILABLE_STEPS = 3;
+/** Steps that can be opened: all four, the last one being the review. */
+export const AVAILABLE_STEPS = 4;
 
-export type StepNumber = 1 | 2 | 3;
+export type StepNumber = 1 | 2 | 3 | 4;
 
 export function stepHref(step: number): string {
   return `${FLOW_PATH}?step=${step}`;

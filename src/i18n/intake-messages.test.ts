@@ -80,6 +80,28 @@ describe("intake messages", () => {
     ]);
   });
 
+  it.each([
+    ["es", es],
+    ["en", en],
+  ] as const)("%s has the review, dialog and confirmation texts", (_l, m) => {
+    const texts = m.intake as unknown as Record<string, unknown>;
+    const paths = leafPaths({
+      review: texts.review,
+      confirmation: texts.confirmation,
+    });
+    for (const path of [
+      "review.title",
+      "review.edit",
+      "review.sections.subjects",
+      "review.submit.confirm",
+      "review.discard.confirm",
+      "confirmation.title",
+      "confirmation.home",
+    ]) {
+      expect(paths, path).toContain(path);
+    }
+  });
+
   it("has the sidebar entry in both locales", () => {
     expect(es.nav.newRequest).toEqual(expect.any(String));
     expect(en.nav.newRequest).toEqual(expect.any(String));

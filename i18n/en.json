@@ -418,6 +418,40 @@
       "not_allowed": "You are not allowed to do this.",
       "too_many_documents": "You already attached the maximum of 5 documents. Remove one to upload another.",
       "upload_failed": "The file could not be uploaded. Please try again."
+    },
+    "review": {
+      "title": "Review and submit your request",
+      "description": "Check the details. Once submitted, the request cannot be edited.",
+      "sections": {
+        "details": "Cause and dates",
+        "subjects": "Subjects",
+        "documents": "Documents"
+      },
+      "edit": "Edit",
+      "editSection": "Edit {section}",
+      "notSet": "Not filled in",
+      "period": "From {start} to {end}",
+      "cancel": "Cancel",
+      "submit": {
+        "button": "Submit request",
+        "title": "Submit the request?",
+        "description": "Once submitted you will not be able to change it.",
+        "confirm": "Yes, submit",
+        "pending": "Submitting…"
+      },
+      "discard": {
+        "button": "Discard draft",
+        "title": "Discard the draft?",
+        "description": "Your data and documents will be deleted. This cannot be undone.",
+        "confirm": "Yes, discard",
+        "pending": "Discarding…"
+      }
+    },
+    "confirmation": {
+      "title": "Request submitted",
+      "description": "We have registered your justification request.",
+      "home": "Go to the dashboard",
+      "another": "Submit another request"
     }
   }
 }
