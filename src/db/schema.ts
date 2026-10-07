@@ -3,15 +3,20 @@ import {
   bigint,
   boolean,
   check,
+  date,
   index,
   integer,
   pgTable,
   primaryKey,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
+import { CAUSAS } from "@/lib/intake/causes";
+import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
+import { ESTADOS_SOLICITUD } from "@/lib/intake/states";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 /**
@@ -181,3 +186,138 @@ export const inscripcion = pgTable(
 
 export type Inscripcion = typeof inscripcion.$inferSelect;
 export type NuevaInscripcion = typeof inscripcion.$inferInsert;
+
+/** Renders a closed list as a SQL `IN` list for CHECK constraints. */
+function inList(values: readonly string[]) {
+  return sql.raw(values.map((v) => `'${v}'`).join(", "));
+}
+
+/**
+ * Solicitud — an absence justification request (justification-intake A1, D7).
+ * One table holds the draft (`borrador`) and the RN-16 states; this change
+ * writes `borrador` and `pendiente` only. Absence dates are calendar dates
+ * (A6). The four `Estudiante*` columns are the submit-time snapshot of the
+ * student's account (RN-02, D9): NULL while a draft, NOT NULL once presented
+ * (`CK_Solicitud_Presentada`). `ActualizadoEn` has no trigger: every draft
+ * mutation in `src/lib/data/solicitudes.ts` sets it explicitly.
+ */
+export const solicitud = pgTable(
+  "Solicitud",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    estudianteId: bigint("EstudianteId", { mode: "number" })
+      .notNull()
+      .references(() => usuario.id),
+    estado: varchar("Estado", { length: 30 }).notNull().default("borrador"),
+    causa: varchar("Causa", { length: 30 }),
+    fechaInicio: date("FechaInicio", { mode: "string" }),
+    fechaFin: date("FechaFin", { mode: "string" }),
+    presentadaEn: timestamp("PresentadaEn", { withTimezone: true }),
+    estudianteNombre: varchar("EstudianteNombre", { length: 160 }),
+    estudianteCif: varchar("EstudianteCif", { length: 20 }),
+    estudianteCarrera: varchar("EstudianteCarrera", { length: 160 }),
+    estudianteCorreo: varchar("EstudianteCorreo", { length: 160 }),
+    creadoEn: timestamp("CreadoEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    actualizadoEn: timestamp("ActualizadoEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "CK_Solicitud_Estado",
+      sql`${t.estado} IN (${inList(ESTADOS_SOLICITUD)})`,
+    ),
+    check(
+      "CK_Solicitud_Causa",
+      sql`${t.causa} IS NULL OR ${t.causa} IN (${inList(CAUSAS)})`,
+    ),
+    check("CK_Solicitud_Fechas", sql`${t.fechaFin} >= ${t.fechaInicio}`),
+    check(
+      "CK_Solicitud_Presentada",
+      sql`${t.estado} = 'borrador' OR (${t.presentadaEn} IS NOT NULL AND ${t.causa} IS NOT NULL AND ${t.fechaInicio} IS NOT NULL AND ${t.fechaFin} IS NOT NULL AND ${t.estudianteNombre} IS NOT NULL AND ${t.estudianteCif} IS NOT NULL AND ${t.estudianteCarrera} IS NOT NULL AND ${t.estudianteCorreo} IS NOT NULL)`,
+    ),
+    // D8: at most one open draft per student.
+    uniqueIndex("UX_Solicitud_Borrador")
+      .on(t.estudianteId)
+      .where(sql`${t.estado} = 'borrador'`),
+    index("IX_Solicitud_Estado").on(t.estado, t.presentadaEn),
+    // Serves the expiry sweep (draft inactivity, D8).
+    index("IX_Solicitud_BorradorActualizado")
+      .on(t.actualizadoEn)
+      .where(sql`${t.estado} = 'borrador'`),
+  ],
+);
+
+export type Solicitud = typeof solicitud.$inferSelect;
+export type NuevaSolicitud = typeof solicitud.$inferInsert;
+
+/**
+ * SolicitudAsignatura — a subject of the request, stored as the chosen group
+ * (RF-04): the subject is derived through `Grupo.AsignaturaId`. Rows follow the
+ * request on delete (discard, expiry).
+ */
+export const solicitudAsignatura = pgTable(
+  "SolicitudAsignatura",
+  {
+    solicitudId: bigint("SolicitudId", { mode: "number" })
+      .notNull()
+      .references(() => solicitud.id, { onDelete: "cascade" }),
+    grupoId: bigint("GrupoId", { mode: "number" })
+      .notNull()
+      .references(() => grupo.id),
+  },
+  (t) => [primaryKey({ columns: [t.solicitudId, t.grupoId] })],
+);
+
+export type SolicitudAsignatura = typeof solicitudAsignatura.$inferSelect;
+export type NuevaSolicitudAsignatura = typeof solicitudAsignatura.$inferInsert;
+
+/**
+ * DocumentoRespaldo — a supporting document of a request (supporting-documents,
+ * A2). Finalize claims a `pendiente` row before sniffing the stored bytes so
+ * the 5-document cap (D12) and pathname uniqueness hold under concurrency; a
+ * `valido` row always carries the detected type (RN-04). Only the pathname is
+ * stored, never a fetchable URL (RNF-02).
+ */
+export const documentoRespaldo = pgTable(
+  "DocumentoRespaldo",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    solicitudId: bigint("SolicitudId", { mode: "number" })
+      .notNull()
+      .references(() => solicitud.id, { onDelete: "cascade" }),
+    pathname: varchar("Pathname", { length: 255 }).notNull().unique(),
+    nombreOriginal: varchar("NombreOriginal", { length: 255 }).notNull(),
+    tipoDetectado: varchar("TipoDetectado", { length: 10 }),
+    tamanoBytes: integer("TamanoBytes").notNull(),
+    estado: varchar("Estado", { length: 10 }).notNull(),
+    creadoEn: timestamp("CreadoEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "CK_Documento_Tipo",
+      sql`${t.tipoDetectado} IS NULL OR ${t.tipoDetectado} IN ('pdf', 'png', 'jpeg')`,
+    ),
+    check(
+      "CK_Documento_Tamano",
+      sql`${t.tamanoBytes} > 0 AND ${t.tamanoBytes} <= ${sql.raw(String(MAX_DOCUMENT_BYTES))}`,
+    ),
+    check("CK_Documento_Estado", sql`${t.estado} IN ('pendiente', 'valido')`),
+    check(
+      "CK_Documento_Validado",
+      sql`${t.estado} = 'pendiente' OR ${t.tipoDetectado} IS NOT NULL`,
+    ),
+    index("IX_Documento_Solicitud").on(t.solicitudId),
+  ],
+);
+
+export type DocumentoRespaldo = typeof documentoRespaldo.$inferSelect;
+export type NuevoDocumentoRespaldo = typeof documentoRespaldo.$inferInsert;

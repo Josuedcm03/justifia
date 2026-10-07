@@ -32,19 +32,19 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 1: Slice 1 - Schema, domain, ports (PR 1)
 
-- [ ] 1.1 Branch slice 1 from `feat/justification-intake` (up to date with `main`); note that `catalog-management` owns `0005`/`0006` off-main, so the number generated here is provisional (design: Compatibility with catalog-management)
-- [ ] 1.2 RED: `src/db/migration-justification-intake.test.ts` (locates the SQL by the `justification_intake` name, not by number) asserts CHECKs, partial unique `UX_Solicitud_Borrador`, snapshot CHECK, doc cap columns (RN-01, RN-05, D7, D8)
-- [ ] 1.3 Add `Solicitud`, `SolicitudAsignatura`, `DocumentoRespaldo` to `src/db/schema.ts`
-- [ ] 1.4 Run `npm run db:generate -- --name justification_intake` (generate only)
-- [ ] 1.5 STOP: ask user for explicit confirmation before any `drizzle-kit migrate`/`push`; do not apply unprompted
-- [ ] 1.6 RED+GREEN: `src/lib/intake/signature.test.ts` then `signature.ts` (PDF/PNG/JPEG magic bytes; RN-04, D3)
-- [ ] 1.7 RED+GREEN: `src/lib/intake/dates.test.ts` then `dates.ts` (Managua today, UTC crossing, day 30/31; RN-05, RN-23)
-- [ ] 1.8 RED+GREEN: `causes.ts`, `limits.ts`, `pathnames.ts` with tests (RN-01, RN-04, D4, D12; ownership prefix check)
-- [ ] 1.9 RED+GREEN: `submission.test.ts` then `submission.ts` `validateSubmission`, all errors at once (RF-03, RN-01..RN-05, RN-23, D15)
-- [ ] 1.10 RED+GREEN: `eligibility.ts` ambiguity/group choice with tests (RF-04, RN-21)
-- [ ] 1.11 RED+GREEN: `states.ts` `VISIBLE_STATES` excludes `borrador`, with test (D7)
-- [ ] 1.12 Add `src/lib/intake/ports.ts` (`DocumentStore`, `GroupScheduleProvider`) and `adapters/permissive-schedule.ts` + test (D5)
-- [ ] 1.13 RED+GREEN: `src/db/index.ts` prod pool `max:3`, `prepare:false`; test config branch (D11); verify against Neon docs (open question)
+- [x] 1.1 Branch slice 1 from `feat/justification-intake` (up to date with `main`); note that `catalog-management` owns `0005`/`0006` off-main, so the number generated here is provisional (design: Compatibility with catalog-management)
+- [x] 1.2 RED: `src/db/migration-justification-intake.test.ts` (locates the SQL by the `justification_intake` name, not by number) asserts CHECKs, partial unique `UX_Solicitud_Borrador`, snapshot CHECK, doc cap columns (RN-01, RN-05, D7, D8)
+- [x] 1.3 Add `Solicitud`, `SolicitudAsignatura`, `DocumentoRespaldo` to `src/db/schema.ts`
+- [x] 1.4 Run `npm run db:generate -- --name justification_intake` (generate only)
+- [ ] 1.5 STOP: ask user for explicit confirmation before any `drizzle-kit migrate`/`push`; do not apply unprompted. **Status: AWAITING USER CONFIRMATION** (migration `drizzle/0005_justification_intake.sql` generated, NOT applied; stays unchecked until the user decides)
+- [x] 1.6 RED+GREEN: `src/lib/intake/signature.test.ts` then `signature.ts` (PDF/PNG/JPEG magic bytes; RN-04, D3)
+- [x] 1.7 RED+GREEN: `src/lib/intake/dates.test.ts` then `dates.ts` (Managua today, UTC crossing, day 30/31; RN-05, RN-23)
+- [x] 1.8 RED+GREEN: `causes.ts`, `limits.ts`, `pathnames.ts` with tests (RN-01, RN-04, D4, D12; ownership prefix check)
+- [x] 1.9 RED+GREEN: `submission.test.ts` then `submission.ts` `validateSubmission`, all errors at once (RF-03, RN-01..RN-05, RN-23, D15)
+- [x] 1.10 RED+GREEN: `eligibility.ts` ambiguity/group choice with tests (RF-04, RN-21)
+- [x] 1.11 RED+GREEN: `states.ts` `VISIBLE_STATES` excludes `borrador`, with test (D7)
+- [x] 1.12 Add `src/lib/intake/ports.ts` (`DocumentStore`, `GroupScheduleProvider`) and `adapters/permissive-schedule.ts` + test (D5)
+- [x] 1.13 RED+GREEN: `src/db/index.ts` prod pool `max:3`, `prepare:false`; test config branch (D11); verify against Neon docs (open question)
 
 ## Phase 2: Slice 2 - Blob adapter and routes (PR 2)
 
