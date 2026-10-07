@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+
+import { attachmentDisposition } from "./content-disposition";
+
+describe("attachmentDisposition", () => {
+  it("builds an attachment with an ASCII fallback and the UTF-8 name", () => {
+    expect(attachmentDisposition("scan.pdf", "pdf")).toBe(
+      "attachment; filename=\"documento.pdf\"; filename*=UTF-8''scan.pdf",
+    );
+  });
+
+  it("percent-encodes non-ASCII and reserved characters (RFC 5987)", () => {
+    const header = attachmentDisposition("Dictamen médico (1)*.png", "png");
+    expect(header).toBe(
+      "attachment; filename=\"documento.png\"; filename*=UTF-8''Dictamen%20m%C3%A9dico%20%281%29%2A.png",
+    );
+  });
+
+  it("cannot be used to inject a header or break out of the quoted fallback", () => {
+    const header = attachmentDisposition('a"\r\nSet-Cookie: x=1.pdf', "pdf");
+    expect(header).not.toMatch(/[\r\n]/);
+    expect(header.match(/"/g)).toHaveLength(2);
+    expect(header).toContain(
+      "filename*=UTF-8''a%22%0D%0ASet-Cookie%3A%20x%3D1.pdf",
+    );
+  });
+
+  it("uses the detected type for the fallback extension, not the stored name", () => {
+    expect(attachmentDisposition("evil.exe", "jpeg")).toContain(
+      'filename="documento.jpeg"',
+    );
+  });
+});

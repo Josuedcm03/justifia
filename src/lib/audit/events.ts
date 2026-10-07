@@ -8,7 +8,11 @@ import type { RolUsuario } from "@/lib/validations/auth";
 
 import type { ImportSummary } from "../import/types";
 import { AUDITABLE_USER_FIELDS } from "./types";
-import type { AuditableUserField, AuditEvent } from "./types";
+import type {
+  AuditableUserField,
+  AuditEvent,
+  DocumentRejectionReason,
+} from "./types";
 
 export function importAppliedEvent(summary: ImportSummary): AuditEvent {
   return {
@@ -62,6 +66,61 @@ export function accountUpdatedEvent(args: {
       origen: "importacion",
       importacionSha256: args.importacionSha256,
     },
+  };
+}
+
+export function documentAttachedEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+  tamanoBytes: number;
+}): AuditEvent {
+  return {
+    accion: "documento.adjuntado",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      tipo: args.tipo,
+      tamanoBytes: args.tamanoBytes,
+    },
+  };
+}
+
+export function documentRejectedEvent(args: {
+  solicitudId: number;
+  reason: DocumentRejectionReason;
+}): AuditEvent {
+  return {
+    accion: "documento.rechazado",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: { reason: args.reason },
+  };
+}
+
+export function documentRemovedEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+}): AuditEvent {
+  return {
+    accion: "documento.eliminado",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: { solicitudId: args.solicitudId },
+  };
+}
+
+export function documentDownloadedEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+}): AuditEvent {
+  return {
+    accion: "documento.descargado",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: { solicitudId: args.solicitudId, tipo: args.tipo },
   };
 }
 

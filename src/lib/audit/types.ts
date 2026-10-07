@@ -9,11 +9,16 @@ export const AUDIT_ACTIONS = [
   "catalogo.importacion.aplicada",
   "usuario.creado",
   "usuario.actualizado",
+  "documento.adjuntado",
+  "documento.rechazado",
+  "documento.eliminado",
+  "documento.descargado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export type AuditEntityType = "Importacion" | "Usuario";
+export type AuditEntityType =
+  "Importacion" | "Usuario" | "Solicitud" | "DocumentoRespaldo";
 
 /** Closed list. A field not named here can never be reported as changed.
  *  `login` and `hashClave` are ABSENT on purpose: `hashClave` is a
@@ -45,6 +50,32 @@ type UserChangedPayload = {
   importacionSha256: string;
 };
 
+/** Reason codes of a rejected finalize (supporting-documents). */
+export type DocumentRejectionReason =
+  | "unsupported_format"
+  | "too_large"
+  | "empty_file"
+  | "not_found"
+  | "not_allowed"
+  | "too_many_documents";
+
+/** Payloads carry ids, detected type, size and the reason code only: never a
+ *  file name, content or storage location (RNF-02, D13). */
+type DocumentAttachedPayload = {
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+  tamanoBytes: number;
+};
+
+type DocumentRejectedPayload = { reason: DocumentRejectionReason };
+
+type DocumentRemovedPayload = { solicitudId: number };
+
+type DocumentDownloadedPayload = {
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+};
+
 /** Closed discriminated union. Built ONLY by `src/lib/audit/events.ts`.
  *  `actorId` and `ocurridoEn` are NOT on this type: the actor is supplied by
  *  the writer from the session, and the timestamp is the column default, so
@@ -61,4 +92,29 @@ export type AuditEvent =
       entidadTipo: "Usuario";
       entidadId: number;
       datos: UserChangedPayload;
+    }
+  | {
+      accion: "documento.adjuntado";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentAttachedPayload;
+    }
+  | {
+      // Concerns no persisted document: the entity is the draft (Solicitud).
+      accion: "documento.rechazado";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: DocumentRejectedPayload;
+    }
+  | {
+      accion: "documento.eliminado";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentRemovedPayload;
+    }
+  | {
+      accion: "documento.descargado";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentDownloadedPayload;
     };

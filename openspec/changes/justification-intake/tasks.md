@@ -2,6 +2,8 @@
 
 ## Review Workload Forecast
 
+> **Budget rule (owner decision, 2026-10-07):** strict TDD makes tests more than half of every diff, so the 800-line review budget counts **production code only** from slice 3 onward. Tests and test support stay in the same PR as the code they cover and are reported separately. Slices 1 (1,413 lines) and 2 (2,423 lines) shipped under owner-accepted `size:exception`.
+
 | Field | Value |
 |-------|-------|
 | Estimated changed lines | ~2,800 total (range 2,500-3,200) |
@@ -48,15 +50,15 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 2: Slice 2 - Blob adapter and routes (PR 2)
 
-- [ ] 2.1 Add `@vercel/blob` >= 2.3 to `package.json`; add `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET` to `src/env.ts` and `.env.example` (D1, D10)
-- [ ] 2.2 RED+GREEN: `adapters/vercel-blob-store.ts` (`server-only`, private access) with mocked SDK tests (RNF-02)
-- [ ] 2.3 RED+GREEN: `src/lib/intake/deps.ts` `getIntakeDeps()` with fakes helper for tests (supporting-documents: Storage behind a port)
-- [ ] 2.4 RED: `upload-token/route.test.ts` for 401, non-student, foreign/expired draft, 6th doc `too_many_documents`, limits payload (RN-04, D2, D12, RNF-01)
-- [ ] 2.5 GREEN: `src/app/api/intake/upload-token/route.ts` via `handleUpload`; `onUploadCompleted` no-op
-- [ ] 2.6 RED: `src/lib/data/documentos.test.ts` for finalize claim, concurrent cap, reasons table, delete on mismatch (RN-04, D3, D12)
-- [ ] 2.7 GREEN: `src/lib/data/documentos.ts` finalize (pendiente claim, sniff, validate), remove
-- [ ] 2.8 RED: `documents/[id]/route.test.ts` for 401/404 identical denial, headers, nosniff, no bytes on failure (RNF-01, RNF-02, D15)
-- [ ] 2.9 GREEN: `src/app/api/intake/documents/[id]/route.ts` streaming download (audit hook wired in slice 3)
+- [ ] 2.1 Add `@vercel/blob` >= 2.3 to `package.json`; add `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET` to `src/env.ts` and `.env.example` (D1, D10). **Status: PARTIAL** (`@vercel/blob@^2.8.1` and `src/env.ts` done with tests; `.env.example` edit was denied by the sandbox, add `BLOB_READ_WRITE_TOKEN=` and `CRON_SECRET=` placeholder lines by hand, then tick)
+- [x] 2.2 RED+GREEN: `adapters/vercel-blob-store.ts` (`server-only`, private access) with mocked SDK tests (RNF-02)
+- [x] 2.3 RED+GREEN: `src/lib/intake/deps.ts` `getIntakeDeps()` with fakes helper for tests (supporting-documents: Storage behind a port)
+- [x] 2.4 RED: `upload-token/route.test.ts` for 401, non-student, foreign/expired draft, 6th doc `too_many_documents`, limits payload (RN-04, D2, D12, RNF-01)
+- [x] 2.5 GREEN: `src/app/api/intake/upload-token/route.ts` via `handleUpload`; `onUploadCompleted` no-op
+- [x] 2.6 RED: `src/lib/data/documentos.test.ts` for finalize claim, concurrent cap, reasons table, delete on mismatch (RN-04, D3, D12)
+- [x] 2.7 GREEN: `src/lib/data/documentos.ts` finalize (pendiente claim, sniff, validate), remove
+- [x] 2.8 RED: `documents/[id]/route.test.ts` for 401/404 identical denial, headers, nosniff, no bytes on failure (RNF-01, RNF-02, D15)
+- [x] 2.9 GREEN: `src/app/api/intake/documents/[id]/route.ts` streaming download (audit hook wired here in slice 2 instead of slice 3)
 
 ## Phase 3: Slice 3 - Actions, enrollment, audit, permissions (PR 3)
 

@@ -64,6 +64,14 @@
       "sessions": 1,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "c790f646",
+      "created_by": "Arnia",
+      "created_at": "2026-10-07T18:00:07Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
     }
   ]
 }

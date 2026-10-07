@@ -140,3 +140,36 @@ describe("viewing right matches module access", () => {
     expect([...canSee].sort()).toEqual([...rolesQueCreanUsuarios].sort());
   });
 });
+
+describe("canFileRequests (justification-intake: only students file requests)", () => {
+  it("allows estudiante", () => {
+    expect(perms.canFileRequests("estudiante")).toBe(true);
+  });
+
+  it.each(["administrador", "coordinacion", "secretaria", "docente"] as const)(
+    "denies %s",
+    (rol) => {
+      expect(perms.canFileRequests(rol)).toBe(false);
+    },
+  );
+
+  it("denies a missing role", () => {
+    expect(perms.canFileRequests(undefined)).toBe(false);
+  });
+});
+
+describe("canViewDocument (D15: owner only in this change)", () => {
+  it("allows the owning student", () => {
+    expect(perms.canViewDocument({ id: 7, rol: "estudiante" }, 7)).toBe(true);
+  });
+
+  it("denies another student", () => {
+    expect(perms.canViewDocument({ id: 8, rol: "estudiante" }, 7)).toBe(false);
+  });
+
+  it("denies a staff role even when the id matches the owner", () => {
+    expect(perms.canViewDocument({ id: 7, rol: "coordinacion" }, 7)).toBe(
+      false,
+    );
+  });
+});

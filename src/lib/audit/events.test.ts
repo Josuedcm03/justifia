@@ -5,6 +5,10 @@ import {
   accountCreatedEvent,
   accountUpdatedEvent,
   buildAuditEvents,
+  documentAttachedEvent,
+  documentDownloadedEvent,
+  documentRejectedEvent,
+  documentRemovedEvent,
   importAppliedEvent,
   type TouchedAccount,
 } from "./events";
@@ -225,6 +229,86 @@ describe("credential-leak pins (decision 22)", () => {
       for (const event of buildAuditEvents(summary, touched)) {
         sweep(event);
       }
+    }
+  });
+});
+
+describe("document events (justification-intake D13, D14)", () => {
+  it("documentAttachedEvent targets DocumentoRespaldo and carries only ids, type and size", () => {
+    expect(
+      documentAttachedEvent({
+        documentoId: 11,
+        solicitudId: 4,
+        tipo: "pdf",
+        tamanoBytes: 2048,
+      }),
+    ).toEqual({
+      accion: "documento.adjuntado",
+      entidadTipo: "DocumentoRespaldo",
+      entidadId: 11,
+      datos: { solicitudId: 4, tipo: "pdf", tamanoBytes: 2048 },
+    });
+  });
+
+  it("documentRejectedEvent targets the draft (Solicitud) and carries the reason code", () => {
+    expect(
+      documentRejectedEvent({
+        solicitudId: 4,
+        reason: "unsupported_format",
+      }),
+    ).toEqual({
+      accion: "documento.rechazado",
+      entidadTipo: "Solicitud",
+      entidadId: 4,
+      datos: { reason: "unsupported_format" },
+    });
+  });
+
+  it("documentRemovedEvent targets DocumentoRespaldo", () => {
+    expect(documentRemovedEvent({ documentoId: 11, solicitudId: 4 })).toEqual({
+      accion: "documento.eliminado",
+      entidadTipo: "DocumentoRespaldo",
+      entidadId: 11,
+      datos: { solicitudId: 4 },
+    });
+  });
+
+  it("documentDownloadedEvent targets DocumentoRespaldo with request id and type", () => {
+    expect(
+      documentDownloadedEvent({ documentoId: 11, solicitudId: 4, tipo: "png" }),
+    ).toEqual({
+      accion: "documento.descargado",
+      entidadTipo: "DocumentoRespaldo",
+      entidadId: 11,
+      datos: { solicitudId: 4, tipo: "png" },
+    });
+  });
+
+  it("every document action code is registered in AUDIT_ACTIONS", () => {
+    for (const accion of [
+      "documento.adjuntado",
+      "documento.rechazado",
+      "documento.eliminado",
+      "documento.descargado",
+    ]) {
+      expect(AUDIT_ACTIONS).toContain(accion);
+    }
+  });
+
+  it("no payload contains a file name, location or URL key", () => {
+    const payloads = [
+      documentAttachedEvent({
+        documentoId: 1,
+        solicitudId: 2,
+        tipo: "jpeg",
+        tamanoBytes: 5,
+      }),
+      documentRejectedEvent({ solicitudId: 2, reason: "too_large" }),
+      documentRemovedEvent({ documentoId: 1, solicitudId: 2 }),
+      documentDownloadedEvent({ documentoId: 1, solicitudId: 2, tipo: "pdf" }),
+    ].map((e) => JSON.stringify(e.datos));
+    for (const json of payloads) {
+      expect(json).not.toMatch(/nombre|pathname|url|http|token/i);
     }
   });
 });
