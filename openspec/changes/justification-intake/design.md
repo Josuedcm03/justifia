@@ -39,7 +39,7 @@ DocumentoRespaldo: Id PK | SolicitudId FK CASCADE | Pathname varchar(255) UNIQUE
   CK: Estado='pendiente' OR TipoDetectado NOT NULL | CreadoEn
 ```
 
-`ActualizadoEn` is set explicitly by every draft mutation in `src/lib/data/solicitudes.ts` (no trigger). `EventoAuditoria` needs no DDL (`EntidadTipo` is varchar; its CHECK only targets `Usuario`). Migration number: `catalog-management` also plans `0005` (not started). Rebase on `main` and run `npm run db:generate -- --name justification_intake` only then; never `migrate`/`push` without per-command confirmation.
+`ActualizadoEn` is set explicitly by every draft mutation in `src/lib/data/solicitudes.ts` (no trigger). `EventoAuditoria` needs no DDL (`EntidadTipo` is varchar; its CHECK only targets `Usuario`). Migration number: `catalog-management` owns `0005` (`catalog_management`) and plans `0006` (`Grupo.Dias`), not yet on `main` (see Compatibility with catalog-management). On the feature branch the migration is generated against current `main`; at the final merge it is deleted and regenerated on top of `main` (expected `0007` or later). Tests locate the migration by its `justification_intake` name, never by number. Never `migrate`/`push` without per-command confirmation.
 
 ## Ports and Locations
 
@@ -63,7 +63,7 @@ export interface GroupScheduleProvider {
 |---|---|
 | `src/lib/intake/{causes,limits,dates,signature,submission,eligibility,states,pathnames}.ts` | Pure rules; `states.ts` exports `VISIBLE_STATES` excluding `borrador` |
 | `src/lib/intake/adapters/vercel-blob-store.ts` | `server-only`; `get/del/list` with `access: "private"` |
-| `src/lib/intake/adapters/permissive-schedule.ts` | Returns all ids (D5, flagged gap) |
+| `src/lib/intake/adapters/permissive-schedule.ts` | Returns all ids (D5, flagged gap). Replaced later by a weekday adapter over `Grupo.Dias` (see Compatibility with catalog-management) |
 | `src/lib/intake/deps.ts` | `getIntakeDeps()` wiring; mocked in tests |
 | `src/lib/validations/solicitud.ts` | zod step schemas; messages are i18n keys |
 | `src/lib/data/solicitudes.ts`, `src/lib/data/enrollment.ts` | Draft CRUD, submit transaction, eligible groups |
@@ -126,7 +126,7 @@ requireUser -> canFileRequests -> loadDraft(userId) (+lines, valid docs)
 | Container | `page.tsx` (RSC: `requireUser`, `canFileRequests` else denied path, fail-soft draft load, step from searchParams), `actions.ts` |
 | Presentational | `intake-stepper.tsx`, `cause-dates-step.tsx`, `subjects-step.tsx` (radio per ambiguous subject), `documents-step.tsx` (client, `@vercel/blob/client` `upload()`), `review-step.tsx`, `submit-dialog.tsx`, `discard-dialog.tsx` |
 
-New primitives (shadcn base-ui): `alert-dialog`, `checkbox`, `radio-group`, composed `stepper`. Dates use native `<Input type="date">`. Tokens only from `docs/design-system.md`: lime marks the active step (§2.3) paired with `aria-current="step"`; errors under fields with `role="alert"`; destructive button for discard; spacing steps 4-80. At 360 px: stepper collapses to "Step n of 4" plus bar, subjects render as stacked cards (no table), buttons full width, file names truncate. Sidebar: top-level `newRequest` (`/requests/new`, `FilePlus`, `visibleTo: canFileRequests`). `permissions.ts`: `rolesSolicitantes = ["estudiante"]`, `canFileRequests`, `canViewDocument(viewer, ownerId)` (owner only in this change, D15). Step 2 renders a "no teacher assigned" label for a group without a teacher and does not block submit (D15); `validateSubmission` requires at least one subject (D15). i18n: `intake.*` (steps, causes, fields, errors, documents, review, dialogs) and `nav.newRequest` in both `es.json` and `en.json`.
+New primitives (shadcn base-ui): `alert-dialog`, `radio-group`, composed `stepper`; `checkbox` is reused from `catalog-management` (`Checkbox`/`CheckboxGroup`) once it is on `main`, otherwise created with the same API. Dates use native `<Input type="date">`. Tokens only from `docs/design-system.md`: the active step uses the primary-colour underline of the current design system ("Academic Governance"; the lime highlight is retired) paired with `aria-current="step"`; the Stitch "nueva solicitud" export is the layout reference; errors under fields with `role="alert"`; destructive button for discard; spacing steps 4-80. At 360 px: stepper collapses to "Step n of 4" plus bar, subjects render as stacked cards (no table), buttons full width, file names truncate. Sidebar: top-level `newRequest` (`/requests/new`, `FilePlus`, `visibleTo: canFileRequests`). `permissions.ts`: `rolesSolicitantes = ["estudiante"]`, `canFileRequests`, `canViewDocument(viewer, ownerId)` (owner only in this change, D15). Step 2 renders a "no teacher assigned" label for a group without a teacher and does not block submit (D15); `validateSubmission` requires at least one subject (D15). i18n: `intake.*` (steps, causes, fields, errors, documents, review, dialogs) and `nav.newRequest` in both `es.json` and `en.json`.
 
 ## Audit Events
 
@@ -162,3 +162,17 @@ Five chained PRs as in the proposal (schema+domain+ports; blob adapter+routes; a
 ## Open Questions
 
 - [ ] Verify `prepare: false` necessity and Hobby region selection against current Neon/Vercel docs at apply.
+
+## Compatibility with catalog-management
+
+Observed on `origin/feat/sidebar-catalogs` (2026-10-07, not merged to `main`). Re-check when it lands.
+
+| Topic | What catalog-management does | Impact here | Slice |
+|---|---|---|---|
+| Group days | `Grupo."Dias" smallint` bitmask (Monday = bit 0 ... Sunday = bit 6, `0` = no days), migration `0006`, codec `src/lib/catalog/dias.ts` (`DIAS_SEMANA`, `decodeDias`) | `GroupScheduleProvider.groupsWithClass(ids, from, to)` is satisfiable from weekdays alone: a group has class when any date in `[from, to]` (America/Managua) falls on a set day. Add `adapters/weekday-schedule.ts` reusing `decodeDias`; a group with mask `0` counts as having class (never hide a subject). No hours, period dates or holidays exist, so those stay out of RN-22 | Follow-up after merge |
+| Migration numbers | Owns `0005`, plans `0006` | Ours is regenerated at the final merge (expected `0007`+); tests find it by name | 1, final merge |
+| Design system | `docs/design-system.md` replaced by Stitch "Academic Governance"; lime retired; active step = primary underline | Stepper and review UI follow the new document; take tokens from it, not from the retired UAM system | 4, 5 |
+| Checkbox | Adds `Checkbox`/`CheckboxGroup` primitives | Reuse instead of creating a second one | 4 |
+| Audit base spec | `openspec/specs/audit-log/spec.md` now exists (archived catalog-excel-import) | Our `audit-log` delta is rebased onto it at archive | Archive |
+| Shared files | Edits `permissions.ts`, `app-sidebar.tsx`, `i18n/*.json`, audit types | Expected merge conflicts, resolved at the final merge | Final merge |
+

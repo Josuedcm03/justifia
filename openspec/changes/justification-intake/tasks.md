@@ -24,7 +24,7 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 | Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
 |------|------|-----------|----------------------|-----------------|-------------------|
-| 1 | Schema, generated migration, pure domain, ports | PR 1 | `npx vitest run src/lib/intake src/db` | N/A: no runtime surface; migration SQL read by test | Revert schema, `drizzle/0005_*`, `src/lib/intake/` (unapplied migration) |
+| 1 | Schema, generated migration, pure domain, ports | PR 1 | `npx vitest run src/lib/intake src/db` | N/A: no runtime surface; migration SQL read by test | Revert schema, `drizzle/*_justification_intake.sql`, `src/lib/intake/` (unapplied migration) |
 | 2 | Blob adapter, token route, finalize, download | PR 2 | `npx vitest run src/lib/intake/adapters src/app/api src/lib/data/documentos` | Dev Blob store: upload spoofed + valid file via route | Revert adapter, routes, env, dependency |
 | 3 | Draft/submit actions, enrollment, audit, permissions | PR 3 | `npx vitest run src/lib/data src/lib/audit src/lib/auth src/app/(dashboard)/requests/new/actions.test.ts` | N/A: no UI yet; actions covered by mocked deps | Revert actions, data layer, audit builders, permissions |
 | 4 | Stepper steps 1-3, UI primitives, i18n, sidebar | PR 4 | `npx vitest run src/components/ui src/app/(dashboard)/requests/new` | `npm run dev`, walk steps 1-3 as student | Revert UI files and i18n keys |
@@ -32,8 +32,8 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 1: Slice 1 - Schema, domain, ports (PR 1)
 
-- [ ] 1.1 Rebase on `main`; confirm `drizzle/` numbering vs `catalog-management` before generating (design: Data Model)
-- [ ] 1.2 RED: `src/db/migration-0005.test.ts` asserts CHECKs, partial unique `UX_Solicitud_Borrador`, snapshot CHECK, doc cap columns (RN-01, RN-05, D7, D8)
+- [ ] 1.1 Branch slice 1 from `feat/justification-intake` (up to date with `main`); note that `catalog-management` owns `0005`/`0006` off-main, so the number generated here is provisional (design: Compatibility with catalog-management)
+- [ ] 1.2 RED: `src/db/migration-justification-intake.test.ts` (locates the SQL by the `justification_intake` name, not by number) asserts CHECKs, partial unique `UX_Solicitud_Borrador`, snapshot CHECK, doc cap columns (RN-01, RN-05, D7, D8)
 - [ ] 1.3 Add `Solicitud`, `SolicitudAsignatura`, `DocumentoRespaldo` to `src/db/schema.ts`
 - [ ] 1.4 Run `npm run db:generate -- --name justification_intake` (generate only)
 - [ ] 1.5 STOP: ask user for explicit confirmation before any `drizzle-kit migrate`/`push`; do not apply unprompted
@@ -72,9 +72,9 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 
 ## Phase 4: Slice 4 - Steps 1-3, primitives, i18n (PR 4)
 
-- [ ] 4.1 Add `alert-dialog`, `checkbox`, `radio-group`, `stepper` in `src/components/ui/` with tests (RNF-11, design-system tokens)
+- [ ] 4.1 Add `alert-dialog`, `radio-group`, `stepper` in `src/components/ui/` with tests; reuse `catalog-management`'s `Checkbox` if it is on `main`, else create it with the same API (RNF-11, tokens from the current "Academic Governance" design system, no lime)
 - [ ] 4.2 RED+GREEN: `page.tsx` guard, step from searchParams, fail-soft draft load (A7, RNF-01)
-- [ ] 4.3 RED+GREEN: `intake-stepper.tsx` with `aria-current="step"`, "Step n of 4" at 360 px (RF-01, RNF-11)
+- [ ] 4.3 RED+GREEN: `intake-stepper.tsx` with `aria-current="step"` and the primary-underline active step, "Step n of 4" at 360 px; layout per the Stitch "nueva solicitud" reference (RF-01, RNF-11)
 - [ ] 4.4 RED+GREEN: `cause-dates-step.tsx` field errors (RN-01, RN-05, RN-23)
 - [ ] 4.5 RED+GREEN: `subjects-step.tsx` radio for ambiguous groups, no-teacher label (RF-04, D15)
 - [ ] 4.6 RED+GREEN: `documents-step.tsx` `upload()`, reason messages, remove (RF-02, RN-03, RN-04, D12)
@@ -90,3 +90,12 @@ Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/j
 - [ ] 5.5 Add `vercel.json` cron `0 9 * * *` and `regions` matching Neon (D10, D11); create Blob store same region
 - [ ] 5.6 Test no horizontal scroll at 360 px per step and dialog (RNF-11); manual harness check
 - [ ] 5.7 Update `docs/roadmap.md` status note for `justification-intake` at archive time
+
+## Final merge checklist (feature branch -> main)
+
+- [ ] F.1 Rebase `feat/justification-intake` on `main` after `catalog-management` lands; resolve conflicts in `permissions.ts`, `app-sidebar.tsx`, `i18n/*.json`, audit types
+- [ ] F.2 Delete our generated migration and its snapshot/journal entry; regenerate with `npm run db:generate -- --name justification_intake` (expected `0007`+); rerun the migration test; ask the user before any apply
+- [ ] F.3 Re-check UI against `docs/design-system.md` ("Academic Governance") and swap any local `Checkbox` for the shared one
+- [ ] F.4 Follow-up (separate PR or change): `adapters/weekday-schedule.ts` over `Grupo.Dias` replacing the permissive adapter (mask `0` = has class); un-defer the RN-22 scenarios
+- [ ] F.5 At archive: rebase the `audit-log` delta onto `openspec/specs/audit-log/spec.md`
+
