@@ -14,6 +14,7 @@
     "dashboard": "Dashboard",
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
+    "catalogGrupos": "Groups",
     "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
@@ -71,7 +72,9 @@
           "carreraExists": "The Carrera of each subject must already exist in the system; the import does not create careers.",
           "horasPositive": "HorasTotales must be a whole number greater than zero.",
           "periodoFormat": "Periodo must use the format YYYY-S1 or YYYY-S2, for example 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match a teacher on the Docentes sheet or one already in the system."
+          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match a teacher on the Docentes sheet or one already in the system.",
+          "diasTokens": "Dias, on the Grupos sheet, takes the Spanish day names (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) or their three-letter abbreviations (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separated by commas. Case and accents are ignored.",
+          "diasEffect": "Dias: if you leave the column out, the stored days of every group are kept. A cell with days replaces the stored days; an empty cell leaves them as they are. The import never removes days."
         },
         "template": "Download template"
       },
@@ -196,6 +199,9 @@
         "grupo": {
           "duplicate": "The group is repeated on the sheet"
         },
+        "dias": {
+          "invalid": "\"{value}\" is not a valid day; use Lunes to Domingo or Lun to Dom, separated by commas"
+        },
         "accountsToCreate": {
           "capExceeded": "More than {maxAccounts} new accounts would be created in a single import. Split the workbook into smaller parts."
         },
@@ -238,6 +244,27 @@
         "confirm": "Yes, deactivate",
         "cancel": "Cancel"
       },
+      "dias": {
+        "long": {
+          "lunes": "Monday",
+          "martes": "Tuesday",
+          "miercoles": "Wednesday",
+          "jueves": "Thursday",
+          "viernes": "Friday",
+          "sabado": "Saturday",
+          "domingo": "Sunday"
+        },
+        "short": {
+          "lunes": "Mon",
+          "martes": "Tue",
+          "miercoles": "Wed",
+          "jueves": "Thu",
+          "viernes": "Fri",
+          "sabado": "Sat",
+          "domingo": "Sun"
+        },
+        "notSet": "Days not set"
+      },
       "fieldErrors": {
         "codigo": {
           "required": "The code is required",
@@ -269,6 +296,10 @@
         "numGrupo": {
           "required": "The group number is required",
           "tooLong": "The group number exceeds 12 characters"
+        },
+        "dias": {
+          "required": "Select at least one day of the week on which the group meets",
+          "invalid": "The selected value is not a day of the week. Select the days from the list"
         }
       },
       "noCarrera": {
@@ -354,6 +385,79 @@
       "state": {
         "title": "Status",
         "activeGroups": "{count, plural, =0 {This subject has no active groups.} one {This subject has # active group. Deactivate it before you can deactivate the subject.} other {This subject has # active groups. Deactivate them before you can deactivate the subject.}}"
+      }
+    },
+    "grupos": {
+      "list": {
+        "title": "Groups",
+        "subtitle": "Browse and manage the groups in the catalog.",
+        "newButton": "New group",
+        "columns": {
+          "code": "Code",
+          "subject": "Subject",
+          "periodo": "Period",
+          "numeroGrupo": "Group",
+          "docente": "Teacher",
+          "dias": "Days",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "edit": "Edit",
+        "empty": "There are no active groups yet.",
+        "noResults": {
+          "title": "No results for “{q}”",
+          "titleStatus": "There are no groups with this filter.",
+          "hint": "Try another subject, period, group or teacher, or change the status filter."
+        },
+        "degraded": "Could not load the groups. Try again in a few minutes.",
+        "search": {
+          "label": "Search groups",
+          "placeholder": "Subject, period, group or teacher",
+          "submit": "Search",
+          "clear": "Clear search"
+        },
+        "count": "{count, plural, =0 {No groups} one {# group} other {# groups}}",
+        "tableCaption": "Groups list",
+        "pagination": {
+          "region": "Groups pagination",
+          "previous": "Previous",
+          "next": "Next",
+          "status": "Page {page} of {pages}"
+        }
+      },
+      "errors": {
+        "unexpected": "The change could not be saved. Try again in a few minutes."
+      },
+      "form": {
+        "asignaturaLabel": "Subject",
+        "docenteLabel": "Teacher",
+        "searchPlaceholder": "Type to search",
+        "noMatches": "No options match",
+        "truncated": "Only the first options are listed. If you cannot find what you need, ask whoever administers the system.",
+        "periodoLabel": "Period",
+        "periodoHint": "Use the format YYYY-S1 or YYYY-S2, for example 2026-S1.",
+        "numeroGrupoLabel": "Group number",
+        "naturalKeyHint": "The subject, period and group number cannot be changed after the group is created.",
+        "diasLabel": "Days of the week",
+        "diasHint": "Select at least one day.",
+        "submitCreate": "Create group",
+        "submitSave": "Save changes",
+        "submitting": "Saving…"
+      },
+      "page": {
+        "newTitle": "New group",
+        "newSubtitle": "Fill in the details to add a group to the catalog.",
+        "editTitle": "Edit group",
+        "editSubtitle": "Update the group's teacher and meeting days.",
+        "reactivateHint": "To edit it, reactivate it first in the Status section."
+      },
+      "breadcrumb": {
+        "label": "Breadcrumb",
+        "new": "New group",
+        "edit": "Edit {codigo} {periodo} {numeroGrupo}"
+      },
+      "state": {
+        "title": "Status"
       }
     }
   },

@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   Settings,
   Users,
+  UsersRound,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
@@ -70,6 +71,12 @@ const items = [
         key: "catalogAsignaturas",
         href: "/catalog/asignaturas",
         icon: BookOpen,
+        visibleTo: canManageCatalog,
+      },
+      {
+        key: "catalogGrupos",
+        href: "/catalog/grupos",
+        icon: UsersRound,
         visibleTo: canManageCatalog,
       },
       {

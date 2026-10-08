@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { DIAS_SEMANA, isDiaSemana, type DiaSemana } from "@/lib/catalog/dias";
 import {
   CODIGO_MAX,
   horasTotalesSchema,
@@ -73,16 +74,53 @@ export const asignaturaUpdateSchema = z.object({
   horasTotales: horasTotalesSchema,
 });
 
+/** At most one entry per weekday; more raw entries cannot be a valid form. */
+const DIAS_RAW_MAX = DIAS_SEMANA.length;
+
+/** `DiaSemana[]` in week order, or the key of the one error to report. */
+function parseDias(
+  value: unknown,
+): DiaSemana[] | "dias.required" | "dias.invalid" {
+  if (!Array.isArray(value) || value.length > DIAS_RAW_MAX) {
+    return "dias.invalid";
+  }
+  if (!value.every(isDiaSemana)) return "dias.invalid";
+  if (value.length === 0) return "dias.required";
+  return DIAS_SEMANA.filter((dia) => value.includes(dia));
+}
+
+/** The `formData.getAll("dias")` list of a form. A missing field (`undefined`)
+ *  is reported as `missing`: `dias.invalid` standing alone, `dias.required`
+ *  inside a Grupo schema, where it means the user chose nothing. */
+function diasOf(missing: "dias.required" | "dias.invalid") {
+  return z.unknown().transform((value, ctx) => {
+    const result = value === undefined ? missing : parseDias(value);
+    if (typeof result === "string") {
+      ctx.addIssue({ code: "custom", message: result });
+      return z.NEVER;
+    }
+    return result;
+  });
+}
+
+/** The meeting days of a Grupo: an array of `DIAS_SEMANA` codes, collapsed and
+ *  put in week order; empty is `dias.required`, anything else off is
+ *  `dias.invalid` (CM-GRP-6, A-14). */
+export const diasSchema = diasOf("dias.invalid");
+
 export const grupoCreateSchema = z.object({
   asignaturaId: requiredId("asignaturaId"),
   periodo: periodoSchema,
   numeroGrupo: numGrupoSchema,
   docenteId: requiredId("docenteId"),
+  dias: diasOf("dias.required"),
 });
 
-/** Only the docente may change; the natural key is stripped (CM-GRP-2). */
+/** Only the docente and the days may change; the natural key is stripped
+ *  (CM-GRP-2). The days are required even for a docente-only edit. */
 export const grupoUpdateSchema = z.object({
   docenteId: requiredId("docenteId"),
+  dias: diasOf("dias.required"),
 });
 
 /** Every message the schemas above can emit, in one closed list: the i18n
@@ -103,6 +141,8 @@ export const CATALOG_FIELD_ERROR_KEYS = [
   "periodo.invalid",
   "numGrupo.required",
   "numGrupo.tooLong",
+  "dias.required",
+  "dias.invalid",
 ] as const;
 
 export type CatalogFieldErrorKey = (typeof CATALOG_FIELD_ERROR_KEYS)[number];

@@ -44,6 +44,15 @@ describe("buildTemplateWorkbook (CEI: Template download)", () => {
       "Nombre",
       "Telefono",
     ]);
+    // CEI-DIAS-4: the Grupos header is the required columns, then Dias.
+    expect(sheets[2].getRow(1).values).toEqual([
+      undefined,
+      "CodigoAsignatura",
+      "Periodo",
+      "NumGrupo",
+      "CorreoDocente",
+      "Dias",
+    ]);
   });
 
   it("carries no data rows and no Id column", () => {

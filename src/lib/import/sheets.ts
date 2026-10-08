@@ -23,9 +23,18 @@ export const SHEETS = [
   {
     name: "Grupos",
     required: ["CodigoAsignatura", "Periodo", "NumGrupo", "CorreoDocente"],
-    optional: [],
+    optional: ["Dias"],
   },
 ] as const;
+
+/** Optional columns whose ABSENCE differs from an empty cell, per sheet name:
+ *  `parse.ts` leaves the key out of the row cells when the header is missing
+ *  and keeps `""` when the header exists with a blank cell (CEI-DIAS-1). Only
+ *  `Grupos.Dias` today; every other optional column reads a missing header as
+ *  `""`. */
+export const ABSENCE_SIGNIFICANT: Readonly<
+  Partial<Record<string, readonly string[]>>
+> = { Grupos: ["Dias"] };
 // Every cross-sheet reference is a NATURAL KEY. No Id column is ever accepted,
 // on any sheet.
 

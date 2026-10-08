@@ -9,6 +9,7 @@ import {
   MAX_ACCOUNT_EVENTS_PER_APPLY,
   MAX_NEW_ACCOUNTS_PER_APPLY,
 } from "./limits";
+import { parseDiasCell } from "./dias";
 import { deriveLogin, normalizeEmail, normalizeKey } from "./normalize";
 import {
   AsignaturaRowSchema,
@@ -303,7 +304,23 @@ export function planImport(
       counts.Grupo.error++;
       continue;
     }
-    const { CodigoAsignatura, Periodo, NumGrupo, CorreoDocente } = parsed.data;
+    const { CodigoAsignatura, Periodo, NumGrupo, CorreoDocente, Dias } =
+      parsed.data;
+
+    // The days cell is judged right after the row schema: an unrecognised
+    // token is a row error that wins over any reference error (CEI-DIAS-3).
+    const diasCell = parseDiasCell(Dias ?? "");
+    if (!diasCell.ok) {
+      errors.push({
+        sheet: "Grupos",
+        row: r.row,
+        reason: "dias.invalid",
+        value: diasCell.token,
+      });
+      counts.Grupo.error++;
+      continue;
+    }
+    const mask = diasCell.mask;
 
     if (!knownAsignaturaCodigos.has(CodigoAsignatura)) {
       errors.push({
@@ -382,18 +399,22 @@ export function planImport(
         periodo: Periodo,
         numeroGrupo: NumGrupo,
         docenteCorreo,
+        ...(mask > 0 ? { dias: mask } : {}),
       });
       counts.Grupo.create++;
     } else {
       matchedGrupoIds.add(existingGrupo.id);
       const docenteChanged = existingGrupo.docenteId !== docente.id;
       const reactivated = !existingGrupo.activo;
-      if (docenteChanged || reactivated) {
+      // An empty cell or an absent column (mask 0) never touches stored days.
+      const diasChanged = mask > 0 && mask !== existingGrupo.dias;
+      if (docenteChanged || reactivated || diasChanged) {
         grupoWrites.push({
           kind: "update",
           id: existingGrupo.id,
           docenteCorreo,
           reactivated,
+          ...(diasChanged ? { dias: mask } : {}),
         });
         counts.Grupo.update++;
       } else {

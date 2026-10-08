@@ -43,6 +43,13 @@
       "when": 1791173620741,
       "tag": "0005_catalog_management",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791423623880,
+      "tag": "0006_grupo_dias",
+      "breakpoints": true
     }
   ]
 }

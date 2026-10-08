@@ -2,6 +2,8 @@
 // builders can map write results to events (finding F-1); later units add the
 // list and form types here.
 
+import type { DiaSemana } from "@/lib/catalog/dias";
+import type { GrupoOrigen } from "@/lib/catalog/origen";
 import type {
   AuditableAsignaturaField,
   AuditableGrupoField,
@@ -31,6 +33,23 @@ export type AsignaturaListItem = {
 };
 
 export type AsignaturaDetail = AsignaturaListItem & { gruposActivos: number };
+
+/** One Grupo as the list and the edit page see it. `dias` is the decoded set in
+ *  week order (empty = days not recorded); the stored mask never leaves the
+ *  data layer (amendment A-9). */
+export type GrupoListItem = {
+  id: number;
+  asignaturaId: number;
+  asignaturaCodigo: string;
+  asignaturaNombre: string;
+  periodo: string;
+  numeroGrupo: string;
+  docenteId: number;
+  docenteNombre: string;
+  activo: boolean;
+  origen: GrupoOrigen;
+  dias: readonly DiaSemana[];
+};
 
 /** Result of an Asignatura create or update. `inactive` (amendment A-1):
  *  editing an inactive record is refused (CM-ASG-3). */

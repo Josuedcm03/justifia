@@ -45,6 +45,8 @@ export type GrupoRow = {
   activo: boolean;
   /** How the row was created; an import never rewrites it. */
   origen: GrupoOrigen;
+  /** Stored meeting-day mask (`0` = no days recorded); see `catalog/dias.ts`. */
+  dias: number;
 };
 
 /** Inactive enrollments are included so a corrected re-import can reactivate them. */
@@ -160,12 +162,16 @@ export type GrupoWrite =
       periodo: string;
       numeroGrupo: string;
       docenteCorreo: string;
+      /** Present only when the cell named at least one day (never `0`). */
+      dias?: number;
     }
   | {
       kind: "update";
       id: number;
       docenteCorreo: string;
       reactivated: boolean;
+      /** Present only when the cell named days that differ from the stored set. */
+      dias?: number;
     };
 
 export type ImportWrites = {

@@ -12,6 +12,8 @@ const RULES = [
   "horasPositive",
   "periodoFormat",
   "correoDocenteResolves",
+  "diasTokens",
+  "diasEffect",
 ] as const;
 
 const CELL =

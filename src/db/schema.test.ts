@@ -5,6 +5,7 @@ import { PgDialect, getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import { asignatura, grupo, inscripcion, rol, usuario } from "@/db/schema";
+import { DIAS_MASK_MAX } from "@/lib/catalog/dias";
 import { GRUPO_ORIGENES } from "@/lib/catalog/origen";
 
 describe("rol table (design.md decisions 1, 5; state.yaml: surrogate_id)", () => {
@@ -199,5 +200,45 @@ describe("catalog-management additions (AC-LIFE, AC-ORIG, AC-ADD)", () => {
     );
     expect(source).not.toMatch(/audit-schema/);
     expect(source).not.toMatch(/eventoAuditoria/i);
+  });
+});
+
+describe("meeting days of a Grupo (AC-DIAS, AC-DIAS-ADD)", () => {
+  const cfg = getTableConfig(grupo);
+
+  it("Grupo.Dias is smallint, NOT NULL and defaults to 0 (pre-existing rows, old code)", () => {
+    const dias = cfg.columns.find((c) => c.name === "Dias");
+    expect(dias).toBeDefined();
+    expect(dias?.getSQLType()).toBe("smallint");
+    expect(dias?.notNull).toBe(true);
+    expect(dias?.default).toBe(0);
+  });
+
+  it("carries CK_Grupo_Dias with the literal bounds 0 and DIAS_MASK_MAX, no bind parameter", () => {
+    const ck = cfg.checks.find((c) => c.name === "CK_Grupo_Dias");
+    expect(ck).toBeDefined();
+    const query = new PgDialect().sqlToQuery(ck!.value);
+    expect(query.params).toEqual([]);
+    expect(query.sql).toBe(`"Grupo"."Dias" between 0 and ${DIAS_MASK_MAX}`);
+  });
+
+  it("leaves CK_Grupo_Origen, the natural key and the Asignatura reference unchanged", () => {
+    expect(cfg.checks.map((c) => c.name).sort()).toEqual([
+      "CK_Grupo_Dias",
+      "CK_Grupo_Origen",
+    ]);
+    const origen = cfg.checks.find((c) => c.name === "CK_Grupo_Origen");
+    expect(new PgDialect().sqlToQuery(origen!.value).sql).toBe(
+      `"Grupo"."Origen" in ('importacion', 'manual')`,
+    );
+    expect(
+      cfg.uniqueConstraints.map((u) => u.columns.map((c) => c.name)),
+    ).toEqual([["AsignaturaId", "Periodo", "NumeroGrupo"]]);
+    const fk = cfg.foreignKeys.find(
+      (f) => f.reference().columns[0].name === "AsignaturaId",
+    );
+    expect(getTableConfig(fk!.reference().foreignTable).name).toBe(
+      "Asignatura",
+    );
   });
 });

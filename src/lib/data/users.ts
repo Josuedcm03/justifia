@@ -1,11 +1,12 @@
 import "server-only";
 
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type { QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import { rol, usuario, type NuevoUsuario, type Usuario } from "@/db/schema";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
+import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import { containsPattern } from "@/lib/data/sql-like";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import { getRolIdByCodigo } from "@/lib/data/roles";
@@ -229,6 +230,28 @@ export async function getCatalogActor(
     .where(eq(usuario.id, id))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Active users whose role code is `docente`, for the Grupo docente select.
+ * It projects ONLY what a select needs (never the hash, CIF or phone), is
+ * capped at `CATALOG_OPTIONS_MAX` and is not fail-soft: a thrown error
+ * reaches the caller.
+ */
+export async function listDocenteOptions(): Promise<
+  { id: number; nombreCompleto: string; correo: string | null }[]
+> {
+  return db
+    .select({
+      id: usuario.id,
+      nombreCompleto: usuario.nombreCompleto,
+      correo: usuario.correo,
+    })
+    .from(usuario)
+    .innerJoin(rol, eq(usuario.rolId, rol.id))
+    .where(and(eq(rol.codigo, "docente"), eq(usuario.activo, true)))
+    .orderBy(asc(usuario.nombreCompleto), asc(usuario.id))
+    .limit(CATALOG_OPTIONS_MAX);
 }
 
 /** Sets or clears the forced-password-change flag (FPC). */

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { findMissingColumns, SHEETS, resolveHeaderIndex } from "./sheets";
+import {
+  ABSENCE_SIGNIFICANT,
+  findMissingColumns,
+  SHEETS,
+  resolveHeaderIndex,
+} from "./sheets";
 
 // CEI: File guards (Missing or renamed sheet or header). `sheets.ts` is the
 // header contract as pure data plus header-matching logic (trim -> lowercase
@@ -34,7 +39,11 @@ describe("SHEETS contract", () => {
       "NumGrupo",
       "CorreoDocente",
     ]);
-    expect(grupos?.optional).toEqual([]);
+    expect(grupos?.optional).toEqual(["Dias"]);
+  });
+
+  it("makes absence significant for Grupos.Dias only (CEI-DIAS-1)", () => {
+    expect(ABSENCE_SIGNIFICANT).toEqual({ Grupos: ["Dias"] });
   });
 
   it("never accepts an Id column as required or optional on any sheet", () => {
@@ -88,6 +97,16 @@ describe("findMissingColumns (structural error naming sheet and column)", () => 
     const headers = ["Correo", "Nombre"]; // Telefono (optional) absent
     const missing = findMissingColumns(SHEETS[1], headers);
     expect(missing).toEqual([]);
+  });
+
+  it("does not report the optional Dias column of Grupos when it is absent", () => {
+    const headers = [
+      "CodigoAsignatura",
+      "Periodo",
+      "NumGrupo",
+      "CorreoDocente",
+    ];
+    expect(findMissingColumns(SHEETS[2], headers)).toEqual([]);
   });
 
   it("matches required columns case-insensitively and diacritic-insensitively, so a renamed-but-equivalent header is not reported missing", () => {

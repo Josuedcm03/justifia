@@ -3,11 +3,15 @@
 import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ZodError } from "zod";
 
 import { asignaturaWriteEvents } from "@/lib/audit/events";
 import { requireCatalogAccess } from "@/lib/auth/catalog-access";
-import type { CatalogScope } from "@/lib/catalog/scope";
+import {
+  actionOutcomes,
+  addressed,
+  fieldErrors,
+  revalidateRecord,
+} from "@/lib/catalog/action-helpers";
 import type {
   ActiveToggleState,
   AsignaturaActiveResult,
@@ -20,15 +24,10 @@ import {
   setAsignaturaActivo,
   updateAsignatura,
 } from "@/lib/data/asignaturas";
-import {
-  CatalogBusyError,
-  logCatalogFailure,
-  withCatalogWrite,
-} from "@/lib/data/catalog-write";
+import { withCatalogWrite } from "@/lib/data/catalog-write";
 import {
   asignaturaCreateSchema,
   asignaturaUpdateSchema,
-  parseRecordId,
 } from "@/lib/validations/catalog";
 
 // Server Actions are reachable by a direct POST, so each one authorizes first
@@ -39,60 +38,9 @@ import {
 
 const LIST_PATH = "/catalog/asignaturas";
 
-/** The list and the one edit page of the record whose state changed. */
-function revalidateAsignatura(id: number) {
-  revalidatePath(LIST_PATH);
-  revalidatePath(`${LIST_PATH}/${id}/edit`);
-}
-
-type Translate = Awaited<ReturnType<typeof getTranslations>>;
-
-/** First message per field, translated from the schema's i18n keys. */
-function fieldErrors(t: Translate, error: ZodError): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const field = String(issue.path[0]);
-    if (!(field in out)) out[field] = t(`shared.fieldErrors.${issue.message}`);
-  }
-  return out;
-}
-
-function unexpected(t: Translate) {
-  return {
-    kind: "error" as const,
-    message: t("asignaturas.errors.unexpected"),
-  };
-}
-
-/** A lock timeout is its own outcome (CM-NFR-4); anything else is generic and
- *  never carries the thrown text (`withCatalogWrite` already logged it). */
-function failure(error: unknown, t: Translate) {
-  return error instanceof CatalogBusyError
-    ? { kind: "busy" as const }
-    : unexpected(t);
-}
-
-/**
- * The lock-free pre-check (amendment A-6): parses the hidden id and reads the
- * record through the scope BEFORE `withCatalogWrite`, so a missing and a foreign
- * id answer the same `gone` without ever waiting on the lock (CM-NFR-4: busy
- * does not bypass authorization). The write re-validates inside its
- * transaction. This read is outside the wrapper, so it logs its own failure.
- */
-async function addressed(
-  actorId: number,
-  scope: CatalogScope,
-  rawId: unknown,
-): Promise<{ id: number } | "gone" | "failed"> {
-  const id = parseRecordId(rawId);
-  if (id === null) return "gone";
-  try {
-    return (await getAsignaturaById(scope, id)) ? { id } : "gone";
-  } catch (error) {
-    logCatalogFailure({ actor: actorId, error });
-    return "failed";
-  }
-}
+// The id parse, the lock-free pre-check, the busy/unexpected mapping and the
+// field-error translation are shared with the Grupo actions.
+const { unexpected, failure } = actionOutcomes("asignaturas.errors.unexpected");
 
 export async function createAsignaturaAction(
   _prev: CatalogFormState,
@@ -161,7 +109,12 @@ export async function updateAsignaturaAction(
     return { kind: "error", message: t("shared.noCarrera.message") };
   }
 
-  const target = await addressed(actorId, scope, formData.get("id"));
+  const target = await addressed(
+    actorId,
+    scope,
+    formData.get("id"),
+    getAsignaturaById,
+  );
   if (target === "gone") return { kind: "gone" };
   if (target === "failed") return unexpected(t);
 
@@ -204,7 +157,7 @@ export async function updateAsignaturaAction(
       return unexpected(t);
   }
 
-  revalidateAsignatura(target.id);
+  revalidateRecord(LIST_PATH, target.id);
   redirect(LIST_PATH);
 }
 
@@ -227,7 +180,12 @@ export async function setAsignaturaActivoAction(
   }
   const activo = INTENTS[intent];
 
-  const target = await addressed(actorId, scope, formData.get("id"));
+  const target = await addressed(
+    actorId,
+    scope,
+    formData.get("id"),
+    getAsignaturaById,
+  );
   if (target === "gone") return { kind: "gone" };
   if (target === "failed") return unexpected(t);
 
@@ -244,7 +202,7 @@ export async function setAsignaturaActivoAction(
 
   switch (result.kind) {
     case "changed":
-      revalidateAsignatura(target.id);
+      revalidateRecord(LIST_PATH, target.id);
       return { kind: "done", activo: result.activo };
     case "unchanged":
       return { kind: "unchanged" };

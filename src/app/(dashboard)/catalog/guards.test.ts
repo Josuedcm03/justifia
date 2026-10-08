@@ -88,6 +88,16 @@ const actionFiles = ACTION_SEGMENTS.map((segment) =>
     text: readFileSync(path, "utf8"),
   }));
 
+/** A form read: `get` and also `getAll` (the Grupo days travel as
+ *  `formData.getAll("dias")`, finding F-11). */
+const FORM_READ = /\b(formData|fd)\.get(All)?\(/;
+
+/** True when the source reads the form before the first `await`. */
+function readsFormBeforeAwait(source: string): boolean {
+  const firstAwait = source.indexOf("await ");
+  return FORM_READ.test(source.slice(0, firstAwait));
+}
+
 /** Each exported function with its body (up to the next export or the end). */
 function exportedFunctions(text: string) {
   const starts = [...text.matchAll(/^export async function (\w+)\(/gm)];
@@ -100,6 +110,25 @@ function exportedFunctions(text: string) {
 describe("catalog server actions (structure)", () => {
   it("discovers at least one actions module", () => {
     expect(actionFiles.length).toBeGreaterThan(0);
+  });
+
+  it("covers every expected actions module (a missing file is a failure)", () => {
+    expect(actionFiles.map((f) => f.path)).toEqual([
+      "src/app/(dashboard)/catalog/asignaturas/actions.ts",
+      "src/app/(dashboard)/catalog/grupos/actions.ts",
+    ]);
+  });
+
+  it.each([
+    ["get", 'const d = formData.get("dias");'],
+    ["getAll", 'const d = formData.getAll("dias");'],
+    ["fd.getAll", 'const d = fd.getAll("dias");'],
+  ])("the form-read check catches %s before the guard", (_name, read) => {
+    const early = `export async function a(_p, formData) {\n  ${read}\n  await requireCatalogAccess();\n}`;
+    const late = `export async function a(_p, formData) {\n  await requireCatalogAccess();\n  ${read}\n}`;
+
+    expect(readsFormBeforeAwait(early)).toBe(true);
+    expect(readsFormBeforeAwait(late)).toBe(false);
   });
 
   it.each(actionFiles.map((f) => [f.path, f] as const))(
@@ -115,7 +144,7 @@ describe("catalog server actions (structure)", () => {
           /^await requireCatalogAccess\(\)/,
         );
         expect(action.body.slice(0, firstAwait), action.name).not.toMatch(
-          /\b(formData|fd)\.get\(/,
+          FORM_READ,
         );
       }
     },

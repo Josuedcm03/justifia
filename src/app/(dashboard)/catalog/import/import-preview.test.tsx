@@ -332,6 +332,40 @@ describe("ImportPreview confirmation (CEI: Preview with errors blocks confirmati
     expect(document.querySelector('input[name="fileSha256"]')).toBeNull();
   });
 
+  it.each(["en", "es"] as const)(
+    "a single dias.invalid row error offers no confirm control, so the apply is not reachable, in %s (CEI-DIAS-3)",
+    (locale) => {
+      renderUi(
+        <ImportPreview
+          state={{
+            ...withErrors([
+              {
+                sheet: "Grupos",
+                row: 5,
+                reason: "dias.invalid",
+                value: "Funday",
+              },
+            ]),
+            counts: { ...PREVIEW.counts, Grupo: { ...zero, error: 1 } },
+          }}
+          fileName="catalogo.xlsx"
+          action={confirm}
+          pending={false}
+        />,
+        locale,
+      );
+
+      const copy = locale === "en" ? en : es;
+      expect(screen.queryByRole("button")).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: copy.preview.confirm }),
+      ).toBeNull();
+      expect(document.querySelector("form")).toBeNull();
+      expect(document.querySelector('input[name="fileSha256"]')).toBeNull();
+      expect(confirm).not.toHaveBeenCalled();
+    },
+  );
+
   it("disables confirmation while the apply is running", () => {
     renderPreview(PREVIEW, true);
 

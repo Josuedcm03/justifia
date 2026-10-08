@@ -75,3 +75,38 @@ describe("catalog write paths (structure)", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// The body of one top-level function: from its `export` line to the first
+// closing brace in column 0. Comments above the function are not part of it.
+function functionBody(text: string, name: string): string {
+  const start = text.search(new RegExp(`export (async )?function ${name}\\b`));
+  expect(start).toBeGreaterThanOrEqual(0);
+  return text.slice(start, text.indexOf("\n}\n", start));
+}
+
+describe("Grupo data module (structure)", () => {
+  const grupos = sources.find((s) => s.path === "src/lib/data/grupos.ts");
+  const code = (grupos?.text ?? "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  it("is inspected by every pin above (CM-GRP-5, CM-NFR-1)", () => {
+    expect(grupos).toBeDefined();
+  });
+
+  it("never mentions Inscripcion outside comments (CM-NFR-1)", () => {
+    expect(code).not.toMatch(/inscripcion/i);
+  });
+
+  it("keeps the days out of setGrupoActivo (CM-GRP-6)", () => {
+    const body = functionBody(grupos?.text ?? "", "setGrupoActivo");
+    expect(body).toContain(".update(");
+    expect(body).not.toMatch(/dias/i);
+  });
+
+  it("keeps the days out of buildGruposWhere (CM-GRP-7)", () => {
+    const body = functionBody(grupos?.text ?? "", "buildGruposWhere");
+    expect(body).toContain("asignaturaInScope");
+    expect(body).not.toMatch(/dias/i);
+  });
+});

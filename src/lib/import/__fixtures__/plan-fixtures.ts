@@ -35,8 +35,8 @@ export function makeSnapshot(
   };
 }
 
-/** Default-bearing row helpers: an Asignatura is active and a Grupo is active
- *  and `importacion`-origin unless a test says otherwise. */
+/** Default-bearing row helpers: an Asignatura is active and a Grupo is active,
+ *  `importacion`-origin and has no days (`dias: 0`) unless a test says otherwise. */
 export function makeAsignaturaRow(
   row: Omit<AsignaturaRow, "activo"> & Partial<Pick<AsignaturaRow, "activo">>,
 ): AsignaturaRow {
@@ -44,10 +44,10 @@ export function makeAsignaturaRow(
 }
 
 export function makeGrupoRow(
-  row: Omit<GrupoRow, "activo" | "origen"> &
-    Partial<Pick<GrupoRow, "activo" | "origen">>,
+  row: Omit<GrupoRow, "activo" | "origen" | "dias"> &
+    Partial<Pick<GrupoRow, "activo" | "origen" | "dias">>,
 ): GrupoRow {
-  return { activo: true, origen: "importacion", ...row };
+  return { activo: true, origen: "importacion", dias: 0, ...row };
 }
 
 function row(cells: Record<string, string>, rowNumber: number): ParsedRow {

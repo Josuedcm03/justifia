@@ -26,6 +26,7 @@ describe("closed auditable field lists", () => {
       "docenteId",
       "activo",
       "origen",
+      "dias",
     ]);
   });
 });

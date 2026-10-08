@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AUDITABLE_USER_FIELDS } from "@/lib/audit/types";
+import { encodeDias, type DiaSemana } from "@/lib/catalog/dias";
 
 import {
   CARRERA,
@@ -1313,5 +1314,336 @@ describe("planImport — Stage G: purity", () => {
     expect(source).not.toMatch(/node:crypto/);
     expect(source).not.toMatch(/@\/db/);
     expect(source).not.toMatch(/Date\.now|new Date\(|Math\.random/);
+  });
+});
+
+// Meeting days of a Grupo (CEI-DIAS-2, CEI-DIAS-3). "Column absent" workbooks
+// carry no `Dias` key at all; "empty cell" ones carry `Dias: ""`.
+const days = (...d: DiaSemana[]) => encodeDias(d);
+const MON = days("lunes");
+const MON_WED = days("lunes", "miercoles");
+const daysSnapshot = (grupos: GrupoRow[]) =>
+  makeSnapshot({
+    asignaturas: [makeAsignaturaRow(MAT)],
+    usuarios: [docente(2, "doc@uam.edu"), docente(3, "otro@uam.edu")],
+    grupos,
+  });
+const planDays = (cells: Record<string, string>, grupos: GrupoRow[] = []) =>
+  planImport(makeWorkbook({ grupos: [cells] }), daysSnapshot(grupos));
+
+describe("planImport — Grupo days, part 1 (CEI-DIAS-3, CEI-DIAS-2)", () => {
+  it("column absent: a matched group keeps its days and is unchanged", () => {
+    const plan = planDays(grupoCells(), [grupo(1, { dias: MON_WED })]);
+    expect(plan.counts.Grupo).toMatchObject({ unchanged: 1, update: 0 });
+    expect(plan.writes.grupos).toEqual([]);
+  });
+
+  it("column absent: a new group is created with no dias key", () => {
+    const plan = planDays(grupoCells());
+    expect(plan.writes.grupos).toEqual([
+      {
+        kind: "create",
+        asignaturaCodigo: "MAT-101",
+        periodo: "2026-S1",
+        numeroGrupo: "1",
+        docenteCorreo: "doc@uam.edu",
+      },
+    ]);
+  });
+
+  it("non-empty cell replaces the stored days with an update carrying the mask", () => {
+    const plan = planDays(grupoCells({ Dias: "Martes, Jueves" }), [
+      grupo(1, { dias: MON }),
+    ]);
+    expect(plan.counts.Grupo).toMatchObject({ update: 1, unchanged: 0 });
+    expect(plan.writes.grupos).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "doc@uam.edu",
+        reactivated: false,
+        dias: days("martes", "jueves"),
+      },
+    ]);
+  });
+
+  it("empty cell, every other value equal: unchanged, no write, no days change", () => {
+    const plan = planDays(grupoCells({ Dias: "" }), [grupo(1, { dias: MON })]);
+    expect(plan.counts.Grupo).toMatchObject({ unchanged: 1, update: 0 });
+    expect(plan.writes.grupos).toEqual([]);
+  });
+
+  it("empty cell with a different docente: update keeping the days (no dias key)", () => {
+    const plan = planDays(
+      grupoCells({ Dias: "", CorreoDocente: "otro@uam.edu" }),
+      [grupo(1, { dias: MON })],
+    );
+    expect(plan.counts.Grupo).toMatchObject({ update: 1 });
+    expect(plan.writes.grupos).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "otro@uam.edu",
+        reactivated: false,
+      },
+    ]);
+  });
+
+  it("empty cell on a new group: created with no dias key", () => {
+    const plan = planDays(grupoCells({ Dias: " , " }));
+    expect(plan.writes.grupos).toEqual([
+      {
+        kind: "create",
+        asignaturaCodigo: "MAT-101",
+        periodo: "2026-S1",
+        numeroGrupo: "1",
+        docenteCorreo: "doc@uam.edu",
+      },
+    ]);
+  });
+
+  it("a new group with `Lun, Vie` is created with the Monday + Friday mask", () => {
+    const plan = planDays(grupoCells({ Dias: "Lun, Vie" }));
+    expect(plan.writes.grupos).toEqual([
+      expect.objectContaining({
+        kind: "create",
+        dias: days("lunes", "viernes"),
+      }),
+    ]);
+  });
+
+  it("the same set in another spelling and order is unchanged", () => {
+    const plan = planDays(grupoCells({ Dias: "mie, Lunes" }), [
+      grupo(1, { dias: MON_WED }),
+    ]);
+    expect(plan.counts.Grupo).toMatchObject({ unchanged: 1, update: 0 });
+    expect(plan.writes.grupos).toEqual([]);
+  });
+});
+
+describe("planImport — Grupo days, part 2 (CEI-DIAS-3, CEI-PREC)", () => {
+  it("a days-only difference is exactly one grupo update and nothing else", () => {
+    const plan = planImport(
+      makeWorkbook({
+        asignaturas: [matCells()],
+        docentes: [{ Correo: "doc@uam.edu", Nombre: "Doc" }],
+        grupos: [grupoCells({ Dias: "Martes" })],
+      }),
+      makeSnapshot({
+        asignaturas: [makeAsignaturaRow(MAT)],
+        usuarios: [docente(2, "doc@uam.edu")],
+        grupos: [grupo(1, { dias: MON })],
+      }),
+    );
+    expect(plan.ok).toBe(true);
+    expect(plan.counts).toEqual({
+      Asignatura: {
+        create: 0,
+        update: 0,
+        unchanged: 1,
+        deactivate: 0,
+        error: 0,
+      },
+      Usuario: { create: 0, update: 0, unchanged: 1, deactivate: 0, error: 0 },
+      Grupo: { create: 0, update: 1, unchanged: 0, deactivate: 0, error: 0 },
+    });
+    expect(plan.accountsToCreate).toBe(0);
+    expect(plan.deactivateGrupoIds).toEqual([]);
+  });
+
+  it("`Lunes, Funday` is a dias.invalid row error naming the token, blocking a 200-row workbook", () => {
+    const rows: Record<string, string>[] = Array.from({ length: 201 }, (_, i) =>
+      grupoCells({ NumGrupo: String(i + 1) }),
+    );
+    rows[7] = { ...rows[7], Dias: "Lunes, Funday" }; // Excel row 9
+    const plan = planImport(makeWorkbook({ grupos: rows }), daysSnapshot([]));
+    expect(plan.ok).toBe(false);
+    expect(plan.errors).toEqual([
+      { sheet: "Grupos", row: 9, reason: "dias.invalid", value: "Funday" },
+    ]);
+    expect(plan.counts.Grupo).toMatchObject({ create: 200, error: 1 });
+    expect(plan.writes.grupos).toHaveLength(200);
+  });
+
+  it.each([
+    ["Monday"],
+    ["Lunes;Martes"],
+    ["Lun-Vie"],
+    ["Lunes y Martes"],
+    ["Luness"],
+    ["1"],
+  ])("the invalid cell %j yields dias.invalid naming that token", (cell) => {
+    const plan = planDays(grupoCells({ Dias: cell }));
+    expect(plan.errors).toEqual([
+      { sheet: "Grupos", row: 2, reason: "dias.invalid", value: cell },
+    ]);
+    expect(plan.counts.Grupo).toMatchObject({ error: 1, create: 0 });
+    expect(plan.writes.grupos).toEqual([]);
+  });
+
+  it("an invalid token on a row with an unresolved Asignatura reports dias.invalid only", () => {
+    const plan = planDays(
+      grupoCells({ CodigoAsignatura: "NOPE-1", Dias: "Funday" }),
+    );
+    expect(reasons(plan)).toEqual(["dias.invalid"]);
+    expect(plan.counts.Grupo.error).toBe(1);
+  });
+
+  it("no write of any days scenario carries dias: 0", () => {
+    const cells = [
+      undefined,
+      "",
+      " , ",
+      "Lunes",
+      "Martes, Jueves",
+      "mie, Lunes",
+    ];
+    const stored = [undefined, 0, MON, MON_WED];
+    for (const cell of cells) {
+      for (const dias of stored) {
+        for (const activo of [true, false]) {
+          const plan = planDays(
+            cell === undefined ? grupoCells() : grupoCells({ Dias: cell }),
+            dias === undefined ? [] : [grupo(1, { dias, activo })],
+          );
+          for (const w of plan.writes.grupos) {
+            if ("dias" in w) expect(w.dias).toBeGreaterThan(0);
+            if (!cell || cell.replace(/[ ,]/g, "") === "")
+              expect(w).not.toHaveProperty("dias");
+          }
+        }
+      }
+    }
+  });
+
+  it("an inactive group is reactivated with the cell's days, or without a dias key for an empty cell", () => {
+    const stored = [grupo(1, { activo: false, dias: MON })];
+    expect(
+      planDays(grupoCells({ Dias: "Viernes" }), stored).writes.grupos,
+    ).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "doc@uam.edu",
+        reactivated: true,
+        dias: days("viernes"),
+      },
+    ]);
+    expect(planDays(grupoCells({ Dias: "" }), stored).writes.grupos).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "doc@uam.edu",
+        reactivated: true,
+      },
+    ]);
+  });
+
+  it("an active group absent from the workbook is deactivated and its days are not touched", () => {
+    const plan = planImport(
+      makeWorkbook({}),
+      daysSnapshot([grupo(1, { dias: MON_WED })]),
+    );
+    expect(plan.deactivateGrupoIds).toEqual([1]);
+    expect(plan.writes.grupos).toEqual([]);
+    expect(JSON.stringify(plan)).not.toMatch(/dias/i);
+  });
+
+  it("re-planning the same workbook after applying its writes yields unchanged only", () => {
+    const workbook = makeWorkbook({
+      grupos: [
+        grupoCells({ Dias: "Lun, Vie" }),
+        grupoCells({ NumGrupo: "2", Dias: "Martes" }),
+      ],
+    });
+    const first = planImport(workbook, daysSnapshot([grupo(2, { dias: MON })]));
+    expect(first.counts.Grupo).toMatchObject({ create: 1, update: 1 });
+    const create = first.writes.grupos.find((w) => w.kind === "create");
+    const update = first.writes.grupos.find((w) => w.kind === "update");
+    const second = planImport(
+      workbook,
+      daysSnapshot([
+        grupo(1, { dias: create?.dias }),
+        grupo(2, { dias: update?.dias }),
+      ]),
+    );
+    expect(second.counts.Grupo).toEqual({
+      create: 0,
+      update: 0,
+      unchanged: 2,
+      deactivate: 0,
+      error: 0,
+    });
+  });
+
+  it("a manual days edit is overwritten silently by a non-empty cell, and left alone by an empty cell or no column", () => {
+    const stored = [grupo(1, { origen: "manual", dias: days("sabado") })];
+    const overwritten = planDays(grupoCells({ Dias: "Lunes" }), stored);
+    expect(overwritten.writes.grupos).toEqual([
+      {
+        kind: "update",
+        id: 1,
+        docenteCorreo: "doc@uam.edu",
+        reactivated: false,
+        dias: MON,
+      },
+    ]);
+    expect(planDays(grupoCells({ Dias: "" }), stored).writes.grupos).toEqual(
+      [],
+    );
+    expect(planDays(grupoCells(), stored).writes.grupos).toEqual([]);
+  });
+
+  // Characterization pin (17.19): a workbook with no `Dias` key plans as before.
+  it("a workbook with no Dias key keeps the plan shape: no days key, count or field anywhere", () => {
+    const plan = planImport(
+      makeWorkbook({
+        grupos: [
+          grupoCells(),
+          grupoCells({ NumGrupo: "2", CorreoDocente: "otro@uam.edu" }),
+          grupoCells({ NumGrupo: "3" }),
+        ],
+      }),
+      daysSnapshot([
+        grupo(2, { dias: MON }),
+        grupo(3, { activo: false, dias: MON_WED }),
+        grupo(4, { dias: MON }),
+      ]),
+    );
+    expect(Object.keys(plan).sort()).toEqual([
+      "accountsToCreate",
+      "asignaturasToReactivate",
+      "counts",
+      "deactivateGrupoIds",
+      "errors",
+      "manualGruposToDeactivate",
+      "ok",
+      "writes",
+    ]);
+    expect(Object.keys(plan.counts).sort()).toEqual([
+      "Asignatura",
+      "Grupo",
+      "Usuario",
+    ]);
+    expect(Object.keys(plan.counts.Grupo).sort()).toEqual([
+      "create",
+      "deactivate",
+      "error",
+      "unchanged",
+      "update",
+    ]);
+    expect(Object.keys(plan.writes).sort()).toEqual([
+      "asignaturas",
+      "grupos",
+      "usuarios",
+    ]);
+    expect(plan.counts.Grupo).toEqual({
+      create: 1,
+      update: 2,
+      unchanged: 0,
+      deactivate: 1,
+      error: 0,
+    });
+    expect(JSON.stringify(plan)).not.toMatch(/dias/i);
   });
 });

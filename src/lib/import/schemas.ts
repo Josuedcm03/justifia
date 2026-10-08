@@ -84,6 +84,9 @@ export const GrupoRowSchema = z
     Periodo: periodoSchema,
     NumGrupo: numGrupoSchema,
     CorreoDocente: requiredEmail("correoDocente", CORREO_MAX),
+    // Raw cell, kept as written: absent column = no key, empty cell = "". The
+    // day tokens are parsed (and `dias.invalid` raised) by the planner.
+    Dias: z.string().optional(),
   })
   .superRefine(checkLoginLength("CorreoDocente"));
 

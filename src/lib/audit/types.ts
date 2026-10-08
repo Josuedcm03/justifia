@@ -78,6 +78,7 @@ export const AUDITABLE_GRUPO_FIELDS = [
   "docenteId",
   "activo",
   "origen",
+  "dias",
 ] as const;
 
 export type AuditableGrupoField = (typeof AUDITABLE_GRUPO_FIELDS)[number];

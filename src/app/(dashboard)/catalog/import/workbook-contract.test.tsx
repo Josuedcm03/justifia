@@ -82,8 +82,28 @@ describe("WorkbookContract (CEI: Contract shown before upload)", () => {
 
       expect(marked).toEqual([...sheet.optional]);
     }
-    // The contract has exactly one optional column today.
-    expect(screen.getAllByText(en.optional)).toHaveLength(1);
+    // The contract has exactly two optional columns: Docentes.Telefono and
+    // Grupos.Dias (CEI-DIAS-4).
+    expect(screen.getAllByText(en.optional)).toHaveLength(2);
+  });
+
+  it("lists Dias among the optional Grupos columns (CEI-DIAS-4)", () => {
+    renderContract();
+
+    const grupos = screen.getByRole("table", {
+      name: captionFor(en, "Grupos"),
+    });
+    expect(
+      within(grupos)
+        .getAllByRole("columnheader")
+        .map((th) => th.firstElementChild?.textContent),
+    ).toEqual([
+      "CodigoAsignatura",
+      "Periodo",
+      "NumGrupo",
+      "CorreoDocente",
+      "Dias",
+    ]);
   });
 
   it("shows every sheet at once and explains the optional convention", () => {
@@ -109,7 +129,7 @@ describe("WorkbookContract (CEI: Contract shown before upload)", () => {
     }
   });
 
-  it("lists the five validation rules under their own h3", () => {
+  it("lists the seven validation rules under their own h3", () => {
     renderContract();
 
     expect(
@@ -118,8 +138,31 @@ describe("WorkbookContract (CEI: Contract shown before upload)", () => {
     for (const rule of Object.values(en.rules)) {
       expect(screen.getByText(rule)).toBeInTheDocument();
     }
-    expect(Object.keys(en.rules)).toHaveLength(5);
+    expect(Object.keys(en.rules)).toHaveLength(7);
   });
+
+  it.each([
+    ["en", en],
+    ["es", es],
+  ] as const)(
+    "states the Dias tokens and what Dias does as list items of the rules, before any file is chosen, in %s (CEI-DIAS-4)",
+    (locale, copy) => {
+      renderContract(locale);
+
+      const rules = screen
+        .getByRole("heading", { level: 3, name: copy.rulesTitle })
+        .parentElement!.querySelector("ul") as HTMLElement;
+      const items = within(rules)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent);
+
+      expect(items).toHaveLength(7);
+      expect(items.slice(-2)).toEqual([
+        copy.rules.diasTokens,
+        copy.rules.diasEffect,
+      ]);
+    },
+  );
 
   it("offers the template through the guarded route", () => {
     renderContract();

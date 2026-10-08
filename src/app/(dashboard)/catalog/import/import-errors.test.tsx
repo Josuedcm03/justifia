@@ -127,6 +127,28 @@ describe("ImportErrors (CEI: Preview with errors blocks confirmation)", () => {
     ]);
   });
 
+  it.each([
+    ["en", "Funday"],
+    ["es", "Funday"],
+  ] as const)(
+    "a dias.invalid row error renders text that names the offending token, in %s (CEI-DIAS-3)",
+    (locale, token) => {
+      renderErrors(
+        [{ sheet: "Grupos", row: 5, reason: "dias.invalid", value: token }],
+        locale,
+      );
+
+      const table = screen.getByRole("table", {
+        name: (locale === "en" ? en : es).errorsPanel.caption,
+      });
+      // The reason text itself names the token (the Value column repeats it).
+      const reason = cellsOf(table)[1][2] ?? "";
+      expect(reason).toContain(token);
+      expect(reason).not.toContain("dias.invalid");
+      expect(reason).not.toContain("{value}");
+    },
+  );
+
   it("falls back to the raw code for a reason the catalog does not know", () => {
     renderErrors([{ sheet: "Grupos", row: 2, reason: "Invalid input" }]);
 

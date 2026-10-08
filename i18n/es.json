@@ -14,6 +14,7 @@
     "dashboard": "Panel",
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
+    "catalogGrupos": "Grupos",
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
     "settings": "Configuración",
@@ -71,7 +72,9 @@
           "carreraExists": "La Carrera de cada asignatura debe existir ya en el sistema; la importación no crea carreras.",
           "horasPositive": "HorasTotales debe ser un número entero mayor que cero.",
           "periodoFormat": "Periodo debe tener el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente de la hoja Docentes o ya registrado en el sistema."
+          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente de la hoja Docentes o ya registrado en el sistema.",
+          "diasTokens": "Dias, en la hoja Grupos, acepta los nombres de los días (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) o sus abreviaturas de tres letras (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separados por comas. No distingue mayúsculas ni acentos.",
+          "diasEffect": "Dias: si omites la columna, se conservan los días guardados de cada grupo. Una celda con días reemplaza los días guardados; una celda vacía los deja como están. La importación nunca quita días."
         },
         "template": "Descargar plantilla"
       },
@@ -196,6 +199,9 @@
         "grupo": {
           "duplicate": "El grupo está repetido en la hoja"
         },
+        "dias": {
+          "invalid": "«{value}» no es un día válido; usa de Lunes a Domingo o de Lun a Dom, separados por comas"
+        },
         "accountsToCreate": {
           "capExceeded": "Se crearían más de {maxAccounts} cuentas nuevas en una sola importación. Divide el libro en partes más pequeñas."
         },
@@ -238,6 +244,27 @@
         "confirm": "Sí, desactivar",
         "cancel": "Cancelar"
       },
+      "dias": {
+        "long": {
+          "lunes": "Lunes",
+          "martes": "Martes",
+          "miercoles": "Miércoles",
+          "jueves": "Jueves",
+          "viernes": "Viernes",
+          "sabado": "Sábado",
+          "domingo": "Domingo"
+        },
+        "short": {
+          "lunes": "Lun",
+          "martes": "Mar",
+          "miercoles": "Mié",
+          "jueves": "Jue",
+          "viernes": "Vie",
+          "sabado": "Sáb",
+          "domingo": "Dom"
+        },
+        "notSet": "Días sin definir"
+      },
       "fieldErrors": {
         "codigo": {
           "required": "El código es obligatorio",
@@ -269,6 +296,10 @@
         "numGrupo": {
           "required": "El número de grupo es obligatorio",
           "tooLong": "El número de grupo supera los 12 caracteres"
+        },
+        "dias": {
+          "required": "Selecciona al menos un día de la semana en que se reúne el grupo",
+          "invalid": "El valor elegido no es un día de la semana. Selecciona los días de la lista"
         }
       },
       "noCarrera": {
@@ -354,6 +385,79 @@
       "state": {
         "title": "Estado",
         "activeGroups": "{count, plural, =0 {Esta asignatura no tiene grupos activos.} one {Esta asignatura tiene # grupo activo. Desactívalo antes de poder desactivar la asignatura.} other {Esta asignatura tiene # grupos activos. Desactívalos antes de poder desactivar la asignatura.}}"
+      }
+    },
+    "grupos": {
+      "list": {
+        "title": "Grupos",
+        "subtitle": "Consulta y gestiona los grupos del catálogo.",
+        "newButton": "Nuevo grupo",
+        "columns": {
+          "code": "Código",
+          "subject": "Asignatura",
+          "periodo": "Periodo",
+          "numeroGrupo": "Grupo",
+          "docente": "Docente",
+          "dias": "Días",
+          "status": "Estado",
+          "actions": "Acciones"
+        },
+        "edit": "Editar",
+        "empty": "Aún no hay grupos activos.",
+        "noResults": {
+          "title": "Sin resultados para «{q}»",
+          "titleStatus": "No hay grupos con este filtro.",
+          "hint": "Prueba con otra asignatura, periodo, grupo o docente, o cambia el filtro de estado."
+        },
+        "degraded": "No se pudieron cargar los grupos. Vuelve a intentarlo en unos minutos.",
+        "search": {
+          "label": "Buscar grupos",
+          "placeholder": "Asignatura, periodo, grupo o docente",
+          "submit": "Buscar",
+          "clear": "Limpiar búsqueda"
+        },
+        "count": "{count, plural, =0 {Sin grupos} one {# grupo} other {# grupos}}",
+        "tableCaption": "Lista de grupos",
+        "pagination": {
+          "region": "Paginación de grupos",
+          "previous": "Anterior",
+          "next": "Siguiente",
+          "status": "Página {page} de {pages}"
+        }
+      },
+      "errors": {
+        "unexpected": "No se pudo guardar el cambio. Inténtalo de nuevo en unos minutos."
+      },
+      "form": {
+        "asignaturaLabel": "Asignatura",
+        "docenteLabel": "Docente",
+        "searchPlaceholder": "Escribe para buscar",
+        "noMatches": "Ninguna opción coincide",
+        "truncated": "Solo se muestran las primeras opciones. Si no encuentras lo que buscas, consulta a quien administra el sistema.",
+        "periodoLabel": "Periodo",
+        "periodoHint": "Usa el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1.",
+        "numeroGrupoLabel": "Número de grupo",
+        "naturalKeyHint": "La asignatura, el periodo y el número de grupo no se pueden cambiar después de crear el grupo.",
+        "diasLabel": "Días de la semana",
+        "diasHint": "Selecciona al menos un día.",
+        "submitCreate": "Crear grupo",
+        "submitSave": "Guardar cambios",
+        "submitting": "Guardando…"
+      },
+      "page": {
+        "newTitle": "Nuevo grupo",
+        "newSubtitle": "Completa los datos para agregar un grupo al catálogo.",
+        "editTitle": "Editar grupo",
+        "editSubtitle": "Actualiza el docente y los días de clase del grupo.",
+        "reactivateHint": "Para editarlo, primero reactívalo en la sección Estado."
+      },
+      "breadcrumb": {
+        "label": "Ruta de navegación",
+        "new": "Nuevo grupo",
+        "edit": "Editar {codigo} {periodo} {numeroGrupo}"
+      },
+      "state": {
+        "title": "Estado"
       }
     }
   },

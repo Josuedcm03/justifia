@@ -80,6 +80,7 @@ export async function loadCatalogSnapshot(
           docenteId: grupo.docenteId,
           activo: grupo.activo,
           origen: grupo.origen,
+          dias: grupo.dias,
         })
         .from(grupo),
       exec

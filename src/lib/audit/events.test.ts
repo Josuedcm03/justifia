@@ -6,7 +6,9 @@ import type {
   GrupoActiveResult,
   GrupoWriteResult,
 } from "../catalog/types";
+import { encodeDias } from "../catalog/dias";
 import type { EntityCounts, ImportSummary } from "../import/types";
+import { changedFields } from "./diff";
 import {
   accountCreatedEvent,
   accountUpdatedEvent,
@@ -26,7 +28,6 @@ import {
 import {
   AUDIT_ACTIONS,
   AUDITABLE_ASIGNATURA_FIELDS,
-  AUDITABLE_GRUPO_FIELDS,
   AUDITABLE_USER_FIELDS,
 } from "./types";
 
@@ -362,7 +363,75 @@ describe("manual catalog event builders (AL-SET, AL-PAY)", () => {
       expect(event.entidadId).toBe(21);
       expect(event.datos).toEqual({
         origen: "manual",
-        campos: [...AUDITABLE_GRUPO_FIELDS],
+        campos: [
+          "asignaturaId",
+          "periodo",
+          "numeroGrupo",
+          "docenteId",
+          "activo",
+          "origen",
+          "dias",
+        ],
+      });
+    });
+
+    describe("days-only and docente edits (AL-PAY, CM-GRP-6)", () => {
+      const FIELDS = ["docenteId", "dias"] as const;
+      const monday = encodeDias(["lunes"]);
+      const mondayWednesday = encodeDias(["lunes", "miercoles"]);
+
+      function updateFor(
+        before: { docenteId: number; dias: number },
+        after: { docenteId: number; dias: number },
+      ) {
+        return changedFields([...FIELDS], before, after);
+      }
+
+      it("a days-only change names dias and no day", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: monday },
+          { docenteId: 4, dias: mondayWednesday },
+        );
+        const event = grupoUpdatedEvent({
+          grupoId: 24,
+          campos,
+          origin: MANUAL_ORIGIN,
+        });
+        expect(event.datos).toEqual({ campos: ["dias"], origen: "manual" });
+      });
+
+      it("a change of both names docenteId then dias", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: monday },
+          { docenteId: 5, dias: mondayWednesday },
+        );
+        expect(campos).toEqual(["docenteId", "dias"]);
+        const event = grupoUpdatedEvent({
+          grupoId: 24,
+          campos,
+          origin: MANUAL_ORIGIN,
+        });
+        expect(event.datos).toEqual({
+          campos: ["docenteId", "dias"],
+          origen: "manual",
+        });
+      });
+
+      it("a docente-only change names docenteId and not dias", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: monday },
+          { docenteId: 5, dias: monday },
+        );
+        expect(campos).toEqual(["docenteId"]);
+      });
+
+      it("selecting the same set again, in another order, reports no field", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: encodeDias(["lunes", "miercoles"]) },
+          { docenteId: 4, dias: encodeDias(["miercoles", "lunes", "lunes"]) },
+        );
+        expect(campos).toEqual([]);
+        expect(grupoWriteEvents({ kind: "unchanged", id: 24 })).toEqual([]);
       });
     });
 
@@ -460,10 +529,23 @@ describe("manual catalog event builders (AL-SET, AL-PAY)", () => {
       "periodo",
       "numeroGrupo",
       "importacionSha256",
+      "dias",
     ];
     // Sentinel values a builder must never be able to echo: none of these can
     // even be passed in (ids, booleans and closed names are the only inputs).
-    const sentinels = ["SENTINEL-NOMBRE", "SENTINEL-CORREO", "2026-I", "G-77"];
+    // The day sentinels are two masks (Mon+Wed+Fri+Sun, Tue+Thu+Sat), a day
+    // code, its display form and a count of days (AL-PAY).
+    const sentinels = [
+      "SENTINEL-NOMBRE",
+      "SENTINEL-CORREO",
+      "2026-I",
+      "G-77",
+      String(encodeDias(["lunes", "miercoles", "viernes", "domingo"])),
+      String(encodeDias(["martes", "jueves", "sabado"])),
+      "lunes",
+      "Lunes",
+      "4 days",
+    ];
 
     const events = [
       asignaturaCreatedEvent({ asignaturaId: 7, origin: MANUAL_ORIGIN }),
@@ -481,6 +563,11 @@ describe("manual catalog event builders (AL-SET, AL-PAY)", () => {
       grupoUpdatedEvent({
         grupoId: 8,
         campos: ["docenteId"],
+        origin: MANUAL_ORIGIN,
+      }),
+      grupoUpdatedEvent({
+        grupoId: 8,
+        campos: ["docenteId", "dias"],
         origin: MANUAL_ORIGIN,
       }),
       grupoActiveChangedEvent({

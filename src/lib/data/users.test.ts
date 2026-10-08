@@ -5,11 +5,13 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: {} }));
 
 import { db } from "@/db";
-import { usuario } from "@/db/schema";
+import { rol, usuario } from "@/db/schema";
+import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import {
   createUsuariosBulk,
   getCatalogActor,
+  listDocenteOptions,
   updateClaveAndClearFlag,
   type NuevaCuentaImportada,
 } from "@/lib/data/users";
@@ -222,5 +224,87 @@ describe("getCatalogActor (CM-SCOPE-1, CM-SCOPE-2: scope follows the stored Carr
       }),
     });
     await expect(getCatalogActor(1)).rejects.toThrow("db down");
+  });
+});
+
+describe("listDocenteOptions (CM-GRP-1 Docente, CM-LST-1: no credential)", () => {
+  type Link = { method: string; args: unknown[] };
+
+  function stubSelect(rows: unknown[]) {
+    const links: Link[] = [];
+    const chain: object = new Proxy(
+      {},
+      {
+        get(_target, prop) {
+          if (prop === "then") {
+            return (resolve: (value: unknown) => void) => resolve(rows);
+          }
+          return (...args: unknown[]) => {
+            links.push({ method: String(prop), args });
+            return chain;
+          };
+        },
+      },
+    );
+    (db as unknown as Record<string, unknown>).select = (
+      ...args: unknown[]
+    ) => {
+      links.push({ method: "select", args });
+      return chain;
+    };
+    return links;
+  }
+  const of = (links: Link[], method: string) =>
+    links.filter((link) => link.method === method);
+  const dialect = new PgDialect();
+  const text = (part: unknown) =>
+    dialect.sqlToQuery(part as Parameters<PgDialect["sqlToQuery"]>[0]);
+
+  it("returns the rows it reads", async () => {
+    const rows = [{ id: 1, nombreCompleto: "Ada", correo: null }];
+    stubSelect(rows);
+    expect(await listDocenteOptions()).toEqual(rows);
+  });
+
+  it("projects exactly id, nombreCompleto and correo", async () => {
+    const links = stubSelect([]);
+    await listDocenteOptions();
+    const projection = of(links, "select")[0].args[0] as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(projection)).toEqual(["id", "nombreCompleto", "correo"]);
+    for (const key of ["hashClave", "cif", "telefono", "login"]) {
+      expect(projection).not.toHaveProperty(key);
+    }
+    expect(of(links, "from")[0].args[0]).toBe(usuario);
+  });
+
+  it("keeps only active users whose role code is docente", async () => {
+    const links = stubSelect([]);
+    await listDocenteOptions();
+    expect(of(links, "innerJoin")[0].args[0]).toBe(rol);
+    expect(text(of(links, "innerJoin")[0].args[1]).sql).toBe(
+      '"Usuario"."RolId" = "Rol"."Id"',
+    );
+    const { sql: where, params } = text(of(links, "where")[0].args[0]);
+    expect(where).toBe('("Rol"."Codigo" = $1 and "Usuario"."Activo" = $2)');
+    expect(params).toEqual(["docente", true]);
+  });
+
+  it("is ordered by name with the id as a tie-break, and capped", async () => {
+    const links = stubSelect([]);
+    await listDocenteOptions();
+    expect(
+      (of(links, "orderBy")[0].args as unknown[]).map((o) => text(o).sql),
+    ).toEqual(['"Usuario"."NombreCompleto" asc', '"Usuario"."Id" asc']);
+    expect(of(links, "limit")[0].args).toEqual([CATALOG_OPTIONS_MAX]);
+  });
+
+  it("is not fail-soft: a database error propagates", async () => {
+    (db as unknown as Record<string, unknown>).select = () => {
+      throw new Error("db down");
+    };
+    await expect(listDocenteOptions()).rejects.toThrow("db down");
   });
 });

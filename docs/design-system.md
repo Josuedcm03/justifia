@@ -392,6 +392,18 @@ labelled and described by the Form pattern, and it submits the chosen option's
 id through a hidden field, never its text. Keyboard: ArrowDown opens and moves,
 Enter chooses, Escape closes. No new token.
 
+**Checkbox group.** For a small fixed set of independent options, such as the
+meeting days of a group. A `fieldset` whose `legend` is the field label, on the
+`label` step in `foreground`. The options are native checkboxes, 20px, tinted
+`primary` (`accent-color`), each inside a label at least 44px tall so the whole
+row is the target. The state is the checkbox's own check mark, a shape, never a
+colour. The hint and the error sit under the group as in Form: the error has
+`role="alert"` and both are tied to the `fieldset` by `aria-describedby`. The
+`fieldset` is not marked `aria-invalid` or `aria-required`, so the requirement
+goes in the hint. The optional `disabled` prop sets the native attribute on the
+`fieldset`, which disables every checkbox (a locked form). Focus is the ring of
+7. No new token.
+
 **Empty state.** One sentence naming what would be here, and the button that
 creates the first one. No illustration, no apology.
 

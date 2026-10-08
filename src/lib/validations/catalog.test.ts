@@ -4,6 +4,7 @@ import {
   asignaturaCreateSchema,
   asignaturaUpdateSchema,
   CATALOG_FIELD_ERROR_KEYS,
+  diasSchema,
   grupoCreateSchema,
   grupoUpdateSchema,
   parseRecordId,
@@ -34,6 +35,7 @@ const validGrupo = {
   periodo: "2026-S1",
   numeroGrupo: "1",
   docenteId: "30",
+  dias: ["lunes"],
 };
 
 describe("parseRecordId", () => {
@@ -148,6 +150,61 @@ describe("asignaturaUpdateSchema (CM-ASG-2, AC-CODE)", () => {
   });
 });
 
+describe("diasSchema (CM-GRP-6, AC-DIAS)", () => {
+  it.each([
+    [["lunes"], ["lunes"]],
+    [
+      ["miercoles", "lunes"],
+      ["lunes", "miercoles"],
+    ],
+    [["lunes", "lunes"], ["lunes"]],
+    [
+      ["domingo", "sabado", "viernes"],
+      ["viernes", "sabado", "domingo"],
+    ],
+  ])("turns %j into %j (week order, duplicates collapsed)", (raw, out) => {
+    expect(diasSchema.parse(raw)).toEqual(out);
+  });
+
+  it("keeps all seven days in week order", () => {
+    const week = [
+      "lunes",
+      "martes",
+      "miercoles",
+      "jueves",
+      "viernes",
+      "sabado",
+      "domingo",
+    ];
+    expect(diasSchema.parse([...week].reverse())).toEqual(week);
+  });
+
+  it("refuses an empty selection as required, with exactly one issue", () => {
+    expect(messages(diasSchema, [])).toEqual(["dias.required"]);
+  });
+
+  it.each([
+    ["a string", "lunes"],
+    ["undefined", undefined],
+    ["null", null],
+    ["a number", 3],
+    ["a File entry", [new File(["x"], "lunes.txt")]],
+    ["a number entry", [1]],
+    ["a null entry", [null]],
+    ["a capitalised name", ["Lunes"]],
+    ["an English name", ["monday"]],
+    ["a numeric string", ["1"]],
+    ["an empty string", [""]],
+    ["a valid and an invalid entry", ["lunes", "monday"]],
+    [
+      "eight raw entries",
+      ["lunes", "lunes", "lunes", "lunes", "lunes", "lunes", "lunes", "martes"],
+    ],
+  ])("refuses %s as invalid, with exactly one issue", (_label, raw) => {
+    expect(messages(diasSchema, raw)).toEqual(["dias.invalid"]);
+  });
+});
+
 describe("grupoCreateSchema (CM-GRP-1, AC-GRP)", () => {
   it("accepts a valid input and trims numeroGrupo", () => {
     expect(
@@ -157,7 +214,35 @@ describe("grupoCreateSchema (CM-GRP-1, AC-GRP)", () => {
       periodo: "2026-S1",
       numeroGrupo: "1",
       docenteId: 30,
+      dias: ["lunes"],
     });
+  });
+
+  it("carries the days in week order", () => {
+    expect(
+      grupoCreateSchema.parse({ ...validGrupo, dias: ["miercoles", "lunes"] })
+        .dias,
+    ).toEqual(["lunes", "miercoles"]);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", []],
+  ])(
+    "refuses days that are %s as required, next to other errors",
+    (_l, dias) => {
+      const input = { ...validGrupo, periodo: "bad", dias };
+      expect(messages(grupoCreateSchema, input).sort()).toEqual([
+        "dias.required",
+        "periodo.invalid",
+      ]);
+    },
+  );
+
+  it("refuses a day outside the seven as invalid", () => {
+    expect(
+      messages(grupoCreateSchema, { ...validGrupo, dias: ["monday"] }),
+    ).toEqual(["dias.invalid"]);
   });
 
   it.each(["2026-S2", "1999-S1"])("accepts the period %s", (periodo) => {
@@ -214,22 +299,36 @@ describe("grupoCreateSchema (CM-GRP-1, AC-GRP)", () => {
 });
 
 describe("grupoUpdateSchema (CM-GRP-2)", () => {
-  it("keeps only docenteId; the natural key is stripped", () => {
+  it("keeps only docenteId and dias; the natural key is stripped", () => {
     const out = grupoUpdateSchema.parse({
       ...validGrupo,
+      dias: ["miercoles", "lunes"],
       periodo: "2027-S1",
       numeroGrupo: "9",
       asignaturaId: "99",
     });
-    expect(out).toEqual({ docenteId: 30 });
-    expect(Object.keys(out)).toEqual(["docenteId"]);
+    expect(out).toEqual({ docenteId: 30, dias: ["lunes", "miercoles"] });
+    expect(Object.keys(out)).toEqual(["docenteId", "dias"]);
   });
 
   it("requires a valid docenteId", () => {
-    expect(messages(grupoUpdateSchema, {})).toContain("docenteId.required");
-    expect(messages(grupoUpdateSchema, { docenteId: "x" })).toContain(
-      "docenteId.invalid",
-    );
+    expect(messages(grupoUpdateSchema, { dias: ["lunes"] })).toEqual([
+      "docenteId.required",
+    ]);
+    expect(
+      messages(grupoUpdateSchema, { docenteId: "x", dias: ["lunes"] }),
+    ).toEqual(["docenteId.invalid"]);
+  });
+
+  it.each([
+    ["missing", undefined, "dias.required"],
+    ["empty", [], "dias.required"],
+    ["a foreign value", ["monday"], "dias.invalid"],
+    ["a File entry", [new File(["x"], "a.txt")], "dias.invalid"],
+  ])("refuses days that are %s, even for a valid docente", (_l, dias, key) => {
+    expect(messages(grupoUpdateSchema, { docenteId: "30", dias })).toEqual([
+      key,
+    ]);
   });
 });
 
@@ -262,8 +361,12 @@ describe("CATALOG_FIELD_ERROR_KEYS (CM-I18N-1)", () => {
         docenteId: "y",
       },
     ],
+    [grupoCreateSchema, { ...validGrupo, dias: [] }],
+    [grupoCreateSchema, { ...validGrupo, dias: ["monday"] }],
     [grupoUpdateSchema, {}],
     [grupoUpdateSchema, { docenteId: "x" }],
+    [diasSchema, []],
+    [diasSchema, "lunes"],
   ];
   for (const [schema, input] of battery) {
     for (const m of messages(schema, input)) emitted.add(m);

@@ -154,6 +154,31 @@ describe("loadCatalogSnapshot projects the lifecycle columns (CEI-UPS, CEI-PREV)
     expect(snapshot.asignaturas).toEqual([asignatura]);
     expect(snapshot.grupos).toEqual([grupo]);
   });
+
+  it("selects Grupo.Dias in the explicit projection, still without a filter (CEI-DIAS-3)", async () => {
+    const { exec, projected } = makeProjectingExec();
+    await loadCatalogSnapshot(exec);
+    const grupoSql = projected.get("Grupo") ?? "";
+    expect(grupoSql).toContain('"Dias"');
+    expect(grupoSql).not.toMatch(/\bwhere\b/i);
+  });
+
+  it("carries the stored day mask unchanged, an inactive row included (CEI-DIAS-3, CEI-PREV)", async () => {
+    const grupo = {
+      id: 1,
+      asignaturaId: 2,
+      periodo: "2026-S1",
+      numeroGrupo: "1",
+      docenteId: 3,
+      activo: false,
+      origen: "importacion",
+      dias: 5,
+    };
+    const { exec } = makeExec({ Grupo: [grupo] });
+    const snapshot = await loadCatalogSnapshot(exec);
+    expect(snapshot.grupos).toEqual([grupo]);
+    expect(snapshot.grupos[0].dias).toBe(5);
+  });
 });
 
 describe("active-only readers (AC: Active-only reads for downstream consumers)", () => {

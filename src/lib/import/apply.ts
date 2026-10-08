@@ -208,6 +208,10 @@ async function writeGrupos(
         periodo: w.periodo,
         numeroGrupo: w.numeroGrupo,
         docenteId: docenteId(w.docenteCorreo),
+        // Only a non-zero mask is named: a row without days takes the column
+        // default (drizzle renders the missing key as DEFAULT in a multi-row
+        // insert), never an explicit 0 and never another row's mask.
+        ...(w.dias ? { dias: w.dias } : {}),
       },
     ];
   });
@@ -221,6 +225,8 @@ async function writeGrupos(
       .set({
         docenteId: docenteId(w.docenteCorreo),
         ...(w.reactivated ? { activo: true } : {}),
+        // The import replaces days, it never clears them (no `dias: 0`).
+        ...(w.dias ? { dias: w.dias } : {}),
       })
       .where(eq(grupo.id, w.id));
   }

@@ -165,13 +165,13 @@ describe("ImportForm upload step (CEI: Contract shown before upload)", () => {
     expect(previewAction).not.toHaveBeenCalled();
   });
 
-  it("lists the five validation rules", () => {
+  it("lists the seven validation rules", () => {
     renderForm();
 
     for (const rule of Object.values(en.contract.rules)) {
       expect(screen.getByText(rule)).toBeInTheDocument();
     }
-    expect(Object.keys(en.contract.rules)).toHaveLength(5);
+    expect(Object.keys(en.contract.rules)).toHaveLength(7);
   });
 
   it("puts the dropzone inside the structure card, after the contract and the rules", () => {
@@ -721,7 +721,8 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
       name: "2 errors found in the workbook",
     });
     expect(heading).toHaveAttribute("tabindex", "-1");
-    expect(heading).toHaveFocus();
+    // Focus moves in an effect: await it instead of reading it synchronously.
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(heading.className).toContain("scroll-mt-20");
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
@@ -774,9 +775,11 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
     expect(
       screen.queryByRole("table", { name: en.errorsPanel.caption }),
     ).toBeNull();
-    expect(
-      screen.getByRole("heading", { level: 2, name: en.preview.title }),
-    ).toHaveFocus();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 2, name: en.preview.title }),
+      ).toHaveFocus(),
+    );
   });
 
   it("keeps heading levels in order: one h2 per block under the page title", async () => {
