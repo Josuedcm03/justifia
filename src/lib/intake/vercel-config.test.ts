@@ -5,7 +5,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // D10: the sweep runs on the platform scheduler, once a day (the Hobby ceiling).
-// `regions` is deliberately absent until the owner confirms the Neon region.
+// D11: functions run next to the database. Neon is in aws-us-east-2 (Ohio),
+// whose Vercel counterpart is cle1 (Cleveland).
 
 const CONFIG = resolve(__dirname, "../../../vercel.json");
 
@@ -18,8 +19,8 @@ describe("vercel.json (task 5.5)", () => {
     ]);
   });
 
-  it("sets no region yet: it must match Neon, which is not known", () => {
+  it("pins functions to cle1, next to Neon aws-us-east-2", () => {
     const config = JSON.parse(readFileSync(CONFIG, "utf8"));
-    expect(config).not.toHaveProperty("regions");
+    expect(config.regions).toEqual(["cle1"]);
   });
 });
