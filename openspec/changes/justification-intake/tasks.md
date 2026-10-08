@@ -20,7 +20,7 @@ Chain strategy: feature-branch-chain
 400-line budget risk: High
 800-line budget risk: Medium
 
-Chain strategy decided by the user: feature-branch-chain. Tracker branch `feat/justification-intake` is cut from `main`; PR 1 targets the tracker, each later PR targets the previous slice branch, and only the tracker merges to `main` (one final PR). Migration-number conflicts with catalog-management are resolved at that final merge. Per-slice estimate: S1 ~500, S2 ~500, S3 ~600, S4 ~750, S5 ~450.
+Chain strategy (updated 2026-10-08): single branch per change. Slices are commits on `feat/justification-intake`; the per-slice branches and PRs #7-#11 were consolidated by fast-forward and closed (#7 shows as merged because its commits reached the base). One final PR to `main`. Original note: feature-branch-chain. Tracker branch `feat/justification-intake` is cut from `main`; PR 1 targets the tracker, each later PR targets the previous slice branch, and only the tracker merges to `main` (one final PR). Migration-number conflicts with catalog-management are resolved at that final merge. Per-slice estimate: S1 ~500, S2 ~500, S3 ~600, S4 ~750, S5 ~450.
 
 ### Suggested Work Units
 
