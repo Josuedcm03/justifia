@@ -130,11 +130,33 @@ describe("AppSidebar", () => {
   });
 
   it.each([
-    ["administrador", ["/catalog/asignaturas", "/catalog/grupos", "/users"]],
-    ["coordinacion", ["/catalog/asignaturas", "/catalog/grupos", "/users"]],
+    [
+      "administrador",
+      [
+        "/catalog/asignaturas",
+        "/catalog/grupos",
+        "/catalog/docentes",
+        "/users",
+      ],
+    ],
+    [
+      "coordinacion",
+      [
+        "/catalog/asignaturas",
+        "/catalog/grupos",
+        "/catalog/docentes",
+        "/users",
+      ],
+    ],
     [
       "secretaria",
-      ["/catalog/asignaturas", "/catalog/grupos", "/catalog/import", "/users"],
+      [
+        "/catalog/asignaturas",
+        "/catalog/grupos",
+        "/catalog/docentes",
+        "/catalog/import",
+        "/users",
+      ],
     ],
   ] as const)(
     "shows the Administración group to %s with exactly its permitted children, in order",
@@ -175,11 +197,25 @@ describe("AppSidebar", () => {
   it.each([
     [
       "administrador",
-      ["/", "/catalog/asignaturas", "/catalog/grupos", "/users", "/settings"],
+      [
+        "/",
+        "/catalog/asignaturas",
+        "/catalog/grupos",
+        "/catalog/docentes",
+        "/users",
+        "/settings",
+      ],
     ],
     [
       "coordinacion",
-      ["/", "/catalog/asignaturas", "/catalog/grupos", "/users", "/settings"],
+      [
+        "/",
+        "/catalog/asignaturas",
+        "/catalog/grupos",
+        "/catalog/docentes",
+        "/users",
+        "/settings",
+      ],
     ],
     [
       "secretaria",
@@ -187,6 +223,7 @@ describe("AppSidebar", () => {
         "/",
         "/catalog/asignaturas",
         "/catalog/grupos",
+        "/catalog/docentes",
         "/catalog/import",
         "/users",
         "/settings",
@@ -283,6 +320,7 @@ describe("AppSidebar Asignaturas item (CM-NAV-1)", () => {
     ["/catalog/grupos", "Grupos"],
     ["/catalog/grupos/new", "Grupos"],
     ["/catalog/grupos/3/edit", "Grupos"],
+    ["/catalog/docentes", "Docentes"],
   ])(
     "marks exactly one item current on %s, and it is %s",
     (pathname, current) => {
@@ -368,6 +406,78 @@ describe("AppSidebar Grupos item (CM-NAV-1)", () => {
     expect(screen.getByRole("link", { name: label })).toHaveAttribute(
       "href",
       "/catalog/grupos",
+    );
+  });
+});
+
+describe("AppSidebar Docentes item (CM-NAV-1)", () => {
+  it.each(["administrador", "coordinacion", "secretaria"] as const)(
+    "links Docentes to its own list page for %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        within(getGroupList()).getByRole("link", {
+          name: "Docentes",
+          hidden: true,
+        }),
+      ).toHaveAttribute("href", "/catalog/docentes");
+    },
+  );
+
+  it.each(["docente", "estudiante"] as const)(
+    "hides Docentes for %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(screen.queryByText("Docentes")).not.toBeInTheDocument();
+      expect(
+        document.querySelector('a[href="/catalog/docentes"]'),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("marks Docentes with aria-current and the primary bar on its page", () => {
+    env.pathname = "/catalog/docentes";
+    renderSidebar("coordinacion");
+
+    const link = screen.getByRole("link", { name: "Docentes" });
+
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link).toHaveAttribute("data-active");
+    expect(link).toHaveClass(CURRENT_MARKER);
+  });
+
+  it.each(["/catalog/grupos", "/catalog/asignaturas", "/users"])(
+    "does not mark Docentes current on %s",
+    (pathname) => {
+      env.pathname = pathname;
+      renderSidebar("secretaria");
+
+      expect(
+        screen.getByRole("link", { name: "Docentes" }),
+      ).not.toHaveAttribute("aria-current");
+    },
+  );
+
+  it("opens the group when landing on the Docentes route", () => {
+    env.pathname = "/catalog/docentes";
+    renderSidebar("administrador");
+
+    expect(getTrigger()).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it.each([
+    ["es", "Docentes"],
+    ["en", "Teachers"],
+  ] as const)("takes the %s label from the catalog", (locale, label) => {
+    env.locale = locale;
+    env.pathname = "/catalog/docentes";
+    renderSidebar("secretaria");
+
+    expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+      "href",
+      "/catalog/docentes",
     );
   });
 });
@@ -477,6 +587,10 @@ describe("AppSidebar Administración group trigger", () => {
     await user.tab();
 
     expect(screen.getByRole("link", { name: "Grupos" })).toHaveFocus();
+
+    await user.tab();
+
+    expect(screen.getByRole("link", { name: "Docentes" })).toHaveFocus();
 
     await user.tab();
 

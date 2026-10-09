@@ -1647,3 +1647,329 @@ The justification-request form; validating `FechaInasistencia` against the
 days; hours, classrooms or calendars; showing the days to students; a days
 search or filter; English import tokens; a preview figure for days changes; an
 index; any change to `Asignatura`, `Usuario`, `Inscripcion` or the audit table.
+
+---
+---
+
+# Amendment 2026-10-08: Grupos section on the Asignatura edit page
+
+> **No DB-touching step.** No schema change, no migration, no Neon gate, no
+> new Server Action, no audit or import change. Nothing here runs a command.
+
+Contract: `proposal.md` "Amendment 2026-10-08" and the delta spec (new
+`CM-ASG-7`, `CM-GRP-8`; assumptions A-ASG7-ORDER, A-ASG7-NOPAGE,
+A-GRP8-OPTIONS). The seven owner decisions of 2026-10-08 are binding and are
+not reopened. Where this section says "design decision", the spec is silent and
+the choice is made here.
+
+State this amendment is written against: branch `feat/sidebar-catalogs` on
+`4801582`, Phases 0-18 applied (user smokes and archive pending), `0005` and
+`0006` on production.
+
+Decisions are numbered **A-AGS-1 to A-AGS-8**. Nothing above this section
+becomes false; `GrupoForm` gains one optional prop and `grupos.ts` one export.
+
+## A. Verified findings (2026-10-08)
+
+| # | Finding | Evidence | Consequence |
+|---|---|---|---|
+| G-A | `searchParams` is a `Promise` of a plain object whose values are `string \| string[] \| undefined`; a repeated key is an array | `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md:67-121` | The new page types the prop explicitly, as `grupos/page.tsx:84-88` does, and awaits it |
+| G-B | `parseRecordId` answers `null` for anything that is not a string of 1-15 digits without a leading zero, arrays included | `src/lib/validations/catalog.ts:22-28` | It already rejects every malformed row of the CM-GRP-8 table (`abc`, `0`, `-1`, `1.5`, empty, repeated) |
+| G-C | `listAsignaturaOptions(scope)` returns exactly the **active, in-scope** Asignaturas, capped at `CATALOG_OPTIONS_MAX` | `src/lib/data/asignaturas.ts:123-136` | Membership in the list the page already loads is the whole validity test; no extra read is needed |
+| G-D | `Combobox` resolves `defaultValue` against `items` once (`useMemo` with no dependencies) and is uncontrolled afterwards | `src/components/ui/combobox.tsx:62-70` | A preselected value stays changeable, and a re-render after an action answer cannot overwrite the user's choice |
+| G-E | `GrupoForm` submits by hand dispatch, so React does not reset the fields; the "keeps both combobox selections" test proves it | `grupo-form.tsx:138-143`; `grupo-form.test.tsx:379-389` | The same mechanism keeps a preselected or re-chosen Asignatura after an `invalid` answer |
+| G-F | `guards.test.ts` requires the first `await` of every catalog page to be `await requireCatalogAccess(` and the guard to precede `await searchParams` / `await params`; pages may not import an actions module | `catalog/guards.test.ts:37-62` | Both pages keep that shape; the section adds links only |
+| G-G | `scope-inventory.test.ts` fails on any export of `grupos.ts` without a row naming its scope test | `src/lib/data/scope-inventory.test.ts:107-118` | The new read ships with its row and its sentinel test in the same task |
+| G-H | `current-marker-usage.test.ts` scans every non-test source under `catalog/` and allows `is-current` only in the four breadcrumb pages, once each | `catalog/current-marker-usage.test.ts:63-90` | The new component files carry no marker; no `aria-current` is added |
+| G-I | `DiasCell` is a private function of `grupos/page.tsx`; `StatusPill` and `DataTable` are shared server components | `grupos/page.tsx:62-82`; `src/components/{status-pill,data-table}.tsx` | `DiasCell` is moved to a shared file so both tables render days identically |
+| G-J | `new/page.test.tsx` calls `Page()` with no props; `asignaturas/[id]/edit/page.test.tsx` mocks `@/lib/data/asignaturas` only | `grupos/new/page.test.tsx:131-134`; `asignaturas/[id]/edit/page.test.tsx:48-51` | Both harnesses change: the first passes `searchParams`, the second mocks `@/lib/data/grupos` |
+| G-K | `createGrupoAction` revalidates and redirects to the literal `/catalog/grupos` | `grupos/actions.ts:127-128` | Unchanged (owner non-goal); see risk R-2 |
+
+## B. Decisions
+
+### A-AGS-1. Data read: `listGruposByAsignatura`
+
+One new export in `src/lib/data/grupos.ts`:
+
+```ts
+// src/lib/catalog/list-params.ts
+export const ASIGNATURA_GRUPOS_MAX = 100;
+
+// src/lib/catalog/types.ts
+export type AsignaturaGruposResult = {
+  data: GrupoListItem[]; truncated: boolean; degraded: boolean;
+};
+
+// src/lib/data/grupos.ts
+export async function listGruposByAsignatura(
+  scope: CatalogScope, asignaturaId: number,
+): Promise<AsignaturaGruposResult>;
+```
+
+- **Statement.** The existing `listColumns` projection and the two inner joins
+  of `listGrupos`; `where and(eq(grupo.asignaturaId, asignaturaId),
+  asignaturaInScope(scope))`; no status filter (active and inactive); `orderBy
+  desc(grupo.periodo), asc(grupo.numeroGrupo), asc(grupo.id)` (A-ASG7-ORDER);
+  `limit(ASIGNATURA_GRUPOS_MAX + 1)`. Rows go through the existing `toItem`, so
+  the mask still never leaves the module.
+- **Scope.** The predicate comes from `asignaturaInScope` and nowhere else;
+  `catalog-scope-sql.ts` is not modified. The page calls the read only after
+  `getAsignaturaById(scope, id)` answered a record, so a foreign or missing id
+  never reaches it; the predicate in the statement is defence in depth and is
+  what the sentinel test pins.
+- **Cap.** One statement, no count: reading one row past the cap tells
+  "exactly 100" from "more than 100". `truncated = rows.length > MAX`; `data`
+  is the first `MAX` rows, which are the newest periods.
+- **Fail-soft.** A thrown error (including `decodeDias` on a corrupt mask)
+  answers `{ data: [], truncated: false, degraded: true }`, like `listGrupos`.
+  Reason: the section is secondary; a failure in it must not take away the
+  edit form and the State control of a record that was just read successfully.
+
+| Option | Verdict |
+|---|---|
+| **Dedicated read, cap + 1, fail-soft** | **Chosen** |
+| Reuse `listGrupos` with `q = codigo` | Rejected: `q` is a contains match over five columns, so `MAT10` would list the groups of `MAT101`; it also runs a count and pages at 20 |
+| Add an `asignaturaId` filter to `buildGruposWhere` / `listGrupos` | Rejected: widens a function pinned by structure tests and by the list page for one caller that needs neither search, status nor paging |
+| Not fail-soft (propagate) | Rejected: a secondary section would turn a working edit page into an error page |
+| No cap (A-ASG7-NOPAGE as written) | Rejected: an unbounded read on a page; the cap is far above a realistic count |
+
+### A-AGS-2. Where the section lives and its markup
+
+- **A small presentational component**,
+  `src/app/(dashboard)/catalog/asignaturas/asignatura-grupos-section.tsx`:
+  a synchronous server component (no `"use client"`, no data-layer import, no
+  actions import, no translation call). It receives the result, the
+  Asignatura id, code and state, already-translated strings and the two
+  day-name functions as props, the way `DiasCell` does. Synchronous on purpose:
+  the page tests render the tree returned by `await Page()` in jsdom, where an
+  async child would not render.
+- **`DiasCell` moves** unchanged to
+  `src/app/(dashboard)/catalog/dias-cell.tsx` (next to `active-toggle.tsx`);
+  `grupos/page.tsx` imports it. A refactor under the existing green tests of
+  `grupos/page.test.tsx`, done before the section uses it.
+- **Markup: a table**, through the existing `DataTable` (five attributes per
+  row is tabular data; a list would lose the column headers for assistive
+  technology). Columns: period, group number, docente, days (`DiasCell`),
+  status (`StatusPill` with the `catalog.shared.status` word), actions (one
+  "Edit" link to `/catalog/grupos/{id}/edit`, `ghost`, `size: "lg"`, with an
+  `aria-label` naming period and number). Visually hidden caption naming the
+  Asignatura code. The Asignatura code and name are not repeated per row.
+- **Placement.** Form, then **Grupos**, then State: the State notice talks
+  about active groups, so the list precedes it. The section is a
+  `<section aria-labelledby>` with an `h2`; it is not width-capped at
+  `max-w-xl` like its neighbours, because six columns do not fit 576px.
+- **States** (exactly one "Add group" link whenever the Asignatura is active,
+  none otherwise):
+
+  | Asignatura | Result | Header | Body |
+  |---|---|---|---|
+  | active | rows | `h2` + "Add group" (`outline`, `size: "lg"`) | table |
+  | active | none | `h2` | empty card: sentence + "Add group" (default variant, the empty state's primary action) |
+  | inactive | rows | `h2` | reactivate hint, then table |
+  | inactive | none | `h2` | reactivate hint, then the empty sentence with no action |
+  | either | `degraded` | as its row above | the degraded notice (`role="status"`, the list pages' panel classes); no table and **no empty state**, so a failed read never claims "no groups" |
+  | either | `truncated` | as its row above | table, then one muted line saying only the newest `{max}` are shown, with a link to `catalogListHref("/catalog/grupos", { status: "all", q: codigo })` |
+
+  The href of "Add group" is built from the numeric record id only:
+  `` `/catalog/grupos/new?asignaturaId=${record.id}` ``.
+- **Scope `none`** returns before any of this, as today: no section, no read.
+
+### A-AGS-3. `/catalog/grupos/new` reads `asignaturaId`
+
+```tsx
+export default async function NewGrupoPage({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { scope } = await requireCatalogAccess();      // first await (G-F)
+  // ... scope "none" returns here; searchParams is never awaited
+  const asignaturas = await listAsignaturaOptions(scope);
+  const docentes = await listDocenteOptions();
+  const requested = parseRecordId((await searchParams).asignaturaId);
+  const preselected =
+    requested !== null && asignaturas.some((a) => a.id === requested)
+      ? requested : undefined;
+```
+
+- **Validation is membership in the options already loaded** (G-C): active, in
+  scope, and actually offered by the form (A-GRP8-OPTIONS). Malformed, unknown,
+  inactive, foreign and beyond-the-cap ids all take the same branch, issue the
+  same two statements as a request without the parameter, and render the same
+  markup, so nothing distinguishes them (CM-SCOPE-1).
+- **Rejected:** `getAsignaturaById(scope, id)` plus an `activo` check. It adds
+  a statement that runs only for well-formed ids (a timing difference between
+  the table's rows), and it could approve an id the combobox does not hold.
+- No message, no redirect, no canonicalising of the URL: a bad parameter is
+  simply not used.
+
+### A-AGS-4. How the preselection reaches `GrupoForm`
+
+- New optional prop **`defaultAsignaturaId?: number`** on `GrupoForm`, used in
+  create mode only: the Asignatura `Combobox` gets
+  `defaultValue={String(defaultAsignaturaId)}` when defined. `CreateGrupoForm`
+  forwards it through its existing `Omit<FormProps, "record">` type;
+  `bound-controls.tsx` needs no edit.
+- **Preselected but changeable.** The combobox stays an ordinary, enabled
+  field (G-D). Locking it was rejected: the user may have opened the link for
+  the wrong Asignatura, and a disabled Base UI field is not submitted.
+- **After a `useActionState` answer** (`invalid`, `error`, `busy`): the form
+  re-renders without remounting and without a field reset (G-E), and the
+  combobox ignores `defaultValue` after its first render (G-D). The field
+  therefore shows whatever the user last had: the preselection if untouched,
+  their own choice if they changed it. No state is added.
+- **Remount on a different parameter.** The page renders
+  `<CreateGrupoForm key={preselected ?? "none"} ... />`. A soft navigation
+  between two URLs of the same route that differ only in the query keeps client
+  state, and an uncontrolled field would keep the earlier selection; the `key`
+  makes the form start clean when the validated id changes.
+- The submitted value is still only a string id in `FormData`.
+  `createGrupoAction` is not edited: it parses, scopes and active-checks the
+  Asignatura inside the transaction exactly as today.
+
+### A-AGS-5. i18n
+
+New keys, `es` (tú, neutral) and `en`, identical key sets, all under the
+already guarded section `catalog.asignaturas`:
+
+| Key (`catalog.asignaturas.grupos.*`) | es | en |
+|---|---|---|
+| `title` | Grupos | Groups |
+| `add` | Agregar grupo | Add group |
+| `empty` | Esta asignatura aún no tiene grupos. | This subject has no groups yet. |
+| `inactiveHint` | Para agregar un grupo, reactiva primero la asignatura en la sección Estado. | To add a group, reactivate the subject first in the Status section. |
+| `tableCaption` | Grupos de {codigo} | Groups of {codigo} |
+| `editLabel` | Editar grupo {periodo} {numeroGrupo} | Edit group {periodo} {numeroGrupo} |
+| `truncated` | Se muestran los {max} grupos más recientes. | Showing the {max} most recent groups. |
+| `viewAll` | Ver todos en Grupos | See all in Groups |
+| `degraded` | No se pudieron cargar los grupos de esta asignatura. Vuelve a intentarlo en unos minutos. | Could not load the groups of this subject. Try again in a few minutes. |
+
+Reused, not duplicated: `catalog.grupos.list.columns.{periodo,numeroGrupo,
+docente,dias,status,actions}`, `catalog.grupos.list.edit` (visible link text),
+`catalog.shared.status.*`, `catalog.shared.dias.*`. The new Grupo page and
+`GrupoForm` need **no new copy**. `catalog-parity.test.ts` needs no new guarded
+section (`catalog.asignaturas` is already compared deeply); it only has to
+stay green.
+
+### A-AGS-6. Test plan (Strict TDD: each a failing test first)
+
+| File | Behaviours |
+|---|---|
+| `src/lib/data/grupos.test.ts` | Inside the existing describe "scope sentinel: every Grupo read carries the scope predicate": a test named `"listGruposByAsignatura"` (where carries the sentinel) and the "every statement has a where" sweep extended to it. New describe: the where names `"AsignaturaId"` with the bound id and no status term; order is period desc, number asc, id asc; `limit` is `MAX + 1`; `MAX + 1` rows answer `MAX` rows with `truncated: true`; exactly `MAX` rows answer `truncated: false`; `dias` decoded in week order; a thrown error answers the degraded result; scope `none` renders `false` |
+| `src/lib/data/scope-inventory.test.ts` | One row for the new export (the test fails until it exists) |
+| `grupos/grupo-form.test.tsx` | `defaultAsignaturaId` shows that option selected and submits its id; it is ignored when not among `asignaturas`; the field stays editable; after an `invalid` answer an untouched preselection is kept and resubmitted; after an `invalid` answer a changed selection is kept (not reverted to the preselection); edit mode ignores the prop |
+| `grupos/new/page.test.tsx` | Harness passes `searchParams` (default `{}`), all existing tests green. New: a valid id hands `defaultAsignaturaId` to the form and the combobox shows it; the CM-GRP-8 table (`abc`, `0`, `-1`, `1.5`, `""`, `["1","2"]`, unknown id, inactive = not in the options, foreign for `coordinacion`) each yields the same form props and the same read calls as no parameter; scope `none` and denied roles behave as before with the parameter present; no additional data function is called for any row |
+| `asignaturas/[id]/edit/page.test.tsx` | Harness mocks `@/lib/data/grupos`. New: active + inactive rows with period, number, docente, days (short visible, long for assistive technology, "days not set"), status word and an edit link per row, in the order received; the read is called with the page's scope and the record id; active with rows shows exactly one "Add group" link with the exact href; active with none shows the empty state whose only link is that one; inactive shows no "Add group" link and the hint, with and without rows; degraded shows the notice, no table, no empty sentence; truncated shows the note and the "see all" href; not found, foreign id, scope `none` and denied roles never call the read; `es` rendering from the real catalog; still one `h1`, no skipped level, one `[aria-current]`; the source imports no actions module |
+| `grupos/page.test.tsx` | Unchanged and green after `DiasCell` moves (the refactor's safety net) |
+
+Must keep passing untouched: `guards.test.ts`, `current-marker-usage.test.ts`,
+`catalog-structure.test.ts`, `audit-leak.test.ts` (the actions import nothing
+new, so its `@/lib/data/grupos` double stays complete),
+`grupos/actions.test.ts`, `catalog-parity.test.ts`, `catalog-scope-sql.test.ts`.
+`audit-leak.test.ts` passing unmodified is the evidence that no audit path
+moved.
+
+### A-AGS-7. Review pieces (budget: 800 changed lines each)
+
+New phases are numbered after the existing ones so no task id moves.
+
+| Piece | Phase | Content | Files | Depends on | Authored lines |
+|---|---|---|---|---|---|
+| **A** | 19 (new) | Data read + new-page preselection | `list-params.ts`, `catalog/types.ts`, `data/grupos.ts`, `grupos.test.ts`, `scope-inventory.test.ts`, `grupos/grupo-form.tsx` (+test), `grupos/new/page.tsx` (+test) | Phase 13 | 350-500 |
+| **B** | 20 (new) | `DiasCell` move, section component, Asignatura edit page, copy | `catalog/dias-cell.tsx`, `grupos/page.tsx`, `asignaturas/asignatura-grupos-section.tsx`, `asignaturas/[id]/edit/page.tsx` (+test), `i18n/{es,en}.json` | Piece A (the read and the link target) | 450-650 |
+
+The seam is natural: after piece A the URL `/catalog/grupos/new?asignaturaId=`
+works and is testable by hand, and nothing links to it yet; piece B only adds
+the page that links to it. Each piece is revertible on its own (B first).
+Together they are 800-1,150 lines, so under `single-pr` they are two review
+units of one PR, or the tasks phase asks the owner for a size exception.
+Inside piece B the order is: move `DiasCell` (green), copy keys, RED page
+tests, component and page.
+
+### A-AGS-8. Risks and unknowns
+
+| # | Risk | Likelihood | Handling |
+|---|---|---|---|
+| R-1 | The spec says the section lists "every" Grupo; the design caps at 100 and can degrade | Certain, by design | The spec's A-ASG7-NOPAGE allows a cap; the truncation note and the degraded notice are stated in section G so the spec can pin them |
+| R-2 | After creating a group the user lands on `/catalog/grupos`, not back on the Asignatura (owner non-goal). Going back to the Asignatura page could show a stale group list if the client router cache served it | Low-Med; **not verified here** | The page is dynamic and the action calls `revalidatePath`; checked in the browser smoke. If stale, the fix is one more `revalidatePath` call in the existing action, which is an action change and needs the owner |
+| R-3 | A valid Asignatura beyond `CATALOG_OPTIONS_MAX` (2000) is not preselected | Very low | Accepted (A-GRP8-OPTIONS); the form already shows its truncation note in that case |
+| R-4 | The "see all" link filters by `q = codigo`, a contains match, so it can include groups of other Asignaturas whose code or name contains that text | Low; only past 100 groups | Stated as "see all in Groups", not as an exact filter |
+| R-5 | `NumeroGrupo` is text, so `10` sorts before `2` | Certain, pre-existing | Same order as the Grupos list; not changed here |
+| R-6 | Two default-variant buttons on one page in the empty state ("Save changes" and "Add group") | Certain | The spec asks for a primary action in the empty state; the Grupos list already pairs a header button with an empty-state one. Looked at in the smoke, both themes |
+| R-7 | A six-column table inside the edit page on a narrow viewport | Med | The section is not width-capped and uses the shared `Table`; checked at 360px in the smoke |
+| R-8 | Existing tests whose harness changes | Certain | G-J: `new/page.test.tsx` (`Page()` call), `asignaturas/[id]/edit/page.test.tsx` (new module mock), `scope-inventory.test.ts` (one row) |
+
+## C. Data flow
+
+```
+/catalog/asignaturas/{id}/edit                      /catalog/grupos/new?asignaturaId={id}
+  requireCatalogAccess()                              requireCatalogAccess()
+  scope none ─► no-Carrera state (no read)            scope none ─► no-Carrera state (param unread)
+  parseRecordId(params.id) ─► notFound()              listAsignaturaOptions(scope)   active, in scope
+  getAsignaturaById(scope, id) ─► notFound()          listDocenteOptions()
+  listGruposByAsignatura(scope, id)   fail-soft       parseRecordId(searchParams.asignaturaId)
+  <AsignaturaGruposSection .../>                      in options ? preselected : undefined
+     "Add group" (active only) ───────────────────►   <CreateGrupoForm key defaultAsignaturaId />
+     row "Edit" ─► /catalog/grupos/{grupoId}/edit        POST ─► createGrupoAction (unchanged)
+```
+
+## D. File changes (amendment)
+
+| File | Action | Description |
+|---|---|---|
+| `src/lib/catalog/list-params.ts` | Modify | `ASIGNATURA_GRUPOS_MAX` |
+| `src/lib/catalog/types.ts` | Modify | `AsignaturaGruposResult` |
+| `src/lib/data/grupos.ts` (+test) | Modify | `listGruposByAsignatura` |
+| `src/lib/data/scope-inventory.test.ts` | Modify | One row |
+| `src/app/(dashboard)/catalog/grupos/grupo-form.tsx` (+test) | Modify | `defaultAsignaturaId` |
+| `src/app/(dashboard)/catalog/grupos/new/page.tsx` (+test) | Modify | Reads and validates the parameter; `key` on the form |
+| `src/app/(dashboard)/catalog/dias-cell.tsx` | Create | `DiasCell`, moved |
+| `src/app/(dashboard)/catalog/grupos/page.tsx` | Modify | Imports `DiasCell` |
+| `src/app/(dashboard)/catalog/asignaturas/asignatura-grupos-section.tsx` | Create | The section |
+| `src/app/(dashboard)/catalog/asignaturas/[id]/edit/page.tsx` (+test) | Modify | Reads the groups, renders the section |
+| `i18n/es.json`, `i18n/en.json` | Modify | A-AGS-5 keys |
+
+Not modified: `catalog-scope-sql.ts`, `grupos/actions.ts`,
+`grupos/bound-controls.tsx`, `asignaturas/actions.ts`, `combobox.tsx`,
+`validations/catalog.ts`, `schema.ts`, `drizzle/`, everything under
+`src/lib/import` and `src/lib/audit`, `docs/design-system.md` (no new
+primitive, token or pattern). No file is deleted.
+
+## E. Threat matrix (amendment)
+
+Standard rows remain N/A (no shell, subprocess, VCS or PR automation). Added
+boundaries:
+
+| Boundary | Adversarial case | Design response | Planned RED tests |
+|---|---|---|---|
+| Hand-crafted `asignaturaId` | Non-numeric, zero, negative, decimal, empty, repeated key, huge digit string | `parseRecordId`; anything else is unused | The CM-GRP-8 table in `new/page.test.tsx` |
+| Existence disclosure | Probing ids of another Carrera or inactive records through the parameter | Membership in the already loaded options: same statements, same markup for every invalid case | Same props and same read calls as no parameter |
+| Trust in the parameter | Submitting a foreign or inactive `asignaturaId` after a valid preselection | The action is unchanged and re-validates in the transaction | Existing `grupos/actions.test.ts` and `grupos.test.ts` foreign-id cases, untouched |
+| Cross-scope listing | A `coordinacion` actor opening a foreign Asignatura's edit page | `notFound()` before the groups read; the read's own scope predicate | Page test (read never called); sentinel test |
+| Mutation by GET | The section adding a state-changing link | Links to pages only; no form, button or action import | `guards.test.ts` (no actions import), page test |
+| Link injection | An Asignatura code with URL metacharacters in the "see all" href | Built by `catalogListHref`, which encodes `q`; "Add group" uses the numeric id only | Page test with a code containing `&` and a space |
+
+## F. Not done by this amendment
+
+An embedded Grupo form; a create-and-return redirect; paging, search or a
+status filter inside the section; a groups count on the Asignaturas list; any
+schema, migration, Server Action, audit, import or design-system change.
+
+## G. Choices made where the spec is silent (for the spec to pin or reject)
+
+1. The section is capped at 100 rows, newest periods first; past the cap it
+   says so and links to the Grupos list.
+2. A failed groups read shows a notice in the section instead of failing the
+   page, and never shows the empty state.
+3. An inactive Asignatura with no groups shows the hint and the empty sentence
+   without any action.
+4. The form is remounted when the validated `asignaturaId` changes.
+5. The section sits between the form and the State section, full width.
+6. Column headers and the "Edit" text reuse the Grupos list copy.
+
+## H. Open for the owner
+
+- [ ] R-2: after "Add group" the create still lands on `/catalog/grupos`.
+      Confirmed as a non-goal; say so again only if the smoke shows it is
+      confusing in practice.
+- [ ] Row cap of 100 (choice G-1): accept, or name another number.
+- [ ] Piece A + piece B exceed 800 lines together: two review units in the one
+      PR, or a size exception. Decided at the tasks phase.

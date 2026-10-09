@@ -29,6 +29,8 @@ const GUARDED_SECTIONS = [
   "catalog.grupos.errors",
   "nav.catalogGrupos",
   "catalog.grupos",
+  "nav.catalogDocentes",
+  "catalog.docentes",
 ] as const;
 
 type Node = string | { [key: string]: Node };
@@ -1188,5 +1190,89 @@ describe("catalog parity (CM-I18N-1: Grupo page and form copy)", () => {
     expect(list).toContain('tDias("notSet")');
     expect(list).toContain("short.");
     expect(list).toContain("long.");
+  });
+});
+
+describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
+  const section = (locale: "es" | "en", path: string) =>
+    resolve(locale === "es" ? esMessages : enMessages, path);
+
+  const DOCENTES_KEYS = [
+    "title",
+    "subtitle",
+    "usersLink",
+    "columns.name",
+    "columns.login",
+    "columns.email",
+    "columns.status",
+    "noEmail",
+    "empty",
+    "noResults.title",
+    "noResults.titleStatus",
+    "noResults.hint",
+    "degraded",
+    "search.label",
+    "search.placeholder",
+    "search.submit",
+    "search.clear",
+    "count",
+    "tableCaption",
+    "pagination.region",
+    "pagination.previous",
+    "pagination.next",
+    "pagination.status",
+  ];
+
+  it.each(["es", "en"] as const)(
+    "%s pins exactly the Docentes list keys",
+    (locale) => {
+      expect(leafPaths(section(locale, "catalog.docentes")).sort()).toEqual(
+        [...DOCENTES_KEYS].sort(),
+      );
+    },
+  );
+
+  it.each([
+    ["es", "Docentes"],
+    ["en", "Teachers"],
+  ] as const)("%s sidebar label is %s", (locale, label) => {
+    expect(section(locale, "nav.catalogDocentes")).toBe(label);
+  });
+
+  it("the Docentes page chooses only keys that exist in both locales", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/app/(dashboard)/catalog/docentes/page.tsx"),
+      "utf8",
+    );
+    const translators = [
+      ...source.matchAll(/const (\w+) = await getTranslations\("([^"]+)"\)/g),
+    ];
+    const used = new Set<string>();
+    for (const [, variable, namespace] of translators) {
+      for (const call of source.matchAll(
+        new RegExp(`\\b${variable}\\(([^()]*)`, "g"),
+      )) {
+        for (const literal of call[1].matchAll(/"([A-Za-z.]+)"/g)) {
+          used.add(`${namespace}.${literal[1]}`);
+        }
+      }
+    }
+
+    expect([...used]).toEqual(
+      expect.arrayContaining([
+        "catalog.docentes.title",
+        "catalog.docentes.usersLink",
+        "catalog.docentes.columns.email",
+        "catalog.docentes.noEmail",
+        "catalog.docentes.count",
+        "catalog.docentes.pagination.status",
+        "catalog.shared.status.active",
+      ]),
+    );
+    for (const messages of [esMessages, enMessages]) {
+      for (const key of used) {
+        expect(typeof resolve(messages, key), key).toBe("string");
+      }
+    }
   });
 });

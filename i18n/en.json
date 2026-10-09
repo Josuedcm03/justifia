@@ -15,6 +15,7 @@
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
     "catalogGrupos": "Groups",
+    "catalogDocentes": "Teachers",
     "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
@@ -458,6 +459,39 @@
       },
       "state": {
         "title": "Status"
+      }
+    },
+    "docentes": {
+      "title": "Teachers",
+      "subtitle": "Browse the teachers registered in the system.",
+      "usersLink": "Manage accounts in Users",
+      "columns": {
+        "name": "Name",
+        "login": "Username",
+        "email": "Email",
+        "status": "Status"
+      },
+      "noEmail": "No email",
+      "empty": "There are no active teachers yet.",
+      "noResults": {
+        "title": "No results for “{q}”",
+        "titleStatus": "There are no teachers with this filter.",
+        "hint": "Try another name or email, or change the status filter."
+      },
+      "degraded": "Could not load the teachers. Try again in a few minutes.",
+      "search": {
+        "label": "Search teachers",
+        "placeholder": "Name or email",
+        "submit": "Search",
+        "clear": "Clear search"
+      },
+      "count": "{count, plural, =0 {No teachers} one {# teacher} other {# teachers}}",
+      "tableCaption": "Teachers list",
+      "pagination": {
+        "region": "Teachers pagination",
+        "previous": "Previous",
+        "next": "Next",
+        "status": "Page {page} of {pages}"
       }
     }
   },

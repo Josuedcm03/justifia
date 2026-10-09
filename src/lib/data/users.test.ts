@@ -1,5 +1,6 @@
+import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: {} }));
@@ -9,9 +10,11 @@ import { rol, usuario } from "@/db/schema";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import {
+  buildDocentesWhere,
   createUsuariosBulk,
   getCatalogActor,
   listDocenteOptions,
+  listDocentes,
   updateClaveAndClearFlag,
   type NuevaCuentaImportada,
 } from "@/lib/data/users";
@@ -306,5 +309,196 @@ describe("listDocenteOptions (CM-GRP-1 Docente, CM-LST-1: no credential)", () =>
       throw new Error("db down");
     };
     await expect(listDocenteOptions()).rejects.toThrow("db down");
+  });
+});
+
+describe("buildDocentesWhere (CM-LST-1: Docentes list, Search for docentes)", () => {
+  const dialect = new PgDialect();
+  const render = (fragment: SQL | undefined) => {
+    const { sql: text, params } = dialect.sqlToQuery(fragment as SQL);
+    return { sql: text, params };
+  };
+
+  it("always keeps only users whose role code is docente", () => {
+    expect(render(buildDocentesWhere({ status: "all", q: "" }))).toEqual({
+      sql: '"Rol"."Codigo" = $1',
+      params: ["docente"],
+    });
+  });
+
+  it("active keeps only active rows, inactive only inactive ones", () => {
+    expect(render(buildDocentesWhere({ status: "active", q: "" })).sql).toBe(
+      '("Rol"."Codigo" = $1 and "Usuario"."Activo")',
+    );
+    expect(render(buildDocentesWhere({ status: "inactive", q: "" })).sql).toBe(
+      '("Rol"."Codigo" = $1 and not "Usuario"."Activo")',
+    );
+  });
+
+  it("searches name OR Correo partially, escaped, as parameters", () => {
+    const { sql: text, params } = render(
+      buildDocentesWhere({ status: "all", q: "a%b_c" }),
+    );
+    expect(text).toBe(
+      '("Rol"."Codigo" = $1 and ("Usuario"."NombreCompleto" ilike $2 or "Usuario"."Correo" ilike $3))',
+    );
+    expect(params).toEqual(["docente", "%a\\%b\\_c%", "%a\\%b\\_c%"]);
+    expect(text).not.toContain("a%b_c");
+  });
+
+  it("combines role, state and search with AND", () => {
+    const { sql: text, params } = render(
+      buildDocentesWhere({ status: "inactive", q: "ana" }),
+    );
+    expect(text).toBe(
+      '("Rol"."Codigo" = $1 and not "Usuario"."Activo" and ("Usuario"."NombreCompleto" ilike $2 or "Usuario"."Correo" ilike $3))',
+    );
+    expect(params).toEqual(["docente", "%ana%", "%ana%"]);
+  });
+});
+
+describe("listDocentes (CM-LST-1: Docentes list carries no credential, Database unavailable; CM-ACC-1)", () => {
+  type Call = { method: string; args: unknown[] };
+  const statements: Call[][] = [];
+  const results: unknown[] = [];
+  let failure: unknown = null;
+
+  beforeEach(() => {
+    statements.length = 0;
+    results.length = 0;
+    failure = null;
+    (db as unknown as Record<string, unknown>).select = (
+      ...args: unknown[]
+    ) => {
+      const calls: Call[] = [{ method: "select", args }];
+      statements.push(calls);
+      const chain: object = new Proxy(
+        {},
+        {
+          get(_target, prop) {
+            if (prop === "then") {
+              return (
+                resolve: (value: unknown) => void,
+                reject: (reason: unknown) => void,
+              ) => (failure ? reject(failure) : resolve(results.shift() ?? []));
+            }
+            return (...a: unknown[]) => {
+              calls.push({ method: String(prop), args: a });
+              return chain;
+            };
+          },
+        },
+      );
+      return chain;
+    };
+  });
+
+  const dialect = new PgDialect();
+  const render = (part: unknown) =>
+    dialect.sqlToQuery(part as SQL) as { sql: string; params: unknown[] };
+  const calls = (index: number, method: string) =>
+    statements[index].filter((c) => c.method === method);
+  const whereOf = (index: number) => render(calls(index, "where")[0].args[0]);
+
+  const item = {
+    id: 1,
+    nombreCompleto: "Ana Perez",
+    login: "aperez",
+    correo: "ana@uni.edu",
+    activo: true,
+  };
+  const params = (page: number) => ({
+    status: "active" as const,
+    q: "ana",
+    page,
+    pageSize: 10,
+  });
+
+  it("returns the page, the total and the clamped page", async () => {
+    results.push([{ count: 1 }], [item]);
+    expect(await listDocentes(params(1))).toEqual({
+      data: [item],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+      degraded: false,
+    });
+  });
+
+  it("takes no scope parameter: the list is not Carrera-scoped", async () => {
+    results.push([{ count: 0 }], []);
+    await listDocentes({
+      // @ts-expect-error a scope is not a parameter of the Docentes list
+      scope: { kind: "carrera", carreraId: 3 },
+      ...params(1),
+    });
+    expect(whereOf(0).params).toEqual(["docente", "%ana%", "%ana%"]);
+    expect(whereOf(0).sql).not.toContain("Carrera");
+  });
+
+  it("uses one where for the count and the page, both joined to Rol", async () => {
+    results.push([{ count: 1 }], [item]);
+    await listDocentes(params(1));
+    expect(statements).toHaveLength(2);
+    expect(whereOf(0)).toEqual(whereOf(1));
+    expect(whereOf(0).sql).toContain('"Rol"."Codigo" = $1');
+    expect(whereOf(0).sql).toContain('"Usuario"."Activo"');
+    for (const index of [0, 1]) {
+      expect(calls(index, "from")[0].args[0]).toBe(usuario);
+      expect(calls(index, "innerJoin")[0].args[0]).toBe(rol);
+      expect(render(calls(index, "innerJoin")[0].args[1]).sql).toBe(
+        '"Usuario"."RolId" = "Rol"."Id"',
+      );
+    }
+  });
+
+  it("projects exactly id, nombreCompleto, login, correo and activo", async () => {
+    results.push([{ count: 1 }], [item]);
+    await listDocentes(params(1));
+    const projection = calls(1, "select")[0].args[0] as Record<string, unknown>;
+    expect(Object.keys(projection)).toEqual([
+      "id",
+      "nombreCompleto",
+      "login",
+      "correo",
+      "activo",
+    ]);
+    for (const key of ["hashClave", "cif", "telefono", "carreraId", "rol"]) {
+      expect(projection).not.toHaveProperty(key);
+    }
+  });
+
+  it("orders by name with the id as a tie-break", async () => {
+    results.push([{ count: 1 }], [item]);
+    await listDocentes(params(1));
+    expect(
+      (calls(1, "orderBy")[0].args as unknown[]).map((o) => render(o).sql),
+    ).toEqual(['"Usuario"."NombreCompleto" asc', '"Usuario"."Id" asc']);
+  });
+
+  it("clamps an out-of-range page to the last page", async () => {
+    results.push([{ count: 25 }], [item]);
+    const result = await listDocentes(params(99));
+    expect(result.page).toBe(3);
+    expect(calls(1, "limit")[0].args).toEqual([10]);
+    expect(calls(1, "offset")[0].args).toEqual([20]);
+  });
+
+  it("clamps to page 1 when there are no rows", async () => {
+    results.push([{ count: 0 }], []);
+    const result = await listDocentes(params(4));
+    expect(result).toMatchObject({ data: [], total: 0, page: 1 });
+    expect(calls(1, "offset")[0].args).toEqual([0]);
+  });
+
+  it("degrades to an empty page when the database throws", async () => {
+    failure = new Error("connection refused");
+    expect(await listDocentes(params(2))).toEqual({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+      degraded: true,
+    });
   });
 });

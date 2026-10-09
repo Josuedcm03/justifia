@@ -1617,3 +1617,225 @@ Task 13.7 done. Both RED page tests pass: 66 tests across the two files, three c
 Test bug fixed (one line): edit test "offers the reactivate control ... single press" asserted `queryByRole("group")` is null, but the days `CheckboxGroup` fieldset is itself role group. Now `queryByRole("group", { name: /MAT101/ })` (the confirmation names the record), same intent, not weakened.
 
 Verification: `npx vitest run "src/app/(dashboard)/catalog" src/i18n` 23 files / 810 tests passed; `npm test` 97 files / 2142 passed; `npm run typecheck` clean; eslint clean on the touched files. Authored delta about 299 lines (pages and controls 267, copy 30, test 2). Needs browser smoke in 13.13: create, edit, inactive lock, reactivate, no-Carrera state, the legacy group with no days.
+
+## Batch WU3b-3 sidebar, parity and copy: orchestrator record (2026-10-08)
+
+The executor for tasks 13.8-13.11 stalled (no progress for 600 s) and returned no report, after it had finished and ticked the four tasks. The owner then committed and pushed the whole working tree as `4801582`. This section is written by the orchestrator from the committed state, not from an executor report, so it carries no TDD cycle evidence for 13.8-13.11.
+
+- [x] 13.8 / 13.9: `src/components/app-sidebar.tsx` has the `catalogGrupos` entry (`/catalog/grupos`, icon `UsersRound`, `visibleTo: canManageCatalog`) after Asignaturas; `nav.catalogGrupos` is "Grupos" / "Groups". `app-sidebar.test.tsx` grew by 104 added and 6 removed lines.
+- [x] 13.10 / 13.11: `src/i18n/catalog-parity.test.ts` guards `catalog.grupos` and `catalog.grupos.errors`, pins the `form` and `list` key sets, es/en parity of the whole section and the days label and hint. It grew from 270 to 568 added lines.
+- Size of the piece by path (commit `4801582` against the recorded baseline): sidebar 117, parity test 298, locale files 2. About 417 lines, within the 800 budget.
+- [x] 13.12 Verification by the orchestrator on `4801582`: `npm test` 97 files, 2189/2189 (run three times; one run inside a slow combined command printed no summary and is not counted); `npm run typecheck` clean; `npm run build` compiled, listing `/catalog/grupos`, `/catalog/grupos/new` and `/catalog/grupos/[id]/edit` as dynamic. The dev server that had been running on port 3100 had already exited, so the build did not share `.next` with it.
+- Observed on the rehearsal dev server before it exited: browser-side `MISSING_MESSAGE: Could not resolve nav.catalogGrupos in messages for locale es`. Both locale files carry the key in the committed state; the dev server had loaded the message catalogs before the key was written. To be re-checked in the browser during 13.13 after a fresh start.
+
+Open in Phase 13: 13.13 (owner write smoke on `rehearsal-0006`) and 13.14 (checkpoint). The edit-page test of 13.6 is 845 lines, 45 over the budget, with the owner's acceptance still pending.
+
+## Batch WU5 (Phase 14) (2026-10-08) - PARTIAL: 14.1, 14.2 done; 14.3 RED only; 14.4-14.9 not started
+
+Mode: Strict TDD. Nothing committed or staged. No database, dev server or build (ports 3000 and 3100 free). Stopped after the 14.3 RED run by the budget rule (800 changed lines, no `size:exception`).
+
+### Budget measure (git diff --numstat against HEAD `4801582`; new files by `rg -c ""`)
+- After 14.1-14.2 (data layer): `users.ts` 89/1, `users.test.ts` 195/1, `catalog/types.ts` 9/0 = 295 changed lines.
+- Page test `docentes/page.test.tsx` (new, after `eslint --fix` on this own file): 578 lines (about 28 `it` cases expanding to 31 tests; larger than the 330-380 first estimate because of the no-scope pair, the serialized-props credential check and the control inventory).
+- **Total 873**, already over 800 before the page. Remaining honest estimate: page 190-230, `catalog.docentes` copy about 70 (35 per locale), sidebar test +80, `app-sidebar.tsx` +10, parity +30, `nav.catalogDocentes` 2: about 380-430. Whole of WU5 about 1,250-1,300. No scenario was trimmed.
+
+### `listDocentes` (users.ts)
+`listDocentes(p: { status: CatalogStatusFilter; q: string; page: number; pageSize: number }): Promise<CatalogListResult<DocenteListItem>>`, no scope parameter. `DocenteListItem = { id; nombreCompleto; login; correo: string | null; activo }` added to `src/lib/catalog/types.ts`. Projection (page query) exactly `id, nombreCompleto, login, correo, activo`. Exported `buildDocentesWhere({status, q})`: `"Rol"."Codigo" = $1` ("docente") AND (`"Usuario"."Activo"` | `not "Usuario"."Activo"` | nothing) AND (`NombreCompleto ilike` OR `Correo ilike`, pattern from `containsPattern`, bound as parameters). Count and page share the one `where` and both `innerJoin(rol)`. Order: `NombreCompleto asc, Id asc`. `clampPage`; fail-soft `degraded` page. `scope-inventory.test.ts` covers only `asignaturas.ts` and `grupos.ts`, so no row is needed.
+
+### TDD Cycle Evidence
+| Task | Test file | RED reason observed | GREEN | Reliability |
+|------|-----------|---------------------|-------|-------------|
+| 14.1/14.2 | `src/lib/data/users.test.ts` (+12 tests: 4 `buildDocentesWhere`, 8 `listDocentes`) | 12 failed / 19 passed: `buildDocentesWhere`/`listDocentes` "is not a function" | 31/31 (one test-side fix: a single-part `and()` renders without parentheses, expectation corrected to `"Rol"."Codigo" = $1`) | n/a (pure unit) |
+| 14.3 | `docentes/page.test.tsx` | `Failed to resolve import "@/app/(dashboard)/catalog/docentes/page"`, no tests ran | not started | not run |
+
+### What the page test pins (for the page piece)
+- Mocks: `server-only`, `next/navigation` redirect, `@/lib/auth/cookies` (`getSession`), `@/lib/data/users` (`getCatalogActor`, `listDocentes`), `next-intl/server` over the real catalogs with a throwing `onError`; real dal and `requireCatalogAccess`. Translator namespace `catalog.docentes`.
+- Access: administrador, coordinacion (with and without Carrera), secretaria render the h1 and the `/users` link; docente/estudiante to `/denied`, anonymous to `/login`, flagged secretaria/docente to the password change screen, none with a data-layer call.
+- Unscoped (spec CM-LST-1 "read-only and unscoped"; the task agrees): `listDocentes` is called with exactly `{status, q, page, pageSize}` (no `scope` key), also for a coordinacion without a Carrera, which sees the list and never the shared no-Carrera state. The page therefore must not branch on `scope.kind`.
+- Columns in order: Name, Username, Email, Status; no actions column; null `correo` renders `catalog.docentes.noEmail`; state word from `catalog.shared.status.*`; received order kept; caption; polite count "1 teacher"; pagination hrefs keep `q`/`status`; clamped page rendered.
+- Read-only: no link or button inside the table; every link href is `/users` or starts with `/catalog/docentes`; none matches new/edit/create/deactivate/reactivate/toggle; exactly one `/users` link; the only button is the search submit; no checkbox. Credentials: even when the mocked data layer returns `hashClave`, `cif`, `telefono`, `password`, `temporaryPassword`, neither `container.innerHTML` nor the serialized props of the returned element tree contain them (the page must map each row to the five fields).
+- States: empty (default view, no create control), no results with `search.clear` keeping the status, status-only no results, labelled status filter, degraded notice (`role="status"`, no table, no raw error), one h1 and no skipped level, Spanish render.
+
+### Copy the page piece must author under `catalog.docentes` (identical sets in es and en; everything else reuses `catalog.shared.*`)
+`title`, `subtitle`, `usersLink`, `columns.{name,login,email,status}`, `noEmail`, `empty`, `noResults.{title ({q}),titleStatus,hint}`, `degraded`, `search.{label,placeholder,submit,clear}`, `count` (plural), `tableCaption`, `pagination.{region,previous,next,status ({page},{pages})}`; plus `nav.catalogDocentes`. The test reads them from the real catalog; "1 teacher" and "No results for “zz”" fix the English count and `noResults.title` forms. Proposed strings: title Docentes / Teachers; usersLink "Gestionar cuentas en Usuarios" / "Manage accounts in Users"; columns Nombre, Usuario, Correo, Estado / Name, Username, Email, Status; noEmail Sin correo / No email.
+
+### V on the stop state (build excluded)
+- `npx vitest run src/lib/data/users.test.ts`: 31/31. `npm test`: 98 files, 97 passed and 1 failed (the new page test, module absent as designed); 2201/2201 tests passed (baseline 2189 + 12).
+- `npm run typecheck`: only the RED test's errors (missing page module, missing `catalog.docentes` namespace/key, four TS2322/TS2339/TS2307 lines); nothing else.
+- `npx eslint` on `users.ts`, `users.test.ts`, `types.ts` and the new test: only the pre-existing CRLF `Delete` noise (two prettier errors in my own additions to `users.test.ts` were fixed by hand; the new test file was normalised with `--fix`).
+- Not started: 14.4-14.9 (no `npm run build`), 14.5-14.8.
+
+### Next
+Piece B: 14.4 page + `catalog.docentes` and `nav.catalogDocentes` copy + 14.7/14.8 parity (about 300), then run the page test 3 times and `guards.test.ts` (already discovers `docentes`). Piece C: 14.5/14.6 sidebar (the existing "tab order" test in `app-sidebar.test.tsx` and the three ordered-href tables must change because Docentes is inserted after Grupos) and 14.9 with the build. Sidebar plan: `catalogDocentes`, href `/catalog/docentes`, `visibleTo: canManageCatalog`, icon `GraduationCap` or `Contact` from lucide-react (not yet in use in the sidebar), placed after `catalogGrupos`.
+
+## Batch WU5 page, copy, parity, sidebar (2026-10-08) - DONE (14.4-14.9)
+
+Mode: Strict TDD. Nothing committed or staged. No database. No dev server (ports 3000 and 3100 had no listener before the build). 14.3 note updated to done; 14.4-14.9 ticked; 14.10 and 14.11 left open.
+
+### TDD Cycle Evidence
+| Task | Test file | RED reason observed | GREEN | Reliability / mutation |
+|------|-----------|---------------------|-------|------------------------|
+| 14.4 | `docentes/page.test.tsx` (unchanged) | page module and `catalog.docentes` copy absent (RED from 14.3) | 32/32 | 3 consecutive runs 32/32; `guards.test.ts` 27/27 |
+| 14.5/14.6 | `app-sidebar.test.tsx` | 18 failed / 66 passed: 3 ordered-href tables x2, the new current-on-`/catalog/docentes` case, the new Docentes block (link x3, aria-current, 3 not-current, open group, es/en label) and the tab order | 84/84 | n/a |
+| 14.7/14.8 | `src/i18n/catalog-parity.test.ts` | cannot fail honestly: I authored the copy in 14.4, so the added guarded sections and pins passed at once (150/150) | 150/150 | mutation: removed `catalog.docentes.noEmail` from en and `nav.catalogDocentes` from es -> 6 failed (`nav.catalogDocentes` exists / identical sets, `catalog.docentes` identical sets, en key pin, es sidebar label, source scan); restored; sha256 of `en.json` (c87ee22e...35cb) and `es.json` (4fef9976...dca2) identical before and after |
+
+### Page `docentes/page.tsx` (196 lines, new)
+`requireCatalogAccess()` is the first statement and its result is not used (no `scope.kind` branch). `parseCatalogListParams`, `listDocentes({status, q, page, pageSize})`, rows mapped to exactly `id, nombreCompleto, login, correo, activo` before rendering, fail-soft `degraded` notice, `StatusFilter`, `DataTableSearch` (hidden `status`), polite count, `DataTable` with columns Name, Username, Email (`noEmail` muted text when null), Status (`StatusPill`), no actions column, `DataTablePagination`. Header action: one outline `Link` to `/users`. The empty state has no create control. No form other than the shared search form, no action import.
+
+### Sidebar
+Entry `catalogDocentes`, `/catalog/docentes`, icon `GraduationCap`, `visibleTo: canManageCatalog`, between Grupos and Import. Final order per role: administrador and coordinacion: Asignaturas, Grupos, Docentes, Users; secretaria: Asignaturas, Grupos, Docentes, Import, Users; docente and estudiante: no Administracion group. No entry claims `/catalog`.
+
+### Locale keys added
+`nav.catalogDocentes` Docentes / Teachers. `catalog.docentes` (23 keys per locale, es / en): `title` Docentes / Teachers; `subtitle` Consulta los docentes registrados en el sistema. / Browse the teachers registered in the system.; `usersLink` Gestionar cuentas en Usuarios / Manage accounts in Users; `columns.name` Nombre / Name; `columns.login` Usuario / Username; `columns.email` Correo / Email; `columns.status` Estado / Status; `noEmail` Sin correo / No email; `empty` Aún no hay docentes activos. / There are no active teachers yet.; `noResults.title` Sin resultados para «{q}» / No results for “{q}”; `noResults.titleStatus` No hay docentes con este filtro. / There are no teachers with this filter.; `noResults.hint` Prueba con otro nombre o correo, o cambia el filtro de estado. / Try another name or email, or change the status filter.; `degraded` No se pudieron cargar los docentes. Vuelve a intentarlo en unos minutos. / Could not load the teachers. Try again in a few minutes.; `search.label` Buscar docentes / Search teachers; `search.placeholder` Nombre o correo / Name or email; `search.submit` Buscar / Search; `search.clear` Limpiar búsqueda / Clear search; `count` plural (Sin docentes / # docente / # docentes; No teachers / # teacher / # teachers); `tableCaption` Lista de docentes / Teachers list; `pagination.region` Paginación de docentes / Teachers pagination; `pagination.previous` Anterior / Previous; `pagination.next` Siguiente / Next; `pagination.status` Página {page} de {pages} / Page {page} of {pages}.
+
+### Existing assertions changed in `app-sidebar.test.tsx`
+Only what 14.5 requires: the two ordered-href tables (group children; all links) gained `/catalog/docentes` after `/catalog/grupos` for the three allowed roles; the "marks exactly one item current" table gained `["/catalog/docentes", "Docentes"]`; the tab-order test gained one step (Grupos -> Docentes -> Carga de catálogo). The "AppSidebar copy" block was not touched. No other assertion changed; `page.test.tsx` unchanged.
+
+### V
+`npx vitest run src/lib/data/users.test.ts "src/app/(dashboard)/catalog" src/components/app-sidebar.test.tsx src/i18n`: 26 files, 1004/1004. `npm test`: 98 files, 2260/2260. `npm run typecheck`: clean. `npx eslint` on the four touched/new source files: only the pre-existing CRLF `Delete ␍` noise (sidebar files); `--fix` applied to the new page and to the parity test. `npm run build`: compiled; route list includes `ƒ /catalog/docentes`.
+
+### Authored lines (delta on the stated baseline, `git diff --numstat` / `rg -c ""`)
+Measures: after the page and its copy: 196 + 66 = 262; after sidebar and `nav` (14.5-14.6): 262 + 7 + 124 + 2 = 395; final: + parity 86 = **481** against the 800 budget (estimate was 380-430). By path: `docentes/page.tsx` 196 (new); `i18n/en.json` +34 and `i18n/es.json` +34 (including `nav.catalogDocentes`); `app-sidebar.tsx` +7; `app-sidebar.test.tsx` +119 / -5; `catalog-parity.test.ts` +86; `docentes/page.test.tsx` 0.
+
+### Notes
+- Open for the user: 14.10 (read-only smoke as each role) and 14.11 (checkpoint). Phase 15 not started.
+- Engram persistence: no memory tool for the executor; the orchestrator should save `sdd/catalog-management/apply-progress` from this file.
+
+## Closing record (15.10) (2026-10-08)
+
+Mode: Strict TDD. Nothing committed or staged. No database command, no dev server (ports 3000 and 3100 had no listener before the build), no `gentle-ai` command. This batch changed no production code: the only source file created is `src/app/(dashboard)/catalog/current-marker-usage.test.ts` (114 lines). Tasks 15.1, 15.2, 15.3, 15.5 and 15.10 are ticked. **15.4 is NOT ticked** (finding below). 15.6-15.9 belong to the owner and are untouched. This section is a consolidation of the earlier sections of this file; where a figure is not recorded there it says "not recorded".
+
+### 15.1 Full verification on the final tree (HEAD `4801582` plus the Phase 14 uncommitted files plus the 15.3 test)
+
+| Command | Result |
+|---------|--------|
+| `npm test` | 99 files passed, 2270/2270 tests passed (26.65 s). Baseline of the Phase 14 verification was 98 files, 2260; the difference is the 10 tests of the new 15.3 file. No failure, so nothing falls in any "known flaky set" |
+| `npm run typecheck` | exit 0, no output after the `tsc --noEmit` banner |
+| `npx eslint src` filtered with `rg -v 'Delete .␍.'` | 18,201 problems before the filter. Read as JSON, every one of the 18,201 is `prettier/prettier` "Delete `␍`" (the pre-existing CRLF noise); 0 problems of any other rule |
+| `npm run format:check` | the script exists (`prettier --check .`). Run on the new and modified files instead of the whole repo: the new files (`current-marker-usage.test.ts`, `docentes/page.tsx`, `docentes/page.test.tsx`), the locale files, `catalog/types.ts` and `catalog-parity.test.ts` pass. `users.ts`, `users.test.ts`, `app-sidebar.tsx` and `app-sidebar.test.tsx` are flagged only because their working-tree copies are CRLF; with `--end-of-line crlf` all four pass and the HEAD blobs are prettier-clean |
+| `npm run build` | compiled (Next.js 16.3.4, Turbopack), TypeScript finished, 18 static pages generated. Dynamic routes include `/api/catalog/template`, `/catalog/asignaturas`, `/catalog/asignaturas/new`, `/catalog/asignaturas/[id]/edit`, `/catalog/grupos`, `/catalog/grupos/new`, `/catalog/grupos/[id]/edit`, `/catalog/docentes`, `/catalog/import`; Proxy (Middleware) |
+
+### 15.2 Structural sweep (read-only)
+
+- `\.delete\(|delete from|truncate` (case-insensitive) in `src/lib/data/{asignaturas,grupos,catalog-write,catalog-scope-sql}.ts` and `src/app/(dashboard)/catalog/{asignaturas,grupos,docentes}`: the first run matched 40 lines, all of them the substring `truncate` inside the props `asignaturasTruncated` / `docentesTruncated` and the copy key `truncated` (`grupo-form.tsx`, the Grupo `new` and `[id]/edit` pages and their tests). With a word boundary on `truncate` the match is empty: no `.delete(`, no `delete from`, no `truncate` statement.
+- `db.transaction` / `.transaction(` in the same files, tests excluded: exactly one, `src/lib/data/catalog-write.ts:94`.
+- `hashClave`: `listDocentes` projects `id, nombreCompleto, login, correo, activo`; `listDocenteOptions` projects `id, nombreCompleto, correo`; `getCatalogActor` projects `carreraId`. The only `hashClave` mentions in `src/lib/data/users.ts` are `usuarioConRolColumns` (line 51, used by `listUsuarios`/`getUsuarioBy*`), `updateClaveAndClearFlag` (363, 367) and `createUsuariosBulk` (383). Elsewhere in `src/lib` (tests excluded): `audit/types.ts`, `import/apply.ts`, `import/types.ts`, `data/catalog.ts`, all of the earlier import work.
+- `drizzle-kit push`: `package.json` line 17 has `"db:push": "drizzle-kit push"`. It is pre-existing: `git diff 30a27a4 -- package.json` is empty. No instruction of this change invokes it (every mention in `tasks.md` is a prohibition). Recorded, not a finding of this change.
+- Literal `dias: 0` in `src/lib/import`: production code has none (`apply.ts:228` is a comment saying the import never writes it). The matches are in tests and a fixture: `apply.test.ts:1176/1182/1183` (a forged write treated as absent), `plan.test.ts:1492` (the pin test name), `__fixtures__/plan-fixtures.ts:39,50` (`makeGrupoRow` default for a snapshot row, not a write). The only spread in `apply.ts` is `...(w.dias ? { dias: w.dias } : {})` at lines 214 and 229, which cannot produce `0`.
+- `src/lib/data/grupos.ts` names `dias` only in: the import of `decodeDias`/`encodeDias`; `listColumns` (shared by `listGrupos` and `getGrupoById`, the two reads) and `toItem`; `createGrupo` (`dias: encodeDias(input.dias)`); `updateGrupo` (select of the stored mask, `encodeDias`, `changedFields`, the changed subset). `setGrupoActivo` (from line 317) does not name it.
+
+### 15.3 Characterization pin
+
+`src/app/(dashboard)/catalog/current-marker-usage.test.ts` (`readFileSync`, 10 tests, passes; recorded marker is `.is-current`, `globals.css:317`, see 6.1). It reads every non-test `.ts`/`.tsx` under the catalog route directory plus seven shared components (`status-filter`, `status-pill`, `form-field`, `checkbox-group`, `data-table-search`, `ui/checkbox`, `ui/combobox`), strips comments (`status-filter.tsx` names the class in its doc comment), and asserts: the set of files that write `is-current` is exactly the four breadcrumb pages (`asignaturas/new`, `asignaturas/[id]/edit`, `grupos/new`, `grupos/[id]/edit`); each writes it once, as `<BreadcrumbPage className="is-current">`; `status-filter.tsx` uses `bg-accent` and `text-accent-foreground` and no marker; `active-toggle.tsx` uses `variant="secondary"` and `variant="destructive"` and no marker; both forms use `destructive` and no marker.
+Mutation check: sha256 of `src/components/status-filter.tsx` `af9b63217ebb6baf6951a26cabb0b58ac40582ad60e33598118dab4efe5789dd`; adding `is-current` to the `bg-accent ...` class string failed 2 tests (`writes the marker only in the breadcrumb pages`, `keeps the status filter on the accent pair`; 8 passed); restored from a copy, sha256 identical, 10/10 again, `git diff --stat` shows no change to the file.
+
+### 15.4 Out-of-scope check: FINDING, task left unticked
+
+- `rolesAsignables`, `rolesVisibles`, `canImportCatalog`: not modified. `git diff 30a27a4 -U0 -- src` has no added or removed line defining them; `permissions.ts` only gains `canManageCatalog`, `rolesQueGestionanCatalogo`, `isCarreraScopedRole`; `app-sidebar.tsx` only changes the import line to add `canManageCatalog`.
+- `rg -i "alert-dialog|Dialog|Tabs"` over `src/app/(dashboard)/catalog` and `src/components/ui/combobox.tsx`: no match.
+- No catalog module calls a `Usuario` write (`createUsuario`, `createUsuariosBulk`, `updateClaveAndClearFlag`, `setDebeCambiarClave` are not referenced from the catalog route or the catalog data modules; the catalog pages import only `listDocentes` and `listDocenteOptions` from `lib/data/users`). The only `insert`/`update` calls in `asignaturas.ts`, `grupos.ts` are on `asignatura` and `grupo`; `carrera` is only selected. No `Facultad`/`Carrera`/`Inscripcion` write. No read of the audit log (`catalog-write.ts` only calls `insertAuditEvents`, an insert).
+- **Finding (expected: no change to `users/new/*` against `30a27a4`; found: four changed files).** `git diff 30a27a4 --stat -- "src/app/(dashboard)/users/new"`: `new-user-form.tsx` (10 lines), `new-user-form.test.tsx` (10), `page.tsx` (2), `page.test.tsx` (8); 17 insertions, 13 deletions. Content: the card spacing class, the error panel classes (`border-l-destructive`, `text-destructive-ink`), the cancel button rendered as `Link` + `buttonVariants`, a comment wording, `findAllByRole` in place of `getAllByRole`, and a `beforeAll` module warm-up. `git log 30a27a4..HEAD -- "src/app/(dashboard)/users/new"` lists only `10b249d` ("fixing tests and updating specs") and `ccdcfe5` ("refactor(design-system) ... Stitch"), both outside this change's work-unit commits (`0a45737`, `ff74e9e`, `4801582` do not touch the folder); `git status` shows the folder clean. So no catalog-management code changed `users/new`, but the literal check as written does not pass against `30a27a4`. Owner decision needed: accept as pre-existing owner work (and re-baseline the check on `ccdcfe5`, against which the folder is unchanged) or treat it as a hit. Nothing was edited.
+
+### 15.5 Document entries re-read against the final code
+
+| Entry | Verdict |
+|-------|---------|
+| 1.12 `modelo_datos_sql.md` Asignatura `Activo` (line 96), Grupo `Activo`/`Origen`/`CK_Grupo_Origen` (142-149), note 3 (line 320) | matches `schema.ts` (`activo`, `origen` varchar(12) default `importacion`, `CK_Grupo_Origen`) and the code: the import's update never writes `origen`; `apply.ts:287` writes `origen: "importacion"` in the create path only |
+| 16.13 `Grupo."Dias"` (line 144), `CK_Grupo_Dias` (150), the bit table (152-160) | matches: `smallint NOT NULL DEFAULT 0` and `between 0 and 127` in `schema.ts` and in `drizzle/0006_grupo_dias.sql`; Monday = bit 0 ... Sunday = bit 6 equals `DIAS_SEMANA` order and `DIAS_MASK_MAX = 127` in `dias.ts`; bit index `isodow - 1`; `(getDay() + 6) % 7` maps Sunday 0 to 6 and Monday 1 to 0 |
+| 9.8 `docs/design-system.md` "Two-step confirmation (inline)" (line 361) | matches `active-toggle.tsx`: `secondary` first step, `destructive` only on confirm, `ghost` cancel, all `size="lg"`, `form method="post"`, `role="status" aria-live="polite"` region mounted from the start, reactivation a single press; the sentence naming the record and "can be undone" is `toggle.confirmTitle` + `toggle.nothingDeleted` |
+| 11.5 "Combobox" (line 382) | matches `ui/combobox.tsx`: 40px input with the form-input tokens, popup as wide as the input (`w-(--anchor-width)`), `min-h-11` options with the `accent` pair on the highlighted one, check on the chosen one, muted empty sentence, `text-xs` cap note in `aria-describedby`, chosen id in the hidden field. The keyboard sentence (ArrowDown, Enter, Escape) is Base UI behaviour, not code in this repo; it is covered by jsdom tests only (see unverified list) |
+| 18.6 "Checkbox group" (line 395) | matches `checkbox-group.tsx` and `ui/checkbox.tsx`: `fieldset` + `legend` (`text-label text-foreground`), native checkboxes `size-5` with `accent-primary`, label `min-h-11`, error `role="alert"`, hint and error in the `fieldset`'s `aria-describedby`, no `aria-invalid`/`aria-required`, `disabled` prop on the `fieldset`, `focus-visible:ring-3` |
+
+`rg` hits for 1.12, 16.13, 9.8, 11.5 and 18.6 all present. No document was edited by this batch.
+
+### G1-G10 evidence for migration `0005` (summary; details in "Phase 1A" and "Phase 1B")
+
+`drizzle/0005_catalog_management.sql`, three statements, sha256 `160ac32b119960dbc12411bf492036d5c89789c2d1767076eb9f35aaf77152ae` (working tree and LF identical; the last `__drizzle_migrations` row on `production` carries the same hash).
+- G1 (1.1): `production` 2 Asignatura, 2 Grupo, 5 migration rows, neither column present. G2 (1.15): branch `rehearsal-0005` created from `production`, host different from the shared host. G3 (1.16-1.17): `db:migrate` with a shell-scoped URL, exit 0. G4 (1.18): types, NOT NULL, defaults, `CK_Grupo_Origen`, counts equal to G1, 6 migration rows.
+- G5 (1.19-1.22): four rolled-back probes: `23514` on an invalid `Origen` (update and insert), omitted `Origen` stores `importacion`, `manual` accepted, omitted `Activo` stores `true`; nothing persisted.
+- G6 (1.23-1.27): advisory lock through the pooler with prepared statements on: session B `55P03` after 3,215 ms with a 2 s timeout (connection setup included), then acquired in 359 ms after A committed. Pass; no `prepare: false`, no `pg_try_advisory_xact_lock` fallback.
+- G7 (1.29): `backup-before-0005` created. G8 (1.30-1.31): pre-apply re-check, then `db:migrate` on `production`, exit 0. G9 (1.32-1.33): post-apply read-only check equal to G1 plus the new columns; ordering gate closed 2026-10-04. G10 (1.34): `rehearsal-0005` deleted at the owner's request.
+
+### DG1-DG10 evidence for migration `0006` (summary; details in "Phase 16B closed" to "Phase 16 closed")
+
+`drizzle/0006_grupo_dias.sql`, two statements (`ADD COLUMN "Dias" smallint DEFAULT 0 NOT NULL`, `ADD CONSTRAINT "CK_Grupo_Dias" CHECK ("Grupo"."Dias" between 0 and 127)`), sha256 `135155163356348b18b7959e5e2720e7f272c2800ff0ed747504012f6e20d2c7` (working tree and LF identical; the last migration row on `rehearsal-0006` and on `production` carries it).
+- DG1 (16.2): `production` 3 Asignatura, 3 Grupo, no `Dias`, 6 migration rows, last hash the `0005` one, 4 audit rows. DG2 (16.20): `rehearsal-0006` created from `production`, host different from the shared host. DG3 (16.21-16.22): `db:migrate` with a shell-scoped URL, host and file-hash checks in the same script, exit 0. DG4 (16.23): `smallint`, NOT NULL, default 0, 0 of 3 Grupo with `Dias <> 0`, `CK_Grupo_Dias` present, 7 migration rows.
+- DG5 (16.24-16.28): four rolled-back probes: `128` and `-1` rejected with `23514` (update and insert); omitted `Dias` stores 0 with `Origen = importacion`, `Activo = true`; 5 and 127 stored, update back to 0; bit tests on mask 5 true/false/true; `pg_typeof` is `smallint`; nothing persisted. DG6 not repeated (no new locking mechanism; the 2026-10-04 G6 evidence stands).
+- DG7 (16.30): `backup-before-0006` created from `production`. DG8 (16.31-16.32): pre-apply re-check, then `db:migrate` on `production`, exit 0, `drizzle-kit push` never used. DG9 (16.33-16.34): post-apply read-only check equal to DG1 plus the column, 7 migration rows; ordering gate closed 2026-10-07. DG10 (16.35): `rehearsal-catalog-ui` deleted after the dev server on port 3100 was stopped; `rehearsal-0006` kept as the smoke target until 15.7.
+
+### Units: forecast against measured authored lines per review piece
+
+Forecast columns are "design / honest range" from the Review Workload Forecast and "Amendment 2026-10-07: units, pieces and seams" in `tasks.md` (the amended units use the amended honest range). Measured figures are the "Authored lines" of each batch section above (additions plus deletions; generated files and `tasks.md`/`apply-progress.md` excluded; "about" where the batch said so). The budget is 800 per piece.
+
+| Unit (phase) | Forecast (design / honest) | Measured, per review piece | Unit total measured |
+|--------------|----------------------------|----------------------------|---------------------|
+| WU1a (1) | 250-350 / 300-450 | not recorded (the batch notes carry no line figure; `ccdcfe5` also mixes the redesign, so a by-commit figure is not usable) | not recorded |
+| WU1b (2) | 400-550 / 450-700 | 1 piece: 797 (618 tracked + 179 new) | 797 |
+| WU1c (3) | 600-800 / 700-1,000 | A 566; B 666 | 1,232 |
+| WU4 (4) | 800-1,000 / 1,100-1,800 | 4A 645; 4B 569 | 1,214 |
+| WU2a (5) | 800-1,000 / 900-1,400 | A (pure) 739; B reads 557; B writes 574 | 1,870 |
+| WU2b-1 (6) | 450-600 / 600-850 | components 650; copy 278 | 928 |
+| WU2b-2 (7) | 450-600 / 600-900 | page, guard test, copy 926; sidebar 85 | 1,011 |
+| WU2c-1 (8) | 450-600 / 600-900 | create 494; update/toggle about 770 | about 1,264 |
+| WU2c-2 (9) | 650-800 / 900-1,300 | toggle 584; form 752; pages 1,235 | 2,571 |
+| WU3a (10, amended) | 750-950 +120-200 / 1,010-1,600 | reads 661; create about 342; update/toggle/pins 685 | about 1,688 |
+| WU3b-1 (11) | 350-450 / 500-800 | 1 piece: 433 | 433 |
+| WU3b-2 (12, amended) | 450-550 +150-250 / 800-1,300 | schema and create 772; update and toggle 657; refactor, leak sweep, copy about 860 | about 2,289 |
+| WU3b-3 (13, amended) | 700-900 +200-300 / 1,260-1,950 | form test 588; form component and copy 379; list page test 625; list page and copy 349; `new` page test 522; `edit` page test 845; pages, bound controls, copy about 299; sidebar, parity, copy about 417 | about 4,024 |
+| WU5 (14) | 450-600 / 550-850 | data layer 295; page test 578; page, copy, parity, sidebar 481 | 1,354 |
+| WU-D1 (16) | 300-450 / 400-650 | 16A 262; 16B code 164; plus the 2-line migration file and the 7-line journal entry (snapshot excluded) | 435 |
+| WU-D3 (18) | 350-550 / 450-850 | 18A 426; 18B 122 | 548 |
+| WU-D2 (17) | 600-900 / 850-1,500 | 17A-i about 339; 17A-ii 401; 17B 432 | 1,172 |
+| Phase 15 (this batch) | not forecast | `current-marker-usage.test.ts` 114 (new) | 114 |
+
+Sum of the recorded unit totals (WU1a excluded, Phase 15 excluded): about 22,830 lines, against the honest total of 11,800-18,650 (central about 15,000) stated in the forecast. Eleven of the sixteen units with a recorded figure exceed the upper end of their honest range (WU1b, WU1c, WU2a, WU2b-1, WU2b-2, WU2c-1, WU2c-2, WU3a, WU3b-2, WU3b-3, WU5); WU4, WU-D1, WU-D3 and WU-D2 are within it and WU3b-1 is below it. The sum mixes exact and "about" figures and counts test and locale lines in full.
+Pieces measured above 800: Phase 7 list page piece 926 (stopped at the seam, `size:exception` not requested), Phase 9 pages 1,235, Phase 12 refactor + leak sweep about 860, Grupo `edit` page test 845. None carries an accepted `size:exception`.
+
+### Amendments A-1..A-16 as implemented
+
+- A-1 `{ kind: "inactive" }` in `AsignaturaWriteResult`, `GrupoWriteResult` and `CatalogFormState` (`catalog/types.ts`); the refusal comes from the in-transaction `updateAsignatura`/`updateGrupo`; the forms lock when the record is inactive and show the `reactivate` slot. No deviation.
+- A-2 `{ kind: "busy" }` in `CatalogFormState`, `ActiveToggleState` and `ApplyState`. Deviation (WU4-B): a busy apply carries no preview, so `import-form.tsx` keeps the previous preview client-side to keep the confirm control.
+- A-3 `{ kind: "unchanged" }` in the form and toggle states, rendered as plain text, never as success.
+- A-4 `CATALOG_PAGE_SIZE = USERS_PAGE_SIZE` (10) in `src/lib/catalog/list-params.ts:19`. No deviation.
+- A-5 Sidebar entries ship with their pages: Asignaturas (Phase 7), Grupos (13.8-13.9), Docentes (14.5-14.6), each before `catalogImport` for the allowed roles.
+- A-6 Lock-free scoped pre-check before `withCatalogWrite` in the Asignatura and Grupo actions (`addressed`, later extracted to `action-helpers.ts`, 12.8). A missing or foreign id answers `gone` without taking the lock.
+- A-7 `23505` backstop returns `codigo_taken { inScope: false, activo: false }` (`asignaturas.ts:230`) and `grupo_taken { activo: false }`. Not verified against a real database (see below).
+- A-8 `listCarreraOptions(scope)` in `asignaturas.ts`. Deviation: the scope is applied in TypeScript, not in SQL, because `catalog-scope-sql.ts` models Asignatura rows only.
+- A-9 `Grupo."Dias" smallint NOT NULL DEFAULT 0`, `CK_Grupo_Dias`, Monday = bit 0, no index, `src/lib/catalog/dias.ts` the only encoder/decoder; `GrupoListItem.dias` and the forms carry `DiaSemana[]`. No deviation.
+- A-10 Migration `0006_grupo_dias` rehearsed on `rehearsal-0006` with DG1-DG10, DG6 not repeated, `rehearsal-catalog-ui` never used for it. No deviation.
+- A-11 Import `Dias`: `SHEETS.Grupos.optional = ["Dias"]`, `ABSENCE_SIGNIFICANT = { Grupos: ["Dias"] }`, `parseDiasCell` in `src/lib/import/dias.ts`, `dias.invalid` raised by the planner before reference checks, `diasChanged = mask > 0 && mask !== existing.dias`, `apply.ts` names `dias` only for a truthy mask. Deviation: `import-errors.tsx` now passes `value` to the translator (required by the `{value}` placeholder); the "five rules" assertions in `import-form.test.tsx` and `workbook-contract.test.tsx` became seven.
+- A-12 `"dias"` appended last to `AUDITABLE_GRUPO_FIELDS` (`types.ts:81`); payloads name the field only. Deviation (small): the `created` expectation in `events.test.ts` lists the seven names instead of spreading the constant.
+- A-13 `updateGrupo` input `{ docenteId, dias }`, days-only change runs no parent check, `setGrupoActivo` neither reads nor writes `dias`, at-least-one-day enforced in the manual schema only. No deviation.
+- A-14 Seven checkboxes sharing `name="dias"`, `formData.getAll("dias")`, `diasSchema`, 17 field-error keys. Deviation recorded in 12.1a: inside the Grupo schemas a missing `dias` key is `dias.required`, while the standalone `diasSchema(undefined)` is `dias.invalid`. `guards.test.ts` regex extended to `getAll` after a real RED (F-11).
+- A-15 `Checkbox` and `CheckboxGroup` as native controls in a `fieldset`; the list column shows an `aria-hidden` short-name span plus an `sr-only` long-name span, or the muted "days not set" text. Addition: `CheckboxGroup` gained an optional `disabled` prop (13.3, orchestrator decision, RED first) to lock the form of an inactive Grupo.
+- A-16 `rehearsal-0006` is the smoke target; `rehearsal-catalog-ui` was deleted at 16.35 (DG10), before any Grupo screen was pointed at it; `rehearsal-0006` is deleted at 15.7 (owner).
+
+### Decisions answered during the change
+
+- Delivery option D (one branch `feat/sidebar-catalogs`, a PR per stretch), 2026-10-04 (0.7); the cached `single-pr` is superseded.
+- `catalog-excel-import` closed first (0.2-0.6), archived 2026-10-04; `rehearsal-import-smoke` and the three `roles-lookup-table` branches deleted at the owner's request.
+- Migration `0005` and `0006` approved in writing by the owner before each rehearsal (1.14, 16.18); each production apply after a per-command "yes".
+- Grupo meeting days amendment, 2026-10-07: days belong to the Grupo, days only, no hours; Grupo edits are docente and days (decision 5). Confirmed assumptions: A-DIAS-REQ (at least one day on manual create and edit; a legacy group without days asks for them), A-DIAS-REACT (reactivation and deactivation never depend on days), A-DIAS-NOSEARCH (days neither searched nor filtered), A-DIAS-IMP-a, -c, -d as written; **A-DIAS-IMP-b flipped by the owner: an empty `Dias` cell leaves the stored days untouched** (the import never clears days).
+- `rehearsal-catalog-ui` deleted at 16.35 ("procede borrandola"); only the manual Asignatura create of 9.12 had been verified there.
+- SDD attempt ledger reset on 2026-10-08 by the owner (actor JDKno) after the owner's commit `4801582` landed while an attempt was open. (From the orchestrator brief; not recorded in the earlier sections of this file.)
+- The first real import with a `Dias` column was run and confirmed by the owner on `rehearsal-0006`. (From the orchestrator brief; the result is not recorded in the earlier sections of this file.)
+- Three test-only fixes of intermittent focus assertions in `import-form.test.tsx` (owner-side, from the orchestrator brief; the diffs are not described in the earlier sections of this file). Related, recorded earlier: one load flake of the same file ("moves focus to the warning heading ...") passed on rerun during 10.14.
+- The executor for 13.8-13.11 stalled and returned no report; those four tasks were finished and ticked before the owner committed `4801582`, so they carry **no TDD cycle evidence** (orchestrator record, 2026-10-08).
+
+### Decisions still open for the owner
+
+1. The three pieces over the 800 budget with acceptance pending: Phase 9 pages (1,235), Phase 12 refactor + leak sweep (about 860; `audit-leak.test.ts` alone 506 against about 220 estimated), Grupo `edit` page test (845). The Phase 7 list page piece (926) is also above 800 and was never explicitly accepted.
+2. Editing a Grupo whose Asignatura is inactive: `updateGrupoAction` maps `asignatura_unavailable` to the generic `catalog.grupos.errors.unexpected`; a dedicated message was not added (new behaviour, not requested).
+3. The docente combobox of the Grupo form shows the name only (no e-mail or login to tell apart two teachers with the same name); `listDocenteOptions` returns `correo` but the pages strip it before the client boundary.
+4. Whether the import applied to `production` on 2026-10-06 was intentional. Evidence in this file: `production` held 2 Asignatura and 2 Grupo at 1.1 (2026-10-04) and 3 and 3 at 16.2 (2026-10-07); the 16.30 note says `backup-before-0006` "includes the import applied on 2026-10-06". The earlier unplanned apply of 2026-10-04 was kept by the owner (0.4); no decision about the 2026-10-06 one is recorded.
+5. 15.4 finding: accept the four `users/new/*` differences (commits `10b249d`, `ccdcfe5`) as pre-existing and re-baseline the check, or treat them as a hit.
+6. Tasks that remain with the owner: 9.12 (rest of the smoke), 9.13, 10.15, 12.13, 13.13, 13.14, 14.10, 14.11, 17.30, 17.31, 18.11, 15.6 (smoke on `rehearsal-0006`), 15.7 (branch housekeeping: `rehearsal-0006`, `backup-before-0006`, `backup-before-0005`, `backup-before-0004-audit`), 15.8 (`sdd-verify`), 15.9 (archive in order, with the destructive-delta confirmation).
+7. A reminder from the 2026-10-08 record: browser-side `MISSING_MESSAGE ... nav.catalogGrupos` was seen on a dev server that had loaded the catalogs before the key was written; re-check after a fresh start during 13.13.
+
+### Not verified on a real database or browser
+
+- A `Dias` cell replacing stored days on an existing group, and an empty cell or an absent column keeping them (unit-proven by the planner and `apply` doubles only; the owner's first real import with a `Dias` column on `rehearsal-0006` is reported in the brief, with no read-back recorded here).
+- A multi-row insert whose rows differ in carrying `dias`: pinned only by building the statement with `drizzle.mock().insert(grupo).values(rows).toSQL()` (a row without days ends in `default`); the stored value 0 and `CK_Grupo_Dias` on that path need a real database.
+- `COMMIT` after a caught `23505` inside `db.transaction` (5.13, A-7): whether it resolves as an implicit rollback or throws; the code returns `codigo_taken`/`grupo_taken` and audits nothing, but the driver behaviour is not proven.
+- `catalog/not-found.tsx` rendering inside the dashboard layout (6.17 manual check).
+- The combobox and checkbox behaviour in a real browser: popup positioning and width, scrolling and highlight in view, ArrowDown/Enter/Escape, focus ring and 44px targets, check-mark contrast in both themes, screen-reader announcements, the inert page behind the popup, Tab order across docente and the seven days (jsdom cannot show these; smoke 13.13).

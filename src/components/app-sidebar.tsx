@@ -5,6 +5,7 @@ import {
   Briefcase,
   ChevronRight,
   FileSpreadsheet,
+  GraduationCap,
   LayoutDashboard,
   type LucideIcon,
   Settings,
@@ -77,6 +78,12 @@ const items = [
         key: "catalogGrupos",
         href: "/catalog/grupos",
         icon: UsersRound,
+        visibleTo: canManageCatalog,
+      },
+      {
+        key: "catalogDocentes",
+        href: "/catalog/docentes",
+        icon: GraduationCap,
         visibleTo: canManageCatalog,
       },
       {

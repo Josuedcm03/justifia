@@ -15,6 +15,7 @@
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
     "catalogGrupos": "Grupos",
+    "catalogDocentes": "Docentes",
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
     "settings": "Configuración",
@@ -458,6 +459,39 @@
       },
       "state": {
         "title": "Estado"
+      }
+    },
+    "docentes": {
+      "title": "Docentes",
+      "subtitle": "Consulta los docentes registrados en el sistema.",
+      "usersLink": "Gestionar cuentas en Usuarios",
+      "columns": {
+        "name": "Nombre",
+        "login": "Usuario",
+        "email": "Correo",
+        "status": "Estado"
+      },
+      "noEmail": "Sin correo",
+      "empty": "Aún no hay docentes activos.",
+      "noResults": {
+        "title": "Sin resultados para «{q}»",
+        "titleStatus": "No hay docentes con este filtro.",
+        "hint": "Prueba con otro nombre o correo, o cambia el filtro de estado."
+      },
+      "degraded": "No se pudieron cargar los docentes. Vuelve a intentarlo en unos minutos.",
+      "search": {
+        "label": "Buscar docentes",
+        "placeholder": "Nombre o correo",
+        "submit": "Buscar",
+        "clear": "Limpiar búsqueda"
+      },
+      "count": "{count, plural, =0 {Sin docentes} one {# docente} other {# docentes}}",
+      "tableCaption": "Lista de docentes",
+      "pagination": {
+        "region": "Paginación de docentes",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "status": "Página {page} de {pages}"
       }
     }
   },

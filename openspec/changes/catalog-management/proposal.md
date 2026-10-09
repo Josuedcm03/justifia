@@ -350,3 +350,43 @@ read the days to offer only valid dates.
   docente" (design Decision 1 area, "Points the specs must pin" item 3,
   assumption A-GRP-2) now also covers the days. Phases 10 to 14 of the task
   plan are not yet applied, so they absorb it.
+
+## Amendment 2026-10-08: Grupos section on the Asignatura edit page
+
+> **No schema change and no migration.** The per-command Neon confirmation rule
+> is not triggered by this amendment.
+
+### Intent
+
+The owner asked that `/catalog/asignaturas/{id}/edit` let them add a group when
+the Asignatura has none because of the previous catalog.
+
+### Scope added
+
+- `CM-ASG-7`: the Asignatura edit page gains a "Grupos" section listing its
+  groups (active and inactive) under the page's catalog scope: period, group
+  number, docente, meeting days and status, each linking to the Grupo edit page.
+- An "Add group" link to `/catalog/grupos/new?asignaturaId={id}` is always shown
+  while the Asignatura is active; with no groups it is the primary action of an
+  empty state. When the Asignatura is inactive there is no link and a hint says
+  to reactivate it first.
+- `CM-GRP-8`: `/catalog/grupos/new` accepts an optional `asignaturaId` and
+  preselects that Asignatura. A malformed, unknown, inactive or out-of-scope id
+  is ignored silently, revealing nothing (CM-SCOPE-1). The create action still
+  validates everything server-side.
+- Copy in `es` (tú, neutral) and `en`, with key parity.
+
+### Non-goals
+
+No embedded Grupo form on the Asignatura page, no schema change, no migration,
+no new Server Action, no audit change, no import change, and no change to where
+the create action redirects.
+
+### Impact
+
+- **Affected units**: the Asignatura edit page, the new Grupo page, a scoped read
+  of the groups of one Asignatura in `src/lib/data/grupos.ts` (none exists today:
+  `listGrupos` has no per-Asignatura filter), `es`/`en` catalogs and the tests of
+  each.
+- **Tension with earlier text**: none; CM-GRP-1 and CM-GRP-4 already require an
+  active Asignatura to create or reactivate a Grupo.

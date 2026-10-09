@@ -34,6 +34,15 @@ export type AsignaturaListItem = {
 
 export type AsignaturaDetail = AsignaturaListItem & { gruposActivos: number };
 
+/** One docente in the read-only Docentes list. No credential, `Cif` or phone. */
+export type DocenteListItem = {
+  id: number;
+  nombreCompleto: string;
+  login: string;
+  correo: string | null;
+  activo: boolean;
+};
+
 /** One Grupo as the list and the edit page see it. `dias` is the decoded set in
  *  week order (empty = days not recorded); the stored mask never leaves the
  *  data layer (amendment A-9). */

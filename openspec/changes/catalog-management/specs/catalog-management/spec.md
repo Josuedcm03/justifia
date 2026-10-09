@@ -376,6 +376,68 @@ spellings of one subject, nor one spelling matched as two.
 - WHEN a create with "mat101" is submitted
 - THEN it is treated as a different code, exactly as the import treats it
 
+### Requirement: CM-ASG-7 Grupos section on the Asignatura edit page
+
+Amendment 2026-10-08. The edit page of an `Asignatura` in scope MUST include a
+"Grupos" section listing every `Grupo` of that Asignatura, active and inactive,
+read under the same catalog scope as the page. Each row MUST show the period, the
+group number, the docente name, the meeting days in week order (or the "days not
+set" text, as in CM-GRP-7) and the status as text, and MUST link to
+`/catalog/grupos/{grupoId}/edit`. Rows MUST be ordered by period descending, then
+group number ascending, then id ascending. While the Asignatura is active the
+section MUST show an "Add group" link to
+`/catalog/grupos/new?asignaturaId={id}`, whether or not the Asignatura already
+has groups. With no groups the section MUST show an empty state whose primary
+action is that link. While the Asignatura is inactive the section MUST NOT show
+the link and MUST show a hint that the Asignatura must be reactivated first
+(creating a Grupo requires an active Asignatura, CM-GRP-1). The section is
+read-only: it embeds no Grupo form and performs no write, audit row or
+migration. The page's existing not-found behaviour (CM-SCOPE-1) and no-Carrera
+state (CM-SCOPE-2) MUST NOT change.
+
+#### Scenario: Active and inactive groups are listed
+
+- GIVEN an active Asignatura with one active and one inactive Grupo
+- WHEN its edit page is opened
+- THEN the Grupos section shows both rows with period, group number, docente
+  name, days and a textual status, each linking to its edit page
+
+#### Scenario: Empty state
+
+- GIVEN an active Asignatura with no groups
+- WHEN its edit page is opened
+- THEN the section shows an empty state whose primary action is the "Add group"
+  link to `/catalog/grupos/new?asignaturaId={id}`
+
+#### Scenario: Add-group link is always present while active
+
+- GIVEN an active Asignatura that already has groups
+- WHEN its edit page is opened
+- THEN the "Add group" link to `/catalog/grupos/new?asignaturaId={id}` is shown
+  next to the list
+
+#### Scenario: Inactive Asignatura
+
+- GIVEN an inactive Asignatura, with or without groups
+- WHEN its edit page is opened
+- THEN no "Add group" link is shown and the section shows the hint that the
+  Asignatura must be reactivated first; existing groups, if any, are still listed
+
+#### Scenario: Scope is unchanged
+
+- GIVEN a `coordinacion` actor with no Carrera, and a `coordinacion` actor
+  addressing an Asignatura of another Carrera by id
+- WHEN the edit page is opened
+- THEN the first sees the no-Carrera state with no Grupos query, and the second
+  receives the same not-found outcome as for an id that does not exist; neither
+  sees any group
+
+#### Scenario: Roles without catalog access are unchanged
+
+- GIVEN a role denied by CM-ACC-1
+- WHEN the edit page is opened
+- THEN the denial destination is used as before and no group is read
+
 ### Requirement: CM-GRP-1 Grupo fields and validation
 
 Creating a `Grupo` MUST validate server-side: `Asignatura` selected by id and
@@ -642,6 +704,58 @@ CM-LST-1 and are not a filter.
 - GIVEN a Grupo meeting on Saturday
 - WHEN the list is opened in `es` and in `en`
 - THEN the row shows the Saturday name of that language
+
+### Requirement: CM-GRP-8 Preselected Asignatura on the new Grupo page
+
+Amendment 2026-10-08. `/catalog/grupos/new` MUST accept an optional
+`asignaturaId` query parameter. When it is a well-formed record id naming an
+active `Asignatura` inside the actor's scope that the form offers as an option,
+the form MUST open with that Asignatura selected. In every other case (malformed,
+unknown, inactive, outside the scope, or absent) the parameter MUST be ignored
+silently: the page renders exactly as it does without the parameter, with no
+message, no error, no different status and no difference that reveals whether the
+record exists (CM-SCOPE-1). The parameter is a convenience, never a trust input:
+the create action MUST keep validating the submitted `Asignatura` server-side as
+specified in CM-GRP-1 and CM-SCOPE-1, and its outcome and redirect are
+unchanged. No write, audit row or schema change results from reading the
+parameter.
+
+#### Scenario: Valid id preselects the Asignatura
+
+- GIVEN an active Asignatura A in the actor's scope
+- WHEN `/catalog/grupos/new?asignaturaId={A}` is opened
+- THEN the form shows A selected and every other field in its usual initial state
+
+#### Scenario: Parameter that is ignored (table-driven)
+
+| `asignaturaId` |
+|---|
+| malformed (`abc`, `0`, `-1`, `1.5`, empty, repeated) |
+| well-formed but no such Asignatura |
+| an inactive Asignatura in scope |
+| an Asignatura of another Carrera (actor is `coordinacion`) |
+
+- GIVEN a staff actor, or a `coordinacion` actor for the last row
+- WHEN `/catalog/grupos/new` is opened with the value from the row
+- THEN the page renders exactly as without the parameter: no Asignatura is
+  preselected, and nothing in the response distinguishes the row's cases from
+  one another
+
+#### Scenario: Preselection does not bypass the create action
+
+- GIVEN the form opened with a valid `asignaturaId`
+- WHEN the submitted `Asignatura` is changed by hand to an inactive or foreign
+  one
+- THEN the create is refused as in CM-GRP-1 and CM-SCOPE-1, with no write and no
+  audit row
+
+#### Scenario: Roles and scope without catalog access are unchanged
+
+- GIVEN a role denied by CM-ACC-1, or a `coordinacion` actor with no Carrera
+  (CM-SCOPE-2)
+- WHEN `/catalog/grupos/new?asignaturaId={id}` is opened
+- THEN the denial destination, or the no-Carrera empty state with no form and no
+  query, is shown exactly as without the parameter
 
 ### Requirement: CM-LST-1 Lists, filters, search and pagination
 
@@ -1015,3 +1129,16 @@ owner to overrule.
     `FechaInasistencia` against the meeting days, hours, and exposing the
     days to students. A later change will read the days to offer only valid
     dates.
+- **Amendment 2026-10-08 (Grupos section on the Asignatura edit page).** Decided
+  by the owner: the section lists active and inactive groups; "Add group" is
+  always shown while the Asignatura is active and never when inactive (a hint
+  replaces it); `/catalog/grupos/new` takes an optional `asignaturaId` that is
+  ignored silently in every invalid case. No schema, migration, Server Action,
+  audit or import change; the create action's redirect is unchanged.
+  - **A-ASG7-ORDER.** Row order (period descending, group number ascending, id
+    ascending) mirrors the Grupos list; the owner did not specify it. *Assumption.*
+  - **A-ASG7-NOPAGE.** The section is not paged or filtered; one Asignatura has
+    few groups. The design may cap it. *Assumption.*
+  - **A-GRP8-OPTIONS.** Preselection applies only to an Asignatura the form
+    actually offers; the options list is capped (`CATALOG_OPTIONS_MAX`), so an
+    otherwise valid Asignatura beyond the cap is not preselected. *Assumption.*
