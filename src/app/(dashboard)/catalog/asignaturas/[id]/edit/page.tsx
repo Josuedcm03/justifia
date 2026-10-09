@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { AsignaturaGruposSection } from "@/app/(dashboard)/catalog/asignaturas/asignatura-grupos-section";
 import {
   AsignaturaActiveToggle,
   EditAsignaturaForm,
@@ -16,7 +17,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { requireCatalogAccess } from "@/lib/auth/catalog-access";
+import { ASIGNATURA_GRUPOS_MAX } from "@/lib/catalog/list-params";
 import { getAsignaturaById, listCarreraOptions } from "@/lib/data/asignaturas";
+import { listGruposByAsignatura } from "@/lib/data/grupos";
 import { parseRecordId } from "@/lib/validations/catalog";
 
 export default async function EditAsignaturaPage({
@@ -89,6 +92,14 @@ export default async function EditAsignaturaPage({
           options: await listCarreraOptions(scope),
         };
 
+  // Read only once the record is known to be in scope, so a foreign or
+  // missing id never reaches it (CM-ASG-7). Fail-soft: a failure degrades
+  // the section, not the page.
+  const grupos = await listGruposByAsignatura(scope, record.id);
+  const tGrupos = await getTranslations("catalog.grupos.list");
+  const tStatus = await getTranslations("catalog.shared.status");
+  const tDias = await getTranslations("catalog.shared.dias");
+
   const stateTitleId = "asignatura-state-title";
 
   return (
@@ -117,6 +128,43 @@ export default async function EditAsignaturaPage({
           }
         />
       </div>
+
+      <AsignaturaGruposSection
+        asignaturaId={record.id}
+        codigo={record.codigo}
+        activo={record.activo}
+        result={grupos}
+        text={{
+          title: t("grupos.title"),
+          add: t("grupos.add"),
+          empty: t("grupos.empty"),
+          inactiveHint: t("grupos.inactiveHint"),
+          tableCaption: t("grupos.tableCaption", { codigo: record.codigo }),
+          truncated: t("grupos.truncated", { max: ASIGNATURA_GRUPOS_MAX }),
+          viewAll: t("grupos.viewAll"),
+          degraded: t("grupos.degraded"),
+          edit: tGrupos("edit"),
+          editLabel: (g) =>
+            t("grupos.editLabel", {
+              periodo: g.periodo,
+              numeroGrupo: g.numeroGrupo,
+            }),
+          columns: {
+            periodo: tGrupos("columns.periodo"),
+            numeroGrupo: tGrupos("columns.numeroGrupo"),
+            docente: tGrupos("columns.docente"),
+            dias: tGrupos("columns.dias"),
+            status: tGrupos("columns.status"),
+            actions: tGrupos("columns.actions"),
+          },
+          status: { active: tStatus("active"), inactive: tStatus("inactive") },
+          dias: {
+            short: (dia) => tDias(`short.${dia}`),
+            long: (dia) => tDias(`long.${dia}`),
+            notSet: tDias("notSet"),
+          },
+        }}
+      />
 
       <section
         aria-labelledby={stateTitleId}

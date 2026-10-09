@@ -15,8 +15,13 @@ import { requireCatalogAccess } from "@/lib/auth/catalog-access";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import { listAsignaturaOptions } from "@/lib/data/asignaturas";
 import { listDocenteOptions } from "@/lib/data/users";
+import { parseRecordId } from "@/lib/validations/catalog";
 
-export default async function NewGrupoPage() {
+export default async function NewGrupoPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { scope } = await requireCatalogAccess();
   const t = await getTranslations("catalog.grupos");
 
@@ -65,12 +70,23 @@ export default async function NewGrupoPage() {
   // The Asignaturas follow the actor's scope; a failed read propagates.
   const asignaturas = await listAsignaturaOptions(scope);
   const docentes = await listDocenteOptions();
+  // `?asignaturaId=` only preselects an Asignatura the form already offers
+  // (active, in scope); anything else is ignored silently and costs no extra
+  // read, so nothing tells the invalid cases apart (CM-GRP-8, CM-SCOPE-1).
+  const requested = parseRecordId((await searchParams).asignaturaId);
+  const preselected =
+    requested !== null && asignaturas.some((a) => a.id === requested)
+      ? requested
+      : undefined;
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">{header}</div>
       <div className="max-w-xl">
+        {/* The key starts the form clean when the preselection changes. */}
         <CreateGrupoForm
+          key={preselected ?? "none"}
+          defaultAsignaturaId={preselected}
           asignaturas={asignaturas}
           // The e-mail stays on the server.
           docentes={docentes.map((d) => ({

@@ -60,6 +60,15 @@ export type GrupoListItem = {
   dias: readonly DiaSemana[];
 };
 
+/** The Grupos of one Asignatura (CM-ASG-7, design A-AGS-1): at most
+ *  `ASIGNATURA_GRUPOS_MAX` rows; `truncated` when more exist; `degraded` when
+ *  the read failed (then `data` is empty and says nothing about the groups). */
+export type AsignaturaGruposResult = {
+  data: GrupoListItem[];
+  truncated: boolean;
+  degraded: boolean;
+};
+
 /** Result of an Asignatura create or update. `inactive` (amendment A-1):
  *  editing an inactive record is refused (CM-ASG-3). */
 export type AsignaturaWriteResult =

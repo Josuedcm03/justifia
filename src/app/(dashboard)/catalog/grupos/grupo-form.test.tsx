@@ -395,6 +395,93 @@ describe("GrupoForm keeps the user's values after an invalid answer", () => {
   });
 });
 
+describe("GrupoForm preselected Asignatura (CM-GRP-8)", () => {
+  it("shows the preselected option and submits its id", async () => {
+    const { action } = renderForm({ defaultAsignaturaId: 2 });
+
+    const asignatura = await combo(TEXT.en.asignatura);
+    expect(asignatura).toHaveValue("FIS200 - Fisica");
+    expect(asignatura).toBeEnabled();
+    const docente = await combo(TEXT.en.docente);
+    expect(docente).toHaveValue("");
+    expect(await checkedDays()).toEqual([]);
+
+    const user = userEvent.setup();
+    fireEvent.change(await text(TEXT.en.periodo), {
+      target: { value: "2026-S1" },
+    });
+    fireEvent.change(await text(TEXT.en.numero), { target: { value: "1" } });
+    await choose(user, docente, "Ana Ruiz");
+    await user.click(await day("Monday"));
+    await submit(TEXT.en.create);
+
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect(action.mock.calls[0][1].get("asignaturaId")).toBe("2");
+  });
+
+  it("ignores an id that is not among the options", async () => {
+    const { action } = renderForm({ defaultAsignaturaId: 99 });
+
+    expect(await combo(TEXT.en.asignatura)).toHaveValue("");
+    await submit(TEXT.en.create);
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect(action.mock.calls[0][1].get("asignaturaId") ?? "").toBe("");
+  });
+
+  it("stays changeable", async () => {
+    const { action } = renderForm({ defaultAsignaturaId: 2 });
+    const user = userEvent.setup();
+
+    await choose(user, await combo(TEXT.en.asignatura), "MAT101 - Algebra");
+    expect(await combo(TEXT.en.asignatura)).toHaveValue("MAT101 - Algebra");
+    await submit(TEXT.en.create);
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect(action.mock.calls[0][1].get("asignaturaId")).toBe("1");
+  });
+
+  const invalid = () =>
+    vi.fn<GrupoFormAction>(async () => ({
+      kind: "invalid",
+      fieldErrors: { periodo: "The period must use the format YYYY-S1" },
+    }));
+
+  it("keeps an untouched preselection after an invalid answer and resubmits it", async () => {
+    const { action } = renderForm({ defaultAsignaturaId: 2 }, "en", invalid());
+    await submit(TEXT.en.create);
+    await screen.findByText("The period must use the format YYYY-S1");
+
+    expect(await combo(TEXT.en.asignatura)).toHaveValue("FIS200 - Fisica");
+    await submit(TEXT.en.create);
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
+    expect(action.mock.calls[1][1].get("asignaturaId")).toBe("2");
+  });
+
+  it("keeps a changed selection after an invalid answer, not the preselection", async () => {
+    const { action } = renderForm({ defaultAsignaturaId: 2 }, "en", invalid());
+    const user = userEvent.setup();
+    await choose(user, await combo(TEXT.en.asignatura), "MAT101 - Algebra");
+    await submit(TEXT.en.create);
+    await screen.findByText("The period must use the format YYYY-S1");
+
+    expect(await combo(TEXT.en.asignatura)).toHaveValue("MAT101 - Algebra");
+    await submit(TEXT.en.create);
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
+    expect(action.mock.calls[1][1].get("asignaturaId")).toBe("1");
+  });
+
+  it("is ignored in edit mode", async () => {
+    const { action } = renderForm({ record: RECORD, defaultAsignaturaId: 2 });
+
+    expect(await screen.findByText("MAT101 - Algebra")).toBeTruthy();
+    expect(
+      screen.queryByRole("combobox", { name: TEXT.en.asignatura }),
+    ).toBeNull();
+    await submit(TEXT.en.save);
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect(action.mock.calls[0][1].has("asignaturaId")).toBe(false);
+  });
+});
+
 describe("GrupoForm field errors (CM-NFR-3)", () => {
   const FIELD_ERRORS = {
     asignaturaId: "Select a subject",

@@ -386,6 +386,17 @@
       "state": {
         "title": "Estado",
         "activeGroups": "{count, plural, =0 {Esta asignatura no tiene grupos activos.} one {Esta asignatura tiene # grupo activo. Desactívalo antes de poder desactivar la asignatura.} other {Esta asignatura tiene # grupos activos. Desactívalos antes de poder desactivar la asignatura.}}"
+      },
+      "grupos": {
+        "title": "Grupos",
+        "add": "Agregar grupo",
+        "empty": "Esta asignatura aún no tiene grupos.",
+        "inactiveHint": "Para agregar un grupo, reactiva primero la asignatura en la sección Estado.",
+        "tableCaption": "Grupos de {codigo}",
+        "editLabel": "Editar grupo {periodo} {numeroGrupo}",
+        "truncated": "Se muestran los {max} grupos más recientes.",
+        "viewAll": "Ver todos en Grupos",
+        "degraded": "No se pudieron cargar los grupos de esta asignatura. Vuelve a intentarlo en unos minutos."
       }
     },
     "grupos": {

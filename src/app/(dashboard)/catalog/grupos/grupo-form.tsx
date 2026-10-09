@@ -65,6 +65,7 @@ export function GrupoForm({
   docentesTruncated = false,
   record,
   reactivate,
+  defaultAsignaturaId,
 }: {
   action: GrupoFormAction;
   asignaturas: readonly { id: number; codigo: string; nombre: string }[];
@@ -74,6 +75,9 @@ export function GrupoForm({
   record?: GrupoFormRecord;
   /** Rendered in place of the submit control while the record is inactive. */
   reactivate?: ReactNode;
+  /** Create mode only: the Asignatura selected on open, still changeable
+   *  (CM-GRP-8). Ignored when it is not among `asignaturas`. */
+  defaultAsignaturaId?: number;
 }) {
   const t = useTranslations("catalog.grupos.form");
   const ts = useTranslations("catalog.shared");
@@ -173,6 +177,11 @@ export function GrupoForm({
                 placeholder={t("searchPlaceholder")}
                 truncated={asignaturasTruncated}
                 truncatedText={t("truncated")}
+                defaultValue={
+                  defaultAsignaturaId === undefined
+                    ? undefined
+                    : String(defaultAsignaturaId)
+                }
               />
             )}
           </FormField>

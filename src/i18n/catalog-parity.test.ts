@@ -523,7 +523,8 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
       expect(
         leafPaths(resolve(messages, "catalog.asignaturas"))
           .filter(
-            (path) => !/^(errors|form|page|breadcrumb|state)\./.test(path),
+            (path) =>
+              !/^(errors|form|page|breadcrumb|state|grupos)\./.test(path),
           )
           .sort(),
       ).toEqual([...LIST_KEYS].sort());
@@ -1275,4 +1276,48 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
       }
     }
   });
+});
+
+describe("catalog.asignaturas.grupos (CM-ASG-7, design A-AGS-5)", () => {
+  const KEYS = [
+    "title",
+    "add",
+    "empty",
+    "inactiveHint",
+    "tableCaption",
+    "editLabel",
+    "truncated",
+    "viewAll",
+    "degraded",
+  ];
+  const PLACEHOLDERS: Record<string, string[]> = {
+    tableCaption: ["{codigo}"],
+    editLabel: ["{periodo}", "{numeroGrupo}"],
+    truncated: ["{max}"],
+  };
+
+  it.each([
+    ["es", esMessages],
+    ["en", enMessages],
+  ] as const)(
+    "holds exactly the nine keys in %s, none empty",
+    (_l, messages) => {
+      const section = resolve(messages, "catalog.asignaturas.grupos");
+      expect(leafPaths(section).sort()).toEqual([...KEYS].sort());
+      for (const value of leafValues(section))
+        expect(value.trim()).not.toBe("");
+    },
+  );
+
+  it.each(Object.entries(PLACEHOLDERS))(
+    "%s carries its placeholders in both locales",
+    (key, placeholders) => {
+      for (const messages of [esMessages, enMessages]) {
+        const value = resolve(messages, `catalog.asignaturas.grupos.${key}`);
+        for (const placeholder of placeholders) {
+          expect(value).toContain(placeholder);
+        }
+      }
+    },
+  );
 });

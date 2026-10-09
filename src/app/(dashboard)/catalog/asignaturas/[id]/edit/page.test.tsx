@@ -9,6 +9,10 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import enMessages from "../../../../../../../i18n/en.json";
 import esMessages from "../../../../../../../i18n/es.json";
 import { ACCESS_DENIED_PATH, PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
+import {
+  ASIGNATURA_GRUPOS_MAX,
+  catalogListHref,
+} from "@/lib/catalog/list-params";
 import { rolesUsuario, type RolUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
@@ -20,6 +24,7 @@ const {
   getCatalogActorMock,
   getByIdMock,
   carreraOptionsMock,
+  gruposMock,
   updateActionMock,
   toggleActionMock,
   state,
@@ -34,6 +39,7 @@ const {
   getCatalogActorMock: vi.fn(),
   getByIdMock: vi.fn(),
   carreraOptionsMock: vi.fn(),
+  gruposMock: vi.fn(),
   updateActionMock: vi.fn(),
   toggleActionMock: vi.fn(),
   state: { locale: "en" as "en" | "es" },
@@ -48,6 +54,9 @@ vi.mock("@/lib/data/users", () => ({ getCatalogActor: getCatalogActorMock }));
 vi.mock("@/lib/data/asignaturas", () => ({
   getAsignaturaById: getByIdMock,
   listCarreraOptions: carreraOptionsMock,
+}));
+vi.mock("@/lib/data/grupos", () => ({
+  listGruposByAsignatura: gruposMock,
 }));
 // The page reaches the actions only through a client module, so they are
 // replaced here (the real module imports the database).
@@ -139,6 +148,8 @@ beforeEach(() => {
     { id: 3, nombre: "Engineering" },
     { id: 4, nombre: "Law" },
   ]);
+  gruposMock.mockReset();
+  gruposMock.mockResolvedValue({ data: [], truncated: false, degraded: false });
   updateActionMock.mockReset();
   updateActionMock.mockResolvedValue({ kind: "idle" });
   toggleActionMock.mockReset();
@@ -521,5 +532,358 @@ describe("EditAsignaturaPage structure (CM-NFR-3; the only 'you are here' marker
         name: esMessages.catalog.asignaturas.state.title,
       }),
     ).toBeInTheDocument();
+  });
+});
+
+// ---- Grupos section (CM-ASG-7, design A-AGS-2).
+
+const groupsEn = en.grupos;
+const listEn = enMessages.catalog.grupos.list;
+
+function grupoRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 51,
+    asignaturaId: 12,
+    asignaturaCodigo: "MAT101",
+    asignaturaNombre: "Calculus",
+    periodo: "2026-S2",
+    numeroGrupo: "1",
+    docenteId: 7,
+    docenteNombre: "Ana Ruiz",
+    activo: true,
+    origen: "manual",
+    dias: ["lunes", "miercoles"],
+    ...overrides,
+  };
+}
+
+const TWO_GROUPS = [
+  grupoRow(),
+  grupoRow({
+    id: 52,
+    periodo: "2026-S1",
+    numeroGrupo: "2",
+    docenteNombre: "Luis Mora",
+    activo: false,
+    dias: [],
+  }),
+];
+
+function groups(
+  data: unknown[],
+  flags: { truncated?: boolean; degraded?: boolean } = {},
+) {
+  return {
+    data,
+    truncated: flags.truncated ?? false,
+    degraded: flags.degraded ?? false,
+  };
+}
+
+const section = () => screen.getByRole("region", { name: groupsEn.title });
+const addLinks = () => screen.queryAllByRole("link", { name: groupsEn.add });
+
+describe("EditAsignaturaPage Grupos section: rows and links (CM-ASG-7, CM-GRP-7)", () => {
+  beforeEach(() => {
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+    gruposMock.mockResolvedValue(groups(TWO_GROUPS));
+  });
+
+  it("lists active and inactive groups in the order received, with every column", async () => {
+    await renderPage();
+
+    const table = within(section()).getByRole("table");
+    expect(table).toHaveAccessibleName("Groups of MAT101");
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual([
+      listEn.columns.periodo,
+      listEn.columns.numeroGrupo,
+      listEn.columns.docente,
+      listEn.columns.dias,
+      listEn.columns.status,
+      listEn.columns.actions,
+    ]);
+    const [, first, second] = within(table).getAllByRole("row");
+    const cells = (row: HTMLElement) => within(row).getAllByRole("cell");
+
+    const [periodo, numero, docente, dias, status, actions] = cells(first);
+    expect(periodo).toHaveTextContent("2026-S2");
+    expect(numero).toHaveTextContent("1");
+    expect(docente).toHaveTextContent("Ana Ruiz");
+    expect(within(dias).getByText("Mon, Wed")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(within(dias).getByText("Monday, Wednesday")).toHaveClass("sr-only");
+    expect(status).toHaveTextContent(shared.status.active);
+    const edit = within(actions).getByRole("link", {
+      name: "Edit group 2026-S2 1",
+    });
+    expect(edit).toHaveAttribute("href", "/catalog/grupos/51/edit");
+    expect(edit).toHaveTextContent(listEn.edit);
+
+    expect(cells(second)[0]).toHaveTextContent("2026-S1");
+    expect(cells(second)[2]).toHaveTextContent("Luis Mora");
+    expect(cells(second)[3]).toHaveTextContent(shared.dias.notSet);
+    expect(cells(second)[4]).toHaveTextContent(shared.status.inactive);
+    expect(
+      within(cells(second)[5]).getByRole("link", {
+        name: "Edit group 2026-S1 2",
+      }),
+    ).toHaveAttribute("href", "/catalog/grupos/52/edit");
+  });
+
+  it("reads the groups with the page's scope and the record id", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("coordinacion"));
+    getCatalogActorMock.mockResolvedValue({ carreraId: 3 });
+
+    await renderPage("12");
+
+    expect(gruposMock).toHaveBeenCalledTimes(1);
+    expect(gruposMock).toHaveBeenCalledWith(
+      { kind: "carrera", carreraId: 3 },
+      12,
+    );
+    expect(within(section()).getAllByRole("row")).toHaveLength(3);
+  });
+
+  it("sits after the edit form and before the State section", async () => {
+    const { container } = await renderPage();
+
+    const form = container.querySelector("form") as HTMLFormElement;
+    const groupsRegion = section();
+    const stateRegion = screen.getByRole("region", { name: en.state.title });
+    const follows = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(form.compareDocumentPosition(groupsRegion) & follows).toBeTruthy();
+    expect(
+      groupsRegion.compareDocumentPosition(stateRegion) & follows,
+    ).toBeTruthy();
+    expect(groupsRegion.contains(form)).toBe(false);
+  });
+
+  it("shows exactly one Add group link for an active Asignatura with groups", async () => {
+    await renderPage();
+
+    expect(addLinks()).toHaveLength(1);
+    expect(addLinks()[0]).toHaveAttribute(
+      "href",
+      "/catalog/grupos/new?asignaturaId=12",
+    );
+    expect(section()).toContainElement(addLinks()[0]);
+    expect(screen.queryByText(groupsEn.inactiveHint)).toBeNull();
+    expect(screen.queryByText(groupsEn.empty)).toBeNull();
+  });
+
+  it("shows the empty state, whose only link is Add group, for an active Asignatura with none", async () => {
+    gruposMock.mockResolvedValue(groups([]));
+
+    await renderPage();
+
+    expect(within(section()).getByText(groupsEn.empty)).toBeInTheDocument();
+    expect(within(section()).queryByRole("table")).toBeNull();
+    const links = within(section()).getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAccessibleName(groupsEn.add);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      "/catalog/grupos/new?asignaturaId=12",
+    );
+  });
+
+  it("shows no Add group link and the hint for an inactive Asignatura with groups", async () => {
+    getByIdMock.mockResolvedValue(detail({ activo: false, gruposActivos: 0 }));
+
+    await renderPage();
+
+    expect(addLinks()).toHaveLength(0);
+    expect(
+      within(section()).getByText(groupsEn.inactiveHint),
+    ).toBeInTheDocument();
+    expect(within(section()).getAllByRole("row")).toHaveLength(3);
+  });
+
+  it("shows the hint and the empty sentence with no action for an inactive Asignatura with none", async () => {
+    getByIdMock.mockResolvedValue(detail({ activo: false, gruposActivos: 0 }));
+    gruposMock.mockResolvedValue(groups([]));
+
+    await renderPage();
+
+    expect(addLinks()).toHaveLength(0);
+    expect(
+      within(section()).getByText(groupsEn.inactiveHint),
+    ).toBeInTheDocument();
+    expect(within(section()).getByText(groupsEn.empty)).toBeInTheDocument();
+    expect(within(section()).queryByRole("link")).toBeNull();
+  });
+
+  it.each([
+    ["coordinacion", 3],
+    ["administrador", null],
+    ["secretaria", null],
+  ] as const)("renders the section for %s", async (rol, carreraId) => {
+    getSessionMock.mockResolvedValue(sessionFor(rol));
+    getCatalogActorMock.mockResolvedValue({ carreraId });
+
+    await renderPage();
+
+    expect(section()).toBeInTheDocument();
+  });
+});
+
+describe("EditAsignaturaPage Grupos section: degraded, cap, scope and structure (CM-ASG-7, CM-SCOPE-1, CM-SCOPE-2, CM-NFR-3)", () => {
+  beforeEach(() => {
+    getSessionMock.mockResolvedValue(sessionFor("administrador"));
+  });
+
+  it.each([
+    ["active", true],
+    ["inactive", false],
+  ] as const)(
+    "shows the degraded notice for an %s Asignatura, never the empty state",
+    async (_label, activo) => {
+      getByIdMock.mockResolvedValue(detail({ activo, gruposActivos: 0 }));
+      gruposMock.mockResolvedValue(groups([], { degraded: true }));
+
+      await renderPage();
+
+      const notice = within(section()).getByRole("status");
+      expect(notice).toHaveTextContent(groupsEn.degraded);
+      expect(within(section()).queryByRole("table")).toBeNull();
+      expect(screen.queryByText(groupsEn.empty)).toBeNull();
+      expect(addLinks()).toHaveLength(activo ? 1 : 0);
+      // The rest of the page is still there.
+      expect(
+        screen.getByRole("region", { name: en.state.title }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("shows the table, the cap note and an encoded see-all link past the cap", async () => {
+    getByIdMock.mockResolvedValue(detail({ codigo: "A&B 1" }));
+    gruposMock.mockResolvedValue(groups(TWO_GROUPS, { truncated: true }));
+
+    await renderPage();
+
+    expect(within(section()).getByRole("table")).toBeInTheDocument();
+    expect(
+      within(section()).getByText(
+        `Showing the ${ASIGNATURA_GRUPOS_MAX} most recent groups.`,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(section()).getByRole("link", { name: groupsEn.viewAll }),
+    ).toHaveAttribute(
+      "href",
+      catalogListHref("/catalog/grupos", { status: "all", q: "A&B 1" }),
+    );
+    expect(
+      catalogListHref("/catalog/grupos", { status: "all", q: "A&B 1" }),
+    ).not.toContain("A&B 1");
+    expect(addLinks()[0]).toHaveAttribute(
+      "href",
+      "/catalog/grupos/new?asignaturaId=12",
+    );
+  });
+
+  it("shows no cap note while not truncated", async () => {
+    gruposMock.mockResolvedValue(groups(TWO_GROUPS));
+
+    await renderPage();
+
+    expect(
+      within(section()).queryByRole("link", { name: groupsEn.viewAll }),
+    ).toBeNull();
+  });
+
+  it.each(["abc", "0", ""])(
+    "never reads the groups for the malformed id %j",
+    async (id) => {
+      await expect(renderPage(id)).rejects.toThrow("NEXT_NOT_FOUND");
+      expect(gruposMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("never reads the groups for a missing id or a foreign one", async () => {
+    getByIdMock.mockResolvedValue(null);
+    await expect(renderPage("99")).rejects.toThrow("NEXT_NOT_FOUND");
+
+    getSessionMock.mockResolvedValue(sessionFor("coordinacion"));
+    getCatalogActorMock.mockResolvedValue({ carreraId: 3 });
+    await expect(renderPage("41")).rejects.toThrow("NEXT_NOT_FOUND");
+
+    expect(gruposMock).not.toHaveBeenCalled();
+  });
+
+  it("never reads the groups for a coordinacion without a Carrera", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("coordinacion"));
+    getCatalogActorMock.mockResolvedValue({ carreraId: null });
+
+    await renderPage();
+
+    expect(gruposMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: groupsEn.title })).toBeNull();
+  });
+
+  it.each(["docente", "estudiante"] as const)(
+    "never reads the groups for %s",
+    async (rol) => {
+      getSessionMock.mockResolvedValue(sessionFor(rol));
+
+      await expect(renderPage()).rejects.toThrow(
+        `REDIRECT:${ACCESS_DENIED_PATH}`,
+      );
+      expect(gruposMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("renders the section in Spanish from the real catalog", async () => {
+    state.locale = "es";
+    gruposMock.mockResolvedValue(groups(TWO_GROUPS));
+    const es = esMessages.catalog.asignaturas.grupos;
+
+    await renderPage();
+
+    const region = screen.getByRole("region", { name: es.title });
+    expect(within(region).getByRole("table")).toHaveAccessibleName(
+      "Grupos de MAT101",
+    );
+    expect(within(region).getByRole("link", { name: es.add })).toHaveAttribute(
+      "href",
+      "/catalog/grupos/new?asignaturaId=12",
+    );
+    expect(
+      within(region).getByRole("link", { name: "Editar grupo 2026-S2 1" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps one h1, no skipped level and one current marker with groups", async () => {
+    gruposMock.mockResolvedValue(groups(TWO_GROUPS, { truncated: true }));
+    const { container } = await renderPage();
+
+    const levels = screen
+      .getAllByRole("heading")
+      .map((h) => Number(h.tagName.slice(1)));
+    expect(levels.filter((l) => l === 1)).toHaveLength(1);
+    levels.slice(1).forEach((level, i) => {
+      expect(level).toBeLessThanOrEqual(levels[i] + 1);
+    });
+    expect(
+      within(section()).getByRole("heading", { level: 2 }),
+    ).toHaveTextContent(groupsEn.title);
+    expect(container.querySelectorAll("[aria-current]")).toHaveLength(1);
+    expect(container.querySelectorAll(".is-current")).toHaveLength(1);
+  });
+
+  it("imports no actions module from the page or the section", () => {
+    for (const file of [
+      "src/app/(dashboard)/catalog/asignaturas/[id]/edit/page.tsx",
+      "src/app/(dashboard)/catalog/asignaturas/asignatura-grupos-section.tsx",
+    ]) {
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      expect(source).not.toMatch(/from\s+["'][^"']*\/actions["']/);
+    }
   });
 });

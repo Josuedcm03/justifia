@@ -379,7 +379,8 @@ spellings of one subject, nor one spelling matched as two.
 ### Requirement: CM-ASG-7 Grupos section on the Asignatura edit page
 
 Amendment 2026-10-08. The edit page of an `Asignatura` in scope MUST include a
-"Grupos" section listing every `Grupo` of that Asignatura, active and inactive,
+"Grupos" section listing the `Grupo` rows of that Asignatura, active and
+inactive, up to `ASIGNATURA_GRUPOS_MAX = 100` rows (the newest periods first),
 read under the same catalog scope as the page. Each row MUST show the period, the
 group number, the docente name, the meeting days in week order (or the "days not
 set" text, as in CM-GRP-7) and the status as text, and MUST link to
@@ -394,6 +395,19 @@ the link and MUST show a hint that the Asignatura must be reactivated first
 read-only: it embeds no Grupo form and performs no write, audit row or
 migration. The page's existing not-found behaviour (CM-SCOPE-1) and no-Carrera
 state (CM-SCOPE-2) MUST NOT change.
+
+Pinned by the design (amendment 2026-10-08, G-1..G-6):
+
+- **Cap.** Past `ASIGNATURA_GRUPOS_MAX` rows the section shows the newest 100
+  and a note saying only the newest 100 are shown, with a link to the Grupos
+  list filtered by the Asignatura code (G-1).
+- **Degraded.** A failed groups read shows a degraded notice inside the
+  section, never the empty state, and never fails the page (G-2).
+- **Inactive without groups.** An inactive Asignatura with no groups shows the
+  reactivate hint and the empty sentence with no action (G-3).
+- **Placement.** The section sits between the edit form and the State section,
+  full width (G-5).
+- **Copy.** Column headers and the "Edit" text reuse the Grupos list copy (G-6).
 
 #### Scenario: Active and inactive groups are listed
 
@@ -422,6 +436,27 @@ state (CM-SCOPE-2) MUST NOT change.
 - WHEN its edit page is opened
 - THEN no "Add group" link is shown and the section shows the hint that the
   Asignatura must be reactivated first; existing groups, if any, are still listed
+
+#### Scenario: More groups than the cap (truncated)
+
+- GIVEN an Asignatura with more than `ASIGNATURA_GRUPOS_MAX` groups
+- WHEN its edit page is opened
+- THEN the section lists the newest 100 rows, then a note that only the newest
+  100 are shown and a link to the Grupos list filtered by the Asignatura code
+
+#### Scenario: The groups read fails (degraded)
+
+- GIVEN the groups read of the section fails
+- WHEN the edit page is opened
+- THEN the edit form and the State section are shown as usual and the section
+  shows a degraded notice, with no table and no empty-state sentence
+
+#### Scenario: Inactive Asignatura without groups
+
+- GIVEN an inactive Asignatura with no groups
+- WHEN its edit page is opened
+- THEN the section shows the reactivate hint and the empty sentence, with no
+  action
 
 #### Scenario: Scope is unchanged
 
@@ -718,7 +753,9 @@ record exists (CM-SCOPE-1). The parameter is a convenience, never a trust input:
 the create action MUST keep validating the submitted `Asignatura` server-side as
 specified in CM-GRP-1 and CM-SCOPE-1, and its outcome and redirect are
 unchanged. No write, audit row or schema change results from reading the
-parameter.
+parameter. The form MUST start clean (remount) when the validated id changes
+(design G-4), so a soft navigation to a different `asignaturaId` never keeps
+the earlier selection.
 
 #### Scenario: Valid id preselects the Asignatura
 
@@ -1138,7 +1175,8 @@ owner to overrule.
   - **A-ASG7-ORDER.** Row order (period descending, group number ascending, id
     ascending) mirrors the Grupos list; the owner did not specify it. *Assumption.*
   - **A-ASG7-NOPAGE.** The section is not paged or filtered; one Asignatura has
-    few groups. The design may cap it. *Assumption.*
+    few groups. The cap is decided: `ASIGNATURA_GRUPOS_MAX = 100` rows, newest
+    periods first, with a truncated note past it (design A-AGS-1, G-1).
   - **A-GRP8-OPTIONS.** Preselection applies only to an Asignatura the form
     actually offers; the options list is capped (`CATALOG_OPTIONS_MAX`), so an
     otherwise valid Asignatura beyond the cap is not preselected. *Assumption.*

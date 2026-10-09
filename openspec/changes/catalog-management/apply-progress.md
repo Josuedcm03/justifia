@@ -1839,3 +1839,29 @@ Pieces measured above 800: Phase 7 list page piece 926 (stopped at the seam, `si
 - `COMMIT` after a caught `23505` inside `db.transaction` (5.13, A-7): whether it resolves as an implicit rollback or throws; the code returns `codigo_taken`/`grupo_taken` and audits nothing, but the driver behaviour is not proven.
 - `catalog/not-found.tsx` rendering inside the dashboard layout (6.17 manual check).
 - The combobox and checkbox behaviour in a real browser: popup positioning and width, scrolling and highlight in view, ArrowDown/Enter/Escape, focus ring and 44px targets, check-mark contrast in both themes, screen-reader announcements, the inert page behind the popup, Tab order across docente and the seven days (jsdom cannot show these; smoke 13.13).
+
+## Phases 19 and 20 (amendment 2026-10-08: Grupos section on the Asignatura edit page), 2026-10-09
+
+Baseline: clean tree on `8a93c1d` (19.1, 20.1); `npm test` 2270/2270 before any edit. No database command was run; nothing under `drizzle/`, `src/db`, `src/lib/import`, `src/lib/audit` and no `actions.ts` changed.
+
+### Piece A (Phase 19): data read and new-page preselection
+
+- 19.2 spec pins in `CM-ASG-7` (cap 100, degraded, inactive-without-groups, placement, copy reuse; three scenarios) and `CM-GRP-8` (remount on a new id); `A-ASG7-NOPAGE` says the cap is decided.
+- 19.3 RED: 11 failures in `grupos.test.ts` (export absent). 19.4 GREEN: `ASIGNATURA_GRUPOS_MAX`, `AsignaturaGruposResult`, `listGruposByAsignatura` (fail-soft, `limit(MAX + 1)`); then `scope-inventory.test.ts` failed for the missing row (RED of 19.5). 19.5 row added; `src/lib/data` 301/301.
+- 19.7 harness passes `searchParams`; mutation (page awaits `searchParams` before the guard and throws) failed 21 of 22 tests; reverted.
+- 19.8 RED: 2 failures (preselection shown/submitted; kept after `invalid`). The "stays changeable", "ignored when not offered", "changed selection kept" and "edit mode" cases pass before GREEN (characterization). 19.9 GREEN.
+- 19.10 RED: 2 failures (prop handed and shown; `key`). The ignored-value table (`abc`, `0`, `-1`, `1.5`, `""`, `["1","2"]`, unknown, inactive, very long, foreign for `coordinacion`) compares props, markup (React ids normalized) and read calls with no parameter. 19.11 GREEN.
+- Measure (19.6, 19.12): 519 changed lines by `git diff --numstat` (spec 44, data 34+118 test, types 9, list-params 3, inventory 5, form 9+87 test, new page 18+191 test).
+- 19.13 V: `npm test` 2303/2303; `npm run typecheck` clean (it needs `next typegen` first in a fresh checkout for `LayoutProps`); eslint clean; `next build` ok with dummy env (no database reached).
+
+### Piece B (Phase 20): `DiasCell` move, section, edit page, copy
+
+- 20.2: the days cell was already pinned by `grupos/page.test.tsx`; mutation (short and long spans swapped) failed 3 tests; reverted. 20.3 `DiasCell` moved to `catalog/dias-cell.tsx`; `grupos/page.test.tsx` untouched and green.
+- 20.4 RED: 5 failures (nine keys and placeholders). 20.5 GREEN: nine `catalog.asignaturas.grupos.*` keys per locale (texts of A-AGS-5). **Deviation:** the existing "Asignaturas list copy" test filters subsections by a regex; `grupos` was added to it (one line), since the new subsection has its own test.
+- 20.6 harness mocks `@/lib/data/grupos`; mutation (default mock rejects) failed 18 tests once the page was wired; reverted.
+- 20.7-20.8 RED: 17 failures. 20.9-20.10 GREEN: `asignaturas/asignatura-grupos-section.tsx` (synchronous, presentational, no translation call, no marker) and the page wiring (read after `getAsignaturaById`).
+- Design choice where the table was silent: a degraded read of an **active** Asignatura still shows the header "Add group" link, so "exactly one Add group link while active" holds in every state.
+- Measure (20.11): 728 changed lines (section 190, `dias-cell.tsx` 28, `grupos/page.tsx` 29, edit page 48 + 364 test, locales 22, parity test 47).
+- 20.12 V: `npm test` 2332/2332; typecheck and eslint clean; `next build` lists `/catalog/asignaturas/[id]/edit` and `/catalog/grupos/new`; the combobox and list suites run three times, 176/176 each time.
+
+Open for the owner: 19.14, 19.15, 20.13 (includes R-2, stale list after a create), 20.14.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { DiasCell } from "@/app/(dashboard)/catalog/dias-cell";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { DataTableSearch } from "@/components/data-table-search";
@@ -9,7 +10,6 @@ import { StatusFilter } from "@/components/status-filter";
 import { StatusPill } from "@/components/status-pill";
 import { buttonVariants } from "@/components/ui/button";
 import { requireCatalogAccess } from "@/lib/auth/catalog-access";
-import type { DiaSemana } from "@/lib/catalog/dias";
 import {
   CATALOG_PAGE_SIZE,
   catalogListHref,
@@ -51,33 +51,6 @@ function EmptyOrNoResultsState({
         </>
       )}
     </div>
-  );
-}
-
-/**
- * The days of a group in the cell: short names for sighted users, long names
- * for assistive technology, never both. An empty set (a legacy group) is a
- * plain muted note, not an alert and not an error (amendment 2026-10-07).
- */
-function DiasCell({
-  dias,
-  short,
-  long,
-  notSet,
-}: {
-  dias: readonly DiaSemana[];
-  short: (dia: DiaSemana) => string;
-  long: (dia: DiaSemana) => string;
-  notSet: string;
-}) {
-  if (dias.length === 0) {
-    return <span className="text-muted-foreground">{notSet}</span>;
-  }
-  return (
-    <>
-      <span aria-hidden="true">{dias.map(short).join(", ")}</span>
-      <span className="sr-only">{dias.map(long).join(", ")}</span>
-    </>
   );
 }
 

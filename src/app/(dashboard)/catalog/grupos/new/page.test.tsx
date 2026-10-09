@@ -4,11 +4,17 @@ import { join } from "node:path";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ComponentProps } from "react";
+import {
+  isValidElement,
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import enMessages from "../../../../../../i18n/en.json";
 import esMessages from "../../../../../../i18n/es.json";
+import { CreateGrupoForm } from "@/app/(dashboard)/catalog/grupos/bound-controls";
 import { ACCESS_DENIED_PATH, PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import { rolesUsuario, type RolUsuario } from "@/lib/validations/auth";
@@ -128,10 +134,30 @@ function sessionFor(rol: RolUsuario, debeCambiarClave?: boolean) {
   };
 }
 
-let Page: () => Promise<React.ReactNode>;
+type SearchParams = Record<string, string | string[] | undefined>;
+let Page: (props: {
+  searchParams: Promise<SearchParams>;
+}) => Promise<ReactNode>;
 
-async function renderPage() {
-  const ui = await Page();
+/** A `searchParams` promise that records whether the page awaited it. */
+function trackedSearchParams(params: SearchParams) {
+  const read = { awaited: false };
+  const promise = Promise.resolve(params);
+  const searchParams = {
+    then: (...args: Parameters<typeof promise.then>) => {
+      read.awaited = true;
+      return promise.then(...args);
+    },
+  } as unknown as Promise<SearchParams>;
+  return { searchParams, read };
+}
+
+async function pageTree(params: SearchParams = {}) {
+  return Page({ searchParams: Promise.resolve(params) });
+}
+
+async function renderPage(params: SearchParams = {}) {
+  const ui = await pageTree(params);
   return render(
     <NextIntlClientProvider
       locale={state.locale}
@@ -152,6 +178,7 @@ type FormProps = {
   asignaturasTruncated?: boolean;
   docentesTruncated?: boolean;
   record?: unknown;
+  defaultAsignaturaId?: number;
 };
 
 /** The props of the last `GrupoForm` render. */
@@ -519,4 +546,160 @@ describe("NewGrupoPage wiring (the form posts to the create action)", () => {
       ).toBeEnabled(),
     );
   });
+});
+
+/** The `CreateGrupoForm` element of a page tree, found by walking children. */
+function findCreateForm(node: ReactNode): ReactElement | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findCreateForm(child);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!isValidElement(node)) return null;
+  if (node.type === CreateGrupoForm) return node;
+  return findCreateForm((node.props as { children?: ReactNode }).children);
+}
+
+/** The rendered markup with React's generated ids made stable. */
+const markup = (container: HTMLElement) =>
+  container.innerHTML.replace(/_r_[0-9a-z]+_|«r[0-9a-z]+»|:r[0-9a-z]+:/g, "ID");
+
+describe("NewGrupoPage preselected Asignatura (CM-GRP-8)", () => {
+  beforeEach(() => {
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+  });
+
+  it("hands a valid, offered id to the form, which shows it selected", async () => {
+    await renderPage({ asignaturaId: "2" });
+
+    expect(formProps().defaultAsignaturaId).toBe(2);
+    expect(
+      screen.getByRole("combobox", { name: en.form.asignaturaLabel }),
+    ).toHaveValue("FIS200 - Fisica");
+    expect(
+      screen.getByRole("combobox", { name: en.form.asignaturaLabel }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("combobox", { name: en.form.docenteLabel }),
+    ).toHaveValue("");
+  });
+
+  it("keys the form by the preselected id, so another id remounts it", async () => {
+    expect(findCreateForm(await pageTree({ asignaturaId: "2" }))?.key).toBe(
+      "2",
+    );
+    expect(findCreateForm(await pageTree({ asignaturaId: "1" }))?.key).toBe(
+      "1",
+    );
+    expect(findCreateForm(await pageTree())?.key).toBe("none");
+    expect(findCreateForm(await pageTree({ asignaturaId: "abc" }))?.key).toBe(
+      "none",
+    );
+  });
+
+  async function baseline(rol: RolUsuario) {
+    getSessionMock.mockResolvedValue(sessionFor(rol));
+    const { container, unmount } = await renderPage();
+    const result = {
+      props: formProps(),
+      html: markup(container),
+      asignaturaCalls: asignaturaOptionsMock.mock.calls.slice(),
+      docenteCalls: docenteOptionsMock.mock.calls.slice(),
+    };
+    unmount();
+    formPropsSpy.mockClear();
+    asignaturaOptionsMock.mockClear();
+    docenteOptionsMock.mockClear();
+    return result;
+  }
+
+  // Every value the page must ignore. ASIGNATURAS holds ids 1 and 2 only;
+  // 3 stands for an inactive or foreign Asignatura (never among the options).
+  const IGNORED: [string, string | string[]][] = [
+    ["non-numeric", "abc"],
+    ["zero", "0"],
+    ["negative", "-1"],
+    ["decimal", "1.5"],
+    ["empty", ""],
+    ["repeated key", ["1", "2"]],
+    ["unknown id", "999"],
+    ["inactive Asignatura (not among the options)", "3"],
+    ["very long digit string", "1".repeat(40)],
+  ];
+
+  it.each(IGNORED)(
+    "ignores %s exactly as no parameter: same props, markup and reads",
+    async (_label, value) => {
+      const before = await baseline("secretaria");
+
+      const { container } = await renderPage({ asignaturaId: value });
+
+      expect(formProps()).toEqual(before.props);
+      expect(formProps().defaultAsignaturaId).toBeUndefined();
+      expect(markup(container)).toBe(before.html);
+      expect(asignaturaOptionsMock.mock.calls).toEqual(before.asignaturaCalls);
+      expect(docenteOptionsMock.mock.calls).toEqual(before.docenteCalls);
+      expect(
+        screen.getByRole("combobox", { name: en.form.asignaturaLabel }),
+      ).toHaveValue("");
+    },
+  );
+
+  it("ignores an Asignatura of another Carrera for coordinacion, exactly as no parameter", async () => {
+    getCatalogActorMock.mockResolvedValue({ carreraId: 3 });
+    asignaturaOptionsMock.mockImplementation(async (scope: { kind: string }) =>
+      scope.kind === "carrera" ? [ASIGNATURAS[0]] : ASIGNATURAS,
+    );
+    const before = await baseline("coordinacion");
+
+    const { container } = await renderPage({ asignaturaId: "2" });
+
+    expect(formProps()).toEqual(before.props);
+    expect(formProps().defaultAsignaturaId).toBeUndefined();
+    expect(markup(container)).toBe(before.html);
+    expect(asignaturaOptionsMock.mock.calls).toEqual(before.asignaturaCalls);
+  });
+
+  it("calls no data function beyond the two option lists, for a valid id or not", async () => {
+    await renderPage({ asignaturaId: "2" });
+    await renderPage({ asignaturaId: "999" });
+
+    expect(asignaturaOptionsMock).toHaveBeenCalledTimes(2);
+    expect(docenteOptionsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("never awaits the parameter for a coordinacion without a Carrera", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("coordinacion"));
+    getCatalogActorMock.mockResolvedValue({ carreraId: null });
+    const { searchParams, read } = trackedSearchParams({ asignaturaId: "1" });
+
+    const ui = await Page({ searchParams });
+    render(
+      <NextIntlClientProvider locale="en" messages={enMessages}>
+        {ui}
+      </NextIntlClientProvider>,
+    );
+
+    expect(read.awaited).toBe(false);
+    expect(asignaturaOptionsMock).not.toHaveBeenCalled();
+    expect(formPropsSpy).not.toHaveBeenCalled();
+    expect(screen.getByText(shared.noCarrera.title)).toBeInTheDocument();
+  });
+
+  it.each(["docente", "estudiante"] as const)(
+    "sends %s to /denied with the parameter present, never awaiting it",
+    async (rol) => {
+      getSessionMock.mockResolvedValue(sessionFor(rol));
+      const { searchParams, read } = trackedSearchParams({ asignaturaId: "1" });
+
+      await expect(Page({ searchParams })).rejects.toThrow(
+        `REDIRECT:${ACCESS_DENIED_PATH}`,
+      );
+
+      expect(read.awaited).toBe(false);
+      expect(asignaturaOptionsMock).not.toHaveBeenCalled();
+    },
+  );
 });
