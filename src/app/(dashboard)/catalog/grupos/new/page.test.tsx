@@ -128,21 +128,43 @@ function sessionFor(rol: RolUsuario, debeCambiarClave?: boolean) {
   };
 }
 
-let Page: () => Promise<React.ReactNode>;
+type RawParams = Record<string, string | string[] | undefined>;
 
-async function renderPage() {
-  const ui = await Page();
-  return render(
-    <NextIntlClientProvider
-      locale={state.locale}
-      messages={state.locale === "es" ? esMessages : enMessages}
-      onError={(error) => {
-        throw error;
-      }}
-    >
-      {ui}
-    </NextIntlClientProvider>,
-  );
+let Page: (props: {
+  searchParams: Promise<RawParams>;
+}) => Promise<React.ReactNode>;
+
+/** A `searchParams` promise that records whether the page awaited it. */
+function searchParamsOf(value: RawParams = {}) {
+  const awaited = vi.fn();
+  const promise = {
+    then: (
+      resolve: (v: RawParams) => unknown,
+      reject: (e: unknown) => unknown,
+    ) => {
+      awaited();
+      return Promise.resolve(value).then(resolve, reject);
+    },
+  } as unknown as Promise<RawParams>;
+  return { promise, awaited };
+}
+
+const withIntl = (ui: React.ReactNode) => (
+  <NextIntlClientProvider
+    locale={state.locale}
+    messages={state.locale === "es" ? esMessages : enMessages}
+    onError={(error) => {
+      throw error;
+    }}
+  >
+    {ui}
+  </NextIntlClientProvider>
+);
+
+async function renderPage(
+  searchParams: Promise<RawParams> = Promise.resolve({}),
+) {
+  return render(withIntl(await Page({ searchParams })));
 }
 
 type FormProps = {
@@ -152,6 +174,7 @@ type FormProps = {
   asignaturasTruncated?: boolean;
   docentesTruncated?: boolean;
   record?: unknown;
+  defaultAsignaturaId?: number;
 };
 
 /** The props of the last `GrupoForm` render. */
@@ -213,11 +236,13 @@ describe("NewGrupoPage access (CM-ACC-1: matrix, denial destinations)", () => {
     "sends %s to /denied and reads nothing",
     async (rol) => {
       getSessionMock.mockResolvedValue(sessionFor(rol));
+      const sp = searchParamsOf({ asignaturaId: "1" });
 
-      await expect(renderPage()).rejects.toThrow(
+      await expect(renderPage(sp.promise)).rejects.toThrow(
         `REDIRECT:${ACCESS_DENIED_PATH}`,
       );
 
+      expect(sp.awaited).not.toHaveBeenCalled();
       expect(getCatalogActorMock).not.toHaveBeenCalled();
       expect(asignaturaOptionsMock).not.toHaveBeenCalled();
       expect(docenteOptionsMock).not.toHaveBeenCalled();
@@ -227,9 +252,11 @@ describe("NewGrupoPage access (CM-ACC-1: matrix, denial destinations)", () => {
 
   it("sends an anonymous caller to /login and reads nothing", async () => {
     getSessionMock.mockResolvedValue(null);
+    const sp = searchParamsOf({ asignaturaId: "1" });
 
-    await expect(renderPage()).rejects.toThrow("REDIRECT:/login");
+    await expect(renderPage(sp.promise)).rejects.toThrow("REDIRECT:/login");
 
+    expect(sp.awaited).not.toHaveBeenCalled();
     expect(getCatalogActorMock).not.toHaveBeenCalled();
     expect(asignaturaOptionsMock).not.toHaveBeenCalled();
     expect(docenteOptionsMock).not.toHaveBeenCalled();
@@ -239,11 +266,13 @@ describe("NewGrupoPage access (CM-ACC-1: matrix, denial destinations)", () => {
     "sends a flagged %s to the change screen before anything else",
     async (rol) => {
       getSessionMock.mockResolvedValue(sessionFor(rol, true));
+      const sp = searchParamsOf({ asignaturaId: "1" });
 
-      await expect(renderPage()).rejects.toThrow(
+      await expect(renderPage(sp.promise)).rejects.toThrow(
         `REDIRECT:${PASSWORD_CHANGE_PATH}`,
       );
 
+      expect(sp.awaited).not.toHaveBeenCalled();
       expect(getCatalogActorMock).not.toHaveBeenCalled();
       expect(asignaturaOptionsMock).not.toHaveBeenCalled();
       expect(docenteOptionsMock).not.toHaveBeenCalled();
@@ -336,6 +365,129 @@ describe("NewGrupoPage options (CM-SCOPE-1: Selects offer only in-scope options;
     docenteOptionsMock.mockRejectedValue(new Error("db down"));
 
     await expect(renderPage()).rejects.toThrow("db down");
+  });
+});
+
+describe("NewGrupoPage asignaturaId preselection (CM-GRP-8, CM-SCOPE-1)", () => {
+  // useId values differ between two renders; they are not part of the markup
+  // the user sees.
+  const markup = (container: HTMLElement) =>
+    container.innerHTML.replace(/[:«]r[0-9a-z]*[:»]/g, "ID");
+
+  /** What one render reads and hands over, for comparing two requests. */
+  async function observe(
+    rol: "administrador" | "coordinacion",
+    params: RawParams,
+  ) {
+    getSessionMock.mockResolvedValue(sessionFor(rol));
+    if (rol === "coordinacion") {
+      getCatalogActorMock.mockResolvedValue({ carreraId: 3 });
+      asignaturaOptionsMock.mockResolvedValue([ASIGNATURAS[0]]);
+    }
+    formPropsSpy.mockClear();
+    asignaturaOptionsMock.mockClear();
+    docenteOptionsMock.mockClear();
+    const { container, unmount } = await renderPage(
+      searchParamsOf(params).promise,
+    );
+    const seen = {
+      props: { ...formProps() },
+      asignaturaCalls: [...asignaturaOptionsMock.mock.calls],
+      docenteCalls: [...docenteOptionsMock.mock.calls],
+      html: markup(container),
+    };
+    unmount();
+    return seen;
+  }
+
+  it("hands a valid, offered id to the form and shows it selected", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("administrador"));
+
+    await renderPage(searchParamsOf({ asignaturaId: "2" }).promise);
+
+    expect(formProps().defaultAsignaturaId).toBe(2);
+    expect(
+      screen.getByRole("combobox", { name: en.form.asignaturaLabel }),
+    ).toHaveValue("FIS200 - Fisica");
+    expect(asignaturaOptionsMock).toHaveBeenCalledTimes(1);
+    expect(docenteOptionsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["abc", "abc"],
+    ["0", "0"],
+    ["-1", "-1"],
+    ["1.5", "1.5"],
+    ["empty", ""],
+    ["repeated key", ["1", "2"]],
+    ["well-formed unknown id", "99"],
+    ["inactive Asignatura (not among the options)", "3"],
+    ["very long digit string", "1".repeat(400)],
+  ])(
+    "ignores %s: same props, reads and markup as no parameter",
+    async (_n, raw) => {
+      const without = await observe("administrador", {});
+      const withParam = await observe("administrador", { asignaturaId: raw });
+
+      expect(withParam.props.defaultAsignaturaId).toBeUndefined();
+      expect(withParam.props).toEqual(without.props);
+      expect(withParam.asignaturaCalls).toEqual(without.asignaturaCalls);
+      expect(withParam.docenteCalls).toEqual(without.docenteCalls);
+      expect(withParam.html).toBe(without.html);
+    },
+  );
+
+  it("ignores an id of another Carrera for coordinacion", async () => {
+    const without = await observe("coordinacion", {});
+    // Asignatura 2 exists but the scoped options do not offer it.
+    const withParam = await observe("coordinacion", { asignaturaId: "2" });
+
+    expect(withParam.props.defaultAsignaturaId).toBeUndefined();
+    expect(withParam.props).toEqual(without.props);
+    expect(withParam.asignaturaCalls).toEqual(without.asignaturaCalls);
+    expect(withParam.docenteCalls).toEqual(without.docenteCalls);
+    expect(withParam.html).toBe(without.html);
+  });
+
+  it("never awaits searchParams for a scope of kind none", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("coordinacion"));
+    getCatalogActorMock.mockResolvedValue({ carreraId: null });
+    const sp = searchParamsOf({ asignaturaId: "1" });
+
+    await renderPage(sp.promise);
+
+    expect(sp.awaited).not.toHaveBeenCalled();
+    expect(asignaturaOptionsMock).not.toHaveBeenCalled();
+    expect(formPropsSpy).not.toHaveBeenCalled();
+    expect(screen.getByText(shared.noCarrera.title)).toBeInTheDocument();
+  });
+
+  it("starts the form clean when the validated id changes (key)", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("administrador"));
+    const view = await renderPage(
+      searchParamsOf({ asignaturaId: "1" }).promise,
+    );
+    expect(
+      screen.getByRole("combobox", { name: en.form.asignaturaLabel }),
+    ).toHaveValue("MAT101 - Algebra");
+
+    view.rerender(
+      withIntl(
+        await Page({
+          searchParams: searchParamsOf({ asignaturaId: "2" }).promise,
+        }),
+      ),
+    );
+    expect(
+      screen.getByRole("combobox", { name: en.form.asignaturaLabel }),
+    ).toHaveValue("FIS200 - Fisica");
+
+    view.rerender(
+      withIntl(await Page({ searchParams: searchParamsOf({}).promise })),
+    );
+    expect(
+      screen.getByRole("combobox", { name: en.form.asignaturaLabel }),
+    ).toHaveValue("");
   });
 });
 

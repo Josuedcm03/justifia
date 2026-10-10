@@ -63,6 +63,7 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
     carreraNombre: "Engineering",
     horasTotales: 64,
     activo: true,
+    grupos: null,
     ...overrides,
   };
 }
@@ -298,6 +299,58 @@ describe("AsignaturasPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () 
     expect(
       within(inactive).getByText(shared.status.inactive),
     ).toBeInTheDocument();
+  });
+
+  it("shows the active group numbers, a hyphen for none, between hours and status", async () => {
+    listMock.mockResolvedValue(
+      result({
+        total: 3,
+        data: [
+          row({ grupos: "1, 2" }),
+          row({ id: 13, codigo: "FIS200", grupos: null }),
+          row({ id: 14, codigo: "QUI300", grupos: "" }),
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    const table = screen.getByRole("table");
+    const headers = within(table)
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent);
+    expect(headers).toEqual([
+      en.columns.code,
+      en.columns.name,
+      en.columns.career,
+      en.columns.hours,
+      en.columns.groups,
+      en.columns.status,
+      en.columns.actions,
+    ]);
+    const rows = within(table).getAllByRole("row");
+    const cellOf = (index: number) =>
+      within(rows[index]).getAllByRole("cell")[4];
+    expect(cellOf(1)).toHaveTextContent(/^1, 2$/);
+    expect(cellOf(2)).toHaveTextContent(/^-$/);
+    expect(cellOf(3)).toHaveTextContent(/^-$/);
+  });
+
+  it("renders the Groups header and the cell in Spanish", async () => {
+    state.locale = "es";
+    listMock.mockResolvedValue(
+      result({ total: 1, data: [row({ grupos: "3" })] }),
+    );
+
+    await renderPage();
+
+    const table = screen.getByRole("table");
+    expect(
+      within(table).getByRole("columnheader", {
+        name: esMessages.catalog.asignaturas.columns.groups,
+      }),
+    ).toBeInTheDocument();
+    expect(within(table).getAllByRole("cell")[4]).toHaveTextContent(/^3$/);
   });
 
   it("offers one Edit link per row, also for inactive rows, and no other control", async () => {

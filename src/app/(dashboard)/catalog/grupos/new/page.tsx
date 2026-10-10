@@ -15,8 +15,13 @@ import { requireCatalogAccess } from "@/lib/auth/catalog-access";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import { listAsignaturaOptions } from "@/lib/data/asignaturas";
 import { listDocenteOptions } from "@/lib/data/users";
+import { parseRecordId } from "@/lib/validations/catalog";
 
-export default async function NewGrupoPage() {
+export default async function NewGrupoPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { scope } = await requireCatalogAccess();
   const t = await getTranslations("catalog.grupos");
 
@@ -66,11 +71,24 @@ export default async function NewGrupoPage() {
   const asignaturas = await listAsignaturaOptions(scope);
   const docentes = await listDocenteOptions();
 
+  // The parameter is a convenience, never a trust input: it is used only when
+  // it names an option the form actually offers (active, in scope, under the
+  // cap). Every other value is ignored silently (CM-GRP-8).
+  const requested = parseRecordId((await searchParams).asignaturaId);
+  const preselected =
+    requested !== null && asignaturas.some((a) => a.id === requested)
+      ? requested
+      : undefined;
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">{header}</div>
       <div className="max-w-xl">
         <CreateGrupoForm
+          // A different validated id remounts the form, so an uncontrolled
+          // field never keeps the earlier selection.
+          key={preselected ?? "none"}
+          defaultAsignaturaId={preselected}
           asignaturas={asignaturas}
           // The e-mail stays on the server.
           docentes={docentes.map((d) => ({

@@ -159,6 +159,7 @@ describe("listAsignaturas", () => {
     carreraNombre: "Engineering",
     horasTotales: 48,
     activo: true,
+    grupos: "1, 2" as string | null,
   };
   const params = (page: number) => ({
     scope: OWN,
@@ -215,12 +216,30 @@ describe("listAsignaturas", () => {
       "carreraNombre",
       "horasTotales",
       "activo",
+      "grupos",
     ]);
     expect(calls(1, "innerJoin")).toHaveLength(1);
     const order = (calls(1, "orderBy")[0].args as SQL[]).map(
       (part) => render(part).sql,
     );
     expect(order).toEqual(['"Asignatura"."Codigo" asc']);
+  });
+
+  it("aggregates the distinct, ordered numbers of the active groups in one subquery column", async () => {
+    results.push([{ count: 1 }], [item]);
+    const result = await listAsignaturas(params(1));
+    expect(result.data[0].grupos).toBe("1, 2");
+    expect(statements).toHaveLength(2);
+    const fields = calls(1, "select")[0].args[0] as Record<string, SQL>;
+    expect(render(fields.grupos).sql).toBe(
+      `(select string_agg(distinct "Grupo"."NumeroGrupo", ', ' order by "Grupo"."NumeroGrupo") from "Grupo" where "Grupo"."AsignaturaId" = "Asignatura"."Id" and "Grupo"."Activo")`,
+    );
+  });
+
+  it("passes a null aggregate (no active group) through untouched", async () => {
+    results.push([{ count: 1 }], [{ ...item, grupos: null }]);
+    const result = await listAsignaturas(params(1));
+    expect(result.data[0].grupos).toBeNull();
   });
 
   it("degrades to an empty page when the database throws", async () => {

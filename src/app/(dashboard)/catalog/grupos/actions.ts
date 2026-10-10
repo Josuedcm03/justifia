@@ -104,14 +104,17 @@ export async function createGrupoAction(
       break;
     case "grupo_taken":
       // The parent was read inside the actor's scope, so the existing group's
-      // state may be named (CM-GRP-1).
+      // state may be named (CM-GRP-1). The refusal is a field error on the
+      // group number, the last part of the natural key.
       return {
-        kind: "error",
-        message: t(
-          result.activo
-            ? "shared.refusals.duplicate"
-            : "shared.refusals.duplicateInactive",
-        ),
+        kind: "invalid",
+        fieldErrors: {
+          numeroGrupo: t(
+            result.activo
+              ? "shared.fieldErrors.numGrupo.taken"
+              : "shared.fieldErrors.numGrupo.takenInactive",
+          ),
+        },
       };
     case "asignatura_unavailable":
       return asignaturaUnavailable(t);

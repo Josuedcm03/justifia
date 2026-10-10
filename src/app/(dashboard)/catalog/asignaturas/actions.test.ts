@@ -255,13 +255,18 @@ describe("createAsignaturaAction", () => {
     });
   });
 
-  const generic = { kind: "error", message: "shared.refusals.duplicate" };
+  // Amendment 2026-10-09: the refusal is a field error on `codigo`.
+  const fieldError = (field: string, key: string) => ({
+    kind: "invalid",
+    fieldErrors: { [field]: `shared.fieldErrors.${key}` },
+  });
+  const generic = fieldError("codigo", "codigo.taken");
   it.each([
     ["in scope, active", { inScope: true, activo: true }, generic],
     [
       "in scope, inactive",
       { inScope: true, activo: false },
-      { kind: "error", message: "shared.refusals.duplicateInactive" },
+      fieldError("codigo", "codigo.takenInactive"),
     ],
     ["out of scope, active", { inScope: false, activo: true }, generic],
     ["out of scope, inactive", { inScope: false, activo: false }, generic],

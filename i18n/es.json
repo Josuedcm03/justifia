@@ -269,7 +269,9 @@
       "fieldErrors": {
         "codigo": {
           "required": "El código es obligatorio",
-          "tooLong": "El código supera los 32 caracteres"
+          "tooLong": "El código supera los 32 caracteres",
+          "taken": "Ya existe una asignatura con este código.",
+          "takenInactive": "Ya existe una asignatura con este código, pero está inactiva. Reactívala en lugar de crearla de nuevo."
         },
         "nombre": {
           "required": "El nombre es obligatorio",
@@ -296,7 +298,9 @@
         },
         "numGrupo": {
           "required": "El número de grupo es obligatorio",
-          "tooLong": "El número de grupo supera los 12 caracteres"
+          "tooLong": "El número de grupo supera los 12 caracteres",
+          "taken": "Ya existe un grupo con este período y número en la asignatura seleccionada.",
+          "takenInactive": "Ya existe un grupo con este período y número en la asignatura seleccionada, pero está inactivo. Reactívalo en lugar de crearlo de nuevo."
         },
         "dias": {
           "required": "Selecciona al menos un día de la semana en que se reúne el grupo",
@@ -311,8 +315,6 @@
       "importWins": "La próxima importación del catálogo puede reemplazar estos valores.",
       "refusals": {
         "activeGrupos": "{count, plural, one {No se puede desactivar: la asignatura tiene # grupo activo. Desactívalo primero e inténtalo de nuevo.} other {No se puede desactivar: la asignatura tiene # grupos activos. Desactívalos primero e inténtalo de nuevo.}}",
-        "duplicate": "Ya existe un registro con estos datos. Revisa los valores e inténtalo de nuevo.",
-        "duplicateInactive": "Ya existe un registro con estos datos, pero está inactivo. Reactívalo en lugar de crearlo de nuevo.",
         "parentInactive": {
           "asignatura": "No se puede reactivar el grupo porque la asignatura {parent} está inactiva. Reactiva la asignatura primero e inténtalo de nuevo.",
           "docente": "No se puede reactivar el grupo porque el docente {parent} no está activo o no tiene el rol de docente. Corrige el docente primero e inténtalo de nuevo."
@@ -331,6 +333,7 @@
         "name": "Nombre",
         "career": "Carrera",
         "hours": "Horas",
+        "groups": "Grupos",
         "status": "Estado",
         "actions": "Acciones"
       },
@@ -386,6 +389,17 @@
       "state": {
         "title": "Estado",
         "activeGroups": "{count, plural, =0 {Esta asignatura no tiene grupos activos.} one {Esta asignatura tiene # grupo activo. Desactívalo antes de poder desactivar la asignatura.} other {Esta asignatura tiene # grupos activos. Desactívalos antes de poder desactivar la asignatura.}}"
+      },
+      "grupos": {
+        "title": "Grupos",
+        "add": "Agregar grupo",
+        "empty": "Esta asignatura aún no tiene grupos.",
+        "inactiveHint": "Para agregar un grupo, reactiva primero la asignatura en la sección Estado.",
+        "tableCaption": "Grupos de {codigo}",
+        "editLabel": "Editar grupo {periodo} {numeroGrupo}",
+        "truncated": "Se muestran los {max} grupos más recientes.",
+        "viewAll": "Ver todos en Grupos",
+        "degraded": "No se pudieron cargar los grupos de esta asignatura. Vuelve a intentarlo en unos minutos."
       }
     },
     "grupos": {

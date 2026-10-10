@@ -249,6 +249,10 @@ Comparison of `Codigo` follows CM-ASG-6.
 - GIVEN an active Asignatura "MAT101"
 - WHEN a create with Codigo "MAT101" is submitted
 - THEN it is refused with a duplicate message and the first row is unchanged
+- AND (Amendment 2026-10-09) the message is a field-level error on the Codigo
+  field, shown under it with the same treatment as a validation error (values
+  kept), and it names the conflicting key: "A subject with this code already
+  exists." It is not a form-level panel and does not repeat the value
 
 #### Scenario: Match with an inactive record
 
@@ -257,6 +261,9 @@ Comparison of `Codigo` follows CM-ASG-6.
 - THEN it is refused with a message that the code exists but is inactive and
   must be reactivated instead
 - AND the existing row stays inactive
+- AND (Amendment 2026-10-09) that message is the field-level error on the Codigo
+  field: "A subject with this code already exists but is inactive. Reactivate it
+  instead of creating it again."
 
 #### Scenario: Duplicate of a record outside the actor's scope
 
@@ -266,6 +273,8 @@ Comparison of `Codigo` follows CM-ASG-6.
 - THEN it is refused with the generic duplicate message, which does not name the
   other Carrera, does not say the record is inactive and does not point to
   reactivation
+- AND (Amendment 2026-10-09) that generic message is the same field-level error
+  on the Codigo field as the active-duplicate one, with no state wording
 
 #### Scenario: Codigo cannot be edited
 
@@ -379,8 +388,14 @@ spellings of one subject, nor one spelling matched as two.
 ### Requirement: CM-ASG-7 Grupos section on the Asignatura edit page
 
 Amendment 2026-10-08. The edit page of an `Asignatura` in scope MUST include a
-"Grupos" section listing every `Grupo` of that Asignatura, active and inactive,
-read under the same catalog scope as the page. Each row MUST show the period, the
+"Grupos" section, placed between the form and the State section, listing the
+`Grupo` rows of that Asignatura, active and inactive, up to a cap of
+`ASIGNATURA_GRUPOS_MAX = 100` rows, newest periods first, read under the same
+catalog scope as the page. Past the cap the section MUST say that only the
+newest 100 are shown and MUST link to the Grupos list filtered by the Asignatura
+code. A failed read of the groups MUST show a degraded notice inside the section,
+never the empty state, and MUST NOT fail the page. The column headers and the
+"Edit" link text MUST reuse the Grupos list copy. Each row MUST show the period, the
 group number, the docente name, the meeting days in week order (or the "days not
 set" text, as in CM-GRP-7) and the status as text, and MUST link to
 `/catalog/grupos/{grupoId}/edit`. Rows MUST be ordered by period descending, then
@@ -421,7 +436,23 @@ state (CM-SCOPE-2) MUST NOT change.
 - GIVEN an inactive Asignatura, with or without groups
 - WHEN its edit page is opened
 - THEN no "Add group" link is shown and the section shows the hint that the
-  Asignatura must be reactivated first; existing groups, if any, are still listed
+  Asignatura must be reactivated first; existing groups, if any, are still listed;
+  with no groups the section shows the hint and an empty sentence with no action
+
+#### Scenario: More groups than the cap
+
+- GIVEN an Asignatura with more than 100 groups
+- WHEN its edit page is opened
+- THEN the section lists the 100 newest by period, shows a note that only the
+  newest 100 are shown, and links to the Grupos list filtered by the Asignatura
+  code
+
+#### Scenario: The groups read fails
+
+- GIVEN an Asignatura whose groups cannot be read
+- WHEN its edit page is opened
+- THEN the page still renders its form and State section, and the Grupos section
+  shows the degraded notice, never the empty state
 
 #### Scenario: Scope is unchanged
 
@@ -437,6 +468,49 @@ state (CM-SCOPE-2) MUST NOT change.
 - GIVEN a role denied by CM-ACC-1
 - WHEN the edit page is opened
 - THEN the denial destination is used as before and no group is read
+
+### Requirement: CM-ASG-8 Asignaturas list shows the active groups
+
+Amendment 2026-10-09. The Asignaturas list MUST show a "Groups" column, placed
+after the hours column and before the status column. The cell MUST show the group
+numbers (`Grupo.NumeroGrupo`) of the Asignatura's active groups: distinct values,
+sorted ascending, joined with ", " (for example `1, 2`). Inactive groups MUST NOT
+be shown. When the Asignatura has no active group the cell MUST show a single
+hyphen `-`. The value MUST come from the same list query as an aggregated
+subquery column, with no extra query per row, and MUST NOT change the scope
+predicate, the count query, paging, search or ordering. Search MUST NOT match on
+group numbers. The Asignatura edit page and the Grupos list are unchanged.
+
+#### Scenario: Several active groups, sorted and distinct
+
+- GIVEN an Asignatura with active groups numbered "2", "1" and "2" (two periods)
+- WHEN the Asignaturas list is opened
+- THEN its Groups cell shows `1, 2`
+
+#### Scenario: Inactive groups are excluded
+
+- GIVEN an Asignatura with one active group "1" and one inactive group "2"
+- WHEN the Asignaturas list is opened
+- THEN its Groups cell shows `1`
+
+#### Scenario: No active group
+
+- GIVEN an Asignatura with no groups, or only inactive ones
+- WHEN the Asignaturas list is opened
+- THEN its Groups cell shows `-`
+
+#### Scenario: Scope is unchanged
+
+- GIVEN any actor allowed to open the list
+- WHEN the list is read
+- THEN the rows, the total and the pages are exactly those of CM-SCOPE-1; the
+  Groups column adds no row and removes none
+
+#### Scenario: Search does not match group numbers
+
+- GIVEN an Asignatura whose only active group is numbered "7"
+- WHEN the list is searched for "7" and no Codigo or Nombre contains "7"
+- THEN that Asignatura is not returned
 
 ### Requirement: CM-GRP-1 Grupo fields and validation
 
@@ -479,6 +553,10 @@ origin `manual`. Messages MUST say what is wrong and what to do.
 - WHEN a create with the same triple is submitted and the existing Grupo is
   active
 - THEN it is refused as a duplicate
+- AND (Amendment 2026-10-09) the refusal is a field-level error on the group
+  number field that names the whole natural key (Asignatura, period and
+  number): "A group with this period and number already exists for the selected
+  subject." It is not a form-level panel
 
 #### Scenario: Match with an inactive Grupo
 
@@ -486,6 +564,10 @@ origin `manual`. Messages MUST say what is wrong and what to do.
 - WHEN a create with the same triple is submitted
 - THEN it is refused with a message pointing to reactivation, and the existing
   row stays inactive
+- AND (Amendment 2026-10-09) that message is the field-level error on the group
+  number field: "A group with this period and number already exists for the
+  selected subject but is inactive. Reactivate it instead of creating it
+  again."
 
 #### Scenario: Same number elsewhere is allowed
 
@@ -718,7 +800,8 @@ record exists (CM-SCOPE-1). The parameter is a convenience, never a trust input:
 the create action MUST keep validating the submitted `Asignatura` server-side as
 specified in CM-GRP-1 and CM-SCOPE-1, and its outcome and redirect are
 unchanged. No write, audit row or schema change results from reading the
-parameter.
+parameter. The form MUST start clean (remount) when the validated id changes
+between two visits of the page.
 
 #### Scenario: Valid id preselects the Asignatura
 
@@ -1138,7 +1221,8 @@ owner to overrule.
   - **A-ASG7-ORDER.** Row order (period descending, group number ascending, id
     ascending) mirrors the Grupos list; the owner did not specify it. *Assumption.*
   - **A-ASG7-NOPAGE.** The section is not paged or filtered; one Asignatura has
-    few groups. The design may cap it. *Assumption.*
+    few groups. The cap is decided: `ASIGNATURA_GRUPOS_MAX = 100` (design A-AGS-1,
+    G-1). *Assumption.*
   - **A-GRP8-OPTIONS.** Preselection applies only to an Asignatura the form
     actually offers; the options list is capped (`CATALOG_OPTIONS_MAX`), so an
     otherwise valid Asignatura beyond the cap is not preselected. *Assumption.*

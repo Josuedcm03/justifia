@@ -63,6 +63,7 @@ vi.mock("@/lib/data/catalog-scope-sql", async (importActual) => {
 
 import { inscripcion } from "@/db/schema";
 import { encodeDias } from "@/lib/catalog/dias";
+import { ASIGNATURA_GRUPOS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogScope } from "@/lib/catalog/scope";
 import type { Transaction } from "@/lib/data/audit";
 import {
@@ -70,6 +71,7 @@ import {
   createGrupo,
   getGrupoById,
   listGrupos,
+  listGruposByAsignatura,
   setGrupoActivo,
   updateGrupo,
 } from "@/lib/data/grupos";
@@ -317,6 +319,96 @@ describe("listGrupos", () => {
   });
 });
 
+describe("listGruposByAsignatura", () => {
+  const rowsOf = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({ ...storedRow, id: i + 1 }));
+
+  it("filters by the bound AsignaturaId and the scope, with no status term", async () => {
+    results.push([storedRow]);
+    await listGruposByAsignatura(OWN, 5);
+    expect(statements).toHaveLength(1);
+    expect(whereOf(0)).toEqual({
+      sql: '("Grupo"."AsignaturaId" = $1 and "Asignatura"."CarreraId" = $2)',
+      params: [5, 7],
+    });
+    expect(whereOf(0).sql).not.toContain("Activo");
+  });
+
+  it("joins the asignatura and the docente and projects the list columns", async () => {
+    results.push([storedRow]);
+    await listGruposByAsignatura(ALL, 5);
+    expect(calls(0, "innerJoin")).toHaveLength(2);
+    const fields = calls(0, "select")[0].args[0] as Record<string, unknown>;
+    expect(Object.keys(fields)).toContain("dias");
+    expect(render(sql`${fields.dias}`).sql).toBe('"Grupo"."Dias"');
+  });
+
+  it("orders by period descending, number ascending, id ascending", async () => {
+    results.push([storedRow]);
+    await listGruposByAsignatura(ALL, 5);
+    const order = (calls(0, "orderBy")[0].args as SQL[]).map(
+      (part) => render(part).sql,
+    );
+    expect(order).toEqual([
+      '"Grupo"."Periodo" desc',
+      '"Grupo"."NumeroGrupo" asc',
+      '"Grupo"."Id" asc',
+    ]);
+  });
+
+  it("reads one row past the cap", async () => {
+    results.push([]);
+    await listGruposByAsignatura(ALL, 5);
+    expect(calls(0, "limit")[0].args).toEqual([ASIGNATURA_GRUPOS_MAX + 1]);
+  });
+
+  it("answers the first MAX rows and truncated when MAX + 1 come back", async () => {
+    results.push(rowsOf(ASIGNATURA_GRUPOS_MAX + 1));
+    const result = await listGruposByAsignatura(ALL, 5);
+    expect(result.truncated).toBe(true);
+    expect(result.degraded).toBe(false);
+    expect(result.data).toHaveLength(ASIGNATURA_GRUPOS_MAX);
+    expect(result.data.at(-1)?.id).toBe(ASIGNATURA_GRUPOS_MAX);
+  });
+
+  it("is not truncated with exactly MAX rows", async () => {
+    results.push(rowsOf(ASIGNATURA_GRUPOS_MAX));
+    const result = await listGruposByAsignatura(ALL, 5);
+    expect(result.truncated).toBe(false);
+    expect(result.data).toHaveLength(ASIGNATURA_GRUPOS_MAX);
+  });
+
+  it("decodes the days in week order and never leaks the mask", async () => {
+    results.push([storedRow, { ...storedRow, id: 12, dias: 0 }]);
+    const { data } = await listGruposByAsignatura(ALL, 5);
+    expect(data).toEqual([item, { ...item, id: 12, dias: [] }]);
+  });
+
+  it("degrades to an empty, non-truncated result when the database throws", async () => {
+    failure = new Error("connection refused");
+    expect(await listGruposByAsignatura(OWN, 5)).toEqual({
+      data: [],
+      truncated: false,
+      degraded: true,
+    });
+  });
+
+  it("degrades instead of leaking a corrupt mask", async () => {
+    results.push([{ ...storedRow, dias: 128 }]);
+    expect(await listGruposByAsignatura(ALL, 5)).toEqual({
+      data: [],
+      truncated: false,
+      degraded: true,
+    });
+  });
+
+  it("matches nothing for the none scope", async () => {
+    results.push([]);
+    await listGruposByAsignatura(NONE, 5);
+    expect(whereOf(0).sql).toContain("false");
+  });
+});
+
 describe("getGrupoById", () => {
   it("carries the id and the scope in one WHERE, through the Asignatura", async () => {
     results.push([storedRow]);
@@ -387,8 +479,14 @@ describe("scope sentinel: every Grupo read carries the scope predicate", () => {
     expect(whereOf(0).sql).toContain("SCOPE_SENTINEL");
   });
 
+  it("listGruposByAsignatura", async () => {
+    results.push([]);
+    await listGruposByAsignatura(OWN, 5);
+    expect(whereOf(0).sql).toContain("SCOPE_SENTINEL");
+  });
+
   it("every statement issued has a where, and every where has the sentinel", async () => {
-    results.push([{ count: 0 }], [], []);
+    results.push([{ count: 0 }], [], [], []);
     await listGrupos({
       scope: OWN,
       status: "active",
@@ -397,6 +495,7 @@ describe("scope sentinel: every Grupo read carries the scope predicate", () => {
       pageSize: 10,
     });
     await getGrupoById(OWN, 1);
+    await listGruposByAsignatura(OWN, 5);
     for (let i = 0; i < statements.length; i += 1) {
       expect(calls(i, "where")).toHaveLength(1);
       expect(whereOf(i).sql).toContain("SCOPE_SENTINEL");

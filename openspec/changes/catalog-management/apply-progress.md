@@ -1839,3 +1839,95 @@ Pieces measured above 800: Phase 7 list page piece 926 (stopped at the seam, `si
 - `COMMIT` after a caught `23505` inside `db.transaction` (5.13, A-7): whether it resolves as an implicit rollback or throws; the code returns `codigo_taken`/`grupo_taken` and audits nothing, but the driver behaviour is not proven.
 - `catalog/not-found.tsx` rendering inside the dashboard layout (6.17 manual check).
 - The combobox and checkbox behaviour in a real browser: popup positioning and width, scrolling and highlight in view, ArrowDown/Enter/Escape, focus ring and 44px targets, check-mark contrast in both themes, screen-reader announcements, the inert page behind the popup, Tab order across docente and the seven days (jsdom cannot show these; smoke 13.13).
+
+## Phase 19: Piece A, data read and new-page preselection (2026-10-09)
+
+Tasks 19.1-19.13 done; 19.14 (owner smoke) and 19.15 (owner checkpoint) stay open. No database command, no migration, no locale key.
+
+- **19.1 baseline.** `git status` was clean at the start (the Phase 14 work listed by the orchestrator was already committed), so the baseline is zero for every path of the piece. Files read: `grupos.ts` + test, `scope-inventory.test.ts`, `grupo-form.tsx` + test, `new/page.tsx` + test, `parseRecordId` (`/^[1-9][0-9]{0,14}$/`, so a long digit string is `null`), `combobox.tsx` (`defaultValue` read on the first render only, via a `useMemo` with `[]`), Next.js `page.md` (`searchParams` is a `Promise`).
+- **19.2.** Spec only: CM-ASG-7 pins the cap (100, newest first, note + link past the cap), the degraded notice (never the empty state, never fails the page), placement between the form and State, reused list copy; three scenarios added (inactive empty sentence, more than the cap, read fails); CM-GRP-8 pins the remount; `A-ASG7-NOPAGE` says the cap is decided.
+- **19.3 RED.** `grupos.test.ts`: 12 failures, `listGruposByAsignatura is not a function`. **19.4 GREEN** (`ASIGNATURA_GRUPOS_MAX`, `AsignaturaGruposResult`, the read): 111/111. `scope-inventory.test.ts` RED: the export list had `listGruposByAsignatura` and the rows did not; **19.5** row added, `npx vitest run src/lib/data` 302/302.
+- **19.6 seam measure.** Code of 19.3-19.5 (`list-params` 2, `types` 8, `grupos.ts` 34, `grupos.test.ts` 101, `scope-inventory.test` 5) = 150 changed lines; with the spec (34) 184. Far below 800: continued.
+- **19.7 harness.** `searchParams` passed through `searchParamsOf` (a thenable that records whether it was awaited); the three denial tests (denied role, anonymous, flagged) now assert it was never awaited. Mutation proof: `await searchParams` before `requireCatalogAccess` made 5 tests fail; reverted by hand edit, 22/22 again.
+- **19.8 RED.** `grupo-form.test.tsx`: 3 failures (shows the preselection in en and es, keeps an untouched preselection after `invalid`); the other new cases (ignored when not offered, editable, changed selection kept, edit mode ignores) pass by design as guards. **19.9 GREEN**: 40/40.
+- **19.10 RED.** `new/page.test.tsx`: 2 failures (valid id not handed over, remount by `key`); the ignored rows (`abc`, `0`, `-1`, `1.5`, empty, repeated, unknown, inactive, 400-digit string, foreign Carrera for `coordinacion`) compare props, read calls and markup with the no-parameter render and pass by design. **19.11 GREEN**: `parseRecordId` after `listDocenteOptions`, membership in the loaded options, `key={preselected ?? "none"}`; 35/35.
+- **19.12 measure.** `git diff --numstat` (added/deleted): spec 29/5, `grupo-form.test` 91/0, `grupo-form` 9/0, `new/page.test` 170/18, `new/page` 19/1, `list-params` 2/0, `types` 8/0, `grupos.test` 100/1, `grupos.ts` 34/0, `scope-inventory.test` 5/0. Total 467 added + 25 deleted = **492 changed lines** (no untracked file; `tasks.md` ticks excluded). Under 800.
+- **19.13 V.** `npm test`: 99 files, 2302 tests, all passed. `npm run typecheck` clean. `npm run build` ok (`/catalog/grupos/new` is dynamic). eslint on the 9 touched code files clean. No `next dev` on port 3100. `grupo-form.test.tsx` + `new/page.test.tsx` three times: 75/75 each. Guards, structure, audit-leak, parity and scope-inventory suites green and unmodified (only the inventory test gained its row, as 19.5 asks).
+- **Deviations.** None from the design. The harness helper also adds `defaultAsignaturaId` to the local `FormProps` type of the page test. `new/page.test.tsx` was formatted with prettier (touched file only).
+- **Not verified here.** The real-browser behaviour of the preselected combobox (19.14 owner smoke).
+
+## Phase 20: Piece B, `DiasCell` move, Grupos section, edit page wiring, copy (2026-10-09)
+
+Tasks 20.1-20.12 done; 20.13 (owner smoke) and 20.14 (owner checkpoint) stay open. No database command, no migration, no Server Action.
+
+- **20.1 baseline.** Piece A is uncommitted in the tree but touches none of the Phase 20 paths: `git diff --numstat` showed no entry for `grupos/page.tsx`, `asignaturas/[id]/edit/page.tsx` (+test), `i18n/{es,en}.json` or `catalog-parity.test.ts`, and the two new files are untracked, so the baseline is zero for every path of piece B (the Phase 19 files are not part of this piece).
+- **20.2 pin.** `grupos/page.test.tsx` already asserted the short `aria-hidden` span, the long `sr-only` span, the muted "days not set" note, week order and both locales; nothing added. 41/41 before any edit. Mutation (short and long spans swapped in `grupos/page.tsx`): 3 failed, 38 passed; reverted by the move.
+- **20.3.** `DiasCell` moved unchanged to `catalog/dias-cell.tsx`; `grupos/page.tsx` imports it (and drops the now unused `DiaSemana` import). `grupos/page.test.tsx` not edited: 41/41; `guards`, `current-marker-usage` and parity suites green.
+- **20.4 RED.** `catalog-parity.test.ts`: 10 failures (nine keys absent; placeholders; translator). The existing "carries exactly the list keys" filter for `catalog.asignaturas` gained `grupos` in its excluded prefixes, because the nine keys now live under that section.
+- **20.5 GREEN.** Nine `catalog.asignaturas.grupos.*` keys per locale (table below). Parity 160+ green. **Seam measure** (20.3-20.5): i18n 22, `dias-cell.tsx` 28, `grupos/page.tsx` 29, parity test 84+1 = 164 changed lines. Far below 800; continued.
+- **20.6 harness.** `vi.mock("@/lib/data/grupos")` with `listGruposByAsignatura` (`gruposMock`, default `{ data: [], truncated: false, degraded: false }`, reset in `beforeEach`). The mutation proof could not fail at that point (no code read the mock yet; the page tests were green before and after the harness edit, 42/42). Proven after 20.10 instead: with the mock pointed at a rejected promise 20 tests failed, 41 passed; reverted, 61/61.
+- **20.7 / 20.8 RED.** `asignaturas/[id]/edit/page.test.tsx`: 19 failures (section absent: rows, links, scope per role, placement, one Add link for 12 and 345, empty states, inactive with and without rows, Spanish, degraded active and inactive, cap note and link, link injection with `A&B C`, no-cap triangulation, heading/marker structure, source scan). The "never reads" cases (malformed ids, missing, foreign, no Carrera, denied roles) pass by design as guards: they pin that the read stays behind the record lookup.
+- **20.9 / 20.10 GREEN.** `asignaturas/asignatura-grupos-section.tsx` (synchronous, no translator, no data or actions import, no marker) and the wiring in `[id]/edit/page.tsx` (read after `getAsignaturaById` answered a record; section between the form and State). Edit page test 61/61; `catalog` + `i18n` suites 954/954.
+- **20.11 measure** (`git diff --numstat` added/deleted, untracked by `rg -c ""`, prettier applied, the tests trimmed once to stay under 800): `i18n/en.json` 11, `i18n/es.json` 11, `asignaturas/[id]/edit/page.test.tsx` 418, `asignaturas/[id]/edit/page.tsx` 46, `grupos/page.tsx` 1+28, `catalog-parity.test.ts` 68+1, `dias-cell.tsx` 28 (new), `asignatura-grupos-section.tsx` 185 (new). Total **797 changed lines**; `tasks.md` ticks and this file excluded. A first pass measured 820, so one parity test (hint and degraded wording regexes) and a Spanish column-header assertion were dropped to fit.
+- **20.12 V.** `npm test`: 99 files, 2337 tests, all passed. `npm run typecheck` clean. `npm run build` ok; it lists `/catalog/asignaturas/[id]/edit` and `/catalog/grupos/new` (both dynamic). No `next dev` on port 3100. eslint on the 6 touched code files clean. Edit page + Grupos list suites three times: 102/102 each. `guards`, `current-marker-usage`, `catalog-structure`, `audit-leak`, `catalog-parity` green; `grupos/actions.test.ts` and `catalog-scope-sql.test.ts` untouched. `git status` shows nothing under `drizzle/`, `src/db`, `src/lib/import`, `src/lib/audit` and no `actions.ts`.
+- **Copy (`catalog.asignaturas.grupos.*`).** title: Grupos / Groups; add: Agregar grupo / Add group; empty: Esta asignatura aún no tiene grupos. / This subject has no groups yet.; inactiveHint: Para agregar un grupo, reactiva primero la asignatura en la sección Estado. / To add a group, reactivate the subject first in the Status section.; tableCaption: Grupos de {codigo} / Groups of {codigo}; editLabel: Editar grupo {periodo} {numeroGrupo} / Edit group {periodo} {numeroGrupo}; truncated: Se muestran los {max} grupos más recientes. / Showing the {max} most recent groups.; viewAll: Ver todos en Grupos / See all in Groups; degraded: No se pudieron cargar los grupos de esta asignatura. Vuelve a intentarlo en unos minutos. / Could not load the groups of this subject. Try again in a few minutes.
+- **Deviations / decisions.** (1) With `degraded: true` on an active Asignatura the single "Add group" link sits in the header (the design table leaves this cell implicit; the rule "exactly one while active" decides it). (2) An inactive Asignatura shows the reactivate hint in every state, including degraded. (3) The section receives a `labels` object plus `diaShort`/`diaLong` instead of many flat props; `catalogListHref` is called inside the section (pure helper, not a data-layer import). (4) The 20.6 mutation proof was done after 20.10 (see above).
+- **Not verified here.** Real-browser layout (six columns at 360px, R-7), the two default-variant buttons (R-6), the stale list after create (R-2): 20.13 owner smoke.
+
+## Phase 21: Grupos column on the Asignaturas list (Amendment 2026-10-09)
+
+Tasks 21.1-21.6 done; 21.7 (owner smoke) and 21.8 (owner checkpoint) stay open. No database command, no migration, no Server Action.
+
+- **21.1 baseline.** Phases 19-20 uncommitted in the tree. Baseline (added/deleted) for the touched paths: `i18n/en.json` 11/0, `i18n/es.json` 11/0, `catalog-parity.test.ts` 68/1, `catalog/types.ts` 8/0; `asignaturas.ts`, `asignaturas.test.ts`, `asignaturas/page.tsx` and `page.test.tsx` had no entry.
+- **21.2 RED.** `asignaturas.test.ts`: 2 failures (select keys lack `grupos`; the aggregate SQL renders empty). The null passthrough case passes by design.
+- **21.3 GREEN.** `listAsignaturas` selects `{ ...listColumns, grupos }` where `grupos` is `(select string_agg(distinct "Grupo"."NumeroGrupo", ', ' order by "Grupo"."NumeroGrupo") from "Grupo" where "Grupo"."AsignaturaId" = "Asignatura"."Id" and "Grupo"."Activo")`. `listColumns` is NOT changed, so `getAsignaturaById` is untouched; `types.ts` gets a private `AsignaturaBase`, `AsignaturaListItem = Base & { grupos: string | null }`, `AsignaturaDetail = Base & { gruposActivos }` (the detail no longer inherits `grupos`). 83/83 with `scope-inventory`.
+- **21.4 RED.** `page.test.tsx` 2 failures (column order and cells; Spanish) and `catalog-parity.test.ts` 2 failures (list key set).
+- **21.5 GREEN.** Cell `a.grupos || "-"` between hours and status; `catalog.asignaturas.columns.groups` = "Grupos" / "Groups". 194/194 on the two files.
+- **21.6 V.** `npm test`: 99 files, 2341 tests, all passed (was 2337). `npm run typecheck` clean. `npm run build` ok. eslint and prettier clean on the touched code files. No `next dev` interference (build ran).
+- **Measure** (delta against the baseline above): `en.json` 1, `es.json` 1, `catalog-parity.test.ts` 1, `types.ts` 7 (5 added, 2 deleted), `asignaturas.ts` 8, `asignaturas.test.ts` 19, `page.tsx` 6, `page.test.tsx` 53. Total **96 changed lines**; spec and `tasks.md` excluded.
+- **Decision 3.** The existing empty-cell pattern (`DiasCell`) is a visible muted note, not a hyphen, so no accessible pattern applies; the plain `-` is rendered and no extra copy key was added.
+- **Deviations.** None. Note: `NumeroGrupo` is `varchar(12)`, so the order is text order ("10" sorts before "2"); recorded as an owner checkpoint point.
+
+## Phase 22: duplicate refusals name the field (Amendment 2026-10-09)
+
+Tasks 22.1-22.9 done; 22.10 (owner smoke) and 22.11 (owner checkpoint) stay open. No database command, no migration, no data-layer, audit or import change.
+
+- **22.1 baseline.** Phases 19-21 uncommitted. `git diff --numstat` (added/deleted) before this phase: total 1246/82; touched paths: `i18n/en.json` 12/0, `i18n/es.json` 12/0, `catalog-parity.test.ts` 69/1; both `actions.ts`, both `actions.test.ts` had no entry.
+- **Cause.** `createAsignaturaAction` (`codigo_taken`) and `createGrupoAction` (`grupo_taken`) answered `{ kind: "error" }` with the generic `shared.refusals.duplicate*` keys, a form-level panel naming no field.
+- **22.2 / 22.4 / 22.7 RED.** 20 failures across the three files: both action suites (`codigo_taken` x4, `grupo_taken` x2: still `kind: "error"`), parity (field-error key set, wording, generic keys still present, source scans). **22.3 / 22.5 / 22.8 GREEN**: action answers and four locale keys; the three files plus `catalog`, `i18n` and `validations` suites 1094/1094.
+- **Answers.** Asignatura create: `{ kind: "invalid", fieldErrors: { codigo } }`, `shared.fieldErrors.codigo.takenInactive` only when `inScope && !activo`, otherwise `codigo.taken` (the CM-ASG-2 scope-leak rule is unchanged; the out-of-scope active/inactive equality test passes). Grupo create: `{ kind: "invalid", fieldErrors: { numeroGrupo } }`, `numGrupo.taken` / `numGrupo.takenInactive`. The grupo key prefix is `numGrupo` because the existing schema keys for `numeroGrupo` are `numGrupo.*`.
+- **Final keys (both locales, under `catalog.shared.fieldErrors`).** `codigo.taken`, `codigo.takenInactive`, `numGrupo.taken`, `numGrupo.takenInactive`. They are action-emitted, so `CATALOG_FIELD_ERROR_KEYS` (schema-emitted, production code) is unchanged and the parity test adds the four keys to its expected set.
+- **Generic keys.** `shared.refusals.duplicate` and `duplicateInactive` had no other use (the other `duplicate` keys are import reasons and the users section); removed from `i18n/es.json` and `i18n/en.json` and from the parity tests (now replaced by tests for the new wording and a pin that the generic keys are gone).
+- **22.6 forms.** No form change. `asignatura-form.tsx` renders `errors.codigo` and `grupo-form.tsx` renders `errors.numeroGrupo` in create mode through `FormField` (alert, `aria-invalid`, `aria-describedby`), already pinned by "shows each error under its field/control, announced and linked" and by the kept-values tests. Neither form moves focus on a validation error, so the new answer behaves identically.
+- **22.9 V.** `npm test`: 99 files, 2347 tests, all passed (was 2341; +6 parity cases net). `npm run typecheck` clean. `npm run build` ok. prettier and eslint clean on the touched code files. `audit-leak`, `guards`, `current-marker-usage`, `catalog-structure` and `scope-inventory` green and untouched.
+- **Measure** (delta against the baseline): `en.json` 10, `es.json` 10, `asignaturas/actions.ts` 15, `grupos/actions.ts` 17, `asignaturas/actions.test.ts` 9, `grupos/actions.test.ts` 6, `catalog-parity.test.ts` 62. Total **129 changed lines**; spec and `tasks.md` excluded.
+- **Deviations.** None.
+
+## Orchestrator record: owner smoke evidence on `rehearsal-0006` (2026-10-09)
+
+Read-only queries on the Neon branch `rehearsal-0006` after the owner's manual
+smoke as `jdkno` (secretaria). Audit events 8 to 17, every one by `jdkno`, every
+payload with field names only:
+
+| Event | Action | Entity | `campos` |
+| --- | --- | --- | --- |
+| 8 | `grupo.creado` | Grupo 11 (A001, 2026-S2, 8, Dias 5) | all create fields |
+| 9 | `asignatura.creada` | Asignatura 10 (A005) | all create fields |
+| 10 | `grupo.creado` | Grupo 12 (A005, 2026-S1, 19) | all create fields |
+| 11 | `grupo.desactivado` | Grupo 12 | `activo` |
+| 12 | `grupo.reactivado` | Grupo 12 | `activo` |
+| 13 | `grupo.actualizado` | Grupo 12 | `dias` |
+| 14 | `catalogo.importacion.aplicada` | workbook `886fe443…` | 2 groups unchanged, 2 manual groups deactivated (11, 12) |
+| 15 | `asignatura.actualizada` | Asignatura 1 (A001) | `horasTotales` (64 to 24) |
+| 16 | `asignatura.desactivada` | Asignatura 2 (A002, no active group) | `activo` |
+| 17 | `asignatura.reactivada` | Asignatura 2 | `activo` |
+
+The owner also reported seeing the duplicate-code message under the Código field
+(Phase 22).
+
+Not evidenced by the database, so no owner task was ticked by the orchestrator:
+the `coordinacion` role (no such account exists), refusals (they write no audit
+row: deactivation with active groups, duplicate Grupo, inactive edit, no-op
+edit), an import that changes or keeps stored days, the `en` locale, and every
+visual check. Tasks 9.12, 13.13, 14.10, 15.6, 17.30, 19.14, 20.13, 21.7 and 22.10
+stay open until the owner accepts them.

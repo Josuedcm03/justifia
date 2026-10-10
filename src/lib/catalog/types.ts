@@ -22,7 +22,7 @@ export type CatalogListResult<T> = {
   degraded: boolean;
 };
 
-export type AsignaturaListItem = {
+type AsignaturaBase = {
   id: number;
   codigo: string;
   nombre: string;
@@ -32,7 +32,10 @@ export type AsignaturaListItem = {
   activo: boolean;
 };
 
-export type AsignaturaDetail = AsignaturaListItem & { gruposActivos: number };
+/** `grupos`: the numbers of the active groups ("1, 2"), `null` when none. */
+export type AsignaturaListItem = AsignaturaBase & { grupos: string | null };
+
+export type AsignaturaDetail = AsignaturaBase & { gruposActivos: number };
 
 /** One docente in the read-only Docentes list. No credential, `Cif` or phone. */
 export type DocenteListItem = {
@@ -58,6 +61,14 @@ export type GrupoListItem = {
   activo: boolean;
   origen: GrupoOrigen;
   dias: readonly DiaSemana[];
+};
+
+/** The Grupos of one Asignatura, cut at `ASIGNATURA_GRUPOS_MAX`. `truncated`
+ *  means more rows exist; `degraded` means the read failed (amendment A-AGS-1). */
+export type AsignaturaGruposResult = {
+  data: GrupoListItem[];
+  truncated: boolean;
+  degraded: boolean;
 };
 
 /** Result of an Asignatura create or update. `inactive` (amendment A-1):

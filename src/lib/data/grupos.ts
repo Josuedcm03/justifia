@@ -6,8 +6,10 @@ import { db } from "@/db";
 import { asignatura, grupo, rol, usuario } from "@/db/schema";
 import { changedFields } from "@/lib/audit/diff";
 import { decodeDias, encodeDias, type DiaSemana } from "@/lib/catalog/dias";
+import { ASIGNATURA_GRUPOS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogScope } from "@/lib/catalog/scope";
 import type {
+  AsignaturaGruposResult,
   CatalogListResult,
   CatalogStatusFilter,
   GrupoActiveResult,
@@ -122,6 +124,38 @@ export async function listGrupos(p: {
       pageSize: p.pageSize,
       degraded: true,
     };
+  }
+}
+
+/**
+ * The Grupos of one Asignatura, active and inactive, newest period first. One
+ * statement reads one row past `ASIGNATURA_GRUPOS_MAX`, which tells "exactly
+ * the cap" from "more than the cap". The scope predicate is the Asignatura one.
+ * Fail-soft: the section is secondary, so a thrown error (a corrupt mask
+ * included) is an empty, degraded result instead of a failed page.
+ */
+export async function listGruposByAsignatura(
+  scope: CatalogScope,
+  asignaturaId: number,
+): Promise<AsignaturaGruposResult> {
+  try {
+    const rows = await db
+      .select(listColumns)
+      .from(grupo)
+      .innerJoin(asignatura, eq(grupo.asignaturaId, asignatura.id))
+      .innerJoin(usuario, eq(grupo.docenteId, usuario.id))
+      .where(
+        and(eq(grupo.asignaturaId, asignaturaId), asignaturaInScope(scope)),
+      )
+      .orderBy(desc(grupo.periodo), asc(grupo.numeroGrupo), asc(grupo.id))
+      .limit(ASIGNATURA_GRUPOS_MAX + 1);
+    return {
+      data: rows.slice(0, ASIGNATURA_GRUPOS_MAX).map(toItem),
+      truncated: rows.length > ASIGNATURA_GRUPOS_MAX,
+      degraded: false,
+    };
+  } catch {
+    return { data: [], truncated: false, degraded: true };
   }
 }
 

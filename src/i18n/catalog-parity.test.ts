@@ -317,13 +317,24 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
 describe("catalog parity (CM-I18N-1: shared catalog copy)", () => {
   const SHARED = "catalog.shared";
 
+  // Amendment 2026-10-09: the create actions answer a duplicate as a field
+  // error, so these four keys are emitted by the actions, not by the schemas.
+  const DUPLICATE_FIELD_ERRORS = [
+    "codigo.taken",
+    "codigo.takenInactive",
+    "numGrupo.taken",
+    "numGrupo.takenInactive",
+  ];
+
   it.each(["es", "en"] as const)(
-    "%s fieldErrors holds exactly the keys the manual schemas can emit",
+    "%s fieldErrors holds exactly the keys the manual schemas and the duplicate refusals can emit",
     (locale) => {
       const messages = locale === "es" ? esMessages : enMessages;
       const keys = leafPaths(resolve(messages, `${SHARED}.fieldErrors`));
 
-      expect(keys.sort()).toEqual([...CATALOG_FIELD_ERROR_KEYS].sort());
+      expect(keys.sort()).toEqual(
+        [...CATALOG_FIELD_ERROR_KEYS, ...DUPLICATE_FIELD_ERRORS].sort(),
+      );
     },
   );
 
@@ -382,22 +393,45 @@ describe("catalog parity (CM-I18N-1: shared catalog copy)", () => {
   );
 
   it.each([
-    ["es", /inactivo/i, /reactívalo/i],
-    ["en", /inactive/i, /reactivate/i],
+    ["es", "codigo", /inactiva/i, /reactívala/i],
+    ["en", "codigo", /inactive/i, /reactivate/i],
+    ["es", "numGrupo", /inactivo/i, /reactívalo/i],
+    ["en", "numGrupo", /inactive/i, /reactivate/i],
   ] as const)(
-    "%s duplicate-of-inactive says it exists inactive and to reactivate it",
-    (locale, inactive, reactivate) => {
-      const message = render(locale, "refusals.duplicateInactive");
+    "%s duplicate-of-inactive %s says it exists inactive and to reactivate it",
+    (locale, field, inactive, reactivate) => {
+      const message = render(locale, `fieldErrors.${field}.takenInactive`);
       expect(message).toMatch(inactive);
       expect(message).toMatch(reactivate);
     },
   );
 
+  it.each([
+    ["es", "codigo", /asignatura.*código/i],
+    ["en", "codigo", /subject.*code/i],
+    ["es", "numGrupo", /grupo.*período.*número.*asignatura/i],
+    ["en", "numGrupo", /group.*period.*number.*subject/i],
+  ] as const)(
+    "%s duplicate %s names the conflicting key and not the state, carrera or any value",
+    (locale, field, key) => {
+      for (const variant of ["taken", "takenInactive"]) {
+        expect(render(locale, `fieldErrors.${field}.${variant}`)).toMatch(key);
+      }
+      const message = render(locale, `fieldErrors.${field}.taken`);
+      expect(message).not.toMatch(/reactiv|inactiv|carrera|career/i);
+    },
+  );
+
   it.each(["es", "en"] as const)(
-    "%s generic duplicate does not mention reactivation, state or carrera",
+    "%s no longer carries the generic form-level duplicate refusals",
     (locale) => {
-      const message = render(locale, "refusals.duplicate");
-      expect(message).not.toMatch(/reactiv|inactiv|activ|carrera|career/i);
+      const messages = locale === "es" ? esMessages : enMessages;
+      const refusals = resolve(messages, `${SHARED}.refusals`) as Record<
+        string,
+        unknown
+      >;
+      expect(refusals).not.toHaveProperty("duplicate");
+      expect(refusals).not.toHaveProperty("duplicateInactive");
     },
   );
 
@@ -495,6 +529,7 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
     "columns.name",
     "columns.career",
     "columns.hours",
+    "columns.groups",
     "columns.status",
     "columns.actions",
     "edit",
@@ -523,7 +558,8 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
       expect(
         leafPaths(resolve(messages, "catalog.asignaturas"))
           .filter(
-            (path) => !/^(errors|form|page|breadcrumb|state)\./.test(path),
+            (path) =>
+              !/^(errors|form|page|breadcrumb|state|grupos)\./.test(path),
           )
           .sort(),
       ).toEqual([...LIST_KEYS].sort());
@@ -565,6 +601,72 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
   );
 });
 
+describe("catalog parity (CM-I18N-1, CM-ASG-7: Grupos section copy of the Asignatura edit page)", () => {
+  const GRUPOS = "catalog.asignaturas.grupos";
+  const KEYS = [
+    "title",
+    "add",
+    "empty",
+    "inactiveHint",
+    "tableCaption",
+    "editLabel",
+    "truncated",
+    "viewAll",
+    "degraded",
+  ];
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  it.each(["es", "en"] as const)("%s holds exactly the nine keys", (locale) => {
+    expect(leafPaths(resolve(messagesOf(locale), GRUPOS)).sort()).toEqual(
+      [...KEYS].sort(),
+    );
+  });
+
+  it("has identical key sets and no empty value in both locales", () => {
+    expect(leafPaths(resolve(esMessages, GRUPOS)).sort()).toEqual(
+      leafPaths(resolve(enMessages, GRUPOS)).sort(),
+    );
+    for (const locale of ["es", "en"] as const) {
+      const values = leafValues(resolve(messagesOf(locale), GRUPOS));
+      expect(values).toHaveLength(KEYS.length);
+      for (const value of values) expect(value.trim()).not.toBe("");
+    }
+  });
+
+  it.each([
+    ["tableCaption", ["{codigo}"]],
+    ["editLabel", ["{periodo}", "{numeroGrupo}"]],
+    ["truncated", ["{max}"]],
+  ] as const)("%s carries its placeholders in both locales", (key, holes) => {
+    for (const locale of ["es", "en"] as const) {
+      const text = resolve(messagesOf(locale), `${GRUPOS}.${key}`) as string;
+      for (const hole of holes)
+        expect(text, `${locale} ${key}`).toContain(hole);
+    }
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s renders the parameterised keys through the real translator",
+    (locale) => {
+      const t = createTranslator({
+        locale,
+        messages: messagesOf(locale),
+        namespace: GRUPOS as "catalog.asignaturas.grupos",
+        onError: (error: Error) => {
+          throw error;
+        },
+      });
+
+      expect(t("tableCaption", { codigo: "MAT101" })).toContain("MAT101");
+      const edit = t("editLabel", { periodo: "2026-S1", numeroGrupo: "G7" });
+      expect(edit).toContain("2026-S1");
+      expect(edit).toContain("G7");
+      expect(t("truncated", { max: 100 })).toContain("100");
+    },
+  );
+});
+
 describe("catalog parity (CM-I18N-1: Asignatura action copy)", () => {
   // The test translator of `actions.test.ts` echoes keys, so only a scan of the
   // action source can prove every message key it chooses exists in the catalogs.
@@ -586,8 +688,8 @@ describe("catalog parity (CM-I18N-1: Asignatura action copy)", () => {
         "asignaturas.errors.unexpected",
         "shared.noCarrera.message",
         "shared.refusals.activeGrupos",
-        "shared.refusals.duplicate",
-        "shared.refusals.duplicateInactive",
+        "shared.fieldErrors.codigo.taken",
+        "shared.fieldErrors.codigo.takenInactive",
         "shared.fieldErrors.carreraId.invalid",
       ]),
     );
@@ -637,8 +739,8 @@ describe("catalog parity (CM-I18N-1: Grupo action copy)", () => {
       expect.arrayContaining([
         "grupos.errors.unexpected",
         "shared.noCarrera.message",
-        "shared.refusals.duplicate",
-        "shared.refusals.duplicateInactive",
+        "shared.fieldErrors.numGrupo.taken",
+        "shared.fieldErrors.numGrupo.takenInactive",
         "shared.refusals.parentInactive.asignatura",
         "shared.refusals.parentInactive.docente",
         "shared.fieldErrors.asignaturaId.invalid",

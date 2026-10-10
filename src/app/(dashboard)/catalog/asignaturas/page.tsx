@@ -118,6 +118,12 @@ export default async function AsignaturasPage({
       className: "tabular-nums",
     },
     {
+      key: "groups",
+      header: t("columns.groups"),
+      // Null (no active group) and an empty string both read as a hyphen.
+      cell: (a) => a.grupos || "-",
+    },
+    {
       key: "status",
       header: t("columns.status"),
       cell: (a) => (

@@ -269,7 +269,9 @@
       "fieldErrors": {
         "codigo": {
           "required": "The code is required",
-          "tooLong": "The code exceeds 32 characters"
+          "tooLong": "The code exceeds 32 characters",
+          "taken": "A subject with this code already exists.",
+          "takenInactive": "A subject with this code already exists but is inactive. Reactivate it instead of creating it again."
         },
         "nombre": {
           "required": "The name is required",
@@ -296,7 +298,9 @@
         },
         "numGrupo": {
           "required": "The group number is required",
-          "tooLong": "The group number exceeds 12 characters"
+          "tooLong": "The group number exceeds 12 characters",
+          "taken": "A group with this period and number already exists for the selected subject.",
+          "takenInactive": "A group with this period and number already exists for the selected subject but is inactive. Reactivate it instead of creating it again."
         },
         "dias": {
           "required": "Select at least one day of the week on which the group meets",
@@ -311,8 +315,6 @@
       "importWins": "The next catalog import can replace these values.",
       "refusals": {
         "activeGrupos": "{count, plural, one {Cannot deactivate: this subject has # active group. Deactivate it first and try again.} other {Cannot deactivate: this subject has # active groups. Deactivate them first and try again.}}",
-        "duplicate": "A record with these values already exists. Check the values and try again.",
-        "duplicateInactive": "A record with these values already exists but is inactive. Reactivate it instead of creating it again.",
         "parentInactive": {
           "asignatura": "The group cannot be reactivated because the subject {parent} is inactive. Reactivate the subject first and try again.",
           "docente": "The group cannot be reactivated because the teacher {parent} is not active or does not have the teacher role. Fix the teacher first and try again."
@@ -331,6 +333,7 @@
         "name": "Name",
         "career": "Career",
         "hours": "Hours",
+        "groups": "Groups",
         "status": "Status",
         "actions": "Actions"
       },
@@ -386,6 +389,17 @@
       "state": {
         "title": "Status",
         "activeGroups": "{count, plural, =0 {This subject has no active groups.} one {This subject has # active group. Deactivate it before you can deactivate the subject.} other {This subject has # active groups. Deactivate them before you can deactivate the subject.}}"
+      },
+      "grupos": {
+        "title": "Groups",
+        "add": "Add group",
+        "empty": "This subject has no groups yet.",
+        "inactiveHint": "To add a group, reactivate the subject first in the Status section.",
+        "tableCaption": "Groups of {codigo}",
+        "editLabel": "Edit group {periodo} {numeroGrupo}",
+        "truncated": "Showing the {max} most recent groups.",
+        "viewAll": "See all in Groups",
+        "degraded": "Could not load the groups of this subject. Try again in a few minutes."
       }
     },
     "grupos": {

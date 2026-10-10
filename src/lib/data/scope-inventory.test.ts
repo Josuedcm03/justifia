@@ -73,6 +73,11 @@ const MODULES: { source: string; tests: string; rows: Row[] }[] = [
       },
       { fn: "getGrupoById", describe: GRUPO_READS, test: "getGrupoById" },
       {
+        fn: "listGruposByAsignatura",
+        describe: GRUPO_READS,
+        test: "listGruposByAsignatura",
+      },
+      {
         fn: "createGrupo",
         describe: "createGrupo",
         test: "the Asignatura read carries the scope predicate (sentinel)",

@@ -354,13 +354,13 @@ describe("createGrupoAction", () => {
     expect(JSON.stringify(events)).not.toMatch(/lunes|miercoles|Mi[eé]rcoles/i);
   });
 
-  const generic = { kind: "error", message: "shared.refusals.duplicate" };
+  // Amendment 2026-10-09: the refusal is a field error on `numeroGrupo`.
   it.each([
-    ["active", { activo: true }, generic],
+    ["active", { activo: true }, fieldError("numeroGrupo", "numGrupo.taken")],
     [
       "inactive (points to reactivation)",
       { activo: false },
-      { kind: "error", message: "shared.refusals.duplicateInactive" },
+      fieldError("numeroGrupo", "numGrupo.takenInactive"),
     ],
   ])("grupo_taken (%s) -> %j", async (_n, taken, expected) => {
     m.create.mockResolvedValue({ kind: "grupo_taken", ...taken });

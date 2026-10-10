@@ -76,7 +76,13 @@ export async function listAsignaturas(p: {
       .where(where);
     const page = clampPage(p.page, count, p.pageSize);
     const data = await db
-      .select(listColumns)
+      .select({
+        ...listColumns,
+        // One aggregated subquery column: no extra query per row.
+        grupos: sql<
+          string | null
+        >`(select string_agg(distinct ${grupo.numeroGrupo}, ', ' order by ${grupo.numeroGrupo}) from ${grupo} where ${grupo.asignaturaId} = ${asignatura.id} and ${grupo.activo})`,
+      })
       .from(asignatura)
       .innerJoin(carrera, eq(asignatura.carreraId, carrera.id))
       .where(where)

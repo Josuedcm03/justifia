@@ -19,6 +19,8 @@ import { USERS_PAGE_SIZE, USERS_SEARCH_MAX } from "@/lib/users/list-params";
 export const CATALOG_PAGE_SIZE = USERS_PAGE_SIZE;
 /** Cap on the rows a select or combobox loads (design Decision 8). */
 export const CATALOG_OPTIONS_MAX = 2000;
+/** Cap on the Grupos listed on the Asignatura edit page (amendment A-AGS-1). */
+export const ASIGNATURA_GRUPOS_MAX = 100;
 
 const DEFAULT_STATUS: CatalogStatusFilter = "active";
 

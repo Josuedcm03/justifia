@@ -78,13 +78,16 @@ export async function createAsignaturaAction(
       break;
     case "codigo_taken":
       // Only a record the caller may see can be named as inactive (CM-ASG-2).
+      // The refusal is a field error, so it appears under Codigo.
       return {
-        kind: "error",
-        message: t(
-          result.inScope && !result.activo
-            ? "shared.refusals.duplicateInactive"
-            : "shared.refusals.duplicate",
-        ),
+        kind: "invalid",
+        fieldErrors: {
+          codigo: t(
+            result.inScope && !result.activo
+              ? "shared.fieldErrors.codigo.takenInactive"
+              : "shared.fieldErrors.codigo.taken",
+          ),
+        },
       };
     case "carrera_invalid":
       return {
