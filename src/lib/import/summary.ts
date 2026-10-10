@@ -13,6 +13,8 @@ export function buildImportSummary(input: ImportSummary): ImportSummary {
     counts: input.counts,
     accountsCreated: input.accountsCreated,
     accountsUpdated: input.accountsUpdated,
+    asignaturasReactivated: input.asignaturasReactivated,
+    manualGruposDeactivated: input.manualGruposDeactivated,
   };
 }
 

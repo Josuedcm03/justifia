@@ -4,9 +4,14 @@ import { eq, inArray } from "drizzle-orm";
 
 import type { db as database } from "@/db";
 import { asignatura, grupo, rol, usuario } from "@/db/schema";
-import { buildAuditEvents, type TouchedAccount } from "@/lib/audit/events";
+import {
+  asignaturaActiveChangedEvent,
+  buildAuditEvents,
+  type TouchedAccount,
+} from "@/lib/audit/events";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import { loadCatalogSnapshot } from "@/lib/data/catalog";
+import { acquireCatalogWriteLock } from "@/lib/data/catalog-write";
 import { createUsuariosBulk } from "@/lib/data/users";
 
 import { WRITE_CHUNK_ROWS } from "./limits";
@@ -86,6 +91,7 @@ async function writeAsignaturas(
         nombre: w.nombre,
         carreraId: w.carreraId,
         horasTotales: w.horasTotales,
+        ...(w.reactivated ? { activo: true } : {}),
       })
       .where(eq(asignatura.id, w.id));
   }
@@ -202,6 +208,10 @@ async function writeGrupos(
         periodo: w.periodo,
         numeroGrupo: w.numeroGrupo,
         docenteId: docenteId(w.docenteCorreo),
+        // Only a non-zero mask is named: a row without days takes the column
+        // default (drizzle renders the missing key as DEFAULT in a multi-row
+        // insert), never an explicit 0 and never another row's mask.
+        ...(w.dias ? { dias: w.dias } : {}),
       },
     ];
   });
@@ -215,6 +225,8 @@ async function writeGrupos(
       .set({
         docenteId: docenteId(w.docenteCorreo),
         ...(w.reactivated ? { activo: true } : {}),
+        // The import replaces days, it never clears them (no `dias: 0`).
+        ...(w.dias ? { dias: w.dias } : {}),
       })
       .where(eq(grupo.id, w.id));
   }
@@ -265,18 +277,38 @@ export async function applyImport(
     counts: plan.counts,
     accountsCreated,
     accountsUpdated: written.touched.length - accountsCreated,
+    asignaturasReactivated: plan.asignaturasToReactivate,
+    manualGruposDeactivated: plan.manualGruposToDeactivate,
   });
 
   // Created accounts only have an id after their INSERT ... RETURNING, so the
   // events cannot be built earlier; a rollback discards them with the rest.
-  await insertAuditEvents(
-    tx,
-    ctx.actorId,
-    buildAuditEvents(summary, written.touched),
+  const origin = {
+    origen: "importacion",
+    importacionSha256: ctx.fileSha256,
+  } as const;
+  const reactivations = asignaturas.flatMap((w) =>
+    w.kind === "update" && w.reactivated
+      ? [
+          asignaturaActiveChangedEvent({
+            asignaturaId: w.id,
+            activo: true,
+            origin,
+          }),
+        ]
+      : [],
   );
+  await insertAuditEvents(tx, ctx.actorId, [
+    ...buildAuditEvents(summary, written.touched),
+    ...reactivations,
+  ]);
 
   return { summary, credentials: written.credentials };
 }
+
+/** Re-exported so the Server Action maps a busy lock without importing the
+ *  write wrapper itself (the preview must never touch the lock). */
+export { CatalogBusyError } from "@/lib/data/catalog-write";
 
 /** The workbook no longer plans cleanly (at preview time, or by confirm time
  *  inside the transaction). Carries every row error; nothing was written. */
@@ -305,7 +337,7 @@ export type RunImportApplyInput = {
  *  1. plan against a snapshot read on `db` to learn WHICH accounts are new;
  *  2. generate + bcrypt a password for those only, OUTSIDE the transaction
  *     (~0.25 s each; keeping it out keeps the transaction short);
- *  3. open the transaction, re-read the snapshot on `tx`, plan AGAIN and apply
+ *  3. open the transaction, take the catalog write lock, re-read the snapshot on `tx`, plan AGAIN and apply
  *     that plan, so a database that changed since step 1 is never trusted.
  * Any throw rolls everything back and the caller gets no credentials.
  */
@@ -331,6 +363,9 @@ export async function runImportApply(
   }
 
   return db.transaction(async (tx) => {
+    // First statement of the transaction: serialises with manual catalog
+    // writers; a busy lock surfaces as `CatalogBusyError` (CEI-BUSY).
+    await acquireCatalogWriteLock(tx);
     const snapshot = await loadCatalogSnapshot(tx);
     const plan = planImport(parsed, snapshot);
     if (!plan.ok) throw new ImportRejectedError(plan.errors);

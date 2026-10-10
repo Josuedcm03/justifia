@@ -14,13 +14,15 @@ function ErrorsTable({ errors }: { errors: readonly RowError[] }) {
   const t = useTranslations("catalog.import");
   // A reason the catalog does not know (e.g. a default validator message)
   // falls back to the raw code rather than to a missing-message marker.
-  const reasonText = (reason: string) =>
-    t.has(`reasons.${reason}`)
-      ? t(`reasons.${reason}`, {
+  const reasonText = (error: RowError) =>
+    t.has(`reasons.${error.reason}`)
+      ? t(`reasons.${error.reason}`, {
           maxAccounts: MAX_NEW_ACCOUNTS_PER_APPLY,
           maxEvents: MAX_ACCOUNT_EVENTS_PER_APPLY,
+          // The offending token, for the reasons that name it (`dias.invalid`).
+          value: error.value ?? "",
         })
-      : reason;
+      : error.reason;
   const columns: readonly DataTableColumn<RowError>[] = [
     {
       key: "sheet",
@@ -38,7 +40,7 @@ function ErrorsTable({ errors }: { errors: readonly RowError[] }) {
     {
       key: "reason",
       header: t("errorsPanel.columns.reason"),
-      cell: (error) => reasonText(error.reason),
+      cell: (error) => reasonText(error),
     },
     {
       key: "value",
@@ -87,8 +89,8 @@ export function ImportErrors({
           tabIndex={-1}
           // Read together with the instruction when focus lands here.
           aria-describedby="import-errors-help"
-          // Clears the 56px sticky header when scrolled into view.
-          className="text-h3 focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          // Clears the 64px sticky header when scrolled into view.
+          className="text-headline focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
           {t("title", { count: errors.length })}
         </h2>

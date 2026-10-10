@@ -7,6 +7,7 @@ import {
   changePasswordAction,
   type ChangePasswordState,
 } from "@/app/change-password/actions";
+import { AuthCard } from "@/components/auth-card";
 import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,15 +26,15 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
   const describedBy = state.error ? "change-password-error" : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-h1">{t("title")}</h1>
-        <p className="text-muted-foreground max-w-prose">
+    <AuthCard className="max-w-[440px]">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-headline">{t("title")}</h1>
+        <p className="text-muted-foreground max-w-prose text-sm">
           {forced ? t("subtitleForced") : t("subtitle")}
         </p>
       </header>
 
-      <form action={formAction} className="flex flex-col gap-5">
+      <form action={formAction} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="currentPassword">{t("currentPasswordLabel")}</Label>
           <PasswordInput
@@ -65,7 +66,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
                 : "new-password-hint"
             }
           />
-          <p id="new-password-hint" className="text-muted-foreground text-sm">
+          <p id="new-password-hint" className="text-muted-foreground text-xs">
             {t("newPasswordHint")}
           </p>
         </div>
@@ -89,7 +90,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
             id="change-password-error"
             role="alert"
             aria-live="polite"
-            className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
+            className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
           >
             {state.error}
           </p>
@@ -99,6 +100,6 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
           {isPending ? t("submitting") : t("submit")}
         </Button>
       </form>
-    </div>
+    </AuthCard>
   );
 }

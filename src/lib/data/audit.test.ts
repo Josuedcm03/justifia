@@ -37,6 +37,8 @@ const summary: ImportSummary = {
   counts: { Asignatura: zero, Usuario: zero, Grupo: zero },
   accountsCreated: 0,
   accountsUpdated: 0,
+  asignaturasReactivated: 0,
+  manualGruposDeactivated: 0,
 };
 
 const accountEvents = (n: number): AuditEvent[] =>

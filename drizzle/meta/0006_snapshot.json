@@ -1,0 +1,661 @@
+{
+  "id": "1bb5c1e6-1e24-40c9-bfaa-713b4747cdce",
+  "prevId": "97be8166-a5b8-4ce5-89c1-373603135a5f",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.Asignatura": {
+      "name": "Asignatura",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Asignatura_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CarreraId": {
+          "name": "CarreraId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "HorasTotales": {
+          "name": "HorasTotales",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Asignatura_CarreraId_Carrera_Id_fk": {
+          "name": "Asignatura_CarreraId_Carrera_Id_fk",
+          "tableFrom": "Asignatura",
+          "tableTo": "Carrera",
+          "columnsFrom": [
+            "CarreraId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Asignatura_Codigo_unique": {
+          "name": "Asignatura_Codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_Asignatura_Horas": {
+          "name": "CK_Asignatura_Horas",
+          "value": "\"Asignatura\".\"HorasTotales\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.Carrera": {
+      "name": "Carrera",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Carrera_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "FacultadId": {
+          "name": "FacultadId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Carrera_FacultadId_Facultad_Id_fk": {
+          "name": "Carrera_FacultadId_Facultad_Id_fk",
+          "tableFrom": "Carrera",
+          "tableTo": "Facultad",
+          "columnsFrom": [
+            "FacultadId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Carrera_Nombre_unique": {
+          "name": "Carrera_Nombre_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Nombre"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Facultad": {
+      "name": "Facultad",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Facultad_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Siglas": {
+          "name": "Siglas",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Facultad_Nombre_unique": {
+          "name": "Facultad_Nombre_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Nombre"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Grupo": {
+      "name": "Grupo",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Grupo_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "AsignaturaId": {
+          "name": "AsignaturaId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Periodo": {
+          "name": "Periodo",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "NumeroGrupo": {
+          "name": "NumeroGrupo",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DocenteId": {
+          "name": "DocenteId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "Origen": {
+          "name": "Origen",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'importacion'"
+        },
+        "Dias": {
+          "name": "Dias",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "IX_Grupo_Docente": {
+          "name": "IX_Grupo_Docente",
+          "columns": [
+            {
+              "expression": "DocenteId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "IX_Grupo_Activo": {
+          "name": "IX_Grupo_Activo",
+          "columns": [
+            {
+              "expression": "AsignaturaId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "Periodo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"Grupo\".\"Activo\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Grupo_AsignaturaId_Asignatura_Id_fk": {
+          "name": "Grupo_AsignaturaId_Asignatura_Id_fk",
+          "tableFrom": "Grupo",
+          "tableTo": "Asignatura",
+          "columnsFrom": [
+            "AsignaturaId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Grupo_DocenteId_Usuario_Id_fk": {
+          "name": "Grupo_DocenteId_Usuario_Id_fk",
+          "tableFrom": "Grupo",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "DocenteId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Grupo_AsignaturaId_Periodo_NumeroGrupo_unique": {
+          "name": "Grupo_AsignaturaId_Periodo_NumeroGrupo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "AsignaturaId",
+            "Periodo",
+            "NumeroGrupo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_Grupo_Origen": {
+          "name": "CK_Grupo_Origen",
+          "value": "\"Grupo\".\"Origen\" in ('importacion', 'manual')"
+        },
+        "CK_Grupo_Dias": {
+          "name": "CK_Grupo_Dias",
+          "value": "\"Grupo\".\"Dias\" between 0 and 127"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.Inscripcion": {
+      "name": "Inscripcion",
+      "schema": "",
+      "columns": {
+        "EstudianteId": {
+          "name": "EstudianteId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "GrupoId": {
+          "name": "GrupoId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "IX_Inscripcion_Grupo": {
+          "name": "IX_Inscripcion_Grupo",
+          "columns": [
+            {
+              "expression": "GrupoId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Inscripcion_EstudianteId_Usuario_Id_fk": {
+          "name": "Inscripcion_EstudianteId_Usuario_Id_fk",
+          "tableFrom": "Inscripcion",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "EstudianteId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Inscripcion_GrupoId_Grupo_Id_fk": {
+          "name": "Inscripcion_GrupoId_Grupo_Id_fk",
+          "tableFrom": "Inscripcion",
+          "tableTo": "Grupo",
+          "columnsFrom": [
+            "GrupoId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "Inscripcion_EstudianteId_GrupoId_pk": {
+          "name": "Inscripcion_EstudianteId_GrupoId_pk",
+          "columns": [
+            "EstudianteId",
+            "GrupoId"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Rol": {
+      "name": "Rol",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Rol_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Rol_Codigo_unique": {
+          "name": "Rol_Codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Usuario": {
+      "name": "Usuario",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Usuario_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Login": {
+          "name": "Login",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "HashClave": {
+          "name": "HashClave",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RolId": {
+          "name": "RolId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "NombreCompleto": {
+          "name": "NombreCompleto",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Correo": {
+          "name": "Correo",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Telefono": {
+          "name": "Telefono",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Cif": {
+          "name": "Cif",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CarreraId": {
+          "name": "CarreraId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "DebeCambiarClave": {
+          "name": "DebeCambiarClave",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Usuario_RolId_Rol_Id_fk": {
+          "name": "Usuario_RolId_Rol_Id_fk",
+          "tableFrom": "Usuario",
+          "tableTo": "Rol",
+          "columnsFrom": [
+            "RolId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Usuario_CarreraId_Carrera_Id_fk": {
+          "name": "Usuario_CarreraId_Carrera_Id_fk",
+          "tableFrom": "Usuario",
+          "tableTo": "Carrera",
+          "columnsFrom": [
+            "CarreraId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Usuario_Login_unique": {
+          "name": "Usuario_Login_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Login"
+          ]
+        },
+        "Usuario_Correo_unique": {
+          "name": "Usuario_Correo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Correo"
+          ]
+        },
+        "Usuario_Cif_unique": {
+          "name": "Usuario_Cif_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Cif"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

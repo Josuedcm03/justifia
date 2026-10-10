@@ -98,6 +98,89 @@ describe("loadCatalogSnapshot (AC: snapshot includes inactive rows)", () => {
   });
 });
 
+describe("loadCatalogSnapshot projects the lifecycle columns (CEI-UPS, CEI-PREV)", () => {
+  /** Records the select list of each read, then renders it as SQL. */
+  function makeProjectingExec() {
+    const projected = new Map<string, string>();
+    const exec = {
+      select: (fields: never) => ({
+        from: (table: never) => {
+          const name = getTableName(table);
+          // Usuario is read through a join and is not asserted here.
+          if (name === "Asignatura" || name === "Grupo") {
+            projected.set(name, qb.select(fields).from(table).toSQL().sql);
+          }
+          const result = Promise.resolve([]);
+          return Object.assign(result, { innerJoin: () => result });
+        },
+      }),
+    };
+    return { exec: exec as unknown as CatalogExecutor, projected };
+  }
+
+  it("selects Asignatura.Activo and Grupo.Origen and adds no filter", async () => {
+    const { exec, projected } = makeProjectingExec();
+    await loadCatalogSnapshot(exec);
+    const asignaturaSql = projected.get("Asignatura") ?? "";
+    const grupoSql = projected.get("Grupo") ?? "";
+    // a single-table select renders its columns unqualified
+    expect(asignaturaSql).toContain('"Activo"');
+    expect(grupoSql).toContain('"Origen"');
+    // inactive rows stay visible: neither read is filtered
+    expect(asignaturaSql).not.toMatch(/\bwhere\b/i);
+    expect(grupoSql).not.toMatch(/\bwhere\b/i);
+  });
+
+  it("returns the projected values untouched, inactive and manual rows included", async () => {
+    const asignatura = {
+      id: 2,
+      codigo: "X1",
+      nombre: "N",
+      carreraId: 1,
+      horasTotales: 8,
+      activo: false,
+    };
+    const grupo = {
+      id: 1,
+      asignaturaId: 2,
+      periodo: "2026-S1",
+      numeroGrupo: "1",
+      docenteId: 3,
+      activo: true,
+      origen: "manual",
+    };
+    const { exec } = makeExec({ Asignatura: [asignatura], Grupo: [grupo] });
+    const snapshot = await loadCatalogSnapshot(exec);
+    expect(snapshot.asignaturas).toEqual([asignatura]);
+    expect(snapshot.grupos).toEqual([grupo]);
+  });
+
+  it("selects Grupo.Dias in the explicit projection, still without a filter (CEI-DIAS-3)", async () => {
+    const { exec, projected } = makeProjectingExec();
+    await loadCatalogSnapshot(exec);
+    const grupoSql = projected.get("Grupo") ?? "";
+    expect(grupoSql).toContain('"Dias"');
+    expect(grupoSql).not.toMatch(/\bwhere\b/i);
+  });
+
+  it("carries the stored day mask unchanged, an inactive row included (CEI-DIAS-3, CEI-PREV)", async () => {
+    const grupo = {
+      id: 1,
+      asignaturaId: 2,
+      periodo: "2026-S1",
+      numeroGrupo: "1",
+      docenteId: 3,
+      activo: false,
+      origen: "importacion",
+      dias: 5,
+    };
+    const { exec } = makeExec({ Grupo: [grupo] });
+    const snapshot = await loadCatalogSnapshot(exec);
+    expect(snapshot.grupos).toEqual([grupo]);
+    expect(snapshot.grupos[0].dias).toBe(5);
+  });
+});
+
 describe("active-only readers (AC: Active-only reads for downstream consumers)", () => {
   it("hasActiveEnrollment filters Activo on BOTH Inscripcion and Grupo", () => {
     const { sql, params } = buildActiveEnrollmentQuery(qb, {
@@ -125,5 +208,49 @@ describe("active-only readers (AC: Active-only reads for downstream consumers)",
     expect(params).toEqual(
       expect.arrayContaining(["C-1", "MAT-101", "2026-S1"]),
     );
+  });
+});
+
+describe("active-only readers require an active Asignatura (AC-READ, D10)", () => {
+  it("hasActiveEnrollment joins Asignatura through Grupo and requires Asignatura.Activo", () => {
+    const { sql } = buildActiveEnrollmentQuery(qb, {
+      cif: "C-1",
+      grupoId: 7,
+    }).toSQL();
+    expect(sql).toMatch(
+      /inner join "Asignatura" on "Grupo"."AsignaturaId" = "Asignatura"."Id"/,
+    );
+    expect(sql).toContain('"Asignatura"."Activo"');
+    // the older predicates stay
+    expect(sql).toContain('"Inscripcion"."Activo"');
+    expect(sql).toContain('"Grupo"."Activo"');
+    expect(sql).toContain('"Usuario"."Cif" = $');
+  });
+
+  it("listActiveGruposForEstudiante requires Asignatura.Activo next to the older predicates", () => {
+    const { sql } = buildActiveGruposForEstudianteQuery(qb, {
+      cif: "C-1",
+      codigoAsignatura: "MAT-101",
+      periodo: "2026-S1",
+    }).toSQL();
+    expect(sql).toContain('"Asignatura"."Activo"');
+    expect(sql).toContain('"Inscripcion"."Activo"');
+    expect(sql).toContain('"Grupo"."Activo"');
+    expect(sql).toContain('"Asignatura"."Codigo" = $');
+    expect(sql).not.toMatch(/limit/);
+  });
+
+  it("the Asignatura.Activo predicate sits in the WHERE clause, not only in the select list", () => {
+    for (const { sql } of [
+      buildActiveEnrollmentQuery(qb, { cif: "C-1", grupoId: 7 }).toSQL(),
+      buildActiveGruposForEstudianteQuery(qb, {
+        cif: "C-1",
+        codigoAsignatura: "MAT-101",
+        periodo: "2026-S1",
+      }).toSQL(),
+    ]) {
+      const where = sql.slice(sql.toLowerCase().indexOf(" where "));
+      expect(where).toContain('"Asignatura"."Activo"');
+    }
   });
 });

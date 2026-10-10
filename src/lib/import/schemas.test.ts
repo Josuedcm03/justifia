@@ -265,6 +265,23 @@ describe("GrupoRowSchema", () => {
     }
   });
 
+  // CEI-DIAS-1: the Dias cell is optional and opaque to the schema; the token
+  // parser in the planner owns its content.
+  it.each([["Lunes, Miércoles"], [""], ["Funday"], ["x".repeat(500)]])(
+    "keeps the Dias cell %p in the output, with no cap",
+    (dias) => {
+      const result = GrupoRowSchema.safeParse({ ...validGrupo(), Dias: dias });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.Dias).toBe(dias);
+    },
+  );
+
+  it("accepts a row with no Dias key and does not invent one", () => {
+    const result = GrupoRowSchema.safeParse(validGrupo());
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).not.toHaveProperty("Dias");
+  });
+
   it("rejects a numeric NumGrupo cell whose stringified length exceeds 12", () => {
     const result = GrupoRowSchema.safeParse({
       ...validGrupo(),

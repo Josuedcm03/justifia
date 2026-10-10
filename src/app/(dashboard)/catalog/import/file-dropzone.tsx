@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "cn";
+import { CloudUpload } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   type ChangeEvent,
@@ -120,12 +121,21 @@ export function FileDropzone({
           busy ? "cursor-default" : "cursor-pointer",
           // The page surface, not the card's: inside a card the zone reads as
           // an inset area rather than as a second white box.
-          dragging ? "border-primary bg-accent" : "border-border bg-background",
+          dragging ? "border-primary bg-accent" : "border-input bg-background",
         )}
       >
+        <div
+          aria-hidden="true"
+          className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full"
+        >
+          <CloudUpload className="size-6" />
+        </div>
         <label
           htmlFor="import-file"
-          className={cn("text-h4", busy ? "cursor-default" : "cursor-pointer")}
+          className={cn(
+            "text-title",
+            busy ? "cursor-default" : "cursor-pointer",
+          )}
         >
           {dragging ? t("dropActive") : t("dropTitle")}
         </label>
@@ -169,7 +179,7 @@ export function FileDropzone({
         <p
           id="import-error"
           role="alert"
-          className="border-destructive/30 bg-destructive/8 text-destructive max-w-prose rounded-lg border px-3 py-2 text-sm"
+          className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink max-w-prose rounded-lg border border-l-4 px-3 py-2 text-sm"
         >
           {error}
         </p>

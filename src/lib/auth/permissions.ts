@@ -55,6 +55,27 @@ export const rolesQueCreanUsuarios: RolUsuario[] =
   rolesUsuario.filter(canCreateUsers);
 
 /**
+ * Who may manage the catalog. Its own name so the catalog rule can diverge
+ * later in one place; today it is the staff set, i.e. exactly the roles for
+ * which `canCreateUsers` is true (catalog-management design decision 3).
+ */
+export function canManageCatalog(rol: RolUsuario | undefined): boolean {
+  return canCreateUsers(rol);
+}
+
+/** Derived, never hand-listed — spread into `requireRole` at every call site. */
+export const rolesQueGestionanCatalogo: RolUsuario[] =
+  rolesUsuario.filter(canManageCatalog);
+
+/**
+ * One predicate, not a list: the only role tied to a single carrera.
+ * `coordinacion` is scoped to its own carrera in the catalog.
+ */
+export function isCarreraScopedRole(rol: RolUsuario | undefined): boolean {
+  return rol === "coordinacion";
+}
+
+/**
  * WHICH USERS a viewer may see, by role CODE. Not derived from
  * `rolesAsignables`: `coordinacion` assigns only `secretaria` but sees
  * everyone. "Everyone" is written out rather than signalled, so the query

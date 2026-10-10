@@ -4,8 +4,11 @@ import {
   canAssignRole,
   canCreateUsers,
   canImportCatalog,
+  canManageCatalog,
+  isCarreraScopedRole,
   rolesAsignablesPor,
   rolesQueCreanUsuarios,
+  rolesQueGestionanCatalogo,
   rolesVisibles,
   rolesVisiblesPara,
 } from "@/lib/auth/permissions";
@@ -138,5 +141,46 @@ describe("viewing right matches module access", () => {
       (rol) => rolesVisiblesPara(rol).length > 0,
     );
     expect([...canSee].sort()).toEqual([...rolesQueCreanUsuarios].sort());
+  });
+});
+
+describe("canManageCatalog (CM-ACC-1: role matrix)", () => {
+  it.each(["administrador", "coordinacion", "secretaria"] as const)(
+    "allows %s",
+    (rol) => {
+      expect(canManageCatalog(rol)).toBe(true);
+    },
+  );
+
+  it.each(["docente", "estudiante"] as const)("denies %s", (rol) => {
+    expect(canManageCatalog(rol)).toBe(false);
+  });
+
+  it("is derived from canCreateUsers for every role, not a second list", () => {
+    for (const rol of rolesUsuario) {
+      expect(canManageCatalog(rol)).toBe(canCreateUsers(rol));
+    }
+  });
+
+  it("denies a missing role", () => {
+    expect(canManageCatalog(undefined)).toBe(false);
+  });
+});
+
+describe("rolesQueGestionanCatalogo", () => {
+  it("equals rolesUsuario filtered by canManageCatalog", () => {
+    expect(rolesQueGestionanCatalogo).toEqual(
+      rolesUsuario.filter(canManageCatalog),
+    );
+  });
+});
+
+describe("isCarreraScopedRole", () => {
+  it.each(rolesUsuario)("%s", (rol) => {
+    expect(isCarreraScopedRole(rol)).toBe(rol === "coordinacion");
+  });
+
+  it("is false for a missing role", () => {
+    expect(isCarreraScopedRole(undefined)).toBe(false);
   });
 });

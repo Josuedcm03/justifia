@@ -33,7 +33,7 @@ export async function DashboardHeader({ user }: { user: SessionPayload }) {
   const t = await getTranslations("auth.userMenu");
 
   return (
-    <header className="bg-card/85 sticky top-0 z-10 flex h-14 items-center gap-2 border-b px-4 backdrop-blur-sm md:px-8">
+    <header className="bg-card sticky top-0 z-10 flex h-16 items-center gap-2 border-b px-4 md:px-8">
       <SidebarTrigger />
       <div className="ml-auto flex items-center gap-2">
         <LocaleSwitcher current={locale} />
@@ -48,15 +48,19 @@ export async function DashboardHeader({ user }: { user: SessionPayload }) {
                 aria-label={user.nombre}
               >
                 <Avatar className="size-8">
-                  <AvatarFallback>{initials(user.nombre)}</AvatarFallback>
+                  <AvatarFallback className="bg-secondary text-primary text-xs font-bold">
+                    {initials(user.nombre)}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             }
           />
           <DropdownMenuContent align="end" className="min-w-56">
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex flex-col">
-                <span>{user.nombre}</span>
+              <DropdownMenuLabel className="flex flex-col gap-0.5">
+                <span className="text-foreground text-sm font-semibold">
+                  {user.nombre}
+                </span>
                 <span className="text-muted-foreground text-xs font-normal">
                   {t("signedInAs", { login: user.login, rol: user.rol })}
                 </span>

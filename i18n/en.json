@@ -8,11 +8,14 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "tagline": "Your academic absence requests, all in one place.",
-    "institution": "Universidad Americana"
+    "institution": "Universidad Americana - UAM"
   },
   "nav": {
     "dashboard": "Dashboard",
     "administration": "Administration",
+    "catalogAsignaturas": "Subjects",
+    "catalogGrupos": "Groups",
+    "catalogDocentes": "Teachers",
     "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
@@ -70,7 +73,9 @@
           "carreraExists": "The Carrera of each subject must already exist in the system; the import does not create careers.",
           "horasPositive": "HorasTotales must be a whole number greater than zero.",
           "periodoFormat": "Periodo must use the format YYYY-S1 or YYYY-S2, for example 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match a teacher on the Docentes sheet or one already in the system."
+          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match a teacher on the Docentes sheet or one already in the system.",
+          "diasTokens": "Dias, on the Grupos sheet, takes the Spanish day names (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) or their three-letter abbreviations (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separated by commas. Case and accents are ignored.",
+          "diasEffect": "Dias: if you leave the column out, the stored days of every group are kept. A cell with days replaces the stored days; an empty cell leaves them as they are. The import never removes days."
         },
         "template": "Download template"
       },
@@ -99,6 +104,10 @@
         "accountsToCreate": "{count, plural, =0 {No new teacher accounts will be created.} one {# new teacher account will be created.} other {# new teacher accounts will be created.}}",
         "accountsCost": "Each new account generates a temporary password, so confirming takes longer the more accounts are created.",
         "deactivations": "{count, plural, =0 {No group will be deactivated.} one {# group missing from the workbook will be deactivated.} other {# groups missing from the workbook will be deactivated.}}",
+        "reactivations": "{count, plural, one {# inactive subject in the workbook will be reactivated. You can cancel by not confirming.} other {# inactive subjects in the workbook will be reactivated. You can cancel by not confirming.}}",
+        "manualGroups": "{count, plural, one {# of the groups that will be deactivated was created by hand.} other {# of the groups that will be deactivated were created by hand.}} Confirming deactivates them too. You can cancel by not confirming.",
+        "replacedEdits": "Changes made by hand to subjects or groups that appear in the workbook may be replaced by the workbook's values. You can cancel by not confirming.",
+        "busy": "The catalog is busy with another change. Nothing was applied. Wait a moment and try again, or cancel.",
         "confirm": "Confirm and import",
         "confirming": "Importing…"
       },
@@ -117,7 +126,9 @@
         "title": "Import completed",
         "countsCaption": "Changes applied by entity",
         "accountsCreated": "{count, plural, =0 {No new account was created.} one {# new account was created.} other {# new accounts were created.}}",
-        "accountsUpdated": "{count, plural, =0 {No existing account was updated.} one {# existing account was updated.} other {# existing accounts were updated.}}"
+        "accountsUpdated": "{count, plural, =0 {No existing account was updated.} one {# existing account was updated.} other {# existing accounts were updated.}}",
+        "asignaturasReactivated": "{count, plural, =0 {No inactive subject was reactivated.} one {# inactive subject was reactivated.} other {# inactive subjects were reactivated.}}",
+        "manualGruposDeactivated": "{count, plural, =0 {No group created by hand was deactivated.} one {# group created by hand was deactivated.} other {# groups created by hand were deactivated.}}"
       },
       "credentials": {
         "notice": "This file contains the temporary passwords and is shown only now: it cannot be recovered later. Download it and keep it somewhere safe.",
@@ -180,13 +191,17 @@
           "invalid": "The teacher email is not valid"
         },
         "asignatura": {
-          "unresolved": "The subject is in neither the workbook nor the system"
+          "unresolved": "The subject is in neither the workbook nor the system",
+          "inactive": "The subject is inactive and is not on the workbook's Asignaturas sheet. Add it to that sheet to reactivate it, or remove this group"
         },
         "docente": {
           "unresolved": "The teacher is in neither the workbook nor the system"
         },
         "grupo": {
           "duplicate": "The group is repeated on the sheet"
+        },
+        "dias": {
+          "invalid": "\"{value}\" is not a valid day; use Lunes to Domingo or Lun to Dom, separated by commas"
         },
         "accountsToCreate": {
           "capExceeded": "More than {maxAccounts} new accounts would be created in a single import. Split the workbook into smaller parts."
@@ -204,6 +219,293 @@
         "sheetMissing": "The workbook is missing the \"{sheet}\" sheet",
         "columnMissing": "The \"{sheet}\" sheet is missing the \"{column}\" column",
         "applyFailed": "The import could not be applied. No changes were saved"
+      }
+    },
+    "shared": {
+      "filter": {
+        "label": "Filter by status",
+        "active": "Active",
+        "inactive": "Inactive",
+        "all": "All"
+      },
+      "notFound": {
+        "title": "This record is not available",
+        "message": "It may not exist, or it may not be available to your account. Go back and check the list.",
+        "back": "Back to the dashboard"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "toggle": {
+        "deactivate": "Deactivate",
+        "reactivate": "Reactivate",
+        "confirmTitle": "Deactivate {record}?",
+        "nothingDeleted": "Nothing is deleted: the record becomes inactive and you can reactivate it whenever you want.",
+        "confirm": "Yes, deactivate",
+        "cancel": "Cancel"
+      },
+      "dias": {
+        "long": {
+          "lunes": "Monday",
+          "martes": "Tuesday",
+          "miercoles": "Wednesday",
+          "jueves": "Thursday",
+          "viernes": "Friday",
+          "sabado": "Saturday",
+          "domingo": "Sunday"
+        },
+        "short": {
+          "lunes": "Mon",
+          "martes": "Tue",
+          "miercoles": "Wed",
+          "jueves": "Thu",
+          "viernes": "Fri",
+          "sabado": "Sat",
+          "domingo": "Sun"
+        },
+        "notSet": "Days not set"
+      },
+      "fieldErrors": {
+        "codigo": {
+          "required": "The code is required",
+          "tooLong": "The code exceeds 32 characters",
+          "taken": "A subject with this code already exists.",
+          "takenInactive": "A subject with this code already exists but is inactive. Reactivate it instead of creating it again."
+        },
+        "nombre": {
+          "required": "The name is required",
+          "tooLong": "The name exceeds 160 characters"
+        },
+        "horasTotales": {
+          "required": "Total hours are required",
+          "invalid": "Total hours must be a whole number greater than zero"
+        },
+        "carreraId": {
+          "invalid": "Select a Carrera from the list"
+        },
+        "asignaturaId": {
+          "required": "Select a subject",
+          "invalid": "Select a subject from the list"
+        },
+        "docenteId": {
+          "required": "Select a teacher",
+          "invalid": "Select a teacher from the list"
+        },
+        "periodo": {
+          "required": "The period is required",
+          "invalid": "The period must use the format YYYY-S1 or YYYY-S2, for example 2026-S1"
+        },
+        "numGrupo": {
+          "required": "The group number is required",
+          "tooLong": "The group number exceeds 12 characters",
+          "taken": "A group with this period and number already exists for the selected subject.",
+          "takenInactive": "A group with this period and number already exists for the selected subject but is inactive. Reactivate it instead of creating it again."
+        },
+        "dias": {
+          "required": "Select at least one day of the week on which the group meets",
+          "invalid": "The selected value is not a day of the week. Select the days from the list"
+        }
+      },
+      "noCarrera": {
+        "title": "Your account has no Carrera assigned",
+        "message": "Your account has no Carrera assigned, so you cannot view or change the catalog. Ask whoever administers the system to set it up."
+      },
+      "busy": "The catalog is busy with another change. Nothing was saved. Wait a moment and try again.",
+      "importWins": "The next catalog import can replace these values.",
+      "refusals": {
+        "activeGrupos": "{count, plural, one {Cannot deactivate: this subject has # active group. Deactivate it first and try again.} other {Cannot deactivate: this subject has # active groups. Deactivate them first and try again.}}",
+        "parentInactive": {
+          "asignatura": "The group cannot be reactivated because the subject {parent} is inactive. Reactivate the subject first and try again.",
+          "docente": "The group cannot be reactivated because the teacher {parent} is not active or does not have the teacher role. Fix the teacher first and try again."
+        },
+        "inactive": "This record is inactive and cannot be edited. Reactivate it first.",
+        "unchanged": "There are no changes to save.",
+        "alreadyInactive": "The record was already inactive. No changes were made."
+      }
+    },
+    "asignaturas": {
+      "title": "Subjects",
+      "subtitle": "Browse and manage the subjects in the catalog.",
+      "newButton": "New subject",
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "career": "Career",
+        "hours": "Hours",
+        "groups": "Groups",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "edit": "Edit",
+      "empty": "There are no active subjects yet.",
+      "noResults": {
+        "title": "No results for “{q}”",
+        "titleStatus": "There are no subjects with this filter.",
+        "hint": "Try another code or name, or change the status filter."
+      },
+      "degraded": "Could not load the subjects. Try again in a few minutes.",
+      "search": {
+        "label": "Search subjects",
+        "placeholder": "Code or name",
+        "submit": "Search",
+        "clear": "Clear search"
+      },
+      "count": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
+      "tableCaption": "Subjects list",
+      "pagination": {
+        "region": "Subjects pagination",
+        "previous": "Previous",
+        "next": "Next",
+        "status": "Page {page} of {pages}"
+      },
+      "errors": {
+        "unexpected": "The change could not be saved. Try again in a few minutes."
+      },
+      "form": {
+        "codigoLabel": "Code",
+        "codigoHint": "The code cannot be changed after the subject is created.",
+        "nombreLabel": "Name",
+        "horasLabel": "Total hours",
+        "carreraLabel": "Carrera",
+        "carreraPlaceholder": "Select a Carrera",
+        "carreraFixedHint": "Your Carrera is used automatically. You do not need to choose one.",
+        "submitCreate": "Create subject",
+        "submitSave": "Save changes",
+        "submitting": "Saving…"
+      },
+      "page": {
+        "newTitle": "New subject",
+        "newSubtitle": "Fill in the details to add a subject to the catalog.",
+        "editTitle": "Edit subject",
+        "editSubtitle": "Update the subject's details.",
+        "reactivateHint": "To edit it, reactivate it first in the Status section."
+      },
+      "breadcrumb": {
+        "label": "Breadcrumb",
+        "new": "New subject",
+        "edit": "Edit {codigo}"
+      },
+      "state": {
+        "title": "Status",
+        "activeGroups": "{count, plural, =0 {This subject has no active groups.} one {This subject has # active group. Deactivate it before you can deactivate the subject.} other {This subject has # active groups. Deactivate them before you can deactivate the subject.}}"
+      },
+      "grupos": {
+        "title": "Groups",
+        "add": "Add group",
+        "empty": "This subject has no groups yet.",
+        "inactiveHint": "To add a group, reactivate the subject first in the Status section.",
+        "tableCaption": "Groups of {codigo}",
+        "editLabel": "Edit group {periodo} {numeroGrupo}",
+        "truncated": "Showing the {max} most recent groups.",
+        "viewAll": "See all in Groups",
+        "degraded": "Could not load the groups of this subject. Try again in a few minutes."
+      }
+    },
+    "grupos": {
+      "list": {
+        "title": "Groups",
+        "subtitle": "Browse and manage the groups in the catalog.",
+        "newButton": "New group",
+        "columns": {
+          "code": "Code",
+          "subject": "Subject",
+          "periodo": "Period",
+          "numeroGrupo": "Group",
+          "docente": "Teacher",
+          "dias": "Days",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "edit": "Edit",
+        "empty": "There are no active groups yet.",
+        "noResults": {
+          "title": "No results for “{q}”",
+          "titleStatus": "There are no groups with this filter.",
+          "hint": "Try another subject, period, group or teacher, or change the status filter."
+        },
+        "degraded": "Could not load the groups. Try again in a few minutes.",
+        "search": {
+          "label": "Search groups",
+          "placeholder": "Subject, period, group or teacher",
+          "submit": "Search",
+          "clear": "Clear search"
+        },
+        "count": "{count, plural, =0 {No groups} one {# group} other {# groups}}",
+        "tableCaption": "Groups list",
+        "pagination": {
+          "region": "Groups pagination",
+          "previous": "Previous",
+          "next": "Next",
+          "status": "Page {page} of {pages}"
+        }
+      },
+      "errors": {
+        "unexpected": "The change could not be saved. Try again in a few minutes."
+      },
+      "form": {
+        "asignaturaLabel": "Subject",
+        "docenteLabel": "Teacher",
+        "searchPlaceholder": "Type to search",
+        "noMatches": "No options match",
+        "truncated": "Only the first options are listed. If you cannot find what you need, ask whoever administers the system.",
+        "periodoLabel": "Period",
+        "periodoHint": "Use the format YYYY-S1 or YYYY-S2, for example 2026-S1.",
+        "numeroGrupoLabel": "Group number",
+        "naturalKeyHint": "The subject, period and group number cannot be changed after the group is created.",
+        "diasLabel": "Days of the week",
+        "diasHint": "Select at least one day.",
+        "submitCreate": "Create group",
+        "submitSave": "Save changes",
+        "submitting": "Saving…"
+      },
+      "page": {
+        "newTitle": "New group",
+        "newSubtitle": "Fill in the details to add a group to the catalog.",
+        "editTitle": "Edit group",
+        "editSubtitle": "Update the group's teacher and meeting days.",
+        "reactivateHint": "To edit it, reactivate it first in the Status section."
+      },
+      "breadcrumb": {
+        "label": "Breadcrumb",
+        "new": "New group",
+        "edit": "Edit {codigo} {periodo} {numeroGrupo}"
+      },
+      "state": {
+        "title": "Status"
+      }
+    },
+    "docentes": {
+      "title": "Teachers",
+      "subtitle": "Browse the teachers registered in the system.",
+      "usersLink": "Manage accounts in Users",
+      "columns": {
+        "name": "Name",
+        "login": "Username",
+        "email": "Email",
+        "status": "Status"
+      },
+      "noEmail": "No email",
+      "empty": "There are no active teachers yet.",
+      "noResults": {
+        "title": "No results for “{q}”",
+        "titleStatus": "There are no teachers with this filter.",
+        "hint": "Try another name or email, or change the status filter."
+      },
+      "degraded": "Could not load the teachers. Try again in a few minutes.",
+      "search": {
+        "label": "Search teachers",
+        "placeholder": "Name or email",
+        "submit": "Search",
+        "clear": "Clear search"
+      },
+      "count": "{count, plural, =0 {No teachers} one {# teacher} other {# teachers}}",
+      "tableCaption": "Teachers list",
+      "pagination": {
+        "region": "Teachers pagination",
+        "previous": "Previous",
+        "next": "Next",
+        "status": "Page {page} of {pages}"
       }
     }
   },

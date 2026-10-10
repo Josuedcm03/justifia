@@ -1,11 +1,28 @@
 import "server-only";
 
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  not,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import type { QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import { rol, usuario, type NuevoUsuario, type Usuario } from "@/db/schema";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
+import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
+import type {
+  CatalogListResult,
+  CatalogStatusFilter,
+  DocenteListItem,
+} from "@/lib/catalog/types";
 import { containsPattern } from "@/lib/data/sql-like";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import { getRolIdByCodigo } from "@/lib/data/roles";
@@ -211,6 +228,118 @@ export async function getUsuarioByCif(
     .where(eq(usuario.cif, cif))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * The caller's stored Carrera, by primary key, for the catalog guard. It
+ * projects ONLY `carreraId` (never the hash, CIF or email) and is fail-loud:
+ * no `try/catch`, no fallback. It is security-critical, so a database error
+ * must reject the request rather than guess a scope. `null` means the row no
+ * longer exists.
+ */
+export async function getCatalogActor(
+  id: number,
+): Promise<{ carreraId: number | null } | null> {
+  const [row] = await db
+    .select({ carreraId: usuario.carreraId })
+    .from(usuario)
+    .where(eq(usuario.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Active users whose role code is `docente`, for the Grupo docente select.
+ * It projects ONLY what a select needs (never the hash, CIF or phone), is
+ * capped at `CATALOG_OPTIONS_MAX` and is not fail-soft: a thrown error
+ * reaches the caller.
+ */
+export async function listDocenteOptions(): Promise<
+  { id: number; nombreCompleto: string; correo: string | null }[]
+> {
+  return db
+    .select({
+      id: usuario.id,
+      nombreCompleto: usuario.nombreCompleto,
+      correo: usuario.correo,
+    })
+    .from(usuario)
+    .innerJoin(rol, eq(usuario.rolId, rol.id))
+    .where(and(eq(rol.codigo, "docente"), eq(usuario.activo, true)))
+    .orderBy(asc(usuario.nombreCompleto), asc(usuario.id))
+    .limit(CATALOG_OPTIONS_MAX);
+}
+
+/**
+ * The one `where` clause of the Docentes list, shared by the count and the
+ * page: users whose role code is `docente`, narrowed by state and by a partial,
+ * case-insensitive search over name and Correo. It takes no scope: the list is
+ * not Carrera-scoped (CM-LST-1). The term is escaped and bound as a parameter.
+ */
+export function buildDocentesWhere(f: {
+  status: CatalogStatusFilter;
+  q: string;
+}): SQL {
+  const parts = [
+    eq(rol.codigo, "docente"),
+    f.status === "active"
+      ? sql`${usuario.activo}`
+      : f.status === "inactive"
+        ? not(usuario.activo)
+        : undefined,
+    f.q
+      ? or(
+          ilike(usuario.nombreCompleto, containsPattern(f.q)),
+          ilike(usuario.correo, containsPattern(f.q)),
+        )
+      : undefined,
+  ].filter((part): part is SQL => part !== undefined);
+  return and(...parts) as SQL;
+}
+
+/**
+ * Docentes for the read-only catalog list. It projects ONLY the five fields
+ * the list shows (never the hash, CIF or phone) and is fail-soft like
+ * `listUsuarios`: a thrown error is an empty, degraded page.
+ */
+export async function listDocentes(p: {
+  status: CatalogStatusFilter;
+  q: string;
+  page: number;
+  pageSize: number;
+}): Promise<CatalogListResult<DocenteListItem>> {
+  try {
+    const where = buildDocentesWhere(p);
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(usuario)
+      .innerJoin(rol, eq(usuario.rolId, rol.id))
+      .where(where);
+    const page = clampPage(p.page, count, p.pageSize);
+    const data = await db
+      .select({
+        id: usuario.id,
+        nombreCompleto: usuario.nombreCompleto,
+        login: usuario.login,
+        correo: usuario.correo,
+        activo: usuario.activo,
+      })
+      .from(usuario)
+      .innerJoin(rol, eq(usuario.rolId, rol.id))
+      .where(where)
+      .orderBy(asc(usuario.nombreCompleto), asc(usuario.id))
+      .limit(p.pageSize)
+      .offset((page - 1) * p.pageSize);
+    return { data, total: count, page, pageSize: p.pageSize, degraded: false };
+  } catch {
+    return {
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: p.pageSize,
+      degraded: true,
+    };
+  }
 }
 
 /** Sets or clears the forced-password-change flag (FPC). */

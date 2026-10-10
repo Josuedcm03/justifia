@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,6 +50,8 @@ const PREVIEW: PreviewArm = {
     Grupo: { ...zero, create: 1 },
   },
   accountsToCreate: 1,
+  asignaturasToReactivate: 0,
+  manualGruposToDeactivate: 0,
   errors: [],
   fileSha256: HASH,
 };
@@ -55,6 +64,8 @@ const APPLIED: ApplyState = {
     counts: PREVIEW.counts,
     accountsCreated: 1,
     accountsUpdated: 0,
+    asignaturasReactivated: 0,
+    manualGruposDeactivated: 0,
   },
   credentials: [
     { login: "ana@uni.edu", nombreCompleto: "Ana", clave: "ZK9TQ2M4XW7HB3PD" },
@@ -154,13 +165,13 @@ describe("ImportForm upload step (CEI: Contract shown before upload)", () => {
     expect(previewAction).not.toHaveBeenCalled();
   });
 
-  it("lists the five validation rules", () => {
+  it("lists the seven validation rules", () => {
     renderForm();
 
     for (const rule of Object.values(en.contract.rules)) {
       expect(screen.getByText(rule)).toBeInTheDocument();
     }
-    expect(Object.keys(en.contract.rules)).toHaveLength(5);
+    expect(Object.keys(en.contract.rules)).toHaveLength(7);
   });
 
   it("puts the dropzone inside the structure card, after the contract and the rules", () => {
@@ -237,12 +248,12 @@ describe("ImportForm upload step (CEI: Contract shown before upload)", () => {
     ).toHaveAttribute("href", "/api/catalog/template");
   });
 
-  it("has no separate preview button and never uses the lime highlight", () => {
+  it("has no separate preview button and never uses the current-location marker", () => {
     const { container } = renderForm();
 
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(container.querySelector('[type="submit"]')).toBeNull();
-    expect(container.innerHTML).not.toContain("highlight");
+    expect(container.innerHTML).not.toContain("is-current");
   });
 });
 
@@ -344,7 +355,12 @@ describe("ImportForm dropzone (a taken file is previewed at once)", () => {
 
     drop(WORKBOOK);
 
-    await screen.findByRole("heading", { level: 2, name: en.preview.title });
+    // The preview round-trips a mocked action; give a loaded pool room.
+    await screen.findByRole(
+      "heading",
+      { level: 2, name: en.preview.title },
+      { timeout: 5000 },
+    );
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -394,7 +410,8 @@ describe("ImportForm dropzone (a taken file is previewed at once)", () => {
       name: en.preview.title,
     });
     expect(heading).toHaveAttribute("tabindex", "-1");
-    expect(heading).toHaveFocus();
+    // Focus moves in an effect: await it instead of reading it synchronously.
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
     expect(scrollIntoView.mock.contexts[0]).toBe(heading);
@@ -420,7 +437,7 @@ describe("ImportForm dropzone (a taken file is previewed at once)", () => {
       () => new Promise<PreviewArm>((resolve) => (answer = resolve)),
     );
     drop(SECOND);
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
 
     // The counts on screen belong to the first file: showing them under the
     // second file's name would describe a workbook nobody analysed.
@@ -442,7 +459,7 @@ describe("ImportForm dropzone (a taken file is previewed at once)", () => {
     await screen.findByRole("button", { name: en.preview.confirm });
 
     drop(SECOND);
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
     expect(
       (previewAction.mock.calls[1][1] as FormData).get("file"),
     ).toHaveProperty("name", "segundo.xlsx");
@@ -531,7 +548,7 @@ describe("ImportForm flow (preview, then confirm)", () => {
 
     await user.upload(screen.getByLabelText(en.upload.dropTitle), WORKBOOK);
 
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
     expect(previewAction.mock.calls[1][0]).toEqual({ kind: "idle" });
     expect(JSON.stringify(previewAction.mock.calls)).not.toContain(
       "ZK9TQ2M4XW7HB3PD",
@@ -547,12 +564,37 @@ describe("ImportForm flow (preview, then confirm)", () => {
       await screen.findByRole("button", { name: en.preview.confirm }),
     );
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(document.querySelector('input[name="fileSha256"]')).toHaveValue(
         "d".repeat(64),
       ),
     );
     expect(screen.queryByRole("heading", { name: en.result.title })).toBeNull();
+  });
+
+  it("keeps the preview and the confirm control when the catalog is busy, and a retry applies (CEI-BUSY)", async () => {
+    applyAction.mockResolvedValueOnce({ kind: "busy" });
+    const user = await previewWorkbook();
+    await user.click(
+      await screen.findByRole("button", { name: en.preview.confirm }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(en.preview.busy);
+    expect(
+      screen.getByRole("heading", { level: 2, name: en.preview.title }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: en.result.title })).toBeNull();
+
+    // The same file and digest go out again: the screen kept them.
+    await user.click(screen.getByRole("button", { name: en.preview.confirm }));
+    expect(
+      await screen.findByRole("heading", { level: 2, name: en.result.title }),
+    ).toBeInTheDocument();
+    expect(applyAction).toHaveBeenCalledTimes(2);
+    const retry = applyAction.mock.calls[1][1] as FormData;
+    expect(retry.get("fileSha256")).toBe(HASH);
+    expect((retry.get("file") as File).name).toBe("catalogo.xlsx");
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("announces a failure, ties it to the file input and offers no confirm", async () => {
@@ -667,7 +709,7 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
     expect(container.querySelector("form")).toBeNull();
     expect(document.querySelector('input[name="fileSha256"]')).toBeNull();
     expect(applyAction).not.toHaveBeenCalled();
-    expect(container.innerHTML).not.toContain("highlight");
+    expect(container.innerHTML).not.toContain("is-current");
   });
 
   it("moves focus to the warning heading instead of the preview heading, once", async () => {
@@ -679,7 +721,8 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
       name: "2 errors found in the workbook",
     });
     expect(heading).toHaveAttribute("tabindex", "-1");
-    expect(heading).toHaveFocus();
+    // Focus moves in an effect: await it instead of reading it synchronously.
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(heading.className).toContain("scroll-mt-20");
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
@@ -705,7 +748,7 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
       () => new Promise<PreviewArm>((resolve) => (answer = resolve)),
     );
     drop(SECOND);
-    await vi.waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(previewAction).toHaveBeenCalledTimes(2));
 
     // Those errors belong to the first file, not to the one being analysed.
     expect(
@@ -732,9 +775,11 @@ describe("ImportForm warning block (CEI: Preview with errors blocks confirmation
     expect(
       screen.queryByRole("table", { name: en.errorsPanel.caption }),
     ).toBeNull();
-    expect(
-      screen.getByRole("heading", { level: 2, name: en.preview.title }),
-    ).toHaveFocus();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 2, name: en.preview.title }),
+      ).toHaveFocus(),
+    );
   });
 
   it("keeps heading levels in order: one h2 per block under the page title", async () => {

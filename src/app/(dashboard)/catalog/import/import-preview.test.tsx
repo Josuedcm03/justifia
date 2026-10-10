@@ -35,6 +35,8 @@ const PREVIEW: PreviewArm = {
     Grupo: { ...zero, create: 4, deactivate: 2 },
   },
   accountsToCreate: 3,
+  asignaturasToReactivate: 0,
+  manualGruposToDeactivate: 0,
   errors: [],
   fileSha256: HASH,
 };
@@ -51,6 +53,8 @@ const APPLIED: AppliedArm = {
     counts: PREVIEW.counts,
     accountsCreated: 3,
     accountsUpdated: 1,
+    asignaturasReactivated: 0,
+    manualGruposDeactivated: 0,
   },
   credentials: [
     { login: "ana@uni.edu", nombreCompleto: "Ana", clave: "ZK9TQ2M4XW7HB3PD" },
@@ -65,6 +69,10 @@ function renderUi(ui: ReactElement, locale: "en" | "es" = "en") {
     <NextIntlClientProvider
       locale={locale}
       messages={locale === "en" ? enMessages : esMessages}
+      // A missing key must fail the test instead of rendering its path.
+      onError={(error) => {
+        throw error;
+      }}
     >
       {ui}
     </NextIntlClientProvider>,
@@ -88,6 +96,7 @@ describe("ImportPreview (CEI: Dry-run report persists nothing)", () => {
     state: PreviewArm,
     locale: "en" | "es" = "en",
     pending = false,
+    busy = false,
   ) {
     return renderUi(
       <ImportPreview
@@ -95,10 +104,93 @@ describe("ImportPreview (CEI: Dry-run report persists nothing)", () => {
         fileName="catalogo.xlsx"
         action={confirm}
         pending={pending}
+        busy={busy}
       />,
       locale,
     );
   }
+
+  const reactivating = (count: number): PreviewArm => ({
+    ...PREVIEW,
+    asignaturasToReactivate: count,
+  });
+  const manual = (count: number, deactivate: number): PreviewArm => ({
+    ...PREVIEW,
+    manualGruposToDeactivate: count,
+    counts: { ...PREVIEW.counts, Grupo: { ...zero, deactivate } },
+  });
+
+  it("states the reactivation count before the confirm control, and nothing at 0 (CEI-PREV)", () => {
+    const { unmount } = renderPreview(reactivating(2));
+    const notice = screen.getByText(
+      /^2 inactive subjects in the workbook will be reactivated./,
+    );
+    const button = screen.getByRole("button", { name: en.preview.confirm });
+    expect(notice.compareDocumentPosition(button)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    unmount();
+
+    renderPreview(reactivating(0));
+    expect(screen.queryByText(/will be reactivated/)).toBeNull();
+  });
+
+  it.each([
+    [1, 4, /^1 of the groups that will be deactivated was created by hand./],
+    [4, 4, /^4 of the groups that will be deactivated were created by hand./],
+  ])(
+    "warns about %i manual of %i deactivated groups and still offers confirm",
+    (count, deactivate, text) => {
+      renderPreview(manual(count, deactivate));
+
+      const warning = screen.getByText(text);
+      const button = screen.getByRole("button", { name: en.preview.confirm });
+      expect(warning.compareDocumentPosition(button)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      expect(button).toBeEnabled();
+    },
+  );
+
+  it.each([
+    [0, 0],
+    [0, 4],
+  ])(
+    "shows no manual-group warning for %i manual of %i deactivated",
+    (c, d) => {
+      renderPreview(manual(c, d));
+
+      expect(screen.queryByText(/created by hand/)).toBeNull();
+    },
+  );
+
+  it("says on every preview that manual edits may be replaced, errors or not", () => {
+    const { unmount } = renderPreview(PREVIEW);
+    expect(screen.getByText(en.preview.replacedEdits)).toBeInTheDocument();
+    unmount();
+
+    renderPreview({
+      ...PREVIEW,
+      errors: [{ sheet: "Grupos", row: 2, reason: "asignatura.inactive" }],
+    });
+    expect(screen.getByText(en.preview.replacedEdits)).toBeInTheDocument();
+  });
+
+  it("explains a busy catalog and keeps the confirm control (CEI-BUSY)", () => {
+    renderPreview(PREVIEW, "en", false, true);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(en.preview.busy);
+    expect(en.preview.busy).toMatch(/busy.*Nothing was applied.*cancel/);
+    expect(
+      screen.getByRole("button", { name: en.preview.confirm }),
+    ).toBeEnabled();
+  });
+
+  it("shows no busy notice by default", () => {
+    renderPreview(PREVIEW);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 
   it("lists the create/update/unchanged/deactivate/error counts per entity under real headers", () => {
     renderPreview(PREVIEW);
@@ -240,6 +332,40 @@ describe("ImportPreview confirmation (CEI: Preview with errors blocks confirmati
     expect(document.querySelector('input[name="fileSha256"]')).toBeNull();
   });
 
+  it.each(["en", "es"] as const)(
+    "a single dias.invalid row error offers no confirm control, so the apply is not reachable, in %s (CEI-DIAS-3)",
+    (locale) => {
+      renderUi(
+        <ImportPreview
+          state={{
+            ...withErrors([
+              {
+                sheet: "Grupos",
+                row: 5,
+                reason: "dias.invalid",
+                value: "Funday",
+              },
+            ]),
+            counts: { ...PREVIEW.counts, Grupo: { ...zero, error: 1 } },
+          }}
+          fileName="catalogo.xlsx"
+          action={confirm}
+          pending={false}
+        />,
+        locale,
+      );
+
+      const copy = locale === "en" ? en : es;
+      expect(screen.queryByRole("button")).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: copy.preview.confirm }),
+      ).toBeNull();
+      expect(document.querySelector("form")).toBeNull();
+      expect(document.querySelector('input[name="fileSha256"]')).toBeNull();
+      expect(confirm).not.toHaveBeenCalled();
+    },
+  );
+
   it("disables confirmation while the apply is running", () => {
     renderPreview(PREVIEW, true);
 
@@ -288,6 +414,37 @@ describe("ImportResult (CEI: result screen shows the per-entity summary)", () =>
     expect(
       screen.getByRole("link", { name: en.credentials.download }),
     ).toHaveAttribute("href", "blob:result-1");
+  });
+
+  it("shows the two result lines, zero included (CEI-COPY)", () => {
+    const { unmount } = renderUi(<ImportResult state={APPLIED} />);
+    expect(
+      screen.getByText("No inactive subject was reactivated."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("No group created by hand was deactivated."),
+    ).toBeInTheDocument();
+    unmount();
+
+    renderUi(
+      <ImportResult
+        state={{
+          ...APPLIED,
+          summary: {
+            ...APPLIED.summary,
+            asignaturasReactivated: 2,
+            manualGruposDeactivated: 1,
+          },
+        }}
+      />,
+      "es",
+    );
+    expect(
+      screen.getByText("Se reactivaron 2 asignaturas inactivas."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Se desactivó 1 grupo creado a mano."),
+    ).toBeInTheDocument();
   });
 
   it("offers no download when the apply created no account", () => {

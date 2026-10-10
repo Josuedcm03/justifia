@@ -2,15 +2,24 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { PgDialect } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: {} }));
 vi.mock("@/lib/data/catalog", () => ({ loadCatalogSnapshot: vi.fn() }));
+vi.mock("@/lib/data/catalog-write", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/data/catalog-write")>()),
+  acquireCatalogWriteLock: vi.fn(),
+}));
 
 import { eventoAuditoria } from "@/db/audit-schema";
 import { asignatura, grupo, rol, usuario } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/data/catalog";
+import {
+  acquireCatalogWriteLock,
+  CatalogBusyError,
+} from "@/lib/data/catalog-write";
 import type { Transaction } from "@/lib/data/audit";
 import { WRITE_CHUNK_ROWS } from "@/lib/import/limits";
 import {
@@ -151,6 +160,8 @@ function makePlan(
       grupos: writes.grupos ?? [],
     },
     deactivateGrupoIds,
+    asignaturasToReactivate: 0,
+    manualGruposToDeactivate: 0,
     ...overrides,
   };
 }
@@ -163,6 +174,7 @@ const snapshot = makeSnapshot({
       nombre: "Matematica",
       carreraId: 1,
       horasTotales: 60,
+      activo: true,
     },
   ],
   usuarios: [
@@ -793,6 +805,11 @@ function setup(
     calls.push(onDb ? "snapshot:db" : "snapshot:tx");
     return onDb ? first : second;
   });
+  vi.mocked(acquireCatalogWriteLock)
+    .mockReset()
+    .mockImplementation(async () => {
+      calls.push("lock");
+    });
   const generate = vi.fn(() => {
     calls.push("generate");
     return "CLAVE-GENERADA";
@@ -934,5 +951,367 @@ describe("runImportApply (IAP: Temporary password, CEI: Stateless confirm)", () 
     const { run, committed } = setup({ failOn: (s) => s.table === grupo });
     await expect(run()).rejects.toThrow("boom");
     expect(committed).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WU4-B (4.19) - Asignatura reactivation, per-record events, the catalog lock
+// ---------------------------------------------------------------------------
+
+const reactivate = {
+  kind: "update" as const,
+  id: 10,
+  nombre: "Matematica",
+  carreraId: 1,
+  horasTotales: 60,
+  reactivated: true as const,
+};
+const inactiveSnapshot = {
+  ...snapshot,
+  asignaturas: [{ ...snapshot.asignaturas[0], activo: false }],
+};
+
+describe("applyImport - Asignatura reactivation (CEI-UPS, AL-IMP)", () => {
+  it("writes Activo = true only for a reactivation", async () => {
+    const { tx, buffer } = makeTx();
+    const plain = { ...reactivate, id: 11, reactivated: undefined };
+    await applyImport(
+      tx,
+      makePlan({ asignaturas: [reactivate, plain] }),
+      [],
+      ctx,
+    );
+    expect(buffer[0].set).toEqual({
+      nombre: "Matematica",
+      carreraId: 1,
+      horasTotales: 60,
+      activo: true,
+    });
+    expect(buffer[1].set).not.toHaveProperty("activo");
+  });
+
+  it("inserts name neither activo nor origen (the defaults apply)", async () => {
+    const { tx, buffer } = makeTx();
+    const plan = makePlan({
+      asignaturas: [
+        {
+          kind: "create",
+          codigo: "F",
+          nombre: "F",
+          carreraId: 1,
+          horasTotales: 8,
+        },
+      ],
+      grupos: [
+        {
+          kind: "create",
+          asignaturaCodigo: "MAT1",
+          periodo: "2026-S1",
+          numeroGrupo: "1",
+          docenteCorreo: "ana@uni.edu",
+        },
+      ],
+    });
+    await applyImport(tx, plan, [], ctx);
+    const inserted = buffer.filter((s) => s.op === "insert" && s.values);
+    const keys = inserted.flatMap((s) => Object.keys(s.values![0]));
+    expect(keys).not.toContain("activo");
+    expect(keys).not.toContain("origen");
+  });
+
+  it("appends one asignatura.reactivada per reactivated id after the import and account events", async () => {
+    const { tx, buffer } = makeTx();
+    const second = { ...reactivate, id: 11 };
+    await applyImport(
+      tx,
+      makePlan({
+        asignaturas: [reactivate, second],
+        usuarios: [createUsuario],
+      }),
+      [nuevaCuenta],
+      ctx,
+    );
+    expect(buffer.filter((s) => s.table === eventoAuditoria)).toHaveLength(1);
+    const rows = auditRows(buffer);
+    expect(rows.map((r) => [r.accion, r.entidadTipo, r.entidadId])).toEqual([
+      ["catalogo.importacion.aplicada", "Importacion", null],
+      ["usuario.creado", "Usuario", 1000],
+      ["asignatura.reactivada", "Asignatura", 10],
+      ["asignatura.reactivada", "Asignatura", 11],
+    ]);
+    expect(rows[2].datos).toEqual({
+      campos: ["activo"],
+      origen: "importacion",
+      importacionSha256: ctx.fileSha256,
+    });
+    expect(JSON.stringify(rows[2])).not.toMatch(/MAT1|Matematica|clave|hash/i);
+  });
+
+  it("emits no asignatura or grupo event when nothing is reactivated", async () => {
+    const { tx, buffer } = makeTx();
+    const plain = { ...reactivate, reactivated: undefined };
+    await applyImport(tx, makePlan({ asignaturas: [plain] }, [5]), [], ctx);
+    expect(auditRows(buffer).map((r) => r.accion)).toEqual([
+      "catalogo.importacion.aplicada",
+    ]);
+  });
+});
+
+describe("runImportApply - catalog write lock (CEI-BUSY, AL-IMP)", () => {
+  it("takes the lock first inside the transaction, before the snapshot read and the audit", async () => {
+    const { run, calls, handles, committed } = setup({
+      dbSnapshot: inactiveSnapshot,
+    });
+    await run();
+    expect(calls.slice(calls.indexOf("transaction"))).toEqual([
+      "transaction",
+      "lock",
+      "snapshot:tx",
+    ]);
+    expect(acquireCatalogWriteLock).toHaveBeenCalledTimes(1);
+    expect(acquireCatalogWriteLock).toHaveBeenCalledWith(handles[0]);
+    expect(committed.at(-1)!.table).toBe(eventoAuditoria);
+    expect(auditRows(committed).map((r) => r.accion)).toContain(
+      "asignatura.reactivada",
+    );
+  });
+
+  it("a busy lock aborts before any statement, audit row or credential", async () => {
+    const { run, calls, committed, handles } = setup();
+    vi.mocked(acquireCatalogWriteLock).mockRejectedValueOnce(
+      new CatalogBusyError(),
+    );
+    await expect(run()).rejects.toBeInstanceOf(CatalogBusyError);
+    expect(calls).not.toContain("snapshot:tx");
+    expect(handles).toHaveLength(1);
+    expect(committed).toHaveLength(0);
+  });
+
+  it("a failure after planning inserts no audit row", async () => {
+    const { run, committed } = setup({
+      dbSnapshot: inactiveSnapshot,
+      failOn: (s) => s.op === "update" && s.table === asignatura,
+    });
+    await expect(run()).rejects.toThrow("boom");
+    expect(auditRows(committed)).toHaveLength(0);
+    expect(committed).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WU-D2 (17.21) - meeting days of a Grupo (CEI-DIAS-3, AL-IMP, CEI-UPS)
+// ---------------------------------------------------------------------------
+
+// Masks: Monday = 1, Tuesday = 2, Wednesday = 4, Thursday = 8, Saturday = 32.
+const MON_WED = 5;
+const TUE_THU_SAT = 42;
+
+const createGrupo = {
+  kind: "create" as const,
+  asignaturaCodigo: "MAT1",
+  periodo: "2026-S1",
+  numeroGrupo: "1",
+  docenteCorreo: "ana@uni.edu",
+};
+const updateGrupo = {
+  kind: "update" as const,
+  id: 300,
+  docenteCorreo: "ana@uni.edu",
+  reactivated: false,
+};
+
+describe("applyImport - Grupo days (CEI-DIAS-3: Column present replaces the days)", () => {
+  it("a create that carries dias names it in the insert values", async () => {
+    const { tx, buffer } = makeTx();
+    await applyImport(
+      tx,
+      makePlan({ grupos: [{ ...createGrupo, dias: MON_WED }] }),
+      [],
+      ctx,
+    );
+    expect(buffer[0].values).toEqual([
+      {
+        asignaturaId: 10,
+        periodo: "2026-S1",
+        numeroGrupo: "1",
+        docenteId: 20,
+        dias: MON_WED,
+      },
+    ]);
+  });
+
+  it("a create without dias names no dias (the statement is the one it was before)", async () => {
+    const { tx, buffer } = makeTx();
+    await applyImport(tx, makePlan({ grupos: [createGrupo] }), [], ctx);
+    expect(buffer[0].values).toEqual([
+      { asignaturaId: 10, periodo: "2026-S1", numeroGrupo: "1", docenteId: 20 },
+    ]);
+    expect(Object.keys(buffer[0].values![0])).not.toContain("dias");
+  });
+
+  it("an update names dias in the SET only for a write that carries it", async () => {
+    const { tx, buffer } = makeTx();
+    await applyImport(
+      tx,
+      makePlan({
+        grupos: [
+          { ...updateGrupo, dias: TUE_THU_SAT },
+          { ...updateGrupo, id: 301 },
+          { ...updateGrupo, id: 302, reactivated: true, dias: MON_WED },
+        ],
+      }),
+      [],
+      ctx,
+    );
+    expect(buffer[0].set).toEqual({ docenteId: 20, dias: TUE_THU_SAT });
+    expect(paramsOf(buffer[0])).toContain(300);
+    expect(buffer[1].set).toEqual({ docenteId: 20 });
+    expect(buffer[2].set).toEqual({
+      docenteId: 20,
+      activo: true,
+      dias: MON_WED,
+    });
+  });
+
+  it("a forged write with dias: 0 is treated as absent (insert values and SET)", async () => {
+    const { tx, buffer } = makeTx();
+    await applyImport(
+      tx,
+      makePlan({
+        grupos: [
+          { ...createGrupo, dias: 0 },
+          { ...updateGrupo, dias: 0 },
+        ],
+      }),
+      [],
+      ctx,
+    );
+    expect(buffer[0].values![0]).not.toHaveProperty("dias");
+    expect(buffer[1].set).not.toHaveProperty("dias");
+    expect(buffer[1].set).toEqual({ docenteId: 20 });
+  });
+
+  it("mixed creates: a row without days never takes another row's mask nor an explicit 0", async () => {
+    const { tx, buffer } = makeTx();
+    await applyImport(
+      tx,
+      makePlan({
+        grupos: [
+          { ...createGrupo, numeroGrupo: "1", dias: MON_WED },
+          { ...createGrupo, numeroGrupo: "2" },
+          { ...createGrupo, numeroGrupo: "3", dias: TUE_THU_SAT },
+        ],
+      }),
+      [],
+      ctx,
+    );
+    // One multi-row insert; the values handed to drizzle differ in key set.
+    expect(buffer).toHaveLength(2); // the insert and the audit rows
+    const rows = buffer[0].values!;
+    expect(rows.map((r) => r.numeroGrupo)).toEqual(["1", "2", "3"]);
+    expect(rows.map((r) => r.dias)).toEqual([MON_WED, undefined, TUE_THU_SAT]);
+    expect(Object.keys(rows[1])).not.toContain("dias");
+  });
+
+  it("drizzle renders the missing key as DEFAULT for that row only (no explicit 0)", () => {
+    const rows = [
+      {
+        asignaturaId: 10,
+        periodo: "P",
+        numeroGrupo: "1",
+        docenteId: 20,
+        dias: MON_WED,
+      },
+      { asignaturaId: 10, periodo: "P", numeroGrupo: "2", docenteId: 20 },
+      {
+        asignaturaId: 10,
+        periodo: "P",
+        numeroGrupo: "3",
+        docenteId: 20,
+        dias: TUE_THU_SAT,
+      },
+    ];
+    const { sql, params } = drizzle.mock().insert(grupo).values(rows).toSQL();
+    // Column order: id (skipped), AsignaturaId, Periodo, NumeroGrupo, DocenteId,
+    // Activo, Origen, Dias. Row 2 gets `default` for Dias, rows 1 and 3 a param.
+    const tuples = sql.slice(sql.indexOf("values ") + 7).split("), (");
+    expect(tuples).toHaveLength(3);
+    expect(tuples[0]).toMatch(/\$\d+\)?$/);
+    expect(tuples[1]).toMatch(/default$/);
+    expect(tuples[2]).toMatch(/\$\d+\)?$/);
+    expect(params).toContain(MON_WED);
+    expect(params).toContain(TUE_THU_SAT);
+    expect(params).not.toContain(0);
+    expect(params.filter((p) => p === "2")).toHaveLength(1);
+  });
+
+  it("a days-only update is one UPDATE and writes no audit payload with a day value, no grupo.* event", async () => {
+    const { tx, buffer } = makeTx();
+    const counts = { Asignatura: zero(), Usuario: zero(), Grupo: zero() };
+    counts.Grupo.update = 1;
+    await applyImport(
+      tx,
+      makePlan({ grupos: [{ ...updateGrupo, dias: TUE_THU_SAT }] }, [], {
+        counts,
+      }),
+      [],
+      ctx,
+    );
+    expect(entityStatements(buffer).map(label)).toEqual(["update:Grupo"]);
+    const rows = auditRows(buffer);
+    expect(rows.map((r) => r.accion)).toEqual([
+      "catalogo.importacion.aplicada",
+    ]);
+    expect(rows.some((r) => String(r.accion).startsWith("grupo."))).toBe(false);
+    const text = JSON.stringify(rows);
+    expect(text).not.toMatch(/dias/i);
+    expect(text).not.toContain(String(TUE_THU_SAT));
+  });
+
+  it("through runImportApply: the lock stays first, inserts name neither activo nor origen, days land in the insert", async () => {
+    const { run, calls, committed } = setup();
+    await run(
+      makeWorkbook({
+        asignaturas: [
+          {
+            Codigo: "MAT1",
+            Nombre: "Matematica",
+            Carrera: CARRERA.nombre,
+            HorasTotales: "60",
+          },
+        ],
+        docentes: [{ Correo: "ana@uni.edu", Nombre: "Ana" }],
+        grupos: [
+          {
+            CodigoAsignatura: "MAT1",
+            Periodo: "2026-S1",
+            NumGrupo: "1",
+            CorreoDocente: "ana@uni.edu",
+            Dias: "Lunes, Miércoles",
+          },
+          {
+            CodigoAsignatura: "MAT1",
+            Periodo: "2026-S1",
+            NumGrupo: "2",
+            CorreoDocente: "ana@uni.edu",
+            Dias: "",
+          },
+        ],
+      }),
+    );
+    expect(calls.slice(calls.indexOf("transaction"))).toEqual([
+      "transaction",
+      "lock",
+      "snapshot:tx",
+    ]);
+    const insert = committed.find((s) => s.table === grupo)!;
+    expect(insert.values!.map((v) => v.dias)).toEqual([MON_WED, undefined]);
+    const keys = insert.values!.flatMap((v) => Object.keys(v));
+    expect(keys).not.toContain("activo");
+    expect(keys).not.toContain("origen");
+    expect(auditRows(committed).map((r) => r.accion)).toEqual([
+      "catalogo.importacion.aplicada",
+    ]);
+    expect(JSON.stringify(auditRows(committed))).not.toMatch(/dias/i);
   });
 });

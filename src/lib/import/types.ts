@@ -1,4 +1,5 @@
 import type { AuditableUserField } from "@/lib/audit/types";
+import type { GrupoOrigen } from "@/lib/catalog/origen";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 /**
@@ -17,6 +18,8 @@ export type AsignaturaRow = {
   nombre: string;
   carreraId: number;
   horasTotales: number;
+  /** Inactive rows are part of the snapshot so a re-import can reactivate them. */
+  activo: boolean;
 };
 
 /** A user with its role CODE (resolved by join), inactive accounts included. */
@@ -40,6 +43,10 @@ export type GrupoRow = {
   numeroGrupo: string;
   docenteId: number;
   activo: boolean;
+  /** How the row was created; an import never rewrites it. */
+  origen: GrupoOrigen;
+  /** Stored meeting-day mask (`0` = no days recorded); see `catalog/dias.ts`. */
+  dias: number;
 };
 
 /** Inactive enrollments are included so a corrected re-import can reactivate them. */
@@ -114,6 +121,9 @@ export type AsignaturaWrite =
       nombre: string;
       carreraId: number;
       horasTotales: number;
+      /** Present (true) only when the matched row was inactive: the apply sets
+       *  `activo: true` for it and for no other update. */
+      reactivated?: true;
     };
 
 /** `Usuario` (docente) create/update payloads. `changedFields` names only
@@ -152,12 +162,16 @@ export type GrupoWrite =
       periodo: string;
       numeroGrupo: string;
       docenteCorreo: string;
+      /** Present only when the cell named at least one day (never `0`). */
+      dias?: number;
     }
   | {
       kind: "update";
       id: number;
       docenteCorreo: string;
       reactivated: boolean;
+      /** Present only when the cell named days that differ from the stored set. */
+      dias?: number;
     };
 
 export type ImportWrites = {
@@ -175,6 +189,10 @@ export type ImportPlan = {
   accountsToCreate: number;
   writes: ImportWrites; // per-entity create/update payloads, in dependency order
   deactivateGrupoIds: number[];
+  /** Asignaturas the apply will reactivate (writes flagged `reactivated`). */
+  asignaturasToReactivate: number;
+  /** How many of `deactivateGrupoIds` have origin `manual`. */
+  manualGruposToDeactivate: number;
   // No `deactivateInscripcionKeys`: Inscripciones is not imported (scope
   // reduction). `Inscripcion` rows stay under academic-catalog's own lifecycle.
 };
@@ -189,6 +207,9 @@ export type ImportSummary = {
   counts: Record<EntityName, EntityCounts>;
   accountsCreated: number;
   accountsUpdated: number;
+  /** Counts only, taken from the plan (CEI-AUD): never a code or a cell. */
+  asignaturasReactivated: number;
+  manualGruposDeactivated: number;
 };
 
 /** Never placed on `ImportSummary` or any audited/logged shape (decision 16). */

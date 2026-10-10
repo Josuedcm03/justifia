@@ -8,7 +8,7 @@ import {
   createStaffAction,
   type CreateStaffState,
 } from "@/app/(dashboard)/users/new/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,7 +66,7 @@ export function NewUserForm({
 
   return (
     <form action={formAction}>
-      <Card className="mx-auto w-full max-w-2xl [--card-spacing:--spacing(6)]">
+      <Card className="mx-auto w-full max-w-2xl">
         <CardContent className="flex flex-col gap-5">
           <Field htmlFor="nombreCompleto" label={t("nameLabel")}>
             <Input
@@ -162,7 +162,7 @@ export function NewUserForm({
             <p
               role="alert"
               aria-live="polite"
-              className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
+              className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
             >
               {state.error}
             </p>
@@ -170,9 +170,9 @@ export function NewUserForm({
         </CardContent>
 
         <CardFooter className="border-border flex justify-end gap-3 border-t py-4">
-          <Button variant="ghost" render={<Link href="/users" />}>
+          <Link href="/users" className={buttonVariants({ variant: "ghost" })}>
             {tCommon("cancel")}
-          </Button>
+          </Link>
           <Button type="submit" disabled={isPending}>
             {isPending ? t("submitting") : t("submit")}
           </Button>

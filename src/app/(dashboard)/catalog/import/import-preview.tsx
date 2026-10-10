@@ -69,6 +69,7 @@ export function ImportPreview({
   action,
   pending,
   headingRef,
+  busy = false,
 }: {
   state: PreviewArm;
   fileName: string;
@@ -76,6 +77,8 @@ export function ImportPreview({
   pending: boolean;
   /** Lets the caller move focus here when a new preview arrives. */
   headingRef?: Ref<HTMLHeadingElement>;
+  /** The last confirm found the catalog busy: nothing was applied. */
+  busy?: boolean;
 }) {
   const t = useTranslations("catalog.import");
   const hasErrors = state.errors.length > 0;
@@ -90,8 +93,8 @@ export function ImportPreview({
           ref={headingRef}
           id="import-preview-title"
           tabIndex={-1}
-          // Clears the 56px sticky header when scrolled into view.
-          className="text-h3 focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          // Clears the 64px sticky header when scrolled into view.
+          className="text-headline focus-visible:ring-ring scroll-mt-20 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
           {t("preview.title")}
         </h2>
@@ -121,7 +124,33 @@ export function ImportPreview({
             count: state.counts.Grupo.deactivate,
           })}
         </p>
+        {state.asignaturasToReactivate > 0 ? (
+          <p className="font-medium">
+            {t("preview.reactivations", {
+              count: state.asignaturasToReactivate,
+            })}
+          </p>
+        ) : null}
+        {state.manualGruposToDeactivate > 0 ? (
+          <p className="border-warning/30 bg-warning/10 text-warning-ink max-w-prose rounded-xl border p-4 font-medium">
+            {t("preview.manualGroups", {
+              count: state.manualGruposToDeactivate,
+            })}
+          </p>
+        ) : null}
+        <p className="text-muted-foreground max-w-prose text-sm">
+          {t("preview.replacedEdits")}
+        </p>
       </div>
+
+      {busy ? (
+        <p
+          role="alert"
+          className="border-warning/30 bg-warning/10 text-warning-ink max-w-prose rounded-xl border p-4 font-medium"
+        >
+          {t("preview.busy")}
+        </p>
+      ) : null}
 
       {/* With errors there is nothing to confirm: `ImportErrors`, above this
           section, lists them and says what to do. */}
@@ -147,7 +176,7 @@ export function ImportResult({ state }: { state: AppliedArm }) {
       aria-labelledby="import-result-title"
       className="flex flex-col gap-6"
     >
-      <h2 id="import-result-title" className="text-h3">
+      <h2 id="import-result-title" className="text-headline">
         {t("result.title")}
       </h2>
 
@@ -162,6 +191,16 @@ export function ImportResult({ state }: { state: AppliedArm }) {
         </p>
         <p className="font-medium">
           {t("result.accountsUpdated", { count: summary.accountsUpdated })}
+        </p>
+        <p className="font-medium">
+          {t("result.asignaturasReactivated", {
+            count: summary.asignaturasReactivated,
+          })}
+        </p>
+        <p className="font-medium">
+          {t("result.manualGruposDeactivated", {
+            count: summary.manualGruposDeactivated,
+          })}
         </p>
       </div>
 

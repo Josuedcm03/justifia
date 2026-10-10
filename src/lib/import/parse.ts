@@ -3,7 +3,12 @@ import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
 
 import { MAX_ROWS_PER_SHEET, MAX_ROWS_TOTAL } from "./limits";
-import { findMissingColumns, resolveHeaderIndex, SHEETS } from "./sheets";
+import {
+  ABSENCE_SIGNIFICANT,
+  findMissingColumns,
+  resolveHeaderIndex,
+  SHEETS,
+} from "./sheets";
 import type { ParsedRow, ParsedWorkbook, RowError } from "./types";
 
 // exceljs -> ParsedWorkbook (decision 6/D2). The ONLY read-side xlsx library
@@ -104,6 +109,8 @@ export async function parseWorkbook(bytes: Uint8Array): Promise<ParseResult> {
       if (index !== undefined) columnIndex.set(column, index);
     }
 
+    const absenceSignificant = ABSENCE_SIGNIFICANT[contract.name] ?? [];
+
     const rows: ParsedRow[] = [];
     try {
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
@@ -128,6 +135,11 @@ export async function parseWorkbook(bytes: Uint8Array): Promise<ParseResult> {
         const cells: Record<string, string> = {};
         for (const column of columns) {
           const index = columnIndex.get(column);
+          // An absent header is a different statement from a blank cell for
+          // the columns listed in ABSENCE_SIGNIFICANT: the key is omitted.
+          if (index === undefined && absenceSignificant.includes(column)) {
+            continue;
+          }
           cells[column] =
             index === undefined ? "" : cellText(row.getCell(index + 1).value);
         }

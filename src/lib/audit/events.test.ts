@@ -1,14 +1,35 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  AsignaturaActiveResult,
+  AsignaturaWriteResult,
+  GrupoActiveResult,
+  GrupoWriteResult,
+} from "../catalog/types";
+import { encodeDias } from "../catalog/dias";
 import type { EntityCounts, ImportSummary } from "../import/types";
+import { changedFields } from "./diff";
 import {
   accountCreatedEvent,
   accountUpdatedEvent,
+  asignaturaActiveChangedEvent,
+  asignaturaCreatedEvent,
+  asignaturaUpdatedEvent,
+  asignaturaWriteEvents,
   buildAuditEvents,
+  grupoActiveChangedEvent,
+  grupoCreatedEvent,
+  grupoUpdatedEvent,
+  grupoWriteEvents,
   importAppliedEvent,
+  MANUAL_ORIGIN,
   type TouchedAccount,
 } from "./events";
-import { AUDIT_ACTIONS, AUDITABLE_USER_FIELDS } from "./types";
+import {
+  AUDIT_ACTIONS,
+  AUDITABLE_ASIGNATURA_FIELDS,
+  AUDITABLE_USER_FIELDS,
+} from "./types";
 
 function zeroCounts(): EntityCounts {
   return { create: 0, update: 0, unchanged: 0, deactivate: 0, error: 0 };
@@ -26,13 +47,20 @@ function makeSummary(overrides: Partial<ImportSummary> = {}): ImportSummary {
     },
     accountsCreated: 0,
     accountsUpdated: 0,
+    asignaturasReactivated: 0,
+    manualGruposDeactivated: 0,
     ...overrides,
   };
 }
 
 describe("importAppliedEvent", () => {
   it("builds the import-level event with no actor/at on the payload", () => {
-    const summary = makeSummary({ accountsCreated: 2, accountsUpdated: 1 });
+    const summary = makeSummary({
+      accountsCreated: 2,
+      accountsUpdated: 1,
+      asignaturasReactivated: 2,
+      manualGruposDeactivated: 3,
+    });
     const event = importAppliedEvent(summary);
 
     expect(event.accion).toBe("catalogo.importacion.aplicada");
@@ -43,9 +71,38 @@ describe("importAppliedEvent", () => {
       conteos: summary.counts,
       cuentasCreadas: 2,
       cuentasActualizadas: 1,
+      asignaturasReactivadas: 2,
+      gruposManualesDesactivados: 3,
     });
     expect("actor" in event.datos).toBe(false);
     expect("at" in event.datos).toBe(false);
+  });
+
+  it("carries the two losing-side counts as zero when nothing applies", () => {
+    const event = importAppliedEvent(makeSummary());
+    expect(event.datos).toMatchObject({
+      asignaturasReactivadas: 0,
+      gruposManualesDesactivados: 0,
+    });
+  });
+
+  it("holds counts only: no Codigo, cell content or credential key (CEI-AUD, AL-PAY)", () => {
+    const event = importAppliedEvent(
+      makeSummary({ asignaturasReactivated: 1, manualGruposDeactivated: 1 }),
+    );
+    expect(Object.keys(event.datos).toSorted()).toEqual(
+      [
+        "archivoSha256",
+        "asignaturasReactivadas",
+        "conteos",
+        "cuentasActualizadas",
+        "cuentasCreadas",
+        "gruposManualesDesactivados",
+      ].toSorted(),
+    );
+    expect(JSON.stringify(event.datos)).not.toMatch(
+      /clave|password|hash|codigo|nombre|correo/i,
+    );
   });
 });
 
@@ -226,5 +283,441 @@ describe("credential-leak pins (decision 22)", () => {
         sweep(event);
       }
     }
+  });
+});
+
+describe("manual catalog event builders (AL-SET, AL-PAY)", () => {
+  const SHA = "f".repeat(64);
+
+  it("exposes the manual origin as a digest-free constant", () => {
+    expect(MANUAL_ORIGIN).toEqual({ origen: "manual" });
+  });
+
+  describe("Asignatura", () => {
+    it("created: asignatura.creada, numeric id, full closed field list", () => {
+      const event = asignaturaCreatedEvent({
+        asignaturaId: 11,
+        origin: MANUAL_ORIGIN,
+      });
+      expect(event.accion).toBe("asignatura.creada");
+      expect(event.entidadTipo).toBe("Asignatura");
+      expect(event.entidadId).toBe(11);
+      expect(event.datos).toEqual({
+        origen: "manual",
+        campos: [...AUDITABLE_ASIGNATURA_FIELDS],
+      });
+    });
+
+    it("updated: asignatura.actualizada lists exactly the given names", () => {
+      const event = asignaturaUpdatedEvent({
+        asignaturaId: 12,
+        campos: ["nombre", "horasTotales"],
+        origin: MANUAL_ORIGIN,
+      });
+      expect(event.accion).toBe("asignatura.actualizada");
+      expect(event.entidadTipo).toBe("Asignatura");
+      expect(event.entidadId).toBe(12);
+      expect(event.datos).toEqual({
+        origen: "manual",
+        campos: ["nombre", "horasTotales"],
+      });
+    });
+
+    it.each([
+      [true, "asignatura.reactivada"],
+      [false, "asignatura.desactivada"],
+    ] as const)(
+      "activeChanged(%s) -> %s with campos [activo]",
+      (activo, accion) => {
+        const event = asignaturaActiveChangedEvent({
+          asignaturaId: 13,
+          activo,
+          origin: MANUAL_ORIGIN,
+        });
+        expect(event.accion).toBe(accion);
+        expect(event.entidadTipo).toBe("Asignatura");
+        expect(event.entidadId).toBe(13);
+        expect(event.datos).toEqual({ origen: "manual", campos: ["activo"] });
+      },
+    );
+
+    it("carries the import digest only for the importacion origin", () => {
+      const event = asignaturaActiveChangedEvent({
+        asignaturaId: 14,
+        activo: true,
+        origin: { origen: "importacion", importacionSha256: SHA },
+      });
+      expect(event.datos).toEqual({
+        origen: "importacion",
+        importacionSha256: SHA,
+        campos: ["activo"],
+      });
+    });
+  });
+
+  describe("Grupo", () => {
+    it("created: grupo.creado, numeric id, full closed field list", () => {
+      const event = grupoCreatedEvent({ grupoId: 21, origin: MANUAL_ORIGIN });
+      expect(event.accion).toBe("grupo.creado");
+      expect(event.entidadTipo).toBe("Grupo");
+      expect(event.entidadId).toBe(21);
+      expect(event.datos).toEqual({
+        origen: "manual",
+        campos: [
+          "asignaturaId",
+          "periodo",
+          "numeroGrupo",
+          "docenteId",
+          "activo",
+          "origen",
+          "dias",
+        ],
+      });
+    });
+
+    describe("days-only and docente edits (AL-PAY, CM-GRP-6)", () => {
+      const FIELDS = ["docenteId", "dias"] as const;
+      const monday = encodeDias(["lunes"]);
+      const mondayWednesday = encodeDias(["lunes", "miercoles"]);
+
+      function updateFor(
+        before: { docenteId: number; dias: number },
+        after: { docenteId: number; dias: number },
+      ) {
+        return changedFields([...FIELDS], before, after);
+      }
+
+      it("a days-only change names dias and no day", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: monday },
+          { docenteId: 4, dias: mondayWednesday },
+        );
+        const event = grupoUpdatedEvent({
+          grupoId: 24,
+          campos,
+          origin: MANUAL_ORIGIN,
+        });
+        expect(event.datos).toEqual({ campos: ["dias"], origen: "manual" });
+      });
+
+      it("a change of both names docenteId then dias", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: monday },
+          { docenteId: 5, dias: mondayWednesday },
+        );
+        expect(campos).toEqual(["docenteId", "dias"]);
+        const event = grupoUpdatedEvent({
+          grupoId: 24,
+          campos,
+          origin: MANUAL_ORIGIN,
+        });
+        expect(event.datos).toEqual({
+          campos: ["docenteId", "dias"],
+          origen: "manual",
+        });
+      });
+
+      it("a docente-only change names docenteId and not dias", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: monday },
+          { docenteId: 5, dias: monday },
+        );
+        expect(campos).toEqual(["docenteId"]);
+      });
+
+      it("selecting the same set again, in another order, reports no field", () => {
+        const campos = updateFor(
+          { docenteId: 4, dias: encodeDias(["lunes", "miercoles"]) },
+          { docenteId: 4, dias: encodeDias(["miercoles", "lunes", "lunes"]) },
+        );
+        expect(campos).toEqual([]);
+        expect(grupoWriteEvents({ kind: "unchanged", id: 24 })).toEqual([]);
+      });
+    });
+
+    it("updated: grupo.actualizado lists exactly the given names", () => {
+      const event = grupoUpdatedEvent({
+        grupoId: 22,
+        campos: ["docenteId"],
+        origin: MANUAL_ORIGIN,
+      });
+      expect(event.accion).toBe("grupo.actualizado");
+      expect(event.entidadTipo).toBe("Grupo");
+      expect(event.entidadId).toBe(22);
+      expect(event.datos).toEqual({ origen: "manual", campos: ["docenteId"] });
+    });
+
+    it.each([
+      [true, "grupo.reactivado"],
+      [false, "grupo.desactivado"],
+    ] as const)(
+      "activeChanged(%s) -> %s with campos [activo]",
+      (activo, accion) => {
+        const event = grupoActiveChangedEvent({
+          grupoId: 23,
+          activo,
+          origin: MANUAL_ORIGIN,
+        });
+        expect(event.accion).toBe(accion);
+        expect(event.entidadTipo).toBe("Grupo");
+        expect(event.entidadId).toBe(23);
+        expect(event.datos).toEqual({ origen: "manual", campos: ["activo"] });
+      },
+    );
+  });
+
+  it("every new action code is one of AUDIT_ACTIONS", () => {
+    const events = [
+      asignaturaCreatedEvent({ asignaturaId: 1, origin: MANUAL_ORIGIN }),
+      asignaturaUpdatedEvent({
+        asignaturaId: 1,
+        campos: ["nombre"],
+        origin: MANUAL_ORIGIN,
+      }),
+      asignaturaActiveChangedEvent({
+        asignaturaId: 1,
+        activo: false,
+        origin: MANUAL_ORIGIN,
+      }),
+      asignaturaActiveChangedEvent({
+        asignaturaId: 1,
+        activo: true,
+        origin: MANUAL_ORIGIN,
+      }),
+      grupoCreatedEvent({ grupoId: 1, origin: MANUAL_ORIGIN }),
+      grupoUpdatedEvent({
+        grupoId: 1,
+        campos: ["docenteId"],
+        origin: MANUAL_ORIGIN,
+      }),
+      grupoActiveChangedEvent({
+        grupoId: 1,
+        activo: false,
+        origin: MANUAL_ORIGIN,
+      }),
+      grupoActiveChangedEvent({
+        grupoId: 1,
+        activo: true,
+        origin: MANUAL_ORIGIN,
+      }),
+    ];
+    for (const event of events) {
+      expect(AUDIT_ACTIONS).toContain(event.accion);
+      expect("actorId" in event).toBe(false);
+      expect("ocurridoEn" in event).toBe(false);
+    }
+  });
+
+  it("a manual origin cannot carry importacionSha256 (compile-time pin)", () => {
+    const event = asignaturaCreatedEvent({
+      asignaturaId: 1,
+      // @ts-expect-error - the manual variant has no digest field at all.
+      origin: { origen: "manual", importacionSha256: SHA },
+    });
+    expect(event).toBeDefined();
+  });
+
+  it("payloads hold field names only: forbidden-key and value sweep over every builder", () => {
+    const forbiddenKeys = [
+      "clave",
+      "password",
+      "hash",
+      "hashClave",
+      "nombre",
+      "correo",
+      "codigo",
+      "periodo",
+      "numeroGrupo",
+      "importacionSha256",
+      "dias",
+    ];
+    // Sentinel values a builder must never be able to echo: none of these can
+    // even be passed in (ids, booleans and closed names are the only inputs).
+    // The day sentinels are two masks (Mon+Wed+Fri+Sun, Tue+Thu+Sat), a day
+    // code, its display form and a count of days (AL-PAY).
+    const sentinels = [
+      "SENTINEL-NOMBRE",
+      "SENTINEL-CORREO",
+      "2026-I",
+      "G-77",
+      String(encodeDias(["lunes", "miercoles", "viernes", "domingo"])),
+      String(encodeDias(["martes", "jueves", "sabado"])),
+      "lunes",
+      "Lunes",
+      "4 days",
+    ];
+
+    const events = [
+      asignaturaCreatedEvent({ asignaturaId: 7, origin: MANUAL_ORIGIN }),
+      asignaturaUpdatedEvent({
+        asignaturaId: 7,
+        campos: ["nombre", "horasTotales"],
+        origin: MANUAL_ORIGIN,
+      }),
+      asignaturaActiveChangedEvent({
+        asignaturaId: 7,
+        activo: false,
+        origin: MANUAL_ORIGIN,
+      }),
+      grupoCreatedEvent({ grupoId: 8, origin: MANUAL_ORIGIN }),
+      grupoUpdatedEvent({
+        grupoId: 8,
+        campos: ["docenteId"],
+        origin: MANUAL_ORIGIN,
+      }),
+      grupoUpdatedEvent({
+        grupoId: 8,
+        campos: ["docenteId", "dias"],
+        origin: MANUAL_ORIGIN,
+      }),
+      grupoActiveChangedEvent({
+        grupoId: 8,
+        activo: true,
+        origin: MANUAL_ORIGIN,
+      }),
+    ];
+
+    function sweep(value: unknown): void {
+      if (value === null || typeof value !== "object") return;
+      for (const [key, nested] of Object.entries(value)) {
+        expect(forbiddenKeys).not.toContain(key);
+        sweep(nested);
+      }
+    }
+
+    for (const event of events) {
+      // `campos` entries are field NAMES (strings in an array), never keys.
+      sweep(event.datos);
+      const serialised = JSON.stringify(event.datos);
+      for (const sentinel of sentinels) {
+        expect(serialised).not.toContain(sentinel);
+      }
+      expect(Object.keys(event.datos).sort()).toEqual(["campos", "origen"]);
+    }
+  });
+});
+
+describe("write results to events (AL-ONE, CM-AUD-1)", () => {
+  type AsignaturaResult = AsignaturaWriteResult | AsignaturaActiveResult;
+  type GrupoResult = GrupoWriteResult | GrupoActiveResult;
+
+  // `Record` over the kind union: a kind added to a result union without a row
+  // here fails the typecheck (exhaustiveness over each union).
+  const ASIGNATURA_EVENT_COUNT: Record<AsignaturaResult["kind"], 0 | 1> = {
+    created: 1,
+    updated: 1,
+    changed: 1,
+    unchanged: 0,
+    not_found: 0,
+    codigo_taken: 0,
+    carrera_invalid: 0,
+    has_active_groups: 0,
+    inactive: 0,
+  };
+  const GRUPO_EVENT_COUNT: Record<GrupoResult["kind"], 0 | 1> = {
+    created: 1,
+    updated: 1,
+    changed: 1,
+    unchanged: 0,
+    not_found: 0,
+    grupo_taken: 0,
+    asignatura_unavailable: 0,
+    docente_unavailable: 0,
+    inactive: 0,
+  };
+
+  const asignaturaResults: AsignaturaResult[] = [
+    { kind: "created", id: 1 },
+    { kind: "updated", id: 1, campos: ["nombre"] },
+    { kind: "changed", id: 1, activo: false },
+    { kind: "unchanged", id: 1 },
+    { kind: "not_found" },
+    { kind: "codigo_taken", inScope: true, activo: false },
+    { kind: "carrera_invalid" },
+    { kind: "has_active_groups", count: 2 },
+    { kind: "inactive" },
+  ];
+  const grupoResults: GrupoResult[] = [
+    { kind: "created", id: 2 },
+    { kind: "updated", id: 2, campos: ["docenteId"] },
+    { kind: "changed", id: 2, activo: true },
+    { kind: "unchanged", id: 2 },
+    { kind: "not_found" },
+    { kind: "grupo_taken", activo: true },
+    { kind: "asignatura_unavailable" },
+    { kind: "docente_unavailable" },
+    { kind: "inactive" },
+  ];
+
+  it("asignaturaWriteEvents: one event per success, [] per refusal and no-op", () => {
+    expect(new Set(asignaturaResults.map((r) => r.kind))).toEqual(
+      new Set(Object.keys(ASIGNATURA_EVENT_COUNT)),
+    );
+    for (const result of asignaturaResults) {
+      expect(asignaturaWriteEvents(result)).toHaveLength(
+        ASIGNATURA_EVENT_COUNT[result.kind],
+      );
+    }
+  });
+
+  it("grupoWriteEvents: one event per success, [] per refusal and no-op", () => {
+    expect(new Set(grupoResults.map((r) => r.kind))).toEqual(
+      new Set(Object.keys(GRUPO_EVENT_COUNT)),
+    );
+    for (const result of grupoResults) {
+      expect(grupoWriteEvents(result)).toHaveLength(
+        GRUPO_EVENT_COUNT[result.kind],
+      );
+    }
+  });
+
+  it("maps each success to its manual-origin builder", () => {
+    expect(asignaturaWriteEvents({ kind: "created", id: 5 })).toEqual([
+      asignaturaCreatedEvent({ asignaturaId: 5, origin: MANUAL_ORIGIN }),
+    ]);
+    expect(
+      asignaturaWriteEvents({ kind: "updated", id: 5, campos: ["nombre"] }),
+    ).toEqual([
+      asignaturaUpdatedEvent({
+        asignaturaId: 5,
+        campos: ["nombre"],
+        origin: MANUAL_ORIGIN,
+      }),
+    ]);
+    expect(
+      asignaturaWriteEvents({ kind: "changed", id: 5, activo: true }),
+    ).toEqual([
+      asignaturaActiveChangedEvent({
+        asignaturaId: 5,
+        activo: true,
+        origin: MANUAL_ORIGIN,
+      }),
+    ]);
+    expect(grupoWriteEvents({ kind: "created", id: 6 })).toEqual([
+      grupoCreatedEvent({ grupoId: 6, origin: MANUAL_ORIGIN }),
+    ]);
+    expect(
+      grupoWriteEvents({ kind: "updated", id: 6, campos: ["docenteId"] }),
+    ).toEqual([
+      grupoUpdatedEvent({
+        grupoId: 6,
+        campos: ["docenteId"],
+        origin: MANUAL_ORIGIN,
+      }),
+    ]);
+    expect(grupoWriteEvents({ kind: "changed", id: 6, activo: false })).toEqual(
+      [
+        grupoActiveChangedEvent({
+          grupoId: 6,
+          activo: false,
+          origin: MANUAL_ORIGIN,
+        }),
+      ],
+    );
+  });
+
+  it("an inactive edit is refused and writes nothing (A-1)", () => {
+    expect(asignaturaWriteEvents({ kind: "inactive" })).toEqual([]);
+    expect(grupoWriteEvents({ kind: "inactive" })).toEqual([]);
   });
 });
