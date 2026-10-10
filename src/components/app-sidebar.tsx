@@ -4,6 +4,7 @@ import {
   BookOpen,
   Briefcase,
   ChevronRight,
+  FilePlus,
   FileSpreadsheet,
   GraduationCap,
   LayoutDashboard,
@@ -40,6 +41,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   canCreateUsers,
+  canFileRequests,
   canImportCatalog,
   canManageCatalog,
 } from "@/lib/auth/permissions";
@@ -64,6 +66,12 @@ type NavGroup = {
 // new back-office page is one more entry in `children`.
 const items = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
+  {
+    key: "newRequest",
+    href: "/requests/new",
+    icon: FilePlus,
+    visibleTo: canFileRequests,
+  },
   {
     key: "administration",
     icon: Briefcase,

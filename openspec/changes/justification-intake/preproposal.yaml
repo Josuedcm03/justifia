@@ -1,0 +1,74 @@
+schema: gentle-ai.sdd-preproposal/v1
+change: justification-intake
+revision: 6
+exploration:
+  outcome: done
+  reference:
+    openspec: openspec/changes/justification-intake/explore.md
+    engram: sdd/justification-intake/explore
+research:
+  selected: true
+  request_id: justification-intake-research-001
+  source_classes: [documentation, open-web]
+  admission: admitted
+  outcome: done
+  evidence_revision: 2
+  revision_2_request_id: justification-intake-research-002
+  revision_2_questions:
+    - id: Q4
+      text: Brief Cloudflare R2 vs AWS S3 facts (presigned PUT with size/content-type limits, encryption at rest, small-scale cost). Supabase Storage optional.
+    - id: Q5
+      text: Server-side real file-type validation after direct upload (OWASP guidance; reading first bytes from Vercel Blob; delete on mismatch).
+    - id: Q6
+      text: Vercel Blob token options (maximumSizeInBytes, addRandomSuffix, validUntil), del() and list() for cleanup, and whether Vercel Cron Jobs are available on Hobby (frequency limits).
+    - id: Q7
+      text: Vercel Hobby plan fair-use / non-commercial restriction and whether a university pilot fits it.
+  questions:
+    - id: Q1
+      text: Vercel Functions request body size limit (4.5 MB?) for Next.js server actions and route handlers; plan differences; whether it can be raised.
+    - id: Q2
+      text: Does Neon offer S3-like object storage? Neon encryption at rest for Postgres; guidance and limits for bytea blobs (TOAST, pricing, egress).
+    - id: Q3
+      text: Vercel Blob private access, encryption at rest, client uploads bypassing the body limit, onUploadCompleted in local dev, content-type and max-size restriction via token, server read-back for magic-byte checks, authenticated downloads, pricing and region.
+    - id: Q4
+      text: Brief comparison of Cloudflare R2, AWS S3 and Supabase Storage for presigned direct upload, private access, encryption at rest and small-scale cost.
+    - id: Q5
+      text: Pattern for server-side real file-type validation when clients upload directly to object storage (range read then delete if invalid).
+  evidence:
+    openspec: openspec/changes/justification-intake/research.md
+    engram: sdd/justification-intake/research
+product_decisions:
+  status: confirmed
+  confirmed:
+    - id: D1
+      decision: Baseline hosting is Vercel (may change later). Storage behind a DocumentStore port.
+    - id: D2
+      decision: Supporting files in a Vercel Blob private store via client uploads (browser to Blob); token sets allowedContentTypes (pdf, png, jpeg), maximumSizeInBytes 10485760 and short validUntil. Neon Object Storage rejected (beta, object encryption at rest undocumented); bytea rejected (4.5 MB Vercel body limit).
+    - id: D3
+      decision: Real-format validation in a finalize server action that reads the first bytes via get() and checks PDF/PNG/JPEG signatures; del() and reject on mismatch. Does not rely on onUploadCompleted.
+    - id: D4
+      decision: RNF-14 out of scope; added to roadmap as normative-parameters (row 8, unassigned). Causes and 10 MB limit are code constants.
+    - id: D5
+      decision: RN-22 uses a GroupScheduleProvider port with a temporary permissive adapter (every active enrolled group has class); schedule-filter scenarios deferred until catalog-schedule; contract reconciled later.
+    - id: D6
+      decision: Dates - no rejection for late submission (RN-07 signal belongs to validation-signals); future dates allowed; no max duration; RN-23 added to docs/requirements.md (also RF-03 criterion d) - end date not earlier than 30 calendar days before submission (constant, candidate for normative-parameters).
+    - id: D7
+      decision: Single Solicitud table with internal borrador state plus RN-16 states; this change writes borrador and pendiente only; downstream lists exclude borrador via a domain helper.
+    - id: D8
+      decision: One open draft per student (partial unique index); student resumes it and may discard it with confirmation (RNF-12); drafts inactive 30 days expire; a daily Vercel Cron sweep deletes expired drafts and unreferenced blobs older than 24 h (per-draft blob prefix).
+    - id: D9
+      decision: Student data (name, CIF, career, email) snapshotted onto the request at submit.
+    - id: D10
+      decision: Vercel Hobby plan (pilot is unpaid student thesis work, no funds for Pro); daily cron limit accepted.
+    - id: D11
+      decision: Co-locate Vercel function region, Neon region and Blob store region. Serverless DB access must use the Neon pooled endpoint with a small per-instance pool; review src/db/index.ts (postgres-js max 10) in design.
+    - id: D12
+      decision: At most 5 supporting documents per request; the count includes pendiente and valido documents. A 6th upload is refused at the token route (no token issued) and at finalize with reason too_many_documents.
+    - id: D13
+      decision: Every successful supporting-document download writes exactly one documento.descargado audit row (entity DocumentoRespaldo, actor the downloading user), per RNF-06 a; denied or failed downloads write none.
+    - id: D14
+      decision: Draft operations (create, autosave, discard, cron expiry, orphan sweep) write no audit rows; a borrador is not yet a presented request and the cron has no human actor while EventoAuditoria.ActorId is NOT NULL. Auditing of the request starts at submission. Exception - explicit student actions on a supporting document (attach, remove, rejected upload) are audited from the first file, even while the request is a borrador, because the documents carry sensitive data (RNF-02) and always have a human actor; cascaded document deletions caused by discard, expiry or sweeps are not audited.
+    - id: D15
+      decision: At least one subject is required to submit; a group without a teacher shows a "no teacher assigned" label and does not block submit; only the owning student can download their documents in this change (other roles in later changes).
+  pending: []
+proposal_ready: true

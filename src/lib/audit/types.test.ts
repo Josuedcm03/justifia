@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight new ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog and five intake ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -46,6 +46,11 @@ describe("AUDIT_ACTIONS", () => {
         "grupo.actualizado",
         "grupo.desactivado",
         "grupo.reactivado",
+        "solicitud.presentada",
+        "documento.adjuntado",
+        "documento.rechazado",
+        "documento.eliminado",
+        "documento.descargado",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([

@@ -9,6 +9,11 @@ export const AUDIT_ACTIONS = [
   "catalogo.importacion.aplicada",
   "usuario.creado",
   "usuario.actualizado",
+  "solicitud.presentada",
+  "documento.adjuntado",
+  "documento.rechazado",
+  "documento.eliminado",
+  "documento.descargado",
   "asignatura.creada",
   "asignatura.actualizada",
   "asignatura.desactivada",
@@ -22,7 +27,12 @@ export const AUDIT_ACTIONS = [
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export type AuditEntityType =
-  "Importacion" | "Usuario" | "Asignatura" | "Grupo";
+  | "Importacion"
+  | "Usuario"
+  | "Solicitud"
+  | "DocumentoRespaldo"
+  | "Asignatura"
+  | "Grupo";
 
 /** Closed list. A field not named here can never be reported as changed.
  *  `login` and `hashClave` are ABSENT on purpose: `hashClave` is a
@@ -56,6 +66,35 @@ type UserChangedPayload = {
   rol: RolUsuario;
   origen: "importacion";
   importacionSha256: string;
+};
+
+/** Counts only: no cause, dates or student data (RNF-02, RN-02). */
+type RequestSubmittedPayload = { asignaturas: number; documentos: number };
+
+/** Reason codes of a rejected finalize (supporting-documents). */
+export type DocumentRejectionReason =
+  | "unsupported_format"
+  | "too_large"
+  | "empty_file"
+  | "not_found"
+  | "not_allowed"
+  | "too_many_documents";
+
+/** Payloads carry ids, detected type, size and the reason code only: never a
+ *  file name, content or storage location (RNF-02, D13). */
+type DocumentAttachedPayload = {
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+  tamanoBytes: number;
+};
+
+type DocumentRejectedPayload = { reason: DocumentRejectionReason };
+
+type DocumentRemovedPayload = { solicitudId: number };
+
+type DocumentDownloadedPayload = {
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
 };
 
 /** Closed lists for the manual catalog events. A field not named here can
@@ -109,6 +148,37 @@ export type AuditEvent =
       entidadTipo: "Usuario";
       entidadId: number;
       datos: UserChangedPayload;
+    }
+  | {
+      accion: "solicitud.presentada";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: RequestSubmittedPayload;
+    }
+  | {
+      accion: "documento.adjuntado";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentAttachedPayload;
+    }
+  | {
+      // Concerns no persisted document: the entity is the draft (Solicitud).
+      accion: "documento.rechazado";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: DocumentRejectedPayload;
+    }
+  | {
+      accion: "documento.eliminado";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentRemovedPayload;
+    }
+  | {
+      accion: "documento.descargado";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentDownloadedPayload;
     }
   | {
       accion:

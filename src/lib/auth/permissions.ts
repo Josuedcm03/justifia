@@ -96,3 +96,28 @@ export function rolesVisiblesPara(
 ): readonly RolUsuario[] {
   return rol ? rolesVisibles[rol] : [];
 }
+
+/**
+ * Roles that may file justification requests (justification-intake). Typed
+ * against `RolUsuario` so a renamed role is a compile error.
+ */
+export const rolesSolicitantes = [
+  "estudiante",
+] as const satisfies readonly RolUsuario[];
+
+export function canFileRequests(rol: RolUsuario | undefined): boolean {
+  return (
+    rol !== undefined && (rolesSolicitantes as readonly string[]).includes(rol)
+  );
+}
+
+/**
+ * Who may read a supporting document (D15): only the owning student in this
+ * change. Other roles arrive with later changes, widening this one predicate.
+ */
+export function canViewDocument(
+  viewer: { id: number; rol: RolUsuario },
+  ownerId: number,
+): boolean {
+  return canFileRequests(viewer.rol) && viewer.id === ownerId;
+}

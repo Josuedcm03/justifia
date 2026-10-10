@@ -12,6 +12,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "newRequest": "New request",
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
     "catalogGrupos": "Groups",
@@ -635,5 +636,126 @@
     "cifLabel": "CIF",
     "careerLabel": "Career",
     "memberSinceLabel": "Member since"
+  },
+  "intake": {
+    "title": "New justification request",
+    "subtitle": "Complete the steps to submit your absence justification.",
+    "degraded": "We could not load your draft. Please try again in a few minutes.",
+    "stepper": {
+      "label": "Request steps",
+      "stepOf": "Step {current} of {total}",
+      "steps": {
+        "details": "Cause and dates",
+        "subjects": "Subjects",
+        "documents": "Documents",
+        "review": "Review"
+      }
+    },
+    "causes": {
+      "maternidad_paternidad": "Maternity, paternity or breastfeeding",
+      "actividad_representativa": "Cultural or sports activity representing UAM",
+      "intercambio_academico": "Academic exchange",
+      "medica": "Medical",
+      "fuerza_mayor": "Other force majeure"
+    },
+    "actions": {
+      "next": "Continue",
+      "back": "Back",
+      "saving": "Saving…"
+    },
+    "details": {
+      "title": "Cause and dates",
+      "description": "Tell us why you were absent and which period it covers.",
+      "causeLabel": "Cause of the absence",
+      "startLabel": "Start date",
+      "endLabel": "End date"
+    },
+    "subjects": {
+      "title": "Affected subjects",
+      "description": "Tick the subjects you missed. We show your group and teacher.",
+      "datesRequired": "Enter the absence dates first to see your subjects.",
+      "goToDates": "Go to cause and dates",
+      "degraded": "We could not load your subjects. Please try again in a few minutes.",
+      "empty": "You have no active subjects you are enrolled in.",
+      "group": "Group {number}",
+      "teacher": "Teacher: {name}",
+      "noTeacher": "No teacher assigned",
+      "chooseGroup": "Choose the group for this subject"
+    },
+    "documents": {
+      "title": "Supporting documents",
+      "description": "Attach at least one document that supports your absence.",
+      "hint": "PDF, PNG or JPEG up to {size} MB. At most {max} documents.",
+      "count": "{count} of {max} documents",
+      "empty": "You have not attached any documents yet.",
+      "add": "Attach document",
+      "uploading": "Uploading {name}…",
+      "view": "View",
+      "viewNamed": "View {name}",
+      "remove": "Remove {name}",
+      "removing": "Removing…"
+    },
+    "errors": {
+      "causa_required": "Choose the cause of your absence.",
+      "causa_invalid": "Choose one of the listed causes.",
+      "start_required": "Enter the start date.",
+      "start_invalid": "Enter a valid start date.",
+      "end_required": "Enter the end date.",
+      "end_invalid": "Enter a valid end date.",
+      "end_before_start": "The end date cannot be before the start date.",
+      "end_too_old": "The end date cannot be earlier than 30 days before today.",
+      "subjects_required": "Tick at least one subject.",
+      "subject_not_eligible": "This subject is not available for your enrollment.",
+      "subject_duplicate": "This subject is repeated.",
+      "group_required": "Choose the group for this subject.",
+      "group_not_in_subject": "The chosen group does not belong to this subject.",
+      "documents_required": "Attach at least one supporting document.",
+      "no_draft": "We could not find your draft. Reload the page to start again.",
+      "invalid_input": "Check the data you entered.",
+      "dates_required": "Enter the absence dates first.",
+      "submit_conflict": "The request changed while you were submitting it. Reload the page and review it.",
+      "profile_incomplete": "Your account is missing required data. Contact the registrar office.",
+      "unsupported_format": "Unsupported format. Upload a PDF, PNG or JPEG.",
+      "too_large": "The file is larger than 10 MB.",
+      "empty_file": "The file is empty.",
+      "not_found": "We could not find the file. Please try again.",
+      "not_allowed": "You are not allowed to do this.",
+      "too_many_documents": "You already attached the maximum of 5 documents. Remove one to upload another.",
+      "upload_failed": "The file could not be uploaded. Please try again."
+    },
+    "review": {
+      "title": "Review and submit your request",
+      "description": "Check the details. Once submitted, the request cannot be edited.",
+      "sections": {
+        "details": "Cause and dates",
+        "subjects": "Subjects",
+        "documents": "Documents"
+      },
+      "edit": "Edit",
+      "editSection": "Edit {section}",
+      "notSet": "Not filled in",
+      "period": "From {start} to {end}",
+      "cancel": "Cancel",
+      "submit": {
+        "button": "Submit request",
+        "title": "Submit the request?",
+        "description": "Once submitted you will not be able to change it.",
+        "confirm": "Yes, submit",
+        "pending": "Submitting…"
+      },
+      "discard": {
+        "button": "Discard draft",
+        "title": "Discard the draft?",
+        "description": "Your data and documents will be deleted. This cannot be undone.",
+        "confirm": "Yes, discard",
+        "pending": "Discarding…"
+      }
+    },
+    "confirmation": {
+      "title": "Request submitted",
+      "description": "We have registered your justification request.",
+      "home": "Go to the dashboard",
+      "another": "Submit another request"
+    }
   }
 }

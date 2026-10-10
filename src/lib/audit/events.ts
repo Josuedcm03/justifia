@@ -24,6 +24,7 @@ import type {
   AuditableUserField,
   AuditEvent,
   AuditOrigin,
+  DocumentRejectionReason,
 } from "./types";
 
 export function importAppliedEvent(summary: ImportSummary): AuditEvent {
@@ -80,6 +81,74 @@ export function accountUpdatedEvent(args: {
       origen: "importacion",
       importacionSha256: args.importacionSha256,
     },
+  };
+}
+
+export function solicitudPresentadaEvent(args: {
+  solicitudId: number;
+  asignaturas: number;
+  documentos: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.presentada",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: { asignaturas: args.asignaturas, documentos: args.documentos },
+  };
+}
+
+export function documentAttachedEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+  tamanoBytes: number;
+}): AuditEvent {
+  return {
+    accion: "documento.adjuntado",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      tipo: args.tipo,
+      tamanoBytes: args.tamanoBytes,
+    },
+  };
+}
+
+export function documentRejectedEvent(args: {
+  solicitudId: number;
+  reason: DocumentRejectionReason;
+}): AuditEvent {
+  return {
+    accion: "documento.rechazado",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: { reason: args.reason },
+  };
+}
+
+export function documentRemovedEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+}): AuditEvent {
+  return {
+    accion: "documento.eliminado",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: { solicitudId: args.solicitudId },
+  };
+}
+
+export function documentDownloadedEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+}): AuditEvent {
+  return {
+    accion: "documento.descargado",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: { solicitudId: args.solicitudId, tipo: args.tipo },
   };
 }
 
