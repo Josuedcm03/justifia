@@ -98,7 +98,7 @@ Chain strategy (updated 2026-10-08): single branch per change. Slices are commit
 ## Final merge checklist (feature branch -> main)
 
 - [ ] F.1 Rebase `feat/justification-intake` on `main` after `catalog-management` lands; resolve conflicts in `permissions.ts`, `app-sidebar.tsx`, `i18n/*.json`, audit types
-- [ ] F.2 Delete our generated migration and its snapshot/journal entry; regenerate with `npm run db:generate -- --name justification_intake` (expected `0007`+); rerun the migration test; ask the user before any apply
+- [ ] F.2 Delete our generated migration and its snapshot/journal entry; regenerate with `npm run db:generate -- --name justification_intake` (expected `0007`+); rerun the migration test; ask the user before any apply **Finding 2026-10-09:** production already has 7 drizzle migrations applied (catalog-management `0005` at 2026-10-05 and a `0006` at 2026-10-08 01:40 UTC). drizzle-kit migrate only applies migrations newer than the last applied `created_at`, so our current `0005` (when 2026-10-07) would be SKIPPED silently with a success exit. The regenerated migration must sit after `0006` in the journal with a later `when`; verify with a row count of `drizzle.__drizzle_migrations` before and after.
 - [ ] F.3 Re-check UI against `docs/design-system.md` ("Academic Governance") and swap any local `Checkbox` for the shared one
 - [ ] F.4 Follow-up (separate PR or change): `adapters/weekday-schedule.ts` over `Grupo.Dias` replacing the permissive adapter (mask `0` = has class); un-defer the RN-22 scenarios
 - [ ] F.5 At archive: rebase the `audit-log` delta onto `openspec/specs/audit-log/spec.md`
