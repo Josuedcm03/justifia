@@ -18,7 +18,7 @@ import {
   StepShell,
 } from "@/app/(dashboard)/requests/new/form-field";
 import { stepHref } from "@/app/(dashboard)/requests/new/steps";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   ALLOWED_CONTENT_TYPES,
   MAX_DOCUMENT_BYTES,
@@ -181,6 +181,17 @@ export function DocumentsStep({
                     {formatFileSize(doc.tamanoBytes, locale)}
                   </span>
                 </span>
+                <a
+                  href={`/api/intake/documents/${doc.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("documents.viewNamed", {
+                    name: doc.nombreOriginal,
+                  })}
+                  className={`${buttonVariants({ variant: "ghost", size: "sm" })} shrink-0`}
+                >
+                  {t("documents.view")}
+                </a>
                 <Button
                   type="button"
                   variant="ghost"

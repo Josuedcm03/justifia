@@ -173,6 +173,15 @@ describe("long content at 360 px", () => {
     expect(screen.getByText(LONG_NAME)).toHaveClass("truncate");
   });
 
+  it("keeps the view link from squeezing or widening a document row", () => {
+    renderIntl(<DocumentsStep draftId={4} documents={[DOC]} />);
+    const name = screen.getByText(LONG_NAME);
+    expect(name.parentElement).toHaveClass("min-w-0");
+    const view = screen.getByRole("link", { name: `Ver ${LONG_NAME}` });
+    expect(view).toHaveClass("shrink-0");
+    expect(view.closest("li")).not.toHaveClass("flex-wrap");
+  });
+
   it("wraps long subject names instead of widening the review", () => {
     renderIntl(
       <ReviewStep

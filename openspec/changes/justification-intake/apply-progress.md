@@ -268,3 +268,11 @@ Production about 760 lines (i18n 68, review-step 216, confirm/submit/discard dia
 - Fix: review edit links use `reviewEditHref(step)` (`?step=N&from=review`); `page.tsx` parses it with `parseFromReview` and passes `fromReview` to steps 1-3. Steps 1 and 2 push step 4 after a successful save; the Back link of steps 2 and 3 goes to the review. Normal navigation is unchanged (flag defaults to false). Documents Continue already targeted step 4. No new i18n strings.
 - RED: 14 new/updated tests failed first (steps, cause-dates, subjects, documents, review, page). GREEN: focused suite 209/209 twice, typecheck clean, eslint clean (CRLF noise filtered).
 - Spec scenario "Edit from review returns to review" added.
+
+## Enhancement 5.9 - View link, inline document route (owner-approved 2026-10-09)
+
+- Decision: the student only needs to VIEW a document before submitting, not download it. Explicit download for staff is deferred to `secretary-review`.
+- Route `GET /api/intake/documents/[id]`: `Content-Disposition: inline` (RFC 5987 name kept; `attachmentDisposition` renamed `inlineDisposition`), added `Content-Security-Policy: sandbox`; `nosniff`, `no-store`, detected `Content-Type`, owner-only identical 404 and audit-before-bytes (failure 500, no bytes) unchanged. Event name `documento.descargado` unchanged (records a read).
+- UI: "View" link (`<a target="_blank" rel="noopener noreferrer">`, aria-label "View {name}", `shrink-0`) next to each document on step 3 and the review. Both pages already pass only `valido` documents, so `pendiente` never gets a link. i18n keys `intake.documents.view` and `viewNamed` in es and en.
+- RED: 9 tests failed first (route headers, 4 content-disposition, documents-step, 2 review-step, layout-360). GREEN: focused suite 365/365 twice, typecheck clean, eslint clean (CRLF noise filtered).
+- Specs updated: supporting-documents (inline requirement, View link scenario), justification-intake (review scenario), design.md download section, tasks 5.9.

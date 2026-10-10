@@ -81,6 +81,19 @@ describe("DocumentsStep: what is shown (RF-02, D12)", () => {
     );
   });
 
+  it("links each document to its inline view in a new tab", () => {
+    renderIntl(ui([DOC(5, "receta.pdf"), DOC(6, "foto.png")]));
+    const view = screen.getByRole("link", { name: "Ver receta.pdf" });
+    expect(view).toHaveAttribute("href", "/api/intake/documents/5");
+    expect(view).toHaveAttribute("target", "_blank");
+    expect(view).toHaveAttribute("rel", "noopener noreferrer");
+    expect(view).toHaveTextContent("Ver");
+    expect(screen.getByRole("link", { name: "Ver foto.png" })).toHaveAttribute(
+      "href",
+      "/api/intake/documents/6",
+    );
+  });
+
   it("goes back to the review, not the subjects, when opened from it", () => {
     renderIntl(ui([], true));
     expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(

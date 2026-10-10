@@ -70,15 +70,16 @@ describe("GET /api/intake/documents/[id]", () => {
   });
 
   describe("owner", () => {
-    it("streams the file with its detected type and hardened headers", async () => {
+    it("streams the file inline with its detected type and hardened headers", async () => {
       const res = await call("11");
 
       expect(res.status).toBe(200);
       expect(res.headers.get("Content-Type")).toBe("application/pdf");
       expect(res.headers.get("Cache-Control")).toBe("private, no-store");
       expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(res.headers.get("Content-Security-Policy")).toBe("sandbox");
       expect(res.headers.get("Content-Disposition")).toBe(
-        "attachment; filename=\"documento.pdf\"; filename*=UTF-8''Dictamen%20m%C3%A9dico.pdf",
+        "inline; filename=\"documento.pdf\"; filename*=UTF-8''Dictamen%20m%C3%A9dico.pdf",
       );
       expect(Array.from(new Uint8Array(await res.arrayBuffer()))).toEqual(
         PDF_BYTES,

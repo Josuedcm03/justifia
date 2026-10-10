@@ -149,7 +149,7 @@ Rejection reasons (distinct, translatable): `unsupported_format`, `too_large`,
 - WHEN the step renders the result
 - THEN the message states the reason in the user's language and the student may retry
 
-### Requirement: Authenticated download (RNF-01, RNF-02, RNF-06, D13, D15)
+### Requirement: Authenticated inline view (RNF-01, RNF-02, RNF-06, D13, D15)
 
 Documents MUST be served only through an authenticated server route that
 re-checks session, role, and that the document belongs to a request or draft
@@ -157,15 +157,30 @@ of the caller. A document MUST NOT have a public URL, and no stored location
 MUST be exposed to clients. The only authorized reader in this change is the
 owning student (D15); access by other roles belongs to later changes.
 Unauthorized or unknown ids MUST yield identical denials with no file bytes.
-Every successful download MUST write exactly one `documento.descargado` audit
-row (D13, RNF-06 a; see the `audit-log` delta); a denied or failed download
-MUST write none.
+The route MUST serve the file inline (`Content-Disposition: inline` with the
+RFC 5987 original name), with `Content-Security-Policy: sandbox`,
+`X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store` and the
+`Content-Type` of the verified detected type. The student only views the
+document to check it before submitting; an explicit download for staff is
+deferred to `secretary-review` (owner-approved 2026-10-09).
+Every successful read MUST write exactly one `documento.descargado` audit
+row (D13, RNF-06 a; see the `audit-log` delta; the event name is kept and
+records a read); a denied or failed read MUST write none.
 
-#### Scenario: Owner downloads
+#### Scenario: Owner views inline
 
 - GIVEN a student who owns a request with a document
-- WHEN they call the download route
+- WHEN they call the view route
 - THEN the file is streamed with its detected content type
+- AND `Content-Disposition` is `inline` (not `attachment`)
+- AND `Content-Security-Policy: sandbox`, `X-Content-Type-Options: nosniff` and `Cache-Control: private, no-store` are set
+
+#### Scenario: View link on step 3 and review
+
+- GIVEN a student with a `valido` document on step 3 or the review
+- WHEN the page renders
+- THEN a "View" link (accessible name includes the file name) points to `/api/intake/documents/<id>` and opens in a new tab with `rel="noopener noreferrer"`
+- AND a `pendiente` document has no View link
 
 #### Scenario: Other student denied
 

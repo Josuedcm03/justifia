@@ -169,6 +169,7 @@ non-editable, with per-field errors (see "Submit blocking").
 - GIVEN the student is on step 4
 - WHEN the page renders
 - THEN no field is editable and each step offers a link to edit it
+- AND each valid document shows a "View" link that opens the file inline in a new tab (same as step 3)
 
 #### Scenario: Edit from review returns to review
 

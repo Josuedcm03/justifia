@@ -88,6 +88,23 @@ describe("ReviewStep: what is shown (RF-01)", () => {
     expect(documents.getByText("2,0 KB")).toBeInTheDocument();
   });
 
+  it("links each document to its inline view in a new tab", () => {
+    renderIntl(ui());
+    const view = within(section("Documentos")).getByRole("link", {
+      name: "Ver receta.pdf",
+    });
+    expect(view).toHaveAttribute("href", "/api/intake/documents/5");
+    expect(view).toHaveAttribute("target", "_blank");
+    expect(view).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("labels the view link in English", () => {
+    renderIntl(ui(), "en");
+    expect(
+      screen.getByRole("link", { name: "View receta.pdf" }),
+    ).toHaveTextContent("View");
+  });
+
   it("marks missing data instead of hiding it, and speaks English", () => {
     renderIntl(
       ui({

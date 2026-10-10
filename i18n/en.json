@@ -388,6 +388,8 @@
       "empty": "You have not attached any documents yet.",
       "add": "Attach document",
       "uploading": "Uploading {name}…",
+      "view": "View",
+      "viewNamed": "View {name}",
       "remove": "Remove {name}",
       "removing": "Removing…"
     },

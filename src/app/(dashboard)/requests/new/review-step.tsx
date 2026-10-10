@@ -194,13 +194,26 @@ export function ReviewStep({
         ) : (
           <ul className="flex flex-col gap-2">
             {documents.map((doc) => (
-              <li key={doc.id} className="flex min-w-0 flex-col">
-                <span className="truncate text-sm" title={doc.nombreOriginal}>
-                  {doc.nombreOriginal}
+              <li key={doc.id} className="flex min-w-0 items-center gap-3">
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-sm" title={doc.nombreOriginal}>
+                    {doc.nombreOriginal}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {formatFileSize(doc.tamanoBytes, locale)}
+                  </span>
                 </span>
-                <span className="text-muted-foreground text-xs">
-                  {formatFileSize(doc.tamanoBytes, locale)}
-                </span>
+                <a
+                  href={`/api/intake/documents/${doc.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("documents.viewNamed", {
+                    name: doc.nombreOriginal,
+                  })}
+                  className={`${buttonVariants({ variant: "ghost", size: "sm" })} shrink-0`}
+                >
+                  {t("documents.view")}
+                </a>
               </li>
             ))}
           </ul>

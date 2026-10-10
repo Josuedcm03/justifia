@@ -4,11 +4,11 @@ import {
   getDocumentForDownload,
   recordDocumentDownload,
 } from "@/lib/data/documentos";
-import { attachmentDisposition } from "@/lib/intake/content-disposition";
+import { inlineDisposition } from "@/lib/intake/content-disposition";
 import { getIntakeDeps } from "@/lib/intake/deps";
 import { contentTypeFor } from "@/lib/intake/signature";
 
-// Authenticated download of a supporting document (RNF-01, RNF-02, RNF-06,
+// Authenticated inline view of a supporting document (RNF-01, RNF-02, RNF-06,
 // D13, D15). The proxy never sees `/api`, so this handler authenticates
 // itself. Order: session, owner check, open the stored file, write the
 // `documento.descargado` audit row, only then send bytes. Any failure before
@@ -63,11 +63,10 @@ export async function GET(
     headers: {
       ...NO_STORE,
       "Content-Type": contentTypeFor(doc.tipo),
-      "Content-Disposition": attachmentDisposition(
-        doc.nombreOriginal,
-        doc.tipo,
-      ),
+      "Content-Disposition": inlineDisposition(doc.nombreOriginal, doc.tipo),
       "X-Content-Type-Options": "nosniff",
+      // Inline view of student-supplied bytes: no scripts, no same-origin.
+      "Content-Security-Policy": "sandbox",
     },
   });
 }
