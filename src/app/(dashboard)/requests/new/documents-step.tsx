@@ -66,9 +66,11 @@ type AttachedDocument = {
 export function DocumentsStep({
   draftId,
   documents,
+  fromReview = false,
 }: {
   draftId: number;
   documents: readonly AttachedDocument[];
+  fromReview?: boolean;
 }) {
   const t = useTranslations("intake");
   const tErrors = useTranslations();
@@ -141,7 +143,7 @@ export function DocumentsStep({
       description={t("documents.description")}
       footer={
         <>
-          <BackLink href={stepHref(2)} />
+          <BackLink href={stepHref(fromReview ? 4 : 2)} />
           <ContinueLink href={stepHref(4)} />
         </>
       }

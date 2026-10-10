@@ -186,6 +186,26 @@ describe("SubjectsStep: the states without a list", () => {
 });
 
 describe("SubjectsStep: saving", () => {
+  it("returns to the review after saving when opened from it", async () => {
+    saveSubjectsAction.mockResolvedValue({ ok: true });
+    renderIntl(ui({ fromReview: true }));
+
+    await userEvent.click(subjectBox("MAT-101"));
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/requests/new?step=4"),
+    );
+  });
+
+  it("goes back to the review, not the previous step, when opened from it", () => {
+    renderIntl(ui({ fromReview: true }));
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=4",
+    );
+  });
+
   it("sends the picked subjects with their groups and moves on", async () => {
     saveSubjectsAction.mockResolvedValue({ ok: true });
     renderIntl(ui());

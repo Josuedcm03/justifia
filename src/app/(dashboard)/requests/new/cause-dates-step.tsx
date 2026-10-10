@@ -30,7 +30,13 @@ type Initial = {
  * here: the action is the authority and answers with every invalid field at
  * once (RF-03), so the form never disagrees with the server.
  */
-export function CauseDatesStep({ initial }: { initial: Initial }) {
+export function CauseDatesStep({
+  initial,
+  fromReview = false,
+}: {
+  initial: Initial;
+  fromReview?: boolean;
+}) {
   const t = useTranslations("intake");
   const router = useRouter();
   const [causa, setCausa] = useState(initial.causa ?? "");
@@ -50,7 +56,7 @@ export function CauseDatesStep({ initial }: { initial: Initial }) {
       const result = await saveDetailsAction(details);
       if (result.ok) {
         setErrors([]);
-        router.push(stepHref(2));
+        router.push(stepHref(fromReview ? 4 : 2));
       } else {
         setErrors(result.errors);
       }

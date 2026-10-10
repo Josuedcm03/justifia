@@ -93,6 +93,7 @@ Chain strategy (updated 2026-10-08): single branch per change. Slices are commit
 - [x] 5.4 GREEN: `src/app/api/cron/intake-sweep/route.ts` (constant-time compare, counts log)
 - [ ] 5.5 Add `vercel.json` cron `0 9 * * *` and `regions` matching Neon (D10, D11); create Blob store same region. **PARTIAL**: cron and `regions: ["cle1"]` done and tested (Neon is aws-us-east-2, Ohio; cle1 = Cleveland); Blob store creation in the same region is a dashboard action by the owner
 - [x] 5.6 Test no horizontal scroll at 360 px per step and dialog (RNF-11); manual harness check. Automated static guard done (`layout-360.test.tsx`); the manual 360 px harness walk stays a **pending manual item**
+- [x] 5.8 FIX (manual test): edit links of the review carry `from=review`; saving that step returns to the review (`reviewEditHref`, `parseFromReview`, steps 1-3 `fromReview`)
 - [ ] 5.7 Update `docs/roadmap.md` status note for `justification-intake` at archive time
 
 ## Final merge checklist (feature branch -> main)

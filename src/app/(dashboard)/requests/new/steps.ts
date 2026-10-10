@@ -22,6 +22,16 @@ export function stepHref(step: number): string {
   return `${FLOW_PATH}?step=${step}`;
 }
 
+/** Edit link of the review: the step returns to the review once saved. */
+export function reviewEditHref(step: number): string {
+  return `${stepHref(step)}&from=review`;
+}
+
+/** True when the URL says the step was opened from the review's edit link. */
+export function parseFromReview(raw: string | string[] | undefined): boolean {
+  return (Array.isArray(raw) ? raw[0] : raw) === "review";
+}
+
 /** The requested step, or null when the URL names none usable. */
 export function parseStep(
   raw: string | string[] | undefined,

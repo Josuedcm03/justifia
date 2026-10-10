@@ -261,3 +261,10 @@ Production about 760 lines (i18n 68, review-step 216, confirm/submit/discard dia
 ## Orchestrator note (slice 5)
 
 - Fixed a race in `cause-dates-step.test.tsx` ("clears old errors once a retry succeeds"): it failed under parallel load because the retry click could land while the button was still disabled. The test now waits for the button to be enabled and asserts the alert removal inside `waitFor`. Focused suite: 539/539 twice.
+
+## Fix 5.8 - Edit from review returns to review
+
+- Bug (manual test): after editing step 1 from the review, Continue walked steps 2 and 3 again.
+- Fix: review edit links use `reviewEditHref(step)` (`?step=N&from=review`); `page.tsx` parses it with `parseFromReview` and passes `fromReview` to steps 1-3. Steps 1 and 2 push step 4 after a successful save; the Back link of steps 2 and 3 goes to the review. Normal navigation is unchanged (flag defaults to false). Documents Continue already targeted step 4. No new i18n strings.
+- RED: 14 new/updated tests failed first (steps, cause-dates, subjects, documents, review, page). GREEN: focused suite 209/209 twice, typecheck clean, eslint clean (CRLF noise filtered).
+- Spec scenario "Edit from review returns to review" added.

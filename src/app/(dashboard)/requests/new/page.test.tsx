@@ -154,6 +154,24 @@ describe("NewRequestPage step from the URL (A7)", () => {
     expect(screen.getByLabelText("Fecha de inicio")).toHaveValue("2026-10-01");
   });
 
+  it("passes the return-to-review flag to the step from the URL", async () => {
+    openDraft.mockResolvedValue(WITH_DETAILS);
+    await renderPage({ step: "3", from: "review" });
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=4",
+    );
+  });
+
+  it("keeps the normal back link without the flag", async () => {
+    openDraft.mockResolvedValue(WITH_DETAILS);
+    await renderPage({ step: "3" });
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=2",
+    );
+  });
+
   it("marks the saved subjects at step 2", async () => {
     openDraft.mockResolvedValue({
       ...WITH_DETAILS,

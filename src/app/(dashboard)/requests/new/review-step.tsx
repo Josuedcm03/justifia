@@ -13,7 +13,7 @@ import {
   StepShell,
   errorsOf,
 } from "@/app/(dashboard)/requests/new/form-field";
-import { stepHref } from "@/app/(dashboard)/requests/new/steps";
+import { reviewEditHref, stepHref } from "@/app/(dashboard)/requests/new/steps";
 import { SubmitDialog } from "@/app/(dashboard)/requests/new/submit-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import type { EnrollmentGroup } from "@/lib/data/enrollment";
@@ -65,7 +65,7 @@ function Section({
           {title}
         </h3>
         <Link
-          href={stepHref(step)}
+          href={reviewEditHref(step)}
           aria-label={t("editSection", { section: title })}
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
         >

@@ -125,9 +125,9 @@ describe("ReviewStep: read only with links to edit (spec: Review is read-only)",
   });
 
   it.each([
-    ["Editar Causa y fechas", "/requests/new?step=1"],
-    ["Editar Asignaturas", "/requests/new?step=2"],
-    ["Editar Documentos", "/requests/new?step=3"],
+    ["Editar Causa y fechas", "/requests/new?step=1&from=review"],
+    ["Editar Asignaturas", "/requests/new?step=2&from=review"],
+    ["Editar Documentos", "/requests/new?step=3&from=review"],
   ])("%s links to its step", (name, href) => {
     renderIntl(ui());
     expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);

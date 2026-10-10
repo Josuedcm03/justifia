@@ -7,6 +7,7 @@ import { ReviewStep } from "@/app/(dashboard)/requests/new/review-step";
 import {
   defaultStep,
   draftRange,
+  parseFromReview,
   parseStep,
 } from "@/app/(dashboard)/requests/new/steps";
 import { SubjectsStep } from "@/app/(dashboard)/requests/new/subjects-step";
@@ -61,7 +62,9 @@ export default async function NewRequestPage({
     );
   }
 
-  const step = parseStep((await searchParams).step) ?? defaultStep(draft);
+  const params = await searchParams;
+  const step = parseStep(params.step) ?? defaultStep(draft);
+  const fromReview = parseFromReview(params.from);
   const range = draftRange(draft);
   // Enrollment is read only by the steps that list it (subjects, review), and
   // only with dates.
@@ -84,6 +87,7 @@ export default async function NewRequestPage({
             fechaInicio: draft.fechaInicio,
             fechaFin: draft.fechaFin,
           }}
+          fromReview={fromReview}
         />
       ) : null}
       {step === 2 ? (
@@ -92,10 +96,15 @@ export default async function NewRequestPage({
           selected={draft.subjects}
           hasDates={range !== null}
           degraded={enrollment.degraded}
+          fromReview={fromReview}
         />
       ) : null}
       {step === 3 ? (
-        <DocumentsStep draftId={draft.id} documents={validDocuments} />
+        <DocumentsStep
+          draftId={draft.id}
+          documents={validDocuments}
+          fromReview={fromReview}
+        />
       ) : null}
       {step === 4 ? (
         <ReviewStep

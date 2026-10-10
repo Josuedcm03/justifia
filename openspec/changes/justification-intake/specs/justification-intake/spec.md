@@ -170,6 +170,14 @@ non-editable, with per-field errors (see "Submit blocking").
 - WHEN the page renders
 - THEN no field is editable and each step offers a link to edit it
 
+#### Scenario: Edit from review returns to review
+
+- GIVEN the student opened a step from an edit link of the review (step 4)
+- WHEN the student saves that step with Continue
+- THEN the student returns to the review without passing through the steps in
+  between, and a step opened by normal forward navigation still advances to
+  the next step
+
 #### Scenario: Subjects need dates
 
 - GIVEN a draft without valid dates

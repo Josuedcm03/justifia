@@ -29,8 +29,10 @@ const DOC = (id: number, nombreOriginal: string, tamanoBytes = 2048) => ({
   tamanoBytes,
 });
 
-function ui(documents: ReturnType<typeof DOC>[] = []) {
-  return <DocumentsStep draftId={42} documents={documents} />;
+function ui(documents: ReturnType<typeof DOC>[] = [], fromReview = false) {
+  return (
+    <DocumentsStep draftId={42} documents={documents} fromReview={fromReview} />
+  );
 }
 
 const PDF = new File(["%PDF-1.7"], "justificante.pdf", {
@@ -76,6 +78,14 @@ describe("DocumentsStep: what is shown (RF-02, D12)", () => {
     expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
       "href",
       "/requests/new?step=2",
+    );
+  });
+
+  it("goes back to the review, not the subjects, when opened from it", () => {
+    renderIntl(ui([], true));
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=4",
     );
   });
 

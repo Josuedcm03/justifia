@@ -4,7 +4,9 @@ import {
   AVAILABLE_STEPS,
   defaultStep,
   draftRange,
+  parseFromReview,
   parseStep,
+  reviewEditHref,
   stepHref,
 } from "@/app/(dashboard)/requests/new/steps";
 
@@ -80,5 +82,22 @@ describe("draftRange", () => {
 describe("stepHref", () => {
   it("points at the intake page with the step in the query", () => {
     expect(stepHref(2)).toBe("/requests/new?step=2");
+  });
+});
+
+describe("reviewEditHref (edit links of the review return to it)", () => {
+  it("flags the step as opened from the review", () => {
+    expect(reviewEditHref(1)).toBe("/requests/new?step=1&from=review");
+  });
+});
+
+describe("parseFromReview", () => {
+  it("is true only for from=review", () => {
+    expect(parseFromReview("review")).toBe(true);
+    expect(parseFromReview(["review", "x"])).toBe(true);
+  });
+
+  it.each([undefined, "", "Review", "other"])("is false for %j", (raw) => {
+    expect(parseFromReview(raw)).toBe(false);
   });
 });

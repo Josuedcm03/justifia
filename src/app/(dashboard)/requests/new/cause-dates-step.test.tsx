@@ -76,6 +76,17 @@ describe("CauseDatesStep", () => {
     expect(saveDetailsAction).toHaveBeenCalledWith(FILLED);
   });
 
+  it("returns to the review after saving when opened from it", async () => {
+    saveDetailsAction.mockResolvedValue({ ok: true });
+    renderIntl(<CauseDatesStep initial={FILLED} fromReview />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/requests/new?step=4"),
+    );
+  });
+
   it("sends what is there and lets the server say what is missing (RF-03)", async () => {
     saveDetailsAction.mockResolvedValue({ ok: false, errors: [] });
     renderIntl(<CauseDatesStep initial={EMPTY} />);

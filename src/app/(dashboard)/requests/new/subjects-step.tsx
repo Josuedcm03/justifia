@@ -52,11 +52,13 @@ export function SubjectsStep({
   selected,
   hasDates,
   degraded,
+  fromReview = false,
 }: {
   groups: readonly EnrollmentGroup[];
   selected: readonly { asignaturaId: number; grupoId: number }[];
   hasDates: boolean;
   degraded: boolean;
+  fromReview?: boolean;
 }) {
   const t = useTranslations("intake");
   const router = useRouter();
@@ -67,7 +69,7 @@ export function SubjectsStep({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, startTransition] = useTransition();
 
-  const back = <BackLink href={stepHref(1)} />;
+  const back = <BackLink href={stepHref(fromReview ? 4 : 1)} />;
 
   const notice = !hasDates
     ? t("subjects.datesRequired")
@@ -119,7 +121,7 @@ export function SubjectsStep({
       const result = await saveSubjectsAction({ selections });
       if (result.ok) {
         setErrors([]);
-        router.push(stepHref(3));
+        router.push(stepHref(fromReview ? 4 : 3));
       } else {
         setErrors(result.errors);
       }
