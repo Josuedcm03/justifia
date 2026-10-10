@@ -152,6 +152,14 @@
       "sessions": 1,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "c6360ffa",
+      "created_by": "Arnia",
+      "created_at": "2026-10-10T23:03:44Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }
