@@ -53,7 +53,7 @@ export function DataTable<T>({
       {caption ? (
         <TableCaption className="sr-only">{caption}</TableCaption>
       ) : null}
-      <TableHeader className="bg-muted">
+      <TableHeader>
         <TableRow>
           {columns.map((column) => (
             <TableHead
@@ -70,7 +70,7 @@ export function DataTable<T>({
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
-          <TableRow key={getRowKey(row)} className="hover:bg-accent/50">
+          <TableRow key={getRowKey(row)}>
             {columns.map((column) => (
               <TableCell
                 key={column.key}

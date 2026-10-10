@@ -32,7 +32,7 @@ export function LocaleSwitcher({ current }: { current: Locale }) {
       <DropdownMenuTrigger
         render={
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             aria-label={t("label")}
             disabled={isPending}

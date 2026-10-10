@@ -4,13 +4,26 @@
 // impossible. `actorId` and `ocurridoEn` are never accepted: the actor comes
 // from the session at write time, and the timestamp is the column default.
 
+import type {
+  AsignaturaActiveResult,
+  AsignaturaWriteResult,
+  GrupoActiveResult,
+  GrupoWriteResult,
+} from "@/lib/catalog/types";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 import type { ImportSummary } from "../import/types";
-import { AUDITABLE_USER_FIELDS } from "./types";
+import {
+  AUDITABLE_ASIGNATURA_FIELDS,
+  AUDITABLE_GRUPO_FIELDS,
+  AUDITABLE_USER_FIELDS,
+} from "./types";
 import type {
+  AuditableAsignaturaField,
+  AuditableGrupoField,
   AuditableUserField,
   AuditEvent,
+  AuditOrigin,
   DocumentRejectionReason,
 } from "./types";
 
@@ -24,6 +37,8 @@ export function importAppliedEvent(summary: ImportSummary): AuditEvent {
       conteos: summary.counts,
       cuentasCreadas: summary.accountsCreated,
       cuentasActualizadas: summary.accountsUpdated,
+      asignaturasReactivadas: summary.asignaturasReactivated,
+      gruposManualesDesactivados: summary.manualGruposDeactivated,
     },
   };
 }
@@ -172,4 +187,165 @@ export function buildAuditEvents(
           }),
     ),
   ];
+}
+
+/** The origin of every write made through the catalog screens. It has no
+ *  digest field: a manual write cannot be half-filled (AL-PAY). */
+export const MANUAL_ORIGIN: AuditOrigin = { origen: "manual" };
+
+/** A created record reports the closed field-name list itself, never a value
+ *  (the chosen reading of "field names only" for `*.creada` / `*.creado`). */
+export function asignaturaCreatedEvent(args: {
+  asignaturaId: number;
+  origin: AuditOrigin;
+}): AuditEvent {
+  return {
+    accion: "asignatura.creada",
+    entidadTipo: "Asignatura",
+    entidadId: args.asignaturaId,
+    datos: { campos: AUDITABLE_ASIGNATURA_FIELDS, ...args.origin },
+  };
+}
+
+export function asignaturaUpdatedEvent(args: {
+  asignaturaId: number;
+  campos: readonly AuditableAsignaturaField[];
+  origin: AuditOrigin;
+}): AuditEvent {
+  return {
+    accion: "asignatura.actualizada",
+    entidadTipo: "Asignatura",
+    entidadId: args.asignaturaId,
+    datos: { campos: args.campos, ...args.origin },
+  };
+}
+
+export function asignaturaActiveChangedEvent(args: {
+  asignaturaId: number;
+  activo: boolean;
+  origin: AuditOrigin;
+}): AuditEvent {
+  return {
+    accion: args.activo ? "asignatura.reactivada" : "asignatura.desactivada",
+    entidadTipo: "Asignatura",
+    entidadId: args.asignaturaId,
+    datos: { campos: ["activo"], ...args.origin },
+  };
+}
+
+export function grupoCreatedEvent(args: {
+  grupoId: number;
+  origin: AuditOrigin;
+}): AuditEvent {
+  return {
+    accion: "grupo.creado",
+    entidadTipo: "Grupo",
+    entidadId: args.grupoId,
+    datos: { campos: AUDITABLE_GRUPO_FIELDS, ...args.origin },
+  };
+}
+
+export function grupoUpdatedEvent(args: {
+  grupoId: number;
+  campos: readonly AuditableGrupoField[];
+  origin: AuditOrigin;
+}): AuditEvent {
+  return {
+    accion: "grupo.actualizado",
+    entidadTipo: "Grupo",
+    entidadId: args.grupoId,
+    datos: { campos: args.campos, ...args.origin },
+  };
+}
+
+export function grupoActiveChangedEvent(args: {
+  grupoId: number;
+  activo: boolean;
+  origin: AuditOrigin;
+}): AuditEvent {
+  return {
+    accion: args.activo ? "grupo.reactivado" : "grupo.desactivado",
+    entidadTipo: "Grupo",
+    entidadId: args.grupoId,
+    datos: { campos: ["activo"], ...args.origin },
+  };
+}
+
+/** Result -> events for a manual Asignatura write. Exactly one event for a
+ *  success (`created`, `updated`, `changed`); `[]` for `unchanged` and every
+ *  refusal, so a refused or no-op write can never leave an audit row (AL-ONE). */
+export function asignaturaWriteEvents(
+  r: AsignaturaWriteResult | AsignaturaActiveResult,
+): AuditEvent[] {
+  switch (r.kind) {
+    case "created":
+      return [
+        asignaturaCreatedEvent({ asignaturaId: r.id, origin: MANUAL_ORIGIN }),
+      ];
+    case "updated":
+      return [
+        asignaturaUpdatedEvent({
+          asignaturaId: r.id,
+          campos: r.campos,
+          origin: MANUAL_ORIGIN,
+        }),
+      ];
+    case "changed":
+      return [
+        asignaturaActiveChangedEvent({
+          asignaturaId: r.id,
+          activo: r.activo,
+          origin: MANUAL_ORIGIN,
+        }),
+      ];
+    case "unchanged":
+    case "not_found":
+    case "codigo_taken":
+    case "carrera_invalid":
+    case "has_active_groups":
+    case "inactive":
+      return [];
+    default: {
+      const unreachable: never = r;
+      return unreachable;
+    }
+  }
+}
+
+/** Result -> events for a manual Grupo write; same contract as
+ *  `asignaturaWriteEvents`. */
+export function grupoWriteEvents(
+  r: GrupoWriteResult | GrupoActiveResult,
+): AuditEvent[] {
+  switch (r.kind) {
+    case "created":
+      return [grupoCreatedEvent({ grupoId: r.id, origin: MANUAL_ORIGIN })];
+    case "updated":
+      return [
+        grupoUpdatedEvent({
+          grupoId: r.id,
+          campos: r.campos,
+          origin: MANUAL_ORIGIN,
+        }),
+      ];
+    case "changed":
+      return [
+        grupoActiveChangedEvent({
+          grupoId: r.id,
+          activo: r.activo,
+          origin: MANUAL_ORIGIN,
+        }),
+      ];
+    case "unchanged":
+    case "not_found":
+    case "grupo_taken":
+    case "asignatura_unavailable":
+    case "docente_unavailable":
+    case "inactive":
+      return [];
+    default: {
+      const unreachable: never = r;
+      return unreachable;
+    }
+  }
 }

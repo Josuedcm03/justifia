@@ -38,9 +38,8 @@ describe("NewUserForm role selector", () => {
 
       await openRoleSelect();
 
-      const optionTexts = screen
-        .getAllByRole("option")
-        .map((option) => option.textContent);
+      const options = await screen.findAllByRole("option");
+      const optionTexts = options.map((option) => option.textContent);
       expect(optionTexts).toEqual(assignable.map((rol) => `roles.${rol}`));
     },
   );
@@ -55,9 +54,8 @@ describe("NewUserForm role selector", () => {
 
     await openRoleSelect();
 
-    const optionTexts = screen
-      .getAllByRole("option")
-      .map((option) => option.textContent);
+    const options = await screen.findAllByRole("option");
+    const optionTexts = options.map((option) => option.textContent);
     for (const forbidden of ALL_ROLE_CODES) {
       if (forbidden === "coordinacion") continue;
       expect(optionTexts).not.toContain(`roles.${forbidden}`);

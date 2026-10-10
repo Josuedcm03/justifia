@@ -63,7 +63,7 @@ export interface GroupScheduleProvider {
 |---|---|
 | `src/lib/intake/{causes,limits,dates,signature,submission,eligibility,states,pathnames}.ts` | Pure rules; `states.ts` exports `VISIBLE_STATES` excluding `borrador` |
 | `src/lib/intake/adapters/vercel-blob-store.ts` | `server-only`; `get/del/list` with `access: "private"` |
-| `src/lib/intake/adapters/permissive-schedule.ts` | Returns all ids (D5, flagged gap). Replaced later by a weekday adapter over `Grupo.Dias` (see Compatibility with catalog-management) |
+| `src/lib/intake/adapters/weekday-schedule.ts`, `src/lib/intake/schedule.ts`, `src/lib/data/grupo-dias.ts` | Weekday adapter over `Grupo.Dias` (F.4, RN-22): pure `hasClassInRange`, injected mask read. `adapters/permissive-schedule.ts` remains only as the all-groups test double used by `fakes.ts` |
 | `src/lib/intake/deps.ts` | `getIntakeDeps()` wiring; mocked in tests |
 | `src/lib/validations/solicitud.ts` | zod step schemas; messages are i18n keys |
 | `src/lib/data/solicitudes.ts`, `src/lib/data/enrollment.ts` | Draft CRUD, submit transaction, eligible groups |
@@ -169,7 +169,7 @@ Observed on `origin/feat/sidebar-catalogs` (2026-10-07, not merged to `main`). R
 
 | Topic | What catalog-management does | Impact here | Slice |
 |---|---|---|---|
-| Group days | `Grupo."Dias" smallint` bitmask (Monday = bit 0 ... Sunday = bit 6, `0` = no days), migration `0006`, codec `src/lib/catalog/dias.ts` (`DIAS_SEMANA`, `decodeDias`) | `GroupScheduleProvider.groupsWithClass(ids, from, to)` is satisfiable from weekdays alone: a group has class when any date in `[from, to]` (America/Managua) falls on a set day. Add `adapters/weekday-schedule.ts` reusing `decodeDias`; a group with mask `0` counts as having class (never hide a subject). No hours, period dates or holidays exist, so those stay out of RN-22 | Follow-up after merge |
+| Group days | `Grupo."Dias" smallint` bitmask (Monday = bit 0 ... Sunday = bit 6, `0` = no days), migration `0006`, codec `src/lib/catalog/dias.ts` (`DIAS_SEMANA`, `decodeDias`) | `GroupScheduleProvider.groupsWithClass(ids, from, to)` is satisfiable from weekdays alone: a group has class when any date in `[from, to]` (America/Managua) falls on a set day. Add `adapters/weekday-schedule.ts` reusing `decodeDias`; a group with mask `0` counts as having class (never hide a subject). No hours, period dates or holidays exist, so those stay out of RN-22 | Done in F.4 (final merge) |
 | Migration numbers | Owns `0005`, plans `0006` | Ours is regenerated at the final merge (expected `0007`+); tests find it by name | 1, final merge |
 | Design system | `docs/design-system.md` replaced by Stitch "Academic Governance"; lime retired; active step = primary underline | Stepper and review UI follow the new document; take tokens from it, not from the retired UAM system | 4, 5 |
 | Checkbox | Adds `Checkbox`/`CheckboxGroup` primitives | Reuse instead of creating a second one | 4 |

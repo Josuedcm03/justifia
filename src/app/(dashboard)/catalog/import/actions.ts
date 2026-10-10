@@ -11,6 +11,7 @@ import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { loadCatalogSnapshot } from "@/lib/data/catalog";
 import {
   type ApplyResult,
+  CatalogBusyError,
   ImportRejectedError,
   runImportApply,
 } from "@/lib/import/apply";
@@ -36,6 +37,10 @@ export type PreviewState =
       kind: "preview";
       counts: Record<EntityName, EntityCounts>;
       accountsToCreate: number;
+      /** Inactive Asignaturas the apply will reactivate. */
+      asignaturasToReactivate: number;
+      /** Manually created Grupos the apply will deactivate (absent). */
+      manualGruposToDeactivate: number;
       errors: RowError[];
       /** Digest of the bytes just received; echoed back by the confirm form. */
       fileSha256: string;
@@ -43,6 +48,8 @@ export type PreviewState =
 
 export type ApplyState =
   | PreviewState // a hash mismatch or a rejected apply re-previews
+  /** The catalog write lock was not available in time: nothing was applied. */
+  | { kind: "busy" }
   | {
       kind: "applied";
       summary: ImportSummary;
@@ -117,6 +124,8 @@ async function buildPreview(workbook: ParsedWorkbook): Promise<PreviewState> {
     kind: "preview",
     counts: plan.counts,
     accountsToCreate: plan.accountsToCreate,
+    asignaturasToReactivate: plan.asignaturasToReactivate,
+    manualGruposToDeactivate: plan.manualGruposToDeactivate,
     errors: plan.errors,
     fileSha256: workbook.fileSha256,
   };
@@ -173,6 +182,8 @@ export async function applyAction(
     // error is never logged because driver errors can embed bound parameters,
     // i.e. password hashes.
     if (error instanceof ImportRejectedError) return buildPreview(workbook);
+    // Busy is an expected outcome, not a failure: no trace, nothing applied.
+    if (error instanceof CatalogBusyError) return { kind: "busy" };
     try {
       logImportFailure({
         actor: session.login,

@@ -93,6 +93,7 @@ CREATE TABLE "Asignatura" (
     "Nombre"        VARCHAR(160) NOT NULL,
     "CarreraId"     BIGINT NOT NULL,
     "HorasTotales"  INTEGER NOT NULL,                 -- base nominal del 20 % (19:55)
+    "Activo"        BOOLEAN NOT NULL DEFAULT TRUE,    -- el mantenimiento manual desactiva, nunca borra (catalog-management)
     CONSTRAINT "PK_Asignatura" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_Asignatura_Codigo" UNIQUE ("Codigo"),
     CONSTRAINT "FK_Asignatura_Carrera" FOREIGN KEY ("CarreraId") REFERENCES "Carrera" ("Id"),
@@ -139,11 +140,24 @@ CREATE TABLE "Grupo" (
     "NumeroGrupo"   VARCHAR(12) NOT NULL,             -- "hay 40 grupos de matematicas" (23:07)
     "DocenteId"     BIGINT NOT NULL,                  -- Usuario con Rol = 'docente'
     "Activo"        BOOLEAN NOT NULL DEFAULT TRUE,    -- la importación desactiva, nunca borra
+    "Origen"        VARCHAR(12) NOT NULL DEFAULT 'importacion', -- cómo se creó la fila; se fija al crear y no se reescribe (catalog-management)
+    "Dias"          SMALLINT NOT NULL DEFAULT 0,      -- días de la semana en que se reúne el grupo, como máscara de bits (ver nota bajo la tabla); 0 = días no registrados
     CONSTRAINT "PK_Grupo" PRIMARY KEY ("Id"),
     CONSTRAINT "UQ_Grupo_Seccion" UNIQUE ("AsignaturaId", "Periodo", "NumeroGrupo"),
     CONSTRAINT "FK_Grupo_Asignatura" FOREIGN KEY ("AsignaturaId") REFERENCES "Asignatura" ("Id"),
-    CONSTRAINT "FK_Grupo_Docente" FOREIGN KEY ("DocenteId") REFERENCES "Usuario" ("Id")
+    CONSTRAINT "FK_Grupo_Docente" FOREIGN KEY ("DocenteId") REFERENCES "Usuario" ("Id"),
+    CONSTRAINT "CK_Grupo_Origen" CHECK ("Origen" IN ('importacion', 'manual')),
+    CONSTRAINT "CK_Grupo_Dias" CHECK ("Dias" BETWEEN 0 AND 127)
 );
+-- "Grupo"."Dias": máscara de bits, un bit por día de la semana.
+--   Lunes = bit 0 (1), Martes = bit 1 (2), Miércoles = bit 2 (4), Jueves = bit 3 (8),
+--   Viernes = bit 4 (16), Sábado = bit 5 (32), Domingo = bit 6 (64).
+--   El índice del bit es `isodow - 1`. El rango válido es 0..127 (CK_Grupo_Dias).
+--   0 (conjunto vacío) significa «días no registrados»: es el valor de los grupos
+--   anteriores a esta columna y de los que se crean sin indicar días.
+--   Lectura en SQL: ("Dias" & (1 << (extract(isodow from <fecha>)::int - 1))) <> 0
+--   Nota: `getDay()` de JavaScript cuenta el domingo como 0; el índice del bit es
+--   (getDay() + 6) % 7. El código de la aplicación usa `src/lib/catalog/dias.ts`.
 
 CREATE TABLE "Inscripcion" (
     "EstudianteId"  BIGINT NOT NULL,                  -- Usuario con Rol = 'estudiante'
@@ -303,7 +317,7 @@ CREATE INDEX "IX_Notificacion_Solicitud" ON "Notificacion" ("SolicitudId");
 
 2. **`Cif` y `CarreraId` viven en `Usuario`.** `Cif` es único y solo lo llevan los estudiantes; `CarreraId` es la carrera del estudiante o la carrera que coordina el coordinador. Ambos son `NULL` para secretaría y administración.
 
-3. **`Grupo` e `Inscripcion` son tablas propias.** La institución no expone ninguna consulta, así que estos datos se cargan por importación de un archivo `.xlsx` cada periodo (RF-35 es la fuente de autoridad; el «CSV del sistema académico» de versiones anteriores de esta nota ya no aplica). La carga manual sigue siendo una necesidad futura real, pero no se construye en F2. Esto es lo que hoy la secretaria hace a mano al buscar por CIF (02:09); el sistema solo puede automatizarlo si tiene los datos cargados.
+3. **`Grupo` e `Inscripcion` son tablas propias.** La institución no expone ninguna consulta, así que estos datos se cargan por importación de un archivo `.xlsx` cada periodo (RF-35 es la fuente de autoridad; el «CSV del sistema académico» de versiones anteriores de esta nota ya no aplica). La carga manual de asignaturas y grupos existe (catalog-management): `Asignatura.Activo` permite desactivar una asignatura sin borrarla y `Grupo.Origen` (`importacion` o `manual`) registra cómo se creó cada grupo; se fija al crear y nunca se reescribe, ni siquiera cuando la importación reactiva o actualiza la fila. Esto es lo que hoy la secretaria hace a mano al buscar por CIF (02:09); el sistema solo puede automatizarlo si tiene los datos cargados.
 
 4. **`SolicitudDetalle` es la unidad de trabajo del docente.** Una solicitud afecta varias asignaturas y fechas; cada fila se remite a un docente (vía `Grupo.DocenteId`) y ese docente responde en `Resultado` / `Efecto`. El caso «misma inasistencia el mismo día en varias asignaturas» no está resuelto en la entrevista (hallazgo 3); el modelo lo soporta, la regla de negocio queda pendiente.
 

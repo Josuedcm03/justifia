@@ -8,12 +8,15 @@
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
     "tagline": "Tus justificaciones académicas, en un solo lugar.",
-    "institution": "Universidad Americana"
+    "institution": "Universidad Americana - UAM"
   },
   "nav": {
     "dashboard": "Panel",
     "newRequest": "Nueva solicitud",
     "administration": "Administración",
+    "catalogAsignaturas": "Asignaturas",
+    "catalogGrupos": "Grupos",
+    "catalogDocentes": "Docentes",
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
     "settings": "Configuración",
@@ -71,7 +74,9 @@
           "carreraExists": "La Carrera de cada asignatura debe existir ya en el sistema; la importación no crea carreras.",
           "horasPositive": "HorasTotales debe ser un número entero mayor que cero.",
           "periodoFormat": "Periodo debe tener el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente de la hoja Docentes o ya registrado en el sistema."
+          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente de la hoja Docentes o ya registrado en el sistema.",
+          "diasTokens": "Dias, en la hoja Grupos, acepta los nombres de los días (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) o sus abreviaturas de tres letras (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separados por comas. No distingue mayúsculas ni acentos.",
+          "diasEffect": "Dias: si omites la columna, se conservan los días guardados de cada grupo. Una celda con días reemplaza los días guardados; una celda vacía los deja como están. La importación nunca quita días."
         },
         "template": "Descargar plantilla"
       },
@@ -100,6 +105,10 @@
         "accountsToCreate": "{count, plural, =0 {No se crearán cuentas nuevas de docente.} one {Se creará # cuenta nueva de docente.} other {Se crearán # cuentas nuevas de docente.}}",
         "accountsCost": "Cada cuenta nueva genera una contraseña temporal, por lo que confirmar puede tardar más cuantas más cuentas se creen.",
         "deactivations": "{count, plural, =0 {No se desactivará ningún grupo.} one {Se desactivará # grupo que no aparece en el libro.} other {Se desactivarán # grupos que no aparecen en el libro.}}",
+        "reactivations": "{count, plural, one {Se reactivará # asignatura inactiva que aparece en el libro. Puedes cancelar sin confirmar.} other {Se reactivarán # asignaturas inactivas que aparecen en el libro. Puedes cancelar sin confirmar.}}",
+        "manualGroups": "{count, plural, one {# de los grupos que se desactivarán fue creado a mano.} other {# de los grupos que se desactivarán fueron creados a mano.}} Al confirmar, también se desactivan. Puedes cancelar sin confirmar.",
+        "replacedEdits": "Los cambios hechos a mano en asignaturas o grupos que aparecen en el libro pueden ser reemplazados por los valores del libro. Puedes cancelar sin confirmar.",
+        "busy": "El catálogo está ocupado con otro cambio. No se aplicó nada. Espera un momento e inténtalo de nuevo, o cancela.",
         "confirm": "Confirmar e importar",
         "confirming": "Importando…"
       },
@@ -118,7 +127,9 @@
         "title": "Importación completada",
         "countsCaption": "Cambios aplicados por entidad",
         "accountsCreated": "{count, plural, =0 {No se creó ninguna cuenta nueva.} one {Se creó # cuenta nueva.} other {Se crearon # cuentas nuevas.}}",
-        "accountsUpdated": "{count, plural, =0 {No se actualizó ninguna cuenta existente.} one {Se actualizó # cuenta existente.} other {Se actualizaron # cuentas existentes.}}"
+        "accountsUpdated": "{count, plural, =0 {No se actualizó ninguna cuenta existente.} one {Se actualizó # cuenta existente.} other {Se actualizaron # cuentas existentes.}}",
+        "asignaturasReactivated": "{count, plural, =0 {No se reactivó ninguna asignatura.} one {Se reactivó # asignatura inactiva.} other {Se reactivaron # asignaturas inactivas.}}",
+        "manualGruposDeactivated": "{count, plural, =0 {No se desactivó ningún grupo creado a mano.} one {Se desactivó # grupo creado a mano.} other {Se desactivaron # grupos creados a mano.}}"
       },
       "credentials": {
         "notice": "Este archivo contiene las contraseñas temporales y solo se muestra ahora: no se puede recuperar más tarde. Descárgalo y guárdalo en un lugar seguro.",
@@ -181,13 +192,17 @@
           "invalid": "El correo del docente no tiene un formato válido"
         },
         "asignatura": {
-          "unresolved": "La asignatura no existe en el libro ni en el sistema"
+          "unresolved": "La asignatura no existe en el libro ni en el sistema",
+          "inactive": "La asignatura está inactiva y no aparece en la hoja Asignaturas del libro. Inclúyela en esa hoja para reactivarla, o quita este grupo"
         },
         "docente": {
           "unresolved": "El docente no existe en el libro ni en el sistema"
         },
         "grupo": {
           "duplicate": "El grupo está repetido en la hoja"
+        },
+        "dias": {
+          "invalid": "«{value}» no es un día válido; usa de Lunes a Domingo o de Lun a Dom, separados por comas"
         },
         "accountsToCreate": {
           "capExceeded": "Se crearían más de {maxAccounts} cuentas nuevas en una sola importación. Divide el libro en partes más pequeñas."
@@ -205,6 +220,293 @@
         "sheetMissing": "Falta la hoja \"{sheet}\" en el libro",
         "columnMissing": "Falta la columna \"{column}\" en la hoja \"{sheet}\"",
         "applyFailed": "No se pudo aplicar la importación. No se guardó ningún cambio"
+      }
+    },
+    "shared": {
+      "filter": {
+        "label": "Filtrar por estado",
+        "active": "Activos",
+        "inactive": "Inactivos",
+        "all": "Todos"
+      },
+      "notFound": {
+        "title": "Este registro no está disponible",
+        "message": "Puede que no exista o que no esté disponible para tu cuenta. Vuelve atrás y revisa el listado.",
+        "back": "Volver al panel"
+      },
+      "status": {
+        "active": "Activo",
+        "inactive": "Inactivo"
+      },
+      "toggle": {
+        "deactivate": "Desactivar",
+        "reactivate": "Reactivar",
+        "confirmTitle": "¿Desactivar {record}?",
+        "nothingDeleted": "No se elimina nada: el registro queda inactivo y puedes reactivarlo cuando quieras.",
+        "confirm": "Sí, desactivar",
+        "cancel": "Cancelar"
+      },
+      "dias": {
+        "long": {
+          "lunes": "Lunes",
+          "martes": "Martes",
+          "miercoles": "Miércoles",
+          "jueves": "Jueves",
+          "viernes": "Viernes",
+          "sabado": "Sábado",
+          "domingo": "Domingo"
+        },
+        "short": {
+          "lunes": "Lun",
+          "martes": "Mar",
+          "miercoles": "Mié",
+          "jueves": "Jue",
+          "viernes": "Vie",
+          "sabado": "Sáb",
+          "domingo": "Dom"
+        },
+        "notSet": "Días sin definir"
+      },
+      "fieldErrors": {
+        "codigo": {
+          "required": "El código es obligatorio",
+          "tooLong": "El código supera los 32 caracteres",
+          "taken": "Ya existe una asignatura con este código.",
+          "takenInactive": "Ya existe una asignatura con este código, pero está inactiva. Reactívala en lugar de crearla de nuevo."
+        },
+        "nombre": {
+          "required": "El nombre es obligatorio",
+          "tooLong": "El nombre supera los 160 caracteres"
+        },
+        "horasTotales": {
+          "required": "Las horas totales son obligatorias",
+          "invalid": "Las horas totales deben ser un número entero mayor que cero"
+        },
+        "carreraId": {
+          "invalid": "Selecciona una Carrera de la lista"
+        },
+        "asignaturaId": {
+          "required": "Selecciona una asignatura",
+          "invalid": "Selecciona una asignatura de la lista"
+        },
+        "docenteId": {
+          "required": "Selecciona un docente",
+          "invalid": "Selecciona un docente de la lista"
+        },
+        "periodo": {
+          "required": "El periodo es obligatorio",
+          "invalid": "El periodo debe tener el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1"
+        },
+        "numGrupo": {
+          "required": "El número de grupo es obligatorio",
+          "tooLong": "El número de grupo supera los 12 caracteres",
+          "taken": "Ya existe un grupo con este período y número en la asignatura seleccionada.",
+          "takenInactive": "Ya existe un grupo con este período y número en la asignatura seleccionada, pero está inactivo. Reactívalo en lugar de crearlo de nuevo."
+        },
+        "dias": {
+          "required": "Selecciona al menos un día de la semana en que se reúne el grupo",
+          "invalid": "El valor elegido no es un día de la semana. Selecciona los días de la lista"
+        }
+      },
+      "noCarrera": {
+        "title": "Tu cuenta no tiene una Carrera asignada",
+        "message": "Tu cuenta no tiene una Carrera asignada, por lo que no puedes ver ni modificar el catálogo. Pide a quien administra el sistema que la configure."
+      },
+      "busy": "El catálogo está ocupado con otro cambio. No se guardó nada. Espera un momento e inténtalo de nuevo.",
+      "importWins": "La próxima importación del catálogo puede reemplazar estos valores.",
+      "refusals": {
+        "activeGrupos": "{count, plural, one {No se puede desactivar: la asignatura tiene # grupo activo. Desactívalo primero e inténtalo de nuevo.} other {No se puede desactivar: la asignatura tiene # grupos activos. Desactívalos primero e inténtalo de nuevo.}}",
+        "parentInactive": {
+          "asignatura": "No se puede reactivar el grupo porque la asignatura {parent} está inactiva. Reactiva la asignatura primero e inténtalo de nuevo.",
+          "docente": "No se puede reactivar el grupo porque el docente {parent} no está activo o no tiene el rol de docente. Corrige el docente primero e inténtalo de nuevo."
+        },
+        "inactive": "Este registro está inactivo y no se puede editar. Reactívalo primero.",
+        "unchanged": "No hay cambios que guardar.",
+        "alreadyInactive": "El registro ya estaba inactivo. No se hizo ningún cambio."
+      }
+    },
+    "asignaturas": {
+      "title": "Asignaturas",
+      "subtitle": "Consulta y gestiona las asignaturas del catálogo.",
+      "newButton": "Nueva asignatura",
+      "columns": {
+        "code": "Código",
+        "name": "Nombre",
+        "career": "Carrera",
+        "hours": "Horas",
+        "groups": "Grupos",
+        "status": "Estado",
+        "actions": "Acciones"
+      },
+      "edit": "Editar",
+      "empty": "Aún no hay asignaturas activas.",
+      "noResults": {
+        "title": "Sin resultados para «{q}»",
+        "titleStatus": "No hay asignaturas con este filtro.",
+        "hint": "Prueba con otro código o nombre, o cambia el filtro de estado."
+      },
+      "degraded": "No se pudieron cargar las asignaturas. Vuelve a intentarlo en unos minutos.",
+      "search": {
+        "label": "Buscar asignaturas",
+        "placeholder": "Código o nombre",
+        "submit": "Buscar",
+        "clear": "Limpiar búsqueda"
+      },
+      "count": "{count, plural, =0 {Sin asignaturas} one {# asignatura} other {# asignaturas}}",
+      "tableCaption": "Lista de asignaturas",
+      "pagination": {
+        "region": "Paginación de asignaturas",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "status": "Página {page} de {pages}"
+      },
+      "errors": {
+        "unexpected": "No se pudo guardar el cambio. Inténtalo de nuevo en unos minutos."
+      },
+      "form": {
+        "codigoLabel": "Código",
+        "codigoHint": "El código no se puede cambiar después de crear la asignatura.",
+        "nombreLabel": "Nombre",
+        "horasLabel": "Horas totales",
+        "carreraLabel": "Carrera",
+        "carreraPlaceholder": "Selecciona una Carrera",
+        "carreraFixedHint": "Se usa tu Carrera. No necesitas elegirla.",
+        "submitCreate": "Crear asignatura",
+        "submitSave": "Guardar cambios",
+        "submitting": "Guardando…"
+      },
+      "page": {
+        "newTitle": "Nueva asignatura",
+        "newSubtitle": "Completa los datos para agregar una asignatura al catálogo.",
+        "editTitle": "Editar asignatura",
+        "editSubtitle": "Actualiza los datos de la asignatura.",
+        "reactivateHint": "Para editarla, reactívala primero en la sección Estado."
+      },
+      "breadcrumb": {
+        "label": "Ruta de navegación",
+        "new": "Nueva asignatura",
+        "edit": "Editar {codigo}"
+      },
+      "state": {
+        "title": "Estado",
+        "activeGroups": "{count, plural, =0 {Esta asignatura no tiene grupos activos.} one {Esta asignatura tiene # grupo activo. Desactívalo antes de poder desactivar la asignatura.} other {Esta asignatura tiene # grupos activos. Desactívalos antes de poder desactivar la asignatura.}}"
+      },
+      "grupos": {
+        "title": "Grupos",
+        "add": "Agregar grupo",
+        "empty": "Esta asignatura aún no tiene grupos.",
+        "inactiveHint": "Para agregar un grupo, reactiva primero la asignatura en la sección Estado.",
+        "tableCaption": "Grupos de {codigo}",
+        "editLabel": "Editar grupo {periodo} {numeroGrupo}",
+        "truncated": "Se muestran los {max} grupos más recientes.",
+        "viewAll": "Ver todos en Grupos",
+        "degraded": "No se pudieron cargar los grupos de esta asignatura. Vuelve a intentarlo en unos minutos."
+      }
+    },
+    "grupos": {
+      "list": {
+        "title": "Grupos",
+        "subtitle": "Consulta y gestiona los grupos del catálogo.",
+        "newButton": "Nuevo grupo",
+        "columns": {
+          "code": "Código",
+          "subject": "Asignatura",
+          "periodo": "Periodo",
+          "numeroGrupo": "Grupo",
+          "docente": "Docente",
+          "dias": "Días",
+          "status": "Estado",
+          "actions": "Acciones"
+        },
+        "edit": "Editar",
+        "empty": "Aún no hay grupos activos.",
+        "noResults": {
+          "title": "Sin resultados para «{q}»",
+          "titleStatus": "No hay grupos con este filtro.",
+          "hint": "Prueba con otra asignatura, periodo, grupo o docente, o cambia el filtro de estado."
+        },
+        "degraded": "No se pudieron cargar los grupos. Vuelve a intentarlo en unos minutos.",
+        "search": {
+          "label": "Buscar grupos",
+          "placeholder": "Asignatura, periodo, grupo o docente",
+          "submit": "Buscar",
+          "clear": "Limpiar búsqueda"
+        },
+        "count": "{count, plural, =0 {Sin grupos} one {# grupo} other {# grupos}}",
+        "tableCaption": "Lista de grupos",
+        "pagination": {
+          "region": "Paginación de grupos",
+          "previous": "Anterior",
+          "next": "Siguiente",
+          "status": "Página {page} de {pages}"
+        }
+      },
+      "errors": {
+        "unexpected": "No se pudo guardar el cambio. Inténtalo de nuevo en unos minutos."
+      },
+      "form": {
+        "asignaturaLabel": "Asignatura",
+        "docenteLabel": "Docente",
+        "searchPlaceholder": "Escribe para buscar",
+        "noMatches": "Ninguna opción coincide",
+        "truncated": "Solo se muestran las primeras opciones. Si no encuentras lo que buscas, consulta a quien administra el sistema.",
+        "periodoLabel": "Periodo",
+        "periodoHint": "Usa el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1.",
+        "numeroGrupoLabel": "Número de grupo",
+        "naturalKeyHint": "La asignatura, el periodo y el número de grupo no se pueden cambiar después de crear el grupo.",
+        "diasLabel": "Días de la semana",
+        "diasHint": "Selecciona al menos un día.",
+        "submitCreate": "Crear grupo",
+        "submitSave": "Guardar cambios",
+        "submitting": "Guardando…"
+      },
+      "page": {
+        "newTitle": "Nuevo grupo",
+        "newSubtitle": "Completa los datos para agregar un grupo al catálogo.",
+        "editTitle": "Editar grupo",
+        "editSubtitle": "Actualiza el docente y los días de clase del grupo.",
+        "reactivateHint": "Para editarlo, primero reactívalo en la sección Estado."
+      },
+      "breadcrumb": {
+        "label": "Ruta de navegación",
+        "new": "Nuevo grupo",
+        "edit": "Editar {codigo} {periodo} {numeroGrupo}"
+      },
+      "state": {
+        "title": "Estado"
+      }
+    },
+    "docentes": {
+      "title": "Docentes",
+      "subtitle": "Consulta los docentes registrados en el sistema.",
+      "usersLink": "Gestionar cuentas en Usuarios",
+      "columns": {
+        "name": "Nombre",
+        "login": "Usuario",
+        "email": "Correo",
+        "status": "Estado"
+      },
+      "noEmail": "Sin correo",
+      "empty": "Aún no hay docentes activos.",
+      "noResults": {
+        "title": "Sin resultados para «{q}»",
+        "titleStatus": "No hay docentes con este filtro.",
+        "hint": "Prueba con otro nombre o correo, o cambia el filtro de estado."
+      },
+      "degraded": "No se pudieron cargar los docentes. Vuelve a intentarlo en unos minutos.",
+      "search": {
+        "label": "Buscar docentes",
+        "placeholder": "Nombre o correo",
+        "submit": "Buscar",
+        "clear": "Limpiar búsqueda"
+      },
+      "count": "{count, plural, =0 {Sin docentes} one {# docente} other {# docentes}}",
+      "tableCaption": "Lista de docentes",
+      "pagination": {
+        "region": "Paginación de docentes",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "status": "Página {page} de {pages}"
       }
     }
   },

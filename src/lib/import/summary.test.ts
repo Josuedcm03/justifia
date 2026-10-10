@@ -27,6 +27,8 @@ const input = {
   },
   accountsCreated: 3,
   accountsUpdated: 1,
+  asignaturasReactivated: 2,
+  manualGruposDeactivated: 1,
 };
 
 describe("buildImportSummary (CEI: Successful apply returns a summary)", () => {
@@ -37,12 +39,42 @@ describe("buildImportSummary (CEI: Successful apply returns a summary)", () => {
         "accountsCreated",
         "accountsUpdated",
         "actor",
+        "asignaturasReactivated",
         "at",
         "counts",
         "fileSha256",
+        "manualGruposDeactivated",
       ].toSorted(),
     );
     expect(summary).toEqual(input);
+  });
+
+  it("carries the two losing-side counts as integers >= 0 (CEI-AUD)", () => {
+    for (const [reactivated, manual] of [
+      [0, 0],
+      [2, 1],
+    ]) {
+      const summary = buildImportSummary({
+        ...input,
+        asignaturasReactivated: reactivated,
+        manualGruposDeactivated: manual,
+      });
+      expect(summary.asignaturasReactivated).toBe(reactivated);
+      expect(summary.manualGruposDeactivated).toBe(manual);
+      for (const n of [
+        summary.asignaturasReactivated,
+        summary.manualGruposDeactivated,
+      ]) {
+        expect(Number.isInteger(n) && n >= 0).toBe(true);
+      }
+    }
+  });
+
+  it("holds counts only: no Codigo or cell content can be on the summary", () => {
+    const summary = buildImportSummary(input);
+    expect(typeof summary.asignaturasReactivated).toBe("number");
+    expect(typeof summary.manualGruposDeactivated).toBe("number");
+    expect(JSON.stringify(summary)).not.toMatch(/codigo|nombre|correo/i);
   });
 
   it("drops any extra key a caller smuggles in (no credential can ride along)", () => {
@@ -63,6 +95,8 @@ describe("buildImportSummary (CEI: Successful apply returns a summary)", () => {
       | "counts"
       | "accountsCreated"
       | "accountsUpdated"
+      | "asignaturasReactivated"
+      | "manualGruposDeactivated"
     >();
     expectTypeOf<
       "clave" | "password" | "hash" | "hashClave"

@@ -1,7 +1,8 @@
 import "server-only";
 
+import { listGrupoDias } from "@/lib/data/grupo-dias";
 import { createVercelBlobStore } from "@/lib/intake/adapters/vercel-blob-store";
-import { permissiveSchedule } from "@/lib/intake/adapters/permissive-schedule";
+import { createWeekdaySchedule } from "@/lib/intake/adapters/weekday-schedule";
 import type { DocumentStore, GroupScheduleProvider } from "@/lib/intake/ports";
 
 export type IntakeDeps = {
@@ -18,6 +19,6 @@ export type IntakeDeps = {
 export function getIntakeDeps(): IntakeDeps {
   return {
     store: createVercelBlobStore(),
-    schedule: permissiveSchedule,
+    schedule: createWeekdaySchedule(listGrupoDias),
   };
 }

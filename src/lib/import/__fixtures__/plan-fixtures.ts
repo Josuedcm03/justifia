@@ -1,7 +1,9 @@
 import type {
+  AsignaturaRow,
   CarreraRow,
   CatalogSnapshot,
   FacultadRow,
+  GrupoRow,
   ParsedRow,
   ParsedWorkbook,
 } from "../types";
@@ -31,6 +33,21 @@ export function makeSnapshot(
     inscripciones: [],
     ...overrides,
   };
+}
+
+/** Default-bearing row helpers: an Asignatura is active and a Grupo is active,
+ *  `importacion`-origin and has no days (`dias: 0`) unless a test says otherwise. */
+export function makeAsignaturaRow(
+  row: Omit<AsignaturaRow, "activo"> & Partial<Pick<AsignaturaRow, "activo">>,
+): AsignaturaRow {
+  return { activo: true, ...row };
+}
+
+export function makeGrupoRow(
+  row: Omit<GrupoRow, "activo" | "origen" | "dias"> &
+    Partial<Pick<GrupoRow, "activo" | "origen" | "dias">>,
+): GrupoRow {
+  return { activo: true, origen: "importacion", dias: 0, ...row };
 }
 
 function row(cells: Record<string, string>, rowNumber: number): ParsedRow {

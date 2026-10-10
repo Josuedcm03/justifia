@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_ROWS_PER_SHEET } from "./limits";
 import { parseWorkbook } from "./parse";
+import { buildTemplateWorkbook } from "./template";
 import type { ParsedWorkbook } from "./types";
 
 const FIXTURES = resolve(__dirname, "__fixtures__");
@@ -140,5 +141,92 @@ describe("parseWorkbook (CEI: File guards, design threat matrix)", () => {
     } else {
       expect(result.error.reason).not.toBe("");
     }
+  });
+});
+
+// CEI-DIAS-1 (design F-A): for Grupos.Dias only, an absent header travels as an
+// absent key and a present header with a blank cell as "". Workbooks are built
+// from the template builder so no second exceljs import is needed.
+type TemplateWorkbook = ReturnType<typeof buildTemplateWorkbook>;
+
+async function parseBuilt(build: (workbook: TemplateWorkbook) => void) {
+  const workbook = buildTemplateWorkbook();
+  build(workbook);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const result = await parseWorkbook(new Uint8Array(buffer));
+  if (!result.ok) {
+    throw new Error(`unexpected parse failure: ${result.error.reason}`);
+  }
+  return result.workbook;
+}
+
+const GRUPO_KEYS = ["MAT101", "2026-S1", "1", "ana@uni.edu"];
+
+describe("parseWorkbook: optional columns and absence (CEI-DIAS-1)", () => {
+  it("leaves Dias out of the cells when the Grupos header is absent", async () => {
+    const parsed = await parseBuilt((wb) => {
+      const grupos = wb.getWorksheet("Grupos")!;
+      grupos.getRow(1).getCell(5).value = null;
+      grupos.addRow(GRUPO_KEYS);
+    });
+
+    expect(parsed.sheets.Grupos).toEqual([
+      {
+        row: 2,
+        cells: {
+          CodigoAsignatura: "MAT101",
+          Periodo: "2026-S1",
+          NumGrupo: "1",
+          CorreoDocente: "ana@uni.edu",
+        },
+      },
+    ]);
+    expect(parsed.sheets.Grupos[0].cells).not.toHaveProperty("Dias");
+  });
+
+  it("yields an empty string for a Dias header with a blank cell", async () => {
+    const parsed = await parseBuilt((wb) => {
+      wb.getWorksheet("Grupos")!.addRow(GRUPO_KEYS);
+    });
+
+    expect(parsed.sheets.Grupos[0].cells).toHaveProperty("Dias", "");
+  });
+
+  it("keeps the raw string of a non-empty Dias cell", async () => {
+    const parsed = await parseBuilt((wb) => {
+      wb.getWorksheet("Grupos")!.addRow([...GRUPO_KEYS, " Lun,  Mié ;x"]);
+    });
+
+    expect(parsed.sheets.Grupos[0].cells.Dias).toBe("Lun,  Mié ;x");
+  });
+
+  it("matches the Dias header like the others: case, accents and whitespace", async () => {
+    const parsed = await parseBuilt((wb) => {
+      const grupos = wb.getWorksheet("Grupos")!;
+      grupos.getRow(1).getCell(5).value = "  DÍAS ";
+      grupos.addRow([...GRUPO_KEYS, "Lunes"]);
+    });
+
+    expect(parsed.sheets.Grupos[0].cells.Dias).toBe("Lunes");
+  });
+
+  it("reads an absent and a blank Telefono header both as an empty string", async () => {
+    const absent = await parseBuilt((wb) => {
+      const docentes = wb.getWorksheet("Docentes")!;
+      docentes.getRow(1).getCell(3).value = null;
+      docentes.addRow(["ana@uni.edu", "Ana"]);
+    });
+    const blank = await parseBuilt((wb) => {
+      wb.getWorksheet("Docentes")!.addRow(["ana@uni.edu", "Ana"]);
+    });
+
+    expect(absent.sheets.Docentes[0].cells).toEqual({
+      Correo: "ana@uni.edu",
+      Nombre: "Ana",
+      Telefono: "",
+    });
+    expect(blank.sheets.Docentes[0].cells).toEqual(
+      absent.sheets.Docentes[0].cells,
+    );
   });
 });

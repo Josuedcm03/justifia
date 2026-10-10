@@ -30,18 +30,27 @@ const IDLE = { kind: "idle" } as const;
 
 type FlowRequest = { intent: "preview" | "apply"; formData: FormData };
 
+type PreviewArm = Extract<ApplyState, { kind: "preview" }>;
+/** Client-side only. A busy answer keeps the preview it came from, so the
+ *  screen stays and the confirm control remains available for a retry. */
+type FlowState =
+  Exclude<ApplyState, { kind: "busy" }> | { kind: "busy"; preview: PreviewArm };
+
 /**
  * One reducer for both steps. The previous state is deliberately NOT forwarded
  * to the server: after an apply it holds the temporary credentials, which must
  * never travel back in a request.
  */
 async function runFlow(
-  _previous: ApplyState,
+  previous: FlowState,
   { intent, formData }: FlowRequest,
-): Promise<ApplyState> {
-  return intent === "apply"
-    ? applyAction(IDLE, formData)
-    : previewAction(IDLE, formData);
+): Promise<FlowState> {
+  if (intent === "preview") return previewAction(IDLE, formData);
+  const next = await applyAction(IDLE, formData);
+  if (next.kind !== "busy") return next;
+  // Confirm only exists on a preview, so one is always at hand here.
+  if (previous.kind === "preview") return { kind: "busy", preview: previous };
+  return previous.kind === "busy" ? { ...previous } : IDLE;
 }
 
 /**
@@ -101,15 +110,21 @@ export function ImportForm() {
   }
 
   const analysing = isPending && !applying;
+  const shown =
+    state.kind === "busy"
+      ? state.preview
+      : state.kind === "preview"
+        ? state
+        : null;
   let phase: DropzonePhase = "idle";
   if (analysing) phase = "analysing";
-  else if (state.kind === "preview" || state.kind === "applied") {
+  else if (shown || state.kind === "applied") {
     phase = "loaded";
   }
   // While a new answer is on its way, the previous failure no longer applies.
   const serverError =
     !isPending && state.kind === "error" ? state.message : null;
-  const report = state.kind === "preview" && !analysing ? state : null;
+  const report = shown && !analysing ? shown : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -137,6 +152,7 @@ export function ImportForm() {
           action={submitApply}
           pending={isPending}
           headingRef={previewHeading}
+          busy={state.kind === "busy" && !isPending}
         />
       ) : null}
       {state.kind === "applied" ? <ImportResult state={state} /> : null}

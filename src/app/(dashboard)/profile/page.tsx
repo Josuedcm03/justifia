@@ -17,9 +17,9 @@ function Row({
   capitalize?: boolean;
 }) {
   return (
-    <div className="border-border flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b py-3 last:border-b-0">
-      <dt className="text-muted-foreground text-sm">{label}</dt>
-      <dd className={cn("text-sm font-medium", capitalize && "capitalize")}>
+    <div className="flex flex-col gap-1">
+      <dt className="text-label text-muted-foreground">{label}</dt>
+      <dd className={cn("text-title break-words", capitalize && "capitalize")}>
         {value}
       </dd>
     </div>
@@ -66,13 +66,13 @@ export default async function ProfilePage() {
       <PageHeader title={t("title")} description={t("subtitle")} />
 
       <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle className="text-h3">
+        <CardHeader className="border-b">
+          <CardTitle className="text-headline">
             {usuario?.nombreCompleto ?? session.nombre}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="flex flex-col">
+          <dl className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
             {rows.map((row) => (
               <Row key={row.label} {...row} />
             ))}

@@ -277,10 +277,13 @@ shown with a "no teacher assigned" label and MUST NOT block submit (D15). A requ
 subjects (RF-01 c), each at most once. Server-side submit MUST re-check
 eligibility of every selected subject through the port.
 
-Temporary behavior (D5): until `catalog-schedule` exists, the adapter MUST treat
-every active group in which the student is enrolled as having class on every
-date, so dates do not filter subjects. **Real schedule filtering is DEFERRED**
-(see Deferred scenarios).
+Schedule filtering (RN-22, F.4): the `GroupScheduleProvider` adapter reads
+`Grupo."Dias"` (weekday bitmask, Monday = bit 0). A group MUST count as having
+class when any date in the inclusive range `[start, end]` (America/Managua
+calendar dates) falls on one of its set days. A group whose days are not
+recorded (mask `0`) MUST count as having class, so a subject is never hidden for
+lack of data. Hours, period dates and holidays do not exist in the catalog and
+are out of scope for RN-22.
 
 #### Scenario: Group and teacher shown
 
@@ -306,11 +309,29 @@ date, so dates do not filter subjects. **Real schedule filtering is DEFERRED**
 - WHEN a submit includes it
 - THEN submit is blocked with an error on subjects
 
-#### Scenario: Permissive adapter ignores dates
+#### Scenario: Subject with no class in the date range is not offered (RN-22, RF-04 a)
 
-- GIVEN the temporary adapter and any valid dates
-- WHEN subjects are listed
-- THEN every active enrolled group's subject is offered
+- GIVEN an enrolled group that meets only on days that no date between the start and end dates falls on
+- WHEN step 2 lists subjects
+- THEN that subject is not offered
+
+#### Scenario: Subject with class in the date range is offered
+
+- GIVEN an enrolled group that meets on a weekday contained in the date range, including its first or last date
+- WHEN step 2 lists subjects
+- THEN that subject is offered
+
+#### Scenario: Group with days not recorded is offered
+
+- GIVEN an enrolled group whose meeting days are not recorded (mask `0`)
+- WHEN subjects are listed for any valid dates
+- THEN its subject is offered
+
+#### Scenario: Subject that loses its class after a date change is rejected at submit
+
+- GIVEN a draft whose selected subject has class in the original dates
+- WHEN the dates are changed to a range with no class for its group and the student submits
+- THEN submit is blocked with an error on subjects (server re-check through the port)
 
 #### Scenario: Group without teacher
 
@@ -445,15 +466,6 @@ user-facing text MUST exist in both `i18n/es.json` and `i18n/en.json`.
 - GIVEN the intake message keys
 - WHEN `es.json` and `en.json` are compared
 - THEN both contain the same keys
-
-## Deferred scenarios (until `catalog-schedule`, D5, RN-22)
-
-Not testable now; MUST be added when the real adapter is delivered:
-
-- Subject with no class between start and end dates is not offered (RN-22, RF-04 a).
-- Changing dates removes or flags selected subjects that lose their class.
-- A subject whose group has class only outside the date range is rejected at submit.
-- The port contract is reconciled with the schedule model.
 
 ## Decisions applied
 

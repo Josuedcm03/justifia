@@ -5,9 +5,9 @@ import { getTranslations } from "next-intl/server";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 /**
- * Two-panel auth shell (docs/design-system.md §4.3): an ink-900 brand panel
- * carrying the institutional mark above `lg`, the form on the card surface at
- * the right. Below `lg` the panel collapses to a compact header.
+ * Centred auth shell (docs/design-system.md §4.3): the brand block, the form
+ * card and the institution line stacked on the page background, over a quiet
+ * dotted field. Each form brings its own card (`AuthCard`) and measure.
  */
 export default async function AuthLayout({
   children,
@@ -17,59 +17,35 @@ export default async function AuthLayout({
   const t = await getTranslations("common");
 
   return (
-    <div className="grid min-h-svh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      <aside className="bg-sidebar text-sidebar-foreground relative hidden flex-col justify-between p-12 lg:flex">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/uam-seeklogo.png"
-            alt=""
-            width={40}
-            height={40}
-            className="shrink-0"
-            priority
-          />
-          <span className="font-display text-sidebar-accent-foreground text-lg font-semibold">
-            {t("appName")}
-          </span>
-        </div>
+    <main className="auth-mesh bg-background relative flex min-h-svh flex-col items-center justify-center px-4 py-12 md:px-8">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
 
-        <p className="font-display max-w-[16ch] text-4xl leading-[1.15] font-bold text-white">
-          {t("tagline")}
-        </p>
-
-        <p className="text-sm">{t("institution")}</p>
-
-        {/* Single quiet accent: the teal edge where the panel meets the form. */}
-        <div
-          aria-hidden
-          className="bg-primary-hover absolute inset-y-0 right-0 w-1"
-        />
-      </aside>
-
-      <main className="bg-card relative flex flex-col items-center justify-center px-6 py-12">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle />
-        </div>
-
-        {/* Each form owns its own measure — sign-in is narrow, sign-up is not. */}
-        <div className="flex w-full flex-col gap-8 *:mx-auto *:w-full">
-          <div className="flex items-center gap-3 lg:hidden">
+      <div className="flex w-full flex-col gap-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="flex items-center gap-3">
             <Image
               src="/uam-seeklogo.png"
               alt=""
-              width={32}
-              height={32}
+              width={40}
+              height={40}
               className="shrink-0"
               priority
             />
-            <span className="font-display text-base font-semibold">
+            <span className="text-display-mobile md:text-display text-primary">
               {t("appName")}
             </span>
           </div>
-
-          {children}
+          <p className="text-label text-muted-foreground">{t("tagline")}</p>
         </div>
-      </main>
-    </div>
+
+        {children}
+
+        <p className="text-label text-muted-foreground text-center">
+          {t("institution")}
+        </p>
+      </div>
+    </main>
   );
 }

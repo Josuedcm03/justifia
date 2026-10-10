@@ -60,6 +60,7 @@ vi.mock("@/lib/import/apply", () => ({
       super("rejected");
     }
   },
+  CatalogBusyError: class CatalogBusyError extends Error {},
 }));
 vi.mock("@/lib/auth/permissions", async (importOriginal) => {
   const actual =
@@ -120,6 +121,8 @@ const SUMMARY: ImportSummary = {
   counts: { Asignatura: zero, Usuario: zero, Grupo: zero },
   accountsCreated: 1,
   accountsUpdated: 0,
+  asignaturasReactivated: 0,
+  manualGruposDeactivated: 0,
 };
 
 let session: { sub: string; login: string; rol: RolUsuario } | null = null;
@@ -311,6 +314,8 @@ describe("previewAction (CEI: Dry-run report persists nothing)", () => {
       kind: "preview",
       fileSha256: sha256(VALID),
       accountsToCreate: 2,
+      asignaturasToReactivate: 0,
+      manualGruposToDeactivate: 0,
       errors: [],
       counts: {
         Asignatura: { ...zero, create: 2 },
@@ -318,6 +323,55 @@ describe("previewAction (CEI: Dry-run report persists nothing)", () => {
         Grupo: { ...zero, create: 2 },
       },
     });
+  });
+
+  it("reports the reactivation and manual-group figures of the plan (CEI-PREV)", async () => {
+    h.loadCatalogSnapshot.mockResolvedValue(
+      makeSnapshot({
+        asignaturas: [
+          {
+            id: 1,
+            codigo: "CS101",
+            nombre: "Introduccion a la Programacion",
+            carreraId: 1,
+            horasTotales: 64,
+            activo: false,
+          },
+          {
+            id: 10,
+            codigo: "OLD1",
+            nombre: "Old",
+            carreraId: 1,
+            horasTotales: 8,
+            activo: true,
+          },
+        ],
+        grupos: [
+          {
+            id: 5,
+            asignaturaId: 10,
+            periodo: "2026-S1",
+            numeroGrupo: "9",
+            docenteId: 3,
+            activo: true,
+            origen: "manual",
+            dias: 0,
+          },
+        ],
+      }),
+    );
+
+    expect(await previewAction(IDLE, form(VALID))).toMatchObject({
+      kind: "preview",
+      asignaturasToReactivate: 1,
+      manualGruposToDeactivate: 1,
+    });
+  });
+
+  it("never takes the catalog lock: actions.ts imports nothing from catalog-write", () => {
+    const source = readFileSync(resolve(__dirname, "actions.ts"), "utf8");
+
+    expect(source).not.toMatch(/catalog-write|acquireCatalogWriteLock/);
   });
 
   it("reports row errors with sheet, row and reason (all of them)", async () => {
@@ -346,6 +400,7 @@ describe("previewAction (CEI: Dry-run report persists nothing)", () => {
             nombre: "Old",
             carreraId: 1,
             horasTotales: 8,
+            activo: true,
           },
         ],
         grupos: [
@@ -356,6 +411,8 @@ describe("previewAction (CEI: Dry-run report persists nothing)", () => {
             numeroGrupo: "9",
             docenteId: 3,
             activo: true,
+            origen: "importacion",
+            dias: 0,
           },
         ],
       }),
@@ -379,6 +436,8 @@ describe("previewAction (CEI: Dry-run report persists nothing)", () => {
       accountsToCreate: 251,
       writes: { asignaturas: [], usuarios: [], grupos: [] },
       deactivateGrupoIds: [],
+      asignaturasToReactivate: 0,
+      manualGruposToDeactivate: 0,
     };
     h.planImport.mockReturnValueOnce(capped);
 
@@ -402,6 +461,7 @@ describe("previewAction (CEI: Dry-run report persists nothing)", () => {
             nombre: "Introduccion a la Programacion",
             carreraId: 1,
             horasTotales: 64,
+            activo: true,
           },
         ],
       }),
@@ -459,6 +519,35 @@ describe("applyAction (CEI: Stateless confirm, All-or-nothing apply)", () => {
     expect(input.parsed.sheets.Asignaturas).toHaveLength(2);
     expect(input.hash).toBe(hashPassword);
     expect(input.generate).toBe(generateTemporaryPassword);
+  });
+
+  it("returns the summary with the reactivation and manual-group counts", async () => {
+    const summary = {
+      ...SUMMARY,
+      asignaturasReactivated: 2,
+      manualGruposDeactivated: 3,
+    };
+    h.runImportApply.mockResolvedValue({ summary, credentials: [] });
+
+    expect(await applyAction(IDLE, confirm())).toEqual({
+      kind: "applied",
+      summary,
+      credentials: [],
+    });
+  });
+
+  it("answers a busy catalog with the busy state, no trace, and a retry succeeds (CEI-BUSY)", async () => {
+    const { CatalogBusyError } = await import("@/lib/import/apply");
+    h.runImportApply.mockRejectedValueOnce(new CatalogBusyError());
+
+    const busy = await applyAction(IDLE, confirm());
+
+    expect(busy).toEqual({ kind: "busy" });
+    expect(consoleSpies.error).not.toHaveBeenCalled();
+    expect(h.logImportSummary).not.toHaveBeenCalled();
+    expect(await applyAction(IDLE, confirm())).toMatchObject({
+      kind: "applied",
+    });
   });
 
   it("takes the actor from the session, never from the form", async () => {

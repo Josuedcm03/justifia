@@ -14,12 +14,25 @@ export const AUDIT_ACTIONS = [
   "documento.rechazado",
   "documento.eliminado",
   "documento.descargado",
+  "asignatura.creada",
+  "asignatura.actualizada",
+  "asignatura.desactivada",
+  "asignatura.reactivada",
+  "grupo.creado",
+  "grupo.actualizado",
+  "grupo.desactivado",
+  "grupo.reactivado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export type AuditEntityType =
-  "Importacion" | "Usuario" | "Solicitud" | "DocumentoRespaldo";
+  | "Importacion"
+  | "Usuario"
+  | "Solicitud"
+  | "DocumentoRespaldo"
+  | "Asignatura"
+  | "Grupo";
 
 /** Closed list. A field not named here can never be reported as changed.
  *  `login` and `hashClave` are ABSENT on purpose: `hashClave` is a
@@ -41,6 +54,10 @@ type ImportAppliedPayload = {
   conteos: Record<EntityName, EntityCounts>;
   cuentasCreadas: number;
   cuentasActualizadas: number;
+  /** Counts only, so the losing side of the precedence rule stays visible
+   *  after the preview is gone (CEI-AUD). */
+  asignaturasReactivadas: number;
+  gruposManualesDesactivados: number;
 };
 
 type UserChangedPayload = {
@@ -79,6 +96,41 @@ type DocumentDownloadedPayload = {
   solicitudId: number;
   tipo: "pdf" | "png" | "jpeg";
 };
+
+/** Closed lists for the manual catalog events. A field not named here can
+ *  never be reported as changed (AL-PAY). */
+export const AUDITABLE_ASIGNATURA_FIELDS = [
+  "codigo",
+  "nombre",
+  "carreraId",
+  "horasTotales",
+  "activo",
+] as const;
+
+export type AuditableAsignaturaField =
+  (typeof AUDITABLE_ASIGNATURA_FIELDS)[number];
+
+export const AUDITABLE_GRUPO_FIELDS = [
+  "asignaturaId",
+  "periodo",
+  "numeroGrupo",
+  "docenteId",
+  "activo",
+  "origen",
+  "dias",
+] as const;
+
+export type AuditableGrupoField = (typeof AUDITABLE_GRUPO_FIELDS)[number];
+
+/** How a catalog record was written. The manual variant has no digest field at
+ *  all, so it cannot be half-filled. */
+export type AuditOrigin =
+  { origen: "manual" } | { origen: "importacion"; importacionSha256: string };
+
+type CatalogRecordPayload<F extends string> = {
+  /** FIELD NAMES ONLY — never values (RNF-05). */
+  campos: readonly F[];
+} & AuditOrigin;
 
 /** Closed discriminated union. Built ONLY by `src/lib/audit/events.ts`.
  *  `actorId` and `ocurridoEn` are NOT on this type: the actor is supplied by
@@ -127,4 +179,24 @@ export type AuditEvent =
       entidadTipo: "DocumentoRespaldo";
       entidadId: number;
       datos: DocumentDownloadedPayload;
+    }
+  | {
+      accion:
+        | "asignatura.creada"
+        | "asignatura.actualizada"
+        | "asignatura.desactivada"
+        | "asignatura.reactivada";
+      entidadTipo: "Asignatura";
+      entidadId: number;
+      datos: CatalogRecordPayload<AuditableAsignaturaField>;
+    }
+  | {
+      accion:
+        | "grupo.creado"
+        | "grupo.actualizado"
+        | "grupo.desactivado"
+        | "grupo.reactivado";
+      entidadTipo: "Grupo";
+      entidadId: number;
+      datos: CatalogRecordPayload<AuditableGrupoField>;
     };

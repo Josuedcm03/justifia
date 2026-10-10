@@ -276,3 +276,37 @@ Production about 760 lines (i18n 68, review-step 216, confirm/submit/discard dia
 - UI: "View" link (`<a target="_blank" rel="noopener noreferrer">`, aria-label "View {name}", `shrink-0`) next to each document on step 3 and the review. Both pages already pass only `valido` documents, so `pendiente` never gets a link. i18n keys `intake.documents.view` and `viewNamed` in es and en.
 - RED: 9 tests failed first (route headers, 4 content-disposition, documents-step, 2 review-step, layout-360). GREEN: focused suite 365/365 twice, typecheck clean, eslint clean (CRLF noise filtered).
 - Specs updated: supporting-documents (inline requirement, View link scenario), justification-intake (review scenario), design.md download section, tasks 5.9.
+
+## Final merge F.1, F.2, F.4 (2026-10-10, origin/main e89d309 merged, staged and not committed)
+
+Mode: Strict TDD (config). F.3 and F.5 remain open.
+
+### F.1 Conflicts resolved (keep both sides)
+- `src/db/schema.ts`: their `GrupoOrigen` import + our intake imports (catalog import first for sort order); tables of both sides.
+- `src/lib/audit/types.ts`: `AUDIT_ACTIONS` union of both; `AuditEntityType` = Importacion, Usuario, Solicitud, DocumentoRespaldo, Asignatura, Grupo; their catalog payload types + our document/request payload types; `AuditEvent` union of both.
+- `src/lib/audit/events.ts`: imports merged (their field lists, `AuditOrigin`, our `DocumentRejectionReason`); builders of both sides.
+- `src/lib/audit/events.test.ts`, `src/lib/auth/permissions.test.ts`: both describe blocks kept; imports merged.
+- `src/components/app-sidebar.tsx`: `canFileRequests`, `canImportCatalog`, `canManageCatalog` all imported; entries of both sides auto-merged.
+- `drizzle/meta/_journal.json`, `drizzle/meta/0005_snapshot.json`: THEIRS.
+- Post-merge fix: `src/lib/audit/types.test.ts` (theirs-only) pinned the exact action list; now includes our five intake codes.
+- Auto-merged and checked by typecheck + full suite: i18n es/en, permissions.ts, app-sidebar.test.tsx, docs/design-system.md, globals.css.
+
+### F.2 Migration
+- Removed `drizzle/0005_justification_intake.sql`; `npm run db:generate -- --name justification_intake` produced `drizzle/0007_justification_intake.sql` (+ `meta/0007_snapshot.json`), journal idx 7 `when` 1791672226324 (> 1791423623880, production's last). SQL is byte-equivalent to the previous one: 3 CREATE TABLE, indexes/CHECKs, and ADD CONSTRAINT FKs on our tables only (no change to Grupo, Asignatura or other objects).
+- Generated only; NOT applied. Apply after merge-grupo-into-asignatura coordination is agreed and the user confirms (row count of `drizzle.__drizzle_migrations` before and after).
+
+### F.4 Weekday schedule adapter (RN-22)
+| Unit | RED | GREEN |
+|---|---|---|
+| `src/lib/intake/schedule.ts` (`isoWeekdayIndex`, `hasClassInRange`) | `schedule.test.ts` failed (module missing) | 9 tests pass: Monday=0, single day, both ends, <7 and >7 days, week wrap, month boundary, mask 0 |
+| `src/lib/data/grupo-dias.ts` (`listGrupoDias`) | `grupo-dias.test.ts` failed | 3 tests pass with db-double (ids + mask, empty list no statement, fail loud) |
+| `adapters/weekday-schedule.ts` (`createWeekdaySchedule(load)`) | `weekday-schedule.test.ts` failed | 6 tests pass (multiple groups, mask 0, week range, unknown ids, empty request, error propagation) |
+| `deps.ts` wiring | `deps.test.ts` rewritten first (weekday expectation) | passes |
+- Spec: RN-22 scenarios un-deferred in `specs/justification-intake/spec.md` (Deferred section removed, permissive scenario replaced); design.md file table and compatibility row updated.
+- `adapters/permissive-schedule.ts` and its test stay: `fakes.ts` (`createFakeIntakeDeps`) still uses it.
+
+### Verification
+- `npm test`: 143 files, 2847 passed, 1 failed (`catalog-structure.test.ts` "keeps the days out of buildGruposWhere": `functionBody` searches `"
+}
+"` and this Windows checkout has CRLF working files, while the origin/main blob is LF; checkout artifact, not a code defect). The earlier UI failures (denied page, users page, data-table-search) no longer fail.
+- `npm run typecheck` clean; eslint real errors 0 (CRLF noise filtered); `npm run build` OK.

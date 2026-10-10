@@ -8,6 +8,7 @@ import {
   registerAction,
   type RegisterState,
 } from "@/app/(auth)/register/actions";
+import { AuthCard } from "@/components/auth-card";
 import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,7 @@ function Section({
 }) {
   return (
     <fieldset className="flex flex-col gap-4">
-      <legend className="font-display text-muted-foreground mb-3 w-full border-b pb-2 text-sm font-semibold">
+      <legend className="text-label-caps text-muted-foreground mb-4 w-full border-b pb-2 uppercase">
         {legend}
       </legend>
       {children}
@@ -68,10 +69,12 @@ export function RegisterForm({ carreras }: { carreras: Carrera[] }) {
   const describedBy = state.error ? "register-error" : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-h1">{t("title")}</h1>
-        <p className="text-muted-foreground max-w-prose">{t("subtitle")}</p>
+    <AuthCard className="max-w-xl">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-headline">{t("title")}</h1>
+        <p className="text-muted-foreground max-w-prose text-sm">
+          {t("subtitle")}
+        </p>
       </header>
 
       <form action={formAction} className="flex flex-col gap-8">
@@ -175,7 +178,7 @@ export function RegisterForm({ carreras }: { carreras: Carrera[] }) {
             id="register-error"
             role="alert"
             aria-live="polite"
-            className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
+            className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
           >
             {state.error}
           </p>
@@ -186,15 +189,15 @@ export function RegisterForm({ carreras }: { carreras: Carrera[] }) {
         </Button>
       </form>
 
-      <p className="text-muted-foreground border-border border-t pt-6 text-sm">
-        {t("hasAccount")}{" "}
+      <div className="border-border flex flex-col items-center gap-2 border-t pt-6 text-center">
+        <p className="text-muted-foreground text-sm">{t("hasAccount")}</p>
         <Link
           href="/login"
-          className="text-primary rounded-sm font-medium underline underline-offset-4"
+          className="text-title text-primary hover:text-primary-hover rounded-sm underline-offset-4 hover:underline"
         >
           {t("signIn")}
         </Link>
-      </p>
-    </div>
+      </div>
+    </AuthCard>
   );
 }
