@@ -1,17 +1,17 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:45e7d61508ead0e70b03ebc26cb0186870e2584138d11442b2723e20061e7687
+evidence_revision: sha256:38ca6d8d53924c20e8f5ba73c577583d406149f8baa568b461bddf6f8d1c0321
 verdict: fail
 blockers: 0
 critical_findings: 0
 requirements: 26/26
 scenarios: 84/90
 test_command: npm test
-test_exit_code: 1
-test_output_hash: sha256:6181b84ef5c619a8ad5e85863267545c4efb05bb51d59e5b40885358e183e0c9
+test_exit_code: 0
+test_output_hash: sha256:c6313814eb09447e5a0dd77a2ef3a9e5b03b54088a363362911873a2e4004fd2
 build_command: npm run build
 build_exit_code: 0
-build_output_hash: sha256:7bbb9dd04f0ff07d3e89b846c16a19d8541e119255b46910b8e9ac429b0b610c
+build_output_hash: sha256:3e6ec7d249771a42204eb3b78cc8447fadabb9f770d57a90359dcdcb5f0c98d0
 ```
 
 ## Verification Report
@@ -19,9 +19,9 @@ build_output_hash: sha256:7bbb9dd04f0ff07d3e89b846c16a19d8541e119255b46910b8e9ac
 **Change**: justification-intake
 **Version**: specs justification-intake / supporting-documents / audit-log (delta), preproposal rev 6 (D1-D15)
 **Mode**: Strict TDD
-**HEAD**: 187a123 (branch `feat/justification-intake`, main e89d309 merged)
+**HEAD**: 227946d (revision 2, rerun after commit 227946d normalized CRLF in the teammate test; no production code changed since revision 1). Revision 1 was at 187a123 (branch `feat/justification-intake`, main e89d309 merged)
 
-> Envelope note: the validator refuses `pass` / `pass_with_warnings` when `test_exit_code != 0` or scenarios are partial, so the envelope is recorded as `fail` with `critical_findings: 0`. The human verdict below is PASS WITH WARNINGS: the only red tests are outside this change (see Issues). No finding in this change is CRITICAL.
+> Envelope note: the validator refuses `pass` / `pass_with_warnings` while scenarios are partial (84/90), so the envelope is recorded as `fail` with `critical_findings: 0` and `blockers: 0`. Revision 2 has `npm test` exit 0 (revision 1 also failed on exit code 1). The human verdict below is PASS WITH WARNINGS.
 
 ### Completeness
 | Metric | Value |
@@ -39,13 +39,10 @@ Incomplete tasks, all known and owner-sanctioned:
 ### Build & Tests Execution
 **Build**: PASSED (`npm run build`, exit 0; routes `/api/cron/intake-sweep`, `/api/intake/documents/[id]`, `/api/intake/upload-token`, `/requests/new`, `/requests/new/confirmation` compiled)
 
-**Tests**: `npm test` exit 1: 2846 passed / 2 failed (143 files: 141 passed, 2 failed). Both failures are in files NOT touched by this change:
-- `src/lib/data/catalog-structure.test.ts` "keeps the days out of buildGruposWhere (CM-GRP-7)": CRLF checkout artifact (the main blob is LF). Reproduced in isolation; still fails on this Windows checkout. Pre-existing, out of scope.
-- `src/app/(dashboard)/catalog/import/import-form.test.tsx` "shows the summary and the credentials download after the apply": link-role assertion in a catalog-management file. Passed when re-run in isolation (only catalog-structure failed in the 2-file re-run): load-sensitive flake.
-All intake tests pass.
+**Tests**: `npm test` exit 0: 2848 passed / 0 failed (143 files, all passed), 92.9 s. Single run; the import-form load-sensitive flake did not recur, so no second run was needed. The revision-1 failures were `catalog-structure.test.ts` (CRLF artifact, fixed out of scope by commit 227946d) and a load flake in `import-form.test.tsx`.
 
 **Typecheck**: `npm run typecheck` exit 0.
-**Lint**: `npx eslint src -f json`: 0 real errors, 0 warnings, 53,472 CRLF `Delete` messages filtered (known Windows gotcha in config).
+**Lint**: `npx eslint src -f json`: 0 real errors, 0 warnings, 53,473 CRLF `Delete` messages filtered (known Windows gotcha in config).
 **Coverage**: threshold 0, no coverage tool (config coverage.available false): not available.
 
 ### TDD Compliance
@@ -144,7 +141,7 @@ Totals: 26 requirements, 90 scenarios (justification-intake 14/52, supporting-do
 **CRITICAL**: None for this change.
 
 **WARNING**:
-1. `npm test` exits 1: `catalog-structure.test.ts` (CRLF artifact of a teammate test on Windows checkouts) and one load-sensitive flake in `import-form.test.tsx` (passes alone). Both out of scope and not caused by this change. The envelope is `fail` solely because of this exit code. Confirm a clean run on an LF checkout or CI before merge.
+1. Resolved since revision 1: `npm test` now exits 0 (2848/2848). The `import-form` flake is load-sensitive and may recur on slow machines; it is outside this change.
 2. Migration 0007 is not applied (task 1.5). The feature cannot run against the database until the owner applies it, with a `drizzle.__drizzle_migrations` row count before and after, coordinated with merge-grupo-into-asignatura (drops Grupo; the new FKs target Grupo).
 3. Task 5.5 partial: the Blob store in the same region as Neon, and `CRON_SECRET` / `BLOB_READ_WRITE_TOKEN` in Vercel, are owner dashboard actions.
 4. Six scenarios PARTIAL (race conditions and store or browser behaviour simulated by doubles or static guards; the manual rehearsal did not exercise concurrency). Data-layer tests do not exercise real row locks or the partial unique index.
@@ -159,4 +156,4 @@ Totals: 26 requirements, 90 scenarios (justification-intake 14/52, supporting-do
 5. Pathname well-formedness (uuid shape) is only prefix-checked; acceptable under the ownership prefix.
 
 ### Verdict
-PASS WITH WARNINGS (human verdict). 0 CRITICAL, 6 WARNING, 5 SUGGESTION. Machine envelope: `fail`, only because `npm test` exits 1 from out-of-scope tests. Archive may proceed once the owner acknowledges the pre-existing failure and the migration-apply sequencing; F.3, F.5 and 5.7 are archive-time work.
+PASS WITH WARNINGS. 0 CRITICAL, 6 WARNING, 5 SUGGESTION. Machine envelope: `fail`, solely because 6 scenarios are PARTIAL (concurrency, store and browser behaviour covered by doubles or static guards, not a failing check). Open tasks 1.5, 5.5 and F.3 are owner actions; 5.7 and F.5 are archive-time work. Archive may proceed once the owner acknowledges the migration-apply sequencing and the archive-time tasks are done.
