@@ -32,7 +32,8 @@ function catalogSources(): { path: string; text: string }[] {
     .filter((p) => existsSync(p))
     .map((p) => ({
       path: relative(ROOT, p).replace(/\\/g, "/"),
-      text: readFileSync(p, "utf8"),
+      // Windows checkouts use CRLF (core.autocrlf); the pins assume LF.
+      text: readFileSync(p, "utf8").replace(/\r\n/g, "\n"),
     }));
 }
 
