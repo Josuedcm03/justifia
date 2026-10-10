@@ -178,10 +178,7 @@ describe("NewRequestPage step from the URL (A7)", () => {
       subjects: [{ grupoId: 1, asignaturaId: 10 }],
     });
     await renderPage({ step: "2" });
-    expect(screen.getByRole("checkbox", { name: /MAT-101/ })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
+    expect(screen.getByRole("checkbox", { name: /MAT-101/ })).toBeChecked();
   });
 
   it("does not query enrollment at step 2 without dates, and asks for them", async () => {

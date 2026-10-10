@@ -83,11 +83,10 @@ describe("SubjectsStep: what is offered (RF-04, D5, D15)", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "Asignaturas afectadas" }),
     ).toBeInTheDocument();
-    expect(
-      screen
-        .getAllByRole("checkbox")
-        .map((c) => c.getAttribute("aria-checked")),
-    ).toEqual(["false", "false", "false"]);
+    for (const box of screen.getAllByRole("checkbox")) {
+      expect(box).not.toBeChecked();
+    }
+    expect(screen.getAllByRole("checkbox")).toHaveLength(3);
     expect(subjectBox("MAT-101")).toHaveAccessibleName(/Cálculo I/);
     expect(subjectBox("QUI-101")).toHaveAccessibleName(/Química I/);
   });
@@ -141,8 +140,8 @@ describe("SubjectsStep: what is offered (RF-04, D5, D15)", () => {
         ],
       }),
     );
-    expect(subjectBox("MAT-101")).toHaveAttribute("aria-checked", "true");
-    expect(subjectBox("QUI-101")).toHaveAttribute("aria-checked", "true");
+    expect(subjectBox("MAT-101")).toBeChecked();
+    expect(subjectBox("QUI-101")).toBeChecked();
     expect(screen.getByRole("radio", { name: /Grupo 2/ })).toHaveAttribute(
       "aria-checked",
       "true",

@@ -1,30 +1,23 @@
-"use client";
-
-import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
+import * as React from "react";
 import { cn } from "cn";
-import { CheckIcon } from "lucide-react";
 
-// Interim primitive for justification-intake. The `catalog-management` change
-// ships its own `Checkbox`/`CheckboxGroup`; the API here (`checked`,
-// `onCheckedChange`, `disabled`, native aria props) is the plain base-ui one so
-// the shared component can replace this file at the final merge (task F.3).
-function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
+/**
+ * A native checkbox (docs/design-system.md §5 Checkbox group). The check mark is
+ * the browser's own shape, tinted with the `primary` token through
+ * `accent-color`; the focus ring is the standard one of §7. No role override and
+ * no client state: the value travels in a plain form submission.
+ */
+function Checkbox({ className, ...props }: React.ComponentProps<"input">) {
   return (
-    <CheckboxPrimitive.Root
+    <input
+      type="checkbox"
       data-slot="checkbox"
       className={cn(
-        "border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:bg-input/30 flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50",
+        "accent-primary focus-visible:ring-ring/40 size-5 shrink-0 cursor-pointer outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
-    >
-      <CheckboxPrimitive.Indicator
-        data-slot="checkbox-indicator"
-        className="grid place-content-center text-current"
-      >
-        <CheckIcon className="size-3.5" />
-      </CheckboxPrimitive.Indicator>
-    </CheckboxPrimitive.Root>
+    />
   );
 }
 

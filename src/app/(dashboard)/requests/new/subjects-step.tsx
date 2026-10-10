@@ -169,7 +169,7 @@ export function SubjectsStep({
                 <label className="flex items-start gap-3 text-sm font-medium">
                   <Checkbox
                     checked={isPicked}
-                    onCheckedChange={(checked) => toggle(subject, checked)}
+                    onChange={(event) => toggle(subject, event.target.checked)}
                     className="mt-0.5"
                   />
                   <span className="min-w-0 break-words">{subject.label}</span>
