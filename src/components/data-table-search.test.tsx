@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { DataTableSearch } from "@/components/data-table-search";
 
@@ -52,6 +52,24 @@ describe("DataTableSearch", () => {
     const input = screen.getByLabelText("Search users") as HTMLInputElement;
     expect(input).toHaveAttribute("name", "q");
     expect(input).toHaveValue("ana");
+  });
+
+  it("follows the value when the same form re-renders with another one, without a Base UI default-value warning", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const props = {
+      action: "/users",
+      label: "Search users",
+      placeholder: "Name, username or email",
+      submitLabel: "Search",
+      clearLabel: "Clear search",
+    };
+    const { rerender } = render(<DataTableSearch {...props} value="ana" />);
+
+    rerender(<DataTableSearch {...props} value="" />);
+
+    expect(screen.getByLabelText("Search users")).toHaveValue("");
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
   });
 
   it("gives the input and the submit button the 44px touch classes", () => {

@@ -15,7 +15,6 @@
     "newRequest": "New request",
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
-    "catalogGrupos": "Groups",
     "catalogDocentes": "Teachers",
     "catalogImport": "Catalog import",
     "users": "Users",
@@ -286,8 +285,8 @@
           "invalid": "Select a Carrera from the list"
         },
         "asignaturaId": {
-          "required": "Select a subject",
-          "invalid": "Select a subject from the list"
+          "required": "The subject is missing. Open this form again from the subject's page.",
+          "invalid": "This subject is not available. Open the form again from the subject's page and check that it is active."
         },
         "docenteId": {
           "required": "Select a teacher",
@@ -343,14 +342,20 @@
       "noResults": {
         "title": "No results for “{q}”",
         "titleStatus": "There are no subjects with this filter.",
-        "hint": "Try another code or name, or change the status filter."
+        "hint": "Try another code, name, teacher or period, or change the status filter."
       },
       "degraded": "Could not load the subjects. Try again in a few minutes.",
       "search": {
-        "label": "Search subjects",
-        "placeholder": "Code or name",
+        "label": "Search subjects by code, name, teacher or period",
+        "placeholder": "Code, name, teacher or period",
         "submit": "Search",
         "clear": "Clear search"
+      },
+      "matches": {
+        "label": "Groups matching the search",
+        "item": "{periodo} · Group {numeroGrupo} · {docente}",
+        "itemInactive": "{periodo} · Group {numeroGrupo} · {docente} (inactive)",
+        "more": "{count, plural, other {+# more}}"
       },
       "count": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
       "tableCaption": "Subjects list",
@@ -399,48 +404,19 @@
         "tableCaption": "Groups of {codigo}",
         "editLabel": "Edit group {periodo} {numeroGrupo}",
         "truncated": "Showing the {max} most recent groups.",
-        "viewAll": "See all in Groups",
-        "degraded": "Could not load the groups of this subject. Try again in a few minutes."
-      }
-    },
-    "grupos": {
-      "list": {
-        "title": "Groups",
-        "subtitle": "Browse and manage the groups in the catalog.",
-        "newButton": "New group",
+        "degraded": "Could not load the groups of this subject. Try again in a few minutes.",
+        "edit": "Edit",
         "columns": {
-          "code": "Code",
-          "subject": "Subject",
           "periodo": "Period",
           "numeroGrupo": "Group",
           "docente": "Teacher",
           "dias": "Days",
           "status": "Status",
           "actions": "Actions"
-        },
-        "edit": "Edit",
-        "empty": "There are no active groups yet.",
-        "noResults": {
-          "title": "No results for “{q}”",
-          "titleStatus": "There are no groups with this filter.",
-          "hint": "Try another subject, period, group or teacher, or change the status filter."
-        },
-        "degraded": "Could not load the groups. Try again in a few minutes.",
-        "search": {
-          "label": "Search groups",
-          "placeholder": "Subject, period, group or teacher",
-          "submit": "Search",
-          "clear": "Clear search"
-        },
-        "count": "{count, plural, =0 {No groups} one {# group} other {# groups}}",
-        "tableCaption": "Groups list",
-        "pagination": {
-          "region": "Groups pagination",
-          "previous": "Previous",
-          "next": "Next",
-          "status": "Page {page} of {pages}"
         }
-      },
+      }
+    },
+    "grupos": {
       "errors": {
         "unexpected": "The change could not be saved. Try again in a few minutes."
       },
@@ -462,7 +438,7 @@
       },
       "page": {
         "newTitle": "New group",
-        "newSubtitle": "Fill in the details to add a group to the catalog.",
+        "newSubtitle": "Fill in the details to add a group to this subject.",
         "editTitle": "Edit group",
         "editSubtitle": "Update the group's teacher and meeting days.",
         "reactivateHint": "To edit it, reactivate it first in the Status section."
@@ -470,7 +446,7 @@
       "breadcrumb": {
         "label": "Breadcrumb",
         "new": "New group",
-        "edit": "Edit {codigo} {periodo} {numeroGrupo}"
+        "edit": "Edit {periodo} {numeroGrupo}"
       },
       "state": {
         "title": "Status"

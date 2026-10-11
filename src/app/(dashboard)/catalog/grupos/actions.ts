@@ -38,7 +38,23 @@ import {
 // `withCatalogWrite`, which owns the lock, the transaction and the audit rows.
 // `redirect` throws, so it is always called outside any `try`.
 
-const LIST_PATH = "/catalog/grupos";
+// Groups are managed under their Asignatura, so a saved group lands on that
+// Asignatura's edit page. The ids are always numbers: the validated payload's
+// on create, the scoped record's on update and toggle. Never a path or a field
+// of the form (UG-3).
+const ASIGNATURAS_PATH = "/catalog/asignaturas";
+
+function asignaturaEditPath(asignaturaId: number) {
+  return `${ASIGNATURAS_PATH}/${asignaturaId}/edit`;
+}
+
+/** After a change to an existing group: the Asignaturas list and the parent's
+ *  edit page (both show the group), plus the group's own edit page. The path is
+ *  literal, so `revalidatePath` takes no `type`. */
+function revalidateGrupo(asignaturaId: number, grupoId: number) {
+  revalidateRecord(ASIGNATURAS_PATH, asignaturaId);
+  revalidatePath(`${ASIGNATURAS_PATH}/${asignaturaId}/grupos/${grupoId}/edit`);
+}
 
 // The id parse, the lock-free pre-check, the busy/unexpected mapping and the
 // field-error translation are shared with the Asignatura actions.
@@ -127,8 +143,8 @@ export async function createGrupoAction(
       return unexpected(t);
   }
 
-  revalidatePath(LIST_PATH);
-  redirect(LIST_PATH);
+  revalidateRecord(ASIGNATURAS_PATH, parsed.data.asignaturaId);
+  redirect(asignaturaEditPath(parsed.data.asignaturaId));
 }
 
 export async function updateGrupoAction(
@@ -192,8 +208,8 @@ export async function updateGrupoAction(
       return unexpected(t);
   }
 
-  revalidateRecord(LIST_PATH, target.id);
-  redirect(LIST_PATH);
+  revalidateGrupo(target.item.asignaturaId, target.id);
+  redirect(asignaturaEditPath(target.item.asignaturaId));
 }
 
 const INTENTS = { deactivate: false, reactivate: true } as const;
@@ -241,7 +257,7 @@ export async function setGrupoActivoAction(
   // something the actor may already see can be named.
   switch (result.kind) {
     case "changed":
-      revalidateRecord(LIST_PATH, target.id);
+      revalidateGrupo(target.item.asignaturaId, target.id);
       return { kind: "done", activo: result.activo };
     case "unchanged":
       return { kind: "unchanged" };

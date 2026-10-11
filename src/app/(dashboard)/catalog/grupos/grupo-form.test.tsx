@@ -59,10 +59,8 @@ const TEXT = {
 type Locale = keyof typeof TEXT;
 type FormProps = ComponentProps<typeof GrupoForm>;
 
-const ASIGNATURAS = [
-  { id: 1, codigo: "MAT101", nombre: "Algebra" },
-  { id: 2, codigo: "FIS200", nombre: "Fisica" },
-];
+// Create mode: the Asignatura is fixed by the route (CM-GRP-9, U5).
+const ASIGNATURA = { id: 2, codigo: "FIS200", nombre: "Fisica" };
 const DOCENTES = [
   { id: 7, nombreCompleto: "Ana Ruiz" },
   { id: 8, nombreCompleto: "Luis Mora" },
@@ -98,8 +96,9 @@ function renderForm(
     >
       <GrupoForm
         action={action}
-        asignaturas={ASIGNATURAS}
         docentes={DOCENTES}
+        // Only create mode is handed the fixed Asignatura.
+        {...(props.record ? {} : { asignatura: ASIGNATURA })}
         {...props}
       />
     </NextIntlClientProvider>,
@@ -129,13 +128,11 @@ async function checkedDays() {
 
 async function fillAll() {
   const user = userEvent.setup();
-  const asignatura = await combo(TEXT.en.asignatura);
   const docente = await combo(TEXT.en.docente);
   fireEvent.change(await text(TEXT.en.periodo), {
     target: { value: "2026-S2" },
   });
   fireEvent.change(await text(TEXT.en.numero), { target: { value: "B" } });
-  await choose(user, asignatura, "FIS200 - Fisica");
   await choose(user, docente, "Ana Ruiz");
   await user.click(await day("Wednesday"));
   await user.click(await day("Monday"));
@@ -154,8 +151,6 @@ describe("GrupoForm create mode (CM-GRP-1, CM-GRP-6)", () => {
       const t = TEXT[locale];
       renderForm({}, locale);
 
-      const asignatura = await combo(t.asignatura);
-      expect(asignatura).toHaveValue("");
       expect(await combo(t.docente)).toHaveValue("");
       expect(await text(t.periodo)).toHaveAttribute("name", "periodo");
       expect(await text(t.numero)).toHaveAttribute("name", "numeroGrupo");
@@ -183,19 +178,12 @@ describe("GrupoForm create mode (CM-GRP-1, CM-GRP-6)", () => {
     },
   );
 
-  it("offers exactly the options it was given", async () => {
+  it("offers exactly the docentes it was given, and no Asignatura to choose", async () => {
     renderForm();
     const user = userEvent.setup();
 
     const docente = await combo(TEXT.en.docente);
-    await user.click(await combo(TEXT.en.asignatura));
-    expect(
-      (await screen.findAllByRole("option")).map((o) => o.textContent),
-    ).toEqual(["MAT101 - Algebra", "FIS200 - Fisica"]);
-    await user.keyboard("{Escape}");
-    await waitFor(() =>
-      expect(screen.queryAllByRole("option")).toHaveLength(0),
-    );
+    expect(screen.getAllByRole("combobox")).toEqual([docente]);
 
     await user.click(docente);
     expect(
@@ -210,9 +198,13 @@ describe("GrupoForm create mode (CM-GRP-1, CM-GRP-6)", () => {
     expect(await combo(TEXT.en.docente)).toHaveAccessibleDescription(
       TEXT.en.truncated,
     );
-    expect(await combo(TEXT.en.asignatura)).not.toHaveAccessibleDescription(
-      TEXT.en.truncated,
-    );
+  });
+
+  it("shows no cap note while the docente list is complete", async () => {
+    renderForm({ docentesTruncated: false });
+
+    await combo(TEXT.en.docente);
+    expect(screen.queryByText(TEXT.en.truncated)).toBeNull();
   });
 
   it("submits ids, the typed values and the checked day codes", async () => {
@@ -223,6 +215,7 @@ describe("GrupoForm create mode (CM-GRP-1, CM-GRP-6)", () => {
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     const [previous, formData] = action.mock.calls[0];
     expect(previous).toEqual(IDLE);
+    // The hidden field carries the route's Asignatura.
     expect(formData.get("asignaturaId")).toBe("2");
     expect(formData.get("docenteId")).toBe("7");
     expect(formData.get("periodo")).toBe("2026-S2");
@@ -235,7 +228,7 @@ describe("GrupoForm create mode (CM-GRP-1, CM-GRP-6)", () => {
   });
 });
 
-describe("GrupoForm preselected Asignatura (CM-GRP-8, A-GRP8-OPTIONS)", () => {
+describe("GrupoForm fixed Asignatura (CM-GRP-9, U5)", () => {
   const invalidAction = () =>
     vi.fn<GrupoFormAction>(async () => ({
       kind: "invalid",
@@ -243,83 +236,74 @@ describe("GrupoForm preselected Asignatura (CM-GRP-8, A-GRP8-OPTIONS)", () => {
     }));
 
   it.each(["en", "es"] as const)(
-    "shows the option selected and submits its id, in %s",
+    "shows the code and name as read-only text and posts its id, in %s",
     async (locale) => {
-      const { action } = renderForm({ defaultAsignaturaId: 2 }, locale);
+      const t = TEXT[locale];
+      const { action } = renderForm({}, locale);
 
-      expect(await combo(TEXT[locale].asignatura)).toHaveValue(
-        "FIS200 - Fisica",
-      );
-      await submit(TEXT[locale].create);
+      expect(await screen.findByText("FIS200 - Fisica")).toBeTruthy();
+      expect(await screen.findByText(t.asignatura)).toBeTruthy();
+      const hidden = document.querySelector('input[name="asignaturaId"]');
+      expect(hidden).toHaveAttribute("type", "hidden");
+      expect(hidden).toHaveValue("2");
+
+      await submit(t.create);
       await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
       expect(action.mock.calls[0][1].get("asignaturaId")).toBe("2");
     },
   );
 
-  it("is ignored when the id is not among the options", async () => {
-    const { action } = renderForm({ defaultAsignaturaId: 99 });
+  it("offers no control to change the Asignatura", async () => {
+    renderForm();
 
-    expect(await combo(TEXT.en.asignatura)).toHaveValue("");
-    await submit(TEXT.en.create);
-    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-    expect(action.mock.calls[0][1].get("asignaturaId")).toBe("");
+    await screen.findByText("FIS200 - Fisica");
+    expect(
+      screen.queryByRole("combobox", { name: TEXT.en.asignatura }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: TEXT.en.asignatura }),
+    ).toBeNull();
+    // The only combobox left is the docente one.
+    expect(await combo(TEXT.en.docente)).toBeTruthy();
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
   });
 
-  it("leaves the field enabled and editable", async () => {
-    const { action } = renderForm({ defaultAsignaturaId: 2 });
-    const user = userEvent.setup();
-
-    const asignatura = await combo(TEXT.en.asignatura);
-    expect(asignatura).toBeEnabled();
-    await choose(user, asignatura, "MAT101 - Algebra");
-    expect(await combo(TEXT.en.asignatura)).toHaveValue("MAT101 - Algebra");
-    await submit(TEXT.en.create);
-    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-    expect(action.mock.calls[0][1].get("asignaturaId")).toBe("1");
-  });
-
-  it("keeps an untouched preselection after an invalid answer and resubmits it", async () => {
-    const { action } = renderForm(
-      { defaultAsignaturaId: 2 },
-      "en",
-      invalidAction(),
-    );
+  it("keeps posting the same Asignatura after an invalid answer", async () => {
+    const { action } = renderForm({}, "en", invalidAction());
     await submit(TEXT.en.create);
     await screen.findByText("The period must use the format YYYY-S1");
 
-    expect(await combo(TEXT.en.asignatura)).toHaveValue("FIS200 - Fisica");
+    expect(await screen.findByText("FIS200 - Fisica")).toBeTruthy();
     await submit(TEXT.en.create);
     await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
     expect(action.mock.calls[1][1].get("asignaturaId")).toBe("2");
   });
 
-  it("keeps a changed selection after an invalid answer, not the preselection", async () => {
-    const { action } = renderForm(
-      { defaultAsignaturaId: 2 },
+  it("shows an Asignatura error in the status region, as text", async () => {
+    const message = enMessages.catalog.shared.fieldErrors.asignaturaId.invalid;
+    renderForm(
+      {},
       "en",
-      invalidAction(),
+      vi.fn<GrupoFormAction>(async () => ({
+        kind: "invalid",
+        fieldErrors: { asignaturaId: message },
+      })),
     );
-    const user = userEvent.setup();
-    await choose(user, await combo(TEXT.en.asignatura), "MAT101 - Algebra");
     await submit(TEXT.en.create);
-    await screen.findByText("The period must use the format YYYY-S1");
 
-    expect(await combo(TEXT.en.asignatura)).toHaveValue("MAT101 - Algebra");
-    await submit(TEXT.en.create);
-    await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
-    expect(action.mock.calls[1][1].get("asignaturaId")).toBe("1");
+    const region = await screen.findByRole("status");
+    await waitFor(() => expect(region).toHaveTextContent(message));
+    expect(region).toHaveAttribute("aria-live", "polite");
   });
 
-  it("is ignored in edit mode", async () => {
+  it("ignores a fixed Asignatura in edit mode: the record shows its own and no hidden field is posted", async () => {
     const { action } = renderForm({
       record: RECORD,
-      defaultAsignaturaId: 2,
+      asignatura: { id: 2, codigo: "FIS200", nombre: "Fisica" },
     });
 
     expect(await screen.findByText("MAT101 - Algebra")).toBeTruthy();
-    expect(
-      screen.queryByRole("combobox", { name: TEXT.en.asignatura }),
-    ).toBeNull();
+    expect(screen.queryByText("FIS200 - Fisica")).toBeNull();
     await submit(TEXT.en.save);
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     expect(action.mock.calls[0][1].has("asignaturaId")).toBe(false);
@@ -467,10 +451,9 @@ describe("GrupoForm keeps the user's values after an invalid answer", () => {
     expect(await text(TEXT.en.numero)).toHaveValue("B");
   });
 
-  it("keeps both combobox selections", async () => {
+  it("keeps the docente selection and the fixed Asignatura", async () => {
     const action = await submitInvalid();
 
-    expect(await combo(TEXT.en.asignatura)).toHaveValue("FIS200 - Fisica");
     expect(await combo(TEXT.en.docente)).toHaveValue("Ana Ruiz");
     await submit(TEXT.en.create);
     await waitFor(() => expect(action).toHaveBeenCalledTimes(2));
@@ -488,14 +471,14 @@ describe("GrupoForm keeps the user's values after an invalid answer", () => {
 
 describe("GrupoForm field errors (CM-NFR-3)", () => {
   const FIELD_ERRORS = {
-    asignaturaId: "Select a subject",
+    asignaturaId: enMessages.catalog.shared.fieldErrors.asignaturaId.required,
     periodo: "The period is required",
     numeroGrupo: "The group number is required",
     docenteId: "Select a teacher",
     dias: "Select at least one day of the week on which the group meets",
   };
 
-  it("shows each error under its control, announced and linked", async () => {
+  it("shows each drawn error under its control, announced and linked; the Asignatura error is a stray one", async () => {
     renderForm(
       {},
       "en",
@@ -507,7 +490,6 @@ describe("GrupoForm field errors (CM-NFR-3)", () => {
     await submit(TEXT.en.create);
 
     const controls: [string, HTMLElement][] = [
-      [FIELD_ERRORS.asignaturaId, await combo(TEXT.en.asignatura)],
       [FIELD_ERRORS.periodo, await text(TEXT.en.periodo)],
       [FIELD_ERRORS.numeroGrupo, await text(TEXT.en.numero)],
       [FIELD_ERRORS.docenteId, await combo(TEXT.en.docente)],
@@ -522,6 +504,11 @@ describe("GrupoForm field errors (CM-NFR-3)", () => {
       "role",
       "alert",
     );
+    // No control carries the Asignatura, so its error is plain text in the
+    // status region, with no role of its own.
+    const stray = await screen.findByText(FIELD_ERRORS.asignaturaId);
+    expect(stray).not.toHaveAttribute("role", "alert");
+    expect(await screen.findByRole("status")).toContainElement(stray);
   });
 
   it("shows an error for a field it does not draw, as text", async () => {

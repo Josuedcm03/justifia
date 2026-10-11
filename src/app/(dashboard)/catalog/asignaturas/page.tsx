@@ -10,6 +10,7 @@ import { StatusPill } from "@/components/status-pill";
 import { buttonVariants } from "@/components/ui/button";
 import { requireCatalogAccess } from "@/lib/auth/catalog-access";
 import {
+  ASIGNATURA_MATCHES_MAX,
   CATALOG_PAGE_SIZE,
   catalogListHref,
   parseCatalogListParams,
@@ -103,7 +104,41 @@ export default async function AsignaturasPage({
       cell: (a) => a.codigo,
       className: "font-medium",
     },
-    { key: "name", header: t("columns.name"), cell: (a) => a.nombre },
+    {
+      key: "name",
+      header: t("columns.name"),
+      cell: (a) =>
+        a.gruposCoincidentes.length === 0 ? (
+          a.nombre
+        ) : (
+          <div className="flex flex-col gap-1">
+            <span>{a.nombre}</span>
+            {/* Text only (UG-6): the row's Edit link opens the Asignatura,
+                whose section lists its groups. */}
+            <ul
+              aria-label={t("matches.label")}
+              className="text-label text-muted-foreground flex flex-col gap-1"
+            >
+              {a.gruposCoincidentes.map((g) => (
+                <li key={g.id}>
+                  {t(g.activo ? "matches.item" : "matches.itemInactive", {
+                    periodo: g.periodo,
+                    numeroGrupo: g.numeroGrupo,
+                    docente: g.docenteNombre,
+                  })}
+                </li>
+              ))}
+              {a.gruposCoincidentesTotal > ASIGNATURA_MATCHES_MAX ? (
+                <li>
+                  {t("matches.more", {
+                    count: a.gruposCoincidentesTotal - ASIGNATURA_MATCHES_MAX,
+                  })}
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ),
+    },
     {
       key: "career",
       header: t("columns.career"),

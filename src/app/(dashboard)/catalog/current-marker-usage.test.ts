@@ -63,8 +63,8 @@ const byPath = (suffix: string) => {
 const BREADCRUMB_PAGES = [
   "catalog/asignaturas/new/page.tsx",
   "catalog/asignaturas/[id]/edit/page.tsx",
-  "catalog/grupos/new/page.tsx",
-  "catalog/grupos/[id]/edit/page.tsx",
+  "catalog/asignaturas/[id]/grupos/new/page.tsx",
+  "catalog/asignaturas/[id]/grupos/[grupoId]/edit/page.tsx",
 ];
 
 describe("current-marker usage (characterization)", () => {

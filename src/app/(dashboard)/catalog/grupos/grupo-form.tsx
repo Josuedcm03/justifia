@@ -35,7 +35,8 @@ const IDLE: CatalogFormState = { kind: "idle" };
 const ERROR_PANEL =
   "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
 
-/** A value shown as text: the immutable natural key of an existing group. */
+/** A value shown as text: the natural key of an existing group, or the
+ *  Asignatura a new group is being created under. */
 function FixedField({ label, value }: { label: string; value: string }) {
   const labelId = useId();
   return (
@@ -52,30 +53,27 @@ function FixedField({ label, value }: { label: string; value: string }) {
 
 /**
  * One form for creating and editing a Grupo. It receives its Server Action and
- * its option lists, so the page decides them and the form imports nothing from
- * the data layer. Submitted through `onSubmit` with a hand dispatch: React
+ * its docente options, so the page decides them and the form imports nothing
+ * from the data layer. Submitted through `onSubmit` with a hand dispatch: React
  * resets the fields of a form `action` once it settles, which would discard what
  * the user typed, chose and checked after a validation error.
  */
 export function GrupoForm({
   action,
-  asignaturas,
   docentes,
-  asignaturasTruncated = false,
   docentesTruncated = false,
   record,
-  defaultAsignaturaId,
+  asignatura,
   reactivate,
 }: {
   action: GrupoFormAction;
-  asignaturas: readonly { id: number; codigo: string; nombre: string }[];
   docentes: readonly { id: number; nombreCompleto: string }[];
-  asignaturasTruncated?: boolean;
   docentesTruncated?: boolean;
   record?: GrupoFormRecord;
-  /** Create mode only: the Asignatura chosen on first render, still
-   *  changeable. Ignored when it is not among `asignaturas`. */
-  defaultAsignaturaId?: number;
+  /** Create mode only: the Asignatura named by the route. It is shown as text
+   *  and posted in a hidden field; the action still validates it. Ignored in
+   *  edit mode, where the record carries its own. */
+  asignatura?: { id: number; codigo: string; nombre: string };
   /** Rendered in place of the submit control while the record is inactive. */
   reactivate?: ReactNode;
 }) {
@@ -90,15 +88,12 @@ export function GrupoForm({
   const canSubmit = !locked && state.kind !== "gone";
   const errors = state.kind === "invalid" ? state.fieldErrors : {};
 
-  // Errors for a field this form does not draw are still shown, as text.
+  // Errors for a field this form does not draw are still shown, as text. The
+  // Asignatura is never a control, so its error is always one of them.
   const drawn = ["docenteId", "dias"];
-  if (!editing) drawn.push("asignaturaId", "periodo", "numeroGrupo");
+  if (!editing) drawn.push("periodo", "numeroGrupo");
   const stray = Object.entries(errors).filter(([key]) => !drawn.includes(key));
 
-  const asignaturaItems = asignaturas.map((a) => ({
-    value: String(a.id),
-    label: `${a.codigo} - ${a.nombre}`,
-  }));
   const docenteItems = docentes.map((d) => ({
     value: String(d.id),
     label: d.nombreCompleto,
@@ -163,28 +158,15 @@ export function GrupoForm({
         </>
       ) : (
         <>
-          <FormField
-            id="asignaturaId"
-            label={t("asignaturaLabel")}
-            error={errors.asignaturaId}
-          >
-            {(control) => (
-              <Combobox
-                {...control}
-                name="asignaturaId"
-                items={asignaturaItems}
-                emptyText={t("noMatches")}
-                placeholder={t("searchPlaceholder")}
-                truncated={asignaturasTruncated}
-                truncatedText={t("truncated")}
-                defaultValue={
-                  defaultAsignaturaId === undefined
-                    ? undefined
-                    : String(defaultAsignaturaId)
-                }
+          {asignatura ? (
+            <>
+              <input type="hidden" name="asignaturaId" value={asignatura.id} />
+              <FixedField
+                label={t("asignaturaLabel")}
+                value={`${asignatura.codigo} - ${asignatura.nombre}`}
               />
-            )}
-          </FormField>
+            </>
+          ) : null}
           <FormField
             id="periodo"
             label={t("periodoLabel")}

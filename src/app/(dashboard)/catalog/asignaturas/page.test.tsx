@@ -64,6 +64,22 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
     horasTotales: 64,
     activo: true,
     grupos: null,
+    gruposCoincidentes: [],
+    gruposCoincidentesTotal: 0,
+    ...overrides,
+  };
+}
+
+function grupoMatch(
+  id: number,
+  overrides: Partial<Record<string, unknown>> = {},
+) {
+  return {
+    id,
+    periodo: "2026-S1",
+    numeroGrupo: String(id),
+    docenteNombre: "Ana Pérez",
+    activo: true,
     ...overrides,
   };
 }
@@ -334,6 +350,124 @@ describe("AsignaturasPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () 
     expect(cellOf(1)).toHaveTextContent(/^1, 2$/);
     expect(cellOf(2)).toHaveTextContent(/^-$/);
     expect(cellOf(3)).toHaveTextContent(/^-$/);
+  });
+
+  describe("groups that matched the search (CM-ASG-9, UG-6)", () => {
+    const nameCell = (rowIndex: number) =>
+      within(
+        within(screen.getByRole("table")).getAllByRole("row")[rowIndex],
+      ).getAllByRole("cell")[1];
+
+    it("names up to three matching groups under the subject name, an inactive one in words, and the remainder", async () => {
+      listMock.mockResolvedValue(
+        result({
+          total: 1,
+          data: [
+            row({
+              gruposCoincidentes: [
+                grupoMatch(1),
+                grupoMatch(2, { activo: false, periodo: "2025-S2" }),
+                grupoMatch(3, { docenteNombre: "Luis Soto" }),
+              ],
+              gruposCoincidentesTotal: 4,
+            }),
+          ],
+        }),
+      );
+
+      await renderPage({ q: "2026" });
+
+      const cell = nameCell(1);
+      expect(cell).toHaveTextContent("Calculus");
+      const list = within(cell).getByRole("list", { name: en.matches.label });
+      const items = within(list)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent);
+      expect(items).toEqual([
+        "2026-S1 · Group 1 · Ana Pérez",
+        "2025-S2 · Group 2 · Ana Pérez (inactive)",
+        "2026-S1 · Group 3 · Luis Soto",
+        "+1 more",
+      ]);
+      const table = screen.getByRole("table");
+      expect(within(table).queryAllByRole("button")).toHaveLength(0);
+      expect(
+        within(table)
+          .getAllByRole("link")
+          .map((a) => a.getAttribute("href")),
+      ).toEqual([`${BASE}/12/edit`]);
+      expect(table.querySelector("form")).toBeNull();
+    });
+
+    it("adds no remainder line when every match is named", async () => {
+      listMock.mockResolvedValue(
+        result({
+          total: 1,
+          data: [
+            row({
+              gruposCoincidentes: [grupoMatch(1), grupoMatch(2)],
+              gruposCoincidentesTotal: 2,
+            }),
+          ],
+        }),
+      );
+
+      await renderPage({ q: "perez" });
+
+      const items = within(
+        within(nameCell(1)).getByRole("list", { name: en.matches.label }),
+      ).getAllByRole("listitem");
+      expect(items).toHaveLength(2);
+      expect(nameCell(1)).not.toHaveTextContent(/more/);
+    });
+
+    it("renders no list and no placeholder for a row that matched only by code or name", async () => {
+      listMock.mockResolvedValue(
+        result({
+          total: 2,
+          data: [
+            row(),
+            row({
+              id: 13,
+              codigo: "FIS200",
+              nombre: "Physics",
+              gruposCoincidentes: [grupoMatch(7)],
+              gruposCoincidentesTotal: 1,
+            }),
+          ],
+        }),
+      );
+
+      await renderPage({ q: "calc" });
+
+      expect(within(nameCell(1)).queryByRole("list")).toBeNull();
+      expect(nameCell(1)).toHaveTextContent(/^Calculus$/);
+      expect(within(nameCell(2)).getAllByRole("listitem")).toHaveLength(1);
+    });
+
+    it("renders the lines in Spanish", async () => {
+      state.locale = "es";
+      listMock.mockResolvedValue(
+        result({
+          total: 1,
+          data: [
+            row({
+              gruposCoincidentes: [grupoMatch(1, { activo: false })],
+              gruposCoincidentesTotal: 1,
+            }),
+          ],
+        }),
+      );
+
+      await renderPage({ q: "perez" });
+
+      const list = within(nameCell(1)).getByRole("list", {
+        name: esMessages.catalog.asignaturas.matches.label,
+      });
+      expect(list).toHaveTextContent(
+        "2026-S1 · Grupo 1 · Ana Pérez (inactivo)",
+      );
+    });
   });
 
   it("renders the Groups header and the cell in Spanish", async () => {

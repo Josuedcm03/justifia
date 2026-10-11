@@ -9,10 +9,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import enMessages from "../../../../../../../i18n/en.json";
 import esMessages from "../../../../../../../i18n/es.json";
 import { ACCESS_DENIED_PATH, PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
-import {
-  ASIGNATURA_GRUPOS_MAX,
-  catalogListHref,
-} from "@/lib/catalog/list-params";
+import { ASIGNATURA_GRUPOS_MAX } from "@/lib/catalog/list-params";
 import { rolesUsuario, type RolUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
@@ -534,7 +531,6 @@ describe("EditAsignaturaPage structure (CM-NFR-3; the only 'you are here' marker
 });
 
 const enGrupos = en.grupos;
-const enList = enMessages.catalog.grupos.list;
 
 function grupo(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -591,12 +587,12 @@ describe("EditAsignaturaPage Grupos section rows and links (CM-ASG-7, CM-GRP-7)"
         .getAllByRole("columnheader")
         .map((h) => h.textContent),
     ).toEqual([
-      enList.columns.periodo,
-      enList.columns.numeroGrupo,
-      enList.columns.docente,
-      enList.columns.dias,
-      enList.columns.status,
-      enList.columns.actions,
+      enGrupos.columns.periodo,
+      enGrupos.columns.numeroGrupo,
+      enGrupos.columns.docente,
+      enGrupos.columns.dias,
+      enGrupos.columns.status,
+      enGrupos.columns.actions,
     ]);
     const [, ...rows] = within(table).getAllByRole("row");
     expect(rows).toHaveLength(3);
@@ -634,16 +630,16 @@ describe("EditAsignaturaPage Grupos section rows and links (CM-ASG-7, CM-GRP-7)"
       name: /^Edit group/,
     });
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
-      "/catalog/grupos/31/edit",
-      "/catalog/grupos/30/edit",
-      "/catalog/grupos/29/edit",
+      "/catalog/asignaturas/12/grupos/31/edit",
+      "/catalog/asignaturas/12/grupos/30/edit",
+      "/catalog/asignaturas/12/grupos/29/edit",
     ]);
     expect(links.map((l) => l.getAttribute("aria-label"))).toEqual([
       "Edit group 2026-S2 A",
       "Edit group 2026-S1 B",
       "Edit group 2025-S2 A",
     ]);
-    for (const link of links) expect(link).toHaveTextContent(enList.edit);
+    for (const link of links) expect(link).toHaveTextContent(enGrupos.edit);
   });
 
   it.each([
@@ -697,7 +693,7 @@ describe("EditAsignaturaPage Grupos section rows and links (CM-ASG-7, CM-GRP-7)"
       expect(adds).toHaveLength(1);
       expect(adds[0]).toHaveAttribute(
         "href",
-        `/catalog/grupos/new?asignaturaId=${id}`,
+        `/catalog/asignaturas/${id}/grupos/new`,
       );
       expect(gruposRegion()).toContainElement(adds[0]);
       expect(gruposMock).toHaveBeenCalledWith({ kind: "all" }, id);
@@ -715,7 +711,7 @@ describe("EditAsignaturaPage Grupos section rows and links (CM-ASG-7, CM-GRP-7)"
     expect(links[0]).toHaveTextContent(enGrupos.add);
     expect(links[0]).toHaveAttribute(
       "href",
-      "/catalog/grupos/new?asignaturaId=12",
+      "/catalog/asignaturas/12/grupos/new",
     );
     expect(screen.getAllByRole("link", { name: enGrupos.add })).toHaveLength(1);
   });
@@ -757,16 +753,53 @@ describe("EditAsignaturaPage Grupos section rows and links (CM-ASG-7, CM-GRP-7)"
 
     const es = esMessages.catalog.asignaturas.grupos;
     const region = gruposRegion(es.title);
+    const table = within(region).getByRole("table", {
+      name: "Grupos de MAT101",
+    });
     expect(
-      within(region).getByRole("table", { name: "Grupos de MAT101" }),
-    ).toBeInTheDocument();
+      within(table)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual([
+      es.columns.periodo,
+      es.columns.numeroGrupo,
+      es.columns.docente,
+      es.columns.dias,
+      es.columns.status,
+      es.columns.actions,
+    ]);
     expect(
       within(region).getByRole("link", { name: es.add }),
     ).toBeInTheDocument();
     expect(
       within(region).getByRole("link", { name: "Editar grupo 2026-S2 A" }),
-    ).toHaveAttribute("href", "/catalog/grupos/31/edit");
+    ).toHaveAttribute("href", "/catalog/asignaturas/12/grupos/31/edit");
   });
+
+  // CM-ASG-7 "Active and inactive groups are listed": the parent in each Edit
+  // link is the page's own Asignatura (a second id rules out a constant), and
+  // an inactive Asignatura keeps its groups editable (they stay reachable to
+  // be reactivated).
+  it.each([
+    ["an active", true],
+    ["an inactive", false],
+  ] as const)(
+    "builds every Edit link under the page's own Asignatura (%s subject, id 345)",
+    async (_label, activo) => {
+      getByIdMock.mockResolvedValue(detail({ id: 345, activo }));
+      gruposMock.mockResolvedValue(answer({ data: THREE_GRUPOS }));
+      await renderPage("345");
+
+      const links = within(gruposRegion()).getAllByRole("link", {
+        name: /^Edit group/,
+      });
+      expect(links.map((l) => l.getAttribute("href"))).toEqual([
+        "/catalog/asignaturas/345/grupos/31/edit",
+        "/catalog/asignaturas/345/grupos/30/edit",
+        "/catalog/asignaturas/345/grupos/29/edit",
+      ]);
+    },
+  );
 });
 
 describe("EditAsignaturaPage Grupos section degraded, cap, scope and structure (CM-ASG-7, CM-SCOPE-1, CM-SCOPE-2, CM-NFR-3)", () => {
@@ -800,7 +833,7 @@ describe("EditAsignaturaPage Grupos section degraded, cap, scope and structure (
     },
   );
 
-  it("past the cap shows the table, then the note with the cap and a link to the filtered Grupos list", async () => {
+  it("past the cap shows the table, then the note with the cap, and no link to any list (CM-ASG-7 More groups than the cap)", async () => {
     gruposMock.mockResolvedValue(
       answer({ data: THREE_GRUPOS, truncated: true }),
     );
@@ -814,51 +847,48 @@ describe("EditAsignaturaPage Grupos section degraded, cap, scope and structure (
     expect(
       table.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(
-      within(region).getByRole("link", { name: enGrupos.viewAll }),
-    ).toHaveAttribute(
-      "href",
-      catalogListHref("/catalog/grupos", { status: "all", q: "MAT101" }),
-    );
+    expect(note.querySelector("a")).toBeNull();
+    // Only Add group and the three Edit links: nothing points at a list.
+    const hrefs = within(region)
+      .getAllByRole("link")
+      .map((l) => l.getAttribute("href"));
+    expect(hrefs).toEqual([
+      "/catalog/asignaturas/12/grupos/new",
+      "/catalog/asignaturas/12/grupos/31/edit",
+      "/catalog/asignaturas/12/grupos/30/edit",
+      "/catalog/asignaturas/12/grupos/29/edit",
+    ]);
     expect(
       within(region).getAllByRole("link", { name: enGrupos.add }),
     ).toHaveLength(1);
   });
 
-  it("a code with an ampersand and a space cannot inject a parameter into the link, and Add group stays numeric", async () => {
+  it("a code with an ampersand and a space reaches no URL, and Add group stays numeric", async () => {
     getByIdMock.mockResolvedValue(detail({ codigo: "A&B C" }));
     gruposMock.mockResolvedValue(
       answer({ data: THREE_GRUPOS, truncated: true }),
     );
     await renderPage();
 
-    const href = within(gruposRegion())
-      .getByRole("link", { name: enGrupos.viewAll })
-      .getAttribute("href") as string;
-    expect(href).toBe(
-      catalogListHref("/catalog/grupos", { status: "all", q: "A&B C" }),
-    );
-    const url = new URL(href, "http://localhost");
-    expect(url.pathname).toBe("/catalog/grupos");
-    expect(url.searchParams.get("q")).toBe("A&B C");
-    expect(url.searchParams.get("status")).toBe("all");
-    expect([...url.searchParams.keys()].sort()).toEqual(["q", "status"]);
+    for (const link of within(gruposRegion()).getAllByRole("link")) {
+      expect(link.getAttribute("href")).toMatch(
+        /^\/catalog\/asignaturas\/12\//,
+      );
+      expect(link.getAttribute("href")).not.toMatch(/[?&% ]|A&B/);
+    }
     expect(screen.getByRole("link", { name: enGrupos.add })).toHaveAttribute(
       "href",
-      "/catalog/grupos/new?asignaturaId=12",
+      "/catalog/asignaturas/12/grupos/new",
     );
   });
 
-  it("shows neither the note nor the link when the list is not cut", async () => {
+  it("shows no note when the list is not cut", async () => {
     gruposMock.mockResolvedValue(answer({ data: THREE_GRUPOS }));
     await renderPage();
 
     const region = gruposRegion();
     expect(within(region).getByRole("table")).toBeInTheDocument();
     expect(within(region).queryByText(/most recent groups/)).toBeNull();
-    expect(
-      within(region).queryByRole("link", { name: enGrupos.viewAll }),
-    ).toBeNull();
   });
 
   it.each(["abc", "0", "-3", ""])(

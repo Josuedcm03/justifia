@@ -15,7 +15,6 @@
     "newRequest": "Nueva solicitud",
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
-    "catalogGrupos": "Grupos",
     "catalogDocentes": "Docentes",
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
@@ -286,8 +285,8 @@
           "invalid": "Selecciona una Carrera de la lista"
         },
         "asignaturaId": {
-          "required": "Selecciona una asignatura",
-          "invalid": "Selecciona una asignatura de la lista"
+          "required": "Falta la asignatura. Abre este formulario de nuevo desde la página de la asignatura.",
+          "invalid": "Esta asignatura no está disponible. Abre el formulario de nuevo desde la página de la asignatura y comprueba que esté activa."
         },
         "docenteId": {
           "required": "Selecciona un docente",
@@ -343,14 +342,20 @@
       "noResults": {
         "title": "Sin resultados para «{q}»",
         "titleStatus": "No hay asignaturas con este filtro.",
-        "hint": "Prueba con otro código o nombre, o cambia el filtro de estado."
+        "hint": "Prueba con otro código, nombre, docente o período, o cambia el filtro de estado."
       },
       "degraded": "No se pudieron cargar las asignaturas. Vuelve a intentarlo en unos minutos.",
       "search": {
-        "label": "Buscar asignaturas",
-        "placeholder": "Código o nombre",
+        "label": "Buscar asignaturas por código, nombre, docente o período",
+        "placeholder": "Código, nombre, docente o período",
         "submit": "Buscar",
         "clear": "Limpiar búsqueda"
+      },
+      "matches": {
+        "label": "Grupos que coinciden con la búsqueda",
+        "item": "{periodo} · Grupo {numeroGrupo} · {docente}",
+        "itemInactive": "{periodo} · Grupo {numeroGrupo} · {docente} (inactivo)",
+        "more": "{count, plural, other {+# más}}"
       },
       "count": "{count, plural, =0 {Sin asignaturas} one {# asignatura} other {# asignaturas}}",
       "tableCaption": "Lista de asignaturas",
@@ -399,48 +404,19 @@
         "tableCaption": "Grupos de {codigo}",
         "editLabel": "Editar grupo {periodo} {numeroGrupo}",
         "truncated": "Se muestran los {max} grupos más recientes.",
-        "viewAll": "Ver todos en Grupos",
-        "degraded": "No se pudieron cargar los grupos de esta asignatura. Vuelve a intentarlo en unos minutos."
-      }
-    },
-    "grupos": {
-      "list": {
-        "title": "Grupos",
-        "subtitle": "Consulta y gestiona los grupos del catálogo.",
-        "newButton": "Nuevo grupo",
+        "degraded": "No se pudieron cargar los grupos de esta asignatura. Vuelve a intentarlo en unos minutos.",
+        "edit": "Editar",
         "columns": {
-          "code": "Código",
-          "subject": "Asignatura",
           "periodo": "Periodo",
           "numeroGrupo": "Grupo",
           "docente": "Docente",
           "dias": "Días",
           "status": "Estado",
           "actions": "Acciones"
-        },
-        "edit": "Editar",
-        "empty": "Aún no hay grupos activos.",
-        "noResults": {
-          "title": "Sin resultados para «{q}»",
-          "titleStatus": "No hay grupos con este filtro.",
-          "hint": "Prueba con otra asignatura, periodo, grupo o docente, o cambia el filtro de estado."
-        },
-        "degraded": "No se pudieron cargar los grupos. Vuelve a intentarlo en unos minutos.",
-        "search": {
-          "label": "Buscar grupos",
-          "placeholder": "Asignatura, periodo, grupo o docente",
-          "submit": "Buscar",
-          "clear": "Limpiar búsqueda"
-        },
-        "count": "{count, plural, =0 {Sin grupos} one {# grupo} other {# grupos}}",
-        "tableCaption": "Lista de grupos",
-        "pagination": {
-          "region": "Paginación de grupos",
-          "previous": "Anterior",
-          "next": "Siguiente",
-          "status": "Página {page} de {pages}"
         }
-      },
+      }
+    },
+    "grupos": {
       "errors": {
         "unexpected": "No se pudo guardar el cambio. Inténtalo de nuevo en unos minutos."
       },
@@ -462,7 +438,7 @@
       },
       "page": {
         "newTitle": "Nuevo grupo",
-        "newSubtitle": "Completa los datos para agregar un grupo al catálogo.",
+        "newSubtitle": "Completa los datos para agregar un grupo a esta asignatura.",
         "editTitle": "Editar grupo",
         "editSubtitle": "Actualiza el docente y los días de clase del grupo.",
         "reactivateHint": "Para editarlo, primero reactívalo en la sección Estado."
@@ -470,7 +446,7 @@
       "breadcrumb": {
         "label": "Ruta de navegación",
         "new": "Nuevo grupo",
-        "edit": "Editar {codigo} {periodo} {numeroGrupo}"
+        "edit": "Editar {periodo} {numeroGrupo}"
       },
       "state": {
         "title": "Estado"
