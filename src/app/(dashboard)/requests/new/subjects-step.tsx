@@ -86,7 +86,14 @@ export function SubjectsStep({
         description={t("subjects.description")}
         footer={back}
       >
-        <p role={degraded ? "status" : undefined} className="text-sm">
+        <p
+          role={degraded ? "status" : undefined}
+          className={
+            degraded
+              ? "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
+              : "text-sm"
+          }
+        >
           {notice}
         </p>
         {hasDates ? null : (
@@ -166,7 +173,7 @@ export function SubjectsStep({
                 data-subject={id}
                 className="border-border flex flex-col gap-3 rounded-xl border p-4"
               >
-                <label className="flex items-start gap-3 text-sm font-medium">
+                <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
                   <Checkbox
                     checked={isPicked}
                     onChange={(event) => toggle(subject, event.target.checked)}
@@ -214,7 +221,7 @@ function GroupChoice({
   const t = useTranslations("intake.subjects");
 
   const describe = (g: EnrollmentGroup) => (
-    <span className="flex flex-col gap-0.5 text-sm sm:flex-row sm:gap-2">
+    <span className="flex flex-col gap-1 text-sm sm:flex-row sm:gap-2">
       <span>{t("group", { number: g.numeroGrupo })}</span>
       <span className="text-muted-foreground">
         {g.docenteNombre
@@ -234,7 +241,7 @@ function GroupChoice({
       {...invalidProps(id, errors)}
     >
       {groups.map((g) => (
-        <label key={g.grupoId} className="flex items-start gap-3">
+        <label key={g.grupoId} className="flex min-h-11 items-center gap-3">
           <RadioGroupItem value={String(g.grupoId)} className="mt-0.5" />
           {describe(g)}
         </label>

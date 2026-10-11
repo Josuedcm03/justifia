@@ -43,7 +43,7 @@ export function FieldErrors({
     <div
       id={`${id}-error`}
       role="alert"
-      className="text-destructive flex flex-col gap-1 text-sm"
+      className="text-destructive-ink flex flex-col gap-1 text-sm"
     >
       {errors.map((error, index) => (
         <p key={`${error.key}-${index}`}>{t(error.key)}</p>
@@ -92,9 +92,9 @@ export function StepShell({
 }) {
   return (
     <Card className="w-full max-w-2xl [--card-spacing:--spacing(6)]">
-      <CardContent className="flex flex-col gap-5">
+      <CardContent className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h2 className="text-h3">{title}</h2>
+          <h2 className="text-headline">{title}</h2>
           <p className="text-muted-foreground text-sm">{description}</p>
         </div>
         {children}

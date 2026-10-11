@@ -54,7 +54,7 @@ export default async function NewRequestPage({
         {header}
         <p
           role="status"
-          className="border-destructive/30 bg-destructive/8 text-destructive rounded-lg border px-3 py-2 text-sm"
+          className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
         >
           {t("degraded")}
         </p>

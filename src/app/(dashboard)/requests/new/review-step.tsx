@@ -61,13 +61,13 @@ function Section({
       className="border-border flex flex-col gap-3 rounded-xl border p-4"
     >
       <div className="flex items-center justify-between gap-3">
-        <h3 id={`${id}-title`} className="text-sm font-medium">
+        <h3 id={`${id}-title`} className="text-title">
           {title}
         </h3>
         <Link
           href={reviewEditHref(step)}
           aria-label={t("editSection", { section: title })}
-          className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}
         >
           {t("edit")}
         </Link>
@@ -151,7 +151,10 @@ export function ReviewStep({
         )}
       >
         {degraded ? (
-          <p role="status" className="text-sm">
+          <p
+            role="status"
+            className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
+          >
             {t("subjects.degraded")}
           </p>
         ) : groups.length === 0 ? (
@@ -210,7 +213,7 @@ export function ReviewStep({
                   aria-label={t("documents.viewNamed", {
                     name: doc.nombreOriginal,
                   })}
-                  className={`${buttonVariants({ variant: "ghost", size: "sm" })} shrink-0`}
+                  className={`${buttonVariants({ variant: "ghost", size: "lg" })} shrink-0`}
                 >
                   {t("documents.view")}
                 </a>
