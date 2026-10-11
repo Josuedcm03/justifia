@@ -84,29 +84,34 @@ caller MUST cause no parsing of input and no write.
 
 A scoped actor (`coordinacion`) MUST see and change only `Asignatura` records of
 its own `Carrera` and `Grupo` records whose `Asignatura` belongs to that
-`Carrera`. This MUST hold on every list, every form load (including the options
-offered in selects) and every action, enforced on the server. Unscoped actors
-see and manage all records.
+`Carrera`. This MUST hold on every list, on the Grupos section of the Asignatura
+edit page, on every form load (including the options offered in selects), on every
+group route (CM-GRP-9, CM-GRP-10), on the retired-URL redirect that reads a Grupo
+(CM-RTE-1), on the groups-based search (CM-ASG-9) and on every action, enforced on
+the server. Unscoped actors see and manage all records.
 
 #### Scenario: Lists are limited (table-driven)
 
-| Role | Asignaturas shown | Grupos shown |
+| Role | Asignaturas shown | Grupos shown in the section of a visible Asignatura |
 |---|---|---|
-| `administrador` | all | all |
-| `secretaria` | all | all |
-| `coordinacion` of Carrera X | only Carrera X | only those of Carrera X asignaturas |
+| `administrador` | all | all of that Asignatura |
+| `secretaria` | all | all of that Asignatura |
+| `coordinacion` of Carrera X | only Carrera X | only for Carrera X Asignaturas |
 
 - GIVEN asignaturas and grupos in Carreras X and Y
-- WHEN the actor from the row opens each list
-- THEN the rows are exactly those in the row, and the total count and page
-  count reflect the same limit
+- WHEN the actor from the row opens the Asignaturas list and an Asignatura edit
+  page
+- THEN the rows are exactly those in the row, and the total count and page count
+  reflect the same limit
 
 #### Scenario: Foreign record by id is not revealed (table-driven)
 
 | Attempt |
 |---|
 | open the edit page of an Asignatura of another Carrera |
+| open the new-group page of an Asignatura of another Carrera |
 | open the edit page of a Grupo whose Asignatura is in another Carrera |
+| open the retired `/catalog/grupos/{id}/edit` URL of such a Grupo |
 | submit edit, deactivate or reactivate for such an Asignatura |
 | submit edit, deactivate or reactivate for such a Grupo |
 | submit create-Grupo whose `Asignatura` is in another Carrera |
@@ -120,11 +125,13 @@ see and manage all records.
 - AND the denied screen is not used (it is reserved for role denial), nothing is
   written and no audit row exists
 
-#### Scenario: Selects offer only in-scope options
+#### Scenario: Create route fixes an in-scope Asignatura
 
-- GIVEN a `coordinacion` actor opening the create-Grupo form
-- WHEN the Asignatura options are loaded
-- THEN only active asignaturas of its own Carrera are offered
+- GIVEN a `coordinacion` actor opening the new-group page of an active
+  Asignatura of its own Carrera
+- WHEN the page loads
+- THEN the Asignatura is the one named by the route and no other Asignatura is
+  offered
 
 #### Scenario: Scope follows the stored Carrera
 
@@ -135,16 +142,17 @@ see and manage all records.
 ### Requirement: CM-SCOPE-2 Coordinacion without a Carrera
 
 A `coordinacion` actor with no stored `Carrera` MUST see an explanatory empty
-state on every list instead of data, MUST NOT be offered any option in any
-select, and MUST have every write refused with a message stating that the
-account has no Carrera assigned and who to ask to fix it.
+state on every list and on every group route instead of data, MUST NOT be offered
+any option in any select, and MUST have every write refused with a message stating
+that the account has no Carrera assigned and who to ask to fix it.
 
 #### Scenario: Empty state
 
 - GIVEN a `coordinacion` actor with no Carrera
-- WHEN they open `/catalog/asignaturas` or `/catalog/grupos`
-- THEN no record is listed and an explanatory empty state is shown, distinct
-  from the "no results" empty state
+- WHEN they open `/catalog/asignaturas`, the new-group page or the edit page of a
+  Grupo
+- THEN no record is listed, no form is shown, no data is read and an explanatory
+  empty state is shown, distinct from the "no results" empty state
 
 #### Scenario: Writes refused
 
@@ -387,27 +395,33 @@ spellings of one subject, nor one spelling matched as two.
 
 ### Requirement: CM-ASG-7 Grupos section on the Asignatura edit page
 
-Amendment 2026-10-08. The edit page of an `Asignatura` in scope MUST include a
-"Grupos" section, placed between the form and the State section, listing the
-`Grupo` rows of that Asignatura, active and inactive, up to a cap of
-`ASIGNATURA_GRUPOS_MAX = 100` rows, newest periods first, read under the same
-catalog scope as the page. Past the cap the section MUST say that only the
-newest 100 are shown and MUST link to the Grupos list filtered by the Asignatura
-code. A failed read of the groups MUST show a degraded notice inside the section,
-never the empty state, and MUST NOT fail the page. The column headers and the
-"Edit" link text MUST reuse the Grupos list copy. Each row MUST show the period, the
-group number, the docente name, the meeting days in week order (or the "days not
-set" text, as in CM-GRP-7) and the status as text, and MUST link to
-`/catalog/grupos/{grupoId}/edit`. Rows MUST be ordered by period descending, then
-group number ascending, then id ascending. While the Asignatura is active the
-section MUST show an "Add group" link to
-`/catalog/grupos/new?asignaturaId={id}`, whether or not the Asignatura already
-has groups. With no groups the section MUST show an empty state whose primary
-action is that link. While the Asignatura is inactive the section MUST NOT show
-the link and MUST show a hint that the Asignatura must be reactivated first
-(creating a Grupo requires an active Asignatura, CM-GRP-1). The section is
-read-only: it embeds no Grupo form and performs no write, audit row or
-migration. The page's existing not-found behaviour (CM-SCOPE-1) and no-Carrera
+Assumptions: U7 (the status filter, pagination past 100 and the link to a list
+are gone). Amendment 2026-10-08, revised by this change.
+
+The edit page of an `Asignatura` in scope MUST include a "Grupos" section, placed
+between the form and the State section, listing the `Grupo` rows of that
+Asignatura, active and inactive, up to a cap of `ASIGNATURA_GRUPOS_MAX = 100`
+rows, newest periods first, read under the same catalog scope as the page. Past
+the cap the section MUST say that only the newest 100 are shown and MUST NOT link
+to any list of groups, since none exists. A failed read of the groups MUST show a
+degraded notice inside the section, never the empty state, and MUST NOT fail the
+page. The column headers and the "Edit" link text MUST come from the `es` and `en`
+catalogs (CM-I18N-1). Each row MUST show the period, the group number, the docente
+name, the meeting days and the status as text, and MUST link to
+`/catalog/asignaturas/{id}/grupos/{grupoId}/edit`, where `{id}` is the
+Asignatura of the page. The meeting days MUST appear in week order, using the day
+names of the user's language (a short form is acceptable if the full name remains
+available to assistive technology); a Grupo with an empty set MUST show a "days
+not set" text, never an error and never a blank cell. The days are neither a
+search field nor a filter. Rows MUST be ordered by period descending, then group
+number ascending, then id ascending. While the Asignatura is active the section
+MUST show an "Add group" link to `/catalog/asignaturas/{id}/grupos/new`, whether
+or not the Asignatura already has groups. With no groups the section MUST show an
+empty state whose primary action is that link. While the Asignatura is inactive
+the section MUST NOT show the link and MUST show a hint that the Asignatura must
+be reactivated first (creating a Grupo requires an active Asignatura, CM-GRP-1).
+The section is read-only: it embeds no Grupo form and performs no write, audit row
+or migration. The page's existing not-found behaviour (CM-SCOPE-1) and no-Carrera
 state (CM-SCOPE-2) MUST NOT change.
 
 #### Scenario: Active and inactive groups are listed
@@ -415,20 +429,40 @@ state (CM-SCOPE-2) MUST NOT change.
 - GIVEN an active Asignatura with one active and one inactive Grupo
 - WHEN its edit page is opened
 - THEN the Grupos section shows both rows with period, group number, docente
-  name, days and a textual status, each linking to its edit page
+  name, days and a textual status, each linking to
+  `/catalog/asignaturas/{id}/grupos/{grupoId}/edit`
+
+#### Scenario: Days are listed in week order
+
+- GIVEN a Grupo stored with Friday and Monday
+- WHEN the edit page of its Asignatura is opened
+- THEN its row shows Monday then Friday
+
+#### Scenario: Empty set shows days not set
+
+- GIVEN a Grupo with no days
+- WHEN the edit page of its Asignatura is opened
+- THEN its row shows the "days not set" text and no error styling or
+  announcement
+
+#### Scenario: Both locales
+
+- GIVEN a Grupo meeting on Saturday
+- WHEN the section is rendered in `es` and in `en`
+- THEN the row shows the Saturday name of that language
 
 #### Scenario: Empty state
 
 - GIVEN an active Asignatura with no groups
 - WHEN its edit page is opened
 - THEN the section shows an empty state whose primary action is the "Add group"
-  link to `/catalog/grupos/new?asignaturaId={id}`
+  link to `/catalog/asignaturas/{id}/grupos/new`
 
 #### Scenario: Add-group link is always present while active
 
 - GIVEN an active Asignatura that already has groups
 - WHEN its edit page is opened
-- THEN the "Add group" link to `/catalog/grupos/new?asignaturaId={id}` is shown
+- THEN the "Add group" link to `/catalog/asignaturas/{id}/grupos/new` is shown
   next to the list
 
 #### Scenario: Inactive Asignatura
@@ -443,9 +477,9 @@ state (CM-SCOPE-2) MUST NOT change.
 
 - GIVEN an Asignatura with more than 100 groups
 - WHEN its edit page is opened
-- THEN the section lists the 100 newest by period, shows a note that only the
-  newest 100 are shown, and links to the Grupos list filtered by the Asignatura
-  code
+- THEN the section lists the 100 newest by period and shows a note that only the
+  newest 100 are shown
+- AND the section contains no link to `/catalog/grupos` or to any list of groups
 
 #### Scenario: The groups read fails
 
@@ -471,15 +505,19 @@ state (CM-SCOPE-2) MUST NOT change.
 
 ### Requirement: CM-ASG-8 Asignaturas list shows the active groups
 
-Amendment 2026-10-09. The Asignaturas list MUST show a "Groups" column, placed
-after the hours column and before the status column. The cell MUST show the group
-numbers (`Grupo.NumeroGrupo`) of the Asignatura's active groups: distinct values,
-sorted ascending, joined with ", " (for example `1, 2`). Inactive groups MUST NOT
-be shown. When the Asignatura has no active group the cell MUST show a single
-hyphen `-`. The value MUST come from the same list query as an aggregated
+Amendment 2026-10-09, revised by this change (last sentence and one scenario).
+
+The Asignaturas list MUST show a "Groups" column, placed after the hours column
+and before the status column. The cell MUST show the group numbers
+(`Grupo.NumeroGrupo`) of the Asignatura's active groups: distinct values, sorted
+ascending, joined with ", " (for example `1, 2`). Inactive groups MUST NOT be
+shown in the cell. When the Asignatura has no active group the cell MUST show a
+single hyphen `-`. The value MUST come from the same list query as an aggregated
 subquery column, with no extra query per row, and MUST NOT change the scope
-predicate, the count query, paging, search or ordering. Search MUST NOT match on
-group numbers. The Asignatura edit page and the Grupos list are unchanged.
+predicate, the count query, paging or ordering. Search MUST NOT match on group
+numbers; the groups-based search of CM-ASG-9 uses the group `Periodo` and docente
+name only. The Asignatura edit page keeps its Grupos section (CM-ASG-7); no list
+of Grupos exists.
 
 #### Scenario: Several active groups, sorted and distinct
 
@@ -508,20 +546,25 @@ group numbers. The Asignatura edit page and the Grupos list are unchanged.
 
 #### Scenario: Search does not match group numbers
 
-- GIVEN an Asignatura whose only active group is numbered "7"
+- GIVEN an Asignatura whose only active group is numbered "7", whose `Periodo` and
+  docente name do not contain "7"
 - WHEN the list is searched for "7" and no Codigo or Nombre contains "7"
 - THEN that Asignatura is not returned
 
 ### Requirement: CM-GRP-1 Grupo fields and validation
 
-Creating a `Grupo` MUST validate server-side: `Asignatura` selected by id and
-MUST be an existing, active `Asignatura` in the actor's scope; `Periodo` MUST
-match `YYYY-S1` or `YYYY-S2` exactly (no trimming, no case change);
-`NumeroGrupo` required, trimmed, at most 12 characters, never numerically
-normalised; `Docente` selected by id and MUST be an existing, active `Usuario`
-with the `docente` role. The meeting days MUST be validated as specified in
-CM-GRP-6 (amendment 2026-10-07). A new `Grupo` MUST be created active with
-origin `manual`. Messages MUST say what is wrong and what to do.
+Assumptions: U2 (`Periodo` stays a visible field).
+
+Creating a `Grupo` MUST validate server-side: `Asignatura` identified by id (on
+the create page it is fixed by the route and submitted with the form, CM-GRP-9; a
+submitted value is validated regardless of where it came from) and MUST be an
+existing, active `Asignatura` in the actor's scope; `Periodo` MUST match
+`YYYY-S1` or `YYYY-S2` exactly (no trimming, no case change); `NumeroGrupo`
+required, trimmed, at most 12 characters, never numerically normalised; `Docente`
+selected by id and MUST be an existing, active `Usuario` with the `docente` role.
+The meeting days MUST be validated as specified in CM-GRP-6 (amendment
+2026-10-07). A new `Grupo` MUST be created active with origin `manual`. Messages
+MUST say what is wrong and what to do.
 
 #### Scenario: Valid create
 
@@ -759,109 +802,26 @@ from the `es` and `en` catalogs (CM-I18N-1).
 - THEN every day can be reached, selected and cleared, and each day exposes
   its name and selected state
 
-### Requirement: CM-GRP-7 The Grupos list shows the days
-
-Amendment 2026-10-07. Each row of `/catalog/grupos` MUST show the meeting days
-of the Grupo, in week order, using the day names of the user's language (a
-short form is acceptable if the full name remains available to assistive
-technology). A Grupo with an empty set MUST show a "days not set" text, never
-an error and never a blank cell. The days are not part of the search fields of
-CM-LST-1 and are not a filter.
-
-#### Scenario: Days are listed in week order
-
-- GIVEN a Grupo stored with Friday and Monday
-- WHEN `/catalog/grupos` is opened
-- THEN its row shows Monday then Friday
-
-#### Scenario: Empty set shows days not set
-
-- GIVEN a Grupo with no days
-- WHEN `/catalog/grupos` is opened
-- THEN its row shows the "days not set" text and no error styling or
-  announcement
-
-#### Scenario: Both locales
-
-- GIVEN a Grupo meeting on Saturday
-- WHEN the list is opened in `es` and in `en`
-- THEN the row shows the Saturday name of that language
-
-### Requirement: CM-GRP-8 Preselected Asignatura on the new Grupo page
-
-Amendment 2026-10-08. `/catalog/grupos/new` MUST accept an optional
-`asignaturaId` query parameter. When it is a well-formed record id naming an
-active `Asignatura` inside the actor's scope that the form offers as an option,
-the form MUST open with that Asignatura selected. In every other case (malformed,
-unknown, inactive, outside the scope, or absent) the parameter MUST be ignored
-silently: the page renders exactly as it does without the parameter, with no
-message, no error, no different status and no difference that reveals whether the
-record exists (CM-SCOPE-1). The parameter is a convenience, never a trust input:
-the create action MUST keep validating the submitted `Asignatura` server-side as
-specified in CM-GRP-1 and CM-SCOPE-1, and its outcome and redirect are
-unchanged. No write, audit row or schema change results from reading the
-parameter. The form MUST start clean (remount) when the validated id changes
-between two visits of the page.
-
-#### Scenario: Valid id preselects the Asignatura
-
-- GIVEN an active Asignatura A in the actor's scope
-- WHEN `/catalog/grupos/new?asignaturaId={A}` is opened
-- THEN the form shows A selected and every other field in its usual initial state
-
-#### Scenario: Parameter that is ignored (table-driven)
-
-| `asignaturaId` |
-|---|
-| malformed (`abc`, `0`, `-1`, `1.5`, empty, repeated) |
-| well-formed but no such Asignatura |
-| an inactive Asignatura in scope |
-| an Asignatura of another Carrera (actor is `coordinacion`) |
-
-- GIVEN a staff actor, or a `coordinacion` actor for the last row
-- WHEN `/catalog/grupos/new` is opened with the value from the row
-- THEN the page renders exactly as without the parameter: no Asignatura is
-  preselected, and nothing in the response distinguishes the row's cases from
-  one another
-
-#### Scenario: Preselection does not bypass the create action
-
-- GIVEN the form opened with a valid `asignaturaId`
-- WHEN the submitted `Asignatura` is changed by hand to an inactive or foreign
-  one
-- THEN the create is refused as in CM-GRP-1 and CM-SCOPE-1, with no write and no
-  audit row
-
-#### Scenario: Roles and scope without catalog access are unchanged
-
-- GIVEN a role denied by CM-ACC-1, or a `coordinacion` actor with no Carrera
-  (CM-SCOPE-2)
-- WHEN `/catalog/grupos/new?asignaturaId={id}` is opened
-- THEN the denial destination, or the no-Carrera empty state with no form and no
-  query, is shown exactly as without the parameter
-
 ### Requirement: CM-LST-1 Lists, filters, search and pagination
 
-`/catalog/asignaturas`, `/catalog/grupos` and `/catalog/docentes` MUST be
-paged server-side lists. The filter is the `status` query parameter with the
-values `active`, `inactive` and `all`; its default MUST be `active`, and an
-unrecognised `status` or page value MUST fall back to the default or the nearest
-valid page rather than failing.
-Each row MUST show its state as a word ("Active"/"Inactive" in the user's
-language), not by colour alone. Search `q` (case-insensitive, partial) MUST
-cover:
+`/catalog/asignaturas` and `/catalog/docentes` MUST be paged server-side lists.
+There is no standalone list of Grupos: groups are listed only in the Grupos
+section of their Asignatura (CM-ASG-7). The filter is the `status` query
+parameter with the values `active`, `inactive` and `all`; its default MUST be
+`active`, and an unrecognised `status` or page value MUST fall back to the default
+or the nearest valid page rather than failing. Each row MUST show its state as a
+word ("Active"/"Inactive" in the user's language), not by colour alone. Search `q`
+(case-insensitive, partial) MUST cover:
 
 | List | Search fields |
 |---|---|
-| Asignaturas | `Codigo`, `Nombre` |
-| Grupos | asignatura `Codigo` and `Nombre`, `Periodo`, `NumeroGrupo`, docente name |
+| Asignaturas | `Codigo`, `Nombre`, and, through the Asignatura's groups, `Periodo` and docente name (CM-ASG-9) |
 | Docentes | name, `Correo` |
 
-Page size MUST be the same as in `/users`. The Docentes list MUST show active
-and inactive users with role `docente` (default active) and is not
-carrera-scoped; it is read-only and MUST link to `/users` for account
-management; it MUST NOT expose any credential field (`HashClave`, a password or
-a temporary password), nor `Cif`.
+Page size MUST be the same as in `/users`. The Docentes list MUST show active and
+inactive users with role `docente` (default active) and is not carrera-scoped; it
+is read-only and MUST link to `/users` for account management; it MUST NOT expose
+any credential field (`HashClave`, a password or a temporary password), nor `Cif`.
 
 #### Scenario: Default shows active only
 
@@ -886,7 +846,8 @@ a temporary password), nor `Cif`.
 - GIVEN asignaturas "MAT101 Calculus" and "FIS200 Physics"
 - WHEN `q` is "calc"
 - THEN only the first is listed
-- AND the same behaviour holds, per the table, for grupos and docentes
+- AND the same behaviour holds, per the table, for docentes; the extra fields of
+  the Asignaturas list are specified in CM-ASG-9
 
 #### Scenario: Pagination clamps
 
@@ -909,7 +870,7 @@ a temporary password), nor `Cif`.
 
 #### Scenario: Unrecognised status falls back
 
-- GIVEN `status=bogus` on any list
+- GIVEN `status=bogus` on either list
 - WHEN the page is opened
 - THEN it behaves as `status=active`
 
@@ -922,7 +883,7 @@ a temporary password), nor `Cif`.
 #### Scenario: Database unavailable
 
 - GIVEN the database cannot be reached
-- WHEN any list is opened by an allowed role
+- WHEN either list is opened by an allowed role
 - THEN the page renders with an empty table and a status message that the data
   could not be loaded, as `/users` does, and no raw error is shown
 
@@ -957,20 +918,27 @@ Dialog, AlertDialog or Tabs primitive.
 
 ### Requirement: CM-NAV-1 Sidebar reachability
 
-The three destinations Asignaturas, Grupos and Docentes MUST be added as further
-children of the existing collapsible sidebar "Administración" group, which
-already holds "Carga de catálogo" (the import entry) and "Usuarios"; this change
-does not create, rename or restructure that group, and the group keeps rendering
-only when at least one of its children is visible. The three destinations MUST
-be reachable there by the three staff roles, and MUST NOT be shown to `docente`
-or `estudiante`. The existing import item MUST keep its current rule (only where
-`canImportCatalog` is true). No destination may mark
-itself active on `/catalog/import`, and `/catalog/import` MUST NOT mark any new
-destination active. Visibility is a convenience only; CM-ACC-1 is the control.
+Assumptions: none beyond B3 (the Grupos entry is removed by owner decision).
+
+The two destinations Asignaturas and Docentes MUST be added as further children
+of the existing collapsible sidebar "Administración" group, which already holds
+"Carga de catálogo" (the import entry) and "Usuarios"; this change does not
+create, rename or restructure that group, and the group keeps rendering only when
+at least one of its children is visible. The sidebar MUST NOT offer a Grupos
+destination to any role. The two destinations MUST be reachable there by the
+three staff roles, and MUST NOT be shown to `docente` or `estudiante`. The
+existing import item MUST keep its current rule (only where `canImportCatalog` is
+true). No destination may mark itself active on `/catalog/import`, and
+`/catalog/import` MUST NOT mark any destination active. The Asignaturas
+destination MUST be marked active on `/catalog/asignaturas` and on every path
+below it, including the group routes `/catalog/asignaturas/{id}/grupos/new` and
+`/catalog/asignaturas/{id}/grupos/{grupoId}/edit`; the Docentes destination MUST
+NOT be marked active on any of them. Visibility is a convenience only; CM-ACC-1
+is the control.
 
 #### Scenario: Visibility per role (table-driven)
 
-| Role | Asignaturas / Grupos / Docentes | Import item |
+| Role | Asignaturas / Docentes | Import item |
 |---|---|---|
 | `administrador` | visible | not visible |
 | `coordinacion` | visible | not visible |
@@ -981,11 +949,32 @@ destination active. Visibility is a convenience only; CM-ACC-1 is the control.
 - WHEN the sidebar renders
 - THEN the items are as shown
 
+#### Scenario: No Grupos destination
+
+- GIVEN a signed-in user of each staff role
+- WHEN the sidebar renders
+- THEN it offers exactly two catalog destinations, Asignaturas and Docentes, and
+  none that links to `/catalog/grupos`
+
 #### Scenario: Active state is exclusive
 
 - GIVEN the path `/catalog/import`
 - WHEN the sidebar renders
 - THEN only the import item is marked active (with `aria-current`)
+
+#### Scenario: Asignaturas is active on the group routes (table-driven)
+
+| Path |
+|---|
+| `/catalog/asignaturas` |
+| `/catalog/asignaturas/3/edit` |
+| `/catalog/asignaturas/3/grupos/new` |
+| `/catalog/asignaturas/3/grupos/5/edit` |
+
+- GIVEN a staff user on the path from the row
+- WHEN the sidebar renders
+- THEN only the Asignaturas item is marked active (with `aria-current`) and the
+  Docentes item is not
 
 ### Requirement: CM-I18N-1 Copy in both locales
 
@@ -1128,6 +1117,446 @@ write none. Details are in the `audit-log` delta.
 - WHEN the audit log is read
 - THEN no new row exists
 
+### Requirement: CM-GRP-9 Create a Grupo under its Asignatura
+
+Assumptions: U2, U5, U7, U11.
+
+A `Grupo` MUST be created from `/catalog/asignaturas/{id}/grupos/new`, where
+`{id}` is the Asignatura that will own the group. The page MUST apply the access
+rules of CM-ACC-1, the scope rules of CM-SCOPE-1 and the no-Carrera state of
+CM-SCOPE-2 before reading any module data. The Asignatura MUST be fixed by the
+route: the form MUST show its `Codigo` and `Nombre` as read-only text, MUST NOT
+offer a selector of Asignaturas, and MUST submit it with the other fields. The
+form MUST keep `Periodo`, `NumeroGrupo`, `Docente` and the meeting days as
+editable fields (CM-GRP-1, CM-GRP-6). The page MUST answer "not found", with the
+same outcome as for an id that does not exist, when `{id}` is malformed, names no
+Asignatura, names an Asignatura outside the actor's scope, or names an inactive
+Asignatura. The create action MUST keep validating the submitted Asignatura on
+the server as specified in CM-GRP-1 and CM-SCOPE-1, so a hand-crafted value is
+refused regardless of the route. The breadcrumb MUST lead from the Asignaturas
+list through the Asignatura to the page. Reading the route MUST cause no write,
+audit row or schema change. There is no entry point to create a group without
+first choosing an Asignatura (U7).
+
+#### Scenario: The Asignatura is fixed by the route
+
+- GIVEN an active Asignatura A in the actor's scope
+- WHEN `/catalog/asignaturas/{A}/grupos/new` is opened
+- THEN the form shows the `Codigo` and `Nombre` of A as read-only text, offers
+  no Asignatura selector, and shows `Periodo`, `NumeroGrupo`, `Docente` and the
+  days in their usual initial state
+
+#### Scenario: Unusable parent answers not found (table-driven)
+
+| `{id}` in the URL |
+|---|
+| malformed (`abc`, `0`, `-1`, `1.5`) |
+| well-formed but no such Asignatura |
+| an inactive Asignatura in scope |
+| an Asignatura of another Carrera (actor is `coordinacion`) |
+
+- GIVEN a staff actor, or a `coordinacion` actor for the last row
+- WHEN `/catalog/asignaturas/{id}/grupos/new` is opened with the value from the
+  row
+- THEN the not-found page is shown, the denied screen is not used, and nothing in
+  the response distinguishes the cases of the table from one another
+
+#### Scenario: Hand-crafted Asignatura is still validated
+
+- GIVEN the form opened for an active in-scope Asignatura
+- WHEN the submitted Asignatura is changed by hand to an inactive, unknown or
+  foreign one
+- THEN the create is refused as in CM-GRP-1 and CM-SCOPE-1, with no write and no
+  audit row
+
+#### Scenario: Breadcrumb names the Asignatura
+
+- GIVEN an active Asignatura A in scope
+- WHEN the new-group page of A is opened
+- THEN the breadcrumb shows the Asignaturas list, then A, then the page itself,
+  and the page has one `h1`
+
+#### Scenario: Roles and scope without access (table-driven)
+
+| Caller |
+|---|
+| `docente` or `estudiante` |
+| anonymous |
+| `coordinacion` with no Carrera |
+
+- GIVEN the caller from the row
+- WHEN `/catalog/asignaturas/{id}/grupos/new` is opened
+- THEN `/denied` is used for the first row, `/login` for the second, and for the
+  third the no-Carrera empty state with no form
+- AND no Asignatura is read for any of the three
+
+### Requirement: CM-GRP-10 Edit a Grupo under its Asignatura
+
+Assumptions: U11.
+
+An existing `Grupo` MUST be edited from
+`/catalog/asignaturas/{id}/grupos/{grupoId}/edit`. The page MUST apply the access
+rules of CM-ACC-1, the scope rules of CM-SCOPE-1 and the no-Carrera state of
+CM-SCOPE-2 before reading any module data. The page MUST answer "not found", with
+the same outcome as for an id that does not exist, when `{id}` or `{grupoId}` is
+malformed, when the Grupo does not exist, when the Grupo's Asignatura is outside
+the actor's scope, and, as a mandatory rule, when `{id}` is not the Asignatura
+that owns the Grupo even though both exist and are in scope. A Grupo MUST never be
+shown under an Asignatura that is not its parent. The page MUST NOT require the
+parent Asignatura to be active: an inactive Grupo of an inactive Asignatura opens
+read-only, and its reactivation is refused as specified in CM-GRP-4. The page
+MUST keep the behaviour of CM-GRP-2 (natural key read-only, editable docente and
+days, inactive Grupo not editable) and the deactivation and reactivation controls
+of CM-GRP-3 and CM-GRP-4, including the confirmation step of CM-UX-1. The
+breadcrumb MUST lead from the Asignaturas list through the parent Asignatura to
+the page.
+
+#### Scenario: Group opens under its own Asignatura
+
+- GIVEN an in-scope Grupo G owned by Asignatura A
+- WHEN `/catalog/asignaturas/{A}/grupos/{G}/edit` is opened
+- THEN the edit form of G is shown, with `Asignatura`, `Periodo` and
+  `NumeroGrupo` read-only
+
+#### Scenario: Parent mismatch answers not found
+
+- GIVEN a Grupo G owned by Asignatura A, and a different Asignatura B that exists
+  and is in the actor's scope
+- WHEN `/catalog/asignaturas/{B}/grupos/{G}/edit` is opened
+- THEN the not-found page is shown and no data of G is rendered
+
+#### Scenario: Every unusable address answers alike (table-driven)
+
+| Address |
+|---|
+| `{id}` malformed |
+| `{grupoId}` malformed |
+| `{grupoId}` names no Grupo |
+| Grupo exists but its Asignatura is of another Carrera (actor is `coordinacion`) |
+| Grupo and Asignatura both in scope but not parent and child |
+
+- GIVEN a staff actor, or a `coordinacion` actor for the fourth row
+- WHEN the edit URL from the row is opened
+- THEN the not-found page is shown, the denied screen is not used, and nothing in
+  the response distinguishes the rows from one another
+
+#### Scenario: Inactive parent does not block opening
+
+- GIVEN an inactive Grupo whose Asignatura is inactive
+- WHEN its edit URL under the correct Asignatura is opened
+- THEN the Grupo is shown read-only with the reactivate action, and requesting
+  reactivation is refused as in CM-GRP-4
+
+#### Scenario: Deactivation still asks for confirmation (RNF-12)
+
+- GIVEN an active Grupo opened on its edit route
+- WHEN a staff actor chooses to deactivate it
+- THEN the confirmation step of CM-UX-1 naming the Asignatura, `Periodo` and
+  `NumeroGrupo` is shown first, and no change is made until it is confirmed
+
+#### Scenario: Roles and scope without access (table-driven)
+
+| Caller |
+|---|
+| `docente` or `estudiante` |
+| anonymous |
+| `coordinacion` with no Carrera |
+
+- GIVEN the caller from the row
+- WHEN the edit route is opened
+- THEN `/denied`, `/login` and the no-Carrera empty state are used respectively
+- AND no Grupo is read for any of the three
+
+### Requirement: CM-GRP-11 Outcome of saving a Grupo
+
+Assumptions: U6.
+
+After a successful create or edit of a `Grupo`, the user MUST be sent to the edit
+page of the Grupo's Asignatura (`/catalog/asignaturas/{asignaturaId}/edit`), where
+the Grupos section (CM-ASG-7) shows the saved row. The same success MUST make the
+Asignatura edit page and the Asignaturas list (`/catalog/asignaturas`) show fresh
+data on their next visit, because the Grupos section and the Groups column of
+CM-ASG-8 both derive from the saved group. A refused, invalid, busy, duplicate or
+no-change submission MUST NOT redirect; it MUST keep the user on the form with the
+existing messages. Deactivating or reactivating a Grupo MUST keep the user on the
+Grupo edit page and MUST make the Grupo edit page, the Asignatura edit page and
+the Asignaturas list show fresh data on their next visit. The Asignatura in the
+destination MUST be the owner of the saved Grupo as read on the server. The
+audit rows written by these operations are exactly those of CM-AUD-1.
+
+#### Scenario: Create returns to the Asignatura
+
+- GIVEN a valid create submitted from the new-group page of Asignatura A
+- WHEN the action succeeds
+- THEN the user is sent to `/catalog/asignaturas/{A}/edit` and the Grupos section
+  there lists the new group
+
+#### Scenario: Edit returns to the Asignatura
+
+- GIVEN a valid change of docente submitted on the edit route of a Grupo of A
+- WHEN the action succeeds
+- THEN the user is sent to `/catalog/asignaturas/{A}/edit` and the section shows
+  the new docente
+
+#### Scenario: Both pages are refreshed after a write (table-driven)
+
+| Operation | Pages revalidated |
+|---|---|
+| create | Asignatura edit page of A, `/catalog/asignaturas` |
+| edit | Asignatura edit page of A, `/catalog/asignaturas` |
+| deactivate | Grupo edit route, Asignatura edit page of A, `/catalog/asignaturas` |
+| reactivate | Grupo edit route, Asignatura edit page of A, `/catalog/asignaturas` |
+
+- GIVEN a successful operation from the row on a Grupo of A
+- WHEN the action completes
+- THEN each page of the row is marked for revalidation
+- AND the Groups column of `/catalog/asignaturas` reflects the new active groups
+  on its next visit
+
+#### Scenario: No redirect when nothing was saved (table-driven)
+
+| Outcome |
+|---|
+| validation error |
+| duplicate natural key |
+| edit with no change |
+| busy (CM-NFR-4) |
+| refused by scope or role |
+
+- GIVEN a submission with the outcome from the row
+- WHEN the action completes
+- THEN the user is not redirected to the Asignatura edit page, the existing
+  message is shown, and no page is revalidated as if a write had happened
+
+#### Scenario: Toggle stays on the edit page
+
+- GIVEN a confirmed deactivation of a Grupo of A
+- WHEN the action succeeds
+- THEN the user remains on the Grupo edit route, which now shows the group as
+  inactive, and the audit log has one new row for it
+
+### Requirement: CM-ASG-9 Asignaturas search also finds groups by periodo or docente
+
+Assumptions: U9, U10 (B6 and B7 are binding).
+
+The search `q` of `/catalog/asignaturas` (case-insensitive, partial) MUST return
+an Asignatura when its `Codigo` or `Nombre` contains the term (as in CM-LST-1), or
+when at least one of its `Grupo` rows has a `Periodo` or a docente name that
+contains the term. `NumeroGrupo` MUST NOT be a search field (CM-ASG-8). A group
+MAY produce a match whatever its own status (active or inactive). The group
+condition only widens how an Asignatura is found: scope (CM-SCOPE-1), the
+Asignatura `status` filter, the ordering, the page size and the fail-soft
+behaviour of CM-LST-1 MUST be unchanged, and the status of a group MUST NOT
+filter anything. The result MUST contain one row per Asignatura however many of
+its groups match, and the total count and the pagination MUST count Asignaturas.
+A group of an Asignatura outside the actor's scope MUST NOT cause that Asignatura
+to be returned. When at least one group of a returned Asignatura matches the
+term, its row MUST name the matching groups, each with its `Periodo`,
+`NumeroGrupo` and docente name; a matching inactive group MUST be labelled as
+inactive in words. The row MUST name at most three groups, ordered by period
+descending, then group number ascending, then id ascending, and, when more than
+three match, MUST add the count of the remaining ones ("+N more", N being the
+number of matching groups minus three). A row that matches only through its
+`Codigo` or `Nombre`, with no matching group, MUST show no such hint. The
+label and the placeholder of the search box MUST tell the user that docente and
+periodo are searchable, in both locales (CM-I18N-1). The term MUST be bound as a
+parameter, as for the existing fields.
+
+#### Scenario: Match through the docente of a group
+
+- GIVEN Asignatura A with a group whose docente is "Ana Pérez", and no `Codigo` or
+  `Nombre` containing "perez"
+- WHEN the list is searched for "pérez" (any case)
+- THEN A is returned once and its row names that group with its `Periodo`,
+  `NumeroGrupo` and docente name
+
+#### Scenario: Match through the periodo of a group
+
+- GIVEN Asignatura A with a group of `2026-S1`, and Asignatura B with groups only
+  of `2025-S2`
+- WHEN the list is searched for "2026-S1"
+- THEN A is returned with that group named in its row, and B is not returned
+
+#### Scenario: Group number does not match
+
+- GIVEN Asignatura A whose only group is numbered "7", whose `Periodo` and docente
+  name do not contain "7", and no `Codigo` or `Nombre` containing "7"
+- WHEN the list is searched for "7"
+- THEN A is not returned
+
+#### Scenario: Term matches both by name and through a group
+
+- GIVEN Asignatura A named "Física I" with a group whose docente is "Física
+  Torres", and the term "fís"
+- WHEN the list is searched
+- THEN A is returned exactly once, the count is 1, and its row names the matching
+  group
+
+#### Scenario: Several matching groups give one row and a bounded hint
+
+- GIVEN Asignatura A with five groups of `2026-S1`, in a state where all five
+  match "2026-S1"
+- WHEN the list is searched for "2026-S1"
+- THEN A is one row, the total counts A once, the row names three groups in the
+  order period descending, number ascending, id ascending, and shows "+2 more"
+
+#### Scenario: Pagination counts Asignaturas
+
+- GIVEN 12 Asignaturas each with three groups matching the term, and a page size
+  of 10
+- WHEN the list is searched
+- THEN the total is 12, two pages exist, and the first page holds 10 rows
+
+#### Scenario: Match only through an inactive group
+
+- GIVEN an active Asignatura A whose only matching group is inactive
+- WHEN the list is searched for that group's docente name, with the default
+  `status` filter
+- THEN A is returned, the matching group is labelled as inactive in words, and the
+  Groups column of A is unchanged by the match (CM-ASG-8)
+
+#### Scenario: The Asignatura status filter still applies
+
+- GIVEN an inactive Asignatura A with an active group that matches the term
+- WHEN the list is searched with the default `status` filter, and then with
+  `status=all`
+- THEN A is absent in the first search and present in the second
+
+#### Scenario: Group of an out-of-scope Asignatura is not revealed
+
+- GIVEN a `coordinacion` actor of Carrera X, and a group of an Asignatura of
+  Carrera Y whose docente is "Ana Pérez"
+- WHEN the list is searched for "pérez"
+- THEN no row, no count and no hint from Carrera Y is present, and the outcome
+  is the same as if that group did not exist
+
+#### Scenario: No match
+
+- GIVEN no `Codigo`, `Nombre`, group `Periodo` or docente name contains the term
+- WHEN the list is searched
+- THEN the "no results" empty state of CM-LST-1 is shown with a way to clear the
+  search
+
+#### Scenario: Match by code or name shows no hint
+
+- GIVEN Asignatura A whose `Nombre` contains the term and none of whose groups do
+- WHEN the list is searched
+- THEN A is returned and its row names no group
+
+#### Scenario: Ordering and failure behaviour are unchanged
+
+- GIVEN a search that matches several Asignaturas, and then the database becoming
+  unreachable
+- WHEN the list is read each time
+- THEN the rows keep the order of CM-LST-1 and, on failure, the degraded notice of
+  CM-LST-1 is shown with no raw error
+
+#### Scenario: Search copy names docente and periodo
+
+- GIVEN the `es` and `en` catalogs
+- WHEN the label and placeholder of the Asignaturas search are read
+- THEN each mentions docente and periodo and the key sets stay identical
+
+### Requirement: CM-RTE-1 Retired Grupos URLs redirect
+
+Assumptions: U4, U7, U12.
+
+The URLs of the retired standalone Grupos catalog MUST NOT show a page of their
+own. Each of the following MUST answer with a temporary redirect (never a
+permanent one), and the destination MUST then apply its own access rules:
+
+| Retired URL | Redirects to |
+|---|---|
+| `/catalog/grupos`, with any query string | `/catalog/asignaturas`, with the search term `q` carried and the status filter and page reset to their defaults |
+| `/catalog/grupos/new?asignaturaId={N}`, `{N}` made only of digits | `/catalog/asignaturas/{N}/grupos/new` |
+| `/catalog/grupos/new`, with no `asignaturaId` or one that is not only digits | `/catalog/asignaturas` |
+| `/catalog/grupos/{id}/edit` | `/catalog/asignaturas/{asignaturaId}/grupos/{id}/edit`, where `{asignaturaId}` is the owner of the Grupo |
+
+The first three rows MUST NOT read any data: whether `{N}` names a usable
+Asignatura is decided by the destination, which answers as in CM-GRP-9. The
+fourth row is the only redirect that needs data. It MUST apply the access rules
+of CM-ACC-1 and the scope rules of CM-SCOPE-1 before any Grupo is read; a
+`coordinacion` actor with no Carrera MUST be sent to `/catalog/asignaturas`
+without any read (CM-SCOPE-2); a malformed id, an unknown Grupo and a Grupo of
+another Carrera MUST all answer "not found" with the same outcome, so the response
+never reveals whether an out-of-scope group exists; and a found Grupo, active or
+inactive, MUST redirect to the destination above, which contains no data beyond
+the owner's id. Any other path below `/catalog/grupos` has no redirect and answers
+"not found". On the first row the search term `q` MUST be carried, and the
+`status` and `page` values MUST NOT be: they were chosen for the Grupos list, and
+carried over they would filter and page Asignaturas instead, so the destination
+opens with its default status filter on its first page. Query parameters that
+reach a new-group or Asignaturas-list destination from the second and third rows
+have no effect there: those destinations read none of them.
+
+#### Scenario: Redirect table (table-driven)
+
+| Request | Redirect target |
+|---|---|
+| `/catalog/grupos` | `/catalog/asignaturas` |
+| `/catalog/grupos?q=MAT101&status=all&page=2` | `/catalog/asignaturas` with `q=MAT101`, the default status filter and the first page |
+| `/catalog/grupos/new?asignaturaId=12` | `/catalog/asignaturas/12/grupos/new` |
+| `/catalog/grupos/new` | `/catalog/asignaturas` |
+| `/catalog/grupos/new?asignaturaId=abc` | `/catalog/asignaturas` |
+| `/catalog/grupos/new?asignaturaId=` | `/catalog/asignaturas` |
+
+- GIVEN any caller
+- WHEN the request from the row is made
+- THEN the response is a temporary redirect to the target from the row, with no
+  data read
+
+#### Scenario: Redirects are temporary
+
+- GIVEN any of the four redirect shapes
+- WHEN the response is inspected
+- THEN its status is a temporary one (307) and not a permanent one (308 or 301)
+
+#### Scenario: Edit URL of an in-scope Grupo
+
+- GIVEN a Grupo G owned by Asignatura A, in the actor's scope, active or inactive
+- WHEN `/catalog/grupos/{G}/edit` is requested by an allowed staff actor
+- THEN the response redirects to `/catalog/asignaturas/{A}/grupos/{G}/edit`
+
+#### Scenario: Edit URL cannot probe out-of-scope groups
+
+- GIVEN a `coordinacion` actor of Carrera X, a Grupo of Carrera Y and an id that
+  does not exist
+- WHEN `/catalog/grupos/{id}/edit` is requested for each
+- THEN both answer the same not-found page, with no redirect and no difference in
+  the response
+
+#### Scenario: Edit URL with a malformed id
+
+- GIVEN an allowed staff actor
+- WHEN `/catalog/grupos/abc/edit` or `/catalog/grupos/0/edit` is requested
+- THEN the not-found page is shown and no Grupo is read
+
+#### Scenario: Denied callers reach no data (table-driven)
+
+| Caller | Outcome on `/catalog/grupos/{id}/edit` |
+|---|---|
+| `docente` or `estudiante` | `/denied`, no Grupo read |
+| anonymous | `/login`, no Grupo read |
+| user who must change the password | forced password change, no Grupo read |
+| `coordinacion` with no Carrera | `/catalog/asignaturas`, no Grupo read |
+
+- GIVEN the caller from the row
+- WHEN the retired edit URL is requested
+- THEN the outcome is as shown
+
+#### Scenario: Anonymous caller on a configuration redirect
+
+- GIVEN an unauthenticated caller
+- WHEN `/catalog/grupos` or `/catalog/grupos/new?asignaturaId=12` is requested
+- THEN the caller ends at `/login` after the redirect, and no module data is
+  returned at any step
+
+#### Scenario: Other retired paths answer not found
+
+- GIVEN a staff actor
+- WHEN `/catalog/grupos/12` or `/catalog/grupos/12/other` is requested
+- THEN the not-found page is shown
+
 ## Assumptions and open questions
 
 Each item below was resolved with the recommended default and is open for the
@@ -1226,3 +1655,9 @@ owner to overrule.
   - **A-GRP8-OPTIONS.** Preselection applies only to an Asignatura the form
     actually offers; the options list is capped (`CATALOG_OPTIONS_MAX`), so an
     otherwise valid Asignatura beyond the cap is not preselected. *Assumption.*
+- **Archived change `merge-grupo-into-asignatura` (2026-10-11).** Grupos are managed
+  from inside their Asignatura (UI and routing only, no schema change). The bullets
+  above that mention the Grupos list, `/catalog/grupos/new` or Amendment 2026-10-08
+  are history. The retired list and URLs are covered by CM-RTE-1; the current rules
+  are CM-ASG-7, CM-ASG-9, CM-GRP-9, CM-GRP-10 and CM-GRP-11. Change record:
+  `openspec/changes/archive/2026-10-11-merge-grupo-into-asignatura/`.
