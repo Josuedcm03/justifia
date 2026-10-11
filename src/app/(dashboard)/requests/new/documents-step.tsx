@@ -188,7 +188,7 @@ export function DocumentsStep({
                   aria-label={t("documents.viewNamed", {
                     name: doc.nombreOriginal,
                   })}
-                  className={`${buttonVariants({ variant: "ghost", size: "sm" })} shrink-0`}
+                  className={`${buttonVariants({ variant: "ghost", size: "lg" })} shrink-0`}
                 >
                   {t("documents.view")}
                 </a>

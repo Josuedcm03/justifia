@@ -7,7 +7,7 @@ remiten a ese archivo.
 | #   | Change                 | Cubre                                       | Responsable | Prototipo            | Estado    |
 | --- | ---------------------- | ------------------------------------------- | ----------- | -------------------- | --------- |
 | 0   | `catalog-schedule`     | Horarios en el catálogo (RN-22, RF-12)      | Josué       | Sí                   | pendiente |
-| 1   | `justification-intake` | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23 | Armando     | Sí                   | pendiente |
+| 1   | `justification-intake` | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23 | Armando     | Sí                   | archivado |
 | 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Por asignar | Sí                   | pendiente |
 | 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | pendiente |
 | 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | pendiente |
@@ -24,3 +24,7 @@ remiten a ese archivo.
   no en un change.
 - Cada change se planifica con el flujo SDD del proyecto, uno por vez, y se
   archiva antes de abrir el siguiente.
+- El despliegue de `justification-intake` en Vercel (crear el proyecto, la
+  región y las variables `CRON_SECRET` y `BLOB_READ_WRITE_TOKEN`) está
+  pendiente y corresponde al responsable del repositorio. El almacén de Blob
+  ya existe.

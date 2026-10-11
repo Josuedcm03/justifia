@@ -68,7 +68,7 @@ export function ConfirmDialog({
           <Button
             type="button"
             size="lg"
-            variant={destructive ? "destructive" : "default"}
+            variant={destructive ? "secondary" : "default"}
             className="w-full sm:w-auto"
           />
         }
@@ -81,10 +81,14 @@ export function ConfirmDialog({
           <AlertDialogDescription>{texts.description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>
+          <AlertDialogCancel
+            disabled={pending}
+            render={<Button variant="ghost" size="lg" />}
+          >
             {texts.cancel}
           </AlertDialogCancel>
           <AlertDialogAction
+            size="lg"
             variant={destructive ? "destructive" : "default"}
             disabled={pending}
             onClick={confirm}

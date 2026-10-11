@@ -91,7 +91,10 @@ export function CauseDatesStep({
             {...invalidProps("causa", causaErrors)}
           >
             {CAUSAS.map((code) => (
-              <label key={code} className="flex items-start gap-3 text-sm">
+              <label
+                key={code}
+                className="flex min-h-11 items-center gap-3 text-sm"
+              >
                 <RadioGroupItem value={code} className="mt-0.5" />
                 {t(`causes.${code}`)}
               </label>
@@ -99,7 +102,7 @@ export function CauseDatesStep({
           </RadioGroup>
         </Field>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
           <Field
             id="fechaInicio"
             htmlFor="fechaInicio"
