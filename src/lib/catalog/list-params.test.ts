@@ -86,13 +86,15 @@ describe("catalogListHref", () => {
     );
   });
 
-  it("works for the other two list bases", () => {
-    expect(catalogListHref("/catalog/grupos", { page: 2 })).toBe(
-      "/catalog/grupos?page=2",
-    );
+  it("works for the other list base", () => {
     expect(catalogListHref("/catalog/docentes", { q: "ana" })).toBe(
       "/catalog/docentes?q=ana",
     );
+  });
+
+  it("no longer accepts the retired Grupos list as a base (compile-time pin)", () => {
+    // @ts-expect-error `/catalog/grupos` is not a list route any more.
+    catalogListHref("/catalog/grupos", { page: 2 });
   });
 
   it("resets the page when q or status change: a link built without page has none", () => {

@@ -19,12 +19,20 @@ import { GrupoForm } from "./grupo-form";
 type FormProps = Omit<ComponentProps<typeof GrupoForm>, "action">;
 type ToggleProps = Omit<ComponentProps<typeof ActiveToggle>, "action">;
 
-export function CreateGrupoForm(props: Omit<FormProps, "record">) {
+// Create always has its Asignatura (fixed by the route); edit never takes one
+// because the record carries its own.
+export function CreateGrupoForm(
+  props: Omit<FormProps, "record" | "asignatura"> & {
+    asignatura: NonNullable<FormProps["asignatura"]>;
+  },
+) {
   return <GrupoForm {...props} action={createGrupoAction} />;
 }
 
 export function EditGrupoForm(
-  props: FormProps & { record: NonNullable<FormProps["record"]> },
+  props: Omit<FormProps, "asignatura"> & {
+    record: NonNullable<FormProps["record"]>;
+  },
 ) {
   return <GrupoForm {...props} action={updateGrupoAction} />;
 }

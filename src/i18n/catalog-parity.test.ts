@@ -27,7 +27,6 @@ const GUARDED_SECTIONS = [
   "catalog.asignaturas",
   "nav.catalogAsignaturas",
   "catalog.grupos.errors",
-  "nav.catalogGrupos",
   "catalog.grupos",
   "nav.catalogDocentes",
   "catalog.docentes",
@@ -559,7 +558,9 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
         leafPaths(resolve(messages, "catalog.asignaturas"))
           .filter(
             (path) =>
-              !/^(errors|form|page|breadcrumb|state|grupos)\./.test(path),
+              !/^(errors|form|page|breadcrumb|state|grupos|matches)\./.test(
+                path,
+              ),
           )
           .sort(),
       ).toEqual([...LIST_KEYS].sort());
@@ -601,6 +602,74 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
   );
 });
 
+describe("catalog parity (CM-I18N-1, CM-ASG-9: Asignaturas search by group)", () => {
+  const MATCHES = "catalog.asignaturas.matches";
+  const KEYS = ["label", "item", "itemInactive", "more"];
+
+  it.each(["es", "en"] as const)(
+    "%s carries exactly the matches keys, all non-empty",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      const paths = leafPaths(resolve(messages, MATCHES));
+      expect(paths.sort()).toEqual([...KEYS].sort());
+      for (const key of KEYS) {
+        const text = resolve(messages, `${MATCHES}.${key}`) as string;
+        expect(text.trim()).not.toBe("");
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s renders item, itemInactive and the more plural through the real translator",
+    (locale) => {
+      const t = createTranslator({
+        locale,
+        messages: locale === "es" ? esMessages : enMessages,
+        namespace: MATCHES as "catalog.asignaturas.matches",
+        onError: (error: Error) => {
+          throw error;
+        },
+      });
+      const args = {
+        periodo: "2026-S1",
+        numeroGrupo: "3",
+        docente: "Ana Pérez",
+      };
+
+      const item = t("item", args);
+      for (const part of ["2026-S1", "3", "Ana Pérez"]) {
+        expect(item).toContain(part);
+      }
+      const inactive = t("itemInactive", args);
+      expect(inactive).toContain("Ana Pérez");
+      expect(inactive).not.toBe(item);
+      expect(inactive.startsWith(item)).toBe(true);
+
+      expect(t("more", { count: 1 })).toContain("+1");
+      expect(t("more", { count: 7 })).toContain("+7");
+      expect(t("more", { count: 1 })).not.toBe(t("more", { count: 7 }));
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s search copy names docente and periodo",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      const teacher = locale === "es" ? /docente/i : /teacher/i;
+      const period = locale === "es" ? /per[ií]odo/i : /period/i;
+      for (const key of [
+        "search.label",
+        "search.placeholder",
+        "noResults.hint",
+      ]) {
+        const text = resolve(messages, `catalog.asignaturas.${key}`) as string;
+        expect(text, key).toMatch(teacher);
+        expect(text, key).toMatch(period);
+      }
+    },
+  );
+});
+
 describe("catalog parity (CM-I18N-1, CM-ASG-7: Grupos section copy of the Asignatura edit page)", () => {
   const GRUPOS = "catalog.asignaturas.grupos";
   const KEYS = [
@@ -611,17 +680,47 @@ describe("catalog parity (CM-I18N-1, CM-ASG-7: Grupos section copy of the Asigna
     "tableCaption",
     "editLabel",
     "truncated",
-    "viewAll",
     "degraded",
+    "edit",
+    "columns.periodo",
+    "columns.numeroGrupo",
+    "columns.docente",
+    "columns.dias",
+    "columns.status",
+    "columns.actions",
   ];
   const messagesOf = (locale: "es" | "en") =>
     locale === "es" ? esMessages : enMessages;
 
-  it.each(["es", "en"] as const)("%s holds exactly the nine keys", (locale) => {
-    expect(leafPaths(resolve(messagesOf(locale), GRUPOS)).sort()).toEqual(
-      [...KEYS].sort(),
-    );
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the section keys, with the columns and the edit label moved in and no link to a list",
+    (locale) => {
+      expect(leafPaths(resolve(messagesOf(locale), GRUPOS)).sort()).toEqual(
+        [...KEYS].sort(),
+      );
+      expect(leafPaths(resolve(messagesOf(locale), GRUPOS))).not.toContain(
+        "viewAll",
+      );
+    },
+  );
+
+  it.each([
+    ["es", "columns.dias", "Días"],
+    ["en", "columns.dias", "Days"],
+    ["es", "edit", "Editar"],
+    ["en", "edit", "Edit"],
+  ] as const)("%s %s reads %s", (locale, key, text) => {
+    expect(resolve(messagesOf(locale), `${GRUPOS}.${key}`)).toBe(text);
   });
+
+  it.each(["es", "en"] as const)(
+    "%s keeps no Grupos list namespace once the list is retired",
+    (locale) => {
+      expect(
+        resolve(messagesOf(locale), "catalog.grupos.list"),
+      ).toBeUndefined();
+    },
+  );
 
   it("has identical key sets and no empty value in both locales", () => {
     expect(leafPaths(resolve(esMessages, GRUPOS)).sort()).toEqual(
@@ -999,7 +1098,7 @@ describe("catalog parity (CM-GRP-6, CM-GRP-7, CM-I18N-1: day names)", () => {
   );
 });
 
-describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo list, form, page and state copy)", () => {
+describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo form, page and state copy)", () => {
   const section = (locale: "es" | "en", path: string) =>
     resolve(locale === "es" ? esMessages : enMessages, path);
   const keysOf = (locale: "es" | "en", path: string) =>
@@ -1021,35 +1120,6 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo list, form, page and state c
     "submitting",
     "truncated",
   ];
-  const LIST_KEYS = [
-    "title",
-    "subtitle",
-    "newButton",
-    "columns.code",
-    "columns.subject",
-    "columns.periodo",
-    "columns.numeroGrupo",
-    "columns.docente",
-    "columns.dias",
-    "columns.status",
-    "columns.actions",
-    "edit",
-    "empty",
-    "noResults.title",
-    "noResults.titleStatus",
-    "noResults.hint",
-    "degraded",
-    "search.label",
-    "search.placeholder",
-    "search.submit",
-    "search.clear",
-    "count",
-    "tableCaption",
-    "pagination.region",
-    "pagination.previous",
-    "pagination.next",
-    "pagination.status",
-  ];
   const PAGE_KEYS = [
     "page.editSubtitle",
     "page.editTitle",
@@ -1066,12 +1136,6 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo list, form, page and state c
     expect(keysOf(locale, "catalog.grupos.form")).toEqual(FORM_KEYS);
   });
 
-  it.each(["es", "en"] as const)("%s pins exactly the list keys", (locale) => {
-    expect(keysOf(locale, "catalog.grupos.list")).toEqual(
-      [...LIST_KEYS].sort(),
-    );
-  });
-
   it.each(["es", "en"] as const)(
     "%s pins exactly the page, breadcrumb and state keys, with nothing else in the section",
     (locale) => {
@@ -1081,14 +1145,12 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo list, form, page and state c
         all.filter((path) => /^(page|breadcrumb|state)\./.test(path)).sort(),
       ).toEqual([...PAGE_KEYS].sort());
       expect(
-        all.filter(
-          (path) => !/^(list|form|page|breadcrumb|state)\./.test(path),
-        ),
+        all.filter((path) => !/^(form|page|breadcrumb|state)\./.test(path)),
       ).toEqual(["errors.unexpected"]);
     },
   );
 
-  it("the form, list, page, breadcrumb and state keys have identical sets in es and en", () => {
+  it("the form, page, breadcrumb and state keys have identical sets in es and en", () => {
     expect(keysOf("es", "catalog.grupos")).toEqual(
       keysOf("en", "catalog.grupos"),
     );
@@ -1105,13 +1167,6 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo list, form, page and state c
     },
   );
 
-  it.each([
-    ["es", "Días"],
-    ["en", "Days"],
-  ] as const)("%s list column header for the days is %s", (locale, header) => {
-    expect(section(locale, "catalog.grupos.list.columns.dias")).toBe(header);
-  });
-
   type Translate = (
     key: string,
     values?: Record<string, string | number>,
@@ -1127,31 +1182,20 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo list, form, page and state c
     }) as unknown as Translate;
 
   it.each(["es", "en"] as const)(
-    "%s renders the parameterised list keys through the real translator",
+    "%s breadcrumb names the Periodo and NumeroGrupo being edited, and not the Asignatura code its parent crumb already shows",
     (locale) => {
-      const t = translate(locale, "catalog.grupos.list");
-
-      expect(t("noResults.title", { q: "calc" })).toContain("calc");
-      expect(t("pagination.status", { page: 2, pages: 5 })).toMatch(/2.*5/);
-      for (const count of [0, 1, 7]) {
-        expect(t("count", { count }).trim()).not.toBe("");
-      }
-      expect(t("count", { count: 7 })).toContain("7");
-    },
-  );
-
-  it.each(["es", "en"] as const)(
-    "%s breadcrumb names the Asignatura, Periodo and NumeroGrupo being edited",
-    (locale) => {
+      // The real translator throws on a missing value, so a leftover
+      // {codigo} placeholder fails here.
       const text = translate(locale, "catalog.grupos")("breadcrumb.edit", {
-        codigo: "MAT101",
         periodo: "2026-S1",
         numeroGrupo: "G7",
       });
 
-      expect(text).toContain("MAT101");
       expect(text).toContain("2026-S1");
       expect(text).toContain("G7");
+      expect(
+        section(locale, "catalog.grupos.breadcrumb.edit") as string,
+      ).not.toContain("{codigo}");
     },
   );
 
@@ -1189,12 +1233,40 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Grupo list, form, page and state c
     },
   );
 
+  // The group is created under an Asignatura chosen by the route (CM-GRP-9),
+  // so the page no longer adds a group "to the catalog".
   it.each([
-    ["es", "Grupos"],
-    ["en", "Groups"],
-  ] as const)("%s sidebar label is %s", (locale, label) => {
-    expect(section(locale, "nav.catalogGrupos")).toBe(label);
-  });
+    ["es", /asignatura/i, /cat[aá]logo/i],
+    ["en", /subject/i, /catalog/i],
+  ] as const)(
+    "%s new-group subtitle names the subject, not the catalog",
+    (locale, subject, catalog) => {
+      const text = section(locale, "catalog.grupos.page.newSubtitle");
+
+      expect(text).toMatch(subject);
+      expect(text).not.toMatch(catalog);
+    },
+  );
+
+  // There is no list to select a subject from any more: a missing or unusable
+  // one means the form was not opened from a subject's page.
+  it.each([
+    ["es", /de la lista/i, /p[aá]gina de la asignatura/i],
+    ["en", /from the list/i, /subject's page/i],
+  ] as const)(
+    "%s Asignatura field errors no longer point to a list and say where to go",
+    (locale, list, where) => {
+      for (const key of ["required", "invalid"]) {
+        const text = section(
+          locale,
+          `catalog.shared.fieldErrors.asignaturaId.${key}`,
+        );
+
+        expect(text, key).not.toMatch(list);
+        expect(text, key).toMatch(where);
+      }
+    },
+  );
 });
 
 describe("catalog parity (CM-I18N-1: Grupo page and form copy)", () => {
@@ -1204,9 +1276,8 @@ describe("catalog parity (CM-I18N-1: Grupo page and form copy)", () => {
   // literals in the call arguments.
   const DIR = "src/app/(dashboard)/catalog/grupos";
   const FILES = [
-    "page.tsx",
-    "new/page.tsx",
-    "[id]/edit/page.tsx",
+    "../asignaturas/[id]/grupos/new/page.tsx",
+    "../asignaturas/[id]/grupos/[grupoId]/edit/page.tsx",
     "grupo-form.tsx",
   ];
   const read = (file: string) =>
@@ -1237,9 +1308,6 @@ describe("catalog parity (CM-I18N-1: Grupo page and form copy)", () => {
   it("the scan finds the keys the Grupo pages and form choose", () => {
     expect(used).toEqual(
       expect.arrayContaining([
-        "catalog.grupos.list.title",
-        "catalog.grupos.list.columns.dias",
-        "catalog.grupos.list.count",
         "catalog.grupos.page.newTitle",
         "catalog.grupos.page.editTitle",
         "catalog.grupos.page.reactivateHint",
@@ -1250,8 +1318,6 @@ describe("catalog parity (CM-I18N-1: Grupo page and form copy)", () => {
         "catalog.grupos.form.submitSave",
         "catalog.grupos.form.submitCreate",
         "catalog.shared.noCarrera.title",
-        "catalog.shared.status.active",
-        "catalog.shared.dias.notSet",
         "catalog.shared.refusals.inactive",
         "catalog.shared.busy",
         "catalog.shared.importWins",
@@ -1270,7 +1336,7 @@ describe("catalog parity (CM-I18N-1: Grupo page and form copy)", () => {
   );
 
   it.each(["es", "en"] as const)(
-    "%s carries the long and short day names the form and the list render",
+    "%s carries the long and short day names the form renders",
     (locale) => {
       const messages = locale === "es" ? esMessages : enMessages;
       for (const dia of DIAS_SEMANA) {
@@ -1284,14 +1350,8 @@ describe("catalog parity (CM-I18N-1: Grupo page and form copy)", () => {
     },
   );
 
-  it("the form and the list use the shared day names, not their own", () => {
-    const form = read("grupo-form.tsx");
-    const list = read("page.tsx");
-
-    expect(form).toContain("dias.long.");
-    expect(list).toContain('tDias("notSet")');
-    expect(list).toContain("short.");
-    expect(list).toContain("long.");
+  it("the form uses the shared day names, not its own", () => {
+    expect(read("grupo-form.tsx")).toContain("dias.long.");
   });
 });
 

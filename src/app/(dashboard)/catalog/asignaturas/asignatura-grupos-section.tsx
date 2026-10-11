@@ -5,7 +5,6 @@ import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { StatusPill } from "@/components/status-pill";
 import { buttonVariants } from "@/components/ui/button";
 import type { DiaSemana } from "@/lib/catalog/dias";
-import { catalogListHref } from "@/lib/catalog/list-params";
 import type {
   AsignaturaGruposResult,
   GrupoListItem,
@@ -19,7 +18,6 @@ export type AsignaturaGruposLabels = {
   inactiveHint: string;
   tableCaption: string;
   truncated: string;
-  viewAll: string;
   degraded: string;
   edit: string;
   editLabel: (grupo: GrupoListItem) => string;
@@ -45,7 +43,6 @@ const TITLE_ID = "asignatura-grupos-title";
 export function AsignaturaGruposSection({
   result,
   asignaturaId,
-  codigo,
   activo,
   labels,
   diaShort,
@@ -53,7 +50,6 @@ export function AsignaturaGruposSection({
 }: {
   result: AsignaturaGruposResult;
   asignaturaId: number;
-  codigo: string;
   activo: boolean;
   labels: AsignaturaGruposLabels;
   diaShort: (dia: DiaSemana) => string;
@@ -61,7 +57,7 @@ export function AsignaturaGruposSection({
 }) {
   const hasRows = result.data.length > 0;
   // Built from the numeric id only; the code never reaches this URL.
-  const addHref = `/catalog/grupos/new?asignaturaId=${asignaturaId}`;
+  const addHref = `/catalog/asignaturas/${asignaturaId}/grupos/new`;
   // The empty state carries the action when the header does not.
   const headerAdd = activo && (hasRows || result.degraded);
 
@@ -106,7 +102,8 @@ export function AsignaturaGruposSection({
       align: "end",
       cell: (g) => (
         <Link
-          href={`/catalog/grupos/${g.id}/edit`}
+          // Built from the numeric ids of the page and of the row only.
+          href={`/catalog/asignaturas/${asignaturaId}/grupos/${g.id}/edit`}
           // The name tells two groups of one subject apart.
           aria-label={labels.editLabel(g)}
           className={buttonVariants({ variant: "ghost", size: "lg" })}
@@ -156,18 +153,7 @@ export function AsignaturaGruposSection({
             />
           </div>
           {result.truncated ? (
-            <p className="text-muted-foreground text-sm">
-              {labels.truncated}{" "}
-              <Link
-                href={catalogListHref("/catalog/grupos", {
-                  status: "all",
-                  q: codigo,
-                })}
-                className="text-foreground underline underline-offset-4"
-              >
-                {labels.viewAll}
-              </Link>
-            </p>
+            <p className="text-muted-foreground text-sm">{labels.truncated}</p>
           ) : null}
         </>
       ) : (

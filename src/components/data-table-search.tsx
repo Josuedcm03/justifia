@@ -45,7 +45,10 @@ export function DataTableSearch({
         <Label htmlFor="q" className="sr-only">
           {label}
         </Label>
+        {/* Keyed by the value: the input is uncontrolled, so it only follows
+            a new URL term (search, clear, redirect) if it remounts. */}
         <Input
+          key={value}
           id="q"
           name="q"
           type="search"

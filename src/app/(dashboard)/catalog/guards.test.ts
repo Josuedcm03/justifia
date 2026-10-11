@@ -34,6 +34,39 @@ describe("catalog pages (structure)", () => {
     expect(pages.length).toBeGreaterThan(0);
   });
 
+  // A misplaced or deleted page must fail here instead of shrinking the
+  // coverage below, and an extra page under `grupos` would be a retired URL
+  // that answers something other than "not found" (CM-RTE-1).
+  it("discovers exactly the expected catalog pages", () => {
+    const base = "src/app/(dashboard)/catalog";
+
+    expect(pages.map((p) => p.path).sort()).toEqual(
+      [
+        "asignaturas/page.tsx",
+        "asignaturas/new/page.tsx",
+        "asignaturas/[id]/edit/page.tsx",
+        "asignaturas/[id]/grupos/new/page.tsx",
+        "asignaturas/[id]/grupos/[grupoId]/edit/page.tsx",
+        "docentes/page.tsx",
+        "grupos/[id]/edit/page.tsx",
+      ]
+        .map((path) => `${base}/${path}`)
+        .sort(),
+    );
+  });
+
+  it("keeps no list page under grupos (the standalone list is retired)", () => {
+    expect(
+      pages
+        .filter((p) => p.isList)
+        .map((p) => p.path)
+        .sort(),
+    ).toEqual([
+      "src/app/(dashboard)/catalog/asignaturas/page.tsx",
+      "src/app/(dashboard)/catalog/docentes/page.tsx",
+    ]);
+  });
+
   it.each(pages.map((p) => [p.path, p] as const))(
     "%s calls requireCatalogAccess( before any other await",
     (_path, page) => {

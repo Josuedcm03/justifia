@@ -21,6 +21,9 @@ export const CATALOG_PAGE_SIZE = USERS_PAGE_SIZE;
 export const CATALOG_OPTIONS_MAX = 2000;
 /** Cap on the Grupos listed on the Asignatura edit page (amendment A-AGS-1). */
 export const ASIGNATURA_GRUPOS_MAX = 100;
+/** Matching groups named on an Asignaturas search row; the rest are counted
+ *  ("+N more", CM-ASG-9, assumption U10). */
+export const ASIGNATURA_MATCHES_MAX = 3;
 
 const DEFAULT_STATUS: CatalogStatusFilter = "active";
 
@@ -44,8 +47,7 @@ export function parseCatalogListParams(sp: RawSearchParams | undefined): {
   };
 }
 
-export type CatalogListBase =
-  "/catalog/asignaturas" | "/catalog/grupos" | "/catalog/docentes";
+export type CatalogListBase = "/catalog/asignaturas" | "/catalog/docentes";
 
 /** The single place that knows the catalog list URL shape. Defaults (page 1,
  *  empty `q`, `status=active`) are omitted. A link that changes `q` or

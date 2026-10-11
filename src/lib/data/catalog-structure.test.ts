@@ -104,10 +104,4 @@ describe("Grupo data module (structure)", () => {
     expect(body).toContain(".update(");
     expect(body).not.toMatch(/dias/i);
   });
-
-  it("keeps the days out of buildGruposWhere (CM-GRP-7)", () => {
-    const body = functionBody(grupos?.text ?? "", "buildGruposWhere");
-    expect(body).toContain("asignaturaInScope");
-    expect(body).not.toMatch(/dias/i);
-  });
 });

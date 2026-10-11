@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CatalogScope } from "@/lib/catalog/scope";
@@ -319,15 +322,21 @@ describe("createGrupoAction", () => {
     expect(m.audit).toHaveBeenCalledWith(tx, ACTOR, expect.any(Array));
   });
 
-  it("created: revalidates the list, redirects outside any try, audits one manual event with names only", async () => {
+  it("created: revalidates the Asignaturas list and that Asignatura's edit page, redirects to it outside any try, audits one manual event with names only", async () => {
     m.create.mockResolvedValue({ kind: "created", id: 5 });
 
     await expect(
       createGrupoAction(IDLE, form({ ...VALID, dias: ["miercoles", "lunes"] })),
-    ).rejects.toThrow("REDIRECT:/catalog/grupos");
+    ).rejects.toThrow("REDIRECT:/catalog/asignaturas/12/edit");
 
-    expect(m.revalidatePath).toHaveBeenCalledExactlyOnceWith("/catalog/grupos");
-    expect(m.revalidatePath.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(m.redirect).toHaveBeenCalledExactlyOnceWith(
+      "/catalog/asignaturas/12/edit",
+    );
+    expect(m.revalidatePath.mock.calls).toEqual([
+      ["/catalog/asignaturas"],
+      ["/catalog/asignaturas/12/edit"],
+    ]);
+    expect(m.revalidatePath.mock.invocationCallOrder[1]).toBeLessThan(
       m.redirect.mock.invocationCallOrder[0],
     );
     expect(m.audit).toHaveBeenCalledOnce();
@@ -352,6 +361,30 @@ describe("createGrupoAction", () => {
     });
     // Day sentinels: no day code, name or mask value reaches the payload.
     expect(JSON.stringify(events)).not.toMatch(/lunes|miercoles|Mi[eé]rcoles/i);
+  });
+
+  // A-CREATE-TAMPER: the destination is the Asignatura as validated on the
+  // server, never a path or id taken from anywhere else in the form.
+  it("a valid, in-scope Asignatura other than the route's gets the group and the redirect (the id is the validated one)", async () => {
+    m.create.mockResolvedValue({ kind: "created", id: 6 });
+
+    await expect(
+      createGrupoAction(
+        IDLE,
+        form({ ...VALID, asignaturaId: "14", returnTo: "/evil", path: "/x" }),
+      ),
+    ).rejects.toThrow("REDIRECT:/catalog/asignaturas/14/edit");
+
+    expect(m.getAsignatura).toHaveBeenCalledExactlyOnceWith(ALL, 14);
+    expect(m.create).toHaveBeenCalledExactlyOnceWith(
+      tx,
+      ALL,
+      expect.objectContaining({ asignaturaId: 14 }),
+    );
+    expect(m.revalidatePath.mock.calls).toEqual([
+      ["/catalog/asignaturas"],
+      ["/catalog/asignaturas/14/edit"],
+    ]);
   });
 
   // Amendment 2026-10-09: the refusal is a field error on `numeroGrupo`.
@@ -587,19 +620,24 @@ describe("updateGrupoAction", () => {
     ["days only", ["dias"]],
     ["docente and days", ["docenteId", "dias"]],
   ])(
-    "updated (%s): revalidates list and edit page, redirects outside any try, audits one manual event naming only %j",
+    "updated (%s): revalidates the Asignaturas list, the parent's edit page and the group's edit page, redirects to the parent outside any try, audits one manual event naming only %j",
     async (_n, campos) => {
       m.update.mockResolvedValue({ kind: "updated", id: 5, campos });
 
       await expect(
         updateGrupoAction(IDLE, form({ ...EDIT, dias: ["miercoles"] })),
-      ).rejects.toThrow("REDIRECT:/catalog/grupos");
+      ).rejects.toThrow("REDIRECT:/catalog/asignaturas/12/edit");
 
+      // The parent (12) is the scoped record's, the group (5) the posted id.
+      expect(m.redirect).toHaveBeenCalledExactlyOnceWith(
+        "/catalog/asignaturas/12/edit",
+      );
       expect(m.revalidatePath.mock.calls).toEqual([
-        ["/catalog/grupos"],
-        ["/catalog/grupos/5/edit"],
+        ["/catalog/asignaturas"],
+        ["/catalog/asignaturas/12/edit"],
+        ["/catalog/asignaturas/12/grupos/5/edit"],
       ]);
-      expect(m.revalidatePath.mock.invocationCallOrder[1]).toBeLessThan(
+      expect(m.revalidatePath.mock.invocationCallOrder[2]).toBeLessThan(
         m.redirect.mock.invocationCallOrder[0],
       );
       expect(m.audit).toHaveBeenCalledOnce();
@@ -617,6 +655,34 @@ describe("updateGrupoAction", () => {
       );
     },
   );
+
+  // UG-3, threat matrix: no form field builds a path, so a posted
+  // `asignaturaId`, `returnTo` or `path` cannot steer the redirect or the
+  // revalidation; both come from the record the scoped read returned.
+  it("a hand-crafted asignaturaId, returnTo or path is ignored: the redirect and every revalidation use the record's own parent", async () => {
+    allow(SCOPE_7);
+    m.getGrupo.mockResolvedValue({ ...GRUPO, id: 5, asignaturaId: 21 });
+    m.update.mockResolvedValue({ kind: "updated", id: 5, campos: ["dias"] });
+
+    await expect(
+      updateGrupoAction(
+        IDLE,
+        form({
+          ...EDIT,
+          asignaturaId: "999",
+          returnTo: "/evil",
+          path: "/catalog/asignaturas/999/edit",
+        }),
+      ),
+    ).rejects.toThrow("REDIRECT:/catalog/asignaturas/21/edit");
+
+    expect(m.getGrupo).toHaveBeenCalledExactlyOnceWith(SCOPE_7, 5);
+    expect(m.revalidatePath.mock.calls).toEqual([
+      ["/catalog/asignaturas"],
+      ["/catalog/asignaturas/21/edit"],
+      ["/catalog/asignaturas/21/grupos/5/edit"],
+    ]);
+  });
 
   it("unchanged (same docente and same set of days, even reordered): no audit, no revalidate, no redirect", async () => {
     m.update.mockResolvedValue({ kind: "unchanged", id: 5 });
@@ -810,9 +876,12 @@ describe("setGrupoActivoAction", () => {
         activo,
       );
       expect(fd.getAll).not.toHaveBeenCalled();
+      // A toggle stays on the group page (no redirect) and refreshes the
+      // group's edit page, its parent's edit page and the Asignaturas list.
       expect(m.revalidatePath.mock.calls).toEqual([
-        ["/catalog/grupos"],
-        ["/catalog/grupos/5/edit"],
+        ["/catalog/asignaturas"],
+        ["/catalog/asignaturas/12/edit"],
+        ["/catalog/asignaturas/12/grupos/5/edit"],
       ]);
       expect(m.redirect).not.toHaveBeenCalled();
       const events = m.audit.mock.calls[0][2];
@@ -825,6 +894,24 @@ describe("setGrupoActivoAction", () => {
       expect(events[0].datos).toEqual({ origen: "manual", campos: ["activo"] });
     },
   );
+
+  it("revalidates the record's own parent, whatever else the form carries", async () => {
+    m.getGrupo.mockResolvedValue({ ...GRUPO, asignaturaId: 33 });
+    m.setActivo.mockResolvedValue({ kind: "changed", id: 5, activo: false });
+
+    const state = await setGrupoActivoAction(
+      IDLE,
+      form({ ...TOGGLE, asignaturaId: "999", path: "/evil" }),
+    );
+
+    expect(state).toEqual({ kind: "done", activo: false });
+    expect(m.revalidatePath.mock.calls).toEqual([
+      ["/catalog/asignaturas"],
+      ["/catalog/asignaturas/33/edit"],
+      ["/catalog/asignaturas/33/grupos/5/edit"],
+    ]);
+    expect(m.redirect).not.toHaveBeenCalled();
+  });
 
   it("already in the requested state -> unchanged, no audit, no revalidate", async () => {
     m.setActivo.mockResolvedValue({ kind: "unchanged", id: 5 });
@@ -892,5 +979,26 @@ describe("setGrupoActivoAction", () => {
     expect(String(consoleError.mock.calls[0][0])).not.toContain("hunter2");
     expect(m.audit).not.toHaveBeenCalled();
     expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+// UG-3 (STRUCT): groups are managed under their Asignatura, so the module no
+// longer names the retired list. The working tree is CRLF on Windows.
+describe("grupos/actions.ts source", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src/app/(dashboard)/catalog/grupos/actions.ts"),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+
+  it("holds no /catalog/grupos literal and no LIST_PATH", () => {
+    expect(source).not.toContain("/catalog/grupos");
+    expect(source).not.toContain("LIST_PATH");
+  });
+
+  it("builds every path from ASIGNATURAS_PATH and a validated or scoped id", () => {
+    expect(source).toContain(
+      'const ASIGNATURAS_PATH = "/catalog/asignaturas";',
+    );
+    expect(source).toContain("target.item.asignaturaId");
   });
 });

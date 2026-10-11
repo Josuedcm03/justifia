@@ -67,10 +67,8 @@ import { ASIGNATURA_GRUPOS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogScope } from "@/lib/catalog/scope";
 import type { Transaction } from "@/lib/data/audit";
 import {
-  buildGruposWhere,
   createGrupo,
   getGrupoById,
-  listGrupos,
   listGruposByAsignatura,
   setGrupoActivo,
   updateGrupo,
@@ -115,209 +113,6 @@ const storedRow = {
 };
 // The item that leaves the module: decoded days in week order, no mask.
 const item = { ...storedRow, dias: ["lunes", "viernes"] };
-
-describe("buildGruposWhere", () => {
-  it("is undefined for the all scope with every state and no search", () => {
-    expect(buildGruposWhere(ALL, { status: "all", q: "" })).toBeUndefined();
-  });
-
-  it("scopes through the Asignatura, not through the Grupo", () => {
-    const { sql: text, params } = render(
-      buildGruposWhere(OWN, { status: "all", q: "" }),
-    );
-    expect(text).toBe('"Asignatura"."CarreraId" = $1');
-    expect(params).toEqual([7]);
-  });
-
-  it("active keeps only active rows, inactive only inactive ones", () => {
-    expect(render(buildGruposWhere(ALL, { status: "active", q: "" })).sql).toBe(
-      '"Grupo"."Activo"',
-    );
-    expect(
-      render(buildGruposWhere(ALL, { status: "inactive", q: "" })).sql,
-    ).toBe('not "Grupo"."Activo"');
-  });
-
-  it("searches asignatura Codigo and Nombre, Periodo, NumeroGrupo and docente name, escaped, as parameters", () => {
-    const { sql: text, params } = render(
-      buildGruposWhere(ALL, { status: "all", q: "a%b_c" }),
-    );
-    expect(text).toBe(
-      '("Asignatura"."Codigo" ilike $1 or "Asignatura"."Nombre" ilike $2 or "Grupo"."Periodo" ilike $3 or "Grupo"."NumeroGrupo" ilike $4 or "Usuario"."NombreCompleto" ilike $5)',
-    );
-    expect(params).toEqual(Array(5).fill("%a\\%b\\_c%"));
-    expect(text).not.toContain("a%b_c");
-  });
-
-  it("combines scope, state and search with AND", () => {
-    const { sql: text, params } = render(
-      buildGruposWhere(OWN, { status: "active", q: "mat" }),
-    );
-    expect(text).toBe(
-      '("Asignatura"."CarreraId" = $1 and "Grupo"."Activo" and ("Asignatura"."Codigo" ilike $2 or "Asignatura"."Nombre" ilike $3 or "Grupo"."Periodo" ilike $4 or "Grupo"."NumeroGrupo" ilike $5 or "Usuario"."NombreCompleto" ilike $6))',
-    );
-    expect(params).toEqual([7, ...Array(5).fill("%mat%")]);
-  });
-
-  it("carries a literal false for the none scope", () => {
-    expect(render(buildGruposWhere(NONE, { status: "all", q: "" })).sql).toBe(
-      "false",
-    );
-  });
-
-  it("never mentions the days: no filter and no search (A-DIAS-NOSEARCH)", () => {
-    for (const scope of [ALL, OWN, NONE]) {
-      for (const status of ["active", "inactive", "all"] as const) {
-        for (const q of ["", "lunes", "17", "Dias"]) {
-          const { sql: text } = render(buildGruposWhere(scope, { status, q }));
-          expect(text).not.toContain("Dias");
-        }
-      }
-    }
-  });
-});
-
-describe("listGrupos", () => {
-  const params = (page: number) => ({
-    scope: OWN,
-    status: "active" as const,
-    q: "mat",
-    page,
-    pageSize: 10,
-  });
-
-  it("returns the page with decoded days, the total and the clamped page", async () => {
-    results.push([{ count: 1 }], [storedRow]);
-    expect(await listGrupos(params(1))).toEqual({
-      data: [item],
-      total: 1,
-      page: 1,
-      pageSize: 10,
-      degraded: false,
-    });
-  });
-
-  it("decodes a stored mask into week order, whatever the bit order of the sum", async () => {
-    results.push(
-      [{ count: 3 }],
-      [
-        { ...storedRow, id: 1, dias: 17 },
-        { ...storedRow, id: 2, dias: 0 },
-        { ...storedRow, id: 3, dias: 127 },
-      ],
-    );
-    const { data } = await listGrupos(params(1));
-    expect(data.map((row) => row.dias)).toEqual([
-      ["lunes", "viernes"],
-      [],
-      [
-        "lunes",
-        "martes",
-        "miercoles",
-        "jueves",
-        "viernes",
-        "sabado",
-        "domingo",
-      ],
-    ]);
-  });
-
-  it("never lets the mask leave the module: no numeric dias on an item", async () => {
-    results.push([{ count: 1 }], [storedRow]);
-    const { data } = await listGrupos(params(1));
-    expect(Array.isArray(data[0].dias)).toBe(true);
-    expect(typeof data[0].dias).not.toBe("number");
-  });
-
-  it("uses one where for the count and the page", async () => {
-    results.push([{ count: 1 }], [storedRow]);
-    await listGrupos(params(1));
-    expect(statements).toHaveLength(2);
-    expect(whereOf(0)).toEqual(whereOf(1));
-    expect(whereOf(0).sql).toContain('"Asignatura"."CarreraId" = $1');
-    expect(whereOf(0).sql).toContain('"Grupo"."Activo"');
-    expect(whereOf(0).sql).toContain('"Usuario"."NombreCompleto" ilike');
-  });
-
-  it("joins the asignatura and the docente in the count too, so the shared where resolves", async () => {
-    results.push([{ count: 1 }], [storedRow]);
-    await listGrupos(params(1));
-    expect(calls(0, "innerJoin")).toHaveLength(2);
-    expect(calls(1, "innerJoin")).toHaveLength(2);
-  });
-
-  it("clamps an out-of-range page to the last page", async () => {
-    results.push([{ count: 25 }], [storedRow]);
-    const result = await listGrupos(params(99));
-    expect(result.page).toBe(3);
-    expect(calls(1, "limit")[0].args).toEqual([10]);
-    expect(calls(1, "offset")[0].args).toEqual([20]);
-  });
-
-  it("clamps to page 1 when there are no rows", async () => {
-    results.push([{ count: 0 }], []);
-    const result = await listGrupos(params(4));
-    expect(result).toMatchObject({ data: [], total: 0, page: 1 });
-    expect(calls(1, "offset")[0].args).toEqual([0]);
-  });
-
-  it("projects the names, the origin and the stored Dias column, ordered deterministically", async () => {
-    results.push([{ count: 1 }], [storedRow]);
-    await listGrupos(params(1));
-    const fields = calls(1, "select")[0].args[0] as Record<string, unknown>;
-    expect(Object.keys(fields)).toEqual([
-      "id",
-      "asignaturaId",
-      "asignaturaCodigo",
-      "asignaturaNombre",
-      "periodo",
-      "numeroGrupo",
-      "docenteId",
-      "docenteNombre",
-      "activo",
-      "origen",
-      "dias",
-    ]);
-    expect(render(sql`${fields.dias}`).sql).toBe('"Grupo"."Dias"');
-    const order = (calls(1, "orderBy")[0].args as SQL[]).map(
-      (part) => render(part).sql,
-    );
-    expect(order).toEqual([
-      '"Asignatura"."Codigo" asc',
-      '"Grupo"."Periodo" desc',
-      '"Grupo"."NumeroGrupo" asc',
-      '"Grupo"."Id" asc',
-    ]);
-  });
-
-  it("projects no credential of the docente", async () => {
-    results.push([{ count: 1 }], [storedRow]);
-    await listGrupos(params(1));
-    const fields = calls(1, "select")[0].args[0] as Record<string, unknown>;
-    for (const key of ["hashClave", "cif", "correo", "telefono"]) {
-      expect(fields).not.toHaveProperty(key);
-    }
-  });
-
-  it("degrades to an empty page when the database throws", async () => {
-    failure = new Error("connection refused");
-    expect(await listGrupos(params(2))).toEqual({
-      data: [],
-      total: 0,
-      page: 1,
-      pageSize: 10,
-      degraded: true,
-    });
-  });
-
-  it("degrades instead of leaking a mask that is out of range", async () => {
-    results.push([{ count: 1 }], [{ ...storedRow, dias: 128 }]);
-    expect(await listGrupos(params(1))).toMatchObject({
-      data: [],
-      degraded: true,
-    });
-  });
-});
 
 describe("listGruposByAsignatura", () => {
   const rowsOf = (count: number) =>
@@ -459,20 +254,6 @@ describe("scope sentinel: every Grupo read carries the scope predicate", () => {
     sentinel.on = true;
   });
 
-  it("listGrupos: the count and the page", async () => {
-    results.push([{ count: 1 }], []);
-    await listGrupos({
-      scope: OWN,
-      status: "all",
-      q: "",
-      page: 1,
-      pageSize: 10,
-    });
-    expect(statements).toHaveLength(2);
-    expect(whereOf(0).sql).toContain("SCOPE_SENTINEL");
-    expect(whereOf(1).sql).toContain("SCOPE_SENTINEL");
-  });
-
   it("getGrupoById", async () => {
     results.push([]);
     await getGrupoById(OWN, 11);
@@ -486,14 +267,7 @@ describe("scope sentinel: every Grupo read carries the scope predicate", () => {
   });
 
   it("every statement issued has a where, and every where has the sentinel", async () => {
-    results.push([{ count: 0 }], [], [], []);
-    await listGrupos({
-      scope: OWN,
-      status: "active",
-      q: "x",
-      page: 1,
-      pageSize: 10,
-    });
+    results.push([], []);
     await getGrupoById(OWN, 1);
     await listGruposByAsignatura(OWN, 5);
     for (let i = 0; i < statements.length; i += 1) {

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, ilike, not, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { asignatura, grupo, rol, usuario } from "@/db/schema";
@@ -10,8 +10,6 @@ import { ASIGNATURA_GRUPOS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogScope } from "@/lib/catalog/scope";
 import type {
   AsignaturaGruposResult,
-  CatalogListResult,
-  CatalogStatusFilter,
   GrupoActiveResult,
   GrupoListItem,
   GrupoWriteResult,
@@ -22,8 +20,6 @@ import {
   asignaturaRowInScope,
   grupoRowInScope,
 } from "@/lib/data/catalog-scope-sql";
-import { containsPattern } from "@/lib/data/sql-like";
-import { clampPage } from "@/lib/data/users";
 
 // The stored `Dias` mask is read here and decoded by `toItem`; it is the only
 // place it is read, and no item that leaves this module carries it.
@@ -43,88 +39,6 @@ const listColumns = {
 
 function toItem(row: Omit<GrupoListItem, "dias"> & { dias: number }) {
   return { ...row, dias: decodeDias(row.dias) };
-}
-
-/**
- * The one `where` clause of the Grupo list, shared by the count and the page.
- * A Grupo is scoped through its Asignatura, so the scope predicate is the
- * Asignatura one from `catalog-scope-sql` (design decision 2) and both
- * statements join the Asignatura and the docente. `q` is a partial,
- * case-insensitive match on the asignatura Codigo and Nombre, Periodo,
- * NumeroGrupo and the docente name; the term is escaped and bound as a
- * parameter. The days are neither a filter nor a search field.
- */
-export function buildGruposWhere(
-  scope: CatalogScope,
-  f: { status: CatalogStatusFilter; q: string },
-): SQL | undefined {
-  const parts = [
-    asignaturaInScope(scope),
-    f.status === "active"
-      ? sql`${grupo.activo}`
-      : f.status === "inactive"
-        ? not(grupo.activo)
-        : undefined,
-    f.q
-      ? or(
-          ilike(asignatura.codigo, containsPattern(f.q)),
-          ilike(asignatura.nombre, containsPattern(f.q)),
-          ilike(grupo.periodo, containsPattern(f.q)),
-          ilike(grupo.numeroGrupo, containsPattern(f.q)),
-          ilike(usuario.nombreCompleto, containsPattern(f.q)),
-        )
-      : undefined,
-  ].filter((part): part is SQL => part !== undefined);
-  return parts.length > 0 ? and(...parts) : undefined;
-}
-
-/** Fail-soft like `listUsuarios`: a thrown error is an empty, degraded page. */
-export async function listGrupos(p: {
-  scope: CatalogScope;
-  status: CatalogStatusFilter;
-  q: string;
-  page: number;
-  pageSize: number;
-}): Promise<CatalogListResult<GrupoListItem>> {
-  try {
-    const where = buildGruposWhere(p.scope, p);
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)`.mapWith(Number) })
-      .from(grupo)
-      .innerJoin(asignatura, eq(grupo.asignaturaId, asignatura.id))
-      .innerJoin(usuario, eq(grupo.docenteId, usuario.id))
-      .where(where);
-    const page = clampPage(p.page, count, p.pageSize);
-    const rows = await db
-      .select(listColumns)
-      .from(grupo)
-      .innerJoin(asignatura, eq(grupo.asignaturaId, asignatura.id))
-      .innerJoin(usuario, eq(grupo.docenteId, usuario.id))
-      .where(where)
-      .orderBy(
-        asc(asignatura.codigo),
-        desc(grupo.periodo),
-        asc(grupo.numeroGrupo),
-        asc(grupo.id),
-      )
-      .limit(p.pageSize)
-      .offset((page - 1) * p.pageSize);
-    return {
-      data: rows.map(toItem),
-      total: count,
-      page,
-      pageSize: p.pageSize,
-      degraded: false,
-    };
-  } catch {
-    return {
-      data: [],
-      total: 0,
-      page: 1,
-      pageSize: p.pageSize,
-      degraded: true,
-    };
-  }
 }
 
 /**

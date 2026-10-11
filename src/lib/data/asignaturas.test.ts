@@ -122,15 +122,34 @@ describe("buildAsignaturasWhere", () => {
     expect(params).toEqual([7]);
   });
 
-  it("searches Codigo OR Nombre partially, escaped, as parameters", () => {
+  // CM-ASG-9: the third member of the `or`, a correlated `exists` over the
+  // groups of the Asignatura matching on Periodo or the docente name.
+  const GROUP_EXISTS = (first: number) =>
+    `exists (select 1 from "Grupo" inner join "Usuario" on "Usuario"."Id" = "Grupo"."DocenteId" where ("Grupo"."AsignaturaId" = "Asignatura"."Id" and ("Grupo"."Periodo" ilike $${first} or "Usuario"."NombreCompleto" ilike $${first + 1})))`;
+
+  it("searches Codigo OR Nombre OR a group's Periodo or docente, escaped, as parameters", () => {
     const { sql: text, params } = render(
       buildAsignaturasWhere(ALL, { status: "all", q: "a%b_c" }),
     );
     expect(text).toBe(
-      '("Asignatura"."Codigo" ilike $1 or "Asignatura"."Nombre" ilike $2)',
+      `("Asignatura"."Codigo" ilike $1 or "Asignatura"."Nombre" ilike $2 or ${GROUP_EXISTS(3)})`,
     );
-    expect(params).toEqual(["%a\\%b\\_c%", "%a\\%b\\_c%"]);
+    expect(params).toEqual([
+      "%a\\%b\\_c%",
+      "%a\\%b\\_c%",
+      "%a\\%b\\_c%",
+      "%a\\%b\\_c%",
+    ]);
     expect(text).not.toContain("a%b_c");
+  });
+
+  it("does not search the group number or the days, and ignores the group status (B7, U9)", () => {
+    const { sql: text } = render(
+      buildAsignaturasWhere(ALL, { status: "all", q: "7" }),
+    );
+    expect(text).not.toContain("NumeroGrupo");
+    expect(text).not.toContain('"Dias"');
+    expect(text).not.toContain('"Grupo"."Activo"');
   });
 
   it("combines scope, state and search with AND", () => {
@@ -138,9 +157,16 @@ describe("buildAsignaturasWhere", () => {
       buildAsignaturasWhere(OWN, { status: "active", q: "mat" }),
     );
     expect(text).toBe(
-      '("Asignatura"."CarreraId" = $1 and "Asignatura"."Activo" and ("Asignatura"."Codigo" ilike $2 or "Asignatura"."Nombre" ilike $3))',
+      `("Asignatura"."CarreraId" = $1 and "Asignatura"."Activo" and ("Asignatura"."Codigo" ilike $2 or "Asignatura"."Nombre" ilike $3 or ${GROUP_EXISTS(4)}))`,
     );
-    expect(params).toEqual([7, "%mat%", "%mat%"]);
+    expect(params).toEqual([7, "%mat%", "%mat%", "%mat%", "%mat%"]);
+  });
+
+  it("keeps the scope outside the group condition, so a foreign group reveals nothing", () => {
+    const { sql: text } = render(
+      buildAsignaturasWhere(NONE, { status: "all", q: "perez" }),
+    );
+    expect(text.startsWith("(false and (")).toBe(true);
   });
 
   it("carries a literal false for the none scope", () => {
@@ -161,18 +187,19 @@ describe("listAsignaturas", () => {
     activo: true,
     grupos: "1, 2" as string | null,
   };
-  const params = (page: number) => ({
+  const params = (page: number, q = "mat") => ({
     scope: OWN,
     status: "active" as const,
-    q: "mat",
+    q,
     page,
     pageSize: 10,
   });
+  const noMatches = { gruposCoincidentes: [], gruposCoincidentesTotal: 0 };
 
   it("returns the page, the total and the clamped page", async () => {
     results.push([{ count: 1 }], [item]);
     expect(await listAsignaturas(params(1))).toEqual({
-      data: [item],
+      data: [{ ...item, ...noMatches }],
       total: 1,
       page: 1,
       pageSize: 10,
@@ -183,7 +210,7 @@ describe("listAsignaturas", () => {
   it("uses one where for the count and the page", async () => {
     results.push([{ count: 1 }], [item]);
     await listAsignaturas(params(1));
-    expect(statements).toHaveLength(2);
+    expect(statements).toHaveLength(3);
     expect(whereOf(0)).toEqual(whereOf(1));
     expect(whereOf(0).sql).toContain('"Asignatura"."CarreraId" = $1');
     expect(whereOf(0).sql).toContain('"Asignatura"."Activo"');
@@ -227,7 +254,7 @@ describe("listAsignaturas", () => {
 
   it("aggregates the distinct, ordered numbers of the active groups in one subquery column", async () => {
     results.push([{ count: 1 }], [item]);
-    const result = await listAsignaturas(params(1));
+    const result = await listAsignaturas(params(1, ""));
     expect(result.data[0].grupos).toBe("1, 2");
     expect(statements).toHaveLength(2);
     const fields = calls(1, "select")[0].args[0] as Record<string, SQL>;
@@ -250,6 +277,125 @@ describe("listAsignaturas", () => {
       page: 1,
       pageSize: 10,
       degraded: true,
+    });
+  });
+
+  describe("matching groups of a search (CM-ASG-9)", () => {
+    const match = (id: number, over: Record<string, unknown> = {}) => ({
+      id,
+      asignaturaId: 1,
+      periodo: "2026-S1",
+      numeroGrupo: String(id),
+      docenteNombre: "Ana Perez",
+      activo: true,
+      ...over,
+    });
+    const shaped = (m: ReturnType<typeof match>) => {
+      const { asignaturaId, ...rest } = m;
+      void asignaturaId;
+      return rest;
+    };
+
+    it("runs a third statement for the page's groups when q is set and rows came back", async () => {
+      results.push([{ count: 1 }], [item], [match(5)]);
+      const result = await listAsignaturas(params(1, "perez"));
+      expect(statements).toHaveLength(3);
+      expect(Object.keys(calls(2, "select")[0].args[0] as object)).toEqual([
+        "id",
+        "asignaturaId",
+        "periodo",
+        "numeroGrupo",
+        "docenteNombre",
+        "activo",
+      ]);
+      expect(whereOf(2)).toEqual({
+        sql: '("Grupo"."AsignaturaId" in ($1) and "Asignatura"."CarreraId" = $2 and ("Grupo"."Periodo" ilike $3 or "Usuario"."NombreCompleto" ilike $4))',
+        params: [1, 7, "%perez%", "%perez%"],
+      });
+      expect(
+        (calls(2, "orderBy")[0].args as SQL[]).map((o) => render(o).sql),
+      ).toEqual([
+        '"Grupo"."AsignaturaId" asc',
+        '"Grupo"."Periodo" desc',
+        '"Grupo"."NumeroGrupo" asc',
+        '"Grupo"."Id" asc',
+      ]);
+      expect(result.data[0].gruposCoincidentes).toEqual([shaped(match(5))]);
+      expect(result.data[0].gruposCoincidentesTotal).toBe(1);
+    });
+
+    it("keeps the first three of four matches and counts all four", async () => {
+      const four = [match(1), match(2), match(3), match(4)];
+      results.push([{ count: 1 }], [item], four);
+      const { data } = await listAsignaturas(params(1, "2026"));
+      expect(data).toHaveLength(1);
+      expect(data[0].gruposCoincidentes).toEqual(four.slice(0, 3).map(shaped));
+      expect(data[0].gruposCoincidentesTotal).toBe(4);
+    });
+
+    it("keeps three of five matches and counts five (the page shows +2)", async () => {
+      const five = [1, 2, 3, 4, 5].map((n) => match(n));
+      results.push([{ count: 1 }], [item], five);
+      const { data } = await listAsignaturas(params(1, "2026"));
+      expect(data[0].gruposCoincidentes).toHaveLength(3);
+      expect(data[0].gruposCoincidentesTotal).toBe(5);
+    });
+
+    it("assigns each match to its own Asignatura and leaves the others empty", async () => {
+      const other = { ...item, id: 2, codigo: "MAT102" };
+      results.push(
+        [{ count: 2 }],
+        [item, other],
+        [match(1), match(9, { asignaturaId: 2 })],
+      );
+      const { data } = await listAsignaturas(params(1, "perez"));
+      expect(data.map((d) => d.gruposCoincidentesTotal)).toEqual([1, 1]);
+      expect(data[1].gruposCoincidentes[0].id).toBe(9);
+      expect(whereOf(2).params.slice(0, 2)).toEqual([1, 2]);
+      expect(whereOf(2).sql).toContain("in ($1, $2)");
+    });
+
+    it("a row matched only by code or name has no matching group", async () => {
+      results.push([{ count: 1 }], [item], []);
+      const { data } = await listAsignaturas(params(1, "calc"));
+      expect(data[0]).toMatchObject(noMatches);
+    });
+
+    it("issues no third statement without a search or with an empty page", async () => {
+      results.push([{ count: 1 }], [item]);
+      await listAsignaturas(params(1, ""));
+      expect(statements).toHaveLength(2);
+
+      statements.length = 0;
+      results.push([{ count: 0 }], []);
+      const empty = await listAsignaturas(params(1, "perez"));
+      expect(statements).toHaveLength(2);
+      expect(empty.data).toEqual([]);
+    });
+
+    it("carries the scope predicate in all three statements", async () => {
+      sentinel.on = true;
+      results.push([{ count: 1 }], [item], []);
+      await listAsignaturas(params(1, "perez"));
+      expect(statements).toHaveLength(3);
+      for (let i = 0; i < 3; i += 1) {
+        expect(whereOf(i).sql).toContain("SCOPE_SENTINEL");
+      }
+    });
+
+    it("degrades like the other statements when the third one fails", async () => {
+      results.push(
+        [{ count: 1 }],
+        [item],
+        rejecting(new Error("connection refused")),
+      );
+      expect(await listAsignaturas(params(1, "perez"))).toEqual({
+        data: [],
+        total: 0,
+        page: 1,
+        pageSize: 10,
+        degraded: true,
+      });
     });
   });
 });

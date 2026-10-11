@@ -1,114 +1,124 @@
-# Proposal: Merge Grupo into Asignatura (one catalog row per class)
+# Proposal: Manage Grupos from inside their Asignatura (UI only)
 
-> **This change TOUCHES THE DATABASE SCHEMA and is DESTRUCTIVE.** A hand-written
-> migration `0007` rewrites `Asignatura`, re-points `Inscripcion` and drops the
-> `Grupo` table. No migration, branch operation or write SQL may run against
-> Neon without the owner's explicit confirmation for that command.
-> `drizzle-kit push` is never used. Past the drop, only a Neon branch restore
-> goes back.
+> **This change does NOT touch the database schema.** No migration, no edit to
+> `src/db/schema.ts`, no command against Neon. `Grupo` stays a table.
+>
+> **This version replaces the destructive proposal** (migration `0007` folding
+> `Grupo` into `Asignatura`). That plan is abandoned and nothing of it was
+> applied. See "What is reversed".
 
 ## Intent
 
-Secretaría maintains two catalogs, Asignaturas and Grupos, that are really one:
-a group has no meaning without its subject, and the import carries them on two
-sheets that must agree. The owner wants **Asignatura** and **Docente** as the
-only catalogs. Each Asignatura row becomes one **class**, identified by subject
-code plus group number.
+Secretaría sees two catalogs, Asignaturas and Grupos, although a group has no
+meaning without its subject. The owner wants Grupos to stop being a catalog of
+its own in the UI: groups are reached, created and edited only from their
+Asignatura. The data model, the import and the justification intake keep
+working on `Grupo` exactly as today.
 
-This **reverses** parts of `catalog-management`: Grupo management, the Grupos
-section of the Asignatura page, the rule "deactivating an Asignatura with active
-Grupos is refused" (its decision D4) and the mandatory docente.
+Covers `docs/requirements.md`: **RF-12** (catalog maintenance), **RNF-01**
+(server-side authorization on the new routes and the retired URLs), **RNF-06**
+(audit, unaffected), **RNF-12** (deactivation confirmation, kept), **RNF-13**
+(import, untouched). All five verified against the file.
 
-Owner decisions (2026-10-09, binding) are **D1-D9**. Everything marked
-**A1-A12** is an assumed default the owner has not confirmed.
+Roadmap: this change has no row in `docs/roadmap.md`. It refines
+`catalog-management`, which the roadmap notes name as covering RF-12 and
+RNF-13 and which is archived (`2026-10-10-catalog-management`).
 
-## Owner Decisions
+## What is reversed
+
+Why: `justification-intake` (merged in main) depends on `Grupo` as a table
+(`SolicitudAsignatura.GrupoId`, `Inscripcion.GrupoId`,
+`GroupScheduleProvider.groupsWithClass`), and migration number `0007` is taken
+by `0007_justification_intake`.
+
+| Earlier item (2026-10-09) | Status now |
+|---|---|
+| D1: `Grupo` table and `/catalog/grupos` pages removed | Half kept: the list and sidebar entry go; the table stays; create and edit move under the Asignatura |
+| D2 to D9: class row, group-number key, optional docente, docente rule, days on the class row, `Periodo` removed, subject-field propagation | Void |
+| A11: old `/catalog/grupos` URLs answer "not found" | Reversed: they redirect |
+| A1 to A10, A12, work units WU1 to WU8, schema impact, Neon rollback | Void |
+| Dependency "archive `catalog-management` first" | Already satisfied |
+
+## Decisions
+
+**Binding (owner, 2026-10-10)**
 
 | # | Decision |
 |---|---|
-| D1 | The catalogs are Asignatura and Docente only. The `Grupo` table and the `/catalog/grupos` pages are removed |
-| D2 | One Asignatura row is one class: subject code + group number. The pair is unique |
-| D3 | The group number is mandatory |
-| D4 | One code may have several groups, on different days or on the same day |
-| D5 | The docente is optional on a class. One docente may teach several groups |
-| D6 | **Docente rule**: two groups of one code that share at least one meeting day and both have a docente must have different docentes. A class without docente never conflicts |
-| D7 | The meeting days are a field of the class row (same bitmask, `src/lib/catalog/dias.ts`) |
-| D8 | One term at a time: each term's catalog replaces the previous one. `Periodo` is removed |
-| D9 | `Nombre`, `CarreraId` and `HorasTotales` belong to the subject: every row of one code carries the same values. Editing them on one row updates all rows of that code in the same transaction, under the same lock, audited. The import refuses a workbook whose rows of one code disagree |
+| B1 | `Grupo` stays a table. No schema change, no migration |
+| B2 | Nothing under `src/lib/intake`, `src/lib/data/solicitudes.ts` or `src/app/(dashboard)/requests/` is modified |
+| B3 | The "Grupos" sidebar entry and the `/catalog/grupos` list page are removed |
+| B4 | Groups are created and edited at `/catalog/asignaturas/[id]/grupos/new` and `/catalog/asignaturas/[id]/grupos/[grupoId]/edit`, reusing the existing form, validations and `src/lib/data/grupos.ts` writes |
+| B5 | Old `/catalog/grupos/...` URLs redirect to the matching Asignatura location |
+| B6 | The Asignaturas list search covers what the Grupos list search covered, so finding a group by docente or by periodo is not lost |
+| B7 | The group match uses `Periodo` and docente name only. `NumeroGrupo` is excluded, so CM-ASG-8's rule that the Asignaturas search does not match group numbers stands (owner, 2026-10-10) |
+
+**Assumed, not confirmed by the owner**
+
+| # | Assumption | If wrong |
+|---|---|---|
+| U1 | `actions.ts`, `grupo-form.tsx` and `bound-controls.tsx` stay in `catalog/grupos/`; only pages move (exploration approach A1) | About 2,000 more moved test lines and three structural tests to update |
+| U2 | `Periodo` stays a visible form field (part of the unique key) | Needs a "current period" rule that does not exist |
+| U3 | The Excel import, its sheets and its screen are untouched | Import copy changes too |
+| U4 | Redirects are temporary (307) | Permanent ones are cached by browsers indefinitely |
+| U5 | In create mode the Asignatura comes from the route and is shown read-only | Combobox kept |
+| U6 | After saving a group the user returns to the Asignatura edit page | Another landing page |
+| U7 | Dropped with the list: group status filter across asignaturas, pagination past 100 groups, "New group" with no Asignatura chosen. The "latest 100" note stays; its link to the list is removed | These must be rebuilt inside the Asignatura page |
+| U8 | Confirmed by the owner on 2026-10-10; now B7 | n/a |
+| U9 | Groups of any status can produce a match; an inactive one is labelled as such | Only active groups match |
+| U10 | A row matched through groups shows up to three matching groups and a "+N more" count | Another presentation |
+| U11 | Not found: a new-group URL of an inactive or out-of-scope Asignatura, and an edit URL whose Asignatura is not the group's parent | Another answer for those URLs |
+| U12 | `/catalog/grupos/new` without a valid `asignaturaId` redirects to the Asignaturas list | Another target |
+
+## Search behaviour (B6)
+
+Today (`buildGruposWhere`): `q` is a partial, case-insensitive match on
+asignatura `Codigo` and `Nombre`, `Periodo`, `NumeroGrupo` and docente name,
+returning one row per group. The Asignaturas list
+(`buildAsignaturasWhere`) matches `Codigo` and `Nombre` only.
+
+Intended behaviour:
+
+- **What the user types**: a term in the existing Asignaturas search box,
+  whose label and placeholder now name docente and periodo. Example:
+  `2026-S1` or part of a teacher's name.
+- **What comes back**: the in-scope Asignaturas that pass the Asignatura
+  status filter and either match by `Codigo` or `Nombre`, or have at least one
+  group whose `Periodo` or docente name contains the term. One row per
+  Asignatura; the count and the pagination count Asignaturas.
+- **How a group match is visible**: the row names the groups that matched
+  (periodo, group number, docente), so the user sees why it was returned. The
+  Edit link opens the Asignatura, whose Grupos section lists them.
+- **Unchanged**: scope predicate, ordering, page size, fail-soft behaviour,
+  parameter binding of the term.
+
+`listGrupos` and `buildGruposWhere` are **not** reused: they build a
+group-rooted, group-status query. The new condition lives in
+`buildAsignaturasWhere`. Both become unused (Open Question 4).
 
 ## Scope
 
 ### In Scope
 
-- **Schema (`0007`)**: `Asignatura` gains the group number, the optional
-  docente, `Dias` and `Origen`; `Codigo` stops being unique on its own and
-  (`Codigo`, group number) becomes the unique key; `Inscripcion` is re-pointed
-  to the class row; `Grupo` is dropped with its `Periodo` column.
-- **Docente rule (D6)** enforced in the database and pre-checked in the
-  application and in the import planner; re-checked on reactivation and on any
-  docente or days edit.
-- **Subject fields (D9)**: propagation on manual edit; adding a group to an
-  existing code takes the subject fields from that code.
-- **Manual management**: `/catalog/asignaturas` lists, creates, edits,
-  deactivates and reactivates class rows. Access, carrera scoping, the
-  "nothing is deleted" rule and same-transaction auditing are unchanged.
-- **Import**: two sheets. `Docentes` is unchanged. `Asignaturas` carries one row
-  per class: `Codigo`, `Nombre`, `Carrera`, `HorasTotales`, `Grupo`, optional
-  `CorreoDocente`, optional `Dias`. A workbook in the old three-sheet layout is
-  refused with a message that names the new layout. The template and the
-  contract card follow.
-- **Removal**: the `/catalog/grupos` routes, the Grupos section of the
-  Asignatura edit page, the Grupo data layer, validation, actions, audit
-  builders, sidebar entry, i18n keys and their tests.
-- **Docs**: `modelo_datos_sql.md`, the workbook template and `es`/`en` copy.
+- Create and edit pages under the Asignatura (B4), with the parent check on
+  the edit page.
+- Form create mode with a fixed Asignatura; actions redirect to and revalidate
+  the Asignatura edit page and the Asignaturas list.
+- Grupos section links repointed; cap-overflow link removed.
+- Redirects for the four old URL shapes (B5).
+- Removal of the Grupos list page, the sidebar entry and their copy (B3).
+- Asignaturas list search extended (B6).
+- `es` and `en` copy with identical key sets; structural, guard and parity
+  tests updated.
 
-### Out of Scope
+### Out of Scope (non-goals)
 
-- The justification request (`Solicitud`, `SolicitudDetalle`) and who handles a
-  request for a class without docente.
-- Any writer of `Inscripcion`, and student accounts.
-- Term history: no archive of a previous term's classes.
-- Hours of the day, classrooms, calendars.
-- Editing or deactivating user accounts; the Docentes list stays read-only.
-- `Facultad` and `Carrera` management.
-- Rewriting or deleting past audit rows.
-- Physical deletion of a class row by any application path.
-
-## Schema Impact
-
-| Object | Change |
-|---|---|
-| `Asignatura` | + group number (`NOT NULL`), + `DocenteId` (nullable, FK `Usuario`), + `Dias`, + `Origen`, with the existing CHECKs moved over |
-| `Asignatura.Codigo` | UNIQUE (`Codigo`) replaced by UNIQUE (`Codigo`, group number) |
-| Docente rule | Seven partial unique indexes, one per weekday bit, on (`Codigo`, `DocenteId`) where active, docente not null and that bit set |
-| `Inscripcion` | `GrupoId` re-pointed to the class row (column name for design) |
-| `Grupo` | Dropped, including `Periodo` and its indexes |
-
-- **Data-preserving**: each subject x group pair becomes a class row. The
-  existing Asignatura row is reused for its lowest-id group, so its id and its
-  past `asignatura.*` audit rows stay valid; the other groups become new rows.
-- **Preflight (read-only, no confirmation needed)**: key collisions once
-  `Periodo` is gone, docente overlaps that would violate D6, and the count of
-  `Inscripcion` rows. The migration must refuse to run on unresolved findings
-  instead of guessing.
-- **Not a table constraint**: the equality of subject fields across the rows of
-  one code (D9) is kept by the application and the import. The migration starts
-  it consistent by copying from the parent row.
-- **Procedure**: hand-written, with a structural test like `0005` and `0006`.
-  Rehearse on a fresh Neon branch, then the shared database in a short
-  maintenance window, each command confirmed individually.
-
-## Relationship to `catalog-management`
-
-- It is committed (`d3a3997`) but **not verified or archived**, with more than
-  twenty open owner tasks, many about Grupo pages this change deletes.
-- `openspec/specs/` has `academic-catalog`, `audit-log` and
-  `catalog-excel-import`; the `catalog-management` capability exists only in
-  that change folder.
-- **Required order**: verify and archive `catalog-management` first, waiving the
-  Grupo-only smoke items, so this change writes REMOVED and MODIFIED deltas
-  against main specs. Writing deltas against an unarchived change is the
-  fallback, not the plan.
+- **Teammate boundary**: the paths in B2, plus `src/db/**` and `drizzle/**`.
+- The import, the workbook and `src/lib/import/**`.
+- Group validation rules, audit events, carrera scoping and write functions.
+- Renaming `middleware.ts` to `proxy.ts`.
+- Rebuilding the capabilities listed in U7.
+- Designing the delivery slices (tasks phase).
 
 ## Capabilities
 
@@ -118,188 +128,131 @@ None.
 
 ### Modified Capabilities
 
-- `academic-catalog`: Grupo requirements removed; the class key, mandatory group
-  number, optional docente, days and origin on the Asignatura row; the docente
-  rule; subject-field equality; `Periodo` removed; the Inscripcion target.
-- `catalog-management`: Grupo management and the Grupos section removed; class
-  create, edit, deactivate and reactivate; the deactivation refusal withdrawn;
-  propagation of subject fields; docente-rule refusals.
-- `catalog-excel-import`: two-sheet contract, refusal of the old layout,
-  per-class rows, blank docente, deactivate-absent over every class row,
-  subject-disagreement and docente-overlap errors, preview counts.
-- `audit-log`: `grupo.*` events are no longer emitted and remain in history; the
-  Asignatura field list widens; the import payload loses its Grupo figures.
+- `catalog-management`: CM-NAV-1 (two destinations), CM-LST-1 (Grupos list
+  removed; Asignaturas search fields), CM-ASG-7 (section links, cap clause),
+  CM-ASG-8 (its "search MUST NOT match on group numbers" clause and the
+  "Grupos list unchanged" sentence), CM-GRP-7 (removed), CM-GRP-8 (replaced by
+  the route parameter), CM-GRP-1 to CM-GRP-4, CM-SCOPE-1, CM-SCOPE-2, CM-ACC-1,
+  CM-UX-1 and CM-I18N-1 (page wording), plus one new requirement for the
+  retired-URL redirects.
 
-`imported-account-provisioning` and `forced-password-change` are not modified.
+`academic-catalog`, `audit-log` and `catalog-excel-import` are not modified.
 
 ## Approach
 
-Exploration approach **A** (full merge). B (keep `Grupo`, inline editing) and C
-(compatibility view) were rejected: both keep two tables and two write paths.
+Exploration approach A1: add the sub-routes, repoint the section, add the
+redirects, then retire the list.
 
-- **One pure rule, three callers.** The docente rule is a pure function over a
-  set of class rows, used by the manual write (inside `withCatalogWrite`, after
-  the lock), by the import planner (over the state the import would leave), and
-  mirrored by the indexes as the last line of defence.
-- **The planner decides, the apply never discovers.** A unique violation in the
-  middle of an apply aborts the import, so every conflict must surface in the
-  dry run as a row error.
-- **Ordered apply.** The indexes are not deferrable; the apply must deactivate
-  and clear before it assigns, so a swap of docentes inside one workbook does
-  not fail halfway.
-- **Build beside, then remove.** The class modules are built next to the Grupo
-  code and the pages switch over before the Grupo code is deleted, so each
-  review slice typechecks and passes its tests.
-
-### Work units
-
-Sizes split the exploration total (13,000 to 16,000 changed lines, about 7,000
-deleted, about 120 files). In the two previous changes real sizes ran above
-first estimates.
-
-| WU | Content | Est. lines | Rollback boundary |
-|---|---|---|---|
-| WU1 | `0007`, its test, `schema.ts`, `modelo_datos_sql.md`, the pure docente rule | 900-1,300 | Revert; nothing applied yet |
-| WU2 | Class data layer: scoped reads, writes, propagation, pre-check | 1,800-2,400 | `git revert` |
-| WU3 | Audit union and builders | 500-800 | `git revert` |
-| WU4 | Validation and Server Actions | 1,200-1,600 | `git revert` |
-| WU5 | Pages, form, list, sidebar, i18n | 2,000-2,600 | `git revert` |
-| WU6 | Import: contract, schemas, planner, apply, preview, template, fixtures | 3,000-4,000 | `git revert`; import returns to three sheets |
-| WU7 | Removal of Grupo code, routes, tests and copy | mostly deletions | `git revert` |
-| WU8 | Rehearsal, cutover, smoke | no code | See Rollback Plan |
-
-**The cached `single-pr` strategy cannot hold this change** (16 to 20 slices at
-800 lines). See Open Question 1.
+| Old URL | Goes to | How |
+|---|---|---|
+| `/catalog/grupos` | `/catalog/asignaturas`, query carried | `next.config.ts` `redirects()` |
+| `/catalog/grupos/new?asignaturaId=N` | `/catalog/asignaturas/N/grupos/new` | `redirects()` with a query rule |
+| `/catalog/grupos/new` | `/catalog/asignaturas` | `redirects()` |
+| `/catalog/grupos/{id}/edit` | `/catalog/asignaturas/{asignaturaId}/grupos/{id}/edit` | A guarded page at the old path: one scoped read, then redirect |
 
 ## Affected Areas
 
 | Area | Impact | Description |
 |------|--------|-------------|
-| `src/db/schema.ts`, `drizzle/0007_*.sql`, `drizzle/meta/*` | Modified/New | Class columns, key, indexes; `grupo` removed |
-| `src/db/migration-0007.test.ts` | New | Structural test of the migration |
-| `modelo_datos_sql.md` | Modified | `Asignatura`, `Inscripcion`, `SolicitudDetalle`; `Grupo` removed |
-| `src/lib/data/asignaturas.ts`, `catalog.ts`, `catalog-scope-sql.ts` | Modified | Class reads and writes, snapshot, scope |
-| `src/lib/data/grupos.ts` | Removed | Folded into the class data layer |
-| `src/lib/catalog/` (`types.ts`, `origen.ts`, `dias.ts`, `list-params.ts`) | Modified | Class types, outcomes, the pure rule |
-| `src/lib/validations/catalog*.ts` | Modified | One class form schema |
-| `src/lib/audit/types.ts`, `events.ts` | Modified | Field list, retired builders |
-| `src/lib/import/*` | Modified | `sheets`, `schemas`, `plan`, `apply`, `types`, `summary`, template, fixtures |
-| `src/app/(dashboard)/catalog/asignaturas/*` | Modified | List, form, edit; Grupos section removed |
-| `src/app/(dashboard)/catalog/grupos/*` | Removed | Pages, form, actions, tests |
-| `src/app/(dashboard)/catalog/import/*`, `src/app/api/catalog/template/*` | Modified | Contract card, preview, errors, template |
+| `src/app/(dashboard)/catalog/asignaturas/[id]/grupos/new/page.tsx` | New | Create page |
+| `src/app/(dashboard)/catalog/asignaturas/[id]/grupos/[grupoId]/edit/page.tsx` | New | Edit page with parent check |
+| `src/app/(dashboard)/catalog/grupos/page.tsx`, `new/page.tsx` | Removed | List and old create page |
+| `src/app/(dashboard)/catalog/grupos/[id]/edit/page.tsx` | Modified | Becomes the redirect page |
+| `src/app/(dashboard)/catalog/grupos/actions.ts`, `grupo-form.tsx` | Modified | Redirect and revalidate targets; fixed Asignatura |
+| `src/app/(dashboard)/catalog/asignaturas/asignatura-grupos-section.tsx`, `[id]/edit/page.tsx` | Modified | Links and labels |
+| `src/app/(dashboard)/catalog/asignaturas/page.tsx` | Modified | Search copy, matched-groups hint |
+| `src/lib/data/asignaturas.ts`, `src/lib/catalog/types.ts` | Modified | `buildAsignaturasWhere`, `listAsignaturas`, list item |
+| `src/lib/catalog/list-params.ts` | Modified | `/catalog/grupos` leaves `CatalogListBase` |
 | `src/components/app-sidebar.tsx` | Modified | Grupos entry removed |
-| `i18n/es.json`, `i18n/en.json` | Modified | Identical key sets |
-| `docs/PlantillaCatalogo.xlsx` | Modified | Two-sheet template |
-| `src/lib/data/inscripcion-writes.test.ts` | Unchanged | Still pins "no writer" |
+| `next.config.ts` | Modified | `redirects()` |
+| `i18n/es.json`, `i18n/en.json` | Modified | List keys removed, breadcrumb and search copy |
+| Colocated tests, `catalog/guards.test.ts`, `catalog/current-marker-usage.test.ts`, `src/i18n/catalog-parity.test.ts`, `src/lib/data/scope-inventory.test.ts` | Modified | Pins follow the new paths |
+| `src/lib/data/grupos.ts` | Unchanged | Writes reused; `listGrupos` left in place |
+
+## Size
+
+Estimated, not measured. The exploration counts about 2,300 changed lines
+before B6. B6 adds about 450 (query and tests, list item, page and test, copy,
+parity). **Revised total: about 2,700 to 2,800 counted lines, against an
+800-line single-PR budget. It does not fit one 800-line PR.** The owner
+decides at the tasks phase between chained slices and a size exception.
 
 ## Risks
 
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
-| Irreversible migration on the shared database | Med, high impact | Read-only preflight; rehearsal on a fresh branch; backup branch before cutover; per-command confirmation |
-| Groups of different periods collide on (code, group number) | Unknown until preflight | A2; the rehearsal reports every row not carried over; the owner approves the list |
-| Existing data already violates D6 | Unknown until preflight | Preflight lists the pairs; the owner fixes them before the migration |
-| Subject fields drift between rows of one code | Med | One write path under the lock; planner check; a structural test; a read-only consistency query at verify |
-| An incomplete workbook deactivates most of the catalog | Med, high impact | Preview states the deactivation count before confirm; nothing is deleted; a re-import reactivates |
-| A unique violation aborts an apply | Med | Planner evaluates D6 on the resulting state; ordered apply |
-| Classes with no days recorded escape D6 | Certain | Stated; see Open Question 4 |
-| Row identity spans terms: a later term reuses the row | Certain | No reader today; recorded as a constraint on the future Solicitud change (Open Question 3) |
-| Old `grupo.*` audit rows reference ids that no longer exist | Certain | Entity type keeps them distinguishable; no row is edited; documented |
-| Staff upload the old three-sheet workbook | High at first | Refused before any row is read, with a message and the new template |
-| A scope or authorization check lost in the rewrite | Med, high impact | Existing guard, scope-inventory and leak tests are carried over, not rewritten from memory |
-| Size overrun and reviewer fatigue | High | Chained slices of at most 800 lines; deletion-heavy slices kept apart |
-| `catalog-management` left unarchived | Med | Archive first; otherwise deltas target a change folder |
+| Size is over three times the budget | Certain | Owner decision at the tasks phase |
+| A literal reading of B6 would contradict CM-ASG-8 on group numbers | Resolved | B7: group numbers stay out of the match |
+| A group shown under the wrong Asignatura URL | Med | Mandatory parent check (U11), tested |
+| A scope or guard check lost when pages move | Med, high impact | Guard-first rule and structural pins extended to the new pages |
+| Search by a common term returns many rows | Med | Hint shows why each row matched |
+| The group condition slows the list query | Low | Small catalog; reviewed in design |
+| Carried `status` on the `/catalog/grupos` redirect now filters Asignaturas, not groups | Low | Design decides whether to drop it |
+| Structural pins silently stop covering new files | Med | Pins list the new paths explicitly, CRLF normalised |
+| `redirects()` query capture and its order against `middleware.ts` | Unverified (read from docs, not run) | Test in design and apply |
 
 ## Rollback Plan
 
-1. **Nothing applied**: `git revert` the slices; delete `0007` and its journal
-   entry.
-2. **Failure during `0007`**: it runs in one transaction and rolls back whole.
-3. **After `0007` is applied**: there is no down migration. Restore the Neon
-   backup branch taken immediately before the cutover and redeploy the previous
-   commit. Catalog writes made after the cutover are lost, which is why the
-   cutover runs in a maintenance window and is smoke-tested before it reopens.
-4. **Per slice before cutover**: WU2 to WU7 carry no applied schema and revert
-   independently in reverse order.
-5. **Bad data after cutover**: corrected by a manual write or a re-import; each
-   leaves its own audit row.
+UI and query only: revert the pull request (or the slices, newest first). No
+data to restore; groups written through the new pages are ordinary `Grupo`
+rows. After a revert the old `/catalog/grupos/...` URLs work again at once,
+because the redirects are temporary. Bookmarks to the new
+`/catalog/asignaturas/{id}/grupos/...` URLs answer "not found" until the
+change is re-applied.
 
 ## Dependencies
 
-- `catalog-management` verified and archived.
-- The read-only preflight results, before the design is closed.
-- Explicit owner confirmation for each Neon command, including branch creation.
-- The delivery decision (Open Question 1).
-- A `docs/design-system.md` check for the merged form and list.
+- Owner answer to Open Question 2 before the spec phase closes (Open Question
+  1 is answered, see B7).
+- The delivery decision at the tasks phase.
+- A `docs/design-system.md` check for the read-only Asignatura field and the
+  matched-groups hint.
 
-## Assumed Defaults to Confirm
+## Cleanup of void artifacts
 
-| # | Assumed default | If wrong |
-|---|---|---|
-| A1 | An existing Asignatura with no group becomes one class with group number `1` | Needs another placeholder, or those subjects are left out |
-| A2 | Groups of different periods that collide on (code, group number): keep the active one, otherwise the one of the most recent period; the others are not carried over and are listed in the rehearsal report. If a row not carried over has `Inscripcion` rows, the migration stops | The owner resolves each collision by hand before the migration |
-| A3 | `Origen` moves to the class row with the same meaning (how the row was created, set once) | The manual-deactivation warning of the import is dropped |
-| A4 | A migrated class is active only when both its Asignatura and its Grupo were active | Some inactive records reappear as active |
-| A5 | The workbook is the complete current catalog: a class row absent from it is deactivated, never deleted | Deactivate-absent needs an opt-in |
-| A6 | A blank `CorreoDocente` cell means "no docente" and clears a stored one | A blank cell keeps the stored docente, and the import cannot remove one |
-| A7 | An absent `Dias` column or an empty cell keeps the stored days (existing rule) | The import could clear days |
-| A8 | A class with no days is accepted by the import; the manual form still requires at least one day (existing rule) | The form allows none, or the import rejects none |
-| A9 | The code and the group number are immutable after creation | Needs a rename rule that keeps the import from duplicating the class |
-| A10 | When a docente is given it must be an active user with the `docente` role (existing rule) | Weaker integrity on manual writes |
-| A11 | `/catalog/grupos` URLs answer "not found"; no redirect | A redirect to `/catalog/asignaturas` is added |
-| A12 | The cutover runs in a short maintenance window with catalog writes stopped | Needs a migration that tolerates concurrent writers |
+Later phases replace or remove these files of this change folder; this
+proposal does not touch them:
+
+- `specs/academic-catalog/`, `specs/audit-log/`, `specs/catalog-excel-import/`:
+  removed (no delta).
+- `specs/catalog-management/spec.md`: rewritten from scratch.
+- `design.md`, `tasks.md`: rewritten.
+- `runbook-0007.md`: not present in the folder; nothing to remove.
 
 ## Open Questions
 
-### For the owner
-
-1. **Delivery (the one delivery question)**: one branch with chained review
-   slices of at most 800 lines, or chained pull requests?
-2. Who handles a justification request for a class without docente? Out of
-   scope here; it must be answered before the Solicitud change.
-3. With `Periodo` gone, a class row is reused when the same code and group
-   return next term, with a different docente or days. Is it acceptable that
-   the system keeps no record of which term a class row described?
-4. A class with no days recorded cannot conflict under D6. Acceptable, or must
-   a class with a docente have days?
-5. Do you confirm A2 (which row survives a period collision)?
-6. Do you confirm A6 (a blank docente cell clears the docente)?
-
-### For spec and design
-
-7. Drop `Grupo` inside `0007`, or keep it frozen and drop it in a later
-   migration after a verification period? The second keeps the old data
-   readable longer at the cost of a dead table.
-8. Column names: the group number on `Asignatura`, the re-pointed `Inscripcion`
-   column, and the workbook header (`Grupo` here; today's sheet uses
-   `NumGrupo`).
-9. How the old layout is detected: a `Grupos` sheet present, a missing `Grupo`
-   column, or both.
-10. Whether a propagated edit of subject fields writes one audit row or one per
-    affected class.
-11. Whether any audit reader must accept both shapes of the import payload.
-12. The apply order that keeps the non-deferrable indexes satisfied.
+1. **Group number in the search.** Answered by the owner on 2026-10-10: match
+   `Periodo` and docente name only (B7). CM-ASG-8's rule on group numbers
+   stands.
+2. **Inactive groups in the match (U9).** Recommendation: any status, labelled,
+   because no group status filter remains anywhere.
+3. **Matched-groups hint (U10).** Recommendation: up to three groups plus a
+   count.
+4. **Unused `listGrupos` and `buildGruposWhere`.** Recommendation: remove them
+   with their tests and inventory entries in the last slice; keep them if the
+   owner expects a group list to return.
+5. **Dropped capabilities (U7).** Recommendation: accept the loss.
+6. **`/catalog/grupos/new` without an Asignatura (U12).** Recommendation: the
+   Asignaturas list.
+7. **Do U1 to U6 stand?** Recommendation: yes to all.
 
 ## Success Criteria
 
-- [ ] `Grupo` no longer exists in the schema, the code or the UI; the catalogs
-      are Asignaturas and Docentes.
-- [ ] No two class rows share a code and a group number; no row lacks a group
-      number.
-- [ ] A write that would break the docente rule is refused by the form, by the
-      import preview and by the database, each tested.
-- [ ] Editing a subject field on one class updates every class of that code in
-      one transaction; a workbook whose rows of one code disagree is refused.
-- [ ] A class without docente can be created manually and by import.
-- [ ] The old three-sheet workbook is refused with a message naming the new
-      layout; the new template uploads unchanged with zero errors.
-- [ ] The import preview states how many classes it will deactivate; no code
-      path deletes a class row.
-- [ ] The rehearsal shows every pre-migration group either carried over or
-      listed in the report, and `Inscripcion` rows re-pointed with none lost.
-- [ ] Access, carrera scoping and same-transaction auditing behave as before
-      for `administrador`, `coordinacion` and `secretaria`.
-- [ ] `es` and `en` catalogs have identical key sets.
+- [ ] The diff touches no file under `src/lib/intake`,
+      `src/lib/data/solicitudes.ts`, `src/app/(dashboard)/requests/`,
+      `src/db/` or `drizzle/`, and the intake test suites pass unchanged.
+- [ ] The sidebar shows no Grupos entry for any role; Asignaturas is marked
+      current on the new group pages.
+- [ ] A group can be created and edited from its Asignatura, and saving
+      returns to that Asignatura's edit page with the row visible.
+- [ ] Each of the four old URL shapes redirects as in the table, behind the
+      same access rules.
+- [ ] An edit URL naming the wrong Asignatura answers "not found".
+- [ ] Searching the Asignaturas list by a docente name or a periodo returns
+      the Asignaturas holding those groups, and each such row names the
+      matching groups.
+- [ ] Group writes still produce the same audit rows; deactivation still asks
+      for confirmation.
+- [ ] `es` and `en` have identical key sets.
 - [ ] `npm test`, `npm run typecheck`, `npx eslint src` and `npm run build`
-      pass; `0007` was rehearsed on a fresh Neon branch before the shared
-      database.
+      pass.

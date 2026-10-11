@@ -32,8 +32,26 @@ type AsignaturaBase = {
   activo: boolean;
 };
 
-/** `grupos`: the numbers of the active groups ("1, 2"), `null` when none. */
-export type AsignaturaListItem = AsignaturaBase & { grupos: string | null };
+/** One group that matched an Asignaturas search by Periodo or docente name. */
+export type AsignaturaGrupoMatch = {
+  id: number;
+  periodo: string;
+  numeroGrupo: string;
+  docenteNombre: string;
+  activo: boolean;
+};
+
+/**
+ * `grupos`: the numbers of the active groups ("1, 2"), `null` when none.
+ * `gruposCoincidentes`: up to `ASIGNATURA_MATCHES_MAX` groups that matched the
+ * search term, `gruposCoincidentesTotal` how many matched in all (both empty
+ * and 0 without a search or when only the code or name matched).
+ */
+export type AsignaturaListItem = AsignaturaBase & {
+  grupos: string | null;
+  gruposCoincidentes: AsignaturaGrupoMatch[];
+  gruposCoincidentesTotal: number;
+};
 
 export type AsignaturaDetail = AsignaturaBase & { gruposActivos: number };
 

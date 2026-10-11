@@ -61,16 +61,6 @@ const MODULES: { source: string; tests: string; rows: Row[] }[] = [
     source: "grupos.ts",
     tests: "grupos.test.ts",
     rows: [
-      {
-        fn: "buildGruposWhere",
-        describe: "buildGruposWhere",
-        test: "scopes through the Asignatura, not through the Grupo",
-      },
-      {
-        fn: "listGrupos",
-        describe: GRUPO_READS,
-        test: "listGrupos: the count and the page",
-      },
       { fn: "getGrupoById", describe: GRUPO_READS, test: "getGrupoById" },
       {
         fn: "listGruposByAsignatura",

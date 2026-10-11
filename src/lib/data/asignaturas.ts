@@ -1,15 +1,30 @@
 import "server-only";
 
-import { and, asc, eq, ilike, not, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  not,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import { db } from "@/db";
-import { asignatura, carrera, grupo } from "@/db/schema";
-import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
+import { asignatura, carrera, grupo, usuario } from "@/db/schema";
+import {
+  ASIGNATURA_MATCHES_MAX,
+  CATALOG_OPTIONS_MAX,
+} from "@/lib/catalog/list-params";
 import { changedFields } from "@/lib/audit/diff";
 import { carreraIdForWrite, type CatalogScope } from "@/lib/catalog/scope";
 import type {
   AsignaturaActiveResult,
   AsignaturaDetail,
+  AsignaturaGrupoMatch,
   AsignaturaListItem,
   AsignaturaWriteResult,
   CatalogListResult,
@@ -34,10 +49,25 @@ const listColumns = {
 } as const;
 
 /**
+ * The ONE definition of "a group matches the search term" (CM-ASG-9): its
+ * Periodo or its docente name contains the term. The group number and the days
+ * are not search fields (B7) and the group status is not a condition (U9), so
+ * flipping U9 later is one term here. `pattern` is already escaped.
+ */
+function grupoMatchesTerm(pattern: string): SQL {
+  return or(
+    ilike(grupo.periodo, pattern),
+    ilike(usuario.nombreCompleto, pattern),
+  ) as SQL;
+}
+
+/**
  * The one `where` clause of the Asignatura list, shared by the count and the
  * page. The scope predicate comes only from `catalog-scope-sql` (design
- * decision 2). `q` is a partial, case-insensitive match on Codigo OR Nombre;
- * the term is escaped and bound as a parameter, never interpolated.
+ * decision 2). `q` is a partial, case-insensitive match on Codigo OR Nombre OR,
+ * through a correlated `exists`, the Periodo or docente name of one of the
+ * Asignatura's groups (one row per Asignatura by construction); the term is
+ * escaped and bound as a parameter, never interpolated.
  */
 export function buildAsignaturasWhere(
   scope: CatalogScope,
@@ -54,10 +84,67 @@ export function buildAsignaturasWhere(
       ? or(
           ilike(asignatura.codigo, containsPattern(f.q)),
           ilike(asignatura.nombre, containsPattern(f.q)),
+          sql`exists (select 1 from ${grupo} inner join ${usuario} on ${eq(usuario.id, grupo.docenteId)} where ${and(eq(grupo.asignaturaId, asignatura.id), grupoMatchesTerm(containsPattern(f.q)))})`,
         )
       : undefined,
   ].filter((part): part is SQL => part !== undefined);
   return parts.length > 0 ? and(...parts) : undefined;
+}
+
+type GrupoMatchRow = AsignaturaGrupoMatch & { asignaturaId: number };
+
+function toGrupoMatch({
+  asignaturaId,
+  ...match
+}: GrupoMatchRow): AsignaturaGrupoMatch {
+  void asignaturaId;
+  return match;
+}
+
+/**
+ * The groups of the page's Asignaturas that match the term, by Asignatura. It
+ * is not exported: a read inside `listAsignaturas`, so a failure degrades the
+ * list like the other statements. It uses the same scope predicate and the
+ * same `grupoMatchesTerm` as the search, and the group status is no filter
+ * (U9). Days, credentials and contact data are not selected.
+ */
+async function listMatchingGrupos(
+  scope: CatalogScope,
+  asignaturaIds: number[],
+  q: string,
+): Promise<Map<number, GrupoMatchRow[]>> {
+  const rows = await db
+    .select({
+      id: grupo.id,
+      asignaturaId: grupo.asignaturaId,
+      periodo: grupo.periodo,
+      numeroGrupo: grupo.numeroGrupo,
+      docenteNombre: usuario.nombreCompleto,
+      activo: grupo.activo,
+    })
+    .from(grupo)
+    .innerJoin(asignatura, eq(grupo.asignaturaId, asignatura.id))
+    .innerJoin(usuario, eq(grupo.docenteId, usuario.id))
+    .where(
+      and(
+        inArray(grupo.asignaturaId, asignaturaIds),
+        asignaturaInScope(scope),
+        grupoMatchesTerm(containsPattern(q)),
+      ),
+    )
+    .orderBy(
+      asc(grupo.asignaturaId),
+      desc(grupo.periodo),
+      asc(grupo.numeroGrupo),
+      asc(grupo.id),
+    );
+  const byAsignatura = new Map<number, GrupoMatchRow[]>();
+  for (const row of rows) {
+    const list = byAsignatura.get(row.asignaturaId);
+    if (list) list.push(row);
+    else byAsignatura.set(row.asignaturaId, [row]);
+  }
+  return byAsignatura;
 }
 
 /** Fail-soft like `listUsuarios`: a thrown error is an empty, degraded page. */
@@ -89,7 +176,30 @@ export async function listAsignaturas(p: {
       .orderBy(asc(asignatura.codigo))
       .limit(p.pageSize)
       .offset((page - 1) * p.pageSize);
-    return { data, total: count, page, pageSize: p.pageSize, degraded: false };
+    const matches =
+      p.q && data.length > 0
+        ? await listMatchingGrupos(
+            p.scope,
+            data.map((row) => row.id),
+            p.q,
+          )
+        : new Map<number, GrupoMatchRow[]>();
+    return {
+      data: data.map((row) => {
+        const found = matches.get(row.id) ?? [];
+        return {
+          ...row,
+          gruposCoincidentes: found
+            .slice(0, ASIGNATURA_MATCHES_MAX)
+            .map(toGrupoMatch),
+          gruposCoincidentesTotal: found.length,
+        };
+      }),
+      total: count,
+      page,
+      pageSize: p.pageSize,
+      degraded: false,
+    };
   } catch {
     return {
       data: [],
