@@ -15,7 +15,7 @@ phases:
   tasks: done     # 76 tasks, 5 phases, strict TDD, [CONFIRM] gates on every Neon command
   apply: done   # 76/76 tasks; WU1b, WU1a, WU3a, WU3b, WU2 delivered; migration 0002 applied on the shared Neon DB 2026-09-20
   verify: done   # 2026-09-20 PASS_WITH_WARNINGS, 27/27 requirements, 87/87 scenarios; report at verify-report.md
-  archive: pending
+  archive: done   # 2026-10-11 archived to openspec/changes/archive/2026-10-11-roles-lookup-table/ (main specs synced; PR #2 merged, cbaac00)
 artifacts:
   explore:
     - openspec/changes/roles-lookup-table/exploration.md
