@@ -11,10 +11,11 @@ remiten a ese archivo.
 | 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Por asignar | Sí                   | pendiente |
 | 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | pendiente |
 | 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | pendiente |
-| 5   | `validation-signals`   | RF-05; RN-07, RN-09 a RN-14                 | Por asignar | Si alcanza el tiempo | pendiente |
-| 6   | `escalation`           | RF-10; RN-20                                | Por asignar | No                   | pendiente |
+| 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
+| 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
 | 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
+| 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | pendiente |
 
 **Notas:**
 
@@ -28,3 +29,7 @@ remiten a ese archivo.
   región y las variables `CRON_SECRET` y `BLOB_READ_WRITE_TOKEN`) está
   pendiente y corresponde al responsable del repositorio. El almacén de Blob
   ya existe.
+- `request-consent` agrega el consentimiento informado (RN-25) al envío de la
+  solicitud. Modifica el flujo de `justification-intake`, ya archivado, por lo
+  que va como change propio. Las solicitudes enviadas antes de este change no
+  tienen consentimiento registrado; el change define cómo se tratan.
