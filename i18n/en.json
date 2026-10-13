@@ -69,10 +69,42 @@
     "caption": {
       "sortable": "Headers with a button sort the table."
     },
+    "toolbar": {
+      "label": "Table controls"
+    },
+    "search": {
+      "submit": "Search"
+    },
+    "filter": {
+      "label": "Filter by status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "all": "All"
+    },
+    "count": "{count, plural, =0 {No results} one {# result} other {# results}}",
+    "updating": "Updating…",
+    "pagination": {
+      "region": "Pagination",
+      "status": "Page {page} of {pages}",
+      "first": "First",
+      "previous": "Previous",
+      "next": "Next",
+      "last": "Last"
+    },
+    "pageSize": {
+      "label": "Rows per page",
+      "option": "{size, number}"
+    },
+    "clear": "Clear filters",
     "sort": {
       "sortable": "Sortable. Activate to sort by this column.",
       "ascending": "Sorted ascending. Activate to sort descending.",
-      "descending": "Sorted descending. Activate to sort ascending."
+      "descending": "Sorted descending. Activate to sort ascending.",
+      "indicator": {
+        "sortable": "Sortable",
+        "ascending": "Ascending",
+        "descending": "Descending"
+      }
     }
   },
   "changePassword": {

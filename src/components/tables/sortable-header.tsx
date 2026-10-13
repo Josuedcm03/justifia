@@ -22,8 +22,11 @@ const STATE_KEY = {
  * negative margin keeps the label aligned with the cell text below it.
  *
  * `aria-sort` is set only while this column is the sorted one. The state is
- * also written out (the button's description) and drawn as three different
- * icons, so it never relies on colour alone. Nothing here animates.
+ * also written out as visible text, drawn as three different icons and
+ * exposed as the button's description, so it never relies on colour alone.
+ * The visible text is `aria-hidden`: the accessible name stays exactly the
+ * column label and assistive technology reads the state from `aria-sort` and
+ * the description. Nothing here animates.
  */
 export function SortableHeader({
   children,
@@ -56,12 +59,20 @@ export function SortableHeader({
         onClick={onSort}
         title={t(`sort.${STATE_KEY[state]}`)}
         className={cn(
-          "text-label-caps -mx-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 uppercase",
+          // The `th` is `whitespace-nowrap`; the button opts back in to
+          // wrapping so label and state text stack on narrow widths.
+          "text-label-caps -mx-3 inline-flex min-h-11 flex-wrap items-center gap-x-2 rounded-lg px-3 whitespace-normal uppercase",
           "hover:text-foreground outline-none",
           "focus-visible:ring-ring focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2",
         )}
       >
         {children}
+        <span
+          aria-hidden="true"
+          className="text-muted-foreground text-xs font-normal normal-case"
+        >
+          {t(`sort.indicator.${STATE_KEY[state]}`)}
+        </span>
         <Icon
           aria-hidden="true"
           className={cn("size-4 shrink-0", state === "none" && "opacity-60")}

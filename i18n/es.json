@@ -69,10 +69,42 @@
     "caption": {
       "sortable": "Los encabezados con botón ordenan la tabla."
     },
+    "toolbar": {
+      "label": "Controles de la tabla"
+    },
+    "search": {
+      "submit": "Buscar"
+    },
+    "filter": {
+      "label": "Filtrar por estado",
+      "active": "Activos",
+      "inactive": "Inactivos",
+      "all": "Todos"
+    },
+    "count": "{count, plural, =0 {Sin resultados} one {# resultado} other {# resultados}}",
+    "updating": "Actualizando…",
+    "pagination": {
+      "region": "Paginación",
+      "status": "Página {page} de {pages}",
+      "first": "Primera",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "last": "Última"
+    },
+    "pageSize": {
+      "label": "Filas por página",
+      "option": "{size, number}"
+    },
+    "clear": "Quitar filtros",
     "sort": {
       "sortable": "Ordenable. Actívalo para ordenar por esta columna.",
       "ascending": "Orden ascendente. Actívalo para ordenar de forma descendente.",
-      "descending": "Orden descendente. Actívalo para ordenar de forma ascendente."
+      "descending": "Orden descendente. Actívalo para ordenar de forma ascendente.",
+      "indicator": {
+        "sortable": "Ordenable",
+        "ascending": "Ascendente",
+        "descending": "Descendente"
+      }
     }
   },
   "changePassword": {

@@ -11,6 +11,10 @@ const CLIENT_MODULES = [
   "data-table.tsx",
   "sortable-header.tsx",
   "list-navigation.tsx",
+  "status-filter.tsx",
+  "table-toolbar.tsx",
+  "table-pagination.tsx",
+  "list-table.tsx",
 ] as const;
 
 describe("table kit client boundary (design decision 5)", () => {

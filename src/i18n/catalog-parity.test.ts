@@ -1556,25 +1556,85 @@ describe("catalog parity (DT-I18N-1: table core copy)", () => {
     locale === "es" ? esMessages : enMessages;
 
   it.each(["es", "en"] as const)(
-    "%s holds exactly the sortable header and caption keys",
+    "%s holds exactly the table core and table control keys",
     (locale) => {
       expect(leafPaths(resolve(messagesOf(locale), "tables")).sort()).toEqual([
         "caption.sortable",
+        "clear",
+        "count",
+        "filter.active",
+        "filter.all",
+        "filter.inactive",
+        "filter.label",
+        "pageSize.label",
+        "pageSize.option",
+        "pagination.first",
+        "pagination.last",
+        "pagination.next",
+        "pagination.previous",
+        "pagination.region",
+        "pagination.status",
+        "search.submit",
         "sort.ascending",
         "sort.descending",
+        "sort.indicator.ascending",
+        "sort.indicator.descending",
+        "sort.indicator.sortable",
         "sort.sortable",
+        "toolbar.label",
+        "updating",
       ]);
     },
   );
 
+  // `pageSize.option` is a bare number format and is the same in both.
   it("words each locale in its own language", () => {
     for (const key of [
       "tables.caption.sortable",
+      "tables.clear",
+      "tables.count",
+      "tables.filter.active",
+      "tables.filter.all",
+      "tables.filter.inactive",
+      "tables.filter.label",
+      "tables.pageSize.label",
+      "tables.pagination.first",
+      "tables.pagination.last",
+      "tables.pagination.next",
+      "tables.pagination.previous",
+      "tables.pagination.region",
+      "tables.pagination.status",
+      "tables.search.submit",
       "tables.sort.ascending",
       "tables.sort.descending",
+      "tables.sort.indicator.ascending",
+      "tables.sort.indicator.descending",
+      "tables.sort.indicator.sortable",
       "tables.sort.sortable",
+      "tables.toolbar.label",
+      "tables.updating",
     ]) {
       expect(resolve(esMessages, key), key).not.toBe(resolve(enMessages, key));
     }
   });
+
+  it.each(["es", "en"] as const)(
+    "%s interpolates counts and pages instead of concatenating them",
+    (locale) => {
+      const tables = resolve(messagesOf(locale), "tables") as Record<
+        string,
+        Node
+      >;
+      const count = tables.count as string;
+      const status = (tables.pagination as Record<string, string>).status;
+
+      expect(count).toMatch(/\{count, plural,.*=0 .*one .*other /);
+      expect(count.match(/#/g)?.length).toBe(2);
+      expect(status).toContain("{page}");
+      expect(status).toContain("{pages}");
+      expect((tables.pageSize as Record<string, string>).option).toContain(
+        "{size",
+      );
+    },
+  );
 });

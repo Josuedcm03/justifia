@@ -613,3 +613,136 @@ Real pixel size of the 44px button and the 48px header row (class-level only); t
 ### Suggested commit (owner)
 
 `feat(tables): TanStack table core with accessible sortable headers`
+
+## Batch F: Slice 2c, Table controls (2026-10-12)
+
+Mode: Strict TDD. Delivery: `exception-ok` (single PR, accepted `size:exception`, D14). Tasks 2c.0 to 2c.8 done and ticked in `tasks.md`; 2c.9 (CHECKPOINT) is left unticked for the owner's commit. Housekeeping: 2b.12 ticked (commit c47cc2d exists). Nothing was committed, pushed or branched; no database command and no package install were run. `src/app/globals.css` untouched (empty diff). The four OLD root components were not edited or imported; the new kit has no consumer yet except its tests.
+
+### Owner decision: visible sort state (task 2c.0, follow-up of 2b deviation 2)
+
+The sort-direction indicator in `sortable-header.tsx` is now VISIBLE TEXT (Sortable / Ascending / Descending, Ordenable / Ascendente / Descendente), not only the button `title`.
+
+- The text is an `aria-hidden` span inside the button, so the button's accessible NAME stays exactly the column label (DT-SORT-2, DT-A11Y-1). Assistive technology still gets the state from `aria-sort` on the `th` and from the existing description (`title`, `tables.sort.*` kept unchanged).
+- The three icons are kept. The visible text is sentence case (`normal-case`, `text-xs`, muted), so it does not compete with the uppercase label.
+- Narrow widths and sizes: the `th` is `whitespace-nowrap`, so the button opts back in with `whitespace-normal` and `flex-wrap`; no width classes were added. `min-h-11` (44px) and the `th` `h-12` (48px, a minimum for the row) are unchanged; on a very narrow column the label and state may stack and the row may grow, which is the intended wrapping.
+- Keys: parity test extended FIRST (RED, 3 failures), then `tables.sort.indicator.{sortable,ascending,descending}` added to both locales. The long sentences under `tables.sort.*` were kept for the description; they are too long to show in a header.
+- Tests updated: `sortable-header.test.tsx` (+46 lines: visible text per state, `aria-hidden`, name unchanged, es, wrapping classes) and `data-table.test.tsx` (+22: every sortable header carries its state text, non-sortable has none, names unchanged).
+
+### Tasks
+
+| Task | State | Note |
+|---|---|---|
+| 2b.12 | done (housekeeping) | commit c47cc2d exists |
+| 2c.0 | done | RED: 3 parity + 6 component failures; GREEN 262/262 in tables + parity |
+| 2c.1 | done | RED: 5 parity failures; 16 new keys in each locale (plus the 3 of 2c.0) |
+| 2c.2 | done | RED: module missing; `status-filter.tsx` 11/11 |
+| 2c.3 | done | RED: module missing; `table-toolbar.tsx` 22/22 (one test-only fix: `getByLabelText` matched both the form and the input, now `getByRole("searchbox")`) |
+| 2c.4 | done | RED: module missing; `table-pagination.tsx` 19/19 |
+| 2c.5 | done | RED: module missing, 23 tests |
+| 2c.6 | done | `list-table.tsx`; 23/23 after one test-only fix (the unsorted icon also carries `opacity-60`, so the dimming assertion now targets the card body) |
+| 2c.7 | done, no change | only two copies of the control class string exist (status filter, pagination), so no dedupe; the third-copy condition did not occur |
+| 2c.8 | done | Seam check recorded below |
+| 2c.9 | pending (owner) | Checkpoint; owner commit |
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED (one line) | GREEN | Triangulation / REFACTOR |
+|---|---|---|---|---|---|---|
+| 2c.0 | `sortable-header.test.tsx`, `data-table.test.tsx`, `catalog-parity.test.ts` | Component, unit | 256/256 in `src/components/tables` + parity before any edit | parity 3 failed (`sort.indicator.*` absent); header 5 failed and data-table 1 failed (no visible text, no wrapping classes) | 262/262 | 3 states x en, es, name unchanged, wrapping classes, a table with three sortable headers and one action column |
+| 2c.1 | `src/i18n/catalog-parity.test.ts` | Unit | 200 passing before | 5 failed: exact `tables` key set, per-locale wording, ICU shape | 213/213 in `src/i18n` | exact leaf set (24 keys) in es and en; each key differs between locales except the number format; `count` is an ICU plural with two `#`; `status` and `option` interpolate |
+| 2c.2 | `status-filter.test.tsx` | Component | N/A (new) | `Failed to resolve import "@/components/tables/status-filter"` | 11/11 | real hrefs x3, `aria-current` for each of 3 selections, labelled group, es, push + default cancelled (2 options), 3 modifier clicks keep default, `scroll={false}`, 44px and no fixed width |
+| 2c.3 | `table-toolbar.test.tsx` | Component | N/A (new) | module missing | 22/22 | visible label, GET form and action, hidden fields (no `page`), term follows URL, typing alone is inert, Enter and button, trim and collapse, `%` and `_` untouched, emptied field, maxlength, count for 0, 1, 25, es, updating then count, enabled while pending, focus kept on count change, filter present and absent, group label and wrapping |
+| 2c.4 | `table-pagination.test.tsx` | Component | N/A (new) | module missing | 19/19 | bounds table (3 pages), unavailable are `aria-disabled` spans, hrefs for 4 controls, last page from total and size 25, status text, count, "1 of 1" at 20 results size 25, es, push and cancel, first, modifier clicks, select options exactly 10, 25, 50 with current selected, replace for 25 and 50, landmark, 44px, enabled while pending |
+| 2c.5/2c.6 | `list-table.test.tsx` | Integration (real provider, router and link stand-ins, real `usersListHref` and `parseUsersListParams`) | N/A (new) | module missing | 23/23 | card order, count, footer for totals 0, 1, 10, 11, 25, page and filter and size hrefs keep the rest, form target, sort new and flip, next page, status, search, size, empty, no-results for term, for status alone, clear href for a fully set state, toolbar kept beside no-results, es, pending busy then idle. Mutation check: replacing `applyListChange` with a plain spread for `size` and `q` failed exactly the search and size tests; restored |
+| 2c.7 | n/a | n/a | n/a | n/a | n/a | No third copy of the class strings; nothing changed |
+| 2c.8 | n/a | n/a | n/a | n/a | n/a | Seam check below |
+
+Test summary: 3,524 tests in 170 files after this slice (3,437 in 166 after 2b): 87 new tests and 4 new files (the changes in existing test files are additive), all passing. Layers: component (header, filter, toolbar, pagination), integration (list table), unit (parity). Mocks per file: at most three, all through shared modules (`next/navigation`, `next/link`, `list-navigation`).
+
+Assertion-quality note: as in 2b, a limited number of class-level assertions exist where the task names them (44px `h-11`, wrapping `flex-wrap`/`whitespace-normal`, no fixed width, opacity-only dimming). Everything else asserts roles, names, attributes and text.
+
+### 2c.8 Seam check (`rg` plus `codegraph_explore`)
+
+- Nothing under `src` outside `src/components/tables/` and tests imports `@/components/tables/*` (the only textual hit is a comment in `src/test/list-navigation-mock.ts`).
+- None of `data-table.tsx`, `data-table-pagination.tsx`, `data-table-search.tsx`, `status-filter.tsx` (root) imports the kit; the kit imports none of them. The two `StatusFilter` components share a name only; `AsignaturasPage` and `DocentesPage` still use the old one.
+- `DataTablePagination` still has its six callers (users, asignaturas, docentes pages); untouched.
+
+### New API (for 2d)
+
+- `ListTable<T, K>` props: `columns`, `rows`, `getRowId`, `caption`, `state: ListTableState<K>` (`page`, `q`, `sort`, `size`, optional `status`), `defaultState`, `total`, `hrefFor(state)`, `search { label, placeholder? }`, `empty { message, action? }`, `noResults { title, hint }`. It must render inside `ListNavigationProvider`. `hrefFor={usersListHref}` type-checks as is. The status filter appears when `state.status` is defined.
+- Generic strings come from the `tables` namespace (count, updating, page status, first to last, rows per page, clear, status filter labels); list-specific strings (search label, empty and no-results copy, caption) are props.
+
+### Verification at the checkpoint (V)
+
+| Command | Result |
+|---|---|
+| Focused: `npx vitest run src/components/tables src/i18n` | all passed (8 + files; tables 134 tests) |
+| `npm test` | 170 files, 3,524 tests, 0 failed. jsdom prints "Not implemented: navigation to another Document" for modifier-key clicks that leave the default to the browser (noise, not a failure) |
+| `npm run typecheck` | PASS (rc 0) |
+| `npx eslint src` (JSON output) | 56,279 reports, every one `prettier/prettier` "Delete CR" (pre-existing CRLF); 0 findings of any other kind |
+| `npx prettier --check --end-of-line auto` on `src/components/tables`, `src/test`, `src/i18n/catalog-parity.test.ts`, `i18n` | "All matched files use Prettier code style!" |
+| `npm run build` | PASS (no consumer imports the kit yet, so it is not in a bundle) |
+| `git diff --stat src/app/globals.css` | empty |
+| Line endings (byte-level) | `i18n/{es,en}.json` and `catalog-parity.test.ts` stay CRLF (0 bare LF); every other touched or new file is LF as before |
+
+### Authored lines by path (additions + deletions for tracked files; line count for new files)
+
+| Path | Lines |
+|---|---|
+| `i18n/es.json`, `i18n/en.json` | +33 / -1 each |
+| `src/i18n/catalog-parity.test.ts` | +61 / -1 |
+| `src/components/tables/sortable-header.tsx` | +14 / -3 |
+| `src/components/tables/sortable-header.test.tsx` | +46 |
+| `src/components/tables/data-table.test.tsx` | +22 |
+| `src/components/tables/client-boundary.test.ts` | +4 |
+| `src/components/tables/list-table.tsx` (new) | 176 |
+| `src/components/tables/status-filter.tsx` (new) | 66 |
+| `src/components/tables/table-pagination.tsx` (new) | 124 |
+| `src/components/tables/table-toolbar.tsx` (new) | 122 |
+| `src/test/list-navigation-mock.ts` (new) | 29 |
+| `src/components/tables/list-table.test.tsx` (new) | 449 |
+| `src/components/tables/status-filter.test.tsx` (new) | 148 |
+| `src/components/tables/table-pagination.test.tsx` (new) | 269 |
+| `src/components/tables/table-toolbar.test.tsx` (new) | 274 |
+| **Total** | tracked 219 + new 1,657 = **about 1,876**, against an estimate of 650 to 850 (upper bound +121%; the +25% stop threshold is 1,063). Production about 570 (components 488, header 17, locale files 66), test support 29, tests about 1,280 |
+
+Flagged for the owner. As in earlier slices the overrun was only measurable at the slice seam, so nothing was cut; the single-PR decision (D14) holds. Running total of 1a, 1b, 2a, 2b and 2c: about 7,620 lines. Cause: four component suites with Spanish, pending and modifier-key triangulation, plus an integration suite for `ListTable`, which the estimate did not count separately.
+
+### Locale keys added (identical sets in `es.json` and `en.json`)
+
+- `tables.sort.indicator.{sortable,ascending,descending}` (2c.0)
+- `tables.toolbar.label`, `tables.search.submit`
+- `tables.filter.{label,active,inactive,all}`
+- `tables.count` (ICU plural), `tables.updating`
+- `tables.pagination.{region,status,first,previous,next,last}`
+- `tables.pageSize.{label,option}`, `tables.clear`
+
+### Deviations from the design and tasks
+
+1. Task 2c.0 is not in the original `tasks.md`; it was added as a ticked line above 2c.1 to record the owner's decision.
+2. The no-results state keeps the toolbar (search with the term, status filter, count) in its own card above the state, so the user can refine without leaving; the plain empty state has no toolbar (nothing to search). The task text only fixed the state and the clear link.
+3. The clear link goes to `hrefFor(defaultState)`, read literally from "the href with only the default state and page 1": it also resets sort and page size. A friendlier alternative (keep sort and size, clear only `q` and `status`) is a one-line change in `list-table.tsx` and one test; flagged for the owner.
+4. `ListTable` takes a `defaultState` prop (not in the design's prop list) so it can tell "filtered" from "empty" and build the clear link without knowing any list's defaults.
+5. `TableToolbar` and `TablePagination` additionally render `tables.count` in the footer (DT-PAG-1 asks the footer for the total). The toolbar count stays the only live region.
+6. The search cap (100) is a local constant in `table-toolbar.tsx`; the three existing definitions (`USERS_SEARCH_MAX`, catalog) are per-list modules the kit must not import.
+7. The page-size control is a native `select` (design decision 6 and design-system "form select at 44px"), not `ui/select.tsx`.
+8. The kit's link controls do not use `buttonVariants` (it carries `transition-all` and a press translate, both excluded by design-system rule 6); the toolbar submit still uses `Button size="lg"` as the old search did.
+9. Two additive edits to existing tests beyond the task list: `client-boundary.test.ts` lists the four new client modules; `data-table.test.tsx` gained one test for the visible state text (2c.0).
+10. A new test-support module `src/test/list-navigation-mock.ts` (29 lines) gives unit tests a controllable `useListNavigation`, in the same pattern as `navigation-mock.ts`; the real provider is exercised by `list-navigation.test.tsx` and the `ListTable` integration test.
+11. Slice size is about 1,876 changed lines against the 650 to 850 estimate (see above).
+
+### Not verified (no browser, no real router in this run)
+
+Real pixel size of the 44px controls and the 48px header with the longer content; how the visible state text wraps in a real 320px and 360px viewport (class-level only); that a screen reader reads the header as the label only while `aria-sort` and the description carry the state, without double announcement; the real App Router `next/link` and `onNavigate` (stand-in only, per 0.9); the pending flag and the count region against the real Next router; that `@tanstack/react-table` and the kit land in a client bundle (the first real build proof is 2d, since no page imports them yet); focus retention after a sort when `loading.tsx` shows on a query-only navigation (Gate V1, 2d.5); browser native `select` appearance in both themes and the dark-mode contrast of the muted state text. These belong to the F.4 manual checklist and to 2d.
+
+### Work Unit Evidence (Slice 2c)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/components/tables src/i18n`: all passed; full suite 170 files, 3,524 tests |
+| Runtime harness | `npm run build` compiled; the kit has no consumer yet, so the runtime path is exercised in jsdom with the real catalogs, the real list-navigation provider, the shared router and link stand-ins and the real users URL builders. No browser run |
+| Rollback boundary | Revert `i18n/{es,en}.json` (the `tables` additions), `catalog-parity.test.ts`, `sortable-header.tsx` and its test, the additions to `data-table.test.tsx` and `client-boundary.test.ts`; delete `status-filter`, `table-toolbar`, `table-pagination`, `list-table` (and their tests) in `src/components/tables/` and `src/test/list-navigation-mock.ts`. Nothing outside the slice imports them |
+
+### Suggested commit (owner)
+
+`feat(tables): toolbar, status filter, first and last pagination and page-size selector`

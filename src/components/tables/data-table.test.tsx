@@ -126,6 +126,28 @@ describe("DataTable server-driven mode (DT-MODE-1, DT-SORT-1)", () => {
     },
   );
 
+  it("writes the sort state of every sortable header as visible text", () => {
+    renderTable({
+      sorting: { sort: { key: "login", dir: "desc" }, onSort: vi.fn() },
+    });
+    const indicator = messages.en.tables.sort.indicator;
+
+    expect(within(header("Name")).getByText(indicator.sortable)).toBeVisible();
+    expect(
+      within(header("Login")).getByText(indicator.descending),
+    ).toBeVisible();
+    expect(
+      within(header("Status")).getByText(indicator.sortable),
+    ).toBeVisible();
+    // A non-sortable header gets no state text, and no header has two.
+    const actions = header("Actions");
+    expect(within(actions).queryByText(indicator.sortable)).toBeNull();
+    expect(actions).toHaveTextContent(/^Actions$/);
+    expect(screen.getAllByText(indicator.sortable)).toHaveLength(2);
+    // The accessible names are still exactly the column labels.
+    expect(screen.getByRole("button", { name: "Login" })).toBeInTheDocument();
+  });
+
   it("gives non-sortable columns no button and no aria-sort", () => {
     renderTable();
 
