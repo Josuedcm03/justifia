@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import en from "../../i18n/en.json";
+import { RETURN_REASONS } from "../lib/intake/return-reasons";
 import es from "../../i18n/es.json";
 
 // RNF-11, RNF-12: every user-facing string of the correction flow exists in both
@@ -73,6 +74,32 @@ describe("correction messages", () => {
       }
     },
   );
+
+  it.each(catalogs)(
+    "%s words the return reason banner and labels every RN-17 code it can show",
+    (_l, m) => {
+      const { banner } = m.intake.correction;
+      const reasons = m.requests.detail.reasons as Record<string, string>;
+
+      expect(banner.title.trim().length).toBeGreaterThan(0);
+      expect(banner.reason).toContain("{reason}");
+      expect(RETURN_REASONS.length).toBeGreaterThan(0);
+      for (const code of RETURN_REASONS) {
+        expect(reasons[code], code).toBeTruthy();
+      }
+    },
+  );
+
+  it("words the banner differently in each language", () => {
+    expect(es.intake.correction.banner.title).toBe(
+      "Por qué se devolvió tu solicitud",
+    );
+    expect(en.intake.correction.banner.title).toBe(
+      "Why your request was returned",
+    );
+    expect(es.intake.correction.banner.reason).toBe("Motivo: {reason}");
+    expect(en.intake.correction.banner.reason).toBe("Reason: {reason}");
+  });
 
   it("asks for the confirmation in each language, not the same text", () => {
     expect(es.intake.correction.resubmit.confirm).toBe("Sí, reenviar");

@@ -18,16 +18,21 @@ import type { Draft } from "@/lib/data/solicitudes";
 // styles for these utilities. The real check is the manual walk at 360px
 // (task 6.14).
 
-const { requireRole, getLiveDraft, listEnrollmentFailSoft } = vi.hoisted(
-  () => ({
-    requireRole: vi.fn(),
-    getLiveDraft: vi.fn(),
-    listEnrollmentFailSoft: vi.fn(),
-  }),
-);
+const {
+  requireRole,
+  getLiveDraft,
+  getCorrectionReason,
+  listEnrollmentFailSoft,
+} = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  getLiveDraft: vi.fn(),
+  getCorrectionReason: vi.fn(),
+  listEnrollmentFailSoft: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/dal", () => ({ requireRole }));
 vi.mock("@/lib/data/solicitudes", () => ({ getLiveDraft }));
+vi.mock("@/lib/data/student-requests", () => ({ getCorrectionReason }));
 vi.mock("@/lib/data/enrollment", () => ({ listEnrollmentFailSoft }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => ({}) }));
 vi.mock("next-intl/server", () => ({
@@ -68,6 +73,7 @@ const ROOT = process.cwd();
 const MODULES = [
   "src/app/(dashboard)/requests/[id]/correct/page.tsx",
   "src/app/(dashboard)/requests/[id]/correct/actions.ts",
+  "src/app/(dashboard)/requests/[id]/correct/correction-reason-banner.tsx",
   "src/app/(dashboard)/requests/new/flow-steps.tsx",
   "src/app/(dashboard)/requests/new/resubmit-dialog.tsx",
 ].map((path) => ({
@@ -171,6 +177,12 @@ const GROUP = {
   docenteNombre: "Ana Maria de los Angeles Perez Castellon",
 };
 
+// A long message with an unbroken run, the worst case at 360px.
+const LONG_REASON = {
+  motivo: "documento_ilegible",
+  texto: `Adjunte una copia legible ${"certificadomedicooriginal".repeat(6)} del documento.`,
+};
+
 async function renderStep(step: string | null) {
   const ui = await CorrectRequestPage({
     params: Promise.resolve({ id: "31" }),
@@ -182,6 +194,7 @@ async function renderStep(step: string | null) {
 beforeEach(() => {
   requireRole.mockReset().mockResolvedValue({ sub: "7", rol: "estudiante" });
   getLiveDraft.mockReset().mockResolvedValue(RETURNED);
+  getCorrectionReason.mockReset().mockResolvedValue(LONG_REASON);
   listEnrollmentFailSoft
     .mockReset()
     .mockResolvedValue({ data: [GROUP], degraded: false });
@@ -202,6 +215,22 @@ describe("design system: the correction page (§4.1, §5, §7)", () => {
       "text-destructive-ink",
       "rounded-lg",
     );
+  });
+
+  it("draws the return reason as the alert pattern in the warning tokens, with text", async () => {
+    await renderStep("1");
+
+    const banner = screen.getByRole("status", {
+      name: "Why your request was returned",
+    });
+    expect(banner).toHaveClass(
+      "border-l-4",
+      "border-l-warning",
+      "bg-warning/8",
+      "text-warning-ink",
+      "rounded-lg",
+    );
+    expect(banner).toHaveTextContent("Reason: The document is not legible");
   });
 
   it("gives the way back to the request a 44px ghost target", async () => {
@@ -265,6 +294,22 @@ describe("design system: 360px (RNF-11, §4.3)", () => {
       const { container } = await renderStep(step);
 
       expect(tooWide(container, VIEWPORT - PAGE_MARGIN)).toEqual([]);
+    },
+  );
+
+  it.each(["1", "3"])(
+    "lets the banner text wrap on step %s instead of widening the page",
+    async (step) => {
+      await renderStep(step);
+
+      const banner = screen.getByRole("status", {
+        name: "Why your request was returned",
+      });
+      const message = screen.getByText(/certificadomedicooriginal/);
+      expect(banner).toContainElement(message);
+      expect(message).toHaveClass("break-words", "whitespace-pre-wrap");
+      expect(message).not.toHaveClass("truncate", "whitespace-nowrap");
+      expect(banner).not.toHaveClass("whitespace-nowrap", "overflow-x-scroll");
     },
   );
 
