@@ -70,6 +70,9 @@ export function makeDetailsStepSchema(
 
 const id = z.number().int().positive();
 
+/** A request id named by the client; the data layer still checks ownership. */
+export const requestIdSchema = id;
+
 /** Step 2: picked subjects; `grupoId` is null when the enrollment decides. */
 export const subjectsStepSchema = z.object({
   selections: z.array(z.object({ asignaturaId: id, grupoId: id.nullable() })),
