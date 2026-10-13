@@ -5,6 +5,7 @@ import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import { DIAS_SEMANA } from "@/lib/catalog/dias";
+import { shortcutsFor } from "@/lib/navigation";
 import { rolesUsuario } from "@/lib/validations/auth";
 import { CATALOG_FIELD_ERROR_KEYS } from "@/lib/validations/catalog";
 
@@ -37,6 +38,9 @@ const GUARDED_SECTIONS = [
   "nav.profile",
   "nav.trailLabel",
   "roles",
+  // Backoffice shell, slice 1b: route error screen and the role-aware home.
+  "shell",
+  "dashboard",
 ] as const;
 
 type Node = string | { [key: string]: Node };
@@ -145,6 +149,81 @@ describe("catalog parity (BS-I18N-1: shell copy)", () => {
 
       expect(typeof trail).toBe("string");
       expect(trail).not.toBe(resolve(messages, "nav.sectionLabel"));
+    },
+  );
+});
+
+describe("catalog parity (BS-I18N-1: states and home copy)", () => {
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the route error keys",
+    (locale) => {
+      expect(leafPaths(resolve(messagesOf(locale), "shell")).sort()).toEqual([
+        "error.dashboardLink",
+        "error.description",
+        "error.reference",
+        "error.retry",
+        "error.title",
+      ]);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s renders the error reference with the digest through the real translator",
+    (locale) => {
+      const t = createTranslator({
+        locale,
+        messages: messagesOf(locale),
+        namespace: "shell",
+        onError: (error: Error) => {
+          throw error;
+        },
+      });
+
+      expect(t("error.reference", { digest: "ab12cd" })).toContain("ab12cd");
+    },
+  );
+
+  // Every destination any role can be offered needs a one-sentence description.
+  const SHORTCUT_KEYS = [
+    ...new Set(
+      rolesUsuario.flatMap((rol) => shortcutsFor(rol)).map((l) => l.key),
+    ),
+  ].sort();
+
+  it("offers shortcuts for at least the five destinations the roles reach", () => {
+    expect(SHORTCUT_KEYS).toEqual([
+      "catalogAsignaturas",
+      "catalogDocentes",
+      "catalogImport",
+      "newRequest",
+      "users",
+    ]);
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s describes every shortcut and carries the degraded and empty sentences",
+    (locale) => {
+      const paths = leafPaths(resolve(messagesOf(locale), "dashboard"));
+
+      for (const key of SHORTCUT_KEYS) {
+        expect(paths, key).toContain(`shortcuts.${key}`);
+      }
+      expect(paths).toEqual(expect.arrayContaining(["degraded", "empty"]));
+    },
+  );
+
+  it.each([
+    ["es", /no se pudieron/i],
+    ["en", /could not/i],
+  ] as const)(
+    "%s home degraded sentence says the figures could not be loaded",
+    (locale, notLoaded) => {
+      expect(resolve(messagesOf(locale), "dashboard.degraded")).toMatch(
+        notLoaded,
+      );
     },
   );
 });

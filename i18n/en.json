@@ -45,7 +45,25 @@
     "title": "Dashboard",
     "subtitle": "Overview of your backoffice",
     "totalUsers": "Total users",
-    "activeUsers": "Active users"
+    "activeUsers": "Active users",
+    "degraded": "The figures could not be loaded. Try again later.",
+    "empty": "You have no dashboard shortcuts for now.",
+    "shortcuts": {
+      "newRequest": "Submit a new justification request.",
+      "catalogAsignaturas": "Browse and manage subjects and their groups.",
+      "catalogDocentes": "Browse the registered teachers.",
+      "catalogImport": "Load the catalog from an Excel file.",
+      "users": "Manage user accounts."
+    }
+  },
+  "shell": {
+    "error": {
+      "title": "Something went wrong",
+      "description": "We could not show this screen. Try again or go back to the dashboard.",
+      "retry": "Try again",
+      "dashboardLink": "Go to the dashboard",
+      "reference": "Reference: {digest}"
+    }
   },
   "changePassword": {
     "title": "Change your password",

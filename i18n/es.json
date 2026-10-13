@@ -45,7 +45,25 @@
     "title": "Panel",
     "subtitle": "Resumen de tu backoffice",
     "totalUsers": "Usuarios totales",
-    "activeUsers": "Usuarios activos"
+    "activeUsers": "Usuarios activos",
+    "degraded": "No se pudieron cargar las cifras. Inténtalo de nuevo más tarde.",
+    "empty": "Por ahora no tienes accesos directos en el panel.",
+    "shortcuts": {
+      "newRequest": "Presenta una nueva solicitud de justificación.",
+      "catalogAsignaturas": "Consulta y administra las asignaturas y sus grupos.",
+      "catalogDocentes": "Consulta los docentes registrados.",
+      "catalogImport": "Carga el catálogo desde un archivo de Excel.",
+      "users": "Administra las cuentas de usuario."
+    }
+  },
+  "shell": {
+    "error": {
+      "title": "Algo salió mal",
+      "description": "No pudimos mostrar esta pantalla. Inténtalo de nuevo o vuelve al panel.",
+      "retry": "Intentar de nuevo",
+      "dashboardLink": "Ir al panel",
+      "reference": "Referencia: {digest}"
+    }
   },
   "changePassword": {
     "title": "Cambia tu contraseña",

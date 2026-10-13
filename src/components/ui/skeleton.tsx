@@ -4,7 +4,12 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
-      className={cn("bg-secondary animate-pulse rounded-md", className)}
+      // The pulse is the only movement the shell adds and it stops under
+      // reduced motion (BS-MOT-1).
+      className={cn(
+        "bg-secondary rounded-md motion-safe:animate-pulse",
+        className,
+      )}
       {...props}
     />
   );
