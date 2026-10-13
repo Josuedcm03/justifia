@@ -1,3 +1,5 @@
+import type { RequestScope } from "@/lib/intake/request-scope";
+import { isVisibleState } from "@/lib/intake/states";
 import { rolesUsuario } from "@/lib/validations/auth";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -112,12 +114,44 @@ export function canFileRequests(rol: RolUsuario | undefined): boolean {
 }
 
 /**
- * Who may read a supporting document (D15): only the owning student in this
- * change. Other roles arrive with later changes, widening this one predicate.
+ * Roles that review and decide requests (secretary-review, RN-15). Typed
+ * against `RolUsuario` so a renamed role is a compile error.
+ */
+export const rolesRevisores = [
+  "secretaria",
+] as const satisfies readonly RolUsuario[];
+
+export function canReviewRequests(rol: RolUsuario | undefined): boolean {
+  return (
+    rol !== undefined && (rolesRevisores as readonly string[]).includes(rol)
+  );
+}
+
+/** What the document predicate needs to know about the document's request. */
+export type ViewableDocument = {
+  estudianteId: number;
+  /** `Carrera.FacultadId` of the student's current career; null without one. */
+  estudianteFacultadId: number | null;
+  solicitudEstado: string;
+};
+
+/**
+ * Who may read a supporting document (D15, SR-12). The owning student reads
+ * their own documents in any state, retired ones included. A reviewing role
+ * reads only inside its facultad scope, and only a request that is not a
+ * draft. Every other role, and a `none` scope, is denied.
  */
 export function canViewDocument(
   viewer: { id: number; rol: RolUsuario },
-  ownerId: number,
+  doc: ViewableDocument,
+  scope: RequestScope,
 ): boolean {
-  return canFileRequests(viewer.rol) && viewer.id === ownerId;
+  if (canFileRequests(viewer.rol)) return viewer.id === doc.estudianteId;
+  return (
+    canReviewRequests(viewer.rol) &&
+    scope.kind === "facultad" &&
+    doc.estudianteFacultadId !== null &&
+    scope.facultadId === doc.estudianteFacultadId &&
+    isVisibleState(doc.solicitudEstado)
+  );
 }
