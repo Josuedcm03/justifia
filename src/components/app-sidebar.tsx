@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   GraduationCap,
   LayoutDashboard,
+  ListChecks,
   type LucideIcon,
   Settings,
   Users,
@@ -71,6 +72,12 @@ type NavGroup = {
 const items = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
   {
+    key: "myRequests",
+    href: "/requests",
+    icon: ListChecks,
+    visibleTo: canFileRequests,
+  },
+  {
     key: "newRequest",
     href: "/requests/new",
     icon: FilePlus,
@@ -121,6 +128,21 @@ function isCurrent(pathname: string, href: string) {
   return href === "/"
     ? pathname === "/"
     : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+// `/requests/new` sits under `/requests`: the more specific link owns the page,
+// so two top-level entries are never current together.
+const topLevelHrefs = items.flatMap((item) =>
+  "href" in item ? [item.href] : [],
+);
+
+function isCurrentTopLevel(pathname: string, href: string) {
+  return (
+    isCurrent(pathname, href) &&
+    !topLevelHrefs.some(
+      (other) => other.startsWith(`${href}/`) && isCurrent(pathname, other),
+    )
+  );
 }
 
 function prefetchOf(item: NavLink) {
@@ -259,7 +281,7 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
 
                 if (!isVisible(item, rol)) return null;
 
-                const isActive = isCurrent(pathname, item.href);
+                const isActive = isCurrentTopLevel(pathname, item.href);
 
                 return (
                   <SidebarMenuItem key={item.key}>

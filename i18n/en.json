@@ -12,6 +12,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "myRequests": "My requests",
     "newRequest": "New request",
     "review": "Review requests",
     "administration": "Administration",

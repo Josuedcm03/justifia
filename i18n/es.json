@@ -12,6 +12,7 @@
   },
   "nav": {
     "dashboard": "Panel",
+    "myRequests": "Mis solicitudes",
     "newRequest": "Nueva solicitud",
     "review": "Revisión de solicitudes",
     "administration": "Administración",
