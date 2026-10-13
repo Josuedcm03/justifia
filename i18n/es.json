@@ -735,5 +735,42 @@
       "home": "Ir al panel",
       "another": "Presentar otra solicitud"
     }
+  },
+  "review": {
+    "queue": {
+      "title": "Cola de revisión",
+      "description": "Solicitudes pendientes de su facultad, de la más antigua a la más reciente.",
+      "caption": "Solicitudes pendientes",
+      "columns": {
+        "received": "Recibida",
+        "student": "Estudiante",
+        "career": "Carrera",
+        "subjects": "Asignaturas",
+        "deadline": "Plazo",
+        "action": "Acciones"
+      },
+      "subjectsCount": "{count, plural, one {# asignatura} other {# asignaturas}}",
+      "resubmitted": "Reenviada",
+      "unnamed": "Estudiante sin nombre",
+      "deadline": {
+        "onTime": "En plazo",
+        "dueSoon": "Vence en 1 día hábil o menos",
+        "overdue": "Vencida",
+        "due": "Vence el {date}"
+      },
+      "review": "Revisar",
+      "reviewNamed": "Revisar la solicitud de {name}",
+      "empty": "No hay solicitudes pendientes en su facultad.",
+      "noFaculty": {
+        "title": "Su cuenta no tiene una facultad asignada",
+        "message": "Pida a coordinación que asigne una facultad a su cuenta antes de revisar solicitudes."
+      },
+      "calendarNotLoaded": "El calendario de días no laborables de este año no está cargado, por lo que los plazos solo omiten los fines de semana.",
+      "result": {
+        "aprobada": "La solicitud fue aprobada.",
+        "rechazada": "La solicitud fue rechazada.",
+        "devuelta": "La solicitud fue devuelta al estudiante para su corrección."
+      }
+    }
   }
 }

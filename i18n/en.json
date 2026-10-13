@@ -735,5 +735,42 @@
       "home": "Go to the dashboard",
       "another": "Submit another request"
     }
+  },
+  "review": {
+    "queue": {
+      "title": "Review queue",
+      "description": "Pending requests from your faculty, oldest first.",
+      "caption": "Pending requests",
+      "columns": {
+        "received": "Received",
+        "student": "Student",
+        "career": "Career",
+        "subjects": "Subjects",
+        "deadline": "Deadline",
+        "action": "Actions"
+      },
+      "subjectsCount": "{count, plural, one {# subject} other {# subjects}}",
+      "resubmitted": "Resubmitted",
+      "unnamed": "Unnamed student",
+      "deadline": {
+        "onTime": "On time",
+        "dueSoon": "Due within 1 business day",
+        "overdue": "Overdue",
+        "due": "Due {date}"
+      },
+      "review": "Review",
+      "reviewNamed": "Review request from {name}",
+      "empty": "There are no pending requests in your faculty.",
+      "noFaculty": {
+        "title": "Your account has no faculty assigned",
+        "message": "Ask coordination to assign a faculty to your account before you review requests."
+      },
+      "calendarNotLoaded": "The non-working days calendar for this year is not loaded, so deadlines only skip weekends.",
+      "result": {
+        "aprobada": "The request was approved.",
+        "rechazada": "The request was rejected.",
+        "devuelta": "The request was returned to the student for correction."
+      }
+    }
   }
 }
