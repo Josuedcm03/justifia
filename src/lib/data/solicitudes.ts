@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, eq, gt, lte, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, gt, isNull, lte, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -62,10 +62,50 @@ function ownLiveDraft(userId: number, now: Date): SQL | undefined {
   );
 }
 
-/** The caller's resumable draft with its subjects and documents, or null. */
+/**
+ * What the intake steps edit (SR-13): the caller's draft, or the caller's own
+ * returned request (`devuelta`) in place. A correction never touches a
+ * `borrador`: the 30-day draft sweep would delete a presented request.
+ */
+export type EditTarget =
+  { kind: "draft" } | { kind: "correction"; solicitudId: number };
+
+export const DRAFT_TARGET: EditTarget = { kind: "draft" };
+
+function ownReturned(userId: number, solicitudId: number): SQL | undefined {
+  return and(
+    eq(solicitud.id, solicitudId),
+    eq(solicitud.estudianteId, userId),
+    eq(solicitud.estado, "devuelta"),
+  );
+}
+
+/** The target's row while it is still open for editing (a draft must be live). */
+export function editableWhere(
+  userId: number,
+  target: EditTarget,
+  now: Date,
+): SQL | undefined {
+  return target.kind === "draft"
+    ? ownLiveDraft(userId, now)
+    : ownReturned(userId, target.solicitudId);
+}
+
+/** The target's row by owner and state alone, for document writes (D12). */
+export function ownedWhere(
+  userId: number,
+  target: EditTarget,
+): SQL | undefined {
+  return target.kind === "draft"
+    ? and(eq(solicitud.estudianteId, userId), eq(solicitud.estado, "borrador"))
+    : ownReturned(userId, target.solicitudId);
+}
+
+/** The caller's resumable draft (or returned request) with its parts, or null. */
 export async function getLiveDraft(
   userId: number,
   now: Date,
+  target: EditTarget = DRAFT_TARGET,
 ): Promise<Draft | null> {
   const [row] = await db
     .select({
@@ -76,7 +116,7 @@ export async function getLiveDraft(
       actualizadoEn: solicitud.actualizadoEn,
     })
     .from(solicitud)
-    .where(ownLiveDraft(userId, now))
+    .where(editableWhere(userId, target, now))
     .limit(1);
   if (!row) return null;
 
@@ -98,7 +138,12 @@ export async function getLiveDraft(
       estado: documentoRespaldo.estado,
     })
     .from(documentoRespaldo)
-    .where(eq(documentoRespaldo.solicitudId, row.id))
+    .where(
+      and(
+        eq(documentoRespaldo.solicitudId, row.id),
+        isNull(documentoRespaldo.retiradoEn),
+      ),
+    )
     .orderBy(asc(documentoRespaldo.creadoEn));
 
   return {
@@ -191,16 +236,17 @@ export async function openDraft(
   return winner;
 }
 
-/** Save step 1. False when the caller has no live draft. */
+/** Save step 1. False when the caller has nothing open to edit. */
 export async function saveDraftDetails(
   userId: number,
   now: Date,
   details: DraftDetails,
+  target: EditTarget = DRAFT_TARGET,
 ): Promise<boolean> {
   const updated = await db
     .update(solicitud)
     .set({ ...details, actualizadoEn: now })
-    .where(ownLiveDraft(userId, now))
+    .where(editableWhere(userId, target, now))
     .returning({ id: solicitud.id });
   return updated.length > 0;
 }
@@ -210,12 +256,13 @@ export async function saveDraftSubjects(
   userId: number,
   now: Date,
   grupoIds: readonly number[],
+  target: EditTarget = DRAFT_TARGET,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     const [draft] = await tx
       .update(solicitud)
       .set({ actualizadoEn: now })
-      .where(ownLiveDraft(userId, now))
+      .where(editableWhere(userId, target, now))
       .returning({ id: solicitud.id });
     if (!draft) return false;
 
