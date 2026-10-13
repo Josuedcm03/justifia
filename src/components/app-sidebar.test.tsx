@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -67,16 +67,16 @@ const ALL_ROLES: readonly RolUsuario[] = [
 const CURRENT_MARKER =
   "data-active:shadow-[inset_4px_0_0_0_var(--sidebar-primary)]";
 
-function sidebarTree(rol: RolUsuario) {
+function sidebarTree(rol: RolUsuario, nombre = "Ana Perez") {
   return (
     <SidebarProvider>
-      <AppSidebar rol={rol} />
+      <AppSidebar rol={rol} nombre={nombre} />
     </SidebarProvider>
   );
 }
 
-function renderSidebar(rol: RolUsuario) {
-  return render(sidebarTree(rol));
+function renderSidebar(rol: RolUsuario, nombre = "Ana Perez") {
+  return render(sidebarTree(rol, nombre));
 }
 
 function queryTrigger(name = "Administración") {
@@ -722,5 +722,188 @@ describe("AppSidebar copy (both locales)", () => {
       "href",
       "/users",
     );
+  });
+});
+
+describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
+  it.each([
+    ["estudiante", ["Panel", "Nueva solicitud", "Configuración"], []],
+    ["docente", ["Panel", "Configuración"], []],
+    [
+      "administrador",
+      ["Panel", "Administración", "Configuración"],
+      ["Asignaturas", "Docentes", "Usuarios"],
+    ],
+    [
+      "coordinacion",
+      ["Panel", "Administración", "Configuración"],
+      ["Asignaturas", "Docentes", "Usuarios"],
+    ],
+    [
+      "secretaria",
+      ["Panel", "Administración", "Configuración"],
+      ["Asignaturas", "Docentes", "Carga de catálogo", "Usuarios"],
+    ],
+  ] as const)(
+    "shows %s the top level %j and the group children %j, in order",
+    (rol, top, children) => {
+      renderSidebar(rol);
+
+      expect(topLevelLabels()).toEqual(top);
+      if (children.length === 0) {
+        expect(queryTrigger()).not.toBeInTheDocument();
+      } else {
+        expect(
+          within(getGroupList())
+            .getAllByRole("link", { hidden: true })
+            .map((link) => link.textContent),
+        ).toEqual(children);
+      }
+    },
+  );
+
+  it.each(ALL_ROLES)(
+    "keeps the settings entry for %s: label, icon, last position and /settings",
+    (rol) => {
+      renderSidebar(rol);
+
+      const settings = screen.getByRole("link", { name: "Configuración" });
+
+      expect(settings).toHaveAttribute("href", "/settings");
+      expect(settings.querySelector("svg.lucide-settings")).not.toBeNull();
+      expect(topLevelLabels().at(-1)).toBe("Configuración");
+    },
+  );
+
+  it("marks only Asignaturas on a nested grupos route, with the group open", () => {
+    env.pathname = "/catalog/asignaturas/3/grupos/new";
+    renderSidebar("administrador");
+
+    const marked = document.querySelectorAll("[aria-current]");
+
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveTextContent("Asignaturas");
+    expect(getTrigger()).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("AppSidebar landmark (BS-A11Y-1)", () => {
+  it.each([
+    ["es", "Navegación"],
+    ["en", "Navigation"],
+  ] as const)(
+    "wraps the menu in a navigation landmark labelled %s",
+    (locale, label) => {
+      env.locale = locale;
+      renderSidebar("administrador");
+
+      const nav = screen.getByRole("navigation", { name: label });
+
+      expect(
+        within(nav).getByRole("link", { name: /Panel|Dashboard/ }),
+      ).toHaveAttribute("href", "/");
+    },
+  );
+});
+
+describe("AppSidebar identity block (BS-NAV-2)", () => {
+  function getFooter() {
+    const footer = document.querySelector('[data-sidebar="footer"]');
+    expect(footer).not.toBeNull();
+
+    return footer as HTMLElement;
+  }
+
+  it.each([
+    ["es", "Coordinación"],
+    ["en", "Coordination"],
+  ] as const)(
+    "shows the initials, the name and the role in %s",
+    (locale, role) => {
+      env.locale = locale;
+      renderSidebar("coordinacion", "Ana Perez");
+
+      const footer = within(getFooter());
+
+      expect(footer.getByText("AP")).toBeInTheDocument();
+      expect(footer.getByText("Ana Perez")).toBeInTheDocument();
+      expect(footer.getByText(role)).toBeInTheDocument();
+    },
+  );
+
+  it("changes the role label with the locale and leaves the name alone", () => {
+    renderSidebar("secretaria", "Luis Mora");
+    expect(within(getFooter()).getByText("Secretaria")).toBeInTheDocument();
+    expect(within(getFooter()).getByText("Luis Mora")).toBeInTheDocument();
+    cleanup();
+
+    env.locale = "en";
+    renderSidebar("secretaria", "Luis Mora");
+
+    expect(within(getFooter()).getByText("Secretary")).toBeInTheDocument();
+    expect(within(getFooter()).getByText("Luis Mora")).toBeInTheDocument();
+  });
+
+  it.each(ALL_ROLES)("labels the %s role from the roles namespace", (rol) => {
+    renderSidebar(rol);
+
+    expect(
+      within(getFooter()).getByText(
+        (esMessages.roles as Record<string, string>)[rol],
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("is text only: no link, no button and no popup trigger", () => {
+    renderSidebar("coordinacion");
+
+    const footer = getFooter();
+
+    expect(within(footer).queryAllByRole("link", { hidden: true })).toEqual([]);
+    expect(within(footer).queryAllByRole("button", { hidden: true })).toEqual(
+      [],
+    );
+    expect(footer.querySelector("[aria-haspopup]")).toBeNull();
+    expect(footer.querySelector("a, button, [tabindex]")).toBeNull();
+    expect(footer.textContent).toContain("Ana Perez");
+  });
+
+  it("hides the initials avatar from assistive technology", () => {
+    renderSidebar("coordinacion", "Ana Perez");
+
+    const initialsNode = within(getFooter()).getByText("AP");
+
+    expect(initialsNode.closest("[aria-hidden='true']")).not.toBeNull();
+    expect(
+      within(getFooter()).getByText("Ana Perez").closest("[aria-hidden]"),
+    ).toBeNull();
+  });
+
+  it("truncates a long name without hover styling and keeps the full value reachable", () => {
+    const long = "María de los Ángeles Fernández de la Cruz Hernández";
+    renderSidebar("coordinacion", long);
+
+    const name = within(getFooter()).getByText(long);
+
+    expect(name).toHaveClass("truncate");
+    expect(name).toHaveAttribute("title", long);
+    expect(getFooter().innerHTML).not.toMatch(/hover:/);
+  });
+
+  it.each([
+    ["Ana", "A"],
+    ["  Ana    Perez  ", "AP"],
+  ])("renders the initials of %j as %j", (nombre, expected) => {
+    renderSidebar("coordinacion", nombre);
+
+    expect(within(getFooter()).getByText(expected)).toBeInTheDocument();
+  });
+
+  it("makes no data request: it only reads its props", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderSidebar("coordinacion");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });

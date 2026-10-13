@@ -19,7 +19,16 @@
     "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
-    "sectionLabel": "Navigation"
+    "sectionLabel": "Navigation",
+    "profile": "My profile",
+    "trailLabel": "Page location"
+  },
+  "roles": {
+    "estudiante": "Student",
+    "docente": "Teacher",
+    "coordinacion": "Coordination",
+    "secretaria": "Secretary",
+    "administrador": "Administrator"
   },
   "theme": {
     "toggle": "Toggle theme",

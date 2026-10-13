@@ -5,6 +5,7 @@ import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import { DIAS_SEMANA } from "@/lib/catalog/dias";
+import { rolesUsuario } from "@/lib/validations/auth";
 import { CATALOG_FIELD_ERROR_KEYS } from "@/lib/validations/catalog";
 
 import enMessages from "../../i18n/en.json";
@@ -30,6 +31,12 @@ const GUARDED_SECTIONS = [
   "catalog.grupos",
   "nav.catalogDocentes",
   "catalog.docentes",
+  // Backoffice shell (backoffice-ui-refresh): the top-bar trail reuses the
+  // sidebar's `nav.*` labels and adds its landmark label and the profile page;
+  // `roles` labels the sidebar identity block.
+  "nav.profile",
+  "nav.trailLabel",
+  "roles",
 ] as const;
 
 type Node = string | { [key: string]: Node };
@@ -116,6 +123,30 @@ describe("catalog parity (FPC: Copy in both locales)", () => {
       [...required].sort(),
     );
   });
+});
+
+describe("catalog parity (BS-I18N-1: shell copy)", () => {
+  it.each(["es", "en"] as const)(
+    "%s labels exactly one role per RolUsuario",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+
+      expect(leafPaths(resolve(messages, "roles")).sort()).toEqual(
+        [...rolesUsuario].sort(),
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s carries the trail landmark label apart from the sidebar's",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      const trail = resolve(messages, "nav.trailLabel");
+
+      expect(typeof trail).toBe("string");
+      expect(trail).not.toBe(resolve(messages, "nav.sectionLabel"));
+    },
+  );
 });
 
 describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {

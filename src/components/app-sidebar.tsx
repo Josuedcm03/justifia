@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  BookOpen,
-  Briefcase,
-  ChevronRight,
-  FilePlus,
-  FileSpreadsheet,
-  GraduationCap,
-  LayoutDashboard,
-  type LucideIcon,
-  Settings,
-  Users,
-} from "lucide-react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useId, useState } from "react";
 import { cn } from "cn";
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -27,6 +17,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -38,82 +29,20 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { initials } from "@/lib/initials";
 import {
-  canCreateUsers,
-  canFileRequests,
-  canImportCatalog,
-  canManageCatalog,
-} from "@/lib/auth/permissions";
+  isCurrentPath,
+  isNavVisible,
+  NAV_ITEMS,
+  type NavLink,
+} from "@/lib/navigation";
 import type { RolUsuario } from "@/lib/validations/auth";
-
-type NavLink = {
-  key: string;
-  href: string;
-  icon: LucideIcon;
-  visibleTo?: (rol: RolUsuario) => boolean;
-};
-
-type NavGroup = {
-  key: string;
-  icon: LucideIcon;
-  children: readonly NavLink[];
-};
-
-// `visibleTo` is the only access rule an item carries; it reuses the same
-// predicates the pages enforce, so the menu can never offer what a page denies.
-// A group has no rule of its own: it shows when at least one child does, so a
-// new back-office page is one more entry in `children`.
-const items = [
-  { key: "dashboard", href: "/", icon: LayoutDashboard },
-  {
-    key: "newRequest",
-    href: "/requests/new",
-    icon: FilePlus,
-    visibleTo: canFileRequests,
-  },
-  {
-    key: "administration",
-    icon: Briefcase,
-    children: [
-      {
-        key: "catalogAsignaturas",
-        href: "/catalog/asignaturas",
-        icon: BookOpen,
-        visibleTo: canManageCatalog,
-      },
-      {
-        key: "catalogDocentes",
-        href: "/catalog/docentes",
-        icon: GraduationCap,
-        visibleTo: canManageCatalog,
-      },
-      {
-        key: "catalogImport",
-        href: "/catalog/import",
-        icon: FileSpreadsheet,
-        visibleTo: canImportCatalog,
-      },
-      { key: "users", href: "/users", icon: Users, visibleTo: canCreateUsers },
-    ],
-  },
-  { key: "settings", href: "/settings", icon: Settings },
-] as const satisfies readonly (NavLink | NavGroup)[];
 
 // The 4px primary bar is the "you are here" signal (docs/design-system.md
 // §2.3); aria-current carries the same information for anyone not reading
 // colour.
 const currentMarker =
   "data-active:shadow-[inset_4px_0_0_0_var(--sidebar-primary)]";
-
-function isCurrent(pathname: string, href: string) {
-  return href === "/"
-    ? pathname === "/"
-    : pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function isVisible(item: NavLink, rol: RolUsuario) {
-  return !item.visibleTo || item.visibleTo(rol);
-}
 
 function NavGroupItem({
   label,
@@ -127,7 +56,7 @@ function NavGroupItem({
   pathname: string;
 }) {
   const listId = useId();
-  const holdsCurrent = links.some((link) => isCurrent(pathname, link.href));
+  const holdsCurrent = links.some((link) => isCurrentPath(pathname, link.href));
   const [open, setOpen] = useState(holdsCurrent);
 
   // Landing on a child route opens the group; between navigations it stays
@@ -170,7 +99,7 @@ function NavGroupItem({
         render={<SidebarMenuSub />}
       >
         {links.map((link) => {
-          const isActive = isCurrent(pathname, link.href);
+          const isActive = isCurrentPath(pathname, link.href);
 
           return (
             <SidebarMenuSubItem key={link.key}>
@@ -195,9 +124,16 @@ function NavGroupItem({
   );
 }
 
-export function AppSidebar({ rol }: { rol: RolUsuario }) {
+export function AppSidebar({
+  rol,
+  nombre,
+}: {
+  rol: RolUsuario;
+  nombre: string;
+}) {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
+  const tRoles = useTranslations("roles");
   const pathname = usePathname();
 
   return (
@@ -222,51 +158,74 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
         <SidebarGroup>
           <SidebarGroupLabel>{t("sectionLabel")}</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => {
-                if ("children" in item) {
-                  const links = item.children
-                    .filter((link) => isVisible(link, rol))
-                    .map((link) => ({ ...link, label: t(link.key) }));
-                  if (links.length === 0) return null;
+            <nav aria-label={t("sectionLabel")}>
+              <SidebarMenu>
+                {NAV_ITEMS.map((item) => {
+                  if ("children" in item) {
+                    const links = item.children
+                      .filter((link) => isNavVisible(link, rol))
+                      .map((link) => ({ ...link, label: t(link.key) }));
+                    if (links.length === 0) return null;
+
+                    return (
+                      <NavGroupItem
+                        key={item.key}
+                        label={t(item.key)}
+                        icon={item.icon}
+                        links={links}
+                        pathname={pathname}
+                      />
+                    );
+                  }
+
+                  if (!isNavVisible(item, rol)) return null;
+
+                  const isActive = isCurrentPath(pathname, item.href);
 
                   return (
-                    <NavGroupItem
-                      key={item.key}
-                      label={t(item.key)}
-                      icon={item.icon}
-                      links={links}
-                      pathname={pathname}
-                    />
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        className={currentMarker}
+                        render={
+                          <Link
+                            href={item.href}
+                            aria-current={isActive ? "page" : undefined}
+                          />
+                        }
+                      >
+                        <item.icon className="size-4" />
+                        <span>{t(item.key)}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                   );
-                }
-
-                if (!isVisible(item, rol)) return null;
-
-                const isActive = isCurrent(pathname, item.href);
-
-                return (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      className={currentMarker}
-                      render={
-                        <Link
-                          href={item.href}
-                          aria-current={isActive ? "page" : undefined}
-                        />
-                      }
-                    >
-                      <item.icon className="size-4" />
-                      <span>{t(item.key)}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+                })}
+              </SidebarMenu>
+            </nav>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="border-sidebar-border border-t p-4">
+        <div className="flex items-center gap-3">
+          <Avatar aria-hidden="true">
+            <AvatarFallback className="bg-secondary text-primary text-xs font-bold">
+              {initials(nombre)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-col">
+            <span
+              className="text-sidebar-foreground truncate text-sm font-semibold"
+              title={nombre}
+            >
+              {nombre}
+            </span>
+            <span className="text-label text-muted-foreground truncate">
+              {tRoles(rol)}
+            </span>
+          </div>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

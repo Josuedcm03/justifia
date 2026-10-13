@@ -19,7 +19,16 @@
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
     "settings": "Configuración",
-    "sectionLabel": "Navegación"
+    "sectionLabel": "Navegación",
+    "profile": "Mi perfil",
+    "trailLabel": "Ubicación de la página"
+  },
+  "roles": {
+    "estudiante": "Estudiante",
+    "docente": "Docente",
+    "coordinacion": "Coordinación",
+    "secretaria": "Secretaria",
+    "administrador": "Administrador"
   },
   "theme": {
     "toggle": "Cambiar tema",
