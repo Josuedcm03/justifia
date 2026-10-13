@@ -94,3 +94,21 @@ Gates: `npm test` 171 files / 3392 tests green; `npx next typegen` + `npm run ty
 
 Lines vs tracker: production 1237 code lines (actions 81, dialog 304, detail page 181, sections 390, queue page 200, badge 30, not-found 27, template-key 7, sidebar 17) plus 328 i18n lines; tests 2525. The 1000-line production budget was exceeded (see the S4 report: size:exception or a split at the commit boundaries is recommended).
 
+## S5a Student requests list and detail (branch `feat/secretary-review-s5a-student`, from the tracker @ fbdf2e2)
+
+Status: partial. Tasks 5.1-5.7 done; 5.8 gates done, the 360 px walk is the owner step (not run here). Mode: Strict TDD. Corrections (`correct/` route, EditTarget, resubmit, retire) are S5b and are not implemented; the detail only links to `/requests/[id]/correct`.
+
+| Task | State | Evidence |
+|---|---|---|
+| 5.1 | done | sidebar `myRequests` (`ListChecks`, `/requests`, `canFileRequests`) between the dashboard and `newRequest`; `isCurrentTopLevel` lets the more specific `/requests/new` own its page so two entries are never current together; sidebar test 103/103 (RED: 6 failed first run; safety net 94/94 before) |
+| 5.2 | done | `requests.*` keys (list, detail, history, state labels, RN-17 reasons, not found) plus `nav.myRequests` in both catalogs; `src/i18n/requests-messages.test.ts` 8 tests (RED: 7 failed before the keys) |
+| 5.3-5.4 | done | `student-requests.ts` `listOwnRequests(userId)` and `getOwnRequestDetail(userId, id)`; 15 tests (RED: module missing). Owner and `VISIBLE_STATES` in the WHERE, newest first, current documents only (`RetiradoEn IS NULL`), no secretary name or template code, latest decision only while `devuelta`/`rechazada`/`aprobada` (otherwise every decision is history), selects only |
+| 5.5-5.6 | done | `requests/page.tsx` (+ `request-card.tsx`, `state-pill.tsx`, `use-request-dates.ts`) and `requests/[id]/page.tsx` (+ `detail-sections.tsx`, `not-found.tsx`); `page.test.tsx` 19 tests and `[id]/page.test.tsx` 30 tests (real dal on a mocked session: other roles to `/denied`, anonymous to `/login`, flagged to the change screen; malformed id, another student's id, draft and unknown id are the same `notFound()`; empty state with New request; state pills as text; reason and text; Correct request only for `devuelta`; no deadline; audit writers never called; Spanish catalog) |
+| 5.7 | done | `requests/design-system.test.tsx` 21 tests (token, type, spacing scans of the student modules only; pills; cards; 44 px targets; 360 px guards: no fixed width, no table, full-row actions, wrapping names and text). Mutation check: an offending class in `state-pill.tsx` failed 6 tests, then reverted |
+| 5.8 | gates done; walk OWNER | see Gates; the 360 px walk of the list and a returned request is the owner step |
+
+Deviations from design (all minor): the list is one stacked card per request at every width (no `DataTable`, no second rendering), because the student has few rows and one rendering cannot drift at 360 px; the staff detail's `Section` and `Fact` are reused (`Fact` is now exported from `review/[id]/request-sections.tsx`), the student text lives in `requests.*`; the data layer returns `decision` (latest, only while returned or decided) and `historial` (every other decision) instead of one list, so the page holds no rule; retired documents are not shown to the student (the correction slice owns them); `/requests/[id]/correct` does not exist yet, so the Correct request link 404s until S5b; the "alert pattern" of the design-system task has nothing to pin because the screens render no alert.
+
+Gates: `npm test` 176 files / 3494 tests green; `npx next typegen` + `npm run typecheck` clean; `npm run build` ok (`/requests` and `/requests/[id]` dynamic); eslint and prettier clean on changed files (CR stripped). No database command was run.
+
+Lines vs tracker: production 757 code lines (data 166, detail sections 293, detail page 85, list page 53, card 52, pill 28, dates hook 27, not-found 23, sidebar 23, `Fact` export 7) plus 154 i18n lines; tests 1466. Inside the 1000 budget.
