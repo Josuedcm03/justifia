@@ -1,4 +1,6 @@
+import { CORRECTION_FOCUS } from "@/lib/intake/correction-focus";
 import { isIsoDate } from "@/lib/intake/dates";
+import type { ReturnReason } from "@/lib/intake/return-reasons";
 
 // Pure helpers of the stepper (A7: `?step=` is the only wizard state; the draft
 // on the server is the truth). No I/O, so the page and the tests share them.
@@ -42,6 +44,12 @@ export function parseStep(
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (value === undefined || !/^[1-9]\d*$/.test(value)) return null;
   return Math.min(Number(value), AVAILABLE_STEPS) as StepNumber;
+}
+
+/** Where a correction opens without `?step=`: the step of its RN-17 reason. */
+export function correctionStartStep(reason: ReturnReason | null): StepNumber {
+  if (reason === null) return 1;
+  return (STEP_KEYS.indexOf(CORRECTION_FOCUS[reason]) + 1) as StepNumber;
 }
 
 type DraftProgress = {
