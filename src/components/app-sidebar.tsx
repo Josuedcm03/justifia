@@ -4,6 +4,7 @@ import {
   BookOpen,
   Briefcase,
   ChevronRight,
+  ClipboardCheck,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
@@ -43,6 +44,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canReviewRequests,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -51,6 +53,9 @@ type NavLink = {
   href: string;
   icon: LucideIcon;
   visibleTo?: (rol: RolUsuario) => boolean;
+  /** `false` keeps Next.js from prefetching the target. The review pages write
+   *  an audit row when they render, so nothing may render them speculatively. */
+  prefetch?: false;
 };
 
 type NavGroup = {
@@ -70,6 +75,13 @@ const items = [
     href: "/requests/new",
     icon: FilePlus,
     visibleTo: canFileRequests,
+  },
+  {
+    key: "review",
+    href: "/review",
+    icon: ClipboardCheck,
+    visibleTo: canReviewRequests,
+    prefetch: false,
   },
   {
     key: "administration",
@@ -109,6 +121,10 @@ function isCurrent(pathname: string, href: string) {
   return href === "/"
     ? pathname === "/"
     : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function prefetchOf(item: NavLink) {
+  return item.prefetch;
 }
 
 function isVisible(item: NavLink, rol: RolUsuario) {
@@ -253,6 +269,7 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
                       render={
                         <Link
                           href={item.href}
+                          prefetch={prefetchOf(item)}
                           aria-current={isActive ? "page" : undefined}
                         />
                       }

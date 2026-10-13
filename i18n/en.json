@@ -13,6 +13,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "newRequest": "New request",
+    "review": "Review requests",
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
     "catalogDocentes": "Teachers",
@@ -733,6 +734,169 @@
       "description": "We have registered your justification request.",
       "home": "Go to the dashboard",
       "another": "Submit another request"
+    }
+  },
+  "review": {
+    "queue": {
+      "title": "Review queue",
+      "description": "Pending requests from your faculty, oldest first.",
+      "caption": "Pending requests",
+      "columns": {
+        "received": "Received",
+        "student": "Student",
+        "career": "Career",
+        "subjects": "Subjects",
+        "deadline": "Deadline",
+        "action": "Actions"
+      },
+      "subjectsCount": "{count, plural, one {# subject} other {# subjects}}",
+      "resubmitted": "Resubmitted",
+      "unnamed": "Unnamed student",
+      "deadline": {
+        "onTime": "On time",
+        "dueSoon": "Due within 1 business day",
+        "overdue": "Overdue",
+        "due": "Due {date}"
+      },
+      "review": "Review",
+      "reviewNamed": "Review request from {name}",
+      "empty": "There are no pending requests in your faculty.",
+      "noFaculty": {
+        "title": "Your account has no faculty assigned",
+        "message": "Ask coordination to assign a faculty to your account before you review requests."
+      },
+      "calendarNotLoaded": "The non-working days calendar for this year is not loaded, so deadlines only skip weekends.",
+      "result": {
+        "aprobada": "The request was approved.",
+        "rechazada": "The request was rejected.",
+        "devuelta": "The request was returned to the student for correction."
+      }
+    },
+    "decision": {
+      "region": "Decision",
+      "approve": {
+        "trigger": "Approve",
+        "title": "Approve this request?",
+        "description": "The request becomes approved and the student sees the message below. You can edit it first.",
+        "confirm": "Approve request",
+        "pending": "Approving..."
+      },
+      "return": {
+        "trigger": "Return for correction",
+        "title": "Return this request for correction?",
+        "description": "The student gets the request back with the reason and the message below, and can correct and resubmit it.",
+        "confirm": "Return request",
+        "pending": "Returning..."
+      },
+      "reject": {
+        "trigger": "Reject",
+        "title": "Reject this request?",
+        "description": "Rejection is final: the student cannot correct or resubmit this request. Check the message below before you confirm.",
+        "confirm": "Yes, reject request",
+        "pending": "Rejecting..."
+      },
+      "cancel": "Cancel",
+      "templateLabel": "Message template",
+      "reasonLabel": "Reason for the return",
+      "textLabel": "Message to the student",
+      "textHint": "The student sees this text exactly as you confirm it.",
+      "counter": "{count}/1000",
+      "backToQueue": "Back to the queue",
+      "templates": {
+        "aprobacion_general": "General approval",
+        "rechazo_general": "General rejection",
+        "rechazo_documento_no_acredita": "Document does not prove the absence",
+        "devolucion_fecha_incorrecta": "Incorrect date",
+        "devolucion_fecha_alterada": "Altered date",
+        "devolucion_documento_ilegible": "Illegible document"
+      },
+      "reasons": {
+        "fecha_incorrecta": "The date does not match the document",
+        "fecha_alterada": "The date on the document is altered",
+        "documento_ilegible": "The document is not legible"
+      },
+      "errors": {
+        "tipo_invalid": "The decision could not be read. Reload the page and try again.",
+        "template_unknown": "Choose one of the message templates.",
+        "template_mismatch": "That template does not belong to this decision. Choose another one.",
+        "motivo_required": "Choose the reason for the return.",
+        "motivo_invalid": "Choose one of the listed reasons.",
+        "motivo_not_allowed": "Only a return takes a reason.",
+        "text_required": "Write the message to the student.",
+        "text_too_long": "The message is longer than 1000 characters. Shorten it.",
+        "text_placeholder": "Replace the text in square brackets with the actual reason.",
+        "conflict": "This request was already decided by someone else. Go back to the queue to see its current state.",
+        "not_found": "This request is no longer available to you. Go back to the queue.",
+        "unexpected": "The decision could not be saved. Try again."
+      }
+    },
+    "detail": {
+      "title": "Request from {name}",
+      "unnamed": "Unnamed student",
+      "description": "Request {id}, presented {date}.",
+      "back": "Back to the queue",
+      "notSet": "Not set",
+      "states": {
+        "pendiente": "Pending",
+        "devuelta": "Returned for correction",
+        "aprobada": "Approved",
+        "rechazada": "Rejected",
+        "en_revision_coordinacion": "In coordination review"
+      },
+      "sections": {
+        "request": "Request",
+        "student": "Student",
+        "subjects": "Subjects",
+        "documents": "Supporting documents",
+        "history": "History",
+        "decision": "Decision"
+      },
+      "fields": {
+        "state": "State",
+        "cause": "Cause",
+        "period": "Absence dates",
+        "presented": "Presented",
+        "resubmitted": "Resubmitted",
+        "deadline": "Deadline",
+        "name": "Name",
+        "cif": "CIF",
+        "career": "Career",
+        "email": "Email"
+      },
+      "period": "{start} to {end}",
+      "subject": {
+        "group": "Group {number}",
+        "teacher": "Teacher: {name}",
+        "noTeacher": "No teacher assigned"
+      },
+      "documents": {
+        "empty": "No documents are attached.",
+        "view": "View",
+        "download": "Download",
+        "viewNamed": "View {name}",
+        "downloadNamed": "Download {name}"
+      },
+      "history": {
+        "empty": "This request has no earlier decisions or versions.",
+        "decisions": "Decisions",
+        "revisions": "Earlier versions",
+        "retired": "Documents replaced in a correction",
+        "decidedBy": "{name}, {date}",
+        "template": "Template: {name}",
+        "reason": "Reason: {reason}",
+        "noText": "No message",
+        "revision": "Version {number}",
+        "revisionDocuments": "{count, plural, one {# document} other {# documents}}",
+        "replacedOn": "Replaced {date}"
+      },
+      "decisionPanel": {
+        "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
+      }
+    },
+    "notFound": {
+      "title": "Request not found",
+      "message": "This request does not exist or is not available to you.",
+      "back": "Back to the queue"
     }
   }
 }

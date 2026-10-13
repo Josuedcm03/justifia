@@ -168,7 +168,7 @@ describe("AppSidebar", () => {
     },
   );
 
-  it.each(["administrador", "coordinacion", "secretaria"] as const)(
+  it.each(["administrador", "coordinacion"] as const)(
     "orders the top level Panel, Administración, Configuración for %s",
     (rol) => {
       renderSidebar(rol);
@@ -180,6 +180,17 @@ describe("AppSidebar", () => {
       ]);
     },
   );
+
+  it("orders the top level Panel, Revisión de solicitudes, Administración, Configuración for secretaria", () => {
+    renderSidebar("secretaria");
+
+    expect(topLevelLabels()).toEqual([
+      "Panel",
+      "Revisión de solicitudes",
+      "Administración",
+      "Configuración",
+    ]);
+  });
 
   it.each([
     [
@@ -194,6 +205,7 @@ describe("AppSidebar", () => {
       "secretaria",
       [
         "/",
+        "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
         "/catalog/import",
@@ -221,7 +233,7 @@ describe("AppSidebar", () => {
       menu.querySelectorAll(":scope > li > a"),
     ).map((link) => link.getAttribute("href"));
 
-    expect(topLevelHrefs).toEqual(["/", "/settings"]);
+    expect(topLevelHrefs).toEqual(["/", "/review", "/settings"]);
   });
 });
 
@@ -688,6 +700,7 @@ describe("AppSidebar copy (both locales)", () => {
       "es",
       {
         dashboard: "Panel",
+        review: "Revisión de solicitudes",
         group: "Administración",
         catalogImport: "Carga de catálogo",
         users: "Usuarios",
@@ -698,6 +711,7 @@ describe("AppSidebar copy (both locales)", () => {
       "en",
       {
         dashboard: "Dashboard",
+        review: "Review requests",
         group: "Administration",
         catalogImport: "Catalog import",
         users: "Users",
@@ -711,6 +725,7 @@ describe("AppSidebar copy (both locales)", () => {
 
     expect(topLevelLabels()).toEqual([
       labels.dashboard,
+      labels.review,
       labels.group,
       labels.settings,
     ]);
@@ -722,5 +737,39 @@ describe("AppSidebar copy (both locales)", () => {
       "href",
       "/users",
     );
+  });
+});
+
+describe("AppSidebar review entry (secretary-review 4.1)", () => {
+  it("shows the review queue to secretaria, linked to /review, after the dashboard", () => {
+    renderSidebar("secretaria");
+
+    expect(
+      screen.getByRole("link", { name: "Revisión de solicitudes" }),
+    ).toHaveAttribute("href", "/review");
+    expect(topLevelLabels().slice(0, 2)).toEqual([
+      "Panel",
+      "Revisión de solicitudes",
+    ]);
+  });
+
+  it.each(["estudiante", "docente", "coordinacion", "administrador"] as const)(
+    "hides the review entry from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        screen.queryByRole("link", { name: "Revisión de solicitudes" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("marks the entry current on a request detail", () => {
+    env.pathname = "/review/42";
+    renderSidebar("secretaria");
+
+    expect(
+      screen.getByRole("link", { name: "Revisión de solicitudes" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 });

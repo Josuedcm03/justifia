@@ -13,6 +13,7 @@
   "nav": {
     "dashboard": "Panel",
     "newRequest": "Nueva solicitud",
+    "review": "Revisión de solicitudes",
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
     "catalogDocentes": "Docentes",
@@ -733,6 +734,169 @@
       "description": "Hemos registrado tu solicitud de justificación.",
       "home": "Ir al panel",
       "another": "Presentar otra solicitud"
+    }
+  },
+  "review": {
+    "queue": {
+      "title": "Cola de revisión",
+      "description": "Solicitudes pendientes de su facultad, de la más antigua a la más reciente.",
+      "caption": "Solicitudes pendientes",
+      "columns": {
+        "received": "Recibida",
+        "student": "Estudiante",
+        "career": "Carrera",
+        "subjects": "Asignaturas",
+        "deadline": "Plazo",
+        "action": "Acciones"
+      },
+      "subjectsCount": "{count, plural, one {# asignatura} other {# asignaturas}}",
+      "resubmitted": "Reenviada",
+      "unnamed": "Estudiante sin nombre",
+      "deadline": {
+        "onTime": "En plazo",
+        "dueSoon": "Vence en 1 día hábil o menos",
+        "overdue": "Vencida",
+        "due": "Vence el {date}"
+      },
+      "review": "Revisar",
+      "reviewNamed": "Revisar la solicitud de {name}",
+      "empty": "No hay solicitudes pendientes en su facultad.",
+      "noFaculty": {
+        "title": "Su cuenta no tiene una facultad asignada",
+        "message": "Pida a coordinación que asigne una facultad a su cuenta antes de revisar solicitudes."
+      },
+      "calendarNotLoaded": "El calendario de días no laborables de este año no está cargado, por lo que los plazos solo omiten los fines de semana.",
+      "result": {
+        "aprobada": "La solicitud fue aprobada.",
+        "rechazada": "La solicitud fue rechazada.",
+        "devuelta": "La solicitud fue devuelta al estudiante para su corrección."
+      }
+    },
+    "decision": {
+      "region": "Decisión",
+      "approve": {
+        "trigger": "Aprobar",
+        "title": "¿Aprobar esta solicitud?",
+        "description": "La solicitud queda aprobada y el estudiante verá el mensaje de abajo. Puede editarlo antes.",
+        "confirm": "Aprobar solicitud",
+        "pending": "Aprobando..."
+      },
+      "return": {
+        "trigger": "Devolver para corrección",
+        "title": "¿Devolver esta solicitud para corrección?",
+        "description": "El estudiante recibe la solicitud con el motivo y el mensaje de abajo, y puede corregirla y reenviarla.",
+        "confirm": "Devolver solicitud",
+        "pending": "Devolviendo..."
+      },
+      "reject": {
+        "trigger": "Rechazar",
+        "title": "¿Rechazar esta solicitud?",
+        "description": "El rechazo es definitivo: el estudiante no podrá corregir ni reenviar esta solicitud. Revise el mensaje de abajo antes de confirmar.",
+        "confirm": "Sí, rechazar solicitud",
+        "pending": "Rechazando..."
+      },
+      "cancel": "Cancelar",
+      "templateLabel": "Plantilla del mensaje",
+      "reasonLabel": "Motivo de la devolución",
+      "textLabel": "Mensaje para el estudiante",
+      "textHint": "El estudiante verá este texto exactamente como usted lo confirme.",
+      "counter": "{count}/1000",
+      "backToQueue": "Volver a la cola",
+      "templates": {
+        "aprobacion_general": "Aprobación general",
+        "rechazo_general": "Rechazo general",
+        "rechazo_documento_no_acredita": "El documento no acredita la inasistencia",
+        "devolucion_fecha_incorrecta": "Fecha incorrecta",
+        "devolucion_fecha_alterada": "Fecha alterada",
+        "devolucion_documento_ilegible": "Documento ilegible"
+      },
+      "reasons": {
+        "fecha_incorrecta": "La fecha no coincide con el documento",
+        "fecha_alterada": "La fecha del documento está alterada",
+        "documento_ilegible": "El documento no es legible"
+      },
+      "errors": {
+        "tipo_invalid": "No se pudo leer la decisión. Recargue la página e inténtelo de nuevo.",
+        "template_unknown": "Elija una de las plantillas de mensaje.",
+        "template_mismatch": "Esa plantilla no corresponde a esta decisión. Elija otra.",
+        "motivo_required": "Elija el motivo de la devolución.",
+        "motivo_invalid": "Elija uno de los motivos de la lista.",
+        "motivo_not_allowed": "Solo una devolución lleva motivo.",
+        "text_required": "Escriba el mensaje para el estudiante.",
+        "text_too_long": "El mensaje supera los 1000 caracteres. Acórtelo.",
+        "text_placeholder": "Reemplace el texto entre corchetes por el motivo real.",
+        "conflict": "Esta solicitud ya fue resuelta por otra persona. Vuelva a la cola para ver su estado actual.",
+        "not_found": "Esta solicitud ya no está disponible para usted. Vuelva a la cola.",
+        "unexpected": "No se pudo guardar la decisión. Inténtelo de nuevo."
+      }
+    },
+    "detail": {
+      "title": "Solicitud de {name}",
+      "unnamed": "Estudiante sin nombre",
+      "description": "Solicitud {id}, presentada el {date}.",
+      "back": "Volver a la cola",
+      "notSet": "Sin dato",
+      "states": {
+        "pendiente": "Pendiente",
+        "devuelta": "Devuelta para corrección",
+        "aprobada": "Aprobada",
+        "rechazada": "Rechazada",
+        "en_revision_coordinacion": "En revisión de coordinación"
+      },
+      "sections": {
+        "request": "Solicitud",
+        "student": "Estudiante",
+        "subjects": "Asignaturas",
+        "documents": "Documentos de respaldo",
+        "history": "Historial",
+        "decision": "Decisión"
+      },
+      "fields": {
+        "state": "Estado",
+        "cause": "Causa",
+        "period": "Fechas de la inasistencia",
+        "presented": "Presentada",
+        "resubmitted": "Reenviada",
+        "deadline": "Plazo",
+        "name": "Nombre",
+        "cif": "CIF",
+        "career": "Carrera",
+        "email": "Correo"
+      },
+      "period": "{start} al {end}",
+      "subject": {
+        "group": "Grupo {number}",
+        "teacher": "Docente: {name}",
+        "noTeacher": "Sin docente asignado"
+      },
+      "documents": {
+        "empty": "No hay documentos adjuntos.",
+        "view": "Ver",
+        "download": "Descargar",
+        "viewNamed": "Ver {name}",
+        "downloadNamed": "Descargar {name}"
+      },
+      "history": {
+        "empty": "Esta solicitud no tiene decisiones ni versiones anteriores.",
+        "decisions": "Decisiones",
+        "revisions": "Versiones anteriores",
+        "retired": "Documentos reemplazados en una corrección",
+        "decidedBy": "{name}, {date}",
+        "template": "Plantilla: {name}",
+        "reason": "Motivo: {reason}",
+        "noText": "Sin mensaje",
+        "revision": "Versión {number}",
+        "revisionDocuments": "{count, plural, one {# documento} other {# documentos}}",
+        "replacedOn": "Reemplazado el {date}"
+      },
+      "decisionPanel": {
+        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Cada decisión le pide confirmarla."
+      }
+    },
+    "notFound": {
+      "title": "Solicitud no encontrada",
+      "message": "Esta solicitud no existe o no está disponible para usted.",
+      "back": "Volver a la cola"
     }
   }
 }
