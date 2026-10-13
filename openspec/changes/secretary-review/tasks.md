@@ -46,22 +46,22 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 
 ## Phase 1: S1 - Pure domain (PR 1)
 
-- [ ] 1.1 Branch `feat/secretary-review-s1-domain` from the tracker `feat/secretary-review` (feature-branch-chain); its PR targets the tracker. No DB, no schema in this slice
-- [ ] 1.2 RED+GREEN: `src/lib/intake/transitions.test.ts` then `transitions.ts`; `canTransition(from,to,actor)` exhaustive over `EstadoSolicitud`, `en_revision_coordinacion` has no edge (RN-15, RN-16, SR-4)
-- [ ] 1.3 Add `NonWorkingDaysProvider` (`isNonWorkingDay`, `coversYear`) to `src/lib/intake/ports.ts` (SR-5)
-- [ ] 1.4 RED: `src/lib/intake/business-days.test.ts` table-driven over the spec boundary table (Mon/Tue/Wed/Thu, Fri->Mon, Sat->Mon/Tue/Wed), holiday skipped, Managua date vs UTC (2026-10-12 02:00 UTC = Sunday), year edge, `coversYear` false still computes (RN-08)
-- [ ] 1.5 GREEN: `src/lib/intake/business-days.ts` `deadlineOf`, `deadlineStatus` (2nd business day strictly after start; `en_plazo`/`por_vencer`/`vencida`)
-- [ ] 1.6 RED+GREEN: `src/lib/intake/adapters/constant-calendar.test.ts` then `constant-calendar.ts`: `constantCalendar(days: Readonly<Record<number, readonly string[]>>)` receives the holiday record as a parameter and is tested with fixture data only (listed date, unlisted date, `coversYear` true/false, empty year); it does not import `calendar.ts`
-- [ ] 1.7 Add `src/lib/intake/calendar.ts` (`NON_WORKING_DAYS`, wired as `constantCalendar(NON_WORKING_DAYS)`) with 2026 and 2027 national holidays plus Semana Santa dates as per-year ISO lists (draft values, marked "pending owner validation")
-- [ ] 1.8 RED+GREEN: calendar staleness test in `src/lib/intake/calendar.test.ts` using the real clock; fails when `NON_WORKING_DAYS[currentYear]` is missing or empty
+- [x] 1.1 Branch `feat/secretary-review-s1-domain` from the tracker `feat/secretary-review` (feature-branch-chain); its PR targets the tracker. No DB, no schema in this slice
+- [x] 1.2 RED+GREEN: `src/lib/intake/transitions.test.ts` then `transitions.ts`; `canTransition(from,to,actor)` exhaustive over `EstadoSolicitud`, `en_revision_coordinacion` has no edge (RN-15, RN-16, SR-4)
+- [x] 1.3 Add `NonWorkingDaysProvider` (`isNonWorkingDay`, `coversYear`) to `src/lib/intake/ports.ts` (SR-5)
+- [x] 1.4 RED: `src/lib/intake/business-days.test.ts` table-driven over the spec boundary table (Mon/Tue/Wed/Thu, Fri->Mon, Sat->Mon/Tue/Wed), holiday skipped, Managua date vs UTC (2026-10-12 02:00 UTC = Sunday), year edge, `coversYear` false still computes (RN-08)
+- [x] 1.5 GREEN: `src/lib/intake/business-days.ts` `deadlineOf`, `deadlineStatus` (2nd business day strictly after start; `en_plazo`/`por_vencer`/`vencida`)
+- [x] 1.6 RED+GREEN: `src/lib/intake/adapters/constant-calendar.test.ts` then `constant-calendar.ts`: `constantCalendar(days: Readonly<Record<number, readonly string[]>>)` receives the holiday record as a parameter and is tested with fixture data only (listed date, unlisted date, `coversYear` true/false, empty year); it does not import `calendar.ts`
+- [x] 1.7 Add `src/lib/intake/calendar.ts` (`NON_WORKING_DAYS`, wired as `constantCalendar(NON_WORKING_DAYS)`) with 2026 and 2027 national holidays plus Semana Santa dates as per-year ISO lists (draft values, marked "pending owner validation")
+- [x] 1.8 RED+GREEN: calendar staleness test in `src/lib/intake/calendar.test.ts` using the real clock; fails when `NON_WORKING_DAYS[currentYear]` is missing or empty
 - [ ] 1.9 [OWNER] Owner validates the 2026 and 2027 non-working-day lists in `src/lib/intake/calendar.ts` (national holidays plus any UAM closures); remove the "pending" marker only after the owner's written "yes". STOP: S1 must not merge with unvalidated data
-- [ ] 1.10 RED+GREEN: `src/lib/intake/return-reasons.test.ts` then `return-reasons.ts` (`fecha_incorrecta`, `fecha_alterada`, `documento_ilegible`; closed list, RN-17)
-- [ ] 1.11 RED: `src/lib/intake/decision-templates.test.ts`: every placeholder of every template is known, `renderTemplate` fills `{estudiante}`, `{causa}`, `{fechas}` (single day vs range), approve/reject/return coverage (SR-8)
-- [ ] 1.12 GREEN: `src/lib/intake/decision-templates.ts` (six templates, Spanish) and the date-range formatter
-- [ ] 1.13 RED+GREEN: `src/lib/intake/decision-validation.test.ts` then `src/lib/intake/decision-validation.ts` `validateDecision` (return needs RN-17 code, reject text trimmed 1..1000 with 1000 ok and 1001 refused, template kind matches `tipo`, unresolved `[...]` marker refused in reject text) (RF-07, RNF-12)
-- [ ] 1.14 RED+GREEN: `src/lib/intake/request-scope.test.ts` then `request-scope.ts` `requestScopeFor` (secretaria with facultad -> `facultad`; null facultad, other roles, null actor -> `none`) (SR-6, RNF-01)
-- [ ] 1.15 RED+GREEN: `validateSubmission(input, today, { filingWindow: false })` option in `src/lib/intake/submission.ts` with tests: RN-23 not applied, RN-05 and eligibility still applied (RN-23 not re-applied)
-- [ ] 1.16 Gates: `npx vitest run src/lib/intake`, typecheck, eslint, format:check; record exact results in the PR body (no DB command run)
+- [x] 1.10 RED+GREEN: `src/lib/intake/return-reasons.test.ts` then `return-reasons.ts` (`fecha_incorrecta`, `fecha_alterada`, `documento_ilegible`; closed list, RN-17)
+- [x] 1.11 RED: `src/lib/intake/decision-templates.test.ts`: every placeholder of every template is known, `renderTemplate` fills `{estudiante}`, `{causa}`, `{fechas}` (single day vs range), approve/reject/return coverage (SR-8)
+- [x] 1.12 GREEN: `src/lib/intake/decision-templates.ts` (six templates, Spanish) and the date-range formatter
+- [x] 1.13 RED+GREEN: `src/lib/intake/decision-validation.test.ts` then `src/lib/intake/decision-validation.ts` `validateDecision` (return needs RN-17 code, reject text trimmed 1..1000 with 1000 ok and 1001 refused, template kind matches `tipo`, unresolved `[...]` marker refused in reject text) (RF-07, RNF-12)
+- [x] 1.14 RED+GREEN: `src/lib/intake/request-scope.test.ts` then `request-scope.ts` `requestScopeFor` (secretaria with facultad -> `facultad`; null facultad, other roles, null actor -> `none`) (SR-6, RNF-01)
+- [x] 1.15 RED+GREEN: `validateSubmission(input, today, { filingWindow: false })` option in `src/lib/intake/submission.ts` with tests: RN-23 not applied, RN-05 and eligibility still applied (RN-23 not re-applied)
+- [x] 1.16 Gates: `npx vitest run src/lib/intake`, typecheck, eslint, format:check; record exact results in the PR body (no DB command run)
 
 ## Phase 2: S2 - Schema, class reader, audit types (PR 2) - UNBLOCKED (2026-10-12)
 
