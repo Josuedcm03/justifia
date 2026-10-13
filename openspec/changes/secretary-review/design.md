@@ -14,7 +14,8 @@ Binding inputs: `proposal.md`, confirmed decisions (Engram
 `sdd/secretary-review/pre-proposal`), `exploration.md`, `docs/requirements.md`
 (RF-06..RF-08, RN-08, RN-15..RN-17, RNF-01, RNF-06, RNF-12), and the archived
 `justification-intake/design.md` (A1..A9, D1..D15). Decisions here are
-**SR-1..SR-16**. SR-16 was confirmed by the owner on 2026-10-11 (option b plus a).
+**SR-1..SR-17**. SR-16 was confirmed by the owner on 2026-10-11 (option b plus a);
+SR-17 (slice S6) records the owner decisions of 2026-10-13.
 
 ## Technical Approach
 
@@ -332,6 +333,7 @@ pending sweep only `pendiente` documents. `EventoAuditoria` needs no DDL.
 | S3 Data + access | `revision-queue.ts`, `solicitud-detail.ts`, `solicitud-decision.ts`, `request-reads.ts`, `resolveRequestScope`, permissions, document route widening + `modo`, SR-16 write path, append-only structural test | Integration tests incl. concurrent decisions |
 | S4 Staff UI | `/review`, `/review/[id]`, decision dialog, sidebar, i18n `review.*` | Exactly-once and RNF-01 tests |
 | S5 Student UI + correction | `/requests`, `/requests/[id]`, correction context, retire, resubmit, i18n, `docs/roadmap.md` row 2 owner Armando | If the forecast exceeds 1000 lines, split S5a (list/detail) and S5b (correction) |
+| S6 Guided correction + change flags | Approve dialog finality text; `correction-focus.ts` (RN-17 -> start step) and the correction reason banner; `revision-diff.ts` `diffRevision` and the staff-detail changes section (SR-17) | Pure mapping and diff unit-tested; no schema, no new audit event; added 2026-10-13 after the manual walk |
 
 Estimate 3,500-5,000 changed lines. PR #1 targets the feature branch; each
 later PR targets the previous slice branch.
@@ -461,3 +463,89 @@ land first, they follow the current catalog list pattern (server-side,
 URL-driven) so the refresh can migrate them like the other lists. Both changes
 edit `app-sidebar.tsx`; whichever lands second rebases and keeps both sets of
 entries.
+
+## SR-17 Guided correction and change flags (S6, 2026-10-13)
+
+Owner decisions taken after the manual walk of S4 and S5b. No schema change,
+no migration, no new audit event, no new data module write.
+
+**1. Approve dialog states finality.** Only the copy of
+`review.decision.approve.description` changes (`es` and `en`), in the register
+of `review.decision.reject.description`: "La aprobación es definitiva: no se
+puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes."
+/ "Approval is final: it cannot be undone. The student will see the message
+below; you can edit it first." `decision-dialog.tsx` is unchanged: approve
+keeps its single confirm (the RNF-12 two-step confirmation stays on reject
+only).
+
+**2. Correction starts at the step of the return reason (RN-17).**
+
+| RN-17 code (`return-reasons.ts`) | Start step | Why |
+|---|---|---|
+| `documento_ilegible` | 3 Documents | The fix is a new legible copy |
+| `fecha_alterada` | 3 Documents | The fix is a document without alterations |
+| `fecha_incorrecta` | 1 Cause and dates | The fix is the registered date |
+
+- Pure: `src/lib/intake/correction-focus.ts` exports
+  `CORRECTION_FOCUS: Readonly<Record<ReturnReason, "details" | "documents">>`
+  (keys of `STEP_KEYS`), so adding an RN-17 code fails typecheck until it is
+  mapped. `steps.ts` gains `correctionStartStep(reason: ReturnReason | null):
+  StepNumber` (`null` -> 1), next to `parseStep`.
+- Page: `requests/[id]/correct/page.tsx` resolves `parseStep(query.step) ??
+  correctionStartStep(reason)`; an explicit `?step=` wins. The reason and text
+  come from a new owner-scoped read `getCorrectionReason(userId, solicitudId)`
+  in `src/lib/data/student-requests.ts` (latest `SolicitudDecision` of an own
+  `devuelta` request; `{ motivo, texto } | null`; not audited, like every own
+  read). It runs fail-soft with the existing `getLiveDraft` read: a failure
+  falls back to step 1 and no banner, never blocks the correction.
+- Banner: a `CorrectionReasonBanner` above `FlowSteps`, on every step, with the
+  RN-17 label (the labels the student detail already uses) and the message;
+  alert pattern of `docs/design-system.md`, `role="status"` (informative, not
+  an error), wraps at 360 px.
+- Nothing is locked: the stepper, `?step=` links and the review step's edit
+  links behave as in S5b.
+
+**3. Changes since the return, flagged for the secretary.**
+
+```ts
+// src/lib/intake/revision-diff.ts (pure, no I/O)
+export type RevisionSide = {
+  causa: string | null; fechaInicio: string | null; fechaFin: string | null;
+  clases: readonly { asignaturaId: number; numeroGrupo: string }[];
+  documentoIds: readonly number[];      // snapshot DocumentoIds | current non-retired ids
+};
+export type SectionMark = "changed" | "unchanged";
+export type RevisionDiff = {
+  causeDates: SectionMark; subjects: SectionMark; documents: SectionMark;
+  retiredDocumentIds: number[];         // in the snapshot, not current (ascending)
+  addedDocumentIds: number[];           // current, not in the snapshot (ascending)
+};
+export function diffRevision(snapshot: RevisionSide, current: RevisionSide): RevisionDiff;
+```
+
+- Cause and dates: changed when any of `causa`, `fechaInicio`, `fechaFin`
+  differs. Subjects: set equality over `${asignaturaId}:${numeroGrupo}`
+  (order and duplicates ignored; `RevisionClase` has no `grupoId`, so a
+  catalog renumbering of a group would read as a change; accepted, the
+  snapshot is the frozen truth). Documents: set comparison of ids.
+- Input: `getRequestDetail` already returns `revisiones` (with `clases`,
+  `documentoIds`), `clases`, `documentos`, `documentosRetirados` and
+  `reenviadaEn`, so the data layer is unchanged. The snapshot is the latest
+  revision (highest `Numero`).
+- Rendering: `review/[id]/page.tsx` computes the diff only when
+  `reenviadaEn !== null`, `revisiones.length > 0` and `estado !== "devuelta"`
+  (while returned, the student is still editing in place and the latest
+  snapshot is the version just returned), before `recordRequestRead`, and
+  passes it to a `ChangesSection` in `request-sections.tsx` placed first in
+  the section stack. Each row has a pill badge with text ("Changed" /
+  "Unchanged"); retired and added documents are listed by name, resolved from
+  `documentosRetirados` and `documentos` (fallback label when an id is not
+  found). No new audit event: the one `solicitud.consultada` row of the
+  detail covers the read.
+
+**Rejected alternative (owner, 2026-10-13).** Locking the correction to the
+reason's scope (for example only the Documents step for
+`documento_ilegible`). A wrong or incomplete reason chosen by the secretary
+would leave the student stuck with no way to fix the real problem, and the
+request could only be rejected. The reason guides the starting step; it never
+restricts editing.
