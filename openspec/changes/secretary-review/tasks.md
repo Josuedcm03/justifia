@@ -98,6 +98,8 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 
 ## Phase 4: S4 - Staff UI (PR 4) - depends on S3
 
+> **size:exception (owner decision 2026-10-13):** S4 ships as one PR with 1237 production lines (+328 i18n) against the 1000 budget; the owner declined the S4a/S4b split (247 / 990).
+
 - [x] 4.1 RED+GREEN: `src/components/app-sidebar.test.tsx` then `src/components/app-sidebar.tsx`: `review` entry (`ClipboardCheck`, `visibleTo: canReviewRequests`); hidden for `estudiante`
 - [x] 4.2 Add `review.*` keys to `i18n/es.json` and `i18n/en.json` plus key-parity test (RNF-12)
 - [x] 4.3 RED: `src/app/(dashboard)/review/page.test.tsx`: role guard, `none` scope shows `alert` banner and no data, empty state, columns, deadline badges with text always present (`warning` "Due within 1 business day", `destructive` "Overdue"), no cause shown, "calendar not loaded" muted note, `Link prefetch={false}`
