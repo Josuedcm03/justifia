@@ -203,3 +203,49 @@ describe("CauseDatesStep", () => {
     );
   });
 });
+
+describe("CauseDatesStep inside another flow (the correction)", () => {
+  const saveDetails = vi.fn();
+  const flow = { basePath: "/requests/31/correct", actions: { saveDetails } };
+
+  beforeEach(() => saveDetails.mockReset());
+
+  it("saves through the flow's action and continues under the flow's path", async () => {
+    saveDetails.mockResolvedValue({ ok: true });
+    renderIntl(<CauseDatesStep initial={FILLED} flow={flow} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/requests/31/correct?step=2"),
+    );
+    expect(saveDetails).toHaveBeenCalledWith(FILLED);
+    expect(saveDetailsAction).not.toHaveBeenCalled();
+  });
+
+  it("returns to the flow's review after saving when opened from it", async () => {
+    saveDetails.mockResolvedValue({ ok: true });
+    renderIntl(<CauseDatesStep initial={FILLED} flow={flow} fromReview />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/requests/31/correct?step=4"),
+    );
+  });
+
+  it("shows the flow action's field errors and stays on the step", async () => {
+    saveDetails.mockResolvedValue({
+      ok: false,
+      errors: [{ field: "fechaFin", key: "intake.errors.end_before_start" }],
+    });
+    renderIntl(<CauseDatesStep initial={FILLED} flow={flow} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "La fecha de fin no puede ser anterior a la de inicio.",
+    );
+    expect(push).not.toHaveBeenCalled();
+  });
+});

@@ -17,7 +17,8 @@ import {
   FieldErrors,
   StepShell,
 } from "@/app/(dashboard)/requests/new/form-field";
-import { stepHref } from "@/app/(dashboard)/requests/new/steps";
+import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
+import { FLOW_PATH, stepHref } from "@/app/(dashboard)/requests/new/steps";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   ALLOWED_CONTENT_TYPES,
@@ -56,6 +57,16 @@ type AttachedDocument = {
   tamanoBytes: number;
 };
 
+type DocumentsFlow = StepFlow<"finalizeDocument" | "removeDocument">;
+
+const NEW_FLOW: DocumentsFlow = {
+  basePath: FLOW_PATH,
+  actions: {
+    finalizeDocument: finalizeDocumentAction,
+    removeDocument: removeDocumentAction,
+  },
+};
+
 /**
  * Step 3: supporting documents (RF-02, RN-03, RN-04, D12). The file goes from
  * the browser straight to the private store with a short-lived token and never
@@ -67,10 +78,13 @@ export function DocumentsStep({
   draftId,
   documents,
   fromReview = false,
+  flow = NEW_FLOW,
 }: {
+  /** The id the files are stored under: the draft's, or the returned request's. */
   draftId: number;
   documents: readonly AttachedDocument[];
   fromReview?: boolean;
+  flow?: DocumentsFlow;
 }) {
   const t = useTranslations("intake");
   const tErrors = useTranslations();
@@ -101,7 +115,7 @@ export function DocumentsStep({
         handleUploadUrl: UPLOAD_TOKEN_URL,
         contentType: file.type,
       });
-      const result = await finalizeDocumentAction({
+      const result = await flow.actions.finalizeDocument({
         pathname,
         nombreOriginal: file.name,
       });
@@ -122,7 +136,7 @@ export function DocumentsStep({
     setError(null);
     setRemoving(true);
     try {
-      const result = await removeDocumentAction(documentId);
+      const result = await flow.actions.removeDocument(documentId);
       if (!result.ok) setError(result.errors[0].key);
     } finally {
       setRemoving(false);
@@ -143,8 +157,8 @@ export function DocumentsStep({
       description={t("documents.description")}
       footer={
         <>
-          <BackLink href={stepHref(fromReview ? 4 : 2)} />
-          <ContinueLink href={stepHref(4)} />
+          <BackLink href={stepHref(fromReview ? 4 : 2, flow.basePath)} />
+          <ContinueLink href={stepHref(4, flow.basePath)} />
         </>
       }
     >

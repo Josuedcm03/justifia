@@ -13,7 +13,13 @@ import {
   StepShell,
   errorsOf,
 } from "@/app/(dashboard)/requests/new/form-field";
-import { reviewEditHref, stepHref } from "@/app/(dashboard)/requests/new/steps";
+import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
+import { ResubmitDialog } from "@/app/(dashboard)/requests/new/resubmit-dialog";
+import {
+  FLOW_PATH,
+  reviewEditHref,
+  stepHref,
+} from "@/app/(dashboard)/requests/new/steps";
 import { SubmitDialog } from "@/app/(dashboard)/requests/new/submit-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import type { EnrollmentGroup } from "@/lib/data/enrollment";
@@ -44,12 +50,14 @@ function Section({
   id,
   title,
   step,
+  basePath,
   errors,
   children,
 }: {
   id: string;
   title: string;
   step: number;
+  basePath: string;
   errors: readonly FieldError[];
   children: ReactNode;
 }) {
@@ -65,7 +73,7 @@ function Section({
           {title}
         </h3>
         <Link
-          href={reviewEditHref(step)}
+          href={reviewEditHref(step, basePath)}
           aria-label={t("editSection", { section: title })}
           className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}
         >
@@ -89,7 +97,10 @@ export function ReviewStep({
   groups,
   documents,
   degraded,
+  flow,
 }: {
+  /** Set by the correction: resubmit replaces submit and discard of a draft. */
+  flow?: StepFlow<"resubmit">;
   draft: ReviewDraft;
   /** The groups the draft holds, with subject and teacher labels. */
   groups: readonly EnrollmentGroup[];
@@ -106,6 +117,7 @@ export function ReviewStep({
       dateStyle: "long",
       timeZone: "UTC",
     });
+  const basePath = flow?.basePath ?? FLOW_PATH;
   const notSet = t("review.notSet");
   const { causa, fechaInicio, fechaFin } = draft;
 
@@ -115,9 +127,18 @@ export function ReviewStep({
       description={t("review.description")}
       footer={
         <>
-          <BackLink href={stepHref(3)} />
-          <DiscardDialog onErrors={setErrors} />
-          <SubmitDialog onErrors={setErrors} />
+          <BackLink href={stepHref(3, basePath)} />
+          {flow ? (
+            <ResubmitDialog
+              action={flow.actions.resubmit}
+              onErrors={setErrors}
+            />
+          ) : (
+            <>
+              <DiscardDialog onErrors={setErrors} />
+              <SubmitDialog onErrors={setErrors} />
+            </>
+          )}
         </>
       }
     >
@@ -125,6 +146,7 @@ export function ReviewStep({
         id="review-details"
         title={t("review.sections.details")}
         step={1}
+        basePath={basePath}
         errors={errors.filter((e) =>
           ["causa", "fechaInicio", "fechaFin"].includes(e.field),
         )}
@@ -146,6 +168,7 @@ export function ReviewStep({
         id="review-subjects"
         title={t("review.sections.subjects")}
         step={2}
+        basePath={basePath}
         errors={errors.filter(
           (e) => e.field === "subjects" && e.asignaturaId === undefined,
         )}
@@ -190,6 +213,7 @@ export function ReviewStep({
         id="review-documents"
         title={t("review.sections.documents")}
         step={3}
+        basePath={basePath}
         errors={errorsOf(errors, "documents")}
       >
         {documents.length === 0 ? (
