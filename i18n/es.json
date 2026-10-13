@@ -65,6 +65,16 @@
       "reference": "Referencia: {digest}"
     }
   },
+  "tables": {
+    "caption": {
+      "sortable": "Los encabezados con botón ordenan la tabla."
+    },
+    "sort": {
+      "sortable": "Ordenable. Actívalo para ordenar por esta columna.",
+      "ascending": "Orden ascendente. Actívalo para ordenar de forma descendente.",
+      "descending": "Orden descendente. Actívalo para ordenar de forma ascendente."
+    }
+  },
   "changePassword": {
     "title": "Cambia tu contraseña",
     "subtitle": "Elige una contraseña nueva para tu cuenta.",

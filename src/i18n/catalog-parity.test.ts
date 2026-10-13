@@ -41,6 +41,8 @@ const GUARDED_SECTIONS = [
   // Backoffice shell, slice 1b: route error screen and the role-aware home.
   "shell",
   "dashboard",
+  // Backoffice table kit, slice 2b: sortable headers and the caption sentence.
+  "tables",
 ] as const;
 
 type Node = string | { [key: string]: Node };
@@ -1545,6 +1547,34 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
       for (const key of used) {
         expect(typeof resolve(messages, key), key).toBe("string");
       }
+    }
+  });
+});
+
+describe("catalog parity (DT-I18N-1: table core copy)", () => {
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the sortable header and caption keys",
+    (locale) => {
+      expect(leafPaths(resolve(messagesOf(locale), "tables")).sort()).toEqual([
+        "caption.sortable",
+        "sort.ascending",
+        "sort.descending",
+        "sort.sortable",
+      ]);
+    },
+  );
+
+  it("words each locale in its own language", () => {
+    for (const key of [
+      "tables.caption.sortable",
+      "tables.sort.ascending",
+      "tables.sort.descending",
+      "tables.sort.sortable",
+    ]) {
+      expect(resolve(esMessages, key), key).not.toBe(resolve(enMessages, key));
     }
   });
 });

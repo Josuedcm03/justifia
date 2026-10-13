@@ -497,3 +497,119 @@ The SQL was proven as text through `toSQL()` only: that PostgreSQL accepts `"Usu
 ### Suggested commit (owner)
 
 `feat(users): validated sort, status and page-size parameters with a narrowed list projection`
+
+## Batch E: Slice 2b, Table core (2026-10-12)
+
+Mode: Strict TDD. Delivery: `exception-ok` (single PR, accepted `size:exception`, D14). Tasks 2b.1 to 2b.11 done and ticked in `tasks.md`; 2b.12 (CHECKPOINT) is left unticked for the owner's commit. Nothing was committed, pushed or branched; no database command and no package install were run (`@tanstack/react-table@8.21.3` was already installed and committed). `src/app/globals.css` untouched. The old `src/components/data-table.tsx` and its three siblings were not edited and nothing imports the new kit yet except its tests.
+
+### Tasks
+
+| Task | State | Note |
+|---|---|---|
+| 2b.1 | done | RED: `@/test/intl` missing; GREEN `src/test/intl.tsx` (5/5) |
+| 2b.2 | done | RED: `@/test/navigation-mock` missing; GREEN `src/test/navigation-mock.ts` (7/7). The `next/link` stand-in is included (0.9: the real link is not clickable in jsdom) |
+| 2b.3 | done | RED: module missing |
+| 2b.4 | done | `src/components/tables/list-navigation.tsx`; 6/6 |
+| 2b.5 | done | RED: module missing |
+| 2b.6 | done | `src/components/tables/sortable-header.tsx`; 18/18 (after the 2b.10 keys, see deviations) |
+| 2b.7 | done | RED: module missing |
+| 2b.8 | done | `src/components/tables/data-table.tsx`; 24/24 (one test-only fix: `rerender` needed the provider, so `renderWithIntl` now uses a wrapper) |
+| 2b.9 | done | RED: 1 failed (`transition-colors` on the row); GREEN: removed it; 4/4, old `data-table.test.tsx` still green |
+| 2b.10 | done | RED: 5 failed (`tables` absent); GREEN: 4 keys in each locale; 203/203 |
+| 2b.11 | done | Boundary verified and pinned by `client-boundary.test.ts` (note below) |
+| 2b.12 | pending (owner) | Checkpoint; owner commit |
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED (one line) | GREEN | Triangulation / REFACTOR |
+|---|---|---|---|---|---|---|
+| 2b.1 | `src/test/intl.test.tsx` | Unit/component | N/A (new) | `Failed to resolve import "@/test/intl"` | 5/5 | es and en real catalogs, missing key throws (`notARole`), key echo for two namespaces and with values. REFACTOR: provider became a wrapper so `rerender` keeps context (found by the 2b.7 test) |
+| 2b.2 | `src/test/navigation-mock.test.tsx` | Component | N/A (new) | `Failed to resolve import "@/test/navigation-mock"` | 7/7 | Shared router spies, pathname set and reset, anchor with real href, `onNavigate` plus `preventDefault`, push with `{scroll:false}`, replace link, modifier click left to the browser |
+| 2b.3/2b.4 | `src/components/tables/list-navigation.test.tsx` | Component | N/A (new) | `Failed to resolve import "@/components/tables/list-navigation"` | 6/6 | push, replace, href passthrough, pending true then false through a suspending child inside the transition, controls enabled while pending, throw outside the provider. Mutation check: replaced `startTransition` with a plain call, the 2 pending tests failed; restored, 6/6 |
+| 2b.5/2b.6 | `src/components/tables/sortable-header.test.tsx` | Component | N/A (new) | module missing | 18/18 | button in th named by label, 44px and offset classes, end align, aria-sort asc/desc/absent, three distinct icons, name in every state, description text per state in en and es, Enter, Space, click, focus kept, focus ring, no transition |
+| 2b.7/2b.8 | `src/components/tables/data-table.test.tsx` | Component | N/A (new) | module missing | 24/24 | `onSort(column.id)` for two columns, rows never reordered or truncated (3 and 25 rows), aria-sort table (3 rows) plus unknown key, action column no button, bounded mode, zero rows, caption plus sentence and without it, `scope="col"`, 48px, `getRowId` as row id and as React key (DOM node kept on reorder), meta align and className, pending dims by opacity only |
+| 2b.9 | `src/components/ui/table.test.tsx` | Structural | `data-table.test.tsx` (old kit) green before and after | 1 failed: row class matched `transition` | 4/4 | hover tint only behind `hover:`, divider and muted header kept, headers and cells do not animate |
+| 2b.10 | `src/i18n/catalog-parity.test.ts` | Unit | 197 passing before | 5 failed: `tables` missing in both locales, exact key set, wording differs per locale | 203/203 | Exact leaf set equals the four keys in es and en |
+| 2b.11 | `src/components/tables/client-boundary.test.ts` | Structural | N/A (new) | n/a: characterization of new code (passed once written) | 5/5 | `"use client"` on the three kit modules and on `ui/table.tsx`; props carry `columns`, no `empty` slot |
+
+Test summary: 75 new tests (3,437 total against 3,362 after 2a), 166 files (159 after 2a), all passing. Layers: unit (intl, parity), component (navigation, header, table), structural (ui table, client boundary). Mocks per file: at most two (`next/navigation`, `next/link`), both through the shared module.
+
+Assertion-quality note: `strict-tdd.md` discourages class-name assertions, but 2b.5 and 2b.9 explicitly require class-level checks (44px with the offsetting margin, no `transition`, hover variant only). They are limited to those tasks; everything else asserts roles, names, attributes and text.
+
+### Verification at the checkpoint (V)
+
+| Command | Result |
+|---|---|
+| Focused: `npx vitest run src/test src/components/tables src/components/ui/table.test.tsx src/i18n/catalog-parity.test.ts src/components/data-table.test.tsx` | all passed |
+| `npm test` | 166 files, 3,437 tests, 0 failed. No flaky failure seen |
+| `npm run typecheck` | PASS (rc 0) |
+| `npx eslint src` (JSON output) | 56,219 reports, every one `prettier/prettier` "Delete `CR`"; 0 findings of any other kind; the new LF files report 0 |
+| `npx prettier --check --end-of-line auto` on `src/test`, `src/components/tables`, `src/components/ui/table.tsx`, `src/components/ui/table.test.tsx`, `src/i18n/catalog-parity.test.ts`, `i18n` | "All matched files use Prettier code style!" (7 new files needed `--write` once) |
+| `npm run build` | PASS, `Compiled successfully`, rc 0 |
+| `git diff --stat src/app/globals.css` | empty |
+| Line endings (byte-level check) | `ui/table.tsx`, `i18n/{es,en}.json`, `catalog-parity.test.ts` stay CRLF (0 bare LF); all new files LF as in earlier slices |
+
+### 0.6 lint outcome applied (task 2b.8)
+
+`useReactTable(...)` raises one `react-hooks/incompatible-library` warning (no error). Handled with a single `// eslint-disable-next-line react-hooks/incompatible-library` on that line, with a three-line justification (React Compiler not enabled; no table value passed to a memoized child). No file-wide disable. After the directive `npx eslint src` reports 0 findings for the file and no "unused directive" warning, so the directive is in use.
+
+### 2b.11 boundary note
+
+Function-valued `cell` renderers never cross a server boundary: `data-table.tsx`, `sortable-header.tsx`, `list-navigation.tsx` and `ui/table.tsx` are client modules (pinned by `client-boundary.test.ts`), columns will be built in client modules next to each page (2d, 3b, 3c) and a server page hands over only plain picked rows.
+
+### Authored lines by path (additions / deletions for tracked files; line count for new files)
+
+| Path | Lines |
+|---|---|
+| `i18n/es.json`, `i18n/en.json` | +10 each |
+| `src/components/ui/table.tsx` | +2 / -2 |
+| `src/i18n/catalog-parity.test.ts` | +30 |
+| `src/test/intl.tsx` (new) | 50 |
+| `src/test/navigation-mock.ts` (new) | 116 |
+| `src/components/tables/list-navigation.tsx` (new) | 64 |
+| `src/components/tables/sortable-header.tsx` (new) | 72 |
+| `src/components/tables/data-table.tsx` (new) | 183 |
+| `src/test/intl.test.tsx` (new) | 54 |
+| `src/test/navigation-mock.test.tsx` (new) | 144 |
+| `src/components/tables/list-navigation.test.tsx` (new) | 192 |
+| `src/components/tables/sortable-header.test.tsx` (new) | 181 |
+| `src/components/tables/data-table.test.tsx` (new) | 304 |
+| `src/components/ui/table.test.tsx` (new) | 70 |
+| `src/components/tables/client-boundary.test.ts` (new) | 44 |
+| **Total** | tracked 54 + new 1,474 = **about 1,528**, against an estimate of 500 to 650 (upper bound +135%; the +25% stop threshold is 813). Production about 485, tests about 1,040 |
+
+Flagged for the owner. As in earlier slices the overrun was only measurable at the slice seam, so nothing was cut; the single-PR decision (D14) holds. Running total of 1a, 1b, 2a and 2b: about 5,740 lines. Cause: a 24-test table suite and three helper suites that the estimate did not count separately.
+
+### Locale keys added (identical sets in `es.json` and `en.json`)
+
+- `tables.caption.sortable`
+- `tables.sort.sortable`, `tables.sort.ascending`, `tables.sort.descending`
+- `GUARDED_SECTIONS` gained `tables`.
+
+### Deviations from the design and tasks
+
+1. Order: the 2b.10 RED and keys were done before 2b.6 GREEN, because `SortableHeader` reads `tables.sort.*` and the real-catalog test throws on a missing key. The tick order in `tasks.md` is unchanged.
+2. The sort state text ("sortable", "ascending", "descending") is the button's `title`, so it is the accessible description and a pointer tooltip; the button's name stays exactly the column label (spec: "named by the column label"), the icon is `aria-hidden`, and the `th` carries `aria-sort`. There is no separate "sort button label" key for that reason (4 keys). Whether a visible text indicator is wanted is a design call for the owner.
+3. Sortability is an explicit opt-in (`columnDef.enableSorting === true` in server-driven mode), not TanStack's `getCanSort()`, which is false for columns without an accessor. Consumers can therefore use plain display columns whose `id` equals the URL sort key. `getIsSorted()` is still used for the state.
+4. `pending` (design API) is implemented on `DataTable` as body opacity 60% with `transition-opacity duration-150 ease-ui`; no task line listed it, so tests were added with it.
+5. Extra test files beyond the task list: `navigation-mock.test.tsx` (the stand-in is behaviour defined here, so it is tested), `client-boundary.test.ts` (2b.11), and `ui/table.test.tsx` (no table test existed).
+6. `renderWithIntl` is built on a React Testing Library `wrapper`, so `rerender` keeps the intl context.
+7. The `next/link` stand-in exposes `data-scroll` (not rendered by the real link) only so a test can assert the `scroll` flag; it also calls `router.push` or `router.replace` when `onNavigate` does not cancel, like the real link.
+8. The `ColumnMeta` augmentation carries one narrow `eslint-disable-next-line @typescript-eslint/no-unused-vars` (the merged declaration must repeat the library's type parameters).
+9. Slice size is about 1,528 changed lines against the 500 to 650 estimate (see above).
+
+### Not verified (no browser, no real router in this run)
+
+Real pixel size of the 44px button and the 48px header row (class-level only); the focus ring appearance; that a screen reader announces the `title` description after the name and does not double-announce it next to `aria-sort`; the pending flag against the real Next router (simulated by a suspending child inside the transition; `router.push` inside `startTransition` is the documented pattern but was not observed); the real App Router `next/link` and its `onNavigate` (stand-in only, per 0.9); reduced-motion behaviour of the 150ms opacity transition (relies on the global rule in `globals.css`); that `@tanstack/react-table` lands correctly in a client bundle (no page imports the kit yet, so `npm run build` does not bundle it; the first real build proof is 2d); Gate V1 (still open, belongs to 2d.5). These belong to the F.4 manual checklist and to 2d.
+
+### Work Unit Evidence (Slice 2b)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/test src/components/tables src/components/ui/table.test.tsx src/i18n/catalog-parity.test.ts`: 8 files passed; full suite 166 files, 3,437 tests |
+| Runtime harness | `npm run build` compiled successfully, but the kit has no consumer yet so it is not in any bundle; the runtime path is exercised in jsdom with the real catalogs. No browser run |
+| Rollback boundary | Revert `ui/table.tsx` (restore `transition-colors`), `i18n/{es,en}.json` (the `tables` block) and `catalog-parity.test.ts` (the `tables` guard and its describe); delete `src/test/`, `src/components/tables/` and `src/components/ui/table.test.tsx`. Nothing outside the slice imports them |
+
+### Suggested commit (owner)
+
+`feat(tables): TanStack table core with accessible sortable headers`

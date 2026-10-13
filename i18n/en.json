@@ -65,6 +65,16 @@
       "reference": "Reference: {digest}"
     }
   },
+  "tables": {
+    "caption": {
+      "sortable": "Headers with a button sort the table."
+    },
+    "sort": {
+      "sortable": "Sortable. Activate to sort by this column.",
+      "ascending": "Sorted ascending. Activate to sort descending.",
+      "descending": "Sorted descending. Activate to sort ascending."
+    }
+  },
   "changePassword": {
     "title": "Change your password",
     "subtitle": "Choose a new password for your account.",

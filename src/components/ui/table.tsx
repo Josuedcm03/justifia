@@ -60,8 +60,8 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        // Horizontal dividers only; hover is the primary at 5%.
-        "hover:bg-primary/5 has-aria-expanded:bg-primary/5 data-[state=selected]:bg-primary/10 border-b transition-colors",
+        // Horizontal dividers only; hover is the primary at 5%, instant.
+        "hover:bg-primary/5 has-aria-expanded:bg-primary/5 data-[state=selected]:bg-primary/10 border-b",
         className,
       )}
       {...props}
