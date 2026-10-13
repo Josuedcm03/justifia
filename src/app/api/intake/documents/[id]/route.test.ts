@@ -11,11 +11,13 @@ const {
   getDocumentMock,
   recordDownloadMock,
   getIntakeDepsMock,
+  resolveScopeMock,
 } = vi.hoisted(() => ({
   getCurrentUserMock: vi.fn(),
   getDocumentMock: vi.fn(),
   recordDownloadMock: vi.fn(),
   getIntakeDepsMock: vi.fn(),
+  resolveScopeMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/dal", () => ({ getCurrentUser: getCurrentUserMock }));
@@ -23,11 +25,16 @@ vi.mock("@/lib/data/documentos", () => ({
   getDocumentForDownload: getDocumentMock,
   recordDocumentDownload: recordDownloadMock,
 }));
+vi.mock("@/lib/data/request-scope", () => ({
+  resolveRequestScope: resolveScopeMock,
+}));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: getIntakeDepsMock }));
 
 import { GET } from "@/app/api/intake/documents/[id]/route";
 
 const OWNER = 7;
+const SECRETARIA = 20;
+const FACULTAD = 3;
 const PATH = "intake/4/0b9f6c1e-4f0a-4d57-9a64-2f3f8f1d2c11.pdf";
 const PDF_BYTES = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37];
 
@@ -40,6 +47,9 @@ function doc(overrides: Record<string, unknown> = {}) {
     id: 11,
     solicitudId: 4,
     estudianteId: OWNER,
+    estudianteFacultadId: FACULTAD,
+    solicitudEstado: "pendiente",
+    retiradoEn: null,
     pathname: PATH,
     tipo: "pdf",
     nombreOriginal: "Dictamen médico.pdf",
@@ -47,9 +57,21 @@ function doc(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function call(id: string) {
-  return GET(new Request(`http://localhost/api/intake/documents/${id}`), {
-    params: Promise.resolve({ id }),
+function call(id: string, query = "") {
+  return GET(
+    new Request(`http://localhost/api/intake/documents/${id}${query}`),
+    { params: Promise.resolve({ id }) },
+  );
+}
+
+/** A secretaria of FACULTAD, the scope the data layer would resolve for her. */
+function asSecretaria() {
+  getCurrentUserMock.mockResolvedValue(
+    session("secretaria", String(SECRETARIA)),
+  );
+  resolveScopeMock.mockResolvedValue({
+    kind: "facultad",
+    facultadId: FACULTAD,
   });
 }
 
@@ -61,6 +83,8 @@ describe("GET /api/intake/documents/[id]", () => {
     getDocumentMock.mockReset();
     recordDownloadMock.mockReset();
     getIntakeDepsMock.mockReset();
+    resolveScopeMock.mockReset();
+    resolveScopeMock.mockResolvedValue({ kind: "none" });
     deps = createFakeIntakeDeps();
     deps.store.seed(PATH, PDF_BYTES);
     getIntakeDepsMock.mockReturnValue(deps);
@@ -116,6 +140,7 @@ describe("GET /api/intake/documents/[id]", () => {
         id: 11,
         solicitudId: 4,
         tipo: "pdf",
+        modo: "ver",
       });
       expect(streamSpy.mock.invocationCallOrder[0]).toBeLessThan(
         recordDownloadMock.mock.invocationCallOrder[0],
@@ -178,7 +203,7 @@ describe("GET /api/intake/documents/[id]", () => {
       "coordinacion",
       "administrador",
     ] as const)(
-      "answers 404 for %s even if the id matches the owner (D15)",
+      "answers 404 for %s with no facultad scope even if the id matches the owner (D15)",
       async (rol) => {
         getCurrentUserMock.mockResolvedValue(session(rol));
 
@@ -198,6 +223,239 @@ describe("GET /api/intake/documents/[id]", () => {
         expect(getDocumentMock).not.toHaveBeenCalled();
       },
     );
+  });
+
+  describe("mode (SR-12)", () => {
+    it("serves inline when the mode is absent, and records ver", async () => {
+      const res = await call("11");
+
+      expect(res.headers.get("Content-Disposition")).toMatch(/^inline;/);
+      expect(recordDownloadMock.mock.calls[0][1].modo).toBe("ver");
+    });
+
+    it("serves inline for an explicit ver", async () => {
+      const res = await call("11", "?modo=ver");
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Disposition")).toMatch(/^inline;/);
+      expect(recordDownloadMock.mock.calls[0][1].modo).toBe("ver");
+    });
+
+    it("serves an attachment with the RFC 5987 name for descarga, and records it", async () => {
+      const res = await call("11", "?modo=descarga");
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Disposition")).toBe(
+        "attachment; filename=\"documento.pdf\"; filename*=UTF-8''Dictamen%20m%C3%A9dico.pdf",
+      );
+      expect(recordDownloadMock.mock.calls[0][1].modo).toBe("descarga");
+      expect(recordDownloadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps every other header unchanged in descarga", async () => {
+      const res = await call("11", "?modo=descarga");
+
+      expect(res.headers.get("Content-Type")).toBe("application/pdf");
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(res.headers.get("Content-Security-Policy")).toBe("sandbox");
+    });
+
+    it.each([
+      "foo",
+      "",
+      "DESCARGA",
+      "ver,descarga",
+      "descarga%00",
+      "toString",
+      "constructor",
+    ])(
+      "answers the uniform 404 for the unknown mode %j, before any lookup",
+      async (modo) => {
+        const unknownId = await (async () => {
+          getDocumentMock.mockResolvedValueOnce(null);
+          const r = await call("404");
+          return { status: r.status, body: await r.text() };
+        })();
+        getDocumentMock.mockClear();
+        const streamSpy = vi.spyOn(deps.store, "stream");
+
+        const res = await call("11", `?modo=${modo}`);
+
+        expect({ status: res.status, body: await res.text() }).toEqual(
+          unknownId,
+        );
+        expect(getDocumentMock).not.toHaveBeenCalled();
+        expect(streamSpy).not.toHaveBeenCalled();
+        expect(recordDownloadMock).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe("repeated mode parameters", () => {
+    it("answers 404 when the mode is given twice, even with equal values", async () => {
+      expect((await call("11", "?modo=ver&modo=ver")).status).toBe(404);
+      expect((await call("11", "?modo=ver&modo=descarga")).status).toBe(404);
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("secretaria in scope (SR-12)", () => {
+    beforeEach(() => asSecretaria());
+
+    it("streams inline and writes one row with the secretary as actor and mode ver", async () => {
+      const res = await call("11");
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Disposition")).toMatch(/^inline;/);
+      expect(res.headers.get("Content-Security-Policy")).toBe("sandbox");
+      expect(recordDownloadMock).toHaveBeenCalledTimes(1);
+      expect(recordDownloadMock).toHaveBeenCalledWith(SECRETARIA, {
+        id: 11,
+        solicitudId: 4,
+        tipo: "pdf",
+        modo: "ver",
+      });
+      expect(Array.from(new Uint8Array(await res.arrayBuffer()))).toEqual(
+        PDF_BYTES,
+      );
+    });
+
+    it("downloads as an attachment and records descarga", async () => {
+      const res = await call("11", "?modo=descarga");
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Disposition")).toMatch(/^attachment;/);
+      expect(recordDownloadMock.mock.calls[0][1].modo).toBe("descarga");
+    });
+
+    it("resolves the scope for the session user and role", async () => {
+      await call("11");
+
+      expect(resolveScopeMock).toHaveBeenCalledWith(SECRETARIA, "secretaria");
+    });
+
+    it.each(["pendiente", "devuelta", "aprobada", "rechazada"])(
+      "reads a document of a %s request",
+      async (solicitudEstado) => {
+        getDocumentMock.mockResolvedValue(doc({ solicitudEstado }));
+
+        expect((await call("11")).status).toBe(200);
+      },
+    );
+
+    it("reads a retired document of a request in scope", async () => {
+      getDocumentMock.mockResolvedValue(
+        doc({ retiradoEn: new Date("2026-10-07T10:00:00.000Z") }),
+      );
+
+      const res = await call("11");
+
+      expect(res.status).toBe(200);
+      expect(recordDownloadMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("owner and retired documents", () => {
+    it("lets the owner read a document retired by a correction", async () => {
+      getDocumentMock.mockResolvedValue(
+        doc({ retiradoEn: new Date("2026-10-07T10:00:00.000Z") }),
+      );
+
+      expect((await call("11")).status).toBe(200);
+    });
+
+    it("does not resolve a facultad scope for a student", async () => {
+      await call("11");
+
+      expect(resolveScopeMock).toHaveBeenCalledWith(OWNER, "estudiante");
+    });
+  });
+
+  describe("staff denials are identical to an unknown id and write no row", () => {
+    async function denial(res: Response) {
+      return { status: res.status, body: await res.text() };
+    }
+
+    async function unknownIdDenial() {
+      getDocumentMock.mockResolvedValueOnce(null);
+      const res = await denial(await call("404"));
+      getDocumentMock.mockClear();
+      return res;
+    }
+
+    it("denies a secretaria of another facultad in every mode", async () => {
+      asSecretaria();
+      const unknown = await unknownIdDenial();
+      getDocumentMock.mockResolvedValue(doc({ estudianteFacultadId: 4 }));
+      const streamSpy = vi.spyOn(deps.store, "stream");
+
+      for (const query of ["", "?modo=ver", "?modo=descarga"]) {
+        expect(await denial(await call("11", query))).toEqual(unknown);
+      }
+      expect(streamSpy).not.toHaveBeenCalled();
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+
+    it("denies a secretaria whose student has no facultad", async () => {
+      asSecretaria();
+      const unknown = await unknownIdDenial();
+      getDocumentMock.mockResolvedValue(doc({ estudianteFacultadId: null }));
+
+      expect(await denial(await call("11"))).toEqual(unknown);
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+
+    it("denies a secretaria without a facultad (none scope)", async () => {
+      getCurrentUserMock.mockResolvedValue(
+        session("secretaria", String(SECRETARIA)),
+      );
+      resolveScopeMock.mockResolvedValue({ kind: "none" });
+      const unknown = await unknownIdDenial();
+      getDocumentMock.mockResolvedValue(doc());
+
+      expect(await denial(await call("11"))).toEqual(unknown);
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+
+    it("denies a coordinacion even with a matching facultad", async () => {
+      getCurrentUserMock.mockResolvedValue(session("coordinacion", "30"));
+      resolveScopeMock.mockResolvedValue({
+        kind: "facultad",
+        facultadId: FACULTAD,
+      });
+      const unknown = await unknownIdDenial();
+      getDocumentMock.mockResolvedValue(doc());
+
+      expect(await denial(await call("11"))).toEqual(unknown);
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+
+    it("denies a document of a borrador to an in-scope secretaria", async () => {
+      asSecretaria();
+      const unknown = await unknownIdDenial();
+      getDocumentMock.mockResolvedValue(doc({ solicitudEstado: "borrador" }));
+
+      expect(await denial(await call("11"))).toEqual(unknown);
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+
+    it("denies an unfinalized (pendiente) file, which the lookup never returns", async () => {
+      asSecretaria();
+      const unknown = await unknownIdDenial();
+      getDocumentMock.mockResolvedValue(null);
+
+      expect(await denial(await call("11"))).toEqual(unknown);
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+
+    it("does not resolve a scope without a session", async () => {
+      getCurrentUserMock.mockResolvedValue(null);
+
+      await call("11");
+
+      expect(resolveScopeMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("failures return no bytes and write no audit row", () => {

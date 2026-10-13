@@ -548,6 +548,7 @@
         "invalid": "Revisa los datos ingresados",
         "careerRequired": "Selecciona la carrera que coordina",
         "invalidCarrera": "La carrera seleccionada no es válida",
+        "facultadRequired": "Tu cuenta no tiene una carrera asignada, por lo que no se puede determinar la facultad de la nueva secretaria",
         "duplicate": "El usuario o CIF ya existe"
       },
       "subtitle": "Crea una cuenta para el personal del backoffice."

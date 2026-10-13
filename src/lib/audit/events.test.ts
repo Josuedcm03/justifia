@@ -227,6 +227,23 @@ describe("buildAuditEvents", () => {
   });
 });
 
+describe("AUDITABLE_USER_FIELDS includes facultadId (SR-16)", () => {
+  it("lists facultadId, so an account creation reports it as a field", () => {
+    expect(AUDITABLE_USER_FIELDS).toContain("facultadId");
+  });
+
+  it("reports facultadId in the created-account payload, as a name only", () => {
+    const event = accountCreatedEvent({
+      usuarioId: 9,
+      rol: "secretaria",
+      importacionSha256: "e".repeat(64),
+    });
+    if (event.entidadTipo !== "Usuario") throw new Error("expected Usuario");
+    expect(event.datos.campos).toContain("facultadId");
+    expect(JSON.stringify(event.datos)).not.toMatch(/facultadId"\s*:/);
+  });
+});
+
 describe("AUDITABLE_USER_FIELDS excludes credentials", () => {
   it("never contains login or hashClave", () => {
     expect(AUDITABLE_USER_FIELDS).not.toContain("login");

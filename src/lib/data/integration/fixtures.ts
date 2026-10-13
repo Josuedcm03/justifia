@@ -12,6 +12,8 @@ import {
   rol,
   solicitud,
   solicitudAsignatura,
+  solicitudDecision,
+  solicitudRevision,
   usuario,
 } from "@/db/schema";
 import { buildPathname } from "@/lib/intake/pathnames";
@@ -57,6 +59,8 @@ async function ensureRole(codigo: RolUsuario, nombre: string): Promise<number> {
 
 export type Student = { id: number; cif: string };
 
+export type Secretaria = { id: number; facultadId: number };
+
 export function createFixtures() {
   const run = randomUUID().replaceAll("-", "").slice(0, 12);
   let counter = 0;
@@ -69,8 +73,10 @@ export function createFixtures() {
   const asignaturaIds: number[] = [];
   const grupoIds: number[] = [];
   const docenteIds: number[] = [];
+  const secretariaIds: number[] = [];
 
   let careerId: number | null = null;
+  let careerFacultadId: number | null = null;
 
   async function ensureCareer(): Promise<number> {
     if (careerId !== null) return careerId;
@@ -85,6 +91,7 @@ export function createFixtures() {
       .returning({ id: carrera.id });
     carreraIds.push(car.id);
     careerId = car.id;
+    careerFacultadId = fac.id;
     return car.id;
   }
 
@@ -108,6 +115,28 @@ export function createFixtures() {
         .returning({ id: usuario.id, cif: usuario.cif });
       studentIds.push(row.id);
       return { id: row.id, cif: row.cif as string };
+    },
+
+    /**
+     * A secretaria of the facultad every student and group of this run belongs
+     * to (review scope, SR-6). The facultad is created together with the career.
+     */
+    async addSecretaria(): Promise<Secretaria> {
+      await ensureCareer();
+      const facultadId = careerFacultadId as number;
+      const tag = next();
+      const [row] = await db
+        .insert(usuario)
+        .values({
+          login: `it-sec-${tag}`,
+          hashClave: "integration-not-a-real-hash",
+          rolId: await ensureRole("secretaria", "Secretaria"),
+          nombreCompleto: `IT Secretaria ${tag}`,
+          facultadId,
+        })
+        .returning({ id: usuario.id });
+      secretariaIds.push(row.id);
+      return { id: row.id, facultadId };
     },
 
     /** A group (with its subject and teacher) a draft can point at. */
@@ -184,6 +213,21 @@ export function createFixtures() {
     async cleanup(): Promise<void> {
       const owners = [...studentIds];
       if (owners.length > 0) {
+        // Decisions and revisions have no cascade (append-only history), so
+        // the rows of this run go first. Disposable branch only.
+        const requests = await db
+          .select({ id: solicitud.id })
+          .from(solicitud)
+          .where(inArray(solicitud.estudianteId, owners));
+        const requestIds = requests.map((r) => r.id);
+        if (requestIds.length > 0) {
+          await db
+            .delete(solicitudDecision)
+            .where(inArray(solicitudDecision.solicitudId, requestIds));
+          await db
+            .delete(solicitudRevision)
+            .where(inArray(solicitudRevision.solicitudId, requestIds));
+        }
         // Drafts created by the code under test have ids we never saw.
         await db
           .delete(solicitud)
@@ -205,7 +249,7 @@ export function createFixtures() {
           db.delete(usuario).where(inArray(usuario.id, docenteIds)),
         );
       }
-      for (const id of studentIds) {
+      for (const id of [...studentIds, ...secretariaIds]) {
         await ignoringPinnedRows(() =>
           db.delete(usuario).where(eq(usuario.id, id)),
         );

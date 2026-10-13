@@ -61,4 +61,18 @@ describe("NewUserForm role selector", () => {
       expect(optionTexts).not.toContain(`roles.${forbidden}`);
     }
   });
+
+  it.each(["administrador", "coordinacion", "secretaria"] as const)(
+    "has no facultad field for %s: the server derives it (SR-16)",
+    (caller) => {
+      const { container } = render(
+        <NewUserForm
+          carreras={[]}
+          rolesAsignables={rolesAsignablesPor(caller)}
+        />,
+      );
+
+      expect(container.querySelector("[name=facultadId]")).toBeNull();
+    },
+  );
 });

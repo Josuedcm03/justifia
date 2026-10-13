@@ -47,3 +47,28 @@ Deviation from design SR-1: `CK_SolicitudDecision_Texto` is null-safe (`Tipo = '
 Gates: `npx vitest run src/db src/lib/audit src/lib/data/solicitud-clases.test.ts` green; `npm test` 156 files / 3053 tests green; `npx next typegen` + `npm run typecheck` clean; eslint on changed files clean apart from repo-wide CRLF noise; prettier clean on changed files (tasks.md was already unformatted on the tracker).
 
 Lines vs tracker: production 450, tests 608, generated 1435 (SQL 46, snapshot 1382, journal 7). No database command was run.
+
+## S3 Data layer, access, document route, SR-16 (branch `feat/secretary-review-s3-data`, from the tracker @ ddfbe03)
+
+Status: partial. Tasks 3.1-3.15 and 3.17 done; 3.16 is the STOP gate (the integration suite is written and type-checked, NOT run: it needs an owner [CONFIRM] on a disposable Neon branch with migration `0008_secretary_review` applied).
+
+| Task | State | Evidence |
+|---|---|---|
+| 3.1 | done | `permissions.ts`: `rolesRevisores`, `canReviewRequests`, `canViewDocument(viewer, doc, scope)`; matrix in `permissions.test.ts` (RED: 14 failed first run) |
+| 3.2 | done | `request-scope-sql.ts` (`requestInScope`, `requestRowInScope`, EXISTS via aliased Usuario/Carrera, inner join, `none` = `false`) and `request-scope.ts` (`resolveRequestScope`, per-request DB read, no read for non-reviewing roles); 17 tests |
+| 3.3-3.4 | done | `revision-queue.ts` `listReviewQueue(scope, now, calendar)` returns `{ rows, calendarLoaded }`; 14 tests; `db-double` records `orderBy` |
+| 3.5-3.6 | done | `solicitud-detail.ts` `getRequestDetail(scope, id)` (null for absent/draft/out-of-scope); 13 tests |
+| 3.7-3.8 | done | `solicitud-decision.ts` `decideRequest` (guarded UPDATE from the RN-16 table, revision snapshot on return, decision row, audit row, one transaction); 27 tests |
+| 3.9 | done | `request-reads.ts` `recordRequestRead(actorId, solicitudId, estado)` and `recordQueueRead(actorId, facultadId, total)`, both React `cache()`; 10 tests |
+| 3.10-3.11 | done | route `?modo=ver|descarga` (absent = ver, anything else uniform 404 before the lookup), staff scope via `resolveRequestScope` + `canViewDocument`, `modo` in the audit row; `getDocumentForDownload` returns `estudianteFacultadId`, `solicitudEstado`, `retiradoEn`; `attachmentDisposition` |
+| 3.12-3.13 | done | `createStaffAction` derives `FacultadId` via new `getUserFacultadId` (only for `secretaria`; null -> form error `errors.facultadRequired`, nothing created); `facultadId` in `AUDITABLE_USER_FIELDS`; `createUsuario` already persisted `facultadId` (test added) |
+| 3.14 | done | `append-only.test.ts` (RED shown with a temporary offender file, then removed) |
+| 3.15 | done (written) | `intake-concurrency.integration.test.ts` suite "concurrent decisions on one pending request" for 2 and 6 deciders; `fixtures.ts` gains `addSecretaria()` and cleans decisions and revisions it created |
+| 3.16 | OPEN (STOP) | written, run pending owner [CONFIRM] on a disposable Neon branch; branch needs `0008_secretary_review` applied |
+| 3.17 | done | gates below |
+
+Deviations from design (all minor): `getRequestDetail` returns `null` instead of a `not_found` outcome object; `decideRequest` re-validates with `validateDecision` and returns `invalid` (defence in depth over the action's own validation); `recordRequestRead` takes primitive arguments (the `cache()` key) instead of a detail object and a `recordQueueRead` sibling was added; new i18n key `users.new.errors.facultadRequired` (es/en) for the SR-16 refusal; `append-only.test.ts` skips `src/lib/data/integration` (disposable-branch fixtures cleanup deletes the history rows a test created); `usuario.creado` import payloads now list `facultadId` among `campos` (spec-intended).
+
+Gates: `npm test` 163 files / 3215 tests green; `npx next typegen` + `npm run typecheck` clean; eslint and prettier clean on changed files apart from repo-wide CRLF noise (checked with CR stripped). No database command was run; the integration suite was not run.
+
+Lines vs tracker: production 753, tests 2356 (including integration fixtures); `.engram` sync chunks added by the pre-commit hook and the openspec docs are excluded.

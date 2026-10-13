@@ -18,6 +18,7 @@ const {
   hashPasswordMock,
   createUsuarioMock,
   listCarrerasMock,
+  getUserFacultadIdMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
@@ -26,6 +27,7 @@ const {
   hashPasswordMock: vi.fn(),
   createUsuarioMock: vi.fn(),
   listCarrerasMock: vi.fn(),
+  getUserFacultadIdMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -46,6 +48,7 @@ vi.mock("@/lib/auth/password", () => ({
 
 vi.mock("@/lib/data/users", () => ({
   createUsuario: createUsuarioMock,
+  getUserFacultadId: getUserFacultadIdMock,
 }));
 
 vi.mock("@/lib/data/carreras", () => ({
@@ -90,6 +93,8 @@ describe("createStaffAction", () => {
     hashPasswordMock.mockReset();
     createUsuarioMock.mockReset();
     listCarrerasMock.mockReset();
+    getUserFacultadIdMock.mockReset();
+    getUserFacultadIdMock.mockResolvedValue(5);
     hashPasswordMock.mockResolvedValue("hashed");
     createUsuarioMock.mockResolvedValue({});
     listCarrerasMock.mockResolvedValue([]);
@@ -194,6 +199,107 @@ describe("createStaffAction", () => {
       );
     },
   );
+
+  describe("SR-16: a new secretaria inherits the creating coordinator's facultad", () => {
+    it("derives FacultadId from the creator's carrera, not from the form", async () => {
+      allowSession("coordinacion");
+      const fd = buildFormData({ ...validPayload, rol: "secretaria" });
+
+      await expect(createStaffAction({ error: null }, fd)).rejects.toThrow(
+        "REDIRECT:/users",
+      );
+
+      expect(getUserFacultadIdMock).toHaveBeenCalledWith(1);
+      expect(createUsuarioMock).toHaveBeenCalledTimes(1);
+      expect(createUsuarioMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rol: "secretaria",
+          facultadId: 5,
+          carreraId: null,
+        }),
+      );
+    });
+
+    it("uses the facultad the database returns for each creator", async () => {
+      allowSession("coordinacion");
+      getUserFacultadIdMock.mockResolvedValue(9);
+      const fd = buildFormData({ ...validPayload, rol: "secretaria" });
+
+      await expect(createStaffAction({ error: null }, fd)).rejects.toThrow();
+
+      expect(createUsuarioMock).toHaveBeenCalledWith(
+        expect.objectContaining({ facultadId: 9 }),
+      );
+    });
+
+    it("ignores a forged facultadId (and carreraId) in the request", async () => {
+      allowSession("coordinacion");
+      const fd = buildFormData({
+        ...validPayload,
+        rol: "secretaria",
+        facultadId: "99",
+        carreraId: "7",
+      });
+
+      await expect(createStaffAction({ error: null }, fd)).rejects.toThrow(
+        "REDIRECT:/users",
+      );
+
+      expect(createUsuarioMock).toHaveBeenCalledWith(
+        expect.objectContaining({ facultadId: 5, carreraId: null }),
+      );
+    });
+
+    it("refuses a coordinator with no derivable facultad: nothing is created and no redirect", async () => {
+      allowSession("coordinacion");
+      getUserFacultadIdMock.mockResolvedValue(null);
+      const fd = buildFormData({ ...validPayload, rol: "secretaria" });
+
+      const result = await createStaffAction({ error: null }, fd);
+
+      expect(result).toEqual({ error: "errors.facultadRequired" });
+      expect(createUsuarioMock).not.toHaveBeenCalled();
+      expect(hashPasswordMock).not.toHaveBeenCalled();
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("does not read the creator's facultad when the role check redirects first", async () => {
+      allowSession("secretaria");
+      const fd = buildFormData({ ...validPayload, rol: "secretaria" });
+
+      await expect(createStaffAction({ error: null }, fd)).rejects.toThrow(
+        `REDIRECT:${ACCESS_DENIED_PATH}`,
+      );
+
+      expect(getUserFacultadIdMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["administrador", "coordinacion", { carreraId: "7" }],
+      ["secretaria", "docente", {}],
+    ] as const)(
+      "gives a %s -> %s account no facultad and reads none",
+      async (caller, target, extra) => {
+        allowSession(caller);
+        listCarrerasMock.mockResolvedValue([{ id: 7, nombre: "Ingeniería" }]);
+        const fd = buildFormData({
+          ...validPayload,
+          rol: target,
+          facultadId: "99",
+          ...extra,
+        });
+
+        await expect(createStaffAction({ error: null }, fd)).rejects.toThrow(
+          "REDIRECT:/users",
+        );
+
+        expect(getUserFacultadIdMock).not.toHaveBeenCalled();
+        expect(createUsuarioMock).toHaveBeenCalledWith(
+          expect.objectContaining({ facultadId: null }),
+        );
+      },
+    );
+  });
 
   it("rethrows RolDesconocidoError from createUsuario (decision 7: a config error is not a duplicate)", async () => {
     allowSession("administrador");

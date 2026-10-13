@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeDocumentStore } from "@/lib/intake/fakes";
@@ -428,37 +429,81 @@ describe("documentos data layer", () => {
   });
 
   describe("getDocumentForDownload", () => {
-    it("returns the valid document with its owner", async () => {
-      use([
-        {
-          kind: "select",
-          rows: [
-            {
-              id: 11,
-              solicitudId: DRAFT,
-              estudianteId: USER,
-              pathname: PATH,
-              tipoDetectado: "pdf",
-              nombreOriginal: "scan.pdf",
-            },
-          ],
-        },
-      ]);
+    const downloadRow = {
+      id: 11,
+      solicitudId: DRAFT,
+      estudianteId: USER,
+      estudianteFacultadId: 3,
+      solicitudEstado: "pendiente",
+      pathname: PATH,
+      tipoDetectado: "pdf",
+      nombreOriginal: "scan.pdf",
+      retiradoEn: null,
+    };
+
+    it("returns the valid document with its owner, facultad, state and retirement", async () => {
+      use([{ kind: "select", rows: [downloadRow] }]);
 
       expect(await getDocumentForDownload(11)).toEqual({
         id: 11,
         solicitudId: DRAFT,
         estudianteId: USER,
+        estudianteFacultadId: 3,
+        solicitudEstado: "pendiente",
+        retiradoEn: null,
         pathname: PATH,
         tipo: "pdf",
         nombreOriginal: "scan.pdf",
       });
     });
 
-    it("returns null for an unknown or not-yet-valid document", async () => {
+    it("returns the retirement time of a retired document", async () => {
+      const retiradoEn = new Date("2026-10-07T10:00:00.000Z");
+      use([{ kind: "select", rows: [{ ...downloadRow, retiradoEn }] }]);
+
+      expect((await getDocumentForDownload(11))?.retiradoEn).toEqual(
+        retiradoEn,
+      );
+    });
+
+    it("returns a null facultad for a student without a carrera", async () => {
+      use([
+        {
+          kind: "select",
+          rows: [{ ...downloadRow, estudianteFacultadId: null }],
+        },
+      ]);
+
+      expect(
+        (await getDocumentForDownload(11))?.estudianteFacultadId,
+      ).toBeNull();
+    });
+
+    it("returns null for an unknown document", async () => {
       use([{ kind: "select", rows: [] }]);
 
       expect(await getDocumentForDownload(404)).toBeNull();
+    });
+
+    it("returns null for a row without a detected type", async () => {
+      use([
+        { kind: "select", rows: [{ ...downloadRow, tipoDetectado: null }] },
+      ]);
+
+      expect(await getDocumentForDownload(11)).toBeNull();
+    });
+
+    it("only matches the document id in the valido state, never a pendiente claim", async () => {
+      const double = use([{ kind: "select", rows: [] }]);
+
+      await getDocumentForDownload(11);
+
+      const query = new PgDialect().sqlToQuery(
+        double.log[0].where as Parameters<PgDialect["sqlToQuery"]>[0],
+      );
+      expect(query.sql).toContain('"DocumentoRespaldo"."Id" = $1');
+      expect(query.sql).toContain('"DocumentoRespaldo"."Estado" = $2');
+      expect(query.params).toEqual([11, "valido"]);
     });
   });
 

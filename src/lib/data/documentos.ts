@@ -3,7 +3,7 @@ import "server-only";
 import { and, count, eq, gt } from "drizzle-orm";
 
 import { db } from "@/db";
-import { documentoRespaldo, solicitud } from "@/db/schema";
+import { carrera, documentoRespaldo, solicitud, usuario } from "@/db/schema";
 import {
   documentAttachedEvent,
   documentDownloadedEvent,
@@ -49,6 +49,11 @@ export type DownloadableDocument = {
   id: number;
   solicitudId: number;
   estudianteId: number;
+  /** `Carrera.FacultadId` of the student's current career; null without one. */
+  estudianteFacultadId: number | null;
+  solicitudEstado: string;
+  /** Set when a correction retired the document (still `valido`). */
+  retiradoEn: Date | null;
   pathname: string;
   tipo: TipoDetectado;
   nombreOriginal: string;
@@ -325,7 +330,9 @@ export async function removeDocument(
 }
 
 /**
- * A `valido` document with its owner, or null. Authorization is the caller's
+ * A `valido` document with its owner, the owner's facultad (via the student's
+ * current career), the request state and any retirement, or null. Retired
+ * documents stay `valido`, so they are returned. Authorization is the caller's
  * job (`canViewDocument`): this only answers "what is this document".
  */
 export async function getDocumentForDownload(
@@ -336,12 +343,17 @@ export async function getDocumentForDownload(
       id: documentoRespaldo.id,
       solicitudId: documentoRespaldo.solicitudId,
       estudianteId: solicitud.estudianteId,
+      estudianteFacultadId: carrera.facultadId,
+      solicitudEstado: solicitud.estado,
       pathname: documentoRespaldo.pathname,
       tipoDetectado: documentoRespaldo.tipoDetectado,
       nombreOriginal: documentoRespaldo.nombreOriginal,
+      retiradoEn: documentoRespaldo.retiradoEn,
     })
     .from(documentoRespaldo)
     .innerJoin(solicitud, eq(solicitud.id, documentoRespaldo.solicitudId))
+    .innerJoin(usuario, eq(usuario.id, solicitud.estudianteId))
+    .leftJoin(carrera, eq(carrera.id, usuario.carreraId))
     .where(
       and(
         eq(documentoRespaldo.id, documentId),
@@ -354,6 +366,9 @@ export async function getDocumentForDownload(
     id: row.id,
     solicitudId: row.solicitudId,
     estudianteId: row.estudianteId,
+    estudianteFacultadId: row.estudianteFacultadId,
+    solicitudEstado: row.solicitudEstado,
+    retiradoEn: row.retiradoEn,
     pathname: row.pathname,
     tipo: row.tipoDetectado as TipoDetectado,
     nombreOriginal: row.nombreOriginal,

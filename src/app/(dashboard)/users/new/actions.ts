@@ -9,7 +9,7 @@ import { canAssignRole, rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { listCarreras } from "@/lib/data/carreras";
 import { RolDesconocidoError } from "@/lib/data/roles";
-import { createUsuario } from "@/lib/data/users";
+import { createUsuario, getUserFacultadId } from "@/lib/data/users";
 import { crearStaffSchema } from "@/lib/validations/users";
 
 export type CreateStaffState = { error: string | null };
@@ -57,6 +57,19 @@ export async function createStaffAction(
     }
   }
 
+  // SR-16: a new secretaria inherits the facultad of the creating coordinator's
+  // carrera, read from the database now. It never comes from the form, so a
+  // forged `facultadId` is not even parsed. A creator with no carrera has no
+  // facultad to give: refuse with an ordinary form error before anything is
+  // hashed or written.
+  let facultadId: number | null = null;
+  if (parsed.data.rol === "secretaria") {
+    facultadId = await getUserFacultadId(Number(session.sub));
+    if (facultadId === null) {
+      return { error: t("errors.facultadRequired") };
+    }
+  }
+
   const hashClave = await hashPassword(parsed.data.password);
 
   try {
@@ -69,6 +82,7 @@ export async function createStaffAction(
       telefono: parsed.data.telefono ?? null,
       cif: null,
       carreraId: esCoordinacion ? (parsed.data.carreraId ?? null) : null,
+      facultadId,
     });
   } catch (err) {
     // A config error (an assignable role missing from the catalog) is not a
