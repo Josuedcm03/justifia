@@ -72,3 +72,25 @@ Deviations from design (all minor): `getRequestDetail` returns `null` instead of
 Gates: `npm test` 163 files / 3215 tests green; `npx next typegen` + `npm run typecheck` clean; eslint and prettier clean on changed files apart from repo-wide CRLF noise (checked with CR stripped). No database command was run; the integration suite was not run.
 
 Lines vs tracker: production 753, tests 2356 (including integration fixtures); `.engram` sync chunks added by the pre-commit hook and the openspec docs are excluded.
+
+## S4 Staff review UI (branch `feat/secretary-review-s4-staff-ui`, from the tracker @ 2c17681)
+
+Status: partial. Tasks 4.1-4.10 done; 4.11 is the [CONFIRM] manual harness (owner work on a disposable Neon branch after Phase 7, not run here). Mode: Strict TDD.
+
+| Task | State | Evidence |
+|---|---|---|
+| 4.1 | done | sidebar `review` entry (`ClipboardCheck`, `canReviewRequests`, `prefetch: false`); sidebar test 94/94 (RED: 4 failed before the entry and the `nav.review` key) |
+| 4.2 | done | `review.*` keys in both catalogs (queue, detail, decision, notFound) plus `src/i18n/review-messages.test.ts` (key parity, non-empty text, every template and RN-17 reason labelled, every validation error worded; RED seen with the decision keys missing: 2 failed) |
+| 4.3-4.4 | done | `review/page.tsx` + `deadline-badge.tsx`; `page.test.tsx` 28 tests (role guard on the real dal, `none` scope alert and no query, empty state, columns, three badges as text, no cause, calendar note, one queue-read row, stacked cards, `prefetch={false}`); RED: module missing |
+| 4.5-4.6 | done | `review/[id]/page.tsx` + `request-sections.tsx` + `not-found.tsx`; `page.test.tsx` 40 tests (guard, malformed id, out-of-scope/draft/unknown identical `notFound()`, sections, View/Download via `?modo`, decision panel only while `pendiente`, history, one audit row, none on a throwing load or derived value, no data on audit failure) |
+| 4.7-4.8 | done | `review/[id]/actions.ts` (31 tests) and `decision-dialog.tsx` (21 tests): templates prefilled and editable, reason picks the return template, `/1000` counter, reject two-step (secondary trigger, destructive confirm), cancel/Escape change nothing, field errors `role="alert"`, conflict/not_found banner with a way back, redirect with `?resultado=`, no `revalidatePath` |
+| 4.9 | done | `review/structure.test.ts` 17 tests; RED shown with a temporary `layout.tsx` calling `recordRequestRead` and a prefetching `<Link>` (4 failed), then removed |
+| 4.10 | done | `review/design-system.test.tsx` 24 tests (source scans: no hard-coded colour, type steps, spacing steps; pins: pills, cards, dialog hierarchy at 44 px, alert pattern, 360 px guards). RED found real off-grid pill spacing (`px-2.5 py-0.5`), fixed to `px-3 py-1` |
+| 4.11 | OPEN ([CONFIRM]) | owner walk on a disposable branch; steps are in the S4 report |
+
+Deviations from design (all minor): `conflict`/`not_found` are returned to the dialog as an `alert` banner with a link back (the action redirects only on success, so the detail never re-renders); the success status is shown on the queue (`?resultado=aprobada|rechazada|devuelta`, `role="status"`); the queue renders a `md:hidden` card list plus a `hidden md:block` table (two renderings of the same rows); templates are rendered on the server and passed to the dialogs; template i18n keys replace `.` with `_` (next-intl reads a dot as a path); status pills use the 12/4 spacing steps instead of the 10/2 of the catalog pill; the action payload is parsed with zod and an invalid id answers `not_found`; the sidebar link opts out of prefetch (`prefetch: false` on the nav entry).
+
+Gates: `npm test` 171 files / 3392 tests green; `npx next typegen` + `npm run typecheck` clean; `npm run build` ok (`/review` and `/review/[id]` dynamic); eslint and prettier clean on changed files (CR stripped). No database command was run.
+
+Lines vs tracker: production 1237 code lines (actions 81, dialog 304, detail page 181, sections 390, queue page 200, badge 30, not-found 27, template-key 7, sidebar 17) plus 328 i18n lines; tests 2525. The 1000-line production budget was exceeded (see the S4 report: size:exception or a split at the commit boundaries is recommended).
+

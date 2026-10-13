@@ -316,7 +316,7 @@ describe("design system: decision dialogs (§5 two-step confirmation, §4.1 elev
     );
 
     // The confirm is disabled while the first answer settles.
-    const confirm = within(dialog).getByRole("button", {
+    const confirm = await within(dialog).findByRole("button", {
       name: dec.reject.confirm,
     });
     await vi.waitFor(() => expect(confirm).toBeEnabled());
