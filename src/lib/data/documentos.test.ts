@@ -480,9 +480,26 @@ describe("documentos data layer", () => {
           accion: "documento.descargado",
           entidadTipo: "DocumentoRespaldo",
           entidadId: 11,
-          datos: { solicitudId: DRAFT, tipo: "png" },
+          datos: { solicitudId: DRAFT, tipo: "png", modo: "ver" },
         },
       ]);
+    });
+
+    it("records the download mode when the caller names one", async () => {
+      use([]);
+
+      await recordDocumentDownload(USER, {
+        id: 11,
+        solicitudId: DRAFT,
+        tipo: "pdf",
+        modo: "descarga",
+      });
+
+      expect(insertAuditMock.mock.calls[0][2][0].datos).toEqual({
+        solicitudId: DRAFT,
+        tipo: "pdf",
+        modo: "descarga",
+      });
     });
 
     it("propagates an audit failure so the caller can refuse the bytes", async () => {

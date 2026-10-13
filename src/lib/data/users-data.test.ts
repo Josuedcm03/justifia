@@ -37,6 +37,11 @@ describe("usuarioConRolColumns (FPC: Flag travels in the session)", () => {
     const { sql } = await emitted(() => getUsuarioByCif("C-1"));
     expect(sql).toContain('"DebeCambiarClave"');
   });
+
+  it("projects FacultadId in every UsuarioConRol read (secretary scope)", async () => {
+    const { sql } = await emitted(() => getUsuarioByCif("C-1"));
+    expect(sql).toContain('"Usuario"."FacultadId"');
+  });
 });
 
 describe("getUsuarioByCorreo (IAP: Identity resolution)", () => {

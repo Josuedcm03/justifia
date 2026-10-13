@@ -1,3 +1,5 @@
+import type { EstadoSolicitud } from "@/lib/intake/states";
+import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type { EntityCounts, EntityName } from "@/lib/import/types";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -14,6 +16,13 @@ export const AUDIT_ACTIONS = [
   "documento.rechazado",
   "documento.eliminado",
   "documento.descargado",
+  "solicitud.aprobada",
+  "solicitud.rechazada",
+  "solicitud.devuelta",
+  "solicitud.corregida",
+  "solicitud.consultada",
+  "solicitud.cola.consultada",
+  "documento.retirado",
   "asignatura.creada",
   "asignatura.actualizada",
   "asignatura.desactivada",
@@ -31,6 +40,7 @@ export type AuditEntityType =
   | "Usuario"
   | "Solicitud"
   | "DocumentoRespaldo"
+  | "Facultad"
   | "Asignatura"
   | "Grupo";
 
@@ -92,10 +102,41 @@ type DocumentRejectedPayload = { reason: DocumentRejectionReason };
 
 type DocumentRemovedPayload = { solicitudId: number };
 
+/** How a document was opened: inline in the browser or as an attachment. */
+export type DocumentMode = "ver" | "descarga";
+
 type DocumentDownloadedPayload = {
   solicitudId: number;
   tipo: "pdf" | "png" | "jpeg";
+  modo: DocumentMode;
 };
+
+/** Review events (secretary-review, SR-9). Ids, codes and counts only: no
+ *  decision text, name, CIF, email, cause, dates, file name or id list
+ *  (RNF-06, RN-02). */
+type DecisionPayload = {
+  decisionId: number;
+  /** Template code, never its body. */
+  plantilla: string;
+  /** RN-17 code; present only on a return. */
+  motivo?: ReturnReason;
+  /** Whether the secretary changed the rendered template text. */
+  textoEditado: boolean;
+};
+
+type RequestCorrectedPayload = {
+  revision: number;
+  asignaturas: number;
+  documentos: number;
+  documentosRetirados: number;
+};
+
+type RequestReadPayload = { estado: EstadoSolicitud };
+
+/** Count only: never the list of request ids. */
+type QueueReadPayload = { total: number };
+
+type DocumentRetiredPayload = { solicitudId: number };
 
 /** Closed lists for the manual catalog events. A field not named here can
  *  never be reported as changed (AL-PAY). */
@@ -179,6 +220,38 @@ export type AuditEvent =
       entidadTipo: "DocumentoRespaldo";
       entidadId: number;
       datos: DocumentDownloadedPayload;
+    }
+  | {
+      accion:
+        "solicitud.aprobada" | "solicitud.rechazada" | "solicitud.devuelta";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: DecisionPayload;
+    }
+  | {
+      accion: "solicitud.corregida";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: RequestCorrectedPayload;
+    }
+  | {
+      accion: "solicitud.consultada";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: RequestReadPayload;
+    }
+  | {
+      // The entity is the caller's faculty: the queue is a scope, not a request.
+      accion: "solicitud.cola.consultada";
+      entidadTipo: "Facultad";
+      entidadId: number;
+      datos: QueueReadPayload;
+    }
+  | {
+      accion: "documento.retirado";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentRetiredPayload;
     }
   | {
       accion:
