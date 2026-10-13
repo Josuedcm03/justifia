@@ -74,7 +74,7 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 - [x] 2.7 GREEN: `src/lib/data/solicitud-clases.ts` `listRequestClasses(q, ids)` joining `SolicitudAsignatura -> Grupo -> Asignatura -> Usuario` (the current schema; `SolicitudAsignatura.GrupoId` still references `Grupo`); the join lives only in this module
 - [x] 2.8 RED: `src/lib/audit/events.test.ts`: seven new actions via five builders, table-driven (action -> entity type -> entity id), `Facultad` entity, `documento.descargado` carries `modo`, payload leak tests (no text, name, CIF, email, dates, file names, request id list), existing payloads unchanged (RNF-06, RN-02)
 - [x] 2.9 GREEN: `src/lib/audit/types.ts` and `src/lib/audit/events.ts` (`solicitudDecididaEvent`, `solicitudCorregidaEvent`, `solicitudConsultadaEvent`, `solicitudColaConsultadaEvent`, `documentoRetiradoEvent`, `modo` on download)
-- [ ] 2.10 Gates: `npx vitest run src/db src/lib/audit src/lib/data/solicitud-clases.test.ts`, then `npm run db:generate -- --name drift_check_tmp` must write nothing (drift check, run only if it writes no file; otherwise STOP and ask)
+- [x] 2.10 Gates: `npx vitest run src/db src/lib/audit src/lib/data/solicitud-clases.test.ts`, then `npm run db:generate -- --name drift_check_tmp` must write nothing (drift check, run only if it writes no file; otherwise STOP and ask)
 
 ## Phase 3: S3 - Data layer and access control (PR 3) - depends on S2
 
