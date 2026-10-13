@@ -735,6 +735,10 @@
       "title": "Corregir solicitud",
       "subtitle": "Corrige lo que pidió la revisión y vuelve a enviarla. Tu solicitud conserva su número.",
       "back": "Volver a la solicitud",
+      "banner": {
+        "title": "Por qué se devolvió tu solicitud",
+        "reason": "Motivo: {reason}"
+      },
       "resubmit": {
         "button": "Reenviar solicitud",
         "title": "¿Reenviar la solicitud corregida?",

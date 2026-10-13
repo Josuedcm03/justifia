@@ -9,13 +9,19 @@ import {
 import { rolesSolicitantes } from "@/lib/auth/permissions";
 import type { Draft } from "@/lib/data/solicitudes";
 
-const { requireRole, getLiveDraft, openDraft, listEnrollmentFailSoft } =
-  vi.hoisted(() => ({
-    requireRole: vi.fn(),
-    getLiveDraft: vi.fn(),
-    openDraft: vi.fn(),
-    listEnrollmentFailSoft: vi.fn(),
-  }));
+const {
+  requireRole,
+  getLiveDraft,
+  openDraft,
+  getCorrectionReason,
+  listEnrollmentFailSoft,
+} = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  getLiveDraft: vi.fn(),
+  openDraft: vi.fn(),
+  getCorrectionReason: vi.fn(),
+  listEnrollmentFailSoft: vi.fn(),
+}));
 const deps = vi.hoisted(() => ({
   store: { id: "store" },
   schedule: { id: "schedule" },
@@ -23,6 +29,7 @@ const deps = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/dal", () => ({ requireRole }));
 vi.mock("@/lib/data/solicitudes", () => ({ getLiveDraft, openDraft }));
+vi.mock("@/lib/data/student-requests", () => ({ getCorrectionReason }));
 vi.mock("@/lib/data/enrollment", () => ({ listEnrollmentFailSoft }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => deps }));
 vi.mock("next-intl/server", () => ({
@@ -110,6 +117,7 @@ beforeEach(() => {
   requireRole.mockReset().mockResolvedValue({ sub: "7", rol: "estudiante" });
   getLiveDraft.mockReset().mockResolvedValue(RETURNED);
   openDraft.mockReset();
+  getCorrectionReason.mockReset().mockResolvedValue(null);
   listEnrollmentFailSoft
     .mockReset()
     .mockResolvedValue({ data: [GROUP], degraded: false });
@@ -241,5 +249,123 @@ describe("CorrectRequestPage steps (RF-08 a)", () => {
       "href",
       "/requests/31/correct?step=4",
     );
+  });
+});
+
+const BANNER_TITLE = "Por qué se devolvió tu solicitud";
+const ILEGIBLE = {
+  motivo: "documento_ilegible",
+  texto: "Adjunte una copia legible del certificado.",
+};
+const FECHA = {
+  motivo: "fecha_incorrecta",
+  texto: "La fecha no coincide con el certificado.",
+};
+
+describe("CorrectRequestPage guided start (RN-17, SR-17)", () => {
+  it.each([
+    ["documento_ilegible", "Paso 3 de 4", "Documentos de respaldo"],
+    ["fecha_alterada", "Paso 3 de 4", "Documentos de respaldo"],
+    ["fecha_incorrecta", "Paso 1 de 4", "Causa y fechas"],
+  ])(
+    "opens a %s correction at %s without an explicit step",
+    async (motivo, position, title) => {
+      getCorrectionReason.mockResolvedValue({ motivo, texto: "Mensaje." });
+
+      await renderPage();
+
+      expect(screen.getByText(position)).toBeInTheDocument();
+      expect(heading(title)).toBeInTheDocument();
+    },
+  );
+
+  it("reads the reason of the session user's own request, by id", async () => {
+    getCorrectionReason.mockResolvedValue(ILEGIBLE);
+
+    await renderPage();
+
+    expect(getCorrectionReason).toHaveBeenCalledTimes(1);
+    expect(getCorrectionReason).toHaveBeenCalledWith(7, 31);
+  });
+
+  it("lets an explicit ?step= win over the reason", async () => {
+    getCorrectionReason.mockResolvedValue(ILEGIBLE);
+
+    await renderPage("31", { step: "2" });
+
+    expect(screen.getByText("Paso 2 de 4")).toBeInTheDocument();
+    expect(heading("Asignaturas afectadas")).toBeInTheDocument();
+  });
+
+  it("opens at step 1 with no banner when the reason read fails, and still renders the correction", async () => {
+    getCorrectionReason.mockRejectedValue(new Error("db down"));
+
+    await renderPage();
+
+    expect(screen.getByText("Paso 1 de 4")).toBeInTheDocument();
+    expect(heading("Causa y fechas")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("opens at step 1 with no banner when there is no reason", async () => {
+    getCorrectionReason.mockResolvedValue(null);
+
+    await renderPage();
+
+    expect(screen.getByText("Paso 1 de 4")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("opens at step 1 for a code outside the RN-17 list, keeping the message", async () => {
+    getCorrectionReason.mockResolvedValue({
+      motivo: "otro_motivo",
+      texto: "Revise todo.",
+    });
+
+    await renderPage();
+
+    expect(screen.getByText("Paso 1 de 4")).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: BANNER_TITLE }),
+    ).toHaveTextContent("Revise todo.");
+  });
+
+  it.each(["1", "2", "3", "4"])(
+    "shows the reason label and the secretary's message on step %s",
+    async (step) => {
+      getCorrectionReason.mockResolvedValue(ILEGIBLE);
+
+      await renderPage("31", { step });
+
+      const banner = screen.getByRole("status", { name: BANNER_TITLE });
+      expect(banner).toHaveTextContent("El documento no es legible");
+      expect(banner).toHaveTextContent(ILEGIBLE.texto);
+    },
+  );
+
+  it("labels each RN-17 code with the student detail's wording", async () => {
+    getCorrectionReason.mockResolvedValue(FECHA);
+
+    await renderPage();
+
+    expect(
+      screen.getByRole("status", { name: BANNER_TITLE }),
+    ).toHaveTextContent("La fecha no coincide con el documento");
+  });
+
+  it("locks nothing: the stepper links all four steps whichever step it opens at", async () => {
+    getCorrectionReason.mockResolvedValue(ILEGIBLE);
+
+    await renderPage();
+
+    // Opened at step 3: the other three are links, step 3 is the current one.
+    const links = screen
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"));
+    for (const step of [1, 2, 4]) {
+      expect(links).toContain(`/requests/31/correct?step=${step}`);
+    }
+    expect(links).not.toContain("/requests/31/correct?step=3");
+    expect(screen.getByText("Paso 3 de 4")).toBeInTheDocument();
   });
 });

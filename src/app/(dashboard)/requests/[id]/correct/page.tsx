@@ -9,9 +9,11 @@ import {
   saveCorrectionDetailsAction,
   saveCorrectionSubjectsAction,
 } from "@/app/(dashboard)/requests/[id]/correct/actions";
+import { CorrectionReasonBanner } from "@/app/(dashboard)/requests/[id]/correct/correction-reason-banner";
 import type { Flow } from "@/app/(dashboard)/requests/new/flow";
 import { FlowSteps } from "@/app/(dashboard)/requests/new/flow-steps";
 import {
+  correctionStartStep,
   draftRange,
   parseFromReview,
   parseStep,
@@ -22,7 +24,9 @@ import { requireRole } from "@/lib/auth/dal";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
 import { listEnrollmentFailSoft } from "@/lib/data/enrollment";
 import { getLiveDraft } from "@/lib/data/solicitudes";
+import { getCorrectionReason } from "@/lib/data/student-requests";
 import { getIntakeDeps } from "@/lib/intake/deps";
+import { isReturnReason } from "@/lib/intake/return-reasons";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 
@@ -31,7 +35,8 @@ const POSITIVE_INTEGER = /^[1-9]\d*$/;
  * the four intake steps in place. The owner comes from the session; another
  * student's id, an unknown id and a request that is not `devuelta` are the same
  * `notFound()`. Nothing here creates a draft: the page only reads, and every
- * action re-checks owner and state itself. The step lives in `?step=`.
+ * action re-checks owner and state itself. The step lives in `?step=`; without
+ * one the correction opens at the step of the return reason (RN-17, SR-17).
  */
 export default async function CorrectRequestPage({
   params,
@@ -49,11 +54,15 @@ export default async function CorrectRequestPage({
   const userId = Number(session.sub);
   const t = await getTranslations("intake");
 
-  // Fail-soft read (A7): a database failure is an in-page message.
-  const request = await getLiveDraft(userId, new Date(), {
-    kind: "correction",
-    solicitudId: id,
-  }).catch(() => undefined);
+  // Fail-soft reads (A7): a database failure is an in-page message, and a
+  // reason that cannot be read only costs the guided start and the banner.
+  const [request, reason] = await Promise.all([
+    getLiveDraft(userId, new Date(), {
+      kind: "correction",
+      solicitudId: id,
+    }).catch(() => undefined),
+    getCorrectionReason(userId, id).catch(() => null),
+  ]);
   if (request === null) notFound();
 
   const header = (
@@ -85,7 +94,9 @@ export default async function CorrectRequestPage({
   }
 
   const query = await searchParams;
-  const step = parseStep(query.step) ?? 1;
+  const step =
+    parseStep(query.step) ??
+    correctionStartStep(isReturnReason(reason?.motivo) ? reason.motivo : null);
   const range = draftRange(request);
   const enrollment =
     (step === 2 || step === 4) && range
@@ -106,6 +117,9 @@ export default async function CorrectRequestPage({
   return (
     <div className="flex flex-col gap-8">
       {header}
+      {reason ? (
+        <CorrectionReasonBanner motivo={reason.motivo} texto={reason.texto} />
+      ) : null}
       <FlowSteps
         step={step}
         draft={request}
