@@ -386,3 +386,114 @@ Visual result of the shortcut cards, the skeleton and the error screen; 320px an
 ### Suggested commit (owner)
 
 `feat(shell): loading and error boundaries, shared states and role-aware home`
+
+## Batch D: Slice 2a, URL contract and users data layer (2026-10-12)
+
+Mode: Strict TDD. Delivery: `exception-ok` (single PR, accepted `size:exception`, D14). Tasks 2a.1 to 2a.11 done and ticked in `tasks.md`; 2a.12 (CHECKPOINT) is left unticked for the owner's commit. Housekeeping: 0.11, 1a.15 and 1b.14 ticked (owner commits are in: 5af89f7, b74f5f3, a173b35, 54fd126). Nothing was committed, pushed or branched; no database command, no seed and no package install were run (the query-builder tests are DB-free). `src/app/globals.css` untouched.
+
+### Gate S1 outcome (task 0.7, answered before this batch)
+
+- Collation `es-x-icu` EXISTS on the database, so `TEXT_SORT_COLLATION = "es-x-icu"` in `src/lib/data/sort-sql.ts`.
+- The `lower(column)` fallback is INACTIVE (not taken). The OC-2 gate of 2a.7 therefore does not apply and no owner decision on the accent-order scenarios was needed; they stand as specified.
+- Database default collation is `C.UTF-8` (builtin provider). OC-6 (docentes default order) is a 3a.1 concern and still open; nothing in this slice touches `listDocentes`.
+
+### Tasks
+
+| Task | State | Note |
+|---|---|---|
+| 2a.1 | done | RED: 65 failed (new exports absent), 20 existing passed |
+| 2a.2 | done | `src/lib/list-params.ts` additions; 85/85 |
+| 2a.3 | done | RED: 53 failed |
+| 2a.4 | done | `src/lib/users/list-params.ts` extended; 191/191 with the catalog parser tests |
+| 2a.5 | done | RED: module `@/lib/data/sort-sql` missing |
+| 2a.6 | done | `src/lib/data/sort-sql.ts`; 27/27 after one test-only fix (a `split(", ")` that cut inside `nullif(col, '')`) |
+| 2a.7 | done | RED: 17 failed (status ignored, sort ignored, projection not narrowed); DB-free |
+| 2a.8 | done | `src/lib/data/users.ts`; 48/48; codegraph caller check done first |
+| 2a.9 | done | RED: 19 failed, characterization tests passed at RED (guard order, denied, degraded) |
+| 2a.10 | done | `src/app/(dashboard)/users/page.tsx`; 34/34, then +1 test with a mutation check, 35/35 |
+| 2a.11 | done | Seam check recorded below |
+| 2a.12 | pending (owner) | Checkpoint; owner commit |
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED (one line) | GREEN | Triangulation / REFACTOR |
+|---|---|---|---|---|---|---|
+| 2a.1/2a.2 | `src/lib/list-params.test.ts` | Unit | existing tests of the file green (92/92 across the 5 touched test files before any edit) | 65 failed: `parseEnum`, `parsePageSize`, `parseSort`, `nextSort`, `applyListChange`, constants not exported | 85/85 | Every DT-URL-1 fallback row for `size` and `sort`/`dir` (hostile: `hashClave`, `__proto__`, `constructor`, injection, 500 chars, other list's key, arrays); `applyListChange` page-only vs non-page, no mutation |
+| 2a.3/2a.4 | `src/lib/users/list-params.test.ts` | Unit | existing tests green (in the 92/92) | 53 failed (state shape, constants, sort, status, size, href) | 191/191 with list-params and catalog parser tests | Defaults, status table, 10 valid and 11 hostile sort/dir rows, size table, canonical-order href table, sort/dir written together, round trip. Two existing assertions changed (see deviations) |
+| 2a.5/2a.6 | `src/lib/data/sort-sql.test.ts` | Unit (query builder, DB-free) | N/A (new) | module missing | 27/27 | 5 expression kinds x 2 directions, default pair reproduces `CreadoEn desc, Id desc`, catalog-style default adds only the id, collation only on name and login, empty e-mail `nulls last` both ways, status asc is active first, hostile and inherited keys fall back, type-level `@ts-expect-error` for an incomplete map |
+| 2a.7/2a.8 | `src/lib/data/users-query.test.ts` | Unit (query builder, DB-free) | existing tests green (in the 92/92) | 17 failed: where clause ignored `status`, order ignored `sort`, select list not narrowed | 48/48 | Scope first for every status, exact where text per status, status + search inside scope, empty scope closed per status, 10 sort cases end with `Id`, 6 leading expressions, projection keys and select-list text, e-mail search predicate kept, `clampPage` for 25/50 and 60 rows, `listUsuarios` degraded echoes 10/25/50 |
+| 2a.9/2a.10 | `src/app/(dashboard)/users/page.test.tsx` | Component (async page) | existing tests green (in the 92/92) | 19 failed: call shape lacked `status`/`sort`/`size`, rows carried `hashClave`, `cif`, `telefono`, `correo` and no `creadoEnLabel` | 35/35 | 7 hostile-parameter rows, denied role redirect without read, guard before read, degraded with all params, 6 role x term delivery cases, 4 forbidden-field serialization cases, rendered markup check, paging link keeps `status`/`sort`/`size`. Mutation check: removing `status, sort, size` from the page link failed exactly the new link test, restored |
+| 2a.11 | n/a | n/a | full suite | n/a | green | Seam check (below) |
+
+Test summary: 3,362 tests in 159 files (3,153 in 158 after 1b); this batch adds 209 tests and 1 file (`sort-sql.test.ts`), all passing. Layers: unit and query-builder (list-params x2, sort-sql, users-query), component (users page). Mocks: `server-only` and `@/db` (query tests, as the project already does), `@/lib/auth/dal`, `@/lib/data/users`, `next-intl/server` and a pass-through spy on `@/components/data-table` (page test).
+
+### 2a.11 Seam check (codegraph_explore plus `rg` across the repo, tests excluded)
+
+- `listUsuarios`: one production caller, `src/app/(dashboard)/users/page.tsx`. No seed, script or other file calls it.
+- `ListUsuariosParams`, `UsuarioListResult`: used only inside `src/lib/data/users.ts` and by that page.
+- `buildUsersWhere`, `buildListUsuariosQuery`: used only in `users.ts` and `users-query.test.ts`.
+- `usuarioConRolColumns` and `UsuarioConRol`: untouched; login, profile and `getUsuarioBy*` still select the full record.
+- `getDashboardStats` and `clampPage`: untouched (`asignaturas.ts` imports `clampPage` unchanged).
+- `USERS_PAGE_SIZE` stays exported and equals `DEFAULT_PAGE_SIZE`; `CATALOG_PAGE_SIZE` (derived from it) still resolves to 10.
+- Conclusion: no other caller relied on the old `ListUsuariosParams` shape.
+
+### Verification at the checkpoint (V)
+
+| Command | Result |
+|---|---|
+| Focused: `npx vitest run src/lib/list-params.test.ts src/lib/users/list-params.test.ts src/lib/data/sort-sql.test.ts src/lib/data/users-query.test.ts "src/app/(dashboard)/users/page.test.tsx" src/lib/catalog/list-params.test.ts` | all passed (6 files; list-params 85 tests, sort-sql 27, users-query 48, users page 35) |
+| `npm test` | 159 files, 3,362 tests, 0 failed. No flaky failure seen |
+| `npm run typecheck` | PASS (rc 0) |
+| `npx eslint src` (JSON output) | 56,189 reports, every one `prettier/prettier` "Delete `CR`"; 0 findings of any other kind. New files (LF) report 0 |
+| `npm run format:check` | CRLF noise only (pre-existing). `npx prettier --check --end-of-line auto` on every touched path: "All matched files use Prettier code style!" |
+| `npm run build` | PASS, `/users` listed as dynamic |
+| `git diff --stat src/app/globals.css` | empty |
+
+### Authored lines by path (additions / deletions for tracked files; line count for new files)
+
+| Path | Lines |
+|---|---|
+| `src/lib/list-params.ts` | +72 / -0 |
+| `src/lib/users/list-params.ts` | +66 / -6 |
+| `src/lib/data/users.ts` | +85 / -11 |
+| `src/app/(dashboard)/users/page.tsx` | +37 / -12 |
+| `src/lib/data/sort-sql.ts` (new) | 70 |
+| `src/lib/list-params.test.ts` | +203 / -1 |
+| `src/lib/users/list-params.test.ts` | +202 / -2 |
+| `src/lib/data/users-query.test.ts` | +191 / -9 |
+| `src/app/(dashboard)/users/page.test.tsx` | +259 / -3 |
+| `src/lib/data/sort-sql.test.ts` (new) | 191 |
+| **Total** | tracked 1,159 (additions + deletions) + new 261 = **about 1,420**, against an estimate of 500 to 650 (upper bound +118%; the +25% stop threshold is 813). About 75 percent is tests (about 1,070 lines), production code is about 350 |
+
+Flagged for the owner. The overrun was only measurable at the slice seam (the checkpoint), so nothing was cut; the single-PR decision (D14) holds. Running total of 1a, 1b and 2a: about 4,210 lines.
+
+### Locale keys added
+
+None (no UI string in this slice). The old `users.*` keys are still used by the old components.
+
+### Deviations from the design and tasks
+
+1. Two existing assertions in `src/lib/users/list-params.test.ts` changed although the task says existing tests stay unchanged: `toEqual({ page: 2, q: "ana" })` (extra keys ignored) now expects the full default state, and the round-trip test now uses `toMatchObject({ page, q })`. Both asserted the old two-field return shape, which the task itself extends. Their intent (extra keys ignored; page and q round trip) is preserved and the new full-state round trip is added.
+2. `users-query.test.ts`: the existing `buildUsersWhere(role, q)` calls gained a third argument `"all"` because `status` is required by design (type-forced), and `toSql` gained an optional `sort`. Behaviour asserted is unchanged (scope, default order, escaping, limit and offset).
+3. `buildListUsuariosQuery` now selects `usuarioListColumns` instead of `select()` (all columns), so the proof query and the real read share one projection and one `usersOrderBy`. Its third argument gains an optional `sort`, defaulting to `USERS_DEFAULT_SORT`.
+4. `orderByFor` guards with `Object.hasOwn(map, sort.key)` and falls back to the default pair for a key without an own entry. Not in the design text; defence in depth behind the parser, covered by two tests (`__proto__` and an injection string).
+5. `sort-sql.ts` exports four expression helpers (`collatedText`, `plainColumn`, `emailLast`, `activeFirst`) and the `SortExpr` type. The design named only `orderByFor` and `TEXT_SORT_COLLATION`; "expression helpers" is in task 2a.6. `emailLast` has no consumer in this slice (docentes uses it in 3a.7); it is proven by its own tests.
+6. `users/page.tsx` also passes `status`, `sort` and `size` to the OLD pagination `hrefFor`, so a shared URL with those parameters keeps them while paging (DT-URL-2). The old `DataTableSearch` form still drops them on submit; no control sets them until 2d, so no user-visible regression. `UserRow` is a module-local type in the page (a Next page file may not export it); 2d moves it next to `UsersTable`.
+7. `UsuarioListResult.pageSize` stays `number` (the echoed requested value); only the request side is `PageSize`.
+8. Slice size is about 1,420 changed lines against the 500 to 650 estimate (see above).
+
+### Not verified (no database, no browser in this run)
+
+The SQL was proven as text through `toSQL()` only: that PostgreSQL accepts `"Usuario"."NombreCompleto" collate "es-x-icu"` and orders "Álvaro, angel, Beatriz, Zoe" as the spec says was NOT executed (no database command was allowed; the collation's existence is the owner-run S1 result). Stable pagination across equal values, the clamp against a real total and the status counts are likewise unexecuted against data. The Next route at runtime (`next dev`) was not exercised beyond `npm run build`. These belong to the 2d.6 manual users smoke.
+
+### Work Unit Evidence (Slice 2a)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run` on the six files above: all passed; full suite 159 files, 3,362 tests |
+| Runtime harness | `npm run build`: compiled, `/users` dynamic. Query shape is exercised through the DB-free drizzle `QueryBuilder`; the page through the async component with a real `DataTable`. No database or browser run |
+| Rollback boundary | Revert `list-params.ts`, `users/list-params.ts`, `data/users.ts`, `users/page.tsx` and the four test files above, and delete `sort-sql.ts` and `sort-sql.test.ts`. Nothing outside the slice imports the new exports (the catalog parser still uses `USERS_PAGE_SIZE` and `USERS_SEARCH_MAX`, both kept) |
+
+### Suggested commit (owner)
+
+`feat(users): validated sort, status and page-size parameters with a narrowed list projection`

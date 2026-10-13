@@ -3,7 +3,6 @@ import "server-only";
 import {
   and,
   asc,
-  desc,
   eq,
   ilike,
   inArray,
@@ -23,10 +22,19 @@ import type {
   CatalogStatusFilter,
   DocenteListItem,
 } from "@/lib/catalog/types";
+import {
+  activeFirst,
+  collatedText,
+  orderByFor,
+  plainColumn,
+  type SortExpr,
+} from "@/lib/data/sort-sql";
 import { containsPattern } from "@/lib/data/sql-like";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import { getRolIdByCodigo } from "@/lib/data/roles";
 import { WRITE_CHUNK_ROWS } from "@/lib/import/limits";
+import type { ListSort, PageSize, StatusFilterValue } from "@/lib/list-params";
+import { USERS_DEFAULT_SORT, type UsersSortKey } from "@/lib/users/list-params";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 /**
@@ -60,18 +68,65 @@ const usuarioConRolColumns = {
   rol: rol.codigo,
 } as const;
 
+/**
+ * What the users list reads and shows, and nothing else: no `hashClave`,
+ * `cif`, `telefono` or `correo` (UL:fields, DT-DATA-1). The search still
+ * matches on `correo` inside the predicate without selecting it.
+ */
+export type UsuarioListItem = {
+  id: number;
+  nombreCompleto: string;
+  login: string;
+  rol: RolUsuario;
+  activo: boolean;
+  creadoEn: Date;
+};
+
+/** The list projection, shared by the real read and the proof query. */
+export const usuarioListColumns = {
+  id: usuario.id,
+  nombreCompleto: usuario.nombreCompleto,
+  login: usuario.login,
+  rol: rol.codigo,
+  activo: usuario.activo,
+  creadoEn: usuario.creadoEn,
+} as const;
+
+/**
+ * Whitelist of sortable users columns (DT-SORT-1). The URL value is only a
+ * lookup key, already narrowed to `UsersSortKey` by the parser; it is never
+ * interpolated. Names and logins are collated, the role code is the plain
+ * column, `status` ascending means active first.
+ */
+const USERS_SORT_MAP = {
+  name: collatedText(usuario.nombreCompleto),
+  login: collatedText(usuario.login),
+  role: plainColumn(rol.codigo),
+  status: activeFirst(usuario.activo),
+  created: plainColumn(usuario.creadoEn),
+} satisfies Record<UsersSortKey, SortExpr>;
+
+function usersOrderBy(sort: ListSort<UsersSortKey>) {
+  return orderByFor(USERS_SORT_MAP, sort, USERS_DEFAULT_SORT, usuario.id);
+}
+
 export type ListUsuariosParams = {
   /** From the SESSION only — never from `searchParams` (design.md decision 18). */
   viewerRol: RolUsuario;
   /** Already normalised by `parseUsersListParams`. */
   q: string;
+  /** Already narrowed to the closed set; required so no caller omits it. */
+  status: StatusFilterValue;
+  /** Already narrowed to a whitelisted key and a direction. */
+  sort: ListSort<UsersSortKey>;
   /** Already >= 1; the upper bound is clamped here, against `total`. */
   page: number;
-  pageSize: number;
+  /** One of 10, 25, 50 by the time it arrives. */
+  pageSize: PageSize;
 };
 
 export type UsuarioListResult = {
-  data: UsuarioConRol[];
+  data: UsuarioListItem[];
   total: number;
   /** The CLAMPED page actually rendered. */
   page: number;
@@ -86,9 +141,21 @@ export type UsuarioListResult = {
  * a literal `false`, i.e. zero rows — it fails closed, never open
  * (design.md decision 18, finding 8). WU2: the scope now names
  * `"Rol"."Codigo"` (via the join), never the dropped `Usuario.Rol` column.
+ * The scope is always the first, unconditional term; `status` and the search
+ * term can only narrow it through `and`.
  */
-export function buildUsersWhere(viewerRol: RolUsuario | undefined, q: string) {
+export function buildUsersWhere(
+  viewerRol: RolUsuario | undefined,
+  q: string,
+  status: StatusFilterValue,
+) {
   const scope = inArray(rol.codigo, [...rolesVisiblesPara(viewerRol)]);
+  const state =
+    status === "active"
+      ? sql`${usuario.activo}`
+      : status === "inactive"
+        ? not(usuario.activo)
+        : undefined;
   const term = q
     ? or(
         ilike(usuario.nombreCompleto, containsPattern(q)),
@@ -96,7 +163,10 @@ export function buildUsersWhere(viewerRol: RolUsuario | undefined, q: string) {
         ilike(usuario.correo, containsPattern(q)),
       )
     : undefined;
-  return term ? and(scope, term) : scope;
+  const narrowing = [state, term].filter(
+    (part): part is SQL => part !== undefined,
+  );
+  return narrowing.length > 0 ? (and(scope, ...narrowing) as SQL) : scope;
 }
 
 /**
@@ -125,14 +195,18 @@ export function clampPage(
 export function buildListUsuariosQuery(
   qb: QueryBuilder,
   where: ReturnType<typeof buildUsersWhere>,
-  page: { page: number; pageSize: number },
+  page: {
+    page: number;
+    pageSize: number;
+    sort?: ListSort<UsersSortKey>;
+  },
 ) {
   return qb
-    .select()
+    .select(usuarioListColumns)
     .from(usuario)
     .innerJoin(rol, eq(usuario.rolId, rol.id))
     .where(where)
-    .orderBy(desc(usuario.creadoEn), desc(usuario.id))
+    .orderBy(...usersOrderBy(page.sort ?? USERS_DEFAULT_SORT))
     .limit(page.pageSize)
     .offset((page.page - 1) * page.pageSize);
 }
@@ -141,7 +215,7 @@ export async function listUsuarios(
   p: ListUsuariosParams,
 ): Promise<UsuarioListResult> {
   try {
-    const where = buildUsersWhere(p.viewerRol, p.q);
+    const where = buildUsersWhere(p.viewerRol, p.q, p.status);
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)`.mapWith(Number) })
       .from(usuario)
@@ -150,11 +224,11 @@ export async function listUsuarios(
     const total = count;
     const page = clampPage(p.page, total, p.pageSize);
     const data = await db
-      .select(usuarioConRolColumns)
+      .select(usuarioListColumns)
       .from(usuario)
       .innerJoin(rol, eq(usuario.rolId, rol.id))
       .where(where)
-      .orderBy(desc(usuario.creadoEn), desc(usuario.id))
+      .orderBy(...usersOrderBy(p.sort))
       .limit(p.pageSize)
       .offset((page - 1) * p.pageSize);
     return { data, total, page, pageSize: p.pageSize, degraded: false };

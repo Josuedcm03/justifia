@@ -192,6 +192,14 @@
       "sessions": 0,
       "memories": 13,
       "prompts": 0
+    },
+    {
+      "id": "12ea8aca",
+      "created_by": "jdkno",
+      "created_at": "2026-10-13T04:09:57Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }

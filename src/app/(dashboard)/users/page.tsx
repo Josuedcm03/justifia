@@ -9,12 +9,24 @@ import { StatusPill } from "@/components/status-pill";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
-import { listUsuarios, type UsuarioConRol } from "@/lib/data/users";
-import {
-  USERS_PAGE_SIZE,
-  parseUsersListParams,
-  usersListHref,
-} from "@/lib/users/list-params";
+import { listUsuarios } from "@/lib/data/users";
+import type { RolUsuario } from "@/lib/validations/auth";
+import { parseUsersListParams, usersListHref } from "@/lib/users/list-params";
+
+/**
+ * The only shape the table receives (UL:fields, DT-DATA-1): the displayed
+ * fields, the creation date already formatted on the server, and the `Id`.
+ * Built by picking each field explicitly, so a field added to the read later
+ * never reaches the browser by accident.
+ */
+type UserRow = {
+  id: number;
+  nombreCompleto: string;
+  login: string;
+  rol: RolUsuario;
+  activo: boolean;
+  creadoEnLabel: string;
+};
 
 function EmptyOrNoResultsState({
   q,
@@ -59,15 +71,28 @@ export default async function UsersPage({
   const t = await getTranslations("users");
   const format = await getFormatter();
 
-  const { page, q } = parseUsersListParams(await searchParams);
+  const { page, q, status, sort, size } = parseUsersListParams(
+    await searchParams,
+  );
   const result = await listUsuarios({
     viewerRol: session.rol,
     q,
+    status,
+    sort,
     page,
-    pageSize: USERS_PAGE_SIZE,
+    pageSize: size,
   });
 
-  const columns: readonly DataTableColumn<UsuarioConRol>[] = [
+  const rows: UserRow[] = result.data.map((u) => ({
+    id: u.id,
+    nombreCompleto: u.nombreCompleto,
+    login: u.login,
+    rol: u.rol,
+    activo: u.activo,
+    creadoEnLabel: format.dateTime(u.creadoEn, { dateStyle: "medium" }),
+  }));
+
+  const columns: readonly DataTableColumn<UserRow>[] = [
     {
       key: "name",
       header: t("columns.name"),
@@ -100,7 +125,7 @@ export default async function UsersPage({
       key: "createdAt",
       header: t("columns.createdAt"),
       align: "end",
-      cell: (u) => format.dateTime(u.creadoEn, { dateStyle: "medium" }),
+      cell: (u) => u.creadoEnLabel,
       className: "text-muted-foreground tabular-nums",
     },
   ];
@@ -148,7 +173,7 @@ export default async function UsersPage({
           <div className="border-border bg-card shadow-soft overflow-hidden rounded-xl border">
             <DataTable
               columns={columns}
-              rows={result.data}
+              rows={rows}
               getRowKey={(u) => u.id}
               caption={t("tableCaption")}
               empty={
@@ -167,7 +192,7 @@ export default async function UsersPage({
             page={result.page}
             pageSize={result.pageSize}
             total={result.total}
-            hrefFor={(p) => usersListHref({ page: p, q })}
+            hrefFor={(p) => usersListHref({ page: p, q, status, sort, size })}
             labels={{
               region: t("pagination.region"),
               previous: t("pagination.previous"),
