@@ -10,7 +10,7 @@ import {
   documentRejectedEvent,
   documentRemovedEvent,
 } from "@/lib/audit/events";
-import type { DocumentRejectionReason } from "@/lib/audit/types";
+import type { DocumentMode, DocumentRejectionReason } from "@/lib/audit/types";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import {
   DRAFT_TTL_DAYS,
@@ -363,7 +363,13 @@ export async function getDocumentForDownload(
 /** Writes the `documento.descargado` row (D13). Throws if the insert fails. */
 export async function recordDocumentDownload(
   actorId: number,
-  doc: { id: number; solicitudId: number; tipo: TipoDetectado },
+  doc: {
+    id: number;
+    solicitudId: number;
+    tipo: TipoDetectado;
+    /** Defaults to `ver`, the inline view the route serves today. */
+    modo?: DocumentMode;
+  },
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await insertAuditEvents(tx, actorId, [
@@ -371,6 +377,7 @@ export async function recordDocumentDownload(
         documentoId: doc.id,
         solicitudId: doc.solicitudId,
         tipo: doc.tipo,
+        modo: doc.modo ?? "ver",
       }),
     ]);
   });

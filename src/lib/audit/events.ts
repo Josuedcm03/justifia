@@ -10,6 +10,9 @@ import type {
   GrupoActiveResult,
   GrupoWriteResult,
 } from "@/lib/catalog/types";
+import type { DecisionKind } from "@/lib/intake/decision-templates";
+import type { ReturnReason } from "@/lib/intake/return-reasons";
+import type { EstadoSolicitud } from "@/lib/intake/states";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 import type { ImportSummary } from "../import/types";
@@ -24,6 +27,7 @@ import type {
   AuditableUserField,
   AuditEvent,
   AuditOrigin,
+  DocumentMode,
   DocumentRejectionReason,
 } from "./types";
 
@@ -143,12 +147,99 @@ export function documentDownloadedEvent(args: {
   documentoId: number;
   solicitudId: number;
   tipo: "pdf" | "png" | "jpeg";
+  modo: DocumentMode;
 }): AuditEvent {
   return {
     accion: "documento.descargado",
     entidadTipo: "DocumentoRespaldo",
     entidadId: args.documentoId,
-    datos: { solicitudId: args.solicitudId, tipo: args.tipo },
+    datos: {
+      solicitudId: args.solicitudId,
+      tipo: args.tipo,
+      modo: args.modo,
+    },
+  };
+}
+
+/** One secretary decision: the action follows the decision kind. `motivo` is
+ *  the RN-17 code of a return and is left out of the payload otherwise. */
+export function solicitudDecididaEvent(args: {
+  solicitudId: number;
+  tipo: DecisionKind;
+  decisionId: number;
+  plantilla: string;
+  motivo?: ReturnReason;
+  textoEditado: boolean;
+}): AuditEvent {
+  return {
+    accion: `solicitud.${args.tipo}`,
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      decisionId: args.decisionId,
+      plantilla: args.plantilla,
+      ...(args.motivo === undefined ? {} : { motivo: args.motivo }),
+      textoEditado: args.textoEditado,
+    },
+  };
+}
+
+export function solicitudCorregidaEvent(args: {
+  solicitudId: number;
+  revision: number;
+  asignaturas: number;
+  documentos: number;
+  documentosRetirados: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.corregida",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      revision: args.revision,
+      asignaturas: args.asignaturas,
+      documentos: args.documentos,
+      documentosRetirados: args.documentosRetirados,
+    },
+  };
+}
+
+/** A staff open of one request detail (RNF-06 a). */
+export function solicitudConsultadaEvent(args: {
+  solicitudId: number;
+  estado: EstadoSolicitud;
+}): AuditEvent {
+  return {
+    accion: "solicitud.consultada",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: { estado: args.estado },
+  };
+}
+
+/** A staff open of the queue: the entity is the faculty, the payload a count. */
+export function solicitudColaConsultadaEvent(args: {
+  facultadId: number;
+  total: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.cola.consultada",
+    entidadTipo: "Facultad",
+    entidadId: args.facultadId,
+    datos: { total: args.total },
+  };
+}
+
+/** A correction retired a document of a previous revision (soft retirement). */
+export function documentoRetiradoEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+}): AuditEvent {
+  return {
+    accion: "documento.retirado",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: { solicitudId: args.solicitudId },
   };
 }
 
