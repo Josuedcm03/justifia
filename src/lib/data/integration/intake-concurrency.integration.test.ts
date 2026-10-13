@@ -1,12 +1,15 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
 import { eventoAuditoria } from "@/db/audit-schema";
-import { documentoRespaldo, solicitud } from "@/db/schema";
+import { documentoRespaldo, solicitud, solicitudDecision } from "@/db/schema";
 import { finalizeDocument } from "@/lib/data/documentos";
 import { createFixtures, PDF_BYTES } from "@/lib/data/integration/fixtures";
+import { resolveRequestScope } from "@/lib/data/request-scope";
+import { decideRequest } from "@/lib/data/solicitud-decision";
 import { discardDraft, openDraft, submitDraft } from "@/lib/data/solicitudes";
+import type { DecisionInput } from "@/lib/intake/decision-validation";
 import { createFakeDocumentStore } from "@/lib/intake/fakes";
 import { MAX_DOCUMENTS_PER_DRAFT } from "@/lib/intake/limits";
 import { buildPathname } from "@/lib/intake/pathnames";
@@ -20,7 +23,11 @@ import { buildPathname } from "@/lib/intake/pathnames";
 //   - double submit: the guarded UPDATE (`WHERE Estado = 'borrador'`) lets one
 //     submission through and writes one `solicitud.presentada` row (RN-02, D9);
 //   - concurrent finalize: the row lock on the draft keeps the document count
-//     at the cap of 5 (RN-04, D12).
+//     at the cap of 5 (RN-04, D12);
+//   - concurrent decisions (secretary-review, SR-7): the row lock of the
+//     guarded UPDATE lets one secretary decide a pending request; the others
+//     get `conflict` and leave one decision row and one audit row. This needs
+//     migration `0008_secretary_review` applied to the branch.
 // Blob I/O goes through the in-memory `DocumentStore` fake: no Vercel Blob call.
 //
 // HOW TO RUN (never part of `npm test`):
@@ -131,6 +138,111 @@ describe.skipIf(gate.mode !== "run")(
           ),
         );
       expect(audit.n).toBe(1);
+    });
+
+    describe("concurrent decisions on one pending request (SR-7)", () => {
+      const APPROVE: DecisionInput = {
+        tipo: "aprobada",
+        plantilla: "aprobacion.general",
+        texto: null,
+      };
+      const REJECT: DecisionInput = {
+        tipo: "rechazada",
+        plantilla: "rechazo.documento_no_acredita",
+        texto: "El documento no acredita las fechas.",
+      };
+
+      async function pendingRequest(studentId: number) {
+        const group = await fixtures.addGroup();
+        const draftId = await fixtures.addDraft(studentId);
+        await fixtures.fillDraft(draftId, DETAILS, group);
+        await fixtures.addValidDocument(draftId);
+        const submitted = await submitDraft({
+          userId: studentId,
+          solicitudId: draftId,
+          now: new Date(),
+          ...DETAILS,
+          grupoIds: [group],
+        });
+        expect(submitted).toEqual({ ok: true });
+        return draftId;
+      }
+
+      it.each([2, CONCURRENCY])(
+        "lets exactly one of %i simultaneous decisions through: one decision row, one audit row, the rest conflict",
+        async (deciders) => {
+          const student = await fixtures.addStudent();
+          const requestId = await pendingRequest(student.id);
+          const secretarias = [];
+          for (let i = 0; i < deciders; i++) {
+            secretarias.push(await fixtures.addSecretaria());
+          }
+          const scope = await resolveRequestScope(
+            secretarias[0].id,
+            "secretaria",
+          );
+          expect(scope).toEqual({
+            kind: "facultad",
+            facultadId: secretarias[0].facultadId,
+          });
+
+          const now = new Date();
+          const outcomes = await Promise.all(
+            secretarias.map((secretaria, i) =>
+              decideRequest({
+                actorId: secretaria.id,
+                scope,
+                solicitudId: requestId,
+                decision: i % 2 === 0 ? APPROVE : REJECT,
+                now,
+              }),
+            ),
+          );
+
+          expect(outcomes.filter((o) => o.ok)).toHaveLength(1);
+          for (const loser of outcomes.filter((o) => !o.ok)) {
+            expect(loser).toEqual({ ok: false, reason: "conflict" });
+          }
+
+          const decisions = await db
+            .select({
+              tipo: solicitudDecision.tipo,
+              secretariaId: solicitudDecision.secretariaId,
+            })
+            .from(solicitudDecision)
+            .where(eq(solicitudDecision.solicitudId, requestId));
+          expect(decisions).toHaveLength(1);
+
+          const [row] = await db
+            .select({ estado: solicitud.estado })
+            .from(solicitud)
+            .where(eq(solicitud.id, requestId));
+          expect(row.estado).toBe(decisions[0].tipo);
+
+          const audits = await db
+            .select({
+              accion: eventoAuditoria.accion,
+              actorId: eventoAuditoria.actorId,
+            })
+            .from(eventoAuditoria)
+            .where(
+              and(
+                eq(eventoAuditoria.entidadId, requestId),
+                inArray(eventoAuditoria.accion, [
+                  "solicitud.aprobada",
+                  "solicitud.rechazada",
+                  "solicitud.devuelta",
+                ]),
+              ),
+            );
+          expect(audits).toEqual([
+            {
+              accion: `solicitud.${decisions[0].tipo}`,
+              actorId: decisions[0].secretariaId,
+            },
+          ]);
+        },
+      );
     });
 
     describe("finalize beyond the document cap", () => {

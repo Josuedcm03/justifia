@@ -33,11 +33,18 @@ function findAppendOnlyWrites(source: string): string[] {
   });
 }
 
+/**
+ * Not production code: `__fixtures__`, and the fixtures of the opt-in
+ * real-Postgres suites (`src/lib/data/integration`), whose cleanup removes the
+ * history rows a test created on a disposable branch.
+ */
+const NOT_PRODUCTION = new Set(["__fixtures__", "integration"]);
+
 function productionSources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      return entry.name === "__fixtures__" ? [] : productionSources(path);
+      return NOT_PRODUCTION.has(entry.name) ? [] : productionSources(path);
     }
     return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
       ? [path]
