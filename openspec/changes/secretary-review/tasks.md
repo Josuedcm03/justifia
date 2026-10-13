@@ -71,7 +71,7 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 - [x] 2.2 RED: `src/db/migration-secretary-review.test.ts` locates the SQL by the `secretary_review` name; asserts `CK_Usuario_Ambito`, `CK_Solicitud_Reenvio`, `CK_Documento_Retiro`, `SolicitudDecision` CHECKs, `UQ_SolicitudRevision`, partial `IX_Solicitud_Cola`, FKs without `ON DELETE CASCADE`, no `Grupo` reference, additive only (SR-1, SR-2)
 - [x] 2.3 GREEN: edit `src/db/schema.ts` per SR-1 (`Usuario.FacultadId`, `Solicitud.ReenviadaEn`, `DocumentoRespaldo.RetiradoEn`, `SolicitudRevision`, `SolicitudDecision`, `IX_Solicitud_Cola`), CHECK lists derived from code constants
 - [x] 2.4 Run `npm run db:generate -- --name secretary_review` (generate only; expected `0008_secretary_review.sql`, unless a newer migration landed on `main`); verify the journal `when` is later than the last applied migration's `created_at` (0007 precedent: a lower value is skipped silently)
-- [ ] 2.5 STOP [CONFIRM]: do not run `drizzle-kit migrate` or `push`; the migration is applied only in Phase 7
+- [x] 2.5 STOP [CONFIRM]: do not run `drizzle-kit migrate` or `push`; the migration is applied only in Phase 7 **RESOLVED 2026-10-13**: 0008 applied in Phase 7 (M1) with owner confirmation.
 - [x] 2.6 RED: `src/lib/data/solicitud-clases.test.ts`: groups rows by solicitud, `docenteNombre` null allowed, no period returned, empty input -> empty map (SR-3)
 - [x] 2.7 GREEN: `src/lib/data/solicitud-clases.ts` `listRequestClasses(q, ids)` joining `SolicitudAsignatura -> Grupo -> Asignatura -> Usuario` (the current schema; `SolicitudAsignatura.GrupoId` still references `Grupo`); the join lives only in this module
 - [x] 2.8 RED: `src/lib/audit/events.test.ts`: seven new actions via five builders, table-driven (action -> entity type -> entity id), `Facultad` entity, `documento.descargado` carries `modo`, payload leak tests (no text, name, CIF, email, dates, file names, request id list), existing payloads unchanged (RNF-06, RN-02)
@@ -171,13 +171,13 @@ S6 checklist (combined owner walk)
 
 ## Phase 7: Migration apply and data steps (owner-run, after S2 merged; before manual harness 4.11/6.14)
 
-- [ ] 7.1 [READ-ONLY] P1: row counts by `Solicitud.Estado`, `DocumentoRespaldo`, `Usuario` by role, list of `secretaria` accounts (`select` only)
-- [ ] 7.2 [READ-ONLY] P2: students with a presented request and `CarreraId IS NULL` (would be invisible, SR-6)
-- [ ] 7.3 [CONFIRM] B1: create Neon branch `backup-before-secretary-review` from production; STOP and wait for "yes"
-- [ ] 7.4 [CONFIRM] M1: `drizzle-kit migrate` over the direct (non-pooler) URL; STOP and wait for "yes" for this exact command
-- [ ] 7.5 [READ-ONLY] V1: re-run P1 (counts identical); confirm new columns all NULL and `drizzle.__drizzle_migrations` gained one row with `created_at` equal to the journal `when`
-- [ ] 7.6 [CONFIRM] V2: `db:generate` drift check writes nothing
-- [ ] 7.7 [CONFIRM] F1 (SR-16 (a)): one-off `UPDATE "Usuario" SET "FacultadId" = <FIA id> WHERE "Id" = <existing secretaria id>`; show the id lookup (read-only) and the exact statement, wait for "yes"; then [READ-ONLY] re-select to confirm exactly one row changed
+- [x] 7.1 [READ-ONLY] P1: row counts by `Solicitud.Estado`, `DocumentoRespaldo`, `Usuario` by role, list of `secretaria` accounts (`select` only) **DONE 2026-10-13** (read-only): Solicitud borrador=1, DocumentoRespaldo 0, Usuario 7 (1 secretaria: jdkno id 2), migrations 8.
+- [x] 7.2 [READ-ONLY] P2: students with a presented request and `CarreraId IS NULL` (would be invisible, SR-6) **DONE 2026-10-13** (read-only): 0 students with a presented request and no CarreraId.
+- [x] 7.3 [CONFIRM] B1: create Neon branch `backup-before-secretary-review` from production; STOP and wait for "yes" **DONE 2026-10-13** (owner-confirmed): branch backup-before-secretary-review (br-dark-moon-ay47pmi1) from production.
+- [x] 7.4 [CONFIRM] M1: `drizzle-kit migrate` over the direct (non-pooler) URL; STOP and wait for "yes" for this exact command **DONE 2026-10-13** (owner-confirmed): db:migrate over the direct URL, "migrations applied successfully".
+- [x] 7.5 [READ-ONLY] V1: re-run P1 (counts identical); confirm new columns all NULL and `drizzle.__drizzle_migrations` gained one row with `created_at` equal to the journal `when` **DONE 2026-10-13** (read-only): all row counts identical before/after; migrations 8 -> 9; 3 new columns all NULL; SolicitudRevision and SolicitudDecision present.
+- [x] 7.6 [CONFIRM] V2: `db:generate` drift check writes nothing **DONE 2026-10-13** (owner-confirmed): drift check "No schema changes, nothing to migrate", no file written.
+- [x] 7.7 [CONFIRM] F1 (SR-16 (a)): one-off `UPDATE "Usuario" SET "FacultadId" = <FIA id> WHERE "Id" = <existing secretaria id>`; show the id lookup (read-only) and the exact statement, wait for "yes"; then [READ-ONLY] re-select to confirm exactly one row changed **DONE 2026-10-13** (owner-confirmed): jdkno (id 2, Secretaria) FacultadId NULL -> 4 (Facultad de Ingenieria y Arquitectura), 1 row.
 - [ ] 7.8 [CONFIRM] Delete the backup branch only when the owner says so
 
 ## Phase 8: Archive (after S6 merged)
