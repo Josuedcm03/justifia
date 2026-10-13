@@ -53,6 +53,7 @@ export const AUDITABLE_USER_FIELDS = [
   "telefono",
   "cif",
   "carreraId",
+  "facultadId",
   "rolId",
   "activo",
 ] as const;

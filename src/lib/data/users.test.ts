@@ -6,13 +6,15 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: {} }));
 
 import { db } from "@/db";
-import { rol, usuario } from "@/db/schema";
+import { carrera, rol, usuario } from "@/db/schema";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import {
   buildDocentesWhere,
+  createUsuario,
   createUsuariosBulk,
   getCatalogActor,
+  getUserFacultadId,
   listDocenteOptions,
   listDocentes,
   updateClaveAndClearFlag,
@@ -166,6 +168,120 @@ describe("updateClaveAndClearFlag (FPC: Successful change)", () => {
     );
     expect(text).toBe('"Usuario"."Id" = $1');
     expect(params).toEqual([42]);
+  });
+});
+
+describe("createUsuario (SR-16: facultadId is accepted and persisted)", () => {
+  function stubInsert(inserted: Record<string, unknown>) {
+    const calls: { table: unknown; values: Record<string, unknown> }[] = [];
+    (db as unknown as Record<string, unknown>).select = () => ({
+      from: () => ({
+        where: () => ({ limit: async () => [{ id: 4 }] }),
+      }),
+    });
+    (db as unknown as Record<string, unknown>).insert = (table: unknown) => ({
+      values: (values: Record<string, unknown>) => {
+        calls.push({ table, values });
+        return { returning: async () => [{ ...values, id: 77, ...inserted }] };
+      },
+    });
+    return calls;
+  }
+
+  const base = {
+    login: "sec1",
+    hashClave: "hash",
+    rol: "secretaria" as const,
+    nombreCompleto: "Rosa Lopez",
+  };
+
+  it("writes the facultadId it was given and returns it", async () => {
+    const calls = stubInsert({ facultadId: 3, carreraId: null });
+
+    const created = await createUsuario({ ...base, facultadId: 3 });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].table).toBe(usuario);
+    expect(calls[0].values).toMatchObject({ facultadId: 3, rolId: 4 });
+    expect(created.facultadId).toBe(3);
+    expect(created.rol).toBe("secretaria");
+  });
+
+  it("leaves facultadId out when none is given, and returns null", async () => {
+    const calls = stubInsert({ facultadId: null, carreraId: null });
+
+    const created = await createUsuario(base);
+
+    expect(calls[0].values).not.toHaveProperty("facultadId");
+    expect(created.facultadId).toBeNull();
+  });
+});
+
+describe("getUserFacultadId (SR-16: facultad of the user's current carrera)", () => {
+  function stubSelect(rows: unknown[]) {
+    const calls: {
+      projection: unknown;
+      table: unknown;
+      joined: unknown[];
+      where: unknown;
+    }[] = [];
+    (db as unknown as Record<string, unknown>).select = (
+      projection: unknown,
+    ) => ({
+      from: (table: unknown) => {
+        const joined: unknown[] = [];
+        const chain = {
+          innerJoin: (target: unknown) => {
+            joined.push(target);
+            return chain;
+          },
+          where: (where: unknown) => ({
+            limit: async () => {
+              calls.push({ projection, table, joined, where });
+              return rows;
+            },
+          }),
+        };
+        return chain;
+      },
+    });
+    return calls;
+  }
+
+  it("selects only the facultadId through an inner join on Carrera, by user id", async () => {
+    const calls = stubSelect([{ facultadId: 3 }]);
+
+    await getUserFacultadId(42);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].table).toBe(usuario);
+    expect(calls[0].joined).toEqual([carrera]);
+    expect(Object.keys(calls[0].projection as object)).toEqual(["facultadId"]);
+    const { sql: text, params } = new PgDialect().sqlToQuery(
+      calls[0].where as Parameters<PgDialect["sqlToQuery"]>[0],
+    );
+    expect(text).toBe('"Usuario"."Id" = $1');
+    expect(params).toEqual([42]);
+  });
+
+  it("returns the facultad", async () => {
+    stubSelect([{ facultadId: 3 }]);
+
+    expect(await getUserFacultadId(1)).toBe(3);
+  });
+
+  it("returns null when the user has no carrera (no joined row)", async () => {
+    stubSelect([]);
+
+    expect(await getUserFacultadId(1)).toBeNull();
+  });
+
+  it("fails loud: a database error propagates", async () => {
+    (db as unknown as Record<string, unknown>).select = () => {
+      throw new Error("db down");
+    };
+
+    await expect(getUserFacultadId(1)).rejects.toThrow("db down");
   });
 });
 

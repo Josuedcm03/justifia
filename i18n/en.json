@@ -548,6 +548,7 @@
         "invalid": "Check the entered data",
         "careerRequired": "Select the coordinated career",
         "invalidCarrera": "The selected career is not valid",
+        "facultadRequired": "Your account has no career assigned, so the faculty of the new secretary cannot be determined",
         "duplicate": "The username or CIF already exists"
       },
       "subtitle": "Create an account for backoffice staff."
