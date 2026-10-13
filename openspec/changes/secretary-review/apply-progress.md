@@ -135,7 +135,30 @@ Gates: targeted `npx vitest run` green per unit; `npm test` 181 files / 3641 tes
 
 Lines vs tracker: production +981 -233 (net 748; correct actions 98, correct page 118, step-actions 147, solicitud-correction 178, documentos 87, solicitudes 54, review step 29, resubmit dialog 33, flow 23 and the rest); tests +2296; i18n +34 -4. Inside the 1000 budget.
 
-### Combined owner walk: S4 + S5a + S5b (one session, disposable Neon branch with 0008 applied)
+## S6 Guided correction and change flags (branch `feat/secretary-review-s6-guided-correction`, from the tracker @ 790d6cc)
+
+Status: partial. Tasks 6b.1-6b.15 done; 6b.16 is the [CONFIRM] owner walk (the S6 steps are merged into the combined walk below). Mode: Strict TDD. No database command was run, no schema change, no new audit event.
+
+| Task | State | Evidence |
+|---|---|---|
+| 6b.1 | done | branch from the tracker with S1-S5b merged |
+| 6b.2-6b.3 | done | approve description states finality (es, en); `decision-dialog.tsx` unchanged; 3 tests added (RED: 2 failed); 25/25 |
+| 6b.4-6b.5 | done | `correction-focus.ts` (`CORRECTION_FOCUS`) and `correctionStartStep` in `steps.ts`; RED: module missing and 4 failed; 39/39 |
+| 6b.6-6b.7 | done | `getCorrectionReason` (one select, owner + `devuelta` in the WHERE, newest decision, no audit); 5 tests (RED: 5 failed); 20/20 |
+| 6b.8-6b.9 | done | `CorrectionReasonBanner` (`role="status"`, warning tokens, named by its title) and `parseStep(query.step) ?? correctionStartStep(reason)`; reason read fail-soft in parallel with the draft; 12 tests (RED: 11 failed); 31/31 |
+| 6b.10-6b.11 | done | `revision-diff.ts` `diffRevision`, pure; 13 tests (RED: module missing) |
+| 6b.12-6b.13 | done | `ChangesSection` first in the stack; `changesSinceReturn` in `review/[id]/page.tsx` before `recordRequestRead`; 12 tests (RED: 14 failed); page 54/54 |
+| 6b.14 | done | es/en parity and pins in `review-messages.test.ts`, `correction-messages.test.ts`; `correct-design-system.test.tsx` and `review/design-system.test.tsx` pin the banner and the changes section (alert pattern, pills with text, card, wrapping at 360 px) |
+| 6b.15 | done | gates below |
+| 6b.16 | OPEN ([CONFIRM]) | owner walk, steps merged in the combined walk |
+
+Deviations from design (all minor): the stepper renders the current step without a link, so the "nothing locked" pin asserts the other three steps are links and the current one is `aria-current`; the banner is named by its title (`aria-labelledby`) so tests tell it from the documents step status region; `getCorrectionReason` returns `motivo` as a plain string and the page validates it with `isReturnReason` (an unknown code opens step 1 and still shows the message); the banner keys are `intake.correction.banner.{title,reason}` and the reason labels reuse `requests.detail.reasons`; the diff wiring lives in a local `changesSinceReturn` in the page (latest revision by highest `numero`, whatever the array order).
+
+Gates: `npm test` 183 files / 3711 tests green; `npx next typegen` + `npm run typecheck` clean; `npm run build` ok; prettier clean on changed files (CR stripped); eslint reports only the repo-wide CRLF `Delete ␍` noise.
+
+Lines vs tracker: production +334 -7 (banner 43, page 21, steps 8, review page 33, sections 102, data 35, focus 16, diff 76) plus 42 i18n lines; tests +855 -14. Inside the 1000 budget (estimate ~300).
+
+### Combined owner walk: S4 + S5a + S5b + S6 (one session, disposable Neon branch with 0008 applied; S6 steps are marked)
 
 Tags: every step that writes to the database is its own [CONFIRM]; nothing here runs before the owner says yes.
 
@@ -147,14 +170,14 @@ Setup (all on a disposable child branch of production, deleted afterwards)
 S4, staff (login as the secretaria; 1280 px then 360 px in devtools)
 - Sidebar shows "Review"; the queue lists A, B, C oldest first with a deadline badge in text, no cause shown, stacked cards at 360 px and no horizontal scroll; the other-facultad request is absent.
 - Open A: the detail renders once and writes one `solicitud.consultada` row; hovering links writes none; View and Download of a document work (download saves the file).
-- Approve A (message optional). Reject C: the template text is required and a second confirmation appears. Return B with a reason (RN-17) and a message. The queue then shows the result status line and the three leave the queue.
+- Open the Approve dialog: its description says the approval is final and cannot be undone (S6); one confirm only. Approve A (message optional). Reject C: the template text is required and a second confirmation appears. Return B with a reason (RN-17) and a message. The queue then shows the result status line and the three leave the queue.
 
 S5a, student (login as the student)
 - Sidebar "My requests"; the list shows A, B, C newest first with state pills; no draft is listed.
 - Open B: reason and message are shown with "Correct request"; A and C show no correction link. The other student's request id answers the same not found as a nonexistent id. At 360 px nothing scrolls sideways.
 
 S5b, correction (still as the student)
-- "Correct request" on B opens step 1 with the saved cause and dates. Change the end date to more than 30 days ago: it is accepted (RN-23 not re-applied); an end before the start is refused.
+- "Correct request" on B opens at the step of the return reason (S6): `documento_ilegible` and `fecha_alterada` at step 3 Documents, `fecha_incorrecta` at step 1; `?step=` in the URL wins. A banner with the reason label and the secretary's message shows on all four steps and every step stays reachable. Open step 1 with the saved cause and dates. Change the end date to more than 30 days ago: it is accepted (RN-23 not re-applied); an end before the start is refused.
 - Step 2: change the group or subject; step 3: remove the original document (it disappears from the list), attach a new file, remove that new file (deleted), attach it again; with five current documents the add button is disabled.
 - Step 4: the review shows Resubmit and no Discard; confirm. You land on the request with "Your correction was sent", state Pending and no correction link; `/requests/<id>/correct` now answers not found.
 - Check at 360 px for each correction step and the dialog.
@@ -162,9 +185,10 @@ S5b, correction (still as the student)
 Back as the secretaria
 - Queue order follows `ReenviadaEn`: the resubmitted request now sits after every pending request presented before the resubmission, although it was presented first, and its deadline restarts on the resubmission day.
 - Its detail shows the earlier version (the returned data and its documents) and the retired document, which can still be viewed and downloaded.
+- Its detail starts with "Changes since the return" (S6): Changed or Unchanged as text for cause and dates, subjects and documents, the retired document and the added one listed by name; at 360 px nothing scrolls sideways. A first-time pending request (A, C never returned) and the request while it is still returned show no such section.
 
 Read-only checks (`EventoAuditoria` and `Solicitud`, selects only)
-- One `solicitud.corregida` for the request, one `documento.retirado` for the retired original, one `documento.eliminado` for the deleted new file, one `solicitud.consultada` per open and none from hover or prefetch.
+- One `solicitud.corregida` for the request, one `documento.retirado` for the retired original, one `documento.eliminado` for the deleted new file, one `solicitud.consultada` per open and none from hover or prefetch (the changes section and the reason banner add no row).
 - `SolicitudRevision` has the single snapshot written at the return; no row of the student ever had `Estado = 'borrador'` during the correction.
 
 Cleanup: [CONFIRM] delete the disposable branch.
