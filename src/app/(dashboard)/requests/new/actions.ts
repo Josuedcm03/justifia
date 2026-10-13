@@ -2,35 +2,27 @@
 
 import { redirect } from "next/navigation";
 
-import type { DocumentRejectionReason } from "@/lib/audit/types";
+import {
+  fail,
+  finalize,
+  remove,
+  saveDetails,
+  saveSubjects,
+  submissionErrors,
+} from "@/app/(dashboard)/requests/new/step-actions";
+import { draftRange } from "@/app/(dashboard)/requests/new/steps";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
-import { finalizeDocument, removeDocument } from "@/lib/data/documentos";
 import { listEligibleGroups } from "@/lib/data/enrollment";
 import {
   discardDraft,
   getLiveDraft,
-  saveDraftDetails,
-  saveDraftSubjects,
   submitDraft,
-  type Draft,
 } from "@/lib/data/solicitudes";
-import { isIsoDate, managuaToday } from "@/lib/intake/dates";
-import {
-  resolveGroupChoices,
-  validateSubjectSelections,
-} from "@/lib/intake/eligibility";
+import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
 import { validateSubmission } from "@/lib/intake/submission";
-import {
-  documentIdSchema,
-  errorKey,
-  finalizeDocumentSchema,
-  makeDetailsStepSchema,
-  subjectsStepSchema,
-  toFieldErrors,
-  type FieldError,
-} from "@/lib/validations/solicitud";
+import type { FieldError } from "@/lib/validations/solicitud";
 
 // Server actions of the intake flow (RNF-01). Every action re-checks the
 // session and the student role itself (pages do not protect actions), takes the
@@ -41,109 +33,35 @@ import {
 
 const FLOW_PATH = "/requests/new";
 const CONFIRMATION_PATH = "/requests/new/confirmation";
+const DRAFT = { kind: "draft" } as const;
 
 export type ActionResult = { ok: true } | { ok: false; errors: FieldError[] };
-
-function fail(
-  field: string,
-  code: string,
-): { ok: false; errors: FieldError[] } {
-  return { ok: false, errors: [{ field, key: errorKey(code) }] };
-}
 
 async function currentStudentId(): Promise<number> {
   const user = await requireRole(...rolesSolicitantes);
   return Number(user.sub);
 }
 
-/** Dates usable as a schedule range: both real dates, start not after end. */
-function rangeOf(draft: Draft): { from: string; to: string } | null {
-  const { fechaInicio: from, fechaFin: to } = draft;
-  return isIsoDate(from) && isIsoDate(to) && from <= to ? { from, to } : null;
-}
-
 export async function saveDetailsAction(input: unknown): Promise<ActionResult> {
-  const userId = await currentStudentId();
-  const now = new Date();
-
-  const parsed = makeDetailsStepSchema(managuaToday(now)).safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, errors: toFieldErrors(parsed.error) };
-  }
-  const saved = await saveDraftDetails(userId, now, parsed.data);
-  return saved ? { ok: true } : fail("form", "no_draft");
+  return saveDetails(await currentStudentId(), DRAFT, input);
 }
 
 export async function saveSubjectsAction(
   input: unknown,
 ): Promise<ActionResult> {
-  const userId = await currentStudentId();
-  const now = new Date();
-
-  const parsed = subjectsStepSchema.safeParse(input);
-  if (!parsed.success) return fail("form", "invalid_input");
-
-  const draft = await getLiveDraft(userId, now);
-  if (!draft) return fail("form", "no_draft");
-  const range = rangeOf(draft);
-  if (!range) return fail("subjects", "dates_required");
-
-  const groups = await listEligibleGroups(
-    userId,
-    range,
-    getIntakeDeps().schedule,
-  );
-  const selections = resolveGroupChoices(parsed.data.selections, groups);
-  const errors = validateSubjectSelections(selections, groups);
-  if (errors.length > 0) {
-    return {
-      ok: false,
-      errors: errors.map((e) => ({
-        field: "subjects",
-        key: errorKey(e.code),
-        asignaturaId: e.asignaturaId,
-      })),
-    };
-  }
-
-  const saved = await saveDraftSubjects(
-    userId,
-    now,
-    selections.flatMap((s) => (s.grupoId === null ? [] : [s.grupoId])),
-  );
-  return saved ? { ok: true } : fail("form", "no_draft");
+  return saveSubjects(await currentStudentId(), DRAFT, input);
 }
 
 export async function finalizeDocumentAction(
   input: unknown,
 ): Promise<ActionResult & { documentId?: number }> {
-  const userId = await currentStudentId();
-
-  const parsed = finalizeDocumentSchema.safeParse(input);
-  if (!parsed.success) return fail("form", "invalid_input");
-
-  const result = await finalizeDocument(
-    { userId, ...parsed.data },
-    getIntakeDeps().store,
-  );
-  return result.ok
-    ? { ok: true, documentId: result.documentId }
-    : fail("documents", result.reason satisfies DocumentRejectionReason);
+  return finalize(await currentStudentId(), DRAFT, input);
 }
 
 export async function removeDocumentAction(
   documentId: unknown,
 ): Promise<ActionResult> {
-  const userId = await currentStudentId();
-
-  const parsed = documentIdSchema.safeParse(documentId);
-  if (!parsed.success) return fail("form", "invalid_input");
-
-  const result = await removeDocument(
-    { userId, documentId: parsed.data },
-    getIntakeDeps().store,
-  );
-  return result.ok ? { ok: true } : fail("documents", result.reason);
+  return remove(await currentStudentId(), DRAFT, documentId);
 }
 
 /** Confirmed discard (RNF-12): the confirmation dialog lives in the UI. */
@@ -169,7 +87,7 @@ export async function submitRequestAction(): Promise<ActionResult> {
 
   const groups = await listEligibleGroups(
     userId,
-    rangeOf(draft),
+    draftRange(draft),
     getIntakeDeps().schedule,
   );
   const validation = validateSubmission(
@@ -185,14 +103,7 @@ export async function submitRequestAction(): Promise<ActionResult> {
     managuaToday(now),
   );
   if (!validation.ok) {
-    return {
-      ok: false,
-      errors: validation.errors.map(({ field, code, asignaturaId }) => ({
-        field,
-        key: errorKey(code),
-        ...(asignaturaId === undefined ? {} : { asignaturaId }),
-      })),
-    };
+    return { ok: false, errors: submissionErrors(validation.errors) };
   }
 
   const outcome = await submitDraft({

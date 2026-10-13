@@ -101,3 +101,18 @@ describe("parseFromReview", () => {
     expect(parseFromReview(raw)).toBe(false);
   });
 });
+
+describe("hrefs under another base path (the correction flow)", () => {
+  it("keeps the step in the query of the given path", () => {
+    expect(stepHref(3, "/requests/31/correct")).toBe(
+      "/requests/31/correct?step=3",
+    );
+    expect(reviewEditHref(2, "/requests/31/correct")).toBe(
+      "/requests/31/correct?step=2&from=review",
+    );
+  });
+
+  it("still defaults to the new request flow", () => {
+    expect(stepHref(4)).toBe("/requests/new?step=4");
+  });
+});

@@ -29,8 +29,15 @@ function required(code: string) {
   return z.string({ error: message }).min(1, { error: message, abort: true });
 }
 
-/** Step 1: cause and dates. `today` is the Managua date of the action's `now`. */
-export function makeDetailsStepSchema(today: string) {
+/**
+ * Step 1: cause and dates. `today` is the Managua date of the action's `now`.
+ * A correction passes `filingWindow: false`: RN-23 was met when the request was
+ * first presented and is not re-applied (RF-08 c); RN-05 always applies.
+ */
+export function makeDetailsStepSchema(
+  today: string,
+  { filingWindow = true }: { filingWindow?: boolean } = {},
+) {
   return z
     .object({
       causa: required("causa_required").refine(isCausa, {
@@ -48,7 +55,7 @@ export function makeDetailsStepSchema(today: string) {
       const code =
         value.fechaFin < value.fechaInicio
           ? "end_before_start"
-          : isEndWithinWindow(value.fechaFin, today)
+          : !filingWindow || isEndWithinWindow(value.fechaFin, today)
             ? null
             : "end_too_old";
       if (code) {

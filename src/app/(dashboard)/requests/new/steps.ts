@@ -18,13 +18,16 @@ export const AVAILABLE_STEPS = 4;
 
 export type StepNumber = 1 | 2 | 3 | 4;
 
-export function stepHref(step: number): string {
-  return `${FLOW_PATH}?step=${step}`;
+export function stepHref(step: number, basePath: string = FLOW_PATH): string {
+  return `${basePath}?step=${step}`;
 }
 
 /** Edit link of the review: the step returns to the review once saved. */
-export function reviewEditHref(step: number): string {
-  return `${stepHref(step)}&from=review`;
+export function reviewEditHref(
+  step: number,
+  basePath: string = FLOW_PATH,
+): string {
+  return `${stepHref(step, basePath)}&from=review`;
 }
 
 /** True when the URL says the step was opened from the review's edit link. */

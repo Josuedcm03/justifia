@@ -142,3 +142,30 @@ describe("errorKey", () => {
     );
   });
 });
+
+describe("details step schema without the filing window (RN-23 not re-applied on a correction)", () => {
+  const noWindow = makeDetailsStepSchema(TODAY, { filingWindow: false });
+  const old = {
+    causa: "medica",
+    fechaInicio: "2026-08-01",
+    fechaFin: "2026-09-06",
+  };
+
+  it("accepts an end date more than 30 days old, which the default refuses", () => {
+    expect(details.safeParse(old).success).toBe(false);
+    expect(noWindow.safeParse(old).success).toBe(true);
+  });
+
+  it("RN-05 still applies: an end before the start is refused on the end field", () => {
+    const result = noWindow.safeParse({
+      ...old,
+      fechaInicio: "2026-09-10",
+      fechaFin: "2026-09-09",
+    });
+
+    expect(result.success).toBe(false);
+    expect(!result.success && toFieldErrors(result.error)).toEqual([
+      { field: "fechaFin", key: "intake.errors.end_before_start" },
+    ]);
+  });
+});
