@@ -323,3 +323,58 @@ describe("DocumentsStep: English", () => {
     expect(screen.getByRole("link", { name: "Back" })).toBeInTheDocument();
   });
 });
+
+describe("DocumentsStep inside another flow (the correction)", () => {
+  const finalizeDocument = vi.fn();
+  const removeDocument = vi.fn();
+  const flow = {
+    basePath: "/requests/31/correct",
+    actions: { finalizeDocument, removeDocument },
+  };
+  const correction = (documents: ReturnType<typeof DOC>[] = []) => (
+    <DocumentsStep draftId={31} documents={documents} flow={flow} />
+  );
+
+  beforeEach(() => {
+    finalizeDocument.mockReset().mockResolvedValue({ ok: true, documentId: 9 });
+    removeDocument.mockReset().mockResolvedValue({ ok: true });
+  });
+
+  it("uploads under the returned request's prefix and finalizes through the flow", async () => {
+    renderIntl(correction());
+
+    await user().upload(input(), PDF);
+
+    await waitFor(() => expect(finalizeDocument).toHaveBeenCalledTimes(1));
+    const [pathname] = upload.mock.calls[0];
+    expect(pathname).toMatch(/^intake\/31\/[0-9a-f-]{36}\.pdf$/);
+    expect(finalizeDocument).toHaveBeenCalledWith({
+      pathname,
+      nombreOriginal: "justificante.pdf",
+    });
+    expect(finalizeDocumentAction).not.toHaveBeenCalled();
+  });
+
+  it("removes through the flow's action", async () => {
+    renderIntl(correction([DOC(7, "receta.pdf")]));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Quitar receta.pdf" }),
+    );
+
+    await waitFor(() => expect(removeDocument).toHaveBeenCalledWith(7));
+    expect(removeDocumentAction).not.toHaveBeenCalled();
+  });
+
+  it("links back and on under the flow's path", () => {
+    renderIntl(correction());
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/31/correct?step=2",
+    );
+    expect(screen.getByRole("link", { name: "Continuar" })).toHaveAttribute(
+      "href",
+      "/requests/31/correct?step=4",
+    );
+  });
+});

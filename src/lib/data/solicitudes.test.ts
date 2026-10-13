@@ -29,9 +29,12 @@ vi.mock("@/db", () => ({
 vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
 import {
+  DRAFT_TARGET,
   discardDraft,
+  editableWhere,
   getLiveDraft,
   openDraft,
+  ownedWhere,
   saveDraftDetails,
   saveDraftSubjects,
   submitDraft,
@@ -487,6 +490,132 @@ describe("solicitudes data layer (drafts)", () => {
       insertAuditMock.mockRejectedValue(new Error("audit down"));
 
       await expect(submitDraft(input)).rejects.toThrow("audit down");
+    });
+  });
+});
+
+describe("EditTarget (RF-08: in-place correction, never a borrador)", () => {
+  const RETURNED = 31;
+  const correction = { kind: "correction", solicitudId: RETURNED } as const;
+  const sql = (where: unknown) =>
+    new PgDialect().sqlToQuery(where as Parameters<PgDialect["sqlToQuery"]>[0]);
+
+  describe("editableWhere", () => {
+    it("a correction matches the caller's own devuelta request by id, with no liveness cut-off", () => {
+      const query = sql(editableWhere(USER, correction, NOW));
+
+      expect(query.sql).toContain('"Solicitud"."Id"');
+      expect(query.sql).toContain('"Solicitud"."EstudianteId"');
+      expect(query.params).toEqual([RETURNED, USER, "devuelta"]);
+    });
+
+    it("never matches a borrador for a correction", () => {
+      expect(sql(editableWhere(USER, correction, NOW)).params).not.toContain(
+        "borrador",
+      );
+    });
+
+    it("the draft target is still the caller's live borrador (D8)", () => {
+      const query = sql(editableWhere(USER, DRAFT_TARGET, NOW));
+
+      expect(query.params).toEqual([USER, "borrador", CUTOFF_ISO]);
+    });
+
+    it("ownedWhere ignores liveness for both targets", () => {
+      expect(sql(ownedWhere(USER, DRAFT_TARGET)).params).toEqual([
+        USER,
+        "borrador",
+      ]);
+      expect(sql(ownedWhere(USER, correction)).params).toEqual([
+        RETURNED,
+        USER,
+        "devuelta",
+      ]);
+    });
+  });
+
+  describe("getLiveDraft", () => {
+    it("loads the returned request with its current documents only (retired excluded)", async () => {
+      const double = use([
+        { kind: "select", rows: [{ ...draftRow, id: RETURNED }] },
+        { kind: "select", rows: subjectRows },
+        { kind: "select", rows: documentRows },
+      ]);
+
+      const draft = await getLiveDraft(USER, NOW, correction);
+
+      expect(draft?.id).toBe(RETURNED);
+      expect(draft?.documents).toHaveLength(1);
+      expect(rendered(double.log[0]).params).toEqual([
+        RETURNED,
+        USER,
+        "devuelta",
+      ]);
+      expect(rendered(double.log[2]).sql).toMatch(/"RetiradoEn" is null/i);
+    });
+
+    it("returns null for a foreign or not returned request (nothing matches)", async () => {
+      const double = use([{ kind: "select", rows: [] }]);
+
+      expect(await getLiveDraft(USER, NOW, correction)).toBeNull();
+      expect(double.log).toHaveLength(1);
+    });
+  });
+
+  describe("saveDraftDetails", () => {
+    const details = {
+      causa: "medica",
+      fechaInicio: "2026-10-01",
+      fechaFin: "2026-10-03",
+    } as const;
+
+    it("edits the returned request in place, guarded by owner and devuelta", async () => {
+      const double = use([{ kind: "update", rows: [{ id: RETURNED }] }]);
+
+      expect(await saveDraftDetails(USER, NOW, details, correction)).toBe(true);
+
+      expect(rendered(double.log[0]).params).toEqual([
+        RETURNED,
+        USER,
+        "devuelta",
+      ]);
+      expect(double.log[0].set).toEqual({ ...details, actualizadoEn: NOW });
+    });
+
+    it("refuses a request that is not the caller's returned one", async () => {
+      use([{ kind: "update", rows: [] }]);
+
+      expect(await saveDraftDetails(USER, NOW, details, correction)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("saveDraftSubjects", () => {
+    it("replaces the groups of the returned request in one transaction", async () => {
+      const double = use([
+        { kind: "update", rows: [{ id: RETURNED }] },
+        { kind: "delete" },
+        { kind: "insert" },
+      ]);
+
+      expect(await saveDraftSubjects(USER, NOW, [21], correction)).toBe(true);
+
+      expect(rendered(double.log[0]).params).toEqual([
+        RETURNED,
+        USER,
+        "devuelta",
+      ]);
+      expect(double.log[2].values).toEqual([
+        { solicitudId: RETURNED, grupoId: 21 },
+      ]);
+    });
+
+    it("changes nothing for a foreign or not returned request", async () => {
+      const double = use([{ kind: "update", rows: [] }]);
+
+      expect(await saveDraftSubjects(USER, NOW, [21], correction)).toBe(false);
+      expect(double.log).toHaveLength(1);
     });
   });
 });

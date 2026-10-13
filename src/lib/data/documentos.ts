@@ -1,19 +1,31 @@
 import "server-only";
 
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { carrera, documentoRespaldo, solicitud, usuario } from "@/db/schema";
+import {
+  carrera,
+  documentoRespaldo,
+  solicitud,
+  solicitudRevision,
+  usuario,
+} from "@/db/schema";
 import {
   documentAttachedEvent,
   documentDownloadedEvent,
   documentRejectedEvent,
   documentRemovedEvent,
+  documentoRetiradoEvent,
 } from "@/lib/audit/events";
 import type { DocumentMode, DocumentRejectionReason } from "@/lib/audit/types";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import {
-  DRAFT_TTL_DAYS,
+  DRAFT_TARGET,
+  editableWhere,
+  ownedWhere,
+  type EditTarget,
+} from "@/lib/data/solicitudes";
+import {
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS_PER_DRAFT,
 } from "@/lib/intake/limits";
@@ -28,7 +40,6 @@ import {
 // Persistence of supporting documents (supporting-documents, D3, D12, D13).
 // Security-critical and mutating: every function fails loud, none is fail-soft.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_NAME_LENGTH = 255;
 const FALLBACK_NAME = "documento";
 
@@ -64,6 +75,14 @@ function normalizeName(name: string): string {
   return trimmed.length > 0 ? trimmed : FALLBACK_NAME;
 }
 
+/** Documents that count toward the cap: `pendiente` and `valido`, not retired. */
+function currentDocuments(solicitudId: number) {
+  return and(
+    eq(documentoRespaldo.solicitudId, solicitudId),
+    isNull(documentoRespaldo.retiradoEn),
+  );
+}
+
 async function countDocuments(
   tx: Transaction,
   solicitudId: number,
@@ -71,37 +90,32 @@ async function countDocuments(
   const [row] = await tx
     .select({ n: count() })
     .from(documentoRespaldo)
-    .where(eq(documentoRespaldo.solicitudId, solicitudId));
+    .where(currentDocuments(solicitudId));
   return row?.n ?? 0;
 }
 
 /**
- * The student's live draft (not expired, D8) and how many documents it holds,
- * `pendiente` and `valido` alike (D12). `null` when there is no live draft.
+ * The student's open target (a live draft, D8, or an own `devuelta` request)
+ * and how many documents it holds, `pendiente` and `valido` alike and retired
+ * ones excluded (D12). `null` when there is nothing open to attach to.
  */
 export async function getUploadContext(
   estudianteId: number,
   now: Date,
+  target: EditTarget = DRAFT_TARGET,
 ): Promise<UploadContext | null> {
-  const cutoff = new Date(now.getTime() - DRAFT_TTL_DAYS * DAY_MS);
-  const [draft] = await db
+  const [open] = await db
     .select({ id: solicitud.id })
     .from(solicitud)
-    .where(
-      and(
-        eq(solicitud.estudianteId, estudianteId),
-        eq(solicitud.estado, "borrador"),
-        gt(solicitud.actualizadoEn, cutoff),
-      ),
-    )
+    .where(editableWhere(estudianteId, target, now))
     .limit(1);
-  if (!draft) return null;
+  if (!open) return null;
 
   const [row] = await db
     .select({ n: count() })
     .from(documentoRespaldo)
-    .where(eq(documentoRespaldo.solicitudId, draft.id));
-  return { solicitudId: draft.id, documentCount: row?.n ?? 0 };
+    .where(currentDocuments(open.id));
+  return { solicitudId: open.id, documentCount: row?.n ?? 0 };
 }
 
 type Claim =
@@ -122,17 +136,20 @@ type Claim =
  * nothing stored to report.
  */
 export async function finalizeDocument(
-  input: { userId: number; pathname: string; nombreOriginal: string },
+  input: {
+    userId: number;
+    pathname: string;
+    nombreOriginal: string;
+    target?: EditTarget;
+  },
   store: DocumentStore,
 ): Promise<FinalizeResult> {
-  const { userId, pathname } = input;
+  const { userId, pathname, target = DRAFT_TARGET } = input;
 
   const [draft] = await db
     .select({ id: solicitud.id })
     .from(solicitud)
-    .where(
-      and(eq(solicitud.estudianteId, userId), eq(solicitud.estado, "borrador")),
-    )
+    .where(ownedWhere(userId, target))
     .limit(1);
   if (!draft || !isUnderDraftPrefix(pathname, draft.id)) {
     return { ok: false, reason: "not_allowed" };
@@ -146,13 +163,7 @@ export async function finalizeDocument(
     const locked = await tx
       .update(solicitud)
       .set({ actualizadoEn: new Date() })
-      .where(
-        and(
-          eq(solicitud.id, solicitudId),
-          eq(solicitud.estudianteId, userId),
-          eq(solicitud.estado, "borrador"),
-        ),
-      )
+      .where(and(eq(solicitud.id, solicitudId), ownedWhere(userId, target)))
       .returning({ id: solicitud.id });
     if (locked.length === 0) return { kind: "refused" };
 
@@ -276,16 +287,35 @@ async function reject(
   return { ok: false, reason: args.reason };
 }
 
+/** Whether the latest returned revision lists the document (RF-08 b). */
+async function inLatestRevision(
+  tx: Transaction,
+  solicitudId: number,
+  documentId: number,
+): Promise<boolean> {
+  const [latest] = await tx
+    .select({ documentoIds: solicitudRevision.documentoIds })
+    .from(solicitudRevision)
+    .where(eq(solicitudRevision.solicitudId, solicitudId))
+    .orderBy(desc(solicitudRevision.numero))
+    .limit(1);
+  return latest?.documentoIds.includes(documentId) ?? false;
+}
+
 /**
- * Remove a document from the caller's own draft: record, stored file and one
- * `documento.eliminado` row (the record and the audit row commit together; the
- * file is deleted after, best effort).
+ * Remove a document from the caller's own draft or returned request. A draft
+ * document, or one uploaded during the current correction, is deleted: record,
+ * stored file and one `documento.eliminado` row. A document of the latest
+ * returned revision is only retired (`RetiradoEn`, record and file kept, one
+ * `documento.retirado` row) so staff still see what the student replaced. The
+ * record change and the audit row commit together; a deleted file goes after,
+ * best effort.
  */
 export async function removeDocument(
-  input: { userId: number; documentId: number },
+  input: { userId: number; documentId: number; target?: EditTarget },
   store: DocumentStore,
 ): Promise<{ ok: true } | { ok: false; reason: "not_found" }> {
-  const { userId, documentId } = input;
+  const { userId, documentId, target = DRAFT_TARGET } = input;
 
   const removed = await db.transaction(async (tx) => {
     const [row] = await tx
@@ -299,28 +329,40 @@ export async function removeDocument(
       .where(
         and(
           eq(documentoRespaldo.id, documentId),
-          eq(solicitud.estudianteId, userId),
-          eq(solicitud.estado, "borrador"),
+          isNull(documentoRespaldo.retiradoEn),
+          ownedWhere(userId, target),
         ),
       )
       .limit(1);
     if (!row) return null;
 
+    const retire =
+      target.kind === "correction" &&
+      (await inLatestRevision(tx, row.solicitudId, row.id));
+    const now = new Date();
     await tx
       .update(solicitud)
-      .set({ actualizadoEn: new Date() })
+      .set({ actualizadoEn: now })
       .where(eq(solicitud.id, row.solicitudId));
-    await tx.delete(documentoRespaldo).where(eq(documentoRespaldo.id, row.id));
+    if (retire) {
+      await tx
+        .update(documentoRespaldo)
+        .set({ retiradoEn: now })
+        .where(eq(documentoRespaldo.id, row.id));
+    } else {
+      await tx
+        .delete(documentoRespaldo)
+        .where(eq(documentoRespaldo.id, row.id));
+    }
+    const audit = { documentoId: row.id, solicitudId: row.solicitudId };
     await insertAuditEvents(tx, userId, [
-      documentRemovedEvent({
-        documentoId: row.id,
-        solicitudId: row.solicitudId,
-      }),
+      retire ? documentoRetiradoEvent(audit) : documentRemovedEvent(audit),
     ]);
-    return row;
+    return { ...row, retire };
   });
 
   if (!removed) return { ok: false, reason: "not_found" };
+  if (removed.retire) return { ok: true };
   try {
     await store.delete([removed.pathname]);
   } catch {

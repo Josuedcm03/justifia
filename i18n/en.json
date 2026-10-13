@@ -700,7 +700,8 @@
       "not_found": "We could not find the file. Please try again.",
       "not_allowed": "You are not allowed to do this.",
       "too_many_documents": "You already attached the maximum of 5 documents. Remove one to upload another.",
-      "upload_failed": "The file could not be uploaded. Please try again."
+      "upload_failed": "The file could not be uploaded. Please try again.",
+      "not_correctable": "This request can no longer be corrected. Go back to your requests to see its status."
     },
     "review": {
       "title": "Review and submit your request",
@@ -729,6 +730,19 @@
         "confirm": "Yes, discard",
         "pending": "Discarding…"
       }
+    },
+    "correction": {
+      "title": "Correct request",
+      "subtitle": "Fix what the review asked for and send it again. Your request keeps its number.",
+      "back": "Back to the request",
+      "resubmit": {
+        "button": "Resubmit request",
+        "title": "Resubmit the corrected request?",
+        "description": "The secretary will review it again and the review period starts over. You will not be able to edit it while it is under review.",
+        "confirm": "Yes, resubmit",
+        "pending": "Resubmitting…"
+      },
+      "degraded": "We could not load your request. Try again in a few minutes."
     },
     "confirmation": {
       "title": "Request submitted",
@@ -805,7 +819,8 @@
         "fecha_incorrecta": "The date does not match the document",
         "fecha_alterada": "The date on the document is altered",
         "documento_ilegible": "The document is not legible"
-      }
+      },
+      "corrected": "Your correction was sent. The secretary will review it again."
     },
     "notFound": {
       "title": "Request not found",

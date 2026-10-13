@@ -16,6 +16,8 @@ import { rolesSolicitantes } from "@/lib/auth/permissions";
 import { getOwnRequestDetail } from "@/lib/data/student-requests";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
+const NOTICE =
+  "border-success/30 border-l-success bg-success/8 text-success-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
 
 /**
  * The student's own request (RF-07 c, RF-08 b, RNF-01). The owner comes from
@@ -25,8 +27,10 @@ const POSITIVE_INTEGER = /^[1-9]\d*$/;
  */
 export default async function OwnRequestDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireRole(...rolesSolicitantes);
   const { id: rawId } = await params;
@@ -38,6 +42,7 @@ export default async function OwnRequestDetailPage({
   if (!detail) notFound();
 
   const t = await getTranslations("requests");
+  const { corrected } = await searchParams;
   const format = await getFormatter();
   const presented = detail.presentadaEn
     ? format.dateTime(detail.presentadaEn, {
@@ -64,6 +69,11 @@ export default async function OwnRequestDetailPage({
       />
 
       <div className="flex flex-col gap-6">
+        {corrected === "1" ? (
+          <p role="status" className={NOTICE}>
+            {t("detail.corrected")}
+          </p>
+        ) : null}
         {detail.decision || correctHref ? (
           <DecisionSection
             decision={detail.decision}

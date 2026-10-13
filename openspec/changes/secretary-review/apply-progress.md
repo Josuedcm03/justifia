@@ -112,3 +112,59 @@ Deviations from design (all minor): the list is one stacked card per request at 
 Gates: `npm test` 176 files / 3494 tests green; `npx next typegen` + `npm run typecheck` clean; `npm run build` ok (`/requests` and `/requests/[id]` dynamic); eslint and prettier clean on changed files (CR stripped). No database command was run.
 
 Lines vs tracker: production 757 code lines (data 166, detail sections 293, detail page 85, list page 53, card 52, pill 28, dates hook 27, not-found 23, sidebar 23, `Fact` export 7) plus 154 i18n lines; tests 1466. Inside the 1000 budget.
+
+## S5b Student correction flow (branch `feat/secretary-review-s5b-correction`, from the tracker @ 69ffdf3)
+
+Status: partial. Tasks 6.1-6.13 done; 6.14 is the [CONFIRM] manual harness (owner work on a disposable Neon branch after Phase 7, not run here). Mode: Strict TDD. No database command was run.
+
+| Task | State | Evidence |
+|---|---|---|
+| 6.1-6.2 | done | `EditTarget` (`draft` or `correction`), `editableWhere`, `ownedWhere` in `solicitudes.ts`; `getLiveDraft`, `saveDraftDetails`, `saveDraftSubjects`, `getUploadContext`, `finalizeDocument`, `removeDocument` take the target (default draft). A correction matches `Id + EstudianteId + Estado = 'devuelta'`, never `borrador`, no liveness cut-off. The 5-document count and the documents of a correction exclude `RetiradoEn IS NOT NULL`. RED: 12 failed first run (`solicitudes.test.ts` 7, `documentos.test.ts` 5); safety net 74/74 before |
+| 6.3-6.4 | done | upload-token route: `solicitudIdOf(pathname)` (new, `pathnames.ts`) names the request, the route asks `getUploadContext` for the correction first and then the live draft, then keeps `isUnderDraftPrefix` and the cap. RED: 15 failed (route 7, pathnames 8) |
+| 6.5-6.6 | done | `removeDocument`: a document in the latest revision's `DocumentoIds` is retired (`RetiradoEn`, record and file kept, `documento.retirado`); one uploaded during the correction is deleted (`documento.eliminado`), same transaction as the audit row. RED: 5 failed |
+| 6.7-6.8 | done | `solicitud-correction.ts` `resubmitCorrection`: reloads the returned request, `validateSubmission(..., { filingWindow: false })` plus the 5-document cap with every error together, then one transaction: guarded UPDATE (`ReenviadaEn`), drift re-checks, one `solicitud.corregida`; no snapshot written. 22 tests (RED: module missing) including a pin that the SQL guard and the RN-16 table agree |
+| 6.9-6.10 | done | `flow.ts` (`StepFlow`), the four steps and the stepper take an optional flow (base path and actions) and default to the new-request flow; `ResubmitDialog`; `FlowSteps` (shared layout of both pages); `step-actions.ts` (step logic shared by the draft and correction actions); `correct/actions.ts` (5 actions, 22 tests); `correct/page.tsx` (15 tests). The detail page confirms `?corrected=1`. RED: 12 component tests failed first run; existing flow tests stayed green (only the draft actions' call assertions gained the target) |
+| 6.11 | done | `intake.correction.*`, `intake.errors.not_correctable`, `requests.detail.corrected` in es and en; `src/i18n/correction-messages.test.ts` (7); `requests/correct-design-system.test.tsx` (15; mutation check: an off-scale class in `resubmit-dialog.tsx` failed 3 tests, then reverted) |
+| 6.12 | done | tests in `intake-sweep.test.ts` (4): the draft sweep is `borrador` only, a retired document keeps row and blob at 40 days. Neither the route nor the sweep changed. Mutation check: widening the draft filter to `devuelta` fails it |
+| 6.13 | done | `docs/roadmap.md` row 2 already says `Armando`; no change |
+| 6.14 | OPEN ([CONFIRM]) | owner walk, steps below |
+
+Deviations from design (all minor): `resubmitCorrection` validates (RN-05, eligibility, documents, cap) inside the data function and returns `invalid` with the errors, so the action stays thin (the task asked for these checks in `solicitud-correction.test.ts`); the correction actions take the request id as their first argument and the page binds it (`action.bind(null, id)`), the data layer guards every write by owner and `devuelta`; the shared step logic lives in `new/step-actions.ts` (not a "use server" module, so it is not an endpoint) and the draft actions are wrappers over it; `draftRange` replaces the duplicate `rangeOf` in `new/actions.ts`; the step components default their `flow` locally (the existing tests mock only the action each step uses) instead of a shared `NEW_FLOW`; the correction opens at step 1 (not at the first unfinished step); the load of the correction page is fail-soft with its own message; `requestIdSchema` exported from `validations/solicitud.ts`; the 6.12 test is in `intake-sweep.test.ts` because the route test mocks the sweep.
+
+Gates: targeted `npx vitest run` green per unit; `npm test` 181 files / 3641 tests green; `npx next typegen` + `npm run typecheck` clean; `npm run build` ok (`/requests/[id]/correct` dynamic); eslint and prettier clean on the 44 changed files (CR stripped). No database command was run.
+
+Lines vs tracker: production +981 -233 (net 748; correct actions 98, correct page 118, step-actions 147, solicitud-correction 178, documentos 87, solicitudes 54, review step 29, resubmit dialog 33, flow 23 and the rest); tests +2296; i18n +34 -4. Inside the 1000 budget.
+
+### Combined owner walk: S4 + S5a + S5b (one session, disposable Neon branch with 0008 applied)
+
+Tags: every step that writes to the database is its own [CONFIRM]; nothing here runs before the owner says yes.
+
+Setup (all on a disposable child branch of production, deleted afterwards)
+1. [CONFIRM] Create the branch and apply `0008_secretary_review` (direct URL).
+2. [CONFIRM] Data: a `secretaria` with `FacultadId` = the pilot facultad (create it as `coordinacion` in /users/new so SR-16 derives it, or the one-off F1 UPDATE); a student whose `CarreraId` is in that facultad with active enrollments in at least two groups of one subject and one more subject, whose schedule has classes in the absence dates; a second student in another facultad.
+3. As the student present three requests, A, B and C (use /requests/new). One more from the other-facultad student.
+
+S4, staff (login as the secretaria; 1280 px then 360 px in devtools)
+- Sidebar shows "Review"; the queue lists A, B, C oldest first with a deadline badge in text, no cause shown, stacked cards at 360 px and no horizontal scroll; the other-facultad request is absent.
+- Open A: the detail renders once and writes one `solicitud.consultada` row; hovering links writes none; View and Download of a document work (download saves the file).
+- Approve A (message optional). Reject C: the template text is required and a second confirmation appears. Return B with a reason (RN-17) and a message. The queue then shows the result status line and the three leave the queue.
+
+S5a, student (login as the student)
+- Sidebar "My requests"; the list shows A, B, C newest first with state pills; no draft is listed.
+- Open B: reason and message are shown with "Correct request"; A and C show no correction link. The other student's request id answers the same not found as a nonexistent id. At 360 px nothing scrolls sideways.
+
+S5b, correction (still as the student)
+- "Correct request" on B opens step 1 with the saved cause and dates. Change the end date to more than 30 days ago: it is accepted (RN-23 not re-applied); an end before the start is refused.
+- Step 2: change the group or subject; step 3: remove the original document (it disappears from the list), attach a new file, remove that new file (deleted), attach it again; with five current documents the add button is disabled.
+- Step 4: the review shows Resubmit and no Discard; confirm. You land on the request with "Your correction was sent", state Pending and no correction link; `/requests/<id>/correct` now answers not found.
+- Check at 360 px for each correction step and the dialog.
+
+Back as the secretaria
+- Queue order follows `ReenviadaEn`: the resubmitted request now sits after every pending request presented before the resubmission, although it was presented first, and its deadline restarts on the resubmission day.
+- Its detail shows the earlier version (the returned data and its documents) and the retired document, which can still be viewed and downloaded.
+
+Read-only checks (`EventoAuditoria` and `Solicitud`, selects only)
+- One `solicitud.corregida` for the request, one `documento.retirado` for the retired original, one `documento.eliminado` for the deleted new file, one `solicitud.consultada` per open and none from hover or prefetch.
+- `SolicitudRevision` has the single snapshot written at the return; no row of the student ever had `Estado = 'borrador'` during the correction.
+
+Cleanup: [CONFIRM] delete the disposable branch.

@@ -291,3 +291,44 @@ describe("SubjectsStep: saving", () => {
     expect(saveSubjectsAction).not.toHaveBeenCalled();
   });
 });
+
+describe("SubjectsStep inside another flow (the correction)", () => {
+  const saveSubjects = vi.fn();
+  const flow = { basePath: "/requests/31/correct", actions: { saveSubjects } };
+
+  beforeEach(() => {
+    saveSubjects.mockReset();
+    saveSubjectsAction.mockReset();
+    push.mockReset();
+  });
+
+  it("saves through the flow's action and moves on under the flow's path", async () => {
+    saveSubjects.mockResolvedValue({ ok: true });
+    renderIntl(ui({ flow, selected: [{ asignaturaId: 10, grupoId: 1 }] }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/requests/31/correct?step=3"),
+    );
+    expect(saveSubjects).toHaveBeenCalledWith({
+      selections: [{ asignaturaId: 10, grupoId: 1 }],
+    });
+    expect(saveSubjectsAction).not.toHaveBeenCalled();
+  });
+
+  it("goes back to the flow's details step, or to its review when opened from it", () => {
+    const { unmount } = renderIntl(ui({ flow }));
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/31/correct?step=1",
+    );
+    unmount();
+
+    renderIntl(ui({ flow, fromReview: true }));
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/31/correct?step=4",
+    );
+  });
+});

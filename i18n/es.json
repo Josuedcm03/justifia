@@ -700,7 +700,8 @@
       "not_found": "No encontramos el archivo. Inténtalo de nuevo.",
       "not_allowed": "No tienes permiso para esta operación.",
       "too_many_documents": "Ya adjuntaste el máximo de 5 documentos. Quita uno para subir otro.",
-      "upload_failed": "No se pudo subir el archivo. Inténtalo de nuevo."
+      "upload_failed": "No se pudo subir el archivo. Inténtalo de nuevo.",
+      "not_correctable": "Esta solicitud ya no se puede corregir. Vuelve a tus solicitudes para ver su estado."
     },
     "review": {
       "title": "Revisa y presenta tu solicitud",
@@ -729,6 +730,19 @@
         "confirm": "Sí, descartar",
         "pending": "Descartando…"
       }
+    },
+    "correction": {
+      "title": "Corregir solicitud",
+      "subtitle": "Corrige lo que pidió la revisión y vuelve a enviarla. Tu solicitud conserva su número.",
+      "back": "Volver a la solicitud",
+      "resubmit": {
+        "button": "Reenviar solicitud",
+        "title": "¿Reenviar la solicitud corregida?",
+        "description": "La secretaría la revisará de nuevo y el plazo de revisión vuelve a empezar. No podrás editarla mientras esté en revisión.",
+        "confirm": "Sí, reenviar",
+        "pending": "Reenviando…"
+      },
+      "degraded": "No pudimos cargar tu solicitud. Inténtalo de nuevo en unos minutos."
     },
     "confirmation": {
       "title": "Solicitud presentada",
@@ -805,7 +819,8 @@
         "fecha_incorrecta": "La fecha no coincide con el documento",
         "fecha_alterada": "La fecha del documento está alterada",
         "documento_ilegible": "El documento no es legible"
-      }
+      },
+      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo."
     },
     "notFound": {
       "title": "Solicitud no encontrada",

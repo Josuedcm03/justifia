@@ -10,11 +10,12 @@ import {
   MAX_DOCUMENTS_PER_DRAFT,
   UPLOAD_TOKEN_TTL_MINUTES,
 } from "@/lib/intake/limits";
-import { isUnderDraftPrefix } from "@/lib/intake/pathnames";
+import { isUnderDraftPrefix, solicitudIdOf } from "@/lib/intake/pathnames";
 
 // Inbound adapter of the Vercel upload-token protocol (A4, D2). The proxy
 // never sees `/api`, so this handler authenticates itself on every call
-// (RNF-01): session, role, then ownership of a non-expired draft. Files go
+// (RNF-01): session, role, then ownership of a non-expired draft or of a
+// returned (`devuelta`) request named in the pathname. Files go
 // from the browser to the private store; they never cross this function (C1).
 //
 // No `onUploadCompleted`: the callback cannot reach localhost and is not
@@ -59,12 +60,22 @@ export async function POST(request: Request): Promise<Response> {
       body,
       onBeforeGenerateToken: async (pathname) => {
         const now = new Date();
-        const draft = await getUploadContext(userId, now);
+        // A correction names its request in the pathname; a draft is found
+        // through the session. The data layer re-checks owner and state.
+        const claimed = solicitudIdOf(pathname);
+        const draft =
+          (claimed !== null &&
+            (await getUploadContext(userId, now, {
+              kind: "correction",
+              solicitudId: claimed,
+            }))) ||
+          (await getUploadContext(userId, now, { kind: "draft" }));
         if (!draft) throw new UploadDenied("no_draft");
         if (!isUnderDraftPrefix(pathname, draft.solicitudId)) {
           throw new UploadDenied("not_allowed");
         }
-        // D12: counts pendiente + valido; finalize re-checks under a row lock.
+        // D12: counts pendiente + valido, retired excluded; finalize re-checks
+        // under a row lock.
         if (draft.documentCount >= MAX_DOCUMENTS_PER_DRAFT) {
           throw new UploadDenied("too_many_documents");
         }

@@ -17,6 +17,17 @@ export function buildPathname(
   return `${draftPrefix(solicitudId)}${uuid}.${tipo}`;
 }
 
+/** The request id a pathname claims (`intake/{id}/{file}`), or null if malformed. */
+export function solicitudIdOf(pathname: string): number | null {
+  if (!pathname.startsWith(INTAKE_ROOT_PREFIX)) return null;
+  const [id, name, ...rest] = pathname
+    .slice(INTAKE_ROOT_PREFIX.length)
+    .split("/");
+  if (rest.length > 0 || !name || !/^[1-9]\d*$/.test(id)) return null;
+  const value = Number(id);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
 /**
  * Ownership check for finalize and the token route: the pathname must be a
  * single file name directly under the caller's own draft prefix. Rejects other

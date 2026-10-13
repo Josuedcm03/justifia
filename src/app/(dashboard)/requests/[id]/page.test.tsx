@@ -101,11 +101,20 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 let Page: (props: Props) => Promise<React.ReactNode>;
 
-async function renderPage(id = "12") {
-  const ui = await Page({ params: Promise.resolve({ id }) });
+async function renderPage(
+  id = "12",
+  search: Record<string, string | string[] | undefined> = {},
+) {
+  const ui = await Page({
+    params: Promise.resolve({ id }),
+    searchParams: Promise.resolve(search),
+  });
   return render(
     <NextIntlClientProvider
       locale={state.locale}
@@ -421,5 +430,46 @@ describe("OwnRequestDetailPage history (RF-08 b)", () => {
         name: messages.es.requests.detail.decision.correct,
       }),
     ).toHaveAttribute("href", "/requests/12/correct");
+  });
+});
+
+describe("OwnRequestDetailPage: confirmation after a correction (RF-08 c)", () => {
+  it("confirms the resubmission once, as a status, when redirected with corrected=1", async () => {
+    detailMock.mockResolvedValue(
+      detail({ estado: "pendiente", decision: null }),
+    );
+
+    await renderPage("12", { corrected: "1" });
+
+    expect(screen.getByRole("status")).toHaveTextContent(en.detail.corrected);
+  });
+
+  it("says it in Spanish too", async () => {
+    state.locale = "es";
+    detailMock.mockResolvedValue(
+      detail({ estado: "pendiente", decision: null }),
+    );
+
+    await renderPage("12", { corrected: "1" });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      messages.es.requests.detail.corrected,
+    );
+  });
+
+  it.each([{}, { corrected: "0" }, { corrected: "yes" }, { corrected: ["2"] }])(
+    "shows no confirmation for %j",
+    async (search) => {
+      await renderPage("12", search);
+
+      expect(screen.queryByRole("status")).toBeNull();
+    },
+  );
+
+  it("does not read anything extra for the flag: the same single detail read", async () => {
+    await renderPage("12", { corrected: "1" });
+
+    expect(detailMock).toHaveBeenCalledTimes(1);
+    expect(readMock).not.toHaveBeenCalled();
   });
 });
