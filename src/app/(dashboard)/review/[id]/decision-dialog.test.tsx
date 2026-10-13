@@ -432,6 +432,7 @@ describe("DecisionDialog conflict and not found", () => {
 
     await userEvent.click(confirm);
     await within(dialog).findByRole("alert");
+    await vi.waitFor(() => expect(confirm).toBeEnabled());
     await userEvent.click(confirm);
 
     await vi.waitFor(() =>
