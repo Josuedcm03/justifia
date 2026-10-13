@@ -96,6 +96,54 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
     });
   });
 
+  describe("filingWindow: false (correction, RN-23 not re-applied)", () => {
+    const CORRECTION = { filingWindow: false };
+
+    it("accepts an end date older than the filing window", () => {
+      const old = valid({ fechaInicio: "2026-08-01", fechaFin: "2026-08-27" });
+      expect(fields(old)).toEqual(["fechaFin:end_too_old"]);
+      expect(validateSubmission(old, TODAY, CORRECTION)).toEqual({ ok: true });
+    });
+
+    it("applies the window by default and when set to true", () => {
+      const old = valid({ fechaInicio: "2026-08-01", fechaFin: "2026-08-27" });
+      expect(validateSubmission(old, TODAY, { filingWindow: true }).ok).toBe(
+        false,
+      );
+    });
+
+    it("still applies RN-05 (end before start)", () => {
+      const input = valid({
+        fechaInicio: "2026-10-10",
+        fechaFin: "2026-10-09",
+      });
+      expect(validateSubmission(input, TODAY, CORRECTION)).toEqual({
+        ok: false,
+        errors: [{ field: "fechaFin", code: "end_before_start" }],
+      });
+    });
+
+    it("still applies eligibility and the other rules", () => {
+      const result = validateSubmission(
+        valid({
+          causa: null,
+          selections: [{ asignaturaId: 20, grupoId: null }],
+          validDocumentCount: 0,
+        }),
+        TODAY,
+        CORRECTION,
+      );
+      expect(result).toEqual({
+        ok: false,
+        errors: [
+          { field: "causa", code: "causa_required" },
+          { field: "subjects", code: "group_required", asignaturaId: 20 },
+          { field: "documents", code: "documents_required" },
+        ],
+      });
+    });
+  });
+
   it("requires at least one subject (D15)", () => {
     expect(fields(valid({ selections: [] }))).toEqual([
       "subjects:subjects_required",
