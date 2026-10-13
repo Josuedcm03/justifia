@@ -15,7 +15,13 @@ import {
 import type { QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
-import { rol, usuario, type NuevoUsuario, type Usuario } from "@/db/schema";
+import {
+  carrera,
+  rol,
+  usuario,
+  type NuevoUsuario,
+  type Usuario,
+} from "@/db/schema";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import type {
@@ -54,6 +60,7 @@ const usuarioConRolColumns = {
   telefono: usuario.telefono,
   cif: usuario.cif,
   carreraId: usuario.carreraId,
+  facultadId: usuario.facultadId,
   activo: usuario.activo,
   debeCambiarClave: usuario.debeCambiarClave,
   creadoEn: usuario.creadoEn,
@@ -249,6 +256,23 @@ export async function getCatalogActor(
 }
 
 /**
+ * The facultad of the user's CURRENT carrera (`Usuario.CarreraId ->
+ * Carrera.FacultadId`), or null when the user has no carrera (SR-16). Used to
+ * stamp a new secretaria with her creator's facultad. It projects only the
+ * facultad and is fail-loud, like `getCatalogActor`: a database error must
+ * reject the creation rather than create an account without a scope.
+ */
+export async function getUserFacultadId(id: number): Promise<number | null> {
+  const [row] = await db
+    .select({ facultadId: carrera.facultadId })
+    .from(usuario)
+    .innerJoin(carrera, eq(carrera.id, usuario.carreraId))
+    .where(eq(usuario.id, id))
+    .limit(1);
+  return row?.facultadId ?? null;
+}
+
+/**
  * Active users whose role code is `docente`, for the Grupo docente select.
  * It projects ONLY what a select needs (never the hash, CIF or phone), is
  * capped at `CATALOG_OPTIONS_MAX` and is not fail-soft: a thrown error
@@ -386,6 +410,7 @@ export async function createUsuario(
     telefono: row.telefono,
     cif: row.cif,
     carreraId: row.carreraId,
+    facultadId: row.facultadId,
     activo: row.activo,
     debeCambiarClave: row.debeCambiarClave,
     creadoEn: row.creadoEn,

@@ -6,6 +6,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   smallint,
@@ -17,7 +18,9 @@ import {
 
 import type { GrupoOrigen } from "@/lib/catalog/origen";
 import { CAUSAS } from "@/lib/intake/causes";
+import { DECISION_KINDS } from "@/lib/intake/decision-templates";
 import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
+import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { ESTADOS_SOLICITUD } from "@/lib/intake/states";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -83,27 +86,45 @@ export type NuevoRol = typeof rol.$inferInsert;
  *   los docentes en la importación (catalog-excel-import, D7).
  * - `debeCambiarClave` marca las cuentas creadas por importación, que deben
  *   cambiar la clave temporal en el primer ingreso (forced-password-change).
+ * - `facultadId` es la facultad de una secretaria (secretary-review, SR-1);
+ *   excluyente con `carreraId` (`CK_Usuario_Ambito`). Que una secretaria la
+ *   tenga se exige al crearla (SR-16) y por el alcance que falla cerrado
+ *   (SR-6); un CHECK no puede leer el rol.
  */
-export const usuario = pgTable("Usuario", {
-  id: bigint("Id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  login: varchar("Login", { length: 60 }).notNull().unique(),
-  hashClave: varchar("HashClave", { length: 255 }).notNull(),
-  rolId: bigint("RolId", { mode: "number" })
-    .notNull()
-    .references(() => rol.id),
-  nombreCompleto: varchar("NombreCompleto", { length: 160 }).notNull(),
-  correo: varchar("Correo", { length: 160 }).unique(),
-  telefono: varchar("Telefono", { length: 30 }),
-  cif: varchar("Cif", { length: 20 }).unique(),
-  carreraId: bigint("CarreraId", { mode: "number" }).references(
-    () => carrera.id,
-  ),
-  activo: boolean("Activo").notNull().default(true),
-  debeCambiarClave: boolean("DebeCambiarClave").notNull().default(false),
-  creadoEn: timestamp("CreadoEn", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const usuario = pgTable(
+  "Usuario",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    login: varchar("Login", { length: 60 }).notNull().unique(),
+    hashClave: varchar("HashClave", { length: 255 }).notNull(),
+    rolId: bigint("RolId", { mode: "number" })
+      .notNull()
+      .references(() => rol.id),
+    nombreCompleto: varchar("NombreCompleto", { length: 160 }).notNull(),
+    correo: varchar("Correo", { length: 160 }).unique(),
+    telefono: varchar("Telefono", { length: 30 }),
+    cif: varchar("Cif", { length: 20 }).unique(),
+    carreraId: bigint("CarreraId", { mode: "number" }).references(
+      () => carrera.id,
+    ),
+    facultadId: bigint("FacultadId", { mode: "number" }).references(
+      () => facultad.id,
+    ),
+    activo: boolean("Activo").notNull().default(true),
+    debeCambiarClave: boolean("DebeCambiarClave").notNull().default(false),
+    creadoEn: timestamp("CreadoEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "CK_Usuario_Ambito",
+      sql`${t.facultadId} IS NULL OR ${t.carreraId} IS NULL`,
+    ),
+  ],
+);
 
 export type Usuario = typeof usuario.$inferSelect;
 export type NuevoUsuario = typeof usuario.$inferInsert;
@@ -229,6 +250,9 @@ export const solicitud = pgTable(
     fechaInicio: date("FechaInicio", { mode: "string" }),
     fechaFin: date("FechaFin", { mode: "string" }),
     presentadaEn: timestamp("PresentadaEn", { withTimezone: true }),
+    // Set on each resubmission after a return (RF-08); `PresentadaEn` keeps the
+    // first presentation (secretary-review, SR-1).
+    reenviadaEn: timestamp("ReenviadaEn", { withTimezone: true }),
     estudianteNombre: varchar("EstudianteNombre", { length: 160 }),
     estudianteCif: varchar("EstudianteCif", { length: 20 }),
     estudianteCarrera: varchar("EstudianteCarrera", { length: 160 }),
@@ -254,6 +278,14 @@ export const solicitud = pgTable(
       "CK_Solicitud_Presentada",
       sql`${t.estado} = 'borrador' OR (${t.presentadaEn} IS NOT NULL AND ${t.causa} IS NOT NULL AND ${t.fechaInicio} IS NOT NULL AND ${t.fechaFin} IS NOT NULL AND ${t.estudianteNombre} IS NOT NULL AND ${t.estudianteCif} IS NOT NULL AND ${t.estudianteCarrera} IS NOT NULL AND ${t.estudianteCorreo} IS NOT NULL)`,
     ),
+    check(
+      "CK_Solicitud_Reenvio",
+      sql`${t.reenviadaEn} IS NULL OR (${t.presentadaEn} IS NOT NULL AND ${t.reenviadaEn} >= ${t.presentadaEn})`,
+    ),
+    // The review queue: pending requests by effective start (SR-1).
+    index("IX_Solicitud_Cola")
+      .on(sql`coalesce(${t.reenviadaEn}, ${t.presentadaEn})`, t.id)
+      .where(sql`${t.estado} = 'pendiente'`),
     // D8: at most one open draft per student.
     uniqueIndex("UX_Solicitud_Borrador")
       .on(t.estudianteId)
@@ -311,11 +343,18 @@ export const documentoRespaldo = pgTable(
     tipoDetectado: varchar("TipoDetectado", { length: 10 }),
     tamanoBytes: integer("TamanoBytes").notNull(),
     estado: varchar("Estado", { length: 10 }).notNull(),
+    // Soft retirement during a correction: the row and blob stay visible to
+    // staff and leave the five-document cap (secretary-review, SR-1).
+    retiradoEn: timestamp("RetiradoEn", { withTimezone: true }),
     creadoEn: timestamp("CreadoEn", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => [
+    check(
+      "CK_Documento_Retiro",
+      sql`${t.retiradoEn} IS NULL OR ${t.estado} = 'valido'`,
+    ),
     check(
       "CK_Documento_Tipo",
       sql`${t.tipoDetectado} IS NULL OR ${t.tipoDetectado} IN ('pdf', 'png', 'jpeg')`,
@@ -335,3 +374,111 @@ export const documentoRespaldo = pgTable(
 
 export type DocumentoRespaldo = typeof documentoRespaldo.$inferSelect;
 export type NuevoDocumentoRespaldo = typeof documentoRespaldo.$inferInsert;
+
+/** One class of a revision snapshot (no period, no `Grupo` id). */
+export type RevisionClase = {
+  asignaturaId: number;
+  codigo: string;
+  nombre: string;
+  numeroGrupo: string;
+};
+
+/**
+ * SolicitudRevision — the snapshot of a returned version of a request, written
+ * when the request is returned (secretary-review, SR-1, RF-08). Classes are a
+ * jsonb copy so history does not follow live catalog edits and the table holds
+ * no reference to `Grupo`. Append-only; no cascade: a presented request is
+ * never deleted.
+ */
+export const solicitudRevision = pgTable(
+  "SolicitudRevision",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    solicitudId: bigint("SolicitudId", { mode: "number" })
+      .notNull()
+      .references(() => solicitud.id),
+    numero: smallint("Numero").notNull(),
+    causa: varchar("Causa", { length: 30 }).notNull(),
+    fechaInicio: date("FechaInicio", { mode: "string" }).notNull(),
+    fechaFin: date("FechaFin", { mode: "string" }).notNull(),
+    clases: jsonb("Clases").$type<RevisionClase[]>().notNull(),
+    documentoIds: jsonb("DocumentoIds").$type<number[]>().notNull(),
+    creadaEn: timestamp("CreadaEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("UQ_SolicitudRevision").on(t.solicitudId, t.numero),
+    check("CK_SolicitudRevision_Numero", sql`${t.numero} > 0`),
+    check("CK_SolicitudRevision_Causa", sql`${t.causa} IN (${inList(CAUSAS)})`),
+    check(
+      "CK_SolicitudRevision_Fechas",
+      sql`${t.fechaFin} >= ${t.fechaInicio}`,
+    ),
+  ],
+);
+
+export type SolicitudRevision = typeof solicitudRevision.$inferSelect;
+export type NuevaSolicitudRevision = typeof solicitudRevision.$inferInsert;
+
+/**
+ * SolicitudDecision — one secretary decision on a request (secretary-review,
+ * SR-1, RF-07). Append-only: a return cycle adds rows, never rewrites them. A
+ * return carries its RN-17 reason and the revision snapshot it created; an
+ * approval or rejection carries neither. Audit stores codes only; the text
+ * lives here.
+ */
+export const solicitudDecision = pgTable(
+  "SolicitudDecision",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    solicitudId: bigint("SolicitudId", { mode: "number" })
+      .notNull()
+      .references(() => solicitud.id),
+    tipo: varchar("Tipo", { length: 20 }).notNull(),
+    plantillaCodigo: varchar("PlantillaCodigo", { length: 40 }).notNull(),
+    motivoCodigo: varchar("MotivoCodigo", { length: 30 }),
+    texto: varchar("Texto", { length: 1000 }),
+    revisionId: bigint("RevisionId", { mode: "number" }).references(
+      () => solicitudRevision.id,
+    ),
+    secretariaId: bigint("SecretariaId", { mode: "number" })
+      .notNull()
+      .references(() => usuario.id),
+    decididaEn: timestamp("DecididaEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "CK_SolicitudDecision_Tipo",
+      sql`${t.tipo} IN (${inList(DECISION_KINDS)})`,
+    ),
+    check(
+      "CK_SolicitudDecision_Motivo",
+      sql`(${t.tipo} = 'devuelta') = (${t.motivoCodigo} IS NOT NULL)`,
+    ),
+    check(
+      "CK_SolicitudDecision_MotivoCodigo",
+      sql`${t.motivoCodigo} IS NULL OR ${t.motivoCodigo} IN (${inList(RETURN_REASONS)})`,
+    ),
+    // Null-safe: a CHECK that evaluates to NULL passes, so blank text is
+    // refused explicitly for every decision except an approval.
+    check(
+      "CK_SolicitudDecision_Texto",
+      sql`${t.tipo} = 'aprobada' OR (${t.texto} IS NOT NULL AND length(btrim(${t.texto})) > 0)`,
+    ),
+    check(
+      "CK_SolicitudDecision_Revision",
+      sql`(${t.tipo} = 'devuelta') = (${t.revisionId} IS NOT NULL)`,
+    ),
+    index("IX_SolicitudDecision_Solicitud").on(t.solicitudId, t.decididaEn),
+  ],
+);
+
+export type SolicitudDecision = typeof solicitudDecision.$inferSelect;
+export type NuevaSolicitudDecision = typeof solicitudDecision.$inferInsert;

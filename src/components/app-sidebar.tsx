@@ -4,10 +4,12 @@ import {
   BookOpen,
   Briefcase,
   ChevronRight,
+  ClipboardCheck,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
   LayoutDashboard,
+  ListChecks,
   type LucideIcon,
   Settings,
   Users,
@@ -43,6 +45,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canReviewRequests,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -51,6 +54,9 @@ type NavLink = {
   href: string;
   icon: LucideIcon;
   visibleTo?: (rol: RolUsuario) => boolean;
+  /** `false` keeps Next.js from prefetching the target. The review pages write
+   *  an audit row when they render, so nothing may render them speculatively. */
+  prefetch?: false;
 };
 
 type NavGroup = {
@@ -66,10 +72,23 @@ type NavGroup = {
 const items = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
   {
+    key: "myRequests",
+    href: "/requests",
+    icon: ListChecks,
+    visibleTo: canFileRequests,
+  },
+  {
     key: "newRequest",
     href: "/requests/new",
     icon: FilePlus,
     visibleTo: canFileRequests,
+  },
+  {
+    key: "review",
+    href: "/review",
+    icon: ClipboardCheck,
+    visibleTo: canReviewRequests,
+    prefetch: false,
   },
   {
     key: "administration",
@@ -109,6 +128,25 @@ function isCurrent(pathname: string, href: string) {
   return href === "/"
     ? pathname === "/"
     : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+// `/requests/new` sits under `/requests`: the more specific link owns the page,
+// so two top-level entries are never current together.
+const topLevelHrefs = items.flatMap((item) =>
+  "href" in item ? [item.href] : [],
+);
+
+function isCurrentTopLevel(pathname: string, href: string) {
+  return (
+    isCurrent(pathname, href) &&
+    !topLevelHrefs.some(
+      (other) => other.startsWith(`${href}/`) && isCurrent(pathname, other),
+    )
+  );
+}
+
+function prefetchOf(item: NavLink) {
+  return item.prefetch;
 }
 
 function isVisible(item: NavLink, rol: RolUsuario) {
@@ -243,7 +281,7 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
 
                 if (!isVisible(item, rol)) return null;
 
-                const isActive = isCurrent(pathname, item.href);
+                const isActive = isCurrentTopLevel(pathname, item.href);
 
                 return (
                   <SidebarMenuItem key={item.key}>
@@ -253,6 +291,7 @@ export function AppSidebar({ rol }: { rol: RolUsuario }) {
                       render={
                         <Link
                           href={item.href}
+                          prefetch={prefetchOf(item)}
                           aria-current={isActive ? "page" : undefined}
                         />
                       }

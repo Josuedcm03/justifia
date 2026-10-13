@@ -8,7 +8,7 @@ remiten a ese archivo.
 | --- | ---------------------- | ------------------------------------------- | ----------- | -------------------- | --------- |
 | 0   | `catalog-schedule`     | Horarios en el catálogo (RN-22, RF-12)      | Josué       | Sí                   | pendiente |
 | 1   | `justification-intake` | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23 | Armando     | Sí                   | archivado |
-| 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Por asignar | Sí                   | pendiente |
+| 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Armando     | Sí                   | archivado |
 | 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | pendiente |
 | 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | pendiente |
 | 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
@@ -16,6 +16,7 @@ remiten a ese archivo.
 | 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
 | 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | pendiente |
+| 10  | `secretary-templates`  | Plantillas propias de la secretaría (RF-07) | Por asignar | No                   | pendiente |
 
 **Notas:**
 
@@ -25,11 +26,24 @@ remiten a ese archivo.
   no en un change.
 - Cada change se planifica con el flujo SDD del proyecto, uno por vez, y se
   archiva antes de abrir el siguiente.
-- El despliegue de `justification-intake` en Vercel (crear el proyecto, la
-  región y las variables `CRON_SECRET` y `BLOB_READ_WRITE_TOKEN`) está
-  pendiente y corresponde al responsable del repositorio. El almacén de Blob
-  ya existe.
+- El despliegue de `justification-intake` en Vercel está en producción: el
+  proyecto existe y `main` se despliega a producción. Los previews de los
+  commits de miembros que no pertenecen al equipo de Vercel fallan hasta que
+  se les invite.
 - `request-consent` agrega el consentimiento informado (RN-25) al envío de la
   solicitud. Modifica el flujo de `justification-intake`, ya archivado, por lo
   que va como change propio. Las solicitudes enviadas antes de este change no
   tienen consentimiento registrado; el change define cómo se tratan.
+- `secretary-templates` se planifica después del piloto. `secretary-review`
+  entrega las plantillas de mensaje de cada decisión (aprobación, rechazo y
+  devolución por cada motivo de RN-17) como constantes del sistema; la
+  secretaría las edita en cada uso, pero no puede guardarlas. Este change
+  permite que cada secretaría cree, edite, desactive y reutilice sus propias
+  plantillas por facultad. Su alcance se define con los textos que la
+  secretaría haya escrito en el piloto, en especial los de rechazo y devolución,
+  de los que no hay ejemplos reales. Puede planificarse junto con
+  `normative-parameters`.
+- El calendario de días no hábiles de RN-08 (2026 y 2027) se validó contra el
+  calendario académico de la UAM el 2026-10-12. Debe extenderse cada año antes
+  de que empiece: `src/lib/intake/calendar.test.ts` falla cuando el año en
+  curso no está cubierto.

@@ -13,6 +13,8 @@ import {
   rolesVisiblesPara,
 } from "@/lib/auth/permissions";
 import * as perms from "@/lib/auth/permissions";
+import type { RequestScope } from "@/lib/intake/request-scope";
+import { ESTADOS_SOLICITUD, VISIBLE_STATES } from "@/lib/intake/states";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 const ALLOWED_PAIRS = new Set([
@@ -161,20 +163,142 @@ describe("canFileRequests (justification-intake: only students file requests)", 
   });
 });
 
-describe("canViewDocument (D15: owner only in this change)", () => {
-  it("allows the owning student", () => {
-    expect(perms.canViewDocument({ id: 7, rol: "estudiante" }, 7)).toBe(true);
+describe("canReviewRequests (RN-15: only secretaria reviews)", () => {
+  it("lists exactly secretaria as the reviewing role", () => {
+    expect([...perms.rolesRevisores]).toEqual(["secretaria"]);
   });
 
-  it("denies another student", () => {
-    expect(perms.canViewDocument({ id: 8, rol: "estudiante" }, 7)).toBe(false);
+  it("allows secretaria", () => {
+    expect(perms.canReviewRequests("secretaria")).toBe(true);
   });
 
-  it("denies a staff role even when the id matches the owner", () => {
-    expect(perms.canViewDocument({ id: 7, rol: "coordinacion" }, 7)).toBe(
-      false,
+  it.each(["administrador", "coordinacion", "docente", "estudiante"] as const)(
+    "denies %s",
+    (rol) => {
+      expect(perms.canReviewRequests(rol)).toBe(false);
+    },
+  );
+
+  it("denies a missing role", () => {
+    expect(perms.canReviewRequests(undefined)).toBe(false);
+  });
+});
+
+describe("canViewDocument (SR-12: owner, or staff in facultad scope)", () => {
+  const OWNER = 7;
+  const FACULTAD_A = 3;
+  const FACULTAD_B = 4;
+  const SCOPE_A: RequestScope = { kind: "facultad", facultadId: FACULTAD_A };
+  const NONE: RequestScope = { kind: "none" };
+
+  function doc(overrides: Record<string, unknown> = {}) {
+    return {
+      estudianteId: OWNER,
+      estudianteFacultadId: FACULTAD_A as number | null,
+      solicitudEstado: "pendiente" as string,
+      ...overrides,
+    };
+  }
+
+  describe("owning student", () => {
+    it("is allowed in any request state, drafts included", () => {
+      expect(ESTADOS_SOLICITUD.length).toBeGreaterThan(0);
+      for (const solicitudEstado of ESTADOS_SOLICITUD) {
+        expect(
+          perms.canViewDocument(
+            { id: OWNER, rol: "estudiante" },
+            doc({ solicitudEstado }),
+            NONE,
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it("is allowed without a facultad (student with no carrera)", () => {
+      expect(
+        perms.canViewDocument(
+          { id: OWNER, rol: "estudiante" },
+          doc({ estudianteFacultadId: null }),
+          NONE,
+        ),
+      ).toBe(true);
+    });
+
+    it("denies another student", () => {
+      expect(
+        perms.canViewDocument({ id: 8, rol: "estudiante" }, doc(), NONE),
+      ).toBe(false);
+    });
+  });
+
+  describe("secretaria", () => {
+    const viewer = { id: 20, rol: "secretaria" } as const;
+
+    it.each(VISIBLE_STATES)(
+      "is allowed in scope for the visible state %s",
+      (solicitudEstado) => {
+        expect(
+          perms.canViewDocument(viewer, doc({ solicitudEstado }), SCOPE_A),
+        ).toBe(true);
+      },
     );
+
+    it("is denied for a borrador even in scope", () => {
+      expect(
+        perms.canViewDocument(
+          viewer,
+          doc({ solicitudEstado: "borrador" }),
+          SCOPE_A,
+        ),
+      ).toBe(false);
+    });
+
+    it("is denied for another facultad", () => {
+      expect(
+        perms.canViewDocument(
+          viewer,
+          doc({ estudianteFacultadId: FACULTAD_B }),
+          SCOPE_A,
+        ),
+      ).toBe(false);
+    });
+
+    it("is denied when the student has no facultad", () => {
+      expect(
+        perms.canViewDocument(
+          viewer,
+          doc({ estudianteFacultadId: null }),
+          SCOPE_A,
+        ),
+      ).toBe(false);
+    });
+
+    it("is denied with the none scope (secretaria without facultad)", () => {
+      expect(perms.canViewDocument(viewer, doc(), NONE)).toBe(false);
+    });
+
+    it("does not read as the owner when the id matches the student", () => {
+      expect(
+        perms.canViewDocument(
+          { id: OWNER, rol: "secretaria" },
+          doc({ estudianteFacultadId: FACULTAD_B }),
+          SCOPE_A,
+        ),
+      ).toBe(false);
+    });
   });
+
+  it.each(["coordinacion", "administrador", "docente"] as const)(
+    "denies %s in every scope, even with the matching facultad or owner id",
+    (rol) => {
+      expect(perms.canViewDocument({ id: 20, rol }, doc(), SCOPE_A)).toBe(
+        false,
+      );
+      expect(perms.canViewDocument({ id: OWNER, rol }, doc(), SCOPE_A)).toBe(
+        false,
+      );
+    },
+  );
 });
 
 describe("canManageCatalog (CM-ACC-1: role matrix)", () => {

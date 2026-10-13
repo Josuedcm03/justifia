@@ -58,3 +58,14 @@ describe("IntakeStepper (RF-01, RNF-11)", () => {
     expect(screen.getByText("Paso 1 de 4")).toBeInTheDocument();
   });
 });
+
+describe("IntakeStepper under another base path (the correction)", () => {
+  it("links the earlier steps under the given path", () => {
+    renderIntl(<IntakeStepper current={3} basePath="/requests/31/correct" />);
+    const links = within(screen.getByRole("list")).getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "/requests/31/correct?step=1",
+      "/requests/31/correct?step=2",
+    ]);
+  });
+});

@@ -162,13 +162,13 @@ describe("AppSidebar", () => {
       ).not.toBeInTheDocument();
       expect(topLevelLabels()).toEqual(
         rol === "estudiante"
-          ? ["Panel", "Nueva solicitud", "Configuración"]
+          ? ["Panel", "Mis solicitudes", "Nueva solicitud", "Configuración"]
           : ["Panel", "Configuración"],
       );
     },
   );
 
-  it.each(["administrador", "coordinacion", "secretaria"] as const)(
+  it.each(["administrador", "coordinacion"] as const)(
     "orders the top level Panel, Administración, Configuración for %s",
     (rol) => {
       renderSidebar(rol);
@@ -180,6 +180,17 @@ describe("AppSidebar", () => {
       ]);
     },
   );
+
+  it("orders the top level Panel, Revisión de solicitudes, Administración, Configuración for secretaria", () => {
+    renderSidebar("secretaria");
+
+    expect(topLevelLabels()).toEqual([
+      "Panel",
+      "Revisión de solicitudes",
+      "Administración",
+      "Configuración",
+    ]);
+  });
 
   it.each([
     [
@@ -194,6 +205,7 @@ describe("AppSidebar", () => {
       "secretaria",
       [
         "/",
+        "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
         "/catalog/import",
@@ -202,7 +214,7 @@ describe("AppSidebar", () => {
       ],
     ],
     ["docente", ["/", "/settings"]],
-    ["estudiante", ["/", "/requests/new", "/settings"]],
+    ["estudiante", ["/", "/requests", "/requests/new", "/settings"]],
   ] as const)("offers exactly the permitted links to %s", (rol, hrefs) => {
     renderSidebar(rol);
 
@@ -221,7 +233,7 @@ describe("AppSidebar", () => {
       menu.querySelectorAll(":scope > li > a"),
     ).map((link) => link.getAttribute("href"));
 
-    expect(topLevelHrefs).toEqual(["/", "/settings"]);
+    expect(topLevelHrefs).toEqual(["/", "/review", "/settings"]);
   });
 });
 
@@ -688,6 +700,7 @@ describe("AppSidebar copy (both locales)", () => {
       "es",
       {
         dashboard: "Panel",
+        review: "Revisión de solicitudes",
         group: "Administración",
         catalogImport: "Carga de catálogo",
         users: "Usuarios",
@@ -698,6 +711,7 @@ describe("AppSidebar copy (both locales)", () => {
       "en",
       {
         dashboard: "Dashboard",
+        review: "Review requests",
         group: "Administration",
         catalogImport: "Catalog import",
         users: "Users",
@@ -711,6 +725,7 @@ describe("AppSidebar copy (both locales)", () => {
 
     expect(topLevelLabels()).toEqual([
       labels.dashboard,
+      labels.review,
       labels.group,
       labels.settings,
     ]);
@@ -722,5 +737,109 @@ describe("AppSidebar copy (both locales)", () => {
       "href",
       "/users",
     );
+  });
+});
+
+describe("AppSidebar review entry (secretary-review 4.1)", () => {
+  it("shows the review queue to secretaria, linked to /review, after the dashboard", () => {
+    renderSidebar("secretaria");
+
+    expect(
+      screen.getByRole("link", { name: "Revisión de solicitudes" }),
+    ).toHaveAttribute("href", "/review");
+    expect(topLevelLabels().slice(0, 2)).toEqual([
+      "Panel",
+      "Revisión de solicitudes",
+    ]);
+  });
+
+  it.each(["estudiante", "docente", "coordinacion", "administrador"] as const)(
+    "hides the review entry from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        screen.queryByRole("link", { name: "Revisión de solicitudes" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("marks the entry current on a request detail", () => {
+    env.pathname = "/review/42";
+    renderSidebar("secretaria");
+
+    expect(
+      screen.getByRole("link", { name: "Revisión de solicitudes" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+});
+
+describe("AppSidebar my requests entry (secretary-review 5.1)", () => {
+  it.each([
+    ["es", "Mis solicitudes"],
+    ["en", "My requests"],
+  ] as const)(
+    "shows estudiante a %s link to /requests between the dashboard and the intake flow",
+    (locale, label) => {
+      env.locale = locale;
+      renderSidebar("estudiante");
+
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+        "href",
+        "/requests",
+      );
+      expect(topLevelLabels().slice(0, 3)).toEqual([
+        locale === "es" ? "Panel" : "Dashboard",
+        label,
+        locale === "es" ? "Nueva solicitud" : "New request",
+      ]);
+    },
+  );
+
+  it.each(["docente", "coordinacion", "secretaria", "administrador"] as const)(
+    "hides it from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        screen.queryByRole("link", { name: "Mis solicitudes" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("marks only the list current on a request detail", () => {
+    env.pathname = "/requests/42";
+    renderSidebar("estudiante");
+
+    expect(
+      screen.getByRole("link", { name: "Mis solicitudes" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Nueva solicitud" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks only the list current on the list itself", () => {
+    env.pathname = "/requests";
+    renderSidebar("estudiante");
+
+    expect(
+      screen.getByRole("link", { name: "Mis solicitudes" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Nueva solicitud" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks only the intake flow current inside it, not the list", () => {
+    env.pathname = "/requests/new";
+    renderSidebar("estudiante");
+
+    expect(
+      screen.getByRole("link", { name: "Nueva solicitud" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Mis solicitudes" }),
+    ).not.toHaveAttribute("aria-current");
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AVAILABLE_STEPS,
+  correctionStartStep,
   defaultStep,
   draftRange,
   parseFromReview,
@@ -99,5 +100,34 @@ describe("parseFromReview", () => {
 
   it.each([undefined, "", "Review", "other"])("is false for %j", (raw) => {
     expect(parseFromReview(raw)).toBe(false);
+  });
+});
+
+describe("hrefs under another base path (the correction flow)", () => {
+  it("keeps the step in the query of the given path", () => {
+    expect(stepHref(3, "/requests/31/correct")).toBe(
+      "/requests/31/correct?step=3",
+    );
+    expect(reviewEditHref(2, "/requests/31/correct")).toBe(
+      "/requests/31/correct?step=2&from=review",
+    );
+  });
+
+  it("still defaults to the new request flow", () => {
+    expect(stepHref(4)).toBe("/requests/new?step=4");
+  });
+});
+
+describe("correctionStartStep (RN-17, SR-17)", () => {
+  it.each([
+    ["documento_ilegible", 3],
+    ["fecha_alterada", 3],
+    ["fecha_incorrecta", 1],
+  ] as const)("opens %s at step %i", (reason, expected) => {
+    expect(correctionStartStep(reason)).toBe(expected);
+  });
+
+  it("opens at step 1 when the reason is unknown", () => {
+    expect(correctionStartStep(null)).toBe(1);
   });
 });

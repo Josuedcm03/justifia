@@ -21,12 +21,17 @@ import {
   documentDownloadedEvent,
   documentRejectedEvent,
   documentRemovedEvent,
+  documentoRetiradoEvent,
   grupoActiveChangedEvent,
   grupoCreatedEvent,
   grupoUpdatedEvent,
   grupoWriteEvents,
   importAppliedEvent,
   MANUAL_ORIGIN,
+  solicitudColaConsultadaEvent,
+  solicitudConsultadaEvent,
+  solicitudCorregidaEvent,
+  solicitudDecididaEvent,
   solicitudPresentadaEvent,
   type TouchedAccount,
 } from "./events";
@@ -35,6 +40,7 @@ import {
   AUDITABLE_ASIGNATURA_FIELDS,
   AUDITABLE_USER_FIELDS,
 } from "./types";
+import type { AuditEvent } from "./types";
 
 function zeroCounts(): EntityCounts {
   return { create: 0, update: 0, unchanged: 0, deactivate: 0, error: 0 };
@@ -221,6 +227,23 @@ describe("buildAuditEvents", () => {
   });
 });
 
+describe("AUDITABLE_USER_FIELDS includes facultadId (SR-16)", () => {
+  it("lists facultadId, so an account creation reports it as a field", () => {
+    expect(AUDITABLE_USER_FIELDS).toContain("facultadId");
+  });
+
+  it("reports facultadId in the created-account payload, as a name only", () => {
+    const event = accountCreatedEvent({
+      usuarioId: 9,
+      rol: "secretaria",
+      importacionSha256: "e".repeat(64),
+    });
+    if (event.entidadTipo !== "Usuario") throw new Error("expected Usuario");
+    expect(event.datos.campos).toContain("facultadId");
+    expect(JSON.stringify(event.datos)).not.toMatch(/facultadId"\s*:/);
+  });
+});
+
 describe("AUDITABLE_USER_FIELDS excludes credentials", () => {
   it("never contains login or hashClave", () => {
     expect(AUDITABLE_USER_FIELDS).not.toContain("login");
@@ -331,15 +354,28 @@ describe("document events (justification-intake D13, D14)", () => {
     });
   });
 
-  it("documentDownloadedEvent targets DocumentoRespaldo with request id and type", () => {
+  it("documentDownloadedEvent targets DocumentoRespaldo with request id, type and mode", () => {
     expect(
-      documentDownloadedEvent({ documentoId: 11, solicitudId: 4, tipo: "png" }),
+      documentDownloadedEvent({
+        documentoId: 11,
+        solicitudId: 4,
+        tipo: "png",
+        modo: "descarga",
+      }),
     ).toEqual({
       accion: "documento.descargado",
       entidadTipo: "DocumentoRespaldo",
       entidadId: 11,
-      datos: { solicitudId: 4, tipo: "png" },
+      datos: { solicitudId: 4, tipo: "png", modo: "descarga" },
     });
+    expect(
+      documentDownloadedEvent({
+        documentoId: 12,
+        solicitudId: 5,
+        tipo: "pdf",
+        modo: "ver",
+      }).datos,
+    ).toEqual({ solicitudId: 5, tipo: "pdf", modo: "ver" });
   });
 
   it("every document action code is registered in AUDIT_ACTIONS", () => {
@@ -363,7 +399,12 @@ describe("document events (justification-intake D13, D14)", () => {
       }),
       documentRejectedEvent({ solicitudId: 2, reason: "too_large" }),
       documentRemovedEvent({ documentoId: 1, solicitudId: 2 }),
-      documentDownloadedEvent({ documentoId: 1, solicitudId: 2, tipo: "pdf" }),
+      documentDownloadedEvent({
+        documentoId: 1,
+        solicitudId: 2,
+        tipo: "pdf",
+        modo: "ver",
+      }),
     ].map((e) => JSON.stringify(e.datos));
     for (const json of payloads) {
       expect(json).not.toMatch(/nombre|pathname|url|http|token/i);
@@ -835,5 +876,167 @@ describe("write results to events (AL-ONE, CM-AUD-1)", () => {
   it("an inactive edit is refused and writes nothing (A-1)", () => {
     expect(asignaturaWriteEvents({ kind: "inactive" })).toEqual([]);
     expect(grupoWriteEvents({ kind: "inactive" })).toEqual([]);
+  });
+});
+
+describe("review event builders (RF-07, RF-08, RNF-06, RN-02)", () => {
+  type Case = {
+    name: string;
+    event: AuditEvent;
+    accion: string;
+    entidadTipo: string;
+    entidadId: number;
+  };
+
+  const cases: Case[] = [
+    {
+      name: "approval",
+      event: solicitudDecididaEvent({
+        solicitudId: 41,
+        tipo: "aprobada",
+        decisionId: 7,
+        plantilla: "aprobacion.general",
+        textoEditado: false,
+      }),
+      accion: "solicitud.aprobada",
+      entidadTipo: "Solicitud",
+      entidadId: 41,
+    },
+    {
+      name: "rejection",
+      event: solicitudDecididaEvent({
+        solicitudId: 42,
+        tipo: "rechazada",
+        decisionId: 8,
+        plantilla: "rechazo.general",
+        textoEditado: true,
+      }),
+      accion: "solicitud.rechazada",
+      entidadTipo: "Solicitud",
+      entidadId: 42,
+    },
+    {
+      name: "return",
+      event: solicitudDecididaEvent({
+        solicitudId: 43,
+        tipo: "devuelta",
+        decisionId: 9,
+        plantilla: "devolucion.fecha_alterada",
+        motivo: "fecha_alterada",
+        textoEditado: false,
+      }),
+      accion: "solicitud.devuelta",
+      entidadTipo: "Solicitud",
+      entidadId: 43,
+    },
+    {
+      name: "correction",
+      event: solicitudCorregidaEvent({
+        solicitudId: 44,
+        revision: 2,
+        asignaturas: 3,
+        documentos: 2,
+        documentosRetirados: 1,
+      }),
+      accion: "solicitud.corregida",
+      entidadTipo: "Solicitud",
+      entidadId: 44,
+    },
+    {
+      name: "detail read",
+      event: solicitudConsultadaEvent({ solicitudId: 45, estado: "pendiente" }),
+      accion: "solicitud.consultada",
+      entidadTipo: "Solicitud",
+      entidadId: 45,
+    },
+    {
+      name: "queue read",
+      event: solicitudColaConsultadaEvent({ facultadId: 3, total: 12 }),
+      accion: "solicitud.cola.consultada",
+      entidadTipo: "Facultad",
+      entidadId: 3,
+    },
+    {
+      name: "document retirement",
+      event: documentoRetiradoEvent({ documentoId: 77, solicitudId: 46 }),
+      accion: "documento.retirado",
+      entidadTipo: "DocumentoRespaldo",
+      entidadId: 77,
+    },
+  ];
+
+  it.each(cases)(
+    "$name maps to $accion on $entidadTipo $entidadId",
+    ({ event, accion, entidadTipo, entidadId }) => {
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe(entidadTipo);
+      expect(event.entidadId).toBe(entidadId);
+      expect(AUDIT_ACTIONS).toContain(accion);
+    },
+  );
+
+  it("decision payloads carry ids and codes only", () => {
+    expect(cases[0].event.datos).toEqual({
+      decisionId: 7,
+      plantilla: "aprobacion.general",
+      textoEditado: false,
+    });
+    expect(cases[2].event.datos).toEqual({
+      decisionId: 9,
+      plantilla: "devolucion.fecha_alterada",
+      motivo: "fecha_alterada",
+      textoEditado: false,
+    });
+  });
+
+  it("omits the return reason key for approval and rejection", () => {
+    expect(Object.keys(cases[0].event.datos)).not.toContain("motivo");
+    expect(Object.keys(cases[1].event.datos)).not.toContain("motivo");
+  });
+
+  it("correction, read and retirement payloads are counts, state and ids", () => {
+    expect(cases[3].event.datos).toEqual({
+      revision: 2,
+      asignaturas: 3,
+      documentos: 2,
+      documentosRetirados: 1,
+    });
+    expect(cases[4].event.datos).toEqual({ estado: "pendiente" });
+    expect(cases[5].event.datos).toEqual({ total: 12 });
+    expect(cases[6].event.datos).toEqual({ solicitudId: 46 });
+  });
+
+  it("the queue payload carries the count and no request id list", () => {
+    const { datos } = solicitudColaConsultadaEvent({ facultadId: 3, total: 3 });
+    expect(Object.keys(datos)).toEqual(["total"]);
+  });
+
+  it("no payload leaks text, names, CIF, email, dates, file names or id lists", () => {
+    // Builders accept only ids, codes and counts, so the serialized payloads
+    // can hold nothing else: pin the key sets and value types.
+    for (const { event } of cases) {
+      const datos = event.datos as Record<string, unknown>;
+      expect(Object.keys(datos).length).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(datos)) {
+        expect(key).not.toMatch(
+          /texto$|nombre|cif|correo|email|fecha|causa|carrera|pathname|ids$/i,
+        );
+        expect(["number", "string", "boolean"]).toContain(typeof value);
+        if (typeof value === "string") {
+          expect(value).toMatch(/^[a-z_.]+$/);
+        }
+      }
+      expect(JSON.stringify(datos)).not.toMatch(/\d{4}-\d{2}-\d{2}|@|\.pdf/);
+    }
+  });
+
+  it("leaves the existing solicitud.presentada payload unchanged", () => {
+    expect(
+      solicitudPresentadaEvent({
+        solicitudId: 4,
+        asignaturas: 2,
+        documentos: 1,
+      }).datos,
+    ).toEqual({ asignaturas: 2, documentos: 1 });
   });
 });

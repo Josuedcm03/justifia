@@ -1,4 +1,6 @@
+import { CORRECTION_FOCUS } from "@/lib/intake/correction-focus";
 import { isIsoDate } from "@/lib/intake/dates";
+import type { ReturnReason } from "@/lib/intake/return-reasons";
 
 // Pure helpers of the stepper (A7: `?step=` is the only wizard state; the draft
 // on the server is the truth). No I/O, so the page and the tests share them.
@@ -18,13 +20,16 @@ export const AVAILABLE_STEPS = 4;
 
 export type StepNumber = 1 | 2 | 3 | 4;
 
-export function stepHref(step: number): string {
-  return `${FLOW_PATH}?step=${step}`;
+export function stepHref(step: number, basePath: string = FLOW_PATH): string {
+  return `${basePath}?step=${step}`;
 }
 
 /** Edit link of the review: the step returns to the review once saved. */
-export function reviewEditHref(step: number): string {
-  return `${stepHref(step)}&from=review`;
+export function reviewEditHref(
+  step: number,
+  basePath: string = FLOW_PATH,
+): string {
+  return `${stepHref(step, basePath)}&from=review`;
 }
 
 /** True when the URL says the step was opened from the review's edit link. */
@@ -39,6 +44,12 @@ export function parseStep(
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (value === undefined || !/^[1-9]\d*$/.test(value)) return null;
   return Math.min(Number(value), AVAILABLE_STEPS) as StepNumber;
+}
+
+/** Where a correction opens without `?step=`: the step of its RN-17 reason. */
+export function correctionStartStep(reason: ReturnReason | null): StepNumber {
+  if (reason === null) return 1;
+  return (STEP_KEYS.indexOf(CORRECTION_FOCUS[reason]) + 1) as StepNumber;
 }
 
 type DraftProgress = {

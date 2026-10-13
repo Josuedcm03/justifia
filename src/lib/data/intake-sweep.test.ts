@@ -354,3 +354,68 @@ describe("runIntakeSweep: no audit rows (D14)", () => {
     expect(insertAuditMock).not.toHaveBeenCalled();
   });
 });
+
+describe("runIntakeSweep: returned requests and retired documents (SR-14, RF-08 b)", () => {
+  const RETIRED = path(31, 1);
+  const FORTY_DAYS = 40 * 24;
+
+  it("never selects a returned request: the draft sweep is borrador only", async () => {
+    const double = use([...NONE]);
+
+    await runIntakeSweep(NOW, createFakeDocumentStore());
+
+    const q = query(double.log[DRAFTS]);
+    expect(q.params).toContain("borrador");
+    expect(q.params).not.toContain("devuelta");
+    expect(q.params).not.toContain("pendiente");
+  });
+
+  it("the guarded draft delete cannot remove a returned request either", async () => {
+    const double = use([
+      { kind: "select", rows: [{ id: 31 }] },
+      ...purge([]),
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
+
+    await runIntakeSweep(NOW, createFakeDocumentStore());
+
+    const remove = double.log.find((s) => s.kind === "delete")!;
+    expect(query(remove).params).toContain("borrador");
+    expect(query(remove).params).not.toContain("devuelta");
+  });
+
+  it("only sweeps pendiente files of borrador requests, never a retired (valido) document", async () => {
+    const double = use([...NONE]);
+
+    await runIntakeSweep(NOW, createFakeDocumentStore());
+
+    const q = query(double.log[PENDING]);
+    expect(q.params).toContain("pendiente");
+    expect(q.params).toContain("borrador");
+    expect(q.params).not.toContain("valido");
+    expect(q.params).not.toContain("devuelta");
+  });
+
+  it("keeps the record and the file of a document retired 40 days ago", async () => {
+    const store = createFakeDocumentStore();
+    store.seed(RETIRED, [1], hoursAgo(FORTY_DAYS));
+    const double = use([
+      ...NONE,
+      { kind: "select", rows: [{ pathname: RETIRED }] },
+    ]);
+
+    const counts = await runIntakeSweep(NOW, store);
+
+    expect(counts).toEqual({
+      draftsDeleted: 0,
+      pendingDocumentsDeleted: 0,
+      orphanBlobsDeleted: 0,
+      failures: 0,
+    });
+    expect(store.has(RETIRED)).toBe(true);
+    expect(double.log.filter((s) => s.kind === "delete")).toHaveLength(0);
+    // The file was old enough to be an orphan; only its record protects it.
+    expect(JSON.stringify(query(double.log[2]).params)).toContain(RETIRED);
+  });
+});

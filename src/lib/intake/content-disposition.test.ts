@@ -1,6 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import { inlineDisposition } from "./content-disposition";
+import {
+  attachmentDisposition,
+  inlineDisposition,
+} from "./content-disposition";
+
+describe("attachmentDisposition", () => {
+  it("builds an attachment disposition with the same fallback and UTF-8 name", () => {
+    expect(attachmentDisposition("Dictamen médico.pdf", "pdf")).toBe(
+      "attachment; filename=\"documento.pdf\"; filename*=UTF-8''Dictamen%20m%C3%A9dico.pdf",
+    );
+  });
+
+  it("differs from the inline form only in the disposition type", () => {
+    const name = "scan (1).png";
+    expect(attachmentDisposition(name, "png")).toBe(
+      inlineDisposition(name, "png").replace(/^inline/, "attachment"),
+    );
+  });
+
+  it("cannot be used to inject a header or break out of the quoted fallback", () => {
+    const header = attachmentDisposition('a"\r\nSet-Cookie: x=1.pdf', "pdf");
+    expect(header).not.toMatch(/[\r\n]/);
+    expect(header.match(/"/g)).toHaveLength(2);
+  });
+});
 
 describe("inlineDisposition", () => {
   it("builds an inline disposition with an ASCII fallback and the UTF-8 name", () => {

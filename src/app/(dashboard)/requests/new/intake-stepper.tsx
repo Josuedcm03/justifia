@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import {
+  FLOW_PATH,
   STEP_KEYS,
   stepHref,
   type StepNumber,
@@ -8,7 +9,13 @@ import {
 import { Stepper } from "@/components/ui/stepper";
 
 /** The four-step header of the intake flow (RF-01); `current` is 1-based. */
-export function IntakeStepper({ current }: { current: StepNumber }) {
+export function IntakeStepper({
+  current,
+  basePath = FLOW_PATH,
+}: {
+  current: StepNumber;
+  basePath?: string;
+}) {
   const t = useTranslations("intake.stepper");
 
   return (
@@ -19,7 +26,7 @@ export function IntakeStepper({ current }: { current: StepNumber }) {
       steps={STEP_KEYS.map((key, index) => ({
         key,
         label: t(`steps.${key}`),
-        href: stepHref(index + 1),
+        href: stepHref(index + 1, basePath),
       }))}
     />
   );

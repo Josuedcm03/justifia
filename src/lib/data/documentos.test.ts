@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeDocumentStore } from "@/lib/intake/fakes";
@@ -428,37 +429,81 @@ describe("documentos data layer", () => {
   });
 
   describe("getDocumentForDownload", () => {
-    it("returns the valid document with its owner", async () => {
-      use([
-        {
-          kind: "select",
-          rows: [
-            {
-              id: 11,
-              solicitudId: DRAFT,
-              estudianteId: USER,
-              pathname: PATH,
-              tipoDetectado: "pdf",
-              nombreOriginal: "scan.pdf",
-            },
-          ],
-        },
-      ]);
+    const downloadRow = {
+      id: 11,
+      solicitudId: DRAFT,
+      estudianteId: USER,
+      estudianteFacultadId: 3,
+      solicitudEstado: "pendiente",
+      pathname: PATH,
+      tipoDetectado: "pdf",
+      nombreOriginal: "scan.pdf",
+      retiradoEn: null,
+    };
+
+    it("returns the valid document with its owner, facultad, state and retirement", async () => {
+      use([{ kind: "select", rows: [downloadRow] }]);
 
       expect(await getDocumentForDownload(11)).toEqual({
         id: 11,
         solicitudId: DRAFT,
         estudianteId: USER,
+        estudianteFacultadId: 3,
+        solicitudEstado: "pendiente",
+        retiradoEn: null,
         pathname: PATH,
         tipo: "pdf",
         nombreOriginal: "scan.pdf",
       });
     });
 
-    it("returns null for an unknown or not-yet-valid document", async () => {
+    it("returns the retirement time of a retired document", async () => {
+      const retiradoEn = new Date("2026-10-07T10:00:00.000Z");
+      use([{ kind: "select", rows: [{ ...downloadRow, retiradoEn }] }]);
+
+      expect((await getDocumentForDownload(11))?.retiradoEn).toEqual(
+        retiradoEn,
+      );
+    });
+
+    it("returns a null facultad for a student without a carrera", async () => {
+      use([
+        {
+          kind: "select",
+          rows: [{ ...downloadRow, estudianteFacultadId: null }],
+        },
+      ]);
+
+      expect(
+        (await getDocumentForDownload(11))?.estudianteFacultadId,
+      ).toBeNull();
+    });
+
+    it("returns null for an unknown document", async () => {
       use([{ kind: "select", rows: [] }]);
 
       expect(await getDocumentForDownload(404)).toBeNull();
+    });
+
+    it("returns null for a row without a detected type", async () => {
+      use([
+        { kind: "select", rows: [{ ...downloadRow, tipoDetectado: null }] },
+      ]);
+
+      expect(await getDocumentForDownload(11)).toBeNull();
+    });
+
+    it("only matches the document id in the valido state, never a pendiente claim", async () => {
+      const double = use([{ kind: "select", rows: [] }]);
+
+      await getDocumentForDownload(11);
+
+      const query = new PgDialect().sqlToQuery(
+        double.log[0].where as Parameters<PgDialect["sqlToQuery"]>[0],
+      );
+      expect(query.sql).toContain('"DocumentoRespaldo"."Id" = $1');
+      expect(query.sql).toContain('"DocumentoRespaldo"."Estado" = $2');
+      expect(query.params).toEqual([11, "valido"]);
     });
   });
 
@@ -480,9 +525,26 @@ describe("documentos data layer", () => {
           accion: "documento.descargado",
           entidadTipo: "DocumentoRespaldo",
           entidadId: 11,
-          datos: { solicitudId: DRAFT, tipo: "png" },
+          datos: { solicitudId: DRAFT, tipo: "png", modo: "ver" },
         },
       ]);
+    });
+
+    it("records the download mode when the caller names one", async () => {
+      use([]);
+
+      await recordDocumentDownload(USER, {
+        id: 11,
+        solicitudId: DRAFT,
+        tipo: "pdf",
+        modo: "descarga",
+      });
+
+      expect(insertAuditMock.mock.calls[0][2][0].datos).toEqual({
+        solicitudId: DRAFT,
+        tipo: "pdf",
+        modo: "descarga",
+      });
     });
 
     it("propagates an audit failure so the caller can refuse the bytes", async () => {
@@ -497,5 +559,287 @@ describe("documentos data layer", () => {
         }),
       ).rejects.toThrow("audit down");
     });
+  });
+});
+
+describe("documentos data layer: EditTarget (RF-08, supporting-documents)", () => {
+  const RETURNED = 31;
+  const correction = { kind: "correction", solicitudId: RETURNED } as const;
+  const RETURNED_PATH = `intake/${RETURNED}/0b9f6c1e-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+  const params = (where: unknown) =>
+    new PgDialect().sqlToQuery(where as Parameters<PgDialect["sqlToQuery"]>[0])
+      .params;
+  const sqlOf = (where: unknown) =>
+    new PgDialect().sqlToQuery(where as Parameters<PgDialect["sqlToQuery"]>[0])
+      .sql;
+
+  beforeEach(() => {
+    insertAuditMock.mockReset();
+    insertAuditMock.mockResolvedValue(undefined);
+  });
+
+  describe("getUploadContext", () => {
+    it("finds the caller's own devuelta request by id, with no liveness cut-off", async () => {
+      const double = use([
+        { kind: "select", rows: [{ id: RETURNED }] },
+        { kind: "select", rows: [{ n: 3 }] },
+      ]);
+
+      expect(
+        await getUploadContext(
+          USER,
+          new Date("2026-10-07T00:00:00Z"),
+          correction,
+        ),
+      ).toEqual({ solicitudId: RETURNED, documentCount: 3 });
+      expect(params(double.log[0].where)).toEqual([RETURNED, USER, "devuelta"]);
+    });
+
+    it("answers null for a foreign or not returned request and counts nothing", async () => {
+      const double = use([{ kind: "select", rows: [] }]);
+
+      expect(await getUploadContext(USER, new Date(), correction)).toBeNull();
+      expect(double.log).toHaveLength(1);
+    });
+
+    it.each([
+      ["draft", undefined],
+      ["correction", correction],
+    ] as const)(
+      "the %s cap count excludes retired documents",
+      async (_name, target) => {
+        const double = use([
+          { kind: "select", rows: [{ id: RETURNED }] },
+          { kind: "select", rows: [{ n: 2 }] },
+        ]);
+
+        await getUploadContext(USER, new Date(), target);
+
+        expect(sqlOf(double.log[1].where)).toMatch(/"RetiradoEn" is null/i);
+      },
+    );
+  });
+
+  describe("finalizeDocument", () => {
+    const returnedClaim = (count: number): Step[] => [
+      { kind: "update", rows: [{ id: RETURNED }] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [{ n: count }] },
+      { kind: "insert", rows: [{ id: 11 }] },
+    ];
+    const lookupReturned: Step = { kind: "select", rows: [{ id: RETURNED }] };
+
+    it("accepts a file under the returned request's prefix, guarded by owner and devuelta", async () => {
+      const double = use([lookupReturned, ...returnedClaim(1), accept]);
+      const store = createFakeDocumentStore();
+      store.seed(RETURNED_PATH, PDF);
+
+      const result = await finalizeDocument(
+        { ...input({ pathname: RETURNED_PATH }), target: correction },
+        store,
+      );
+
+      expect(result).toEqual({ ok: true, documentId: 11, tipo: "pdf" });
+      expect(params(double.log[0].where)).toEqual([RETURNED, USER, "devuelta"]);
+      expect(params(double.log[1].where)).toEqual([
+        RETURNED,
+        RETURNED,
+        USER,
+        "devuelta",
+      ]);
+      expect(double.log.find((s) => s.kind === "insert")?.values).toMatchObject(
+        {
+          solicitudId: RETURNED,
+          estado: "pendiente",
+        },
+      );
+    });
+
+    it("refuses a path under another prefix and never touches that file", async () => {
+      use([lookupReturned]);
+      const store = createFakeDocumentStore();
+      store.seed(PATH, PDF);
+
+      expect(
+        await finalizeDocument(
+          { ...input({ pathname: PATH }), target: correction },
+          store,
+        ),
+      ).toEqual({ ok: false, reason: "not_allowed" });
+      expect(store.has(PATH)).toBe(true);
+    });
+
+    it("is not_allowed for a request that is not the caller's returned one", async () => {
+      use([{ kind: "select", rows: [] }]);
+      const store = createFakeDocumentStore();
+      store.seed(RETURNED_PATH, PDF);
+
+      expect(
+        await finalizeDocument(
+          { ...input({ pathname: RETURNED_PATH }), target: correction },
+          store,
+        ),
+      ).toEqual({ ok: false, reason: "not_allowed" });
+      expect(store.has(RETURNED_PATH)).toBe(true);
+    });
+
+    it("re-checks the cap at claim time counting only documents that are not retired", async () => {
+      const double = use([
+        lookupReturned,
+        { kind: "update", rows: [{ id: RETURNED }] },
+        { kind: "select", rows: [] },
+        { kind: "select", rows: [{ n: 5 }] },
+      ]);
+      const store = createFakeDocumentStore();
+      store.seed(RETURNED_PATH, PDF);
+
+      expect(
+        await finalizeDocument(
+          { ...input({ pathname: RETURNED_PATH }), target: correction },
+          store,
+        ),
+      ).toEqual({ ok: false, reason: "too_many_documents" });
+      expect(sqlOf(double.log[3].where)).toMatch(/"RetiradoEn" is null/i);
+      expect(double.log.some((s) => s.kind === "insert")).toBe(false);
+      expect(store.has(RETURNED_PATH)).toBe(false);
+    });
+
+    it("a sixth upload is accepted once a current document has been retired (4 of 5 count)", async () => {
+      use([lookupReturned, ...returnedClaim(4), accept]);
+      const store = createFakeDocumentStore();
+      store.seed(RETURNED_PATH, PDF);
+
+      expect(
+        await finalizeDocument(
+          { ...input({ pathname: RETURNED_PATH }), target: correction },
+          store,
+        ),
+      ).toMatchObject({ ok: true });
+    });
+  });
+});
+
+describe("removeDocument during a correction (RF-08 b, supporting-documents)", () => {
+  const RETURNED = 31;
+  const correction = { kind: "correction", solicitudId: RETURNED } as const;
+  const RETURNED_PATH = `intake/${RETURNED}/0b9f6c1e-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+  const row = { id: 11, solicitudId: RETURNED, pathname: RETURNED_PATH };
+  const remove = (store = createFakeDocumentStore()) =>
+    removeDocument({ userId: USER, documentId: 11, target: correction }, store);
+
+  beforeEach(() => {
+    insertAuditMock.mockReset();
+    insertAuditMock.mockResolvedValue(undefined);
+  });
+
+  it("retires a document of the latest revision: marks RetiradoEn, keeps record and file, one documento.retirado in the same transaction", async () => {
+    const double = use([
+      { kind: "select", rows: [row] },
+      { kind: "select", rows: [{ documentoIds: [11, 12] }] },
+      { kind: "update" },
+      { kind: "update" },
+    ]);
+    const store = createFakeDocumentStore();
+    store.seed(RETURNED_PATH, PDF);
+
+    expect(await remove(store)).toEqual({ ok: true });
+
+    expect(double.transactions).toBe(1);
+    expect(double.log.map((s) => s.kind)).toEqual([
+      "select",
+      "select",
+      "update",
+      "update",
+    ]);
+    expect(double.log[3].set).toEqual({ retiradoEn: expect.any(Date) });
+    expect(store.has(RETURNED_PATH)).toBe(true);
+    expect(insertAuditMock).toHaveBeenCalledTimes(1);
+    expect(insertAuditMock.mock.calls[0][1]).toBe(USER);
+    expect(insertAuditMock.mock.calls[0][2]).toEqual([
+      {
+        accion: "documento.retirado",
+        entidadTipo: "DocumentoRespaldo",
+        entidadId: 11,
+        datos: { solicitudId: RETURNED },
+      },
+    ]);
+  });
+
+  it("deletes a document uploaded during this correction, record and file, with no documento.retirado", async () => {
+    const double = use([
+      { kind: "select", rows: [row] },
+      { kind: "select", rows: [{ documentoIds: [12] }] },
+      { kind: "update" },
+      { kind: "delete" },
+    ]);
+    const store = createFakeDocumentStore();
+    store.seed(RETURNED_PATH, PDF);
+
+    expect(await remove(store)).toEqual({ ok: true });
+
+    expect(double.log.map((s) => s.kind)).toEqual([
+      "select",
+      "select",
+      "update",
+      "delete",
+    ]);
+    expect(store.has(RETURNED_PATH)).toBe(false);
+    expect(insertAuditMock.mock.calls[0][2]).toEqual([
+      {
+        accion: "documento.eliminado",
+        entidadTipo: "DocumentoRespaldo",
+        entidadId: 11,
+        datos: { solicitudId: RETURNED },
+      },
+    ]);
+  });
+
+  it("an earlier revision's list is irrelevant: only the latest revision decides", async () => {
+    const double = use([
+      { kind: "select", rows: [row] },
+      { kind: "select", rows: [{ documentoIds: [12] }] },
+      { kind: "update" },
+      { kind: "delete" },
+    ]);
+
+    await remove();
+
+    const [order] = double.log[1].orderBy ?? [];
+    expect(
+      new PgDialect().sqlToQuery(
+        order as Parameters<PgDialect["sqlToQuery"]>[0],
+      ).sql,
+    ).toMatch(/"Numero" desc/i);
+  });
+
+  it("looks the document up by id, owner, request and devuelta, ignoring retired ones", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+    const store = createFakeDocumentStore();
+    store.seed(RETURNED_PATH, PDF);
+
+    expect(await remove(store)).toEqual({ ok: false, reason: "not_found" });
+
+    const query = new PgDialect().sqlToQuery(
+      double.log[0].where as Parameters<PgDialect["sqlToQuery"]>[0],
+    );
+    expect(query.params).toEqual([11, RETURNED, USER, "devuelta"]);
+    expect(query.sql).toMatch(/"RetiradoEn" is null/i);
+    expect(store.has(RETURNED_PATH)).toBe(true);
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates an audit failure: nothing is reported removed and the file stays", async () => {
+    use([
+      { kind: "select", rows: [row] },
+      { kind: "select", rows: [{ documentoIds: [11] }] },
+      { kind: "update" },
+      { kind: "update" },
+    ]);
+    insertAuditMock.mockRejectedValue(new Error("audit down"));
+    const store = createFakeDocumentStore();
+    store.seed(RETURNED_PATH, PDF);
+
+    await expect(remove(store)).rejects.toThrow("audit down");
+    expect(store.has(RETURNED_PATH)).toBe(true);
   });
 });

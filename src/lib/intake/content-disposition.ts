@@ -12,9 +12,25 @@ function encodeRfc5987(value: string): string {
   );
 }
 
+function disposition(
+  kind: "inline" | "attachment",
+  nombreOriginal: string,
+  tipo: TipoDetectado,
+): string {
+  return `${kind}; filename="documento.${tipo}"; filename*=UTF-8''${encodeRfc5987(nombreOriginal)}`;
+}
+
 export function inlineDisposition(
   nombreOriginal: string,
   tipo: TipoDetectado,
 ): string {
-  return `inline; filename="documento.${tipo}"; filename*=UTF-8''${encodeRfc5987(nombreOriginal)}`;
+  return disposition("inline", nombreOriginal, tipo);
+}
+
+/** The explicit download mode (`descarga`): same names, saved instead of shown. */
+export function attachmentDisposition(
+  nombreOriginal: string,
+  tipo: TipoDetectado,
+): string {
+  return disposition("attachment", nombreOriginal, tipo);
 }
