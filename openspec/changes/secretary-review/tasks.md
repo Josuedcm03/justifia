@@ -2,8 +2,8 @@
 
 > Strict TDD (vitest): every behavior task is a RED task (failing test) followed by a GREEN task. Test commands: `npx vitest run <paths>`; quality gates per slice: `npm run typecheck`, `npx eslint src` (filter CRLF noise: `| rg -v 'Delete .␍.'`), `npm run format:check`.
 > DB rule (`CLAUDE.md`): any task tagged `[CONFIRM]` needs the owner's explicit "yes" for that single command; `[READ-ONLY]` tasks may run unprompted. Slice code and unit tests never touch Neon; the only DB steps before Phase 7 are the opt-in integration run 3.16 and the manual harnesses 4.11 and 6.14, all tagged `[CONFIRM]`.
-> Spec IDs: RF-06..RF-08, RN-02, RN-08, RN-15..RN-17, RNF-01, RNF-06, RNF-11, RNF-12 (payload minimisation cites RNF-06 and RN-02; RNF-02 is now encryption in transit and at rest). Decisions SR-1..SR-16 refer to `design.md`.
-> UI tasks (S4, S5a, S5b) each end with a design-system check against `docs/design-system.md` (tokens only, 44 px `lg` targets, alert pattern, dialog spec, 360 px), pinned in the slice's `design-system` test.
+> Spec IDs: RF-06..RF-08, RN-02, RN-08, RN-15..RN-17, RNF-01, RNF-06, RNF-11, RNF-12 (payload minimisation cites RNF-06 and RN-02; RNF-02 is now encryption in transit and at rest). Decisions SR-1..SR-17 refer to `design.md`.
+> UI tasks (S4, S5a, S5b, S6) each end with a design-system check against `docs/design-system.md` (tokens only, 44 px `lg` targets, alert pattern, dialog spec, 360 px), pinned in the slice's `design-system` test.
 
 ## Review Workload Forecast
 
@@ -13,7 +13,7 @@
 | 400-line budget risk | High |
 | 1000-line budget risk (session `review_budget_lines`) | Low (the budget counts production lines only, tests excluded; every slice is inside) |
 | Chained PRs recommended | Yes |
-| Suggested split | S1 -> S2 -> S3 -> S4 -> S5a -> S5b |
+| Suggested split | S1 -> S2 -> S3 -> S4 -> S5a -> S5b -> S6 |
 | Delivery strategy | ask-on-risk (review_budget_lines=1000, production lines only) |
 | Chain strategy | feature-branch-chain |
 
@@ -25,6 +25,7 @@
 | S4 Staff UI | ~450 | ~400 | ~850 | Inside |
 | S5a Student list/detail | ~280 | ~300 | ~580 | Inside |
 | S5b Correction | ~500 | ~600 | ~1,100 | Inside (production ~500); no split |
+| S6 Guided correction + change flags | ~300 | ~600 | ~900 | Inside (production ~300 plus ~40 i18n); no split |
 
 Decision needed before apply: No
 Chained PRs recommended: Yes
@@ -43,6 +44,7 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 | S4 | Staff queue, detail, decision dialog | PR 4 (base: S3 branch) | `npx vitest run src/app/(dashboard)/review src/components/app-sidebar.test.tsx` | `npm run dev`: secretaria walks queue -> detail -> each decision at 1280 px and 360 px | Revert `review/` pages, sidebar entry, `review.*` i18n keys |
 | S5a | Student list and detail | PR 5 (base: S4 branch) | `npx vitest run src/app/(dashboard)/requests/page.test.tsx src/app/(dashboard)/requests/[id]` | `npm run dev`: student opens list and a returned request at 360 px | Revert `requests/page.tsx`, `requests/[id]/`, sidebar entry, `requests.*` keys |
 | S5b | Correction flow, retire, resubmit | PR 6 (base: S5a branch) | `npx vitest run src/lib/data src/lib/intake src/app/(dashboard)/requests` | `npm run dev`: return a request, correct dates and a document, resubmit; check queue order | Revert correction context, `correct/` route, upload-token change |
+| S6 | Approve finality text, reason-based start step + banner, change flags on the staff detail (SR-17) | PR 7 (base: S5b branch) | `npx vitest run src/lib/intake src/lib/data/student-requests.test.ts src/app/(dashboard)/requests src/app/(dashboard)/review src/i18n` | `npm run dev`: return with each RN-17 reason, open the correction, resubmit, open the staff detail | Revert `correction-focus.ts`, `revision-diff.ts`, `getCorrectionReason`, the banner, `ChangesSection` and the S6 i18n keys; no schema or data step |
 
 ## Phase 1: S1 - Pure domain (PR 1)
 
@@ -140,6 +142,33 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 - [x] 6.13 Update `docs/roadmap.md` row 2 owner to Armando (if not already in the working tree diff) **Already `Armando` in the committed roadmap; no change needed.**
 - [ ] 6.14 [CONFIRM] Gates and manual harness (after Phase 7), run only against a disposable Neon branch or an owner-confirmed target; creating or updating any test secretaria/student account is a separate confirmed data step: return a request, correct dates and replace a document, resubmit; confirm queue position by `ReenviadaEn`, previous revision and retired document visible to staff
 
+## Phase 6b: S6 - Guided correction and change flags (PR 7) - depends on S5b
+
+> Owner decisions 2026-10-13 (SR-17). No schema, no migration, no new audit event, no DB command. Production estimate ~300 lines plus ~40 i18n (budget 1000): finality text 0 code, `correction-focus.ts` + `correctionStartStep` ~25, `getCorrectionReason` ~35, correction page wiring ~25, `CorrectionReasonBanner` ~35, `revision-diff.ts` ~70, `ChangesSection` ~100, review page wiring ~10. Tests ~600.
+
+- [x] 6b.1 Branch `feat/secretary-review-s6-guided-correction` from the S5b branch; its PR targets the S5b branch (feature-branch-chain)
+- [x] 6b.2 RED: `src/app/(dashboard)/review/[id]/decision-dialog.test.tsx`: the approve dialog description states the approval is final and cannot be undone (es and en messages), and approve still has exactly one confirm (no second confirmation; reject unchanged) (`request-review` "Approve", RNF-12)
+- [x] 6b.3 GREEN: change `review.decision.approve.description` in `i18n/es.json` and `i18n/en.json` to the SR-17 text; `decision-dialog.tsx` unchanged
+- [x] 6b.4 RED: `src/lib/intake/correction-focus.test.ts` (table-driven over `RETURN_REASONS`: `documento_ilegible` -> `documents`, `fecha_alterada` -> `documents`, `fecha_incorrecta` -> `details`; every code mapped) and `src/app/(dashboard)/requests/new/steps.test.ts` additions (`correctionStartStep`: 3, 3, 1; `null` -> 1) (RN-17)
+- [x] 6b.5 GREEN: `src/lib/intake/correction-focus.ts` (`CORRECTION_FOCUS: Record<ReturnReason, "details" | "documents">`) and `correctionStartStep` in `steps.ts`
+- [x] 6b.6 RED: `src/lib/data/student-requests.test.ts`: `getCorrectionReason(userId, id)` returns the latest decision's code and text for an own `devuelta` request; another student's id, a non-`devuelta` request and an unknown id give `null`; no audit row
+- [x] 6b.7 GREEN: `getCorrectionReason` in `src/lib/data/student-requests.ts`
+- [x] 6b.8 RED: `src/app/(dashboard)/requests/[id]/correct/page.test.tsx`: no `?step=` opens step 3 for `documento_ilegible` and `fecha_alterada` and step 1 for `fecha_incorrecta`; `?step=2` wins; a failing or `null` reason read opens step 1 with no banner and the correction still renders; the banner (reason label and message, `role="status"`) is shown on every step; stepper links to all four steps present (nothing locked) (`student-requests` "In-place correction", RF-08 a, RN-17)
+- [x] 6b.9 GREEN: `CorrectionReasonBanner` and the `parseStep(query.step) ?? correctionStartStep(reason)` wiring in `src/app/(dashboard)/requests/[id]/correct/page.tsx`; banner keys under `intake.correction.*`
+- [x] 6b.10 RED: `src/lib/intake/revision-diff.test.ts`: identical sides -> all `unchanged` and empty lists; changed cause, start or end -> only `causeDates` changed; subject group swapped -> `subjects` changed; reordered or duplicated classes -> unchanged; D1 retired + D3 added -> `documents` changed, retired `[D1]`, added `[D3]`, kept D2 in neither; lists ascending
+- [x] 6b.11 GREEN: `src/lib/intake/revision-diff.ts` `diffRevision(snapshot, current)` (pure, no I/O)
+- [x] 6b.12 RED: `src/app/(dashboard)/review/[id]/page.test.tsx` additions: a resubmitted request (revision + `reenviadaEn`) shows the changes section with "Changed"/"Unchanged" text per section and the retired and added documents by name; a first-time `pendiente` request (no revision, `reenviadaEn` null) and a `devuelta` request show none; the latest revision is used when there are two; still exactly one audit row per render and no other event (`request-review` "Changes since the return", RF-06, RF-08 b)
+- [x] 6b.13 GREEN: `ChangesSection` in `src/app/(dashboard)/review/[id]/request-sections.tsx` (first in the stack) and the diff wiring in `review/[id]/page.tsx` before `recordRequestRead`; `review.detail.changes.*` keys
+- [x] 6b.14 i18n parity and design system: new keys in `i18n/es.json` and `i18n/en.json` pinned by `src/i18n/review-messages.test.ts` and `src/i18n/correction-messages.test.ts`; tokens only, pill badges with text, alert pattern for the banner, 360 px no horizontal scroll for the banner and the changes section, pinned in `src/app/(dashboard)/requests/correct-design-system.test.tsx` and `src/app/(dashboard)/review/design-system.test.tsx` (`docs/design-system.md`, RNF-11, RNF-12)
+- [x] 6b.15 Gates: the S6 focused command, `npm test`, `npx next typegen` + `npm run typecheck`, eslint, format:check, `npm run build`; record the production line count against the ~300 estimate (no DB command run)
+- [ ] 6b.16 [CONFIRM] Run the S6 checklist below inside the combined owner walk (`apply-progress.md`, S4 + S5a + S5b, same disposable branch, after Phase 7 steps it needs)
+
+S6 checklist (combined owner walk)
+- Approve dialog says the approval is final and cannot be undone (es and en); one confirm approves.
+- Return three requests with `documento_ilegible`, `fecha_alterada` and `fecha_incorrecta`; "Correct request" opens at Documents, Documents and Cause and dates, each with the reason and message on top; every other step opens and saves.
+- Resubmit one with a retired and an added document and one with only the dates changed; as the secretaria the detail marks each section "Changed"/"Unchanged" and lists the retired and the added document; a never-returned request shows no flags; check at 360 px.
+- Read-only: one `solicitud.consultada` per open and no other new audit action.
+
 ## Phase 7: Migration apply and data steps (owner-run, after S2 merged; before manual harness 4.11/6.14)
 
 - [ ] 7.1 [READ-ONLY] P1: row counts by `Solicitud.Estado`, `DocumentoRespaldo`, `Usuario` by role, list of `secretaria` accounts (`select` only)
@@ -151,7 +180,7 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 - [ ] 7.7 [CONFIRM] F1 (SR-16 (a)): one-off `UPDATE "Usuario" SET "FacultadId" = <FIA id> WHERE "Id" = <existing secretaria id>`; show the id lookup (read-only) and the exact statement, wait for "yes"; then [READ-ONLY] re-select to confirm exactly one row changed
 - [ ] 7.8 [CONFIRM] Delete the backup branch only when the owner says so
 
-## Phase 8: Archive (after S5b merged)
+## Phase 8: Archive (after S6 merged)
 
 - [ ] 8.1 Spec sync: merge deltas into `openspec/specs/{request-review,student-requests}/spec.md` (new) and `supporting-documents`, `audit-log`, `staff-account-creation` (MODIFIED/ADDED, replacing the "Previously" text); drop change-specific sections
 - [ ] 8.2 Edit by hand the base `Purpose` paragraph of `openspec/specs/audit-log/spec.md`: remove "limited to WRITE events" and "Read-access auditing is out of scope and deferred" (the delta amends the Purpose in prose only; the merge does not apply it automatically)

@@ -735,6 +735,10 @@
       "title": "Correct request",
       "subtitle": "Fix what the review asked for and send it again. Your request keeps its number.",
       "back": "Back to the request",
+      "banner": {
+        "title": "Why your request was returned",
+        "reason": "Reason: {reason}"
+      },
       "resubmit": {
         "button": "Resubmit request",
         "title": "Resubmit the corrected request?",
@@ -869,7 +873,7 @@
       "approve": {
         "trigger": "Approve",
         "title": "Approve this request?",
-        "description": "The request becomes approved and the student sees the message below. You can edit it first.",
+        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
         "confirm": "Approve request",
         "pending": "Approving..."
       },
@@ -934,6 +938,22 @@
         "aprobada": "Approved",
         "rechazada": "Rejected",
         "en_revision_coordinacion": "In coordination review"
+      },
+      "changes": {
+        "title": "Changes since the return",
+        "description": "Compared with the version that was returned to the student.",
+        "sections": {
+          "causeDates": "Cause and dates",
+          "subjects": "Subjects",
+          "documents": "Documents"
+        },
+        "marks": {
+          "changed": "Changed",
+          "unchanged": "Unchanged"
+        },
+        "retired": "Documents retired since the return",
+        "added": "Documents added since the return",
+        "unknownDocument": "Document {id}"
       },
       "sections": {
         "request": "Request",

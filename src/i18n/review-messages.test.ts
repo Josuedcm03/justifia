@@ -68,6 +68,40 @@ describe("review messages", () => {
     },
   );
 
+  it.each(catalogs)(
+    "%s words the changes section, its marks and the document fallback",
+    (_l, m) => {
+      const c = m.review.detail.changes;
+
+      for (const text of [
+        c.title,
+        c.description,
+        c.sections.causeDates,
+        c.sections.subjects,
+        c.sections.documents,
+        c.marks.changed,
+        c.marks.unchanged,
+        c.retired,
+        c.added,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      expect(c.unknownDocument).toContain("{id}");
+      expect(c.marks.changed).not.toBe(c.marks.unchanged);
+    },
+  );
+
+  it("words the changes marks differently in each language", () => {
+    expect(es.review.detail.changes.marks).toEqual({
+      changed: "Modificado",
+      unchanged: "Sin cambios",
+    });
+    expect(en.review.detail.changes.marks).toEqual({
+      changed: "Changed",
+      unchanged: "Unchanged",
+    });
+  });
+
   it.each(catalogs)("%s words every decision validation error", (_l, m) => {
     const codes = [
       "tipo_invalid",

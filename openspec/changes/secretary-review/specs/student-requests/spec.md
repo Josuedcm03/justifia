@@ -85,6 +85,18 @@ the server clock in America/Managua (restarting the RN-08 clock), and write exac
 Only the owner and only in `devuelta` MAY correct; any other state MUST be
 refused with no change.
 
+Guided start (RN-17; S6, owner decision 2026-10-13): when the correction is
+opened without an explicit step, it MUST open at the step that matches the
+RN-17 code of the latest return decision: `documento_ilegible` and
+`fecha_alterada` at the Documents step (step 3), `fecha_incorrecta` at the
+Cause and dates step (step 1). The mapping MUST be a pure function over the
+closed RN-17 list in `src/lib/intake/return-reasons.ts`. An explicit `?step=`
+MUST win over the mapping, and when the reason cannot be read the correction
+MUST open at step 1. Every step MUST stay reachable and editable; the reason
+MUST NOT lock any field or step. The correction screen MUST show the return
+reason label and the secretary's message at the top, read from the session
+owner's own latest decision (not audited, like every own read).
+
 #### Scenario: Successful correction
 
 - GIVEN a `devuelta` request with a first revision
@@ -123,6 +135,38 @@ refused with no change.
 - GIVEN a failure after the state change or at the audit insert
 - WHEN the transaction ends
 - THEN no new audit row exists and the state is still `devuelta`
+
+#### Scenario: Illegible document opens at Documents
+
+- GIVEN a request returned with `documento_ilegible`
+- WHEN the owner opens `/requests/[id]/correct` without `?step=`
+- THEN the Documents step (step 3) is shown
+- AND the reason label and the secretary's message are shown at the top
+
+#### Scenario: Altered date opens at Documents
+
+- GIVEN a request returned with `fecha_alterada`
+- WHEN the owner opens the correction without `?step=`
+- THEN the Documents step (step 3) is shown
+
+#### Scenario: Incorrect date opens at Cause and dates
+
+- GIVEN a request returned with `fecha_incorrecta`
+- WHEN the owner opens the correction without `?step=`
+- THEN the Cause and dates step (step 1) is shown
+
+#### Scenario: Every step stays reachable
+
+- GIVEN a request returned with `documento_ilegible`, opened at step 3
+- WHEN the owner moves to steps 1, 2 and 4 through the stepper or `?step=`
+- THEN each step opens with its fields editable, a change saved there is kept, and the resubmit is accepted when valid
+- AND the reason banner is shown on every step
+
+#### Scenario: Explicit step wins
+
+- GIVEN a request returned with `documento_ilegible`
+- WHEN the owner opens `/requests/[id]/correct?step=2`
+- THEN the Subjects step (step 2) is shown
 
 ### Requirement: Correction validation (RF-03, RN-01..RN-05, RN-23 not re-applied)
 

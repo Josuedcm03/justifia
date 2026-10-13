@@ -735,6 +735,10 @@
       "title": "Corregir solicitud",
       "subtitle": "Corrige lo que pidió la revisión y vuelve a enviarla. Tu solicitud conserva su número.",
       "back": "Volver a la solicitud",
+      "banner": {
+        "title": "Por qué se devolvió tu solicitud",
+        "reason": "Motivo: {reason}"
+      },
       "resubmit": {
         "button": "Reenviar solicitud",
         "title": "¿Reenviar la solicitud corregida?",
@@ -869,7 +873,7 @@
       "approve": {
         "trigger": "Aprobar",
         "title": "¿Aprobar esta solicitud?",
-        "description": "La solicitud queda aprobada y el estudiante verá el mensaje de abajo. Puede editarlo antes.",
+        "description": "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes.",
         "confirm": "Aprobar solicitud",
         "pending": "Aprobando..."
       },
@@ -934,6 +938,22 @@
         "aprobada": "Aprobada",
         "rechazada": "Rechazada",
         "en_revision_coordinacion": "En revisión de coordinación"
+      },
+      "changes": {
+        "title": "Cambios desde la devolución",
+        "description": "Comparado con la versión que se devolvió al estudiante.",
+        "sections": {
+          "causeDates": "Causa y fechas",
+          "subjects": "Asignaturas",
+          "documents": "Documentos"
+        },
+        "marks": {
+          "changed": "Modificado",
+          "unchanged": "Sin cambios"
+        },
+        "retired": "Documentos retirados desde la devolución",
+        "added": "Documentos agregados desde la devolución",
+        "unknownDocument": "Documento {id}"
       },
       "sections": {
         "request": "Solicitud",

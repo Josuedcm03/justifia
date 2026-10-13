@@ -143,6 +143,53 @@ action.
 - WHEN the secretary opens its detail
 - THEN no approve, reject or return control is offered
 
+### Requirement: Changes since the return flagged on the staff detail (RF-06, RF-08 b, RN-16, RN-17)
+
+On the staff detail of a resubmitted request (`ReenviadaEn` set, at least one
+`SolicitudRevision`, state not `devuelta`), the secretary MUST see what
+changed compared with the latest revision snapshot (the one written by the
+last return): for each section (cause and dates, subjects, documents) a
+"changed" or "unchanged" mark, and for documents the list of documents
+retired since that return and the list of documents added since it. The
+comparison MUST be computed on read by a pure function over the snapshot and
+the current request (no schema change, nothing stored). Subjects MUST be
+compared as a set of (subject, group number); documents as a set of ids
+(snapshot `DocumentoIds` vs current non-retired documents). The flags MUST
+NOT write any audit row beyond the existing `solicitud.consultada` of the
+detail and MUST NOT add a new audit event type. A request with no revision or
+without `ReenviadaEn`, and a request currently `devuelta`, MUST show no flags.
+Marks MUST carry text, never color alone.
+
+#### Scenario: Unchanged section
+
+- GIVEN a resubmitted request whose cause and dates equal those of the latest revision
+- WHEN the secretary opens the detail
+- THEN cause and dates is marked "unchanged"
+
+#### Scenario: Changed subjects
+
+- GIVEN a resubmitted request where the student replaced one subject group present in the latest revision
+- WHEN the secretary opens the detail
+- THEN subjects is marked "changed" and cause and dates keeps its own mark
+
+#### Scenario: Retired and new documents
+
+- GIVEN a request returned with documents D1 and D2, corrected by retiring D1 and adding D3, and resubmitted
+- WHEN the secretary opens the detail
+- THEN documents is marked "changed", D1 is listed as retired and D3 as added, and D2 is in neither list
+
+#### Scenario: First-time pending request shows no flags
+
+- GIVEN a `pendiente` request that was never returned (no revision, `ReenviadaEn` null)
+- WHEN the secretary opens the detail
+- THEN no change flags are shown
+
+#### Scenario: Flags add no audit row
+
+- GIVEN a resubmitted request with changes
+- WHEN the secretary opens the detail once
+- THEN exactly one `solicitud.consultada` row is written and no other audit row
+
 ### Requirement: State transitions (RN-15, RN-16, RN-17)
 
 Only a `secretaria` in scope MUST change a request state (RN-15). Allowed
@@ -182,6 +229,18 @@ change.
 Approving MUST set `aprobada` and record a decision with optional text. The
 secretary MAY pick a predefined approval template and edit it before
 confirming; the final text (possibly empty) MUST be stored in the decision.
+The approve confirmation dialog MUST state that the approval is final and
+cannot be undone, in the same register as the reject dialog ("El rechazo es
+definitivo: ..."), in both `es` and `en` (S6, owner decision 2026-10-13).
+Approval MUST NOT add a second confirmation step: the RNF-12 two-step
+confirmation applies to rejection only.
+
+#### Scenario: Approve dialog states finality
+
+- GIVEN a `pendiente` request in scope
+- WHEN the secretary opens the approve dialog
+- THEN the dialog text states that the approval is final and cannot be undone
+- AND one confirm action approves the request, with no second confirmation
 
 #### Scenario: Approve without text
 
