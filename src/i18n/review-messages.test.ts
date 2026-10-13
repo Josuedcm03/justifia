@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { templateKey } from "@/app/(dashboard)/review/template-key";
+import { DECISION_TEMPLATES } from "@/lib/intake/decision-templates";
+import { RETURN_REASONS } from "@/lib/intake/return-reasons";
+
 import en from "../../i18n/en.json";
 import es from "../../i18n/es.json";
 
@@ -41,5 +45,46 @@ describe("review messages", () => {
   it("both catalogs name the sidebar entry", () => {
     expect(es.nav.review).toBe("Revisión de solicitudes");
     expect(en.nav.review).toBe("Review requests");
+  });
+
+  it.each(catalogs)(
+    "%s labels every decision template and every RN-17 reason",
+    (_l, m) => {
+      const { templates, reasons } = m.review.decision;
+
+      expect(DECISION_TEMPLATES.length).toBe(6);
+      for (const template of DECISION_TEMPLATES) {
+        expect(
+          (templates as Record<string, string>)[templateKey(template.codigo)],
+          template.codigo,
+        ).toBeTruthy();
+      }
+      for (const reason of RETURN_REASONS) {
+        expect(
+          (reasons as Record<string, string>)[reason],
+          reason,
+        ).toBeTruthy();
+      }
+    },
+  );
+
+  it.each(catalogs)("%s words every decision validation error", (_l, m) => {
+    const codes = [
+      "tipo_invalid",
+      "template_unknown",
+      "template_mismatch",
+      "motivo_required",
+      "motivo_invalid",
+      "motivo_not_allowed",
+      "text_required",
+      "text_too_long",
+      "text_placeholder",
+      "conflict",
+      "not_found",
+      "unexpected",
+    ];
+    const errors = m.review.decision.errors as Record<string, string>;
+
+    for (const code of codes) expect(errors[code], code).toBeTruthy();
   });
 });
