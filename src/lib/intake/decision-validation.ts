@@ -1,4 +1,8 @@
-import { getTemplate, type DecisionKind } from "./decision-templates";
+import {
+  DECISION_KINDS,
+  getTemplate,
+  type DecisionKind,
+} from "./decision-templates";
 import { isReturnReason, type ReturnReason } from "./return-reasons";
 
 // Server-side validation of a secretary decision (SR-7, RF-07, RN-17, RNF-12).
@@ -50,7 +54,7 @@ export type DecisionResult =
   | { ok: true; decision: DecisionInput }
   | { ok: false; errors: DecisionError[] };
 
-const KINDS: readonly string[] = ["aprobada", "rechazada", "devuelta"];
+const KINDS: readonly string[] = DECISION_KINDS;
 
 /** An unresolved template marker such as `[indique el motivo]`. */
 const UNRESOLVED_MARKER = /\[[^\]]*\]/;

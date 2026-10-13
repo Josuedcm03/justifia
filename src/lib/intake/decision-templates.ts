@@ -7,7 +7,10 @@ import type { ReturnReason } from "./return-reasons";
 // institutional notices. The secretary edits the rendered text before
 // confirming; audit carries only the template code, never the text.
 
-export type DecisionKind = "aprobada" | "rechazada" | "devuelta";
+/** The three decisions a secretary may take; the schema CHECK derives from it. */
+export const DECISION_KINDS = ["aprobada", "rechazada", "devuelta"] as const;
+
+export type DecisionKind = (typeof DECISION_KINDS)[number];
 
 export interface DecisionTemplate {
   codigo: string;
