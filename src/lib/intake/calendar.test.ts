@@ -25,12 +25,31 @@ describe("NON_WORKING_DAYS shape", () => {
     },
   );
 
-  it("includes Jueves and Viernes Santo of 2026 and 2027", () => {
+  // The UAM academic calendar closes the whole Semana Santa, Monday to Friday
+  // before Easter Sunday (5 Apr 2026, 28 Mar 2027).
+  it("includes the whole Semana Santa of 2026 and 2027", () => {
     expect(NON_WORKING_DAYS[2026]).toEqual(
-      expect.arrayContaining(["2026-04-02", "2026-04-03"]),
+      expect.arrayContaining([
+        "2026-03-30",
+        "2026-03-31",
+        "2026-04-01",
+        "2026-04-02",
+        "2026-04-03",
+      ]),
     );
     expect(NON_WORKING_DAYS[2027]).toEqual(
-      expect.arrayContaining(["2027-03-25", "2027-03-26"]),
+      expect.arrayContaining([
+        "2027-03-22",
+        "2027-03-23",
+        "2027-03-24",
+        "2027-03-25",
+        "2027-03-26",
+      ]),
     );
+  });
+
+  it("includes Dia de las Madres, observed by the UAM", () => {
+    expect(NON_WORKING_DAYS[2026]).toContain("2026-05-30");
+    expect(NON_WORKING_DAYS[2027]).toContain("2027-05-30");
   });
 });

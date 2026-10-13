@@ -200,6 +200,14 @@
       "sessions": 1,
       "memories": 4,
       "prompts": 0
+    },
+    {
+      "id": "9980953e",
+      "created_by": "Arnia",
+      "created_at": "2026-10-13T00:29:20Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }

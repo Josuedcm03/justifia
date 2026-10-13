@@ -4,22 +4,26 @@ import { constantCalendar } from "./adapters/constant-calendar";
 // because Semana Santa moves. Weekends are not listed: the business-day logic
 // already skips them.
 //
-// STATUS: PENDING OWNER VALIDATION (tasks 1.9). Remove this marker only after
-// the owner's written "yes". Do not merge S1 with unvalidated data.
+// STATUS: VALIDATED BY THE OWNER on 2026-10-12 against the UAM academic
+// calendar ("Dias feriados"), which closes the whole Semana Santa and observes
+// Dia de las Madres and the Managua local holidays.
 //
-// Source (to be confirmed by the owner): Codigo del Trabajo de Nicaragua, art.
-// 66, national holidays: 1 Jan, Jueves Santo, Viernes Santo, 1 May, 19 Jul,
-// 14 Sep, 15 Sep, 8 Dec, 25 Dec. Semana Santa follows Easter Sunday (5 Apr 2026,
-// 28 Mar 2027). The Managua local holidays 1 Aug and 10 Aug (Santo Domingo) are
-// included because the UAM is in Managua; the owner decides whether the UAM
-// observes them, and whether any extra UAM closure must be added. Half days
-// (24 and 31 Dec afternoons) are not full non-working days and are not listed.
+// Sources: UAM academic calendar (Semana Santa Monday to Friday, 1 May, 30 May,
+// 19 Jul, 1 and 10 Aug, 14 and 15 Sep, 8 Dec) plus the national holidays of the
+// Codigo del Trabajo, art. 66, that fall in vacations (1 Jan, 25 Dec). Semana
+// Santa follows Easter Sunday (5 Apr 2026, 28 Mar 2027). Half days (24 and 31
+// Dec afternoons) are not full non-working days and are not listed. Add each
+// new year before it starts: the staleness test fails otherwise.
 export const NON_WORKING_DAYS: Readonly<Record<number, readonly string[]>> = {
   2026: [
     "2026-01-01", // Anio Nuevo
-    "2026-04-02", // Jueves Santo
-    "2026-04-03", // Viernes Santo
+    "2026-03-30", // Semana Santa
+    "2026-03-31", // Semana Santa
+    "2026-04-01", // Semana Santa
+    "2026-04-02", // Semana Santa
+    "2026-04-03", // Semana Santa
     "2026-05-01", // Dia del Trabajo
+    "2026-05-30", // Dia de las Madres
     "2026-07-19", // Dia de la Revolucion
     "2026-08-01", // Santo Domingo, bajada (Managua)
     "2026-08-10", // Santo Domingo, subida (Managua)
@@ -30,9 +34,13 @@ export const NON_WORKING_DAYS: Readonly<Record<number, readonly string[]>> = {
   ],
   2027: [
     "2027-01-01", // Anio Nuevo
-    "2027-03-25", // Jueves Santo
-    "2027-03-26", // Viernes Santo
+    "2027-03-22", // Semana Santa
+    "2027-03-23", // Semana Santa
+    "2027-03-24", // Semana Santa
+    "2027-03-25", // Semana Santa
+    "2027-03-26", // Semana Santa
     "2027-05-01", // Dia del Trabajo
+    "2027-05-30", // Dia de las Madres
     "2027-07-19", // Dia de la Revolucion
     "2027-08-01", // Santo Domingo, bajada (Managua)
     "2027-08-10", // Santo Domingo, subida (Managua)
