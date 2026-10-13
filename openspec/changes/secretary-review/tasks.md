@@ -114,14 +114,14 @@ Chain (decided by the owner): tracker branch `feat/secretary-review`. S1 branche
 
 ## Phase 5: S5a - Student list and detail (PR 5) - depends on S4
 
-- [ ] 5.1 RED+GREEN: sidebar `myRequests` (`/requests`, `visibleTo: canFileRequests`) in `src/components/app-sidebar.tsx` and its test
-- [ ] 5.2 Add `requests.*` keys (list, detail, history, state labels, RN-17 reason labels) to `i18n/es.json` and `i18n/en.json` with parity test (RNF-11)
-- [ ] 5.3 RED: `src/lib/data/student-requests.test.ts`: own `VISIBLE_STATES` only, newest first, owner identity from session, other student's id and unknown id identical, draft id not found, latest decision text and reason, history and revisions, no audit rows
-- [ ] 5.4 GREEN: `src/lib/data/student-requests.ts` (`listOwnRequests`, `getOwnRequestDetail`; classes via `listRequestClasses`)
-- [ ] 5.5 RED: `src/app/(dashboard)/requests/page.test.tsx` and `requests/[id]/page.test.tsx`: role guard (secretaria denied), unauthenticated denied, empty state with "New request", state badge, returned request shows reason and text, "Correct request" (`lg`, primary) only when `devuelta`
-- [ ] 5.6 GREEN: `src/app/(dashboard)/requests/page.tsx` and `src/app/(dashboard)/requests/[id]/page.tsx`
-- [ ] 5.7 Design-system compliance (`docs/design-system.md`) and 360 px no-horizontal-scroll test for list and detail, pinned in `src/app/(dashboard)/requests/design-system.test.tsx`
-- [ ] 5.8 Gates and manual harness: `npx vitest run src/lib/data src/app/(dashboard)/requests`; walk list and a returned request at 360 px
+- [x] 5.1 RED+GREEN: sidebar `myRequests` (`/requests`, `visibleTo: canFileRequests`) in `src/components/app-sidebar.tsx` and its test
+- [x] 5.2 Add `requests.*` keys (list, detail, history, state labels, RN-17 reason labels) to `i18n/es.json` and `i18n/en.json` with parity test (RNF-11)
+- [x] 5.3 RED: `src/lib/data/student-requests.test.ts`: own `VISIBLE_STATES` only, newest first, owner identity from session, other student's id and unknown id identical, draft id not found, latest decision text and reason, history and revisions, no audit rows
+- [x] 5.4 GREEN: `src/lib/data/student-requests.ts` (`listOwnRequests`, `getOwnRequestDetail`; classes via `listRequestClasses`)
+- [x] 5.5 RED: `src/app/(dashboard)/requests/page.test.tsx` and `requests/[id]/page.test.tsx`: role guard (secretaria denied), unauthenticated denied, empty state with "New request", state badge, returned request shows reason and text, "Correct request" (`lg`, primary) only when `devuelta`
+- [x] 5.6 GREEN: `src/app/(dashboard)/requests/page.tsx` and `src/app/(dashboard)/requests/[id]/page.tsx`
+- [x] 5.7 Design-system compliance (`docs/design-system.md`) and 360 px no-horizontal-scroll test for list and detail, pinned in `src/app/(dashboard)/requests/design-system.test.tsx`
+- [ ] 5.8 Gates and manual harness: `npx vitest run src/lib/data src/app/(dashboard)/requests`; walk list and a returned request at 360 px **Gates run (S5a); the 360 px walk is the owner step, not run here.**
 
 ## Phase 6: S5b - Correction flow (PR 6) - depends on S5a
 

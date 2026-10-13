@@ -162,7 +162,7 @@ describe("AppSidebar", () => {
       ).not.toBeInTheDocument();
       expect(topLevelLabels()).toEqual(
         rol === "estudiante"
-          ? ["Panel", "Nueva solicitud", "Configuración"]
+          ? ["Panel", "Mis solicitudes", "Nueva solicitud", "Configuración"]
           : ["Panel", "Configuración"],
       );
     },
@@ -214,7 +214,7 @@ describe("AppSidebar", () => {
       ],
     ],
     ["docente", ["/", "/settings"]],
-    ["estudiante", ["/", "/requests/new", "/settings"]],
+    ["estudiante", ["/", "/requests", "/requests/new", "/settings"]],
   ] as const)("offers exactly the permitted links to %s", (rol, hrefs) => {
     renderSidebar(rol);
 
@@ -771,5 +771,75 @@ describe("AppSidebar review entry (secretary-review 4.1)", () => {
     expect(
       screen.getByRole("link", { name: "Revisión de solicitudes" }),
     ).toHaveAttribute("aria-current", "page");
+  });
+});
+
+describe("AppSidebar my requests entry (secretary-review 5.1)", () => {
+  it.each([
+    ["es", "Mis solicitudes"],
+    ["en", "My requests"],
+  ] as const)(
+    "shows estudiante a %s link to /requests between the dashboard and the intake flow",
+    (locale, label) => {
+      env.locale = locale;
+      renderSidebar("estudiante");
+
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+        "href",
+        "/requests",
+      );
+      expect(topLevelLabels().slice(0, 3)).toEqual([
+        locale === "es" ? "Panel" : "Dashboard",
+        label,
+        locale === "es" ? "Nueva solicitud" : "New request",
+      ]);
+    },
+  );
+
+  it.each(["docente", "coordinacion", "secretaria", "administrador"] as const)(
+    "hides it from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        screen.queryByRole("link", { name: "Mis solicitudes" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("marks only the list current on a request detail", () => {
+    env.pathname = "/requests/42";
+    renderSidebar("estudiante");
+
+    expect(
+      screen.getByRole("link", { name: "Mis solicitudes" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Nueva solicitud" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks only the list current on the list itself", () => {
+    env.pathname = "/requests";
+    renderSidebar("estudiante");
+
+    expect(
+      screen.getByRole("link", { name: "Mis solicitudes" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Nueva solicitud" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks only the intake flow current inside it, not the list", () => {
+    env.pathname = "/requests/new";
+    renderSidebar("estudiante");
+
+    expect(
+      screen.getByRole("link", { name: "Nueva solicitud" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Mis solicitudes" }),
+    ).not.toHaveAttribute("aria-current");
   });
 });

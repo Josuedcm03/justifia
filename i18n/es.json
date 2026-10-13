@@ -12,6 +12,7 @@
   },
   "nav": {
     "dashboard": "Panel",
+    "myRequests": "Mis solicitudes",
     "newRequest": "Nueva solicitud",
     "review": "Revisión de solicitudes",
     "administration": "Administración",
@@ -734,6 +735,82 @@
       "description": "Hemos registrado tu solicitud de justificación.",
       "home": "Ir al panel",
       "another": "Presentar otra solicitud"
+    }
+  },
+  "requests": {
+    "list": {
+      "title": "Mis solicitudes",
+      "description": "Las solicitudes que has presentado y en qué estado está cada una.",
+      "caption": "Tus solicitudes",
+      "empty": "Todavía no has presentado ninguna solicitud.",
+      "newRequest": "Nueva solicitud",
+      "number": "Solicitud {id}",
+      "presented": "Presentada el {date}",
+      "view": "Ver solicitud",
+      "viewNamed": "Ver la solicitud {id}"
+    },
+    "period": "{start} al {end}",
+    "notSet": "Sin definir",
+    "states": {
+      "pendiente": "Pendiente de revisión",
+      "en_revision_coordinacion": "En revisión de coordinación",
+      "devuelta": "Devuelta para corrección",
+      "aprobada": "Aprobada",
+      "rechazada": "Rechazada"
+    },
+    "detail": {
+      "title": "Solicitud {id}",
+      "description": "Presentada el {date}",
+      "back": "Volver a mis solicitudes",
+      "sections": {
+        "decision": "Decisión",
+        "request": "Solicitud",
+        "subjects": "Asignaturas",
+        "documents": "Documentos",
+        "history": "Historial"
+      },
+      "fields": {
+        "state": "Estado",
+        "cause": "Causa",
+        "period": "Fechas de ausencia",
+        "presented": "Presentada",
+        "resubmitted": "Reenviada"
+      },
+      "subject": {
+        "group": "Grupo {number}",
+        "teacher": "Docente: {name}",
+        "noTeacher": "Sin docente asignado"
+      },
+      "documents": {
+        "empty": "Esta solicitud no tiene documentos.",
+        "view": "Ver",
+        "viewNamed": "Ver {name}",
+        "download": "Descargar",
+        "downloadNamed": "Descargar {name}"
+      },
+      "decision": {
+        "reason": "Motivo: {reason}",
+        "noText": "Sin mensaje",
+        "decidedOn": "Decidida el {date}",
+        "correct": "Corregir solicitud",
+        "correctHint": "Corrige lo que pidió la revisión y vuelve a enviar la solicitud."
+      },
+      "history": {
+        "decisions": "Decisiones anteriores",
+        "revisions": "Versiones anteriores",
+        "revision": "Versión {number}",
+        "revisionDocuments": "{count, plural, one {# documento} other {# documentos}}"
+      },
+      "reasons": {
+        "fecha_incorrecta": "La fecha no coincide con el documento",
+        "fecha_alterada": "La fecha del documento está alterada",
+        "documento_ilegible": "El documento no es legible"
+      }
+    },
+    "notFound": {
+      "title": "Solicitud no encontrada",
+      "message": "No encontramos esa solicitud entre las tuyas.",
+      "back": "Volver a mis solicitudes"
     }
   },
   "review": {
