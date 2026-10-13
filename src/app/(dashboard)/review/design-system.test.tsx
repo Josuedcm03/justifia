@@ -19,6 +19,7 @@ vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
 import {
+  ChangesSection,
   DocumentsSection,
   HistorySection,
   RequestSection,
@@ -411,5 +412,77 @@ describe("design system: 360px (RNF-11, §4.3)", () => {
       "break-words",
       "whitespace-pre-wrap",
     );
+  });
+});
+
+describe("design system: changes since the return (SR-17, §2.5, §5 Badge, §7)", () => {
+  const changes = messages.en.review.detail.changes;
+  const longName = `${"borroso-original-".repeat(8)}.jpg`;
+  const DIFF = {
+    causeDates: "changed",
+    subjects: "unchanged",
+    documents: "changed",
+    retiredDocumentIds: [30],
+    addedDocumentIds: [32],
+  } as const;
+  const doc = (id: number, nombreOriginal: string) => ({
+    id,
+    nombreOriginal,
+    tipoDetectado: null,
+    tamanoBytes: 10,
+    creadoEn: new Date("2026-10-09T15:00:00Z"),
+  });
+
+  function show() {
+    return renderIntl(
+      <ChangesSection
+        diff={{ ...DIFF, retiredDocumentIds: [30], addedDocumentIds: [32] }}
+        documents={[doc(32, "nuevo.pdf")]}
+        retired={[
+          {
+            ...doc(30, longName),
+            retiradoEn: new Date("2026-10-11T15:00:00Z"),
+          },
+        ]}
+      />,
+    );
+  }
+
+  it("draws each mark as a pill with its tint, ink and text, never colour alone", () => {
+    show();
+
+    expect(screen.getAllByText(changes.marks.changed)).toHaveLength(2);
+    for (const pill of screen.getAllByText(changes.marks.changed)) {
+      expect(pill).toHaveClass(
+        "rounded-full",
+        "bg-warning/10",
+        "text-warning-ink",
+        "px-3",
+        "py-1",
+      );
+    }
+    expect(screen.getByText(changes.marks.unchanged)).toHaveClass(
+      "rounded-full",
+      "bg-muted",
+      "text-muted-foreground",
+    );
+  });
+
+  it("frames the section as a card with the headline title", () => {
+    show();
+
+    const section = screen.getByRole("region", { name: changes.title });
+    expect(section).toHaveClass("bg-card", "shadow-soft", "rounded-xl", "p-6");
+    expect(
+      screen.getByRole("heading", { level: 2, name: changes.title }),
+    ).toHaveClass("text-headline");
+  });
+
+  it("wraps rows and long document names at 360px instead of widening the page", () => {
+    show();
+
+    const row = screen.getByText(changes.sections.causeDates).closest("li");
+    expect(row).toHaveClass("flex-wrap");
+    expect(screen.getByText(/borroso-original-/)).toHaveClass("break-all");
   });
 });
