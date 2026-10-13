@@ -829,6 +829,74 @@
         "not_found": "Esta solicitud ya no está disponible para usted. Vuelva a la cola.",
         "unexpected": "No se pudo guardar la decisión. Inténtelo de nuevo."
       }
+    },
+    "detail": {
+      "title": "Solicitud de {name}",
+      "unnamed": "Estudiante sin nombre",
+      "description": "Solicitud {id}, presentada el {date}.",
+      "back": "Volver a la cola",
+      "notSet": "Sin dato",
+      "states": {
+        "pendiente": "Pendiente",
+        "devuelta": "Devuelta para corrección",
+        "aprobada": "Aprobada",
+        "rechazada": "Rechazada",
+        "en_revision_coordinacion": "En revisión de coordinación"
+      },
+      "sections": {
+        "request": "Solicitud",
+        "student": "Estudiante",
+        "subjects": "Asignaturas",
+        "documents": "Documentos de respaldo",
+        "history": "Historial",
+        "decision": "Decisión"
+      },
+      "fields": {
+        "state": "Estado",
+        "cause": "Causa",
+        "period": "Fechas de la inasistencia",
+        "presented": "Presentada",
+        "resubmitted": "Reenviada",
+        "deadline": "Plazo",
+        "name": "Nombre",
+        "cif": "CIF",
+        "career": "Carrera",
+        "email": "Correo"
+      },
+      "period": "{start} al {end}",
+      "subject": {
+        "group": "Grupo {number}",
+        "teacher": "Docente: {name}",
+        "noTeacher": "Sin docente asignado"
+      },
+      "documents": {
+        "empty": "No hay documentos adjuntos.",
+        "view": "Ver",
+        "download": "Descargar",
+        "viewNamed": "Ver {name}",
+        "downloadNamed": "Descargar {name}"
+      },
+      "history": {
+        "empty": "Esta solicitud no tiene decisiones ni versiones anteriores.",
+        "decisions": "Decisiones",
+        "revisions": "Versiones anteriores",
+        "retired": "Documentos reemplazados en una corrección",
+        "decidedBy": "{name}, {date}",
+        "template": "Plantilla: {name}",
+        "reason": "Motivo: {reason}",
+        "noText": "Sin mensaje",
+        "revision": "Versión {number}",
+        "revisionDocuments": "{count, plural, one {# documento} other {# documentos}}",
+        "replacedOn": "Reemplazado el {date}"
+      },
+      "decisionPanel": {
+        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Cada decisión le pide confirmarla."
+      }
+    },
+    "notFound": {
+      "title": "Solicitud no encontrada",
+      "message": "Esta solicitud no existe o no está disponible para usted.",
+      "back": "Volver a la cola"
     }
   }
 }

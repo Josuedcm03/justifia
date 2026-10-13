@@ -829,6 +829,74 @@
         "not_found": "This request is no longer available to you. Go back to the queue.",
         "unexpected": "The decision could not be saved. Try again."
       }
+    },
+    "detail": {
+      "title": "Request from {name}",
+      "unnamed": "Unnamed student",
+      "description": "Request {id}, presented {date}.",
+      "back": "Back to the queue",
+      "notSet": "Not set",
+      "states": {
+        "pendiente": "Pending",
+        "devuelta": "Returned for correction",
+        "aprobada": "Approved",
+        "rechazada": "Rejected",
+        "en_revision_coordinacion": "In coordination review"
+      },
+      "sections": {
+        "request": "Request",
+        "student": "Student",
+        "subjects": "Subjects",
+        "documents": "Supporting documents",
+        "history": "History",
+        "decision": "Decision"
+      },
+      "fields": {
+        "state": "State",
+        "cause": "Cause",
+        "period": "Absence dates",
+        "presented": "Presented",
+        "resubmitted": "Resubmitted",
+        "deadline": "Deadline",
+        "name": "Name",
+        "cif": "CIF",
+        "career": "Career",
+        "email": "Email"
+      },
+      "period": "{start} to {end}",
+      "subject": {
+        "group": "Group {number}",
+        "teacher": "Teacher: {name}",
+        "noTeacher": "No teacher assigned"
+      },
+      "documents": {
+        "empty": "No documents are attached.",
+        "view": "View",
+        "download": "Download",
+        "viewNamed": "View {name}",
+        "downloadNamed": "Download {name}"
+      },
+      "history": {
+        "empty": "This request has no earlier decisions or versions.",
+        "decisions": "Decisions",
+        "revisions": "Earlier versions",
+        "retired": "Documents replaced in a correction",
+        "decidedBy": "{name}, {date}",
+        "template": "Template: {name}",
+        "reason": "Reason: {reason}",
+        "noText": "No message",
+        "revision": "Version {number}",
+        "revisionDocuments": "{count, plural, one {# document} other {# documents}}",
+        "replacedOn": "Replaced {date}"
+      },
+      "decisionPanel": {
+        "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
+      }
+    },
+    "notFound": {
+      "title": "Request not found",
+      "message": "This request does not exist or is not available to you.",
+      "back": "Back to the queue"
     }
   }
 }
