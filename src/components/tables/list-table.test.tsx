@@ -342,7 +342,7 @@ describe("ListTable empty and no-results (DT-STATE-1)", () => {
     expect(screen.queryByText("No users yet")).toBeNull();
   });
 
-  it("clears to the default state on page 1 whatever was set", () => {
+  it("clears only the term and the filter, keeping sort and size, on page 1", () => {
     renderList({
       rows: [],
       total: 0,
@@ -357,7 +357,36 @@ describe("ListTable empty and no-results (DT-STATE-1)", () => {
 
     expect(screen.getByRole("link", { name: tables.clear })).toHaveAttribute(
       "href",
-      "/users",
+      "/users?sort=name&dir=desc&size=25",
+    );
+  });
+
+  it("keeps a non-default sort when only the filter caused the no-results", () => {
+    renderList({
+      rows: [],
+      total: 0,
+      state: stateOf({
+        status: "active",
+        sort: { key: "login", dir: "asc" },
+      }),
+    });
+
+    expect(screen.getByRole("link", { name: tables.clear })).toHaveAttribute(
+      "href",
+      "/users?sort=login&dir=asc",
+    );
+  });
+
+  it("keeps the page size when only the term caused the no-results", () => {
+    renderList({
+      rows: [],
+      total: 0,
+      state: stateOf({ q: "zzz", size: 50, page: 2 }),
+    });
+
+    expect(screen.getByRole("link", { name: tables.clear })).toHaveAttribute(
+      "href",
+      "/users?size=50",
     );
   });
 

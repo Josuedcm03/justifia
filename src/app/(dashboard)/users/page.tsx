@@ -1,66 +1,16 @@
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 
-import { DataTable, type DataTableColumn } from "@/components/data-table";
-import { DataTablePagination } from "@/components/data-table-pagination";
-import { DataTableSearch } from "@/components/data-table-search";
+import { DegradedAlert } from "@/components/degraded-alert";
+import { PageFrame } from "@/components/page-frame";
 import { PageHeader } from "@/components/page-header";
-import { StatusPill } from "@/components/status-pill";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { listUsuarios } from "@/lib/data/users";
-import type { RolUsuario } from "@/lib/validations/auth";
-import { parseUsersListParams, usersListHref } from "@/lib/users/list-params";
+import { parseUsersListParams } from "@/lib/users/list-params";
 
-/**
- * The only shape the table receives (UL:fields, DT-DATA-1): the displayed
- * fields, the creation date already formatted on the server, and the `Id`.
- * Built by picking each field explicitly, so a field added to the read later
- * never reaches the browser by accident.
- */
-type UserRow = {
-  id: number;
-  nombreCompleto: string;
-  login: string;
-  rol: RolUsuario;
-  activo: boolean;
-  creadoEnLabel: string;
-};
-
-function EmptyOrNoResultsState({
-  q,
-  emptyLabel,
-  noResultsTitle,
-  noResultsHint,
-  newButtonLabel,
-}: {
-  q: string;
-  emptyLabel: string;
-  noResultsTitle: string;
-  noResultsHint: string;
-  newButtonLabel: string;
-}) {
-  return (
-    <div className="border-border bg-card flex flex-col items-start gap-4 rounded-xl border px-6 py-12 text-center sm:items-center">
-      {q ? (
-        <>
-          <p className="text-foreground max-w-prose font-medium">
-            {noResultsTitle}
-          </p>
-          <p className="text-muted-foreground max-w-prose">{noResultsHint}</p>
-        </>
-      ) : (
-        <>
-          <p className="text-muted-foreground max-w-prose">{emptyLabel}</p>
-          <Link href="/users/new" className={buttonVariants()}>
-            {newButtonLabel}
-          </Link>
-        </>
-      )}
-    </div>
-  );
-}
+import { UsersTable, type UserRow } from "./users-table";
 
 export default async function UsersPage({
   searchParams,
@@ -71,18 +21,18 @@ export default async function UsersPage({
   const t = await getTranslations("users");
   const format = await getFormatter();
 
-  const { page, q, status, sort, size } = parseUsersListParams(
-    await searchParams,
-  );
+  const state = parseUsersListParams(await searchParams);
   const result = await listUsuarios({
     viewerRol: session.rol,
-    q,
-    status,
-    sort,
-    page,
-    pageSize: size,
+    q: state.q,
+    status: state.status,
+    sort: state.sort,
+    page: state.page,
+    pageSize: state.size,
   });
 
+  // Picked field by field (UL:fields, DT-DATA-1): a column added to the read
+  // later never reaches the browser by accident.
   const rows: UserRow[] = result.data.map((u) => ({
     id: u.id,
     nombreCompleto: u.nombreCompleto,
@@ -92,48 +42,8 @@ export default async function UsersPage({
     creadoEnLabel: format.dateTime(u.creadoEn, { dateStyle: "medium" }),
   }));
 
-  const columns: readonly DataTableColumn<UserRow>[] = [
-    {
-      key: "name",
-      header: t("columns.name"),
-      cell: (u) => u.nombreCompleto,
-      className: "font-medium",
-    },
-    {
-      key: "login",
-      header: t("columns.login"),
-      cell: (u) => u.login,
-      className: "text-muted-foreground",
-    },
-    {
-      key: "role",
-      header: t("columns.role"),
-      cell: (u) => u.rol,
-      className: "capitalize",
-    },
-    {
-      key: "status",
-      header: t("columns.status"),
-      cell: (u) => (
-        <StatusPill
-          active={u.activo}
-          label={u.activo ? t("status.active") : t("status.inactive")}
-        />
-      ),
-    },
-    {
-      key: "createdAt",
-      header: t("columns.createdAt"),
-      align: "end",
-      cell: (u) => u.creadoEnLabel,
-      className: "text-muted-foreground tabular-nums",
-    },
-  ];
-
-  const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
-
   return (
-    <div className="flex flex-col gap-8">
+    <PageFrame>
       <PageHeader
         title={t("title")}
         description={t("subtitle")}
@@ -145,66 +55,16 @@ export default async function UsersPage({
       />
 
       {result.degraded ? (
-        <p
-          role="status"
-          className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
-        >
-          {t("degraded")}
-        </p>
+        <DegradedAlert message={t("degraded")} />
       ) : (
-        <>
-          <DataTableSearch
-            action="/users"
-            value={q}
-            label={t("search.label")}
-            placeholder={t("search.placeholder")}
-            submitLabel={t("search.submit")}
-            clearLabel={t("search.clear")}
-          />
-
-          <p
-            role="status"
-            aria-live="polite"
-            className="text-muted-foreground text-sm"
-          >
-            {t("count", { count: result.total })}
-          </p>
-
-          <div className="border-border bg-card shadow-soft overflow-hidden rounded-xl border">
-            <DataTable
-              columns={columns}
-              rows={rows}
-              getRowKey={(u) => u.id}
-              caption={t("tableCaption")}
-              empty={
-                <EmptyOrNoResultsState
-                  q={q}
-                  emptyLabel={t("empty")}
-                  noResultsTitle={t("noResults.title", { q })}
-                  noResultsHint={t("noResults.hint")}
-                  newButtonLabel={t("newButton")}
-                />
-              }
-            />
-          </div>
-
-          <DataTablePagination
-            page={result.page}
-            pageSize={result.pageSize}
-            total={result.total}
-            hrefFor={(p) => usersListHref({ page: p, q, status, sort, size })}
-            labels={{
-              region: t("pagination.region"),
-              previous: t("pagination.previous"),
-              next: t("pagination.next"),
-              status: t("pagination.status", {
-                page: result.page,
-                pages: totalPages,
-              }),
-            }}
-          />
-        </>
+        <UsersTable
+          rows={rows}
+          total={result.total}
+          // The page the read clamped to, so the paging links never point
+          // past the last page (DT-URL-3).
+          state={{ ...state, page: result.page }}
+        />
       )}
-    </div>
+    </PageFrame>
   );
 }

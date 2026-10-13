@@ -586,6 +586,8 @@
     "tableCaption": "Lista de usuarios",
     "noResults": {
       "title": "Sin resultados para «{q}»",
+      "titleStatus": "No hay usuarios con este filtro.",
+      "hintStatus": "Prueba con otro estado o quita los filtros.",
       "hint": "Prueba con otro nombre, usuario o correo."
     },
     "pagination": {

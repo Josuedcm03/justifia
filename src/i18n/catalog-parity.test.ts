@@ -43,6 +43,9 @@ const GUARDED_SECTIONS = [
   "dashboard",
   // Backoffice table kit, slice 2b: sortable headers and the caption sentence.
   "tables",
+  // Backoffice users list, slice 2d: the whole `users` section (list copy and
+  // the create form) keeps identical key sets.
+  "users",
 ] as const;
 
 type Node = string | { [key: string]: Node };
@@ -1635,6 +1638,66 @@ describe("catalog parity (DT-I18N-1: table core copy)", () => {
       expect((tables.pageSize as Record<string, string>).option).toContain(
         "{size",
       );
+    },
+  );
+});
+
+describe("catalog parity (DT-I18N-1, UL: users list copy)", () => {
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  // Everything the users table and its page render. Most keys predate this
+  // slice and are reused; the two status keys are new (a no-results state
+  // caused by the status filter alone has no search term to name).
+  const LIST_KEYS = [
+    "columns.createdAt",
+    "columns.login",
+    "columns.name",
+    "columns.role",
+    "columns.status",
+    "degraded",
+    "empty",
+    "newButton",
+    "noResults.hintStatus",
+    "noResults.titleStatus",
+    "noResults.hint",
+    "noResults.title",
+    "search.label",
+    "search.placeholder",
+    "status.active",
+    "status.inactive",
+    "tableCaption",
+  ];
+
+  it.each(["es", "en"] as const)(
+    "%s carries every key the users table renders",
+    (locale) => {
+      const paths = leafPaths(resolve(messagesOf(locale), "users"));
+
+      expect(paths).toEqual(expect.arrayContaining(LIST_KEYS));
+    },
+  );
+
+  it("words the status-only no-results copy in each locale's language", () => {
+    for (const key of [
+      "users.noResults.hintStatus",
+      "users.noResults.titleStatus",
+    ]) {
+      expect(resolve(esMessages, key), key).not.toBe(resolve(enMessages, key));
+    }
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s names the search term in the term title and not in the status title",
+    (locale) => {
+      const users = resolve(messagesOf(locale), "users") as Record<
+        string,
+        Node
+      >;
+      const noResults = users.noResults as Record<string, string>;
+
+      expect(noResults.title).toContain("{q}");
+      expect(noResults.titleStatus).not.toContain("{q}");
     },
   );
 });

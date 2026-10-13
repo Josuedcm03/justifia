@@ -746,3 +746,152 @@ Real pixel size of the 44px controls and the 48px header with the longer content
 ### Suggested commit (owner)
 
 `feat(tables): toolbar, status filter, first and last pagination and page-size selector`
+
+## Batch G: Slice 2d, Users migration (2026-10-12)
+
+Mode: Strict TDD. Delivery: `exception-ok` (single PR, accepted `size:exception`, D14). Tasks 2d.0 (owner decision, added), 2d.1, 2d.2, 2d.3, 2d.4 and 2d.7 done and ticked in `tasks.md`. 2d.5 (gate V1) and 2d.6 (smoke) are NOT done: they need a signed-in session as `administrador` or `secretaria` and no credentials were available (see "Manual tasks"). 2d.8 (CHECKPOINT) is left unticked for the owner. Housekeeping: 2a.12 and 2c.9 ticked (owner commits c0bc25a and e3fc185 exist). Nothing was committed, pushed or branched; no database command, no seed, no migration, no package install were run. `src/app/globals.css` untouched (empty diff). The four OLD root table components and the catalog pages were not edited.
+
+### Owner decision applied first (task 2d.0): the clear link keeps sort and size
+
+Spec check before changing: no scenario states that the clear link equals the all-defaults href. DT-STATE-1 says "a link that clears the search and the filters and returns to page 1"; its scenario "Clear link restores the list" says the unfiltered list is shown from page 1; the users-listing spec says "a control that clears the filter and returns the unfiltered list from page 1"; BS-STATE-1 and CM-LST-1 say "a link / a way to clear". DT-URL-2 lists only changes made by controls. None names sort or size, so there was no conflict and the change was made.
+
+- `list-table.tsx`: the clear href is `hrefFor(applyListChange(state, { q: "", ...(hasStatus && { status: defaultState.status }) }))`. It clears the term and the filter, keeps `sort`, `dir` and `size`, and resets to page 1 through the single reset rule; no href is composed in the component. `defaultState` is now read only for its `status`.
+- Test: the old "clears to the default state ... whatever was set" test became "clears only the term and the filter, keeping sort and size, on page 1" (`/users?sort=name&dir=desc&size=25`), plus two new cases (filter-only keeps a non-default sort; term-only keeps the page size). All other `list-table.test.tsx` tests are unchanged and green.
+- Deviation record for 2c.5 and Batch F deviation 3: the 2c.5 wording "clear link equals the href with only the default state and page 1" is superseded by this owner decision; the "one-line change" Batch F flagged is the change that was made.
+
+### Tasks
+
+| Task | State | Note |
+|---|---|---|
+| 2d.0 | done | RED: 3 failed of 25; GREEN 140/140 in `src/components/tables` |
+| 2d.1 | done | RED: 5 parity failures; 2 new keys per locale |
+| 2d.2 | done | RED: module `users-table` missing; 16 tests |
+| 2d.3 | done | `users-table.tsx`; 16/16 |
+| 2d.4 | done | RED: 14 failed of 39; GREEN 39/39 |
+| 2d.5 | NOT observed (blocked: no credentials) | checklist below |
+| 2d.6 | NOT observed (blocked: no credentials) | checklist below |
+| 2d.7 | done | seam check below |
+| 2d.8 | pending (owner) | Checkpoint; owner commit |
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED (one line) | GREEN | Triangulation / REFACTOR |
+|---|---|---|---|---|---|---|
+| 2d.0 | `src/components/tables/list-table.test.tsx` | Integration (real provider, link and router stand-ins, real users builders) | 8 files, 137 tests in `src/components/tables` green before | 3 failed: href was `/users` where `/users?sort=name&dir=desc&size=25`, `/users?sort=login&dir=asc` and `/users?size=50` were expected | 140/140 | Three states: term + filter + sort + size + page 4; filter alone with a non-default sort; term alone with size 50 and page 2. The unchanged "term only, defaults" case still yields `/users` |
+| 2d.1 | `src/i18n/catalog-parity.test.ts` | Unit | 208 passing before | 5 failed: `users.noResults.titleStatus` and `hintStatus` absent, es and en wording equal (both undefined), title shape | 221/221 in `src/i18n` | `users` joined `GUARDED_SECTIONS` (identical deep key sets, non-empty); every key the table renders is asserted in both locales; the term title carries `{q}`, the status title does not; wording differs per locale |
+| 2d.2/2d.3 | `src/app/(dashboard)/users/users-table.test.tsx` | Component (real catalogs, es and en, real provider and kit) | N/A (new) | `Failed to resolve import "@/app/(dashboard)/users/users-table"` | 16/16 | es and en: named table, six fields as text, five buttons named by the catalog labels, exactly five column headers; `aria-sort` on the default column only and following the URL; first activation replaces with the column ascending, second reverses; status links keep `q`, sort and size; footer with last link, and no footer for 2 rows; empty with the new-user action; no-results with term, status-only (en and es) and a clear link that keeps the sort; a row carrying `hashClave`, `cif`, `telefono`, `correo` renders none of them |
+| 2d.4 | `src/app/(dashboard)/users/page.test.tsx` | Component (async page, key-echo translators, real `UsersTable` and kit) | 35 passing before | 14 failed: the page still used the old components (rows spy on `UsersTable` never called; clear control named `clear` not `search.clear`; no sort buttons; no first and last; no status-only title) | 39/39 | Guard-first, denied-role, hostile parameters, degraded with every parameter, and the six-field and serialization tests keep their intent (only the spy moved to `UsersTable`); added: status-only no-results with the sort kept, five sortable header buttons, first and last links, paging links built from the clamped page, no search box or clear link when degraded |
+
+Test summary: 3,554 tests in 171 files after this slice (3,524 in 170 after 2c): +30 tests, +1 file, all passing. Layers: unit (parity), component (users table, users page), integration (list table). Mocks in the page test: `@/lib/auth/dal`, `@/lib/data/users`, `next-intl/server`, `next-intl` (key echo), `next/navigation`, `next/link` (shared stand-ins) and a pass-through spy on `UsersTable`. The users table test mocks only the two shared navigation modules.
+
+Assertion-quality note: no class-level assertion was added in this slice.
+
+### 2d.7 Seam check (`codegraph_explore` plus `rg` over `src`, tests excluded)
+
+- `src/app/(dashboard)/users/` imports none of `@/components/data-table`, `data-table-pagination`, `data-table-search`, `status-filter` (`rg` finds no match under the directory).
+- Still importing the old components, as intended until 3b, 3c and 3d: `DataTable` by `catalog/asignaturas/page.tsx`, `catalog/docentes/page.tsx`, `asignatura-grupos-section.tsx`, `import-preview.tsx`, `import-errors.tsx`; `DataTablePagination` and `DataTableSearch` by the two catalog list pages; the old `StatusFilter` by the two catalog list pages.
+- Codegraph merged the two `StatusFilter` symbols into one name in its blast radius; `table-toolbar.tsx` imports only `@/components/tables/status-filter` (verified by `rg`).
+- The new kit's consumer is now `users-table.tsx` (which composes `ListTable`).
+
+### Manual tasks 2d.5 and 2d.6: what was and was not observed
+
+Servers: `next dev -p 3457` was started (ports checked first: nothing listened on 3000 to 3200 or 3457, no `.next/dev/lock`), probed, and stopped by process id (PID 30036 and its children; port 3457 was left with TIME_WAIT sockets only). `npm run build` ran (see V); `npm start` was NOT run because no signed-in session was possible.
+
+Observed (unauthenticated; no database read happened for these):
+
+| Request | Result |
+|---|---|
+| `GET /users` (dev) | 307 to `/login` in 741 ms: the route guard redirects without a session |
+| `GET /login` (dev) | 200 |
+
+NOT observed (blocked: no `administrador` or `secretaria` credentials available to this executor; none were invented, searched for or bypassed):
+
+- Gate V1 (2d.5, N8): whether `(dashboard)/loading.tsx` re-shows on a query-only navigation (sort click, page-size change) in `next dev` AND in `npm run build` + `npm start`. Outcome: UNOBSERVED. The contingency (module-level "last control id" in `list-navigation.tsx`, RED test first) is NOT implemented and stays conditional on the owner observing that the skeleton does show.
+- Smoke (2d.6): the whole list below.
+
+Owner observation checklist (run as `administrador`, then as `secretaria`; record only what you see; no database write is involved):
+
+1. V1: open `/users` with at least 11 users. Click a sortable header, then change rows per page. Does the full-page skeleton (`loading.tsx`) appear, or do the previous rows stay with the dimmed "Updating..." state? Repeat in the production build (`npm run build`, then `npm start` on a free port). If the skeleton DOES appear: does keyboard focus stay on the header button or the select after the update? (If not, the 2d.5 contingency is needed.)
+2. Sort cycle: click "Name": ascending (`?sort=name&dir=asc`), click again: descending (`dir=desc`). The sorted header shows its direction word; the others show "Sortable". Reload keeps the order.
+3. Status filter: Active, Inactive and All keep `q`, sort and size; the page returns to 1; the selected option is marked.
+4. Page size 25 and 50 (replaces the history entry, page 1), first and last controls, the footer absent at 10 rows or fewer.
+5. Search by an e-mail fragment: a user whose e-mail matches is listed, and no e-mail appears in the row or the page source.
+6. No results: a term with no match shows the no-results state with the toolbar above it; "Clear filters" keeps the current sort and size and drops the term and the status (owner decision 2d.0).
+7. Back button: sort and page size replace (one Back leaves the list); page, status and search push (Back returns to the previous view).
+8. As `secretaria`: only `docente` users in the list and in the total, under every sort and filter.
+9. Narrow viewport (360px): the sort-state text wraps inside the header, no horizontal page scroll, the table scrolls inside its card.
+
+### First real client-bundle proof of `@tanstack/react-table`
+
+Until now no page imported the kit, so no build bundled the dependency. After this slice `npm run build` compiles with the kit reachable from `/users`:
+
+- `.next/static/chunks/0irpzc356fo5q.js` (62,252 bytes) contains the TanStack core (`getCoreRowModel` x13, `getHeaderGroups` x6, `getRowModel` x11, `getIsSorted` x3, `manualSorting` x2); no other client chunk contains those names.
+- `.next/server/app/(dashboard)/users/page_client-reference-manifest.js` references both `users-table.tsx` and that chunk, and no other route manifest references the chunk, so the library is loaded only by the users route.
+- No build warning; the only `react-hooks/incompatible-library` exception is the justified directive already in `data-table.tsx`.
+
+### Verification at the checkpoint (V)
+
+| Command | Result |
+|---|---|
+| Focused: `npx vitest run "src/app/(dashboard)/users" src/components/tables src/i18n src/test` | all passed |
+| `npm test` | 171 files, 3,554 tests, 0 failed. No flaky failure seen (see deviation 5 for the one hang found and fixed) |
+| `npm run typecheck` | PASS (rc 0) after one fix: a leaky test fixture cast needed `as unknown as UserRow[]` (vitest does not typecheck) |
+| `npx eslint src` (JSON output) | 56,301 reports, every one `prettier/prettier` "Delete CR" (pre-existing CRLF); 0 findings of any other kind |
+| `npx prettier --check --end-of-line auto` on `src/app/(dashboard)/users`, `src/test`, `src/components/tables`, `src/i18n`, `i18n` | "All matched files use Prettier code style!" (after one `--write` of the parity test) |
+| `npm run build` | PASS, `Compiled successfully`, 22 dynamic routes, `/users` among them |
+| `git diff --stat src/app/globals.css` | empty |
+| Line endings (byte-level check) | `i18n/{es,en}.json`, `catalog-parity.test.ts`, `users/page.tsx`, `users/page.test.tsx` stay CRLF (0 bare LF); new files, `list-table.tsx`, `list-table.test.tsx` and `intl.tsx` are LF as in earlier slices |
+
+### Authored lines by path (additions / deletions for tracked files with `--ignore-cr-at-eol`; line count for new files)
+
+| Path | Lines |
+|---|---|
+| `src/components/tables/list-table.tsx` | +14 / -2 |
+| `src/components/tables/list-table.test.tsx` | +31 / -2 |
+| `i18n/es.json`, `i18n/en.json` | +2 each |
+| `src/i18n/catalog-parity.test.ts` | +63 |
+| `src/app/(dashboard)/users/page.tsx` (rewritten) | +22 / -162 |
+| `src/app/(dashboard)/users/page.test.tsx` | +106 / -7 |
+| `src/test/intl.tsx` | +3 / -16 (key echo moved out) |
+| `src/app/(dashboard)/users/users-table.tsx` (new) | 134 |
+| `src/app/(dashboard)/users/users-table.test.tsx` (new) | 281 |
+| `src/test/key-echo-intl.ts` (new) | 22 |
+| **Total** | tracked 432 (additions + deletions) + new 437 = **about 869**, against an estimate of 450 to 550 (upper bound +58%; the +25% stop threshold is 688). About 480 lines are tests |
+
+Flagged for the owner. The overrun was only measurable at the slice seam, so nothing was cut; the single-PR decision (D14) holds. Cause: a 281-line component suite in two locales and the page-test additions, none of which the estimate counted separately. Running total of 1a, 1b, 2a, 2b, 2c and 2d: about 8,490 lines.
+
+### Locale keys added (identical sets in `es.json` and `en.json`)
+
+- `users.noResults.titleStatus` ("No hay usuarios con este filtro." / "There are no users with this filter.")
+- `users.noResults.hintStatus` ("Prueba con otro estado o quita los filtros." / "Try another status or clear the filters.")
+- `GUARDED_SECTIONS` gained `users`.
+- Reused: `users.columns.*`, `users.status.*`, `users.tableCaption`, `users.search.label`, `users.search.placeholder`, `users.empty`, `users.newButton`, `users.noResults.title`, `users.noResults.hint`, `users.degraded`.
+- Now unused (left in place for the 3d.9 sweep): `users.search.submit`, `users.search.clear`, `users.count`, `users.pagination.*`. The kit uses `tables.*` for those.
+
+### Deviations from the design and tasks
+
+1. Task 2d.0 is not in the original `tasks.md`; it was added as a ticked line above 2d.1 to record the owner decision (same pattern as 2c.0). It supersedes the 2c.5 wording note above.
+2. `UsersTable` takes `{ rows, total, state }` and imports `parseUsersListParams` (for the default state) and `usersListHref` (as `hrefFor`) itself, because function props cannot cross the server boundary. The page passes `{ ...state, page: result.page }` so paging links use the page the read clamped to.
+3. `UserRow` is exported from `users-table.tsx` (the page type moved next to the table, as 2a deviation 6 planned).
+4. The role cell still shows the stored role code (UL:sort: "the displayed role code") with the existing `capitalize` class, not the `roles.*` labels; unchanged from the old page.
+5. Test-helper fix: `keyEchoIntl` (2b) deadlocked when installed as documented, because `vi.mock("next-intl", async () => (await import("@/test/intl")).keyEchoIntl)` makes the factory import a module that itself imports the mocked `next-intl`; the page test hung until the 60 s hook timeout. It now lives in `src/test/key-echo-intl.ts` (no `next-intl` import) and `@/test/intl` re-exports it, so `intl.test.tsx` is unchanged. No earlier test had installed it.
+6. The users page test replaced the old `DataTable` spy with a spy on `UsersTable`; the "keeps the es and en users-list keys in sync" test kept its prefixes (including the now unused `search.`, `count`, `pagination.`), so it still passes and will need a trim at 3d.9.
+7. The delivered-fields guarantee is now proven at two points: the page spy (exactly six keys, serialization) and a component test that a leaky row renders none of the four forbidden values.
+8. Tasks 2d.5 and 2d.6 stay unticked (no credentials); 2d.8 is the owner checkpoint.
+9. Slice size is about 869 changed lines against the 450 to 550 estimate (see above).
+
+### Not verified (no credentials, no browser, no database writes in this run)
+
+Gate V1 (skeleton on a query-only navigation, in dev and in the production build) and focus retention after it; the whole smoke list above; that Postgres accepts the `collate "es-x-icu"` ordering and returns "Álvaro, angel, Beatriz, Zoe" in that order (carried over from 2a); stable pagination across equal values against real data; the real App Router `next/link` and `onNavigate` and the pending flag against the real router (stand-ins only, per 0.9); real pixel sizes, 320px and 360px wrapping of the visible sort state, focus ring, dark mode contrast. These belong to the owner checklist above and to F.4.
+
+### Work Unit Evidence (Slice 2d)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/users" src/components/tables src/i18n src/test`: all passed; full suite 171 files, 3,554 tests |
+| Runtime harness | `npm run build` compiled with the kit in the `/users` client bundle; `next dev -p 3457` answered `/users` with 307 to `/login` and `/login` with 200 (unauthenticated only). Signed-in runtime path unobserved (no credentials) |
+| Rollback boundary | Revert `users/page.tsx` and `users/page.test.tsx`, `list-table.tsx` and `list-table.test.tsx` (the clear-link change), `i18n/{es,en}.json` (2 keys), `catalog-parity.test.ts` (the `users` guard and its describe) and `src/test/intl.tsx`; delete `users-table.tsx`, `users-table.test.tsx` and `src/test/key-echo-intl.ts`. Nothing outside the slice imports them |
+
+### Suggested commit (owner)
+
+`feat(users): TanStack list with sorting, status filter and page-size selector`

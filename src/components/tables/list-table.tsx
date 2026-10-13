@@ -35,7 +35,9 @@ type ListTableProps<T, K extends string> = {
   /** Visually hidden accessible name of the table. */
   caption: string;
   state: ListTableState<K>;
-  /** The state with no search, the default filter and the default sort. */
+  /** The state with no search and the default filter (and default sort). Only
+   *  its `status` is read: it tells "filtered" from "empty" and is the value
+   *  the clear link restores. */
   defaultState: ListTableState<K>;
   /** Total of the current view (search and filter included). */
   total: number;
@@ -129,7 +131,17 @@ export function ListTable<T, K extends string>({
           variant="no-results"
           title={noResults.title}
           hint={noResults.hint}
-          clear={{ href: hrefFor(defaultState), label: t("clear") }}
+          clear={{
+            // Clears only what produced "no results": the term and the
+            // filter. Sort and page size are view preferences and stay.
+            href: hrefFor(
+              applyListChange(state, {
+                q: "",
+                ...(hasStatus && { status: defaultState.status }),
+              }),
+            ),
+            label: t("clear"),
+          }}
         />
       </div>
     );

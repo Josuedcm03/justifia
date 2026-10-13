@@ -586,6 +586,8 @@
     "tableCaption": "Users list",
     "noResults": {
       "title": "No results for “{q}”",
+      "titleStatus": "There are no users with this filter.",
+      "hintStatus": "Try another status or clear the filters.",
       "hint": "Try another name, username or email."
     },
     "pagination": {

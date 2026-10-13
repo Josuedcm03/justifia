@@ -21,15 +21,17 @@ vi.mock("@/lib/data/users", () => ({
 }));
 
 // Spy on the rows the page hands to the table; the real component still renders.
-vi.mock("@/components/data-table", async (importOriginal) => {
+vi.mock("@/app/(dashboard)/users/users-table", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/components/data-table")>();
+    await importOriginal<
+      typeof import("@/app/(dashboard)/users/users-table")
+    >();
   return {
     ...actual,
-    DataTable: ((props: Parameters<typeof actual.DataTable>[0]) => {
+    UsersTable: ((props: Parameters<typeof actual.UsersTable>[0]) => {
       deliveredRows.push([...props.rows]);
-      return actual.DataTable(props);
-    }) as typeof actual.DataTable,
+      return actual.UsersTable(props);
+    }) as typeof actual.UsersTable,
   };
 });
 
@@ -37,6 +39,21 @@ vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
   getFormatter: async () => ({ dateTime: () => "1 ene 2026" }),
 }));
+
+// The client table reads its copy through `useTranslations`: key echo, like the
+// server translator above.
+vi.mock(
+  "next-intl",
+  async () => (await import("@/test/key-echo-intl")).keyEchoIntl,
+);
+vi.mock(
+  "next/navigation",
+  async () => (await import("@/test/navigation-mock")).module,
+);
+vi.mock(
+  "next/link",
+  async () => (await import("@/test/navigation-mock")).linkModule,
+);
 
 import { rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { USERS_PAGE_SIZE } from "@/lib/users/list-params";
@@ -193,8 +210,24 @@ describe("UsersPage", () => {
     expect(screen.getByText("noResults.title")).toBeInTheDocument();
     expect(screen.getByText("noResults.hint")).toBeInTheDocument();
 
-    const clear = screen.getByRole("link", { name: "search.clear" });
+    const clear = screen.getByRole("link", { name: "clear" });
     expect(clear).toHaveAttribute("href", "/users");
+  });
+
+  it("words a status-only no-results without the term and clears to the same sort (UL:status)", async () => {
+    requireRoleMock.mockResolvedValue(sessionFor("administrador"));
+    listUsuariosMock.mockResolvedValue(emptyResult(10));
+
+    await renderUsersPage(
+      searchParamsOf({ status: "inactive", sort: "name", dir: "desc" }),
+    );
+
+    expect(screen.getByText("noResults.titleStatus")).toBeInTheDocument();
+    expect(screen.queryByText("noResults.title")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "clear" })).toHaveAttribute(
+      "href",
+      "/users?sort=name&dir=desc",
+    );
   });
 
   it("exposes the result count in a polite status region", async () => {
@@ -233,7 +266,7 @@ describe("UsersPage", () => {
     }
   });
 
-  it("gives the DataTable a caption and shows the role as its code", async () => {
+  it("gives the table a caption and shows the role as its code", async () => {
     requireRoleMock.mockResolvedValue(sessionFor("administrador"));
     listUsuariosMock.mockResolvedValue({
       data: [usuarioRow({ rol: "secretaria" })],
@@ -247,6 +280,70 @@ describe("UsersPage", () => {
 
     expect(screen.getByText("tableCaption")).toBeInTheDocument();
     expect(screen.getByText("secretaria")).toBeInTheDocument();
+  });
+
+  it("renders the five sortable headers as buttons and no other column (UL:sort)", async () => {
+    requireRoleMock.mockResolvedValue(sessionFor("administrador"));
+    listUsuariosMock.mockResolvedValue({
+      ...emptyResult(10),
+      data: [usuarioRow()],
+      total: 1,
+    });
+
+    await renderUsersPage(searchParamsOf({}));
+
+    expect(
+      screen.getAllByRole("columnheader").map((th) => ({
+        name: th.textContent,
+        button: th.querySelector("button") !== null,
+      })),
+    ).toHaveLength(5);
+    for (const name of [
+      "columns.name",
+      "columns.login",
+      "columns.role",
+      "columns.status",
+      "columns.createdAt",
+    ]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("offers first and last beside previous and next (DT-PAG-1)", async () => {
+    requireRoleMock.mockResolvedValue(sessionFor("administrador"));
+    listUsuariosMock.mockResolvedValue({
+      data: [usuarioRow()],
+      total: 60,
+      page: 2,
+      pageSize: 10,
+      degraded: false,
+    });
+
+    await renderUsersPage(searchParamsOf({ page: "2" }));
+
+    expect(
+      screen.getByRole("link", { name: "pagination.first" }),
+    ).toHaveAttribute("href", "/users");
+    expect(
+      screen.getByRole("link", { name: "pagination.last" }),
+    ).toHaveAttribute("href", "/users?page=6");
+  });
+
+  it("builds the paging links from the page the read clamped to (DT-URL-3)", async () => {
+    requireRoleMock.mockResolvedValue(sessionFor("administrador"));
+    listUsuariosMock.mockResolvedValue({
+      data: [usuarioRow()],
+      total: 25,
+      page: 3,
+      pageSize: 10,
+      degraded: false,
+    });
+
+    await renderUsersPage(searchParamsOf({ page: "99" }));
+
+    expect(
+      screen.getByRole("link", { name: "pagination.previous" }),
+    ).toHaveAttribute("href", "/users?page=2");
   });
 
   it("forwards status, sort, dir and size parsed (UL:sort, UL:status, UL:pag)", async () => {
@@ -379,7 +476,9 @@ describe("UsersPage", () => {
 
     expect(screen.getByText("degraded")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
     expect(screen.queryByText("count")).not.toBeInTheDocument();
+    expect(screen.queryByText("clear")).not.toBeInTheDocument();
     expect(screen.queryByText("empty")).not.toBeInTheDocument();
     expect(screen.queryByText("noResults.title")).not.toBeInTheDocument();
     expect(deliveredRows).toHaveLength(0);
