@@ -13,6 +13,7 @@
   "nav": {
     "dashboard": "Panel",
     "newRequest": "Nueva solicitud",
+    "review": "Revisión de solicitudes",
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
     "catalogDocentes": "Docentes",

@@ -13,6 +13,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "newRequest": "New request",
+    "review": "Review requests",
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
     "catalogDocentes": "Teachers",
