@@ -81,6 +81,55 @@ afterEach(() => {
   for (const release of hanging.splice(0)) release();
 });
 
+describe("DecisionDialog approve finality (SR-17, RNF-12)", () => {
+  const FINAL = {
+    en: "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
+    es: "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes.",
+  } as const;
+
+  it.each(["en", "es"] as const)(
+    "the approve dialog states that approval is final (%s)",
+    async (locale) => {
+      renderIntl(
+        <DecisionDialog
+          kind="aprobada"
+          solicitudId={12}
+          templates={TEMPLATES.aprobada}
+        />,
+        locale,
+      );
+      const labels = messages[locale].review.decision;
+      await userEvent.click(
+        screen.getByRole("button", { name: labels.approve.trigger }),
+      );
+
+      const dialog = await screen.findByRole("alertdialog");
+      expect(dialog).toHaveAccessibleDescription(FINAL[locale]);
+      expect(labels.approve.description).toBe(FINAL[locale]);
+    },
+  );
+
+  it("keeps a single confirm: one click on it decides, with no second step", async () => {
+    decideAction.mockReturnValue(hang());
+    show("aprobada");
+    const dialog = await open("aprobada");
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.approve.confirm }),
+    );
+
+    expect(decideAction).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole("alertdialog")).toHaveLength(1);
+  });
+
+  it("leaves the reject description as it was", async () => {
+    show("rechazada");
+    const dialog = await open("rechazada");
+
+    expect(dialog).toHaveAccessibleDescription(en.reject.description);
+  });
+});
+
 describe("DecisionDialog approve (RF-07 a)", () => {
   it("decides nothing until the dialog is opened and confirmed", async () => {
     show("aprobada");

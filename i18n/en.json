@@ -869,7 +869,7 @@
       "approve": {
         "trigger": "Approve",
         "title": "Approve this request?",
-        "description": "The request becomes approved and the student sees the message below. You can edit it first.",
+        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
         "confirm": "Approve request",
         "pending": "Approving..."
       },

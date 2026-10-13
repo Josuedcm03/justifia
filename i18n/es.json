@@ -869,7 +869,7 @@
       "approve": {
         "trigger": "Aprobar",
         "title": "¿Aprobar esta solicitud?",
-        "description": "La solicitud queda aprobada y el estudiante verá el mensaje de abajo. Puede editarlo antes.",
+        "description": "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes.",
         "confirm": "Aprobar solicitud",
         "pending": "Aprobando..."
       },
