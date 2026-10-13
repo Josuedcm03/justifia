@@ -501,6 +501,233 @@ describe("ReviewDetailPage history (RF-06, RF-08 b)", () => {
   });
 });
 
+const SNAPSHOT_CLASSES = [
+  { asignaturaId: 1, codigo: "MAT-101", nombre: "Calculo", numeroGrupo: "2" },
+  { asignaturaId: 2, codigo: "FIS-200", nombre: "Fisica", numeroGrupo: "2" },
+];
+
+function revision(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 5,
+    numero: 1,
+    causa: "medica",
+    fechaInicio: "2026-10-05",
+    fechaFin: "2026-10-07",
+    clases: SNAPSHOT_CLASSES,
+    documentoIds: [31],
+    creadaEn: new Date("2026-10-09T15:00:00Z"),
+    ...overrides,
+  };
+}
+
+/** A request resubmitted after a return whose snapshot equals it. */
+function resubmitted(overrides: Partial<Record<string, unknown>> = {}) {
+  return detail({
+    reenviadaEn: new Date("2026-10-12T15:00:00Z"),
+    revisiones: [revision()],
+    ...overrides,
+  });
+}
+
+const changes = () => screen.getByRole("region", { name: en.changes.title });
+const row = (label: string) =>
+  within(changes()).getByText(label).closest("li") as HTMLElement;
+
+describe("ReviewDetailPage changes since the return (RF-06, RF-08 b, SR-17)", () => {
+  it("marks every section unchanged when the request equals the returned version", async () => {
+    detailMock.mockResolvedValue(resubmitted());
+
+    await renderPage();
+
+    expect(row(en.changes.sections.causeDates)).toHaveTextContent(
+      en.changes.marks.unchanged,
+    );
+    expect(row(en.changes.sections.subjects)).toHaveTextContent(
+      en.changes.marks.unchanged,
+    );
+    expect(row(en.changes.sections.documents)).toHaveTextContent(
+      en.changes.marks.unchanged,
+    );
+    expect(within(changes()).queryByText(en.changes.marks.changed)).toBeNull();
+  });
+
+  it("marks a replaced subject group as changed and keeps the other marks", async () => {
+    detailMock.mockResolvedValue(
+      resubmitted({
+        revisiones: [
+          revision({
+            clases: [
+              { ...SNAPSHOT_CLASSES[0], numeroGrupo: "1" },
+              SNAPSHOT_CLASSES[1],
+            ],
+          }),
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    expect(row(en.changes.sections.subjects)).toHaveTextContent(
+      en.changes.marks.changed,
+    );
+    expect(row(en.changes.sections.causeDates)).toHaveTextContent(
+      en.changes.marks.unchanged,
+    );
+    expect(row(en.changes.sections.documents)).toHaveTextContent(
+      en.changes.marks.unchanged,
+    );
+  });
+
+  it("marks a changed cause or date as changed", async () => {
+    detailMock.mockResolvedValue(
+      resubmitted({ revisiones: [revision({ fechaFin: "2026-10-06" })] }),
+    );
+
+    await renderPage();
+
+    expect(row(en.changes.sections.causeDates)).toHaveTextContent(
+      en.changes.marks.changed,
+    );
+    expect(row(en.changes.sections.subjects)).toHaveTextContent(
+      en.changes.marks.unchanged,
+    );
+  });
+
+  it("lists the retired and the added documents by name, and not the kept one", async () => {
+    detailMock.mockResolvedValue(
+      resubmitted({
+        revisiones: [revision({ documentoIds: [30, 31] })],
+        documentos: [
+          ...detail().documentos,
+          {
+            id: 32,
+            nombreOriginal: "nuevo.pdf",
+            tipoDetectado: "application/pdf",
+            tamanoBytes: 900,
+            creadoEn: new Date("2026-10-11T14:00:00Z"),
+          },
+        ],
+        documentosRetirados: [
+          {
+            id: 30,
+            nombreOriginal: "borroso.jpg",
+            tipoDetectado: "image/jpeg",
+            tamanoBytes: 900,
+            creadoEn: new Date("2026-10-07T14:00:00Z"),
+            retiradoEn: new Date("2026-10-11T14:00:00Z"),
+          },
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    const section = changes();
+    expect(row(en.changes.sections.documents)).toHaveTextContent(
+      en.changes.marks.changed,
+    );
+    expect(
+      within(section).getByRole("list", { name: en.changes.retired }),
+    ).toHaveTextContent("borroso.jpg");
+    expect(
+      within(section).getByRole("list", { name: en.changes.added }),
+    ).toHaveTextContent("nuevo.pdf");
+    expect(section).not.toHaveTextContent("constancia.pdf");
+  });
+
+  it("names a document it cannot resolve with a fallback label", async () => {
+    detailMock.mockResolvedValue(
+      resubmitted({ revisiones: [revision({ documentoIds: [99, 31] })] }),
+    );
+
+    await renderPage();
+
+    expect(
+      within(changes()).getByRole("list", { name: en.changes.retired }),
+    ).toHaveTextContent("Document 99");
+  });
+
+  it.each([
+    ["ascending", [5, 6]],
+    ["descending", [6, 5]],
+  ])("compares with the latest version only (%s input)", async (_o, order) => {
+    const first = revision({ id: 5, numero: 1, causa: "fuerza_mayor" });
+    const second = revision({ id: 6, numero: 2 });
+    detailMock.mockResolvedValue(
+      resubmitted({
+        revisiones: order.map((id) => (id === 5 ? first : second)),
+      }),
+    );
+
+    await renderPage();
+
+    expect(row(en.changes.sections.causeDates)).toHaveTextContent(
+      en.changes.marks.unchanged,
+    );
+  });
+
+  it("is the first section of the stack", async () => {
+    detailMock.mockResolvedValue(resubmitted());
+
+    await renderPage();
+
+    expect(screen.getAllByRole("region")[0]).toBe(changes());
+  });
+
+  it("shows no flags for a first-time pending request", async () => {
+    await renderPage();
+
+    expect(screen.queryByRole("region", { name: en.changes.title })).toBeNull();
+  });
+
+  it.each([
+    ["a revision without a resubmission", { revisiones: [revision()] }],
+    ["a resubmission without a revision", { reenviadaEn: new Date() }],
+    [
+      "a request returned again",
+      {
+        estado: "devuelta",
+        reenviadaEn: new Date("2026-10-12T15:00:00Z"),
+        revisiones: [revision()],
+      },
+    ],
+  ])("shows no flags for %s", async (_name, overrides) => {
+    detailMock.mockResolvedValue(detail(overrides));
+
+    await renderPage();
+
+    expect(screen.queryByRole("region", { name: en.changes.title })).toBeNull();
+  });
+
+  it("is worded in Spanish with the same structure", async () => {
+    state.locale = "es";
+    detailMock.mockResolvedValue(
+      resubmitted({ revisiones: [revision({ causa: "fuerza_mayor" })] }),
+    );
+
+    await renderPage();
+
+    const es = messages.es.review.detail.changes;
+    const section = screen.getByRole("region", { name: es.title });
+    expect(section).toHaveTextContent(es.marks.changed);
+    expect(section).toHaveTextContent(es.marks.unchanged);
+  });
+
+  it("writes exactly one audit row, and none when the comparison cannot be built", async () => {
+    detailMock.mockResolvedValue(resubmitted());
+    await renderPage();
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 12, "pendiente");
+
+    readMock.mockClear();
+    detailMock.mockResolvedValue(
+      resubmitted({ revisiones: [revision({ clases: null })] }),
+    );
+    await expect(renderPage()).rejects.toThrow();
+    expect(readMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("ReviewDetailPage audited read (SR-11)", () => {
   it("writes exactly one read row for the session user, request and state", async () => {
     await renderPage();

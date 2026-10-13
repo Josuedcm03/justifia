@@ -4,6 +4,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
 import {
+  ChangesSection,
   DocumentsSection,
   HistorySection,
   RequestSection,
@@ -19,6 +20,7 @@ import { recordRequestRead } from "@/lib/data/request-reads";
 import { resolveRequestScope } from "@/lib/data/request-scope";
 import {
   getRequestDetail,
+  type DetailRevision,
   type RequestDetail,
 } from "@/lib/data/solicitud-detail";
 import { deadlineStatus } from "@/lib/intake/business-days";
@@ -30,6 +32,7 @@ import {
   renderTemplate,
   type DecisionKind,
 } from "@/lib/intake/decision-templates";
+import { diffRevision, type RevisionDiff } from "@/lib/intake/revision-diff";
 import { isVisibleState } from "@/lib/intake/states";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
@@ -54,6 +57,28 @@ function renderedTemplates(detail: RequestDetail) {
       motivo: t.motivo ?? null,
       texto: renderTemplate(t.codigo, vars),
     }));
+}
+
+/**
+ * What changed since the return, only for a resubmitted request that is not
+ * back with the student: while `devuelta` the student is still editing and the
+ * latest snapshot is the version just returned (SR-17).
+ */
+function changesSinceReturn(detail: RequestDetail): RevisionDiff | null {
+  if (detail.reenviadaEn === null || detail.estado === "devuelta") return null;
+  const latest = detail.revisiones.reduce<DetailRevision | null>(
+    (best, revision) =>
+      best && best.numero > revision.numero ? best : revision,
+    null,
+  );
+  if (!latest) return null;
+  return diffRevision(latest, {
+    causa: detail.causa,
+    fechaInicio: detail.fechaInicio,
+    fechaFin: detail.fechaFin,
+    clases: detail.clases,
+    documentoIds: detail.documentos.map((doc) => doc.id),
+  });
 }
 
 /**
@@ -93,6 +118,7 @@ export default async function ReviewDetailPage({
       ? deadlineStatus(managuaToday(clockStart), managuaToday(now), calendar)
       : null;
   const templatesFor = pending ? renderedTemplates(detail) : null;
+  const changes = changesSinceReturn(detail);
 
   await recordRequestRead(actorId, detail.id, detail.estado);
 
@@ -124,6 +150,13 @@ export default async function ReviewDetailPage({
       />
 
       <div className="flex flex-col gap-6">
+        {changes ? (
+          <ChangesSection
+            diff={changes}
+            documents={detail.documentos}
+            retired={detail.documentosRetirados}
+          />
+        ) : null}
         <RequestSection
           detail={detail}
           deadline={

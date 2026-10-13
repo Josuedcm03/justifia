@@ -13,6 +13,7 @@ import type {
   RetiredDocument,
 } from "@/lib/data/solicitud-detail";
 import type { DeadlineStatus } from "@/lib/intake/business-days";
+import type { RevisionDiff, SectionMark } from "@/lib/intake/revision-diff";
 
 // The sections of the staff detail (RF-06, RF-08 b). Each one is a labelled
 // card, so a later section (the RF-14 document signals) is one more entry in
@@ -391,6 +392,107 @@ export function HistorySection({
           </ul>
         </div>
       ) : null}
+    </Section>
+  );
+}
+
+const MARK_TONES: Record<SectionMark, string> = {
+  changed: "bg-warning/10 text-warning-ink",
+  unchanged: "bg-muted text-muted-foreground",
+};
+
+/** The mark carries its own text, so colour is never the only signal. */
+function MarkPill({ mark }: { mark: SectionMark }) {
+  const t = useTranslations("review.detail.changes.marks");
+  return (
+    <span
+      className={cn(
+        "inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-medium",
+        MARK_TONES[mark],
+      )}
+    >
+      {t(mark)}
+    </span>
+  );
+}
+
+function DocumentNames({
+  title,
+  ids,
+  pool,
+}: {
+  title: string;
+  ids: readonly number[];
+  pool: ReadonlyMap<number, string>;
+}) {
+  const t = useTranslations("review.detail.changes");
+  if (ids.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-title">{title}</h3>
+      <ul aria-label={title} className="flex flex-col gap-1">
+        {ids.map((id) => (
+          <li key={id} className="text-sm break-all">
+            {pool.get(id) ?? t("unknownDocument", { id })}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * What the student changed since the return, first in the stack (SR-17): one
+ * mark per section and, for documents, the retired and the added ones by name.
+ * Retired names come from the retired documents, added names from the current
+ * ones.
+ */
+export function ChangesSection({
+  diff,
+  documents,
+  retired,
+}: {
+  diff: RevisionDiff;
+  documents: readonly DetailDocument[];
+  retired: readonly RetiredDocument[];
+}) {
+  const t = useTranslations("review.detail.changes");
+  const names = new Map(
+    [...retired, ...documents].map((doc) => [doc.id, doc.nombreOriginal]),
+  );
+  const marks = [
+    ["causeDates", diff.causeDates],
+    ["subjects", diff.subjects],
+    ["documents", diff.documents],
+  ] as const;
+
+  return (
+    <Section id="changes" title={t("title")}>
+      <p className="text-muted-foreground max-w-prose text-sm">
+        {t("description")}
+      </p>
+      <ul className="flex flex-col gap-3">
+        {marks.map(([key, mark]) => (
+          <li
+            key={key}
+            className="flex flex-wrap items-center justify-between gap-2"
+          >
+            <span className="text-sm font-medium">{t(`sections.${key}`)}</span>
+            <MarkPill mark={mark} />
+          </li>
+        ))}
+      </ul>
+      <DocumentNames
+        title={t("retired")}
+        ids={diff.retiredDocumentIds}
+        pool={names}
+      />
+      <DocumentNames
+        title={t("added")}
+        ids={diff.addedDocumentIds}
+        pool={names}
+      />
     </Section>
   );
 }

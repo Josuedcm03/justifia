@@ -939,6 +939,22 @@
         "rechazada": "Rechazada",
         "en_revision_coordinacion": "En revisión de coordinación"
       },
+      "changes": {
+        "title": "Cambios desde la devolución",
+        "description": "Comparado con la versión que se devolvió al estudiante.",
+        "sections": {
+          "causeDates": "Causa y fechas",
+          "subjects": "Asignaturas",
+          "documents": "Documentos"
+        },
+        "marks": {
+          "changed": "Modificado",
+          "unchanged": "Sin cambios"
+        },
+        "retired": "Documentos retirados desde la devolución",
+        "added": "Documentos agregados desde la devolución",
+        "unknownDocument": "Documento {id}"
+      },
       "sections": {
         "request": "Solicitud",
         "student": "Estudiante",

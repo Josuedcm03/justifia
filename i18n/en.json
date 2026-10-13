@@ -939,6 +939,22 @@
         "rechazada": "Rejected",
         "en_revision_coordinacion": "In coordination review"
       },
+      "changes": {
+        "title": "Changes since the return",
+        "description": "Compared with the version that was returned to the student.",
+        "sections": {
+          "causeDates": "Cause and dates",
+          "subjects": "Subjects",
+          "documents": "Documents"
+        },
+        "marks": {
+          "changed": "Changed",
+          "unchanged": "Unchanged"
+        },
+        "retired": "Documents retired since the return",
+        "added": "Documents added since the return",
+        "unknownDocument": "Document {id}"
+      },
       "sections": {
         "request": "Request",
         "student": "Student",
