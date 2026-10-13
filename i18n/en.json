@@ -741,7 +741,8 @@
         "description": "The secretary will review it again and the review period starts over. You will not be able to edit it while it is under review.",
         "confirm": "Yes, resubmit",
         "pending": "Resubmitting…"
-      }
+      },
+      "degraded": "We could not load your request. Try again in a few minutes."
     },
     "confirmation": {
       "title": "Request submitted",
@@ -818,7 +819,8 @@
         "fecha_incorrecta": "The date does not match the document",
         "fecha_alterada": "The date on the document is altered",
         "documento_ilegible": "The document is not legible"
-      }
+      },
+      "corrected": "Your correction was sent. The secretary will review it again."
     },
     "notFound": {
       "title": "Request not found",

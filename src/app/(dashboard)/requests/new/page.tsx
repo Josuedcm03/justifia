@@ -1,16 +1,12 @@
 import { getTranslations } from "next-intl/server";
 
-import { CauseDatesStep } from "@/app/(dashboard)/requests/new/cause-dates-step";
-import { DocumentsStep } from "@/app/(dashboard)/requests/new/documents-step";
-import { IntakeStepper } from "@/app/(dashboard)/requests/new/intake-stepper";
-import { ReviewStep } from "@/app/(dashboard)/requests/new/review-step";
+import { FlowSteps } from "@/app/(dashboard)/requests/new/flow-steps";
 import {
   defaultStep,
   draftRange,
   parseFromReview,
   parseStep,
 } from "@/app/(dashboard)/requests/new/steps";
-import { SubjectsStep } from "@/app/(dashboard)/requests/new/subjects-step";
 import { PageHeader } from "@/components/page-header";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
@@ -73,47 +69,15 @@ export default async function NewRequestPage({
       ? await listEnrollmentFailSoft(userId, range, getIntakeDeps().schedule)
       : { data: [], degraded: false };
 
-  const validDocuments = draft.documents.filter((d) => d.estado === "valido");
-  const heldGroups = new Set(draft.subjects.map((s) => s.grupoId));
-
   return (
     <div className="flex flex-col gap-8">
       {header}
-      <IntakeStepper current={step} />
-      {step === 1 ? (
-        <CauseDatesStep
-          initial={{
-            causa: draft.causa,
-            fechaInicio: draft.fechaInicio,
-            fechaFin: draft.fechaFin,
-          }}
-          fromReview={fromReview}
-        />
-      ) : null}
-      {step === 2 ? (
-        <SubjectsStep
-          groups={enrollment.data}
-          selected={draft.subjects}
-          hasDates={range !== null}
-          degraded={enrollment.degraded}
-          fromReview={fromReview}
-        />
-      ) : null}
-      {step === 3 ? (
-        <DocumentsStep
-          draftId={draft.id}
-          documents={validDocuments}
-          fromReview={fromReview}
-        />
-      ) : null}
-      {step === 4 ? (
-        <ReviewStep
-          draft={draft}
-          groups={enrollment.data.filter((g) => heldGroups.has(g.grupoId))}
-          documents={validDocuments}
-          degraded={enrollment.degraded}
-        />
-      ) : null}
+      <FlowSteps
+        step={step}
+        draft={draft}
+        enrollment={enrollment}
+        fromReview={fromReview}
+      />
     </div>
   );
 }

@@ -741,7 +741,8 @@
         "description": "La secretaría la revisará de nuevo y el plazo de revisión vuelve a empezar. No podrás editarla mientras esté en revisión.",
         "confirm": "Sí, reenviar",
         "pending": "Reenviando…"
-      }
+      },
+      "degraded": "No pudimos cargar tu solicitud. Inténtalo de nuevo en unos minutos."
     },
     "confirmation": {
       "title": "Solicitud presentada",
@@ -818,7 +819,8 @@
         "fecha_incorrecta": "La fecha no coincide con el documento",
         "fecha_alterada": "La fecha del documento está alterada",
         "documento_ilegible": "El documento no es legible"
-      }
+      },
+      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo."
     },
     "notFound": {
       "title": "Solicitud no encontrada",
