@@ -22,6 +22,7 @@ vi.mock("@/db", () => ({
 }));
 
 import {
+  getCorrectionReason,
   getOwnRequestDetail,
   listOwnRequests,
 } from "@/lib/data/student-requests";
@@ -305,5 +306,70 @@ describe("getOwnRequestDetail (RF-07 c, RF-08 b, RNF-01)", () => {
 
     expect(detail?.decision).toBeNull();
     expect(detail?.historial).toEqual([]);
+  });
+});
+
+describe("getCorrectionReason (RN-17, SR-17)", () => {
+  beforeEach(() => {
+    holder.current = null;
+  });
+
+  it("returns the code and text of the latest decision of an own returned request", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          { motivo: "documento_ilegible", texto: "Adjunte una copia legible." },
+        ],
+      },
+    ]);
+
+    expect(await getCorrectionReason(USER, ID)).toEqual({
+      motivo: "documento_ilegible",
+      texto: "Adjunte una copia legible.",
+    });
+  });
+
+  it("keeps a missing code or text as null", async () => {
+    use([{ kind: "select", rows: [{ motivo: null, texto: null }] }]);
+
+    expect(await getCorrectionReason(USER, ID)).toEqual({
+      motivo: null,
+      texto: null,
+    });
+  });
+
+  it("is null for another student's id, a request that is not returned and an unknown id", async () => {
+    // The owner and `devuelta` filters are in the query, so the three reach
+    // the same empty result.
+    const double = use([{ kind: "select", rows: [] }]);
+
+    expect(await getCorrectionReason(USER, ID)).toBeNull();
+    expect(double.log).toHaveLength(1);
+  });
+
+  it("filters by request id, owner and the returned state, and takes the newest decision", async () => {
+    const double = use([{ kind: "select", rows: [decision()] }]);
+
+    await getCorrectionReason(USER, ID);
+
+    const query = render(double.log[0].where);
+    expect(query.sql).toContain('"SolicitudDecision"."SolicitudId" = $1');
+    expect(query.sql).toContain('"Solicitud"."EstudianteId" = $2');
+    expect(query.sql).toContain('"Solicitud"."Estado" = $3');
+    expect(query.params).toEqual([ID, USER, "devuelta"]);
+    expect(
+      render(sql.join(double.log[0].orderBy as never[], sql`, `)).sql,
+    ).toBe(
+      '"SolicitudDecision"."DecididaEn" desc, "SolicitudDecision"."Id" desc',
+    );
+  });
+
+  it("only reads: no audit row and no write", async () => {
+    const double = use([{ kind: "select", rows: [decision()] }]);
+
+    await getCorrectionReason(USER, ID);
+
+    expect(double.log.map((s) => s.kind)).toEqual(["select"]);
   });
 });

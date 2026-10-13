@@ -164,3 +164,38 @@ export async function getOwnRequestDetail(
     revisiones: revisions,
   };
 }
+
+/** The reason the student's own returned request carries, as the secretary wrote it. */
+export type CorrectionReason = {
+  motivo: string | null;
+  texto: string | null;
+};
+
+/**
+ * The latest decision of the caller's own `devuelta` request: the RN-17 code
+ * and the message the correction screen shows (SR-17). Another student's id, a
+ * request in any other state and an unknown id are the same `null`. Not
+ * audited, like every own read.
+ */
+export async function getCorrectionReason(
+  userId: number,
+  id: number,
+): Promise<CorrectionReason | null> {
+  const [row] = await db
+    .select({
+      motivo: solicitudDecision.motivoCodigo,
+      texto: solicitudDecision.texto,
+    })
+    .from(solicitudDecision)
+    .innerJoin(solicitud, eq(solicitud.id, solicitudDecision.solicitudId))
+    .where(
+      and(
+        eq(solicitudDecision.solicitudId, id),
+        eq(solicitud.estudianteId, userId),
+        eq(solicitud.estado, "devuelta"),
+      ),
+    )
+    .orderBy(desc(solicitudDecision.decididaEn), desc(solicitudDecision.id))
+    .limit(1);
+  return row ?? null;
+}
