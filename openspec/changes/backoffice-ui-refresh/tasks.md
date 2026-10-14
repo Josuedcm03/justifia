@@ -220,11 +220,11 @@ Estimate 350-450 lines.
 Satisfies: CM-LST-1 (asignaturas), DT-URL-2, DT-SORT-1/2, DT-PAG-1, DT-STATE-1, DT-DATA-1, BS-FRM-1.
 Estimate 600-750 lines.
 
-- [ ] 3b.1 RED `catalog-parity.test.ts` and keys for the asignaturas list (headers, hours, groups column label, empty/no-results copy); GREEN in both locale files, reusing existing `catalog.asignaturas.*` keys.
-- [ ] 3b.2 RED `src/app/(dashboard)/catalog/asignaturas/asignaturas-table.test.tsx`: sortable headers exactly code, name, hours, status; the Groups column and the action column have no button and no `aria-sort`; the `DiasCell`/groups cell content equals today's; status as text; row edit action name kept; `AsignaturaListItem` rows only (DT-DATA-1).
-- [ ] 3b.3 GREEN `asignaturas-table.tsx` (client) using `ListTable` inside `ListNavigationProvider`.
-- [ ] 3b.4 RED `asignaturas/page.test.tsx` updates: guard first; `status`, `sort`, `dir`, `size` reach the data function parsed and hostile values reach it as defaults; Carrera scope never widened by `carrera=Y` or `scope=all`; degraded with `sort=name&dir=desc&size=25&page=2` shows `DegradedAlert` only; no results with a term shows the no-results state with a clear link that returns to the default; default status stays `active`. GREEN `asignaturas/page.tsx`: `parseAsignaturasListParams`, `PageFrame`, `AsignaturasTable`, `DegradedAlert`, "new asignatura" action in the empty state.
-- [ ] 3b.5 Confirm `current-marker-usage.test.ts` and the Asignaturas page breadcrumb pins still pass unchanged; confirm `AsignaturaGruposSection` still uses the old table (3d).
+- [x] 3b.1 RED `catalog-parity.test.ts` and keys for the asignaturas list (headers, hours, groups column label, empty/no-results copy); GREEN in both locale files, reusing existing `catalog.asignaturas.*` keys.
+- [x] 3b.2 RED `src/app/(dashboard)/catalog/asignaturas/asignaturas-table.test.tsx`: sortable headers exactly code, name, hours, status; the Groups column and the action column have no button and no `aria-sort`; the `DiasCell`/groups cell content equals today's; status as text; row edit action name kept; `AsignaturaListItem` rows only (DT-DATA-1).
+- [x] 3b.3 GREEN `asignaturas-table.tsx` (client) using `ListTable` inside `ListNavigationProvider`.
+- [x] 3b.4 RED `asignaturas/page.test.tsx` updates: guard first; `status`, `sort`, `dir`, `size` reach the data function parsed and hostile values reach it as defaults; Carrera scope never widened by `carrera=Y` or `scope=all`; degraded with `sort=name&dir=desc&size=25&page=2` shows `DegradedAlert` only; no results with a term shows the no-results state with a clear link that returns to the default; default status stays `active`. GREEN `asignaturas/page.tsx`: `parseAsignaturasListParams`, `PageFrame`, `AsignaturasTable`, `DegradedAlert`, "new asignatura" action in the empty state.
+- [x] 3b.5 Confirm `current-marker-usage.test.ts` and the Asignaturas page breadcrumb pins still pass unchanged; confirm `AsignaturaGruposSection` still uses the old table (3d).
 - [ ] 3b.6 CHECKPOINT: run V including `npm run build`. [MANUAL] quick smoke on `/catalog/asignaturas` as `coordinacion` and `secretaria` (sort cycle, status filter, size, first/last). Batch note. Stop. Suggested commit: `feat(catalog): TanStack asignaturas list with sorting and page-size selector`.
 
 ---

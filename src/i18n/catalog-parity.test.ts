@@ -1701,3 +1701,85 @@ describe("catalog parity (DT-I18N-1, UL: users list copy)", () => {
     },
   );
 });
+
+describe("catalog parity (DT-I18N-1, CM-LST-1: Asignaturas table and page copy)", () => {
+  const DIR = "src/app/(dashboard)/catalog/asignaturas";
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  // Source scan, like the Docentes one: the client table reads its copy through
+  // `useTranslations`, the page through `getTranslations`. Every literal key
+  // either of them chooses must exist in both locales, so a renamed or removed
+  // key fails here instead of throwing at render time.
+  function keysUsedBy(file: string) {
+    const source = readFileSync(join(process.cwd(), DIR, file), "utf8");
+    const translators = [
+      ...source.matchAll(
+        /const (\w+) = (?:await getTranslations|useTranslations)\("([^"]+)"\)/g,
+      ),
+    ];
+    const keys: string[] = [];
+    for (const [, variable, namespace] of translators) {
+      for (const call of source.matchAll(
+        new RegExp(`\\b${variable}\\(([^()]*)`, "g"),
+      )) {
+        for (const literal of call[1].matchAll(/"([A-Za-z.]+)"/g)) {
+          keys.push(`${namespace}.${literal[1]}`);
+        }
+      }
+    }
+    return keys;
+  }
+
+  const used = [
+    ...new Set(["asignaturas-table.tsx", "page.tsx"].flatMap(keysUsedBy)),
+  ];
+
+  it("the scan finds the keys the table and the page choose, all reused", () => {
+    expect(used).toEqual(
+      expect.arrayContaining([
+        "catalog.asignaturas.title",
+        "catalog.asignaturas.newButton",
+        "catalog.asignaturas.columns.code",
+        "catalog.asignaturas.columns.name",
+        "catalog.asignaturas.columns.career",
+        "catalog.asignaturas.columns.hours",
+        "catalog.asignaturas.columns.groups",
+        "catalog.asignaturas.columns.status",
+        "catalog.asignaturas.columns.actions",
+        "catalog.asignaturas.tableCaption",
+        "catalog.asignaturas.empty",
+        "catalog.asignaturas.noResults.title",
+        "catalog.asignaturas.noResults.titleStatus",
+        "catalog.asignaturas.noResults.hint",
+        "catalog.asignaturas.degraded",
+        "catalog.asignaturas.matches.label",
+        "catalog.shared.status.active",
+        "catalog.shared.noCarrera.title",
+      ]),
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every key the table and the page use",
+    (locale) => {
+      for (const key of used) {
+        expect(typeof resolve(messagesOf(locale), key), key).toBe("string");
+      }
+    },
+  );
+
+  // One hint serves the term and the status-only no-results, so it must point
+  // at the status filter as well as at the search fields.
+  it.each([
+    ["es", /estado/i],
+    ["en", /status/i],
+  ] as const)(
+    "%s no-results hint also names the status filter",
+    (locale, status) => {
+      expect(
+        resolve(messagesOf(locale), "catalog.asignaturas.noResults.hint"),
+      ).toMatch(status);
+    },
+  );
+});

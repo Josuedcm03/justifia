@@ -950,3 +950,71 @@ That PostgreSQL accepts `collate "es-x-icu"` on `"Asignatura"."Nombre"` and `"Us
 ### Suggested commit (owner)
 
 `feat(catalog): validated sort and page-size parameters and whitelisted catalog orderings`
+
+## Batch I: Slice 3b (Asignaturas list)
+
+Mode: Strict TDD. Tasks 3b.1 to 3b.5 done and ticked. 3b.6 CHECKPOINT left unticked: V passed, but its [MANUAL] smoke needs a signed-in session and the real database.
+
+### TDD evidence
+
+| Task | RED | GREEN |
+|---|---|---|
+| 3b.1 | `catalog-parity.test.ts` new describe: suite failed at import (ENOENT on `asignaturas-table.tsx`; the scan of table and page keys had nothing to read) | table and page exist; 242 tests pass across the parity and table files. No locale key was added (see deviation 1) |
+| 3b.2 / 3b.3 | `asignaturas-table.test.tsx`: suite failed at import (module missing) | `asignaturas-table.tsx`: all 24 test runs pass (es and en) |
+| 3b.4 | `page.test.tsx` updates run against the old page (temporarily restored from HEAD): 17 failures (sort and size not passed, hostile values, no-results clear link, status filter group, pagination, count, header buttons) | new `page.tsx`: 51 tests pass |
+| 3b.5 | characterization: `current-marker-usage.test.ts` and the breadcrumb pins pass unchanged; `asignatura-grupos-section.tsx` still imports the old `@/components/data-table` | n/a |
+
+Refactor: none needed; the table mirrors `users-table.tsx`.
+
+### What changed
+
+- `asignaturas-table.tsx` (new, client): `AsignaturaRow` (a `Pick` of `AsignaturaListItem`, no `carreraId`), columns `code`, `name` (with the matching-groups list), `career`, `hours`, `groups`, `status`, `actions`; `enableSorting: true` only on code, name, hours and status; `ListTable` inside `ListNavigationProvider`; hrefs from `catalogListHref`; the groups cell keeps `grupos || "-"` and the edit link keeps its `edit + codigo` name.
+- `page.tsx`: `parseAsignaturasListParams`, `sort` and `size` passed to `listAsignaturas` (`pageSize: state.size`), rows picked field by field, `PageFrame`, `DegradedAlert`, the page clamped by the read. The no-Carrera state keeps its own section and has no action.
+- `page.test.tsx`: navigation and link stand-ins added; new cases for sort and size forwarding, hostile values, scope never widened, clear link keeping sort and size, degraded with sort and size; old cases that asserted the retired controls were rewritten for the new ones.
+- `catalog-parity.test.ts`: one describe scanning the keys the table and the page choose.
+- Untouched on purpose: `AsignaturaGruposSection`, `DiasCell`, the old table components, `globals.css`, both locale files.
+
+### Authored lines by path (git diff --numstat, additions / deletions)
+
+| Path | Lines |
+|---|---|
+| `asignaturas-table.tsx` | +194 |
+| `asignaturas-table.test.tsx` | +434 |
+| `page.tsx` | +47 / -226 |
+| `page.test.tsx` | +144 / -36 |
+| `catalog-parity.test.ts` | +82 |
+| **Total** | 901 added, 262 removed, against an estimate of 600 to 750 (+25% = 938): 20% over the upper bound and under the +25% threshold. About 660 lines are tests |
+
+Running total of 1a to 3b: about 10,020 lines added.
+
+### Deviations
+
+1. No new locale key. The existing `catalog.asignaturas.noResults.hint` already says "or change the status filter", so it serves the term and the status-only no-results; `noResults.titleStatus` already existed. The parity test pins that the hint names the status filter. Unused keys (`search.submit`, `search.clear`, `count`, `pagination.*`, `catalog.shared.filter`) stay until the 3d.9 sweep; the existing `LIST_KEYS` pin is unchanged.
+2. The 3b.1 RED is a whole-file failure of `catalog-parity.test.ts` (the source scan reads the table file), not a per-test failure.
+3. The page test uses the real catalogs on the server and the client provider (as before) instead of key echo, so copy assertions stayed real.
+4. `sort` is passed explicitly, but stays optional on `listAsignaturas` (3a decision).
+5. The count text now comes from `tables.count` ("1 result"), no longer `catalog.asignaturas.count` ("1 subject").
+6. New files are LF (like `users-table.tsx`); `page.tsx`, `page.test.tsx` and `catalog-parity.test.ts` kept CRLF (verified by byte count).
+
+### Not verified
+
+Rendering in a browser (sort cycle, status filter, page size, first and last, 320 and 360 px); that the real database accepts the collated `name` order from the page (carry-over from 3a). An attempt to start `next dev` on port 3917 for the unauthenticated redirect check never became reachable, so it was abandoned and no process was left running.
+
+### [MANUAL] smoke checklist for the owner (3b.6)
+
+Signed in as `coordinacion` and as `secretaria`, on `/catalog/asignaturas`:
+
+1. Click Code, Name, Hours, Status headers: first click ascending, second descending; the state word is visible and the URL gets `sort` and `dir`; Career, Groups and Actions have no button.
+2. Status filter Active / Inactive / All keeps the sort and size and returns to page 1.
+3. Page size 10 / 25 / 50 and First / Previous / Next / Last; the footer is hidden when the total fits 10.
+4. Search a docente or period: matching groups listed under the name; a search with no match shows the no-results state and "Clear filters" keeps sort and size.
+5. As `coordinacion`, `?carreraId=9&scope=all` shows only the own Carrera.
+6. The Edit link of each row opens the edit page; "New" is available and, with an empty catalog, the empty state offers it.
+
+### V results
+
+`npm test` 172 files, 3,658 tests pass; `npm run typecheck` clean; `npx eslint src` reports only CRLF `prettier/prettier` findings (0 of any other rule, checked from the JSON output); `npx prettier --check --end-of-line auto` on the five touched paths clean; `npm run build` compiles; `git diff --stat src/app/globals.css` empty.
+
+### Suggested commit (owner)
+
+`feat(catalog): TanStack asignaturas list with sorting and page-size selector`
