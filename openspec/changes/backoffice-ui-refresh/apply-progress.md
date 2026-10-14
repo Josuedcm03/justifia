@@ -895,3 +895,58 @@ Gate V1 (skeleton on a query-only navigation, in dev and in the production build
 ### Suggested commit (owner)
 
 `feat(users): TanStack list with sorting, status filter and page-size selector`
+
+## Batch H: Slice 3a (Catalog URL contract and data layer)
+
+Mode: Strict TDD. Tasks 3a.2 to 3a.7 done and ticked; 3a.1 was already ticked (OC-6 answered: alphabetical, `TEXT_SORT_COLLATION` for the docentes `name` default). 3a.8 CHECKPOINT left unticked for the owner.
+
+### TDD evidence
+
+| Task | RED | GREEN |
+|---|---|---|
+| 3a.2 / 3a.3 | `src/lib/catalog/list-params.test.ts`: suite failed at import (new parsers and key tables undefined) | `src/lib/catalog/list-params.ts`: 53 tests pass; compile-time pin for a foreign sort key |
+| 3a.4 / 3a.5 | `src/lib/data/asignaturas.test.ts`: 11 failures (sort map, default order plus `id`, `sort` not a known property) | `src/lib/data/asignaturas.ts`: 92 tests pass |
+| 3a.6 / 3a.7 | `src/lib/data/users.test.ts` (`listDocentes`): 11 failures (collated default, sort map, `sort` not a known property) | `src/lib/data/users.ts`: whole file passes |
+
+Refactor: none needed beyond a shared `parseCatalogState` helper written during GREEN. The tests stay DB-free (recording `db` doubles and `PgDialect.sqlToQuery`).
+
+### What changed
+
+- `list-params.ts`: `ASIGNATURAS_SORT_KEYS` (code, name, hours, status), `DOCENTES_SORT_KEYS` (name, login, email, status), their default sorts, `CatalogListState<K>`, `parseAsignaturasListParams`, `parseDocentesListParams`, and `catalogListHref` extended with `sort` and `size` (defaults per base omitted; `sort` and `dir` written together, order `q`, `status`, `sort`, `dir`, `size`, `page`; a sort key of the other list is a compile error). `CATALOG_PAGE_SIZE` and `parseCatalogListParams` untouched.
+- `asignaturas.ts`: `ASIGNATURAS_SORT_MAP` (name collated, code and hours plain, status active first) and `orderByFor`; `listAsignaturas` takes an optional `sort`. Default order is `Codigo asc, Id asc`. `listMatchingGrupos` and the search predicates are untouched (D3).
+- `users.ts`: `DOCENTES_SORT_MAP` (name and login collated, email `nullif(...) nulls last`, status active first) and `orderByFor`; `listDocentes` takes an optional `sort`. Default order is now `name collate "es-x-icu" asc, Id asc`.
+- Existing assertions updated: the old "orders by Codigo" test now also expects the `Id` tie-break; the old docentes "orders by name" test now expects the collated name.
+
+### Authored lines by path (git diff --stat, additions / deletions)
+
+| Path | Lines |
+|---|---|
+| `src/lib/catalog/list-params.ts` | +103 / -8 |
+| `src/lib/catalog/list-params.test.ts` | +220 |
+| `src/lib/data/asignaturas.ts` | +35 / -1 |
+| `src/lib/data/asignaturas.test.ts` | +139 / -1 |
+| `src/lib/data/users.ts` | +30 / -2 |
+| `src/lib/data/users.test.ts` | +107 / -1 |
+| **Total** | 634 added, 13 removed (647 changed), against an estimate of 350 to 450 (+25% = 563): about 13% over the +25% threshold and 41% over the 450 upper bound. About 468 lines are tests |
+
+Cause: the parameterised order tables (8 rows per list), the fallback table, and two locales-free but table-driven href and clamp cases; each was asked for by 3a.2, 3a.4 and 3a.6. Prettier also expands long `it.each` rows. Running total of 1a to 3a: about 9,120 lines.
+
+### Deviations
+
+1. `sort` is optional on `listAsignaturas` and `listDocentes` (users made it required). The catalog pages must keep ignoring `sort` and `size` until 3b and 3c, and an omitted `sort` is exactly today's order; 3b and 3c may make it required once the pages pass it.
+2. `pageSize` stays `number` (not `PageSize`) in both list functions: the pages still pass `CATALOG_PAGE_SIZE`, and the parser already narrows `size` to 10, 25 or 50.
+3. `catalogListHref` is generic on the base so a sort key of the other list fails to compile; the existing `/catalog/grupos` compile-time pin still holds.
+4. The docentes default order changed in SQL (collated) as decided in OC-6 (3a.1). The page still ignores `sort`, so users see the default order only, now alphabetical.
+5. The "extra parameters ignored" test spreads an untyped object, because `listAsignaturas` has no parameter that could carry a Carrera other than `scope`.
+
+### Not verified (no database writes, no browser)
+
+That PostgreSQL accepts `collate "es-x-icu"` on `"Asignatura"."Nombre"` and `"Usuario"."Login"` and returns accented names in alphabetical order (SQL text proven only; same carry-over as 2a); that `nullif(...) nulls last` orders real data as specified; stable pagination across equal values against real data; any rendering (3a changes no component).
+
+### V results
+
+`npm test` 171 files, 3,618 tests pass; `npm run typecheck` clean; `npx eslint src` only CRLF `prettier/prettier` findings; `npx prettier --check --end-of-line auto` on the six touched paths clean; `npm run build` compiles; `git diff --stat src/app/globals.css` empty. Source files kept CRLF (verified by byte count); the two OpenSpec files are LF.
+
+### Suggested commit (owner)
+
+`feat(catalog): validated sort and page-size parameters and whitelisted catalog orderings`

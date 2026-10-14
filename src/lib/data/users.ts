@@ -16,7 +16,11 @@ import type { QueryBuilder } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { rol, usuario, type NuevoUsuario, type Usuario } from "@/db/schema";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
-import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
+import {
+  CATALOG_OPTIONS_MAX,
+  DOCENTES_DEFAULT_SORT,
+  type DocentesSortKey,
+} from "@/lib/catalog/list-params";
 import type {
   CatalogListResult,
   CatalogStatusFilter,
@@ -25,6 +29,7 @@ import type {
 import {
   activeFirst,
   collatedText,
+  emailLast,
   orderByFor,
   plainColumn,
   type SortExpr,
@@ -372,6 +377,19 @@ export function buildDocentesWhere(f: {
 }
 
 /**
+ * Whitelist of sortable Docentes columns (DT-SORT-1). The URL value is only a
+ * lookup key, already narrowed to `DocentesSortKey` by the parser; it is never
+ * interpolated. Names and logins are collated, an empty e-mail sorts last in
+ * both directions, `status` ascending means active first.
+ */
+const DOCENTES_SORT_MAP = {
+  name: collatedText(usuario.nombreCompleto),
+  login: collatedText(usuario.login),
+  email: emailLast(usuario.correo),
+  status: activeFirst(usuario.activo),
+} satisfies Record<DocentesSortKey, SortExpr>;
+
+/**
  * Docentes for the read-only catalog list. It projects ONLY the five fields
  * the list shows (never the hash, CIF or phone) and is fail-soft like
  * `listUsuarios`: a thrown error is an empty, degraded page.
@@ -381,6 +399,9 @@ export async function listDocentes(p: {
   q: string;
   page: number;
   pageSize: number;
+  /** Already narrowed to a whitelisted key and a direction; omitted = name
+   *  ascending, then `Id`. */
+  sort?: ListSort<DocentesSortKey>;
 }): Promise<CatalogListResult<DocenteListItem>> {
   try {
     const where = buildDocentesWhere(p);
@@ -401,7 +422,14 @@ export async function listDocentes(p: {
       .from(usuario)
       .innerJoin(rol, eq(usuario.rolId, rol.id))
       .where(where)
-      .orderBy(asc(usuario.nombreCompleto), asc(usuario.id))
+      .orderBy(
+        ...orderByFor(
+          DOCENTES_SORT_MAP,
+          p.sort ?? DOCENTES_DEFAULT_SORT,
+          DOCENTES_DEFAULT_SORT,
+          usuario.id,
+        ),
+      )
       .limit(p.pageSize)
       .offset((page - 1) * p.pageSize);
     return { data, total: count, page, pageSize: p.pageSize, degraded: false };
