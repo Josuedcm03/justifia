@@ -208,3 +208,40 @@ describe("review structure: page bodies are not prefetched (SR-11 amendment)", (
     expect(config).not.toMatch(/partialPrefetching\s*:\s*true/);
   });
 });
+
+describe("review structure: the queue table is a client module of the kit (RF-06)", () => {
+  const reviewSources = filesUnder(REVIEW_DIR)
+    .filter(isSource)
+    .map((path) => ({
+      path: relative(ROOT, path).replace(/\\/g, "/"),
+      text: readFileSync(path, "utf8"),
+    }));
+  const TABLE = "src/app/(dashboard)/review/review-queue-table.tsx";
+
+  it("imports no legacy table component from the review folder", () => {
+    const offenders = reviewSources.filter((s) =>
+      /from\s+["']@\/components\/data-table["']/.test(s.text),
+    );
+
+    expect(offenders.map((s) => s.path)).toEqual([]);
+  });
+
+  it("builds the columns in a client module, never in the server page", () => {
+    const table = reviewSources.find((s) => s.path === TABLE)?.text ?? "";
+    const page = reviewSources.find((s) => s.path === REVIEW_PAGE)?.text ?? "";
+
+    expect(table).toMatch(/^"use client";/);
+    expect(table).toContain("@/components/tables/data-table");
+    expect(page).not.toContain("DataTableColumn");
+    expect(page).not.toMatch(/<DataTable/);
+    expect(page).toContain("<ReviewQueueTable");
+  });
+
+  it("renders the table in bounded mode: no sorting, paging or toolbar", () => {
+    const table = reviewSources.find((s) => s.path === TABLE)?.text ?? "";
+
+    expect(table).not.toMatch(
+      /sorting=|enableSorting|ListTable|TableToolbar|TablePagination/,
+    );
+  });
+});

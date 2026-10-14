@@ -79,3 +79,5 @@ All implementation slices (0 to 3d) and the automated part of the final phase (F
 - The home page lives in `src/app/(dashboard)/(home)/` (route group, URL stays `/`) so it has its own card-grid `loading.tsx`; every other dashboard route keeps the table skeleton of `(dashboard)/loading.tsx`.
 
 - Gate V1 observed by the owner (Batch Q): the `(dashboard)/loading.tsx` skeleton DOES replace the table on a query-only navigation. Keyboard focus returns to the same sort header through a module-level control id in `list-navigation.tsx`; pagination, status filter and search are not covered yet. A page-level `<Suspense>` to keep the old table visible is an unimplemented option (risks in Batch Q).
+
+- `main` was merged into this branch (bddcc22): `/review` now uses the bounded table kit through the client module `review/review-queue-table.tsx` (Batch R). The merged sidebar still lacks main's `/review` and `/requests` entries (open finding in Batch R).
