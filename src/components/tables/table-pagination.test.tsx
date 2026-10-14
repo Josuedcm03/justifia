@@ -56,7 +56,7 @@ const CONTROLS = [t.first, t.previous, t.next, t.last] as const;
 function state(name: string) {
   const link = screen.queryByRole("link", { name });
   if (link) return { available: true, element: link };
-  const span = screen.getByText(name);
+  const span = screen.getByLabelText(name);
   return { available: false, element: span };
 }
 
@@ -125,10 +125,13 @@ describe("TablePagination bounds (DT-PAG-1)", () => {
     expect(status).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows the total count in the footer", () => {
+  it("does not repeat the total count in the footer", () => {
     renderPagination({ page: 2, total: 25 });
+    const nav = screen.getByRole("navigation");
 
-    expect(screen.getByText("25 results")).toBeVisible();
+    expect(within(nav).queryByText(/results?/i)).toBeNull();
+    expect(nav).not.toHaveTextContent("25 results");
+    expect(nav.querySelector("[role=status], [aria-live]")).toBeNull();
   });
 
   it("shows 1 of 1 with every control unavailable for 20 results at size 25", () => {
@@ -237,6 +240,76 @@ describe("TablePagination page size (DT-PAG-1, DT-URL-2, DT-NAV-1)", () => {
   });
 });
 
+describe("TablePagination layout and icons (DT-PAG-1, DT-A11Y-1)", () => {
+  it("renders the center cluster before the page-size selector, which is last", () => {
+    renderPagination({ page: 2 });
+    const nav = screen.getByRole("navigation");
+    const regions = [...nav.children];
+    const cluster = regions.findIndex((region) =>
+      region.contains(screen.getByText("Page 2 of 3")),
+    );
+    const size = regions.findIndex((region) =>
+      region.contains(screen.getByRole("combobox")),
+    );
+
+    expect(cluster).toBeGreaterThanOrEqual(0);
+    expect(size).toBe(regions.length - 1);
+    expect(cluster).toBeLessThan(size);
+    expect(
+      regions[cluster].contains(screen.getByRole("link", { name: t.first })),
+    ).toBe(true);
+    expect(
+      regions[cluster].contains(screen.getByRole("link", { name: t.last })),
+    ).toBe(true);
+  });
+
+  it("orders first, previous, status, next, last inside the cluster", () => {
+    renderPagination({ page: 2 });
+    const nav = screen.getByRole("navigation");
+    const order = [
+      screen.getByRole("link", { name: t.first }),
+      screen.getByRole("link", { name: t.previous }),
+      screen.getByText("Page 2 of 3"),
+      screen.getByRole("link", { name: t.next }),
+      screen.getByRole("link", { name: t.last }),
+    ];
+
+    const positions = order.map((element) =>
+      [...nav.querySelectorAll("*")].indexOf(element),
+    );
+
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("draws every control as an aria-hidden icon with the label as its name only", () => {
+    renderPagination({ page: 1 });
+
+    for (const name of CONTROLS) {
+      const { element } = state(name);
+      const icon = element.querySelector("svg");
+      expect(icon).not.toBeNull();
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+      expect(element.textContent).toBe("");
+      expect(element).not.toHaveAttribute("title");
+      expect(element).toHaveAttribute("aria-label", name);
+    }
+  });
+
+  it("keeps the page status as the only visible text of the cluster", () => {
+    renderPagination({ page: 2 });
+    const nav = screen.getByRole("navigation");
+    const select = screen.getByRole("combobox");
+    const label = screen.getByText(messages.en.tables.pageSize.label);
+
+    const clone = nav.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("select, label").forEach((node) => node.remove());
+
+    expect(select).toBeVisible();
+    expect(label).toBeVisible();
+    expect(clone.textContent).toBe("Page 2 of 3");
+  });
+});
+
 describe("TablePagination structure (DT-A11Y-1, DT-DENS-1)", () => {
   it("is a labelled navigation landmark", () => {
     renderPagination();
@@ -253,10 +326,14 @@ describe("TablePagination structure (DT-A11Y-1, DT-DENS-1)", () => {
       screen.getByRole("combobox"),
     ];
     for (const control of controls) {
-      expect(control).toHaveClass("h-11");
+      expect(control).toHaveClass("min-h-11");
       expect(control.className).not.toMatch(/(^|\s)w-\d/);
     }
-    expect(nav).toHaveClass("flex-wrap");
+    for (const link of within(nav).getAllByRole("link")) {
+      expect(link).toHaveClass("min-w-11");
+    }
+    expect(nav.className).toMatch(/sm:grid-cols-\[1fr_auto_1fr\]/);
+    expect(nav.className).not.toMatch(/(^|\s)w-\d/);
   });
 
   it("keeps the controls enabled while a navigation is pending", () => {

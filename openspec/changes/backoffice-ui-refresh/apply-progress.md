@@ -1649,3 +1649,14 @@ Owner request: the shared table skeleton did not match the home.
 - GREEN: `(home)/loading.tsx`: synchronous, aria-busy, hidden `common.loading`, title and subtitle bars, 2 count cards then 4 shortcut cards (role-agnostic, noted in a comment) in the real grid classes. `(dashboard)/loading.tsx` and its test are unchanged.
 - Docs: `docs/design-system.md` loading skeleton paragraph mentions the home skeleton.
 - Visual result needs the owner in the browser.
+
+## Batch P: footer layout and icon pagination
+
+Owner request: footer layout and icon controls.
+
+- RED first: `table-pagination.test.tsx` (9 failures: DOM order, icons without text, `aria-label` names, no total, `min-h-11 min-w-11`, `sm:grid-cols` layout) before the component changed.
+- GREEN: `table-pagination.tsx` is a three-region footer (hidden spacer, centered cluster, size selector last): `flex-col` stacked, `sm:grid-cols-[1fr_auto_1fr]` from `sm`. Controls are `ChevronsLeft`, `ChevronLeft`, `ChevronRight`, `ChevronsRight` (`aria-hidden`), named by `aria-label` from the existing `tables.pagination.*` keys; unavailable ones are `aria-disabled` spans with the same icon, muted. Total count removed from the footer. Hrefs, `navigate(...,"push")`, `scroll={false}`, size `replace` unchanged.
+- `list-table.test.tsx`: new test that the count appears once and not in the footer.
+- Keys: `tables.count` is still used by the toolbar (`table-toolbar.tsx`), so no i18n key was removed and parity pins are unchanged.
+- Docs: `docs/design-system.md` Pagination paragraph rewritten. Section 2 untouched.
+- Visual result needs the owner in the browser.

@@ -134,6 +134,15 @@ describe("ListTable with rows (DT-STATE-1, BS-FRM-1)", () => {
     expect(screen.getByRole("status")).toHaveTextContent("25 results");
   });
 
+  it("shows the count once: the footer does not repeat it", () => {
+    renderList({ total: 25 });
+
+    expect(screen.getAllByText("25 results")).toHaveLength(1);
+    expect(
+      screen.getByRole("navigation", { name: tables.pagination.region }),
+    ).not.toHaveTextContent("25 results");
+  });
+
   it.each([
     [0, false],
     [1, false],

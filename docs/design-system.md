@@ -433,13 +433,20 @@ token or primitive.
 **Breadcrumb.** Muted links that go `primary` on hover, chevron separators,
 current segment styled by the rule in 2.3.
 
-**Pagination.** In the footer of the table card. Real links, 44px tall, 8px
-radius, `primary` text with a 5% primary hover: first, previous, next, last.
-At an edge the control is muted text with `aria-disabled`. Between them, the
-page status ("Page 2 of 7"). A rows-per-page select (10, 25, 50), styled as a
-form select at 44px, sits on the leading side. Changing the search, the
-filter, the sort or the page size returns to page 1. The footer is omitted
-when the list fits in the smallest page size.
+**Pagination.** In the footer of the table card, in three regions. The
+centered cluster holds four icon controls and the page status: first
+(`ChevronsLeft`), previous (`ChevronLeft`), "Page 2 of 7", next
+(`ChevronRight`), last (`ChevronsRight`). Each control is a real link at least
+44px by 44px, 8px radius, `primary` icon with a 5% primary hover; the icon is
+decoration and the accessible name is the localized label, with no visible
+text and no tooltip. At an edge the control is the same icon, muted, with
+`aria-disabled`. The rows-per-page select (10, 25, 50), styled as a form
+select at 44px, sits at the far trailing edge. From `sm` up the cluster is
+centered; on narrow screens the cluster comes first and the select follows,
+wrapping without horizontal scroll. The footer does not repeat the total: the
+toolbar holds the only count. Changing the search, the filter, the sort or the
+page size returns to page 1. The footer is omitted when the list fits in the
+smallest page size.
 
 **Dropdown, select popup, sheet.** `popover` surface, 8px radius, 1px
 `border`, `shadow-soft`. Items highlight with the `accent` pair.
