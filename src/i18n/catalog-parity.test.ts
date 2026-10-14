@@ -1516,42 +1516,82 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     expect(section(locale, "nav.catalogDocentes")).toBe(label);
   });
 
-  it("the Docentes page chooses only keys that exist in both locales", () => {
+  // The page reads its copy through `getTranslations`, the client table
+  // through `useTranslations`; every literal key either chooses must exist in
+  // both locales (DT-I18N-1, CM-LST-1).
+  function keysUsedBy(file: string) {
     const source = readFileSync(
-      join(process.cwd(), "src/app/(dashboard)/catalog/docentes/page.tsx"),
+      join(process.cwd(), "src/app/(dashboard)/catalog/docentes", file),
       "utf8",
     );
     const translators = [
-      ...source.matchAll(/const (\w+) = await getTranslations\("([^"]+)"\)/g),
+      ...source.matchAll(
+        /const (\w+) = (?:await getTranslations|useTranslations)\("([^"]+)"\)/g,
+      ),
     ];
-    const used = new Set<string>();
+    const keys: string[] = [];
     for (const [, variable, namespace] of translators) {
       for (const call of source.matchAll(
         new RegExp(`\\b${variable}\\(([^()]*)`, "g"),
       )) {
         for (const literal of call[1].matchAll(/"([A-Za-z.]+)"/g)) {
-          used.add(`${namespace}.${literal[1]}`);
+          keys.push(`${namespace}.${literal[1]}`);
         }
       }
     }
+    return keys;
+  }
 
-    expect([...used]).toEqual(
+  const used = [
+    ...new Set(["docentes-table.tsx", "page.tsx"].flatMap(keysUsedBy)),
+  ];
+
+  it("the scan finds the keys the Docentes table and page choose, all reused", () => {
+    expect(used).toEqual(
       expect.arrayContaining([
         "catalog.docentes.title",
+        "catalog.docentes.subtitle",
         "catalog.docentes.usersLink",
+        "catalog.docentes.degraded",
+        "catalog.docentes.columns.name",
+        "catalog.docentes.columns.login",
         "catalog.docentes.columns.email",
+        "catalog.docentes.columns.status",
         "catalog.docentes.noEmail",
-        "catalog.docentes.count",
-        "catalog.docentes.pagination.status",
+        "catalog.docentes.tableCaption",
+        "catalog.docentes.empty",
+        "catalog.docentes.noResults.title",
+        "catalog.docentes.noResults.titleStatus",
+        "catalog.docentes.noResults.hint",
         "catalog.shared.status.active",
       ]),
     );
-    for (const messages of [esMessages, enMessages]) {
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every key the Docentes table and page use",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
       for (const key of used) {
         expect(typeof resolve(messages, key), key).toBe("string");
       }
-    }
-  });
+    },
+  );
+
+  // One hint serves the term and the status-only no-results, so it must point
+  // at the status filter as well as at the search fields.
+  it.each([
+    ["es", /estado/i],
+    ["en", /status/i],
+  ] as const)(
+    "%s Docentes no-results hint also names the status filter",
+    (locale, status) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      expect(resolve(messages, "catalog.docentes.noResults.hint")).toMatch(
+        status,
+      );
+    },
+  );
 });
 
 describe("catalog parity (DT-I18N-1: table core copy)", () => {

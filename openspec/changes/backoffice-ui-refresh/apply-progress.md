@@ -1018,3 +1018,77 @@ Signed in as `coordinacion` and as `secretaria`, on `/catalog/asignaturas`:
 ### Suggested commit (owner)
 
 `feat(catalog): TanStack asignaturas list with sorting and page-size selector`
+
+## Batch J: Slice 3c (Docentes list)
+
+Mode: Strict TDD. Tasks 3c.1 to 3c.5 done and ticked. 3c.6 CHECKPOINT left unticked: V passed, but its [MANUAL] smoke needs a signed-in session and the real database.
+
+### TDD evidence
+
+| Task | RED | GREEN |
+|---|---|---|
+| 3c.1 | `catalog-parity.test.ts` Docentes describe now scans `docentes-table.tsx` and `page.tsx`: whole-file failure (ENOENT on the missing table) | table exists; 222 parity tests pass. No locale key was added (see deviation 1) |
+| 3c.2 / 3c.3 | `docentes-table.test.tsx`: suite failed at import (module missing) | `docentes-table.tsx`: 18 test runs pass (es and en) |
+| 3c.4 | `page.test.tsx` updates against the old page: 20 failures (sort and size not passed, hostile values, header buttons, count, pagination, clear link, status filter group) | new `page.tsx`: whole file passes |
+| 3c.5 | characterization with `codegraph_explore` and `rg` (below) | n/a |
+
+Refactor: none needed; the table mirrors `asignaturas-table.tsx`.
+
+### What changed
+
+- `docentes-table.tsx` (new, client): `DocenteRow` (a `Pick` of `DocenteListItem`, five fields), columns `name`, `login`, `email`, `status`, all `enableSorting: true`; the empty Correo renders the existing `noEmail` text; `ListTable` inside `ListNavigationProvider`; no action column and no empty-state action (read-only); hrefs from `catalogListHref`.
+- `page.tsx`: `parseDocentesListParams`, `sort` and `size` passed to `listDocentes` (`pageSize: state.size`), rows picked field by field, `PageFrame`, `DegradedAlert`, the page clamped by the read, the `/users` link kept in the header; the inline empty/no-results block is gone. No Carrera scope is read.
+- `page.test.tsx`: navigation and link stand-ins; cases for sort and size forwarding, default order, nine hostile values, valid key with a bad direction, unscoped query for a `coordinacion` actor, the clear link keeping sort and size, degraded with sort and size showing only the alert.
+- `catalog-parity.test.ts`: the Docentes source scan now covers table and page, plus a pin that the no-results hint names the status filter.
+- Untouched on purpose: old table components, `globals.css`, both locale files, `docs/roadmap.md`.
+
+### 3c.5 consumer check
+
+- `parseCatalogListParams` and `CATALOG_PAGE_SIZE`: no consumer left outside `src/lib/catalog/list-params.ts` and its own test (`list-params.test.ts`). The import preview does not use them. Left for 3d.12 as one deletion.
+- `catalogListHref`: the old three-field call shape is a subset of the new signature, so no old call site needed a change; remaining non-test consumers are the two new tables and pages plus the old `src/components/status-filter.tsx` (typed by `CatalogListBase`), which 3d deletes.
+
+### Authored lines by path (additions / deletions)
+
+| Path | Lines |
+|---|---|
+| `docentes-table.tsx` | +128 |
+| `docentes-table.test.tsx` | +324 |
+| `page.tsx` | +23 / -149 |
+| `page.test.tsx` | +135 / -33 |
+| `catalog-parity.test.ts` | +51 / -11 |
+| **Total** | 661 added, 193 removed, against an estimate of 450 to 550 (+25% = 688): 20% over the upper bound, under the +25% threshold. About 510 lines are tests |
+
+Running total of 1a to 3c: about 10,680 lines added.
+
+### Deviations
+
+1. No new locale key. Every key the table and page choose already existed (`columns.*`, `noEmail`, `empty`, `noResults.*`, `tableCaption`, `search.label`, `search.placeholder`, `degraded`, `usersLink`). `search.submit`, `search.clear`, `count`, `pagination.*` and `catalog.shared.filter` are now unused and wait for the 3d.9 sweep.
+2. The "link to /users kept" assertion of 3c.2 lives in `page.test.tsx` (the link belongs to the page header, not the table); the table test asserts there is no link or control in the body and no create action in the empty state.
+3. The count text now comes from `tables.count` ("1 result"), no longer `catalog.docentes.count` ("1 teacher").
+4. `sort` is passed explicitly but stays optional on `listDocentes` (3a decision).
+5. New files are LF; `page.tsx`, `page.test.tsx` and `catalog-parity.test.ts` kept CRLF (verified by byte count).
+6. The "Docentes page chooses only keys" parity test used a regex written through a shell heredoc that lost its escapes; fixed before GREEN.
+
+### Not verified
+
+Rendering in a browser (sort cycle, status filter, page size, first and last, 320 and 360 px); that the real database orders the `email` column with empty Correo last and the collated `name` order (carry-over from 3a); an unauthenticated redirect check was not attempted (no dev server started, as instructed).
+
+### [MANUAL] smoke checklist for the owner (3c.6)
+
+Signed in as `administrador`, `coordinacion` and `secretaria`, on `/catalog/docentes`:
+
+1. Click Name, Username, Email, Status headers: first click ascending, second descending; the state word is visible and the URL gets `sort` and `dir`.
+2. Sort by Email ascending and descending: teachers without an email ("No email") appear last in both directions.
+3. Default order is alphabetical (accented and lowercase-initial names in their alphabetical place).
+4. Status filter Active / Inactive / All keeps sort and size and returns to page 1.
+5. Page size 10 / 25 / 50 and First / Previous / Next / Last; the footer is hidden when the total fits 10.
+6. Search by name or email: a no-match search shows the no-results state and "Clear filters" keeps sort and size.
+7. As `coordinacion` of a Carrera, the list is the same as for `administrador` (not scoped); no create, edit or deactivate control exists; the "Manage accounts in Users" link opens `/users`.
+
+### V results
+
+`npm test` 173 files, 3,692 tests pass; `npm run typecheck` clean; `npx eslint src` reports only `prettier/prettier` findings (CRLF noise; no finding of any other rule, checked from the JSON output); `npx prettier --check --end-of-line auto` on the five touched paths clean; `npm run build` compiles; `git diff --stat src/app/globals.css` empty.
+
+### Suggested commit (owner)
+
+`feat(catalog): TanStack docentes list with sorting, email-last ordering and page-size selector`

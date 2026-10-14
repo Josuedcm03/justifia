@@ -234,11 +234,11 @@ Estimate 600-750 lines.
 Satisfies: CM-LST-1 (docentes), DT-URL-2, DT-SORT-1/2, DT-PAG-1, DT-STATE-1, DT-DATA-1.
 Estimate 450-550 lines.
 
-- [ ] 3c.1 RED `catalog-parity.test.ts` and keys for the docentes list; GREEN in both locale files, reusing existing keys.
-- [ ] 3c.2 RED `catalog/docentes/docentes-table.test.tsx`: sortable headers exactly name, login, email, status; empty email cell renders the existing placeholder (read the current page first) and sorts last; rows contain only displayed fields and the id, serialized props contain no `HashClave`, password, temporary password or `Cif`; link to `/users` kept; no create/edit/deactivate control (read-only).
-- [ ] 3c.3 GREEN `docentes-table.tsx` (client).
-- [ ] 3c.4 RED `docentes/page.test.tsx` updates (parameter parsing, hostile values, degraded with new parameters, read-only and unscoped scenario for a `coordinacion` of Carrera X, link to `/users`, serialized delivered data has no credential). GREEN `docentes/page.tsx` using `parseDocentesListParams`, `PageFrame`, `DocentesTable`, `DegradedAlert`.
-- [ ] 3c.5 Check whether `parseCatalogListParams`, `CATALOG_PAGE_SIZE` and old `catalogListHref` signature still have consumers (`codegraph_explore`). If none outside 3d's import preview, leave removal to 3d.12 for a single reviewable deletion.
+- [x] 3c.1 RED `catalog-parity.test.ts` and keys for the docentes list; GREEN in both locale files, reusing existing keys.
+- [x] 3c.2 RED `catalog/docentes/docentes-table.test.tsx`: sortable headers exactly name, login, email, status; empty email cell renders the existing placeholder (read the current page first) and sorts last; rows contain only displayed fields and the id, serialized props contain no `HashClave`, password, temporary password or `Cif`; link to `/users` kept; no create/edit/deactivate control (read-only).
+- [x] 3c.3 GREEN `docentes-table.tsx` (client).
+- [x] 3c.4 RED `docentes/page.test.tsx` updates (parameter parsing, hostile values, degraded with new parameters, read-only and unscoped scenario for a `coordinacion` of Carrera X, link to `/users`, serialized delivered data has no credential). GREEN `docentes/page.tsx` using `parseDocentesListParams`, `PageFrame`, `DocentesTable`, `DegradedAlert`.
+- [x] 3c.5 Check whether `parseCatalogListParams`, `CATALOG_PAGE_SIZE` and old `catalogListHref` signature still have consumers (`codegraph_explore`). If none outside 3d's import preview, leave removal to 3d.12 for a single reviewable deletion.
 - [ ] 3c.6 CHECKPOINT: run V including `npm run build`. [MANUAL] smoke on `/catalog/docentes`. Batch note. Stop. Suggested commit: `feat(catalog): TanStack docentes list with sorting, email-last ordering and page-size selector`.
 
 ---
