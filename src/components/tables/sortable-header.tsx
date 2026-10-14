@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { cn } from "cn";
 
+import { listControlProps } from "@/components/tables/list-navigation";
 import { TableHead } from "@/components/ui/table";
 import type { SortDir } from "@/lib/list-params";
 
@@ -31,6 +32,7 @@ export function SortableHeader({
   children,
   direction,
   onSort,
+  controlId,
   align = "start",
   className,
 }: {
@@ -39,6 +41,8 @@ export function SortableHeader({
   /** The sort of this column, or `false` when another column is sorted. */
   direction: SortDir | false;
   onSort: () => void;
+  /** Stable id of this control, so focus can return to it after a remount. */
+  controlId?: string;
   align?: "start" | "end";
   className?: string;
 }) {
@@ -56,6 +60,7 @@ export function SortableHeader({
       <button
         type="button"
         onClick={onSort}
+        {...(controlId ? listControlProps(controlId) : {})}
         title={t(`sort.${STATE_KEY[state]}`)}
         className={cn(
           "text-label-caps -mx-3 inline-flex min-h-11 items-center gap-x-2 rounded-lg px-3 uppercase",

@@ -214,3 +214,35 @@ describe("SortableHeader (DT-SORT-2, DT-DENS-1)", () => {
     );
   });
 });
+
+describe("SortableHeader control id (DT-SORT-2)", () => {
+  it("marks the button with the control id it is given, for focus restoration", () => {
+    renderWithIntl(
+      <table>
+        <thead>
+          <tr>
+            <SortableHeader
+              direction={false}
+              onSort={() => undefined}
+              controlId="sort:name"
+            >
+              Name
+            </SortableHeader>
+          </tr>
+        </thead>
+      </table>,
+      "en",
+    );
+
+    expect(screen.getByRole("button", { name: "Name" })).toHaveAttribute(
+      "data-list-control",
+      "sort:name",
+    );
+  });
+
+  it("renders no marker when no id is given", () => {
+    const { button } = renderHeader();
+
+    expect(button).not.toHaveAttribute("data-list-control");
+  });
+});

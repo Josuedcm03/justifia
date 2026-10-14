@@ -6,7 +6,10 @@ import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/empty-state";
 import { TableCard } from "@/components/table-card";
 import { DataTable } from "@/components/tables/data-table";
-import { useListNavigation } from "@/components/tables/list-navigation";
+import {
+  sortControlId,
+  useListNavigation,
+} from "@/components/tables/list-navigation";
 import { TablePagination } from "@/components/tables/table-pagination";
 import { TableToolbar } from "@/components/tables/table-toolbar";
 import {
@@ -180,6 +183,7 @@ export function ListTable<T, K extends string>({
                 }),
               ),
               "replace",
+              sortControlId(key),
             ),
         }}
       />

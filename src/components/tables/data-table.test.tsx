@@ -315,3 +315,22 @@ describe("DataTable pending state (DT-PEND-1, BS-MOT-1)", () => {
     ).not.toMatch(/transition|opacity/);
   });
 });
+
+describe("DataTable sort control ids (DT-SORT-2)", () => {
+  it("gives each sortable header a stable id built from its column id", () => {
+    renderTable();
+
+    expect(screen.getByRole("button", { name: "Name" })).toHaveAttribute(
+      "data-list-control",
+      "sort:name",
+    );
+    expect(screen.getByRole("button", { name: "Login" })).toHaveAttribute(
+      "data-list-control",
+      "sort:login",
+    );
+    expect(screen.getByRole("button", { name: "Status" })).toHaveAttribute(
+      "data-list-control",
+      "sort:status",
+    );
+  });
+});

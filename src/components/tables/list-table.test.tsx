@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Suspense, use, useState, type ReactNode } from "react";
+import { Suspense, use, useEffect, useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ListNavigationProvider } from "@/components/tables/list-navigation";
@@ -483,5 +483,50 @@ describe("ListTable pending (DT-PEND-1)", () => {
     expect(
       card().querySelector('[data-slot="table-card-body"]'),
     ).not.toHaveClass("opacity-60");
+  });
+});
+
+describe("ListTable focus after the list is replaced (DT-SORT-2)", () => {
+  it("keeps keyboard focus on the same sort header after a skeleton remount", async () => {
+    const handle = { arrive: () => undefined as void };
+    function Harness() {
+      const [phase, setPhase] = useState<"list" | "skeleton">("list");
+      useEffect(() => {
+        handle.arrive = () => setPhase("list");
+      });
+      router.replace.mockImplementation(() => setPhase("skeleton"));
+      return phase === "skeleton" ? <p>skeleton</p> : <ListShell />;
+    }
+    function ListShell() {
+      return (
+        <ListNavigationProvider>
+          <ListTable<Person, UsersListState["sort"]["key"]>
+            columns={COLUMNS}
+            rows={ROWS}
+            getRowId={(row) => `u-${row.id}`}
+            caption="People list"
+            state={DEFAULT_STATE}
+            defaultState={DEFAULT_STATE}
+            total={25}
+            hrefFor={usersListHref}
+            search={{ label: "Search users", placeholder: "Name or login" }}
+            empty={{ message: "No users yet", action: undefined }}
+            noResults={{ title: "Nothing matches", hint: "Try again." }}
+          />
+        </ListNavigationProvider>
+      );
+    }
+    renderWithIntl(<Harness />, "en");
+    const user = userEvent.setup();
+
+    screen.getByRole("button", { name: "Login" }).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByText("skeleton")).toBeInTheDocument();
+
+    await act(async () => {
+      handle.arrive();
+    });
+
+    expect(screen.getByRole("button", { name: "Login" })).toHaveFocus();
   });
 });

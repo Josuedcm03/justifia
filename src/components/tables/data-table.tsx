@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { cn } from "cn";
 
+import { sortControlId } from "@/components/tables/list-navigation";
 import { SortableHeader } from "@/components/tables/sortable-header";
 import {
   Table,
@@ -130,6 +131,7 @@ export function DataTable<T>({
                     key={header.id}
                     direction={column.getIsSorted()}
                     onSort={() => sorting.onSort(column.id)}
+                    controlId={sortControlId(column.id)}
                     align={meta?.align}
                     className={meta?.className}
                   >

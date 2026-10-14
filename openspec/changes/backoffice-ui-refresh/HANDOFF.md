@@ -77,3 +77,5 @@ All implementation slices (0 to 3d) and the automated part of the final phase (F
 - Slices ran well over their estimates (final: about 13,300 changed lines excluding openspec notes and the lock file, 67% tests, against 5,800 to 7,250 forecast). Per-slice counts are in `apply-progress.md` Batch L for the `size:exception` justification.
 
 - The home page lives in `src/app/(dashboard)/(home)/` (route group, URL stays `/`) so it has its own card-grid `loading.tsx`; every other dashboard route keeps the table skeleton of `(dashboard)/loading.tsx`.
+
+- Gate V1 observed by the owner (Batch Q): the `(dashboard)/loading.tsx` skeleton DOES replace the table on a query-only navigation. Keyboard focus returns to the same sort header through a module-level control id in `list-navigation.tsx`; pagination, status filter and search are not covered yet. A page-level `<Suspense>` to keep the old table visible is an unimplemented option (risks in Batch Q).
