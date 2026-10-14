@@ -390,7 +390,9 @@ pressing again reverses. One column is sorted at a time. The change is instant: 
 
 **Loading skeleton.** While a screen loads, its shape is drawn in `secondary`
 blocks on the page frame: a title bar, one line of context and a table card
-with five rows. It is `aria-busy` and names itself for assistive technology.
+with five rows. The home has its own skeleton (`(dashboard)/(home)/loading.tsx`)
+that draws the title bar, the subtitle line, two count cards and four shortcut
+cards in the same responsive grid. Both are `aria-busy` and names itself for assistive technology.
 The pulse is the only movement and stops under reduced motion.
 
 **Route error.** When a screen fails unexpectedly: one heading, one sentence

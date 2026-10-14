@@ -75,3 +75,5 @@ All implementation slices (0 to 3d) and the automated part of the final phase (F
 - Drizzle's `QueryBuilder.toSQL()` proves scope, ordering, collation and projection without a database; do not split `order by` text on `", "` (it breaks `nullif(col, '')`).
 - `users.search.*`, `users.count` and `users.pagination.*` are unused after 2d; they are removed in 3d.9.
 - Slices ran well over their estimates (final: about 13,300 changed lines excluding openspec notes and the lock file, 67% tests, against 5,800 to 7,250 forecast). Per-slice counts are in `apply-progress.md` Batch L for the `size:exception` justification.
+
+- The home page lives in `src/app/(dashboard)/(home)/` (route group, URL stays `/`) so it has its own card-grid `loading.tsx`; every other dashboard route keeps the table skeleton of `(dashboard)/loading.tsx`.

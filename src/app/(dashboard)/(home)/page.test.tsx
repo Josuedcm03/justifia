@@ -5,8 +5,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import type { RolUsuario } from "@/lib/validations/auth";
 
-import enMessages from "../../../i18n/en.json";
-import esMessages from "../../../i18n/es.json";
+import enMessages from "../../../../i18n/en.json";
+import esMessages from "../../../../i18n/es.json";
 
 const { requireUserMock, getDashboardStatsMock, perms } = vi.hoisted(() => ({
   requireUserMock: vi.fn(),
@@ -84,7 +84,8 @@ function sessionFor(rol: RolUsuario) {
 
 async function renderHome(rol: RolUsuario) {
   requireUserMock.mockResolvedValue(sessionFor(rol));
-  const { default: DashboardPage } = await import("@/app/(dashboard)/page");
+  const { default: DashboardPage } =
+    await import("@/app/(dashboard)/(home)/page");
   return render(await DashboardPage());
 }
 
@@ -116,7 +117,7 @@ const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
 describe("DashboardPage (BS-HOME-1)", () => {
   beforeAll(async () => {
     // The first dynamic import transforms the whole page tree.
-    await import("@/app/(dashboard)/page");
+    await import("@/app/(dashboard)/(home)/page");
   }, 60_000);
 
   it.each(HOME_PER_ROLE)(

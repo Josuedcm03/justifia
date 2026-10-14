@@ -18,8 +18,9 @@ const SHELL_FILES = [
   "src/components/empty-state.tsx",
   "src/components/degraded-alert.tsx",
   "src/app/(dashboard)/loading.tsx",
+  "src/app/(dashboard)/(home)/loading.tsx",
   "src/app/(dashboard)/error.tsx",
-  "src/app/(dashboard)/page.tsx",
+  "src/app/(dashboard)/(home)/page.tsx",
 ] as const;
 
 // A fixed pixel or rem width (`w-96`, `w-[320px]`, `min-w-[20rem]`) cannot
@@ -43,7 +44,7 @@ describe("shell responsive classes (BS-RSP-1)", () => {
   });
 
   it("the home shortcut and count grids collapse to one column below sm", () => {
-    const source = read("src/app/(dashboard)/page.tsx");
+    const source = read("src/app/(dashboard)/(home)/page.tsx");
     const grids = [...source.matchAll(/className="([^"]*\bgrid\b[^"]*)"/g)];
 
     expect(grids.length).toBeGreaterThanOrEqual(2);
@@ -57,6 +58,13 @@ describe("shell responsive classes (BS-RSP-1)", () => {
     expect(read("src/app/(dashboard)/error.tsx")).toMatch(/flex-wrap/);
     // Skeleton blocks size by fraction of the row, never by pixels.
     expect(read("src/app/(dashboard)/loading.tsx")).toMatch(/w-1\/4/);
+  });
+
+  it("the home skeleton sizes blocks by fraction and mirrors the real grid", () => {
+    const source = read("src/app/(dashboard)/(home)/loading.tsx");
+
+    expect(source).toMatch(/sm:grid-cols-2/);
+    expect(source).toMatch(/w-(?:1\/\d|2\/3|full)/);
   });
 
   it("the top-bar trail keeps only the entry below md", () => {

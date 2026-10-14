@@ -1639,3 +1639,13 @@ Owner decision, supersedes 2c.0 ("sort state is visible text"): the sortable hea
 - Keys: `tables.sort.indicator.{sortable,ascending,descending}` removed from `i18n/es.json` and `i18n/en.json`; `rg` showed no consumer outside the tests. `tables.sort.{sortable,ascending,descending}` (the description) are kept.
 - Docs: `docs/design-system.md` "Sortable header" now states the icon is the only visual indicator and the state lives in `aria-sort` and the description. Section 2 untouched.
 - HANDOFF.md: the "visible text" decision bullet was replaced.
+
+## Batch O: home skeleton
+
+Owner request: the shared table skeleton did not match the home.
+
+- Moved `src/app/(dashboard)/page.tsx` and `page.test.tsx` into the `(home)` route group (URL unchanged). Fixed the test import paths (`../../../../i18n`, `@/app/(dashboard)/(home)/page`) and `shell-responsive.test.ts` paths. Page behaviour untouched.
+- RED first: `(home)/loading.test.tsx` (module missing) and the new sweeps in `shell-responsive.test.ts` and `shell-motion.test.ts` failed before `(home)/loading.tsx` existed.
+- GREEN: `(home)/loading.tsx`: synchronous, aria-busy, hidden `common.loading`, title and subtitle bars, 2 count cards then 4 shortcut cards (role-agnostic, noted in a comment) in the real grid classes. `(dashboard)/loading.tsx` and its test are unchanged.
+- Docs: `docs/design-system.md` loading skeleton paragraph mentions the home skeleton.
+- Visual result needs the owner in the browser.

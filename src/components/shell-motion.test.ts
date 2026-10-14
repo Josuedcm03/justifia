@@ -33,3 +33,14 @@ describe("dashboard header (BS-CTX-1)", () => {
     expect(source).not.toMatch(/function initials\(/);
   });
 });
+
+describe("loading skeletons (BS-MOT-1: no `all` transitions)", () => {
+  it.each([
+    "src/app/(dashboard)/loading.tsx",
+    "src/app/(dashboard)/(home)/loading.tsx",
+  ])("%s has no transition-all", (file) => {
+    const source = readFileSync(join(process.cwd(), file), "utf8");
+
+    expect(source).not.toMatch(/transition-all|transition:\s*all/);
+  });
+});
