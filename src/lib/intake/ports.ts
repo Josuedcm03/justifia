@@ -27,3 +27,14 @@ export interface GroupScheduleProvider {
     range: { from: string; to: string },
   ): Promise<ReadonlySet<number>>;
 }
+
+/**
+ * Non-working days for the RN-08 clock (SR-5). Weekends are handled by the
+ * business-day logic itself; this port only knows holidays and closures.
+ */
+export interface NonWorkingDaysProvider {
+  /** True when the ISO date (`YYYY-MM-DD`) is a listed non-working day. */
+  isNonWorkingDay(iso: string): boolean;
+  /** True when the calendar has entries for the year (staleness signal). */
+  coversYear(year: number): boolean;
+}

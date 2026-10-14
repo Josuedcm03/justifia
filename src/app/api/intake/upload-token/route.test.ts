@@ -127,6 +127,13 @@ describe("POST /api/intake/upload-token", () => {
   });
 
   it("issues a token for the own open draft, with the limits payload (RN-04, D2)", async () => {
+    getUploadContextMock.mockImplementation(
+      async (_user: number, _now: Date, target: { kind: string }) =>
+        target.kind === "draft"
+          ? { solicitudId: DRAFT_ID, documentCount: 1 }
+          : null,
+    );
+
     const res = await POST(tokenRequest());
 
     expect(res.status).toBe(200);
@@ -134,7 +141,9 @@ describe("POST /api/intake/upload-token", () => {
       type: "blob.generate-client-token",
       clientToken: "client-token",
     });
-    expect(getUploadContextMock).toHaveBeenCalledWith(7, NOW);
+    expect(getUploadContextMock).toHaveBeenCalledWith(7, NOW, {
+      kind: "draft",
+    });
     expect(issuedOptions).toEqual({
       allowedContentTypes: ["application/pdf", "image/png", "image/jpeg"],
       maximumSizeInBytes: 10_485_760,
@@ -210,5 +219,119 @@ describe("POST /api/intake/upload-token", () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "bad_request" });
+  });
+});
+
+describe("POST /api/intake/upload-token: correction of a returned request (supporting-documents)", () => {
+  const RETURNED_ID = 31;
+  const RETURNED_PATH = `intake/${RETURNED_ID}/0b9f6c1e-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+  const correction = { kind: "correction", solicitudId: RETURNED_ID };
+  const contexts = (returned: number | null, draft: number | null) =>
+    getUploadContextMock.mockImplementation(
+      async (_user: number, _now: Date, target: { kind: string }) => {
+        const count = target.kind === "correction" ? returned : draft;
+        return count === null
+          ? null
+          : {
+              solicitudId:
+                target.kind === "correction" ? RETURNED_ID : DRAFT_ID,
+              documentCount: count,
+            };
+      },
+    );
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    getCurrentUserMock.mockReset().mockResolvedValue(session());
+    getUploadContextMock.mockReset();
+    handleUploadMock.mockReset();
+    issuedOptions = undefined;
+    handleUploadMock.mockImplementation(
+      async ({ body, onBeforeGenerateToken }) => {
+        issuedOptions = await onBeforeGenerateToken(
+          body.payload.pathname,
+          body.payload.clientPayload,
+          false,
+        );
+        return {
+          type: "blob.generate-client-token",
+          clientToken: "client-token",
+        };
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("issues the same limited token for the own devuelta request named in the pathname", async () => {
+    contexts(2, null);
+
+    const res = await POST(tokenRequest(RETURNED_PATH));
+
+    expect(res.status).toBe(200);
+    expect(getUploadContextMock).toHaveBeenCalledWith(7, NOW, correction);
+    expect(issuedOptions).toEqual({
+      allowedContentTypes: ["application/pdf", "image/png", "image/jpeg"],
+      maximumSizeInBytes: 10_485_760,
+      validUntil: NOW.getTime() + 10 * 60 * 1000,
+      addRandomSuffix: false,
+      allowOverwrite: false,
+    });
+  });
+
+  it("prefers the returned request when the student also has a live draft", async () => {
+    contexts(1, 0);
+
+    const res = await POST(tokenRequest(RETURNED_PATH));
+
+    expect(res.status).toBe(200);
+    expect(getUploadContextMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the live draft when the pathname is not a returned request's", async () => {
+    contexts(null, 1);
+
+    const res = await POST(tokenRequest());
+
+    expect(res.status).toBe(200);
+    expect(getUploadContextMock.mock.calls.map((c) => c[2])).toEqual([
+      { kind: "correction", solicitudId: DRAFT_ID },
+      { kind: "draft" },
+    ]);
+  });
+
+  it("denies a request that is foreign or not devuelta (nothing open, no draft either)", async () => {
+    contexts(null, null);
+
+    const res = await POST(tokenRequest(RETURNED_PATH));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "no_draft" });
+    expect(issuedOptions).toBeUndefined();
+  });
+
+  it("denies a draft pathname that is not under the open context's prefix", async () => {
+    contexts(null, 1);
+
+    const res = await POST(tokenRequest(RETURNED_PATH));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "not_allowed" });
+    expect(issuedOptions).toBeUndefined();
+  });
+
+  it("applies the cap to the count the data layer reports (retired already excluded)", async () => {
+    contexts(5, null);
+    const refused = await POST(tokenRequest(RETURNED_PATH));
+    expect(await refused.json()).toEqual({ error: "too_many_documents" });
+    expect(issuedOptions).toBeUndefined();
+
+    contexts(4, null);
+    const allowed = await POST(tokenRequest(RETURNED_PATH));
+    expect(allowed.status).toBe(200);
+    expect(issuedOptions).toBeDefined();
   });
 });

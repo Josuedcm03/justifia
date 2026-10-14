@@ -12,7 +12,8 @@ import {
   errorsOf,
   invalidProps,
 } from "@/app/(dashboard)/requests/new/form-field";
-import { stepHref } from "@/app/(dashboard)/requests/new/steps";
+import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
+import { FLOW_PATH, stepHref } from "@/app/(dashboard)/requests/new/steps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -25,6 +26,11 @@ type Initial = {
   fechaFin: string | null;
 };
 
+const NEW_FLOW: StepFlow<"saveDetails"> = {
+  basePath: FLOW_PATH,
+  actions: { saveDetails: saveDetailsAction },
+};
+
 /**
  * Step 1: cause and dates (RF-01 b, RN-01, RN-05, RN-23). Nothing is validated
  * here: the action is the authority and answers with every invalid field at
@@ -33,9 +39,11 @@ type Initial = {
 export function CauseDatesStep({
   initial,
   fromReview = false,
+  flow = NEW_FLOW,
 }: {
   initial: Initial;
   fromReview?: boolean;
+  flow?: StepFlow<"saveDetails">;
 }) {
   const t = useTranslations("intake");
   const router = useRouter();
@@ -53,10 +61,10 @@ export function CauseDatesStep({
     };
 
     startTransition(async () => {
-      const result = await saveDetailsAction(details);
+      const result = await flow.actions.saveDetails(details);
       if (result.ok) {
         setErrors([]);
-        router.push(stepHref(fromReview ? 4 : 2));
+        router.push(stepHref(fromReview ? 4 : 2, flow.basePath));
       } else {
         setErrors(result.errors);
       }

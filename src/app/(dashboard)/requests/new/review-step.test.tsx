@@ -229,3 +229,75 @@ describe("ReviewStep: per-field submit errors (RF-03)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+describe("ReviewStep inside the correction flow", () => {
+  const resubmit = vi.fn();
+  const flow = { basePath: "/requests/31/correct", actions: { resubmit } };
+
+  beforeEach(() => resubmit.mockReset());
+
+  it("offers resubmit instead of submit and discard, under the flow's path", () => {
+    renderIntl(ui({ flow }));
+
+    expect(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Presentar solicitud" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Descartar borrador" }),
+    ).toBeNull();
+    expect(screen.getByRole("link", { name: "Atrás" })).toHaveAttribute(
+      "href",
+      "/requests/31/correct?step=3",
+    );
+    expect(
+      screen.getByRole("link", { name: "Editar Causa y fechas" }),
+    ).toHaveAttribute("href", "/requests/31/correct?step=1&from=review");
+  });
+
+  it("resubmits only after the confirmation", async () => {
+    resubmit.mockResolvedValue({ ok: true });
+    renderIntl(ui({ flow }));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    );
+    expect(resubmit).not.toHaveBeenCalled();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Cancelar" }),
+    );
+    expect(resubmit).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sí, reenviar" }),
+    );
+    await vi.waitFor(() => expect(resubmit).toHaveBeenCalledTimes(1));
+    expect(submitRequestAction).not.toHaveBeenCalled();
+  });
+
+  it("puts the resubmit refusals under their sections", async () => {
+    resubmit.mockResolvedValue({
+      ok: false,
+      errors: [{ field: "documents", key: "intake.errors.documents_required" }],
+    });
+    renderIntl(ui({ flow }));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sí, reenviar" }),
+    );
+
+    expect(
+      await within(section("Documentos")).findByText(
+        "Adjunta al menos un documento de respaldo.",
+      ),
+    ).toBeInTheDocument();
+  });
+});

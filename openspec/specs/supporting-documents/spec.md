@@ -15,10 +15,12 @@ C28-C31 (direct upload, no native content inspection, signature validation,
 ### Requirement: Upload authorization and limits (RN-04, D2, RNF-01)
 
 The system MUST issue an upload token only to an authenticated `estudiante`
-who owns a non-expired draft. The token MUST restrict content types to PDF,
-PNG, and JPEG, restrict size to at most 10 485 760 bytes, be short-lived,
-and bind the file to a per-draft storage prefix with an unguessable name.
-The token route MUST re-check session, role, and ownership on every call.
+who owns a non-expired draft or who owns a request in state `devuelta` (a
+correction, see `student-requests`). The token MUST restrict content types to
+PDF, PNG, and JPEG, restrict size to at most 10 485 760 bytes, be short-lived,
+and bind the file to that draft's or request's storage prefix with an
+unguessable name. The token route MUST re-check session, role, ownership and,
+for a correction, the `devuelta` state on every call.
 
 #### Scenario: Token for own draft
 
@@ -26,9 +28,15 @@ The token route MUST re-check session, role, and ownership on every call.
 - WHEN they request an upload token
 - THEN a token is issued limited to the three types, 10 MB, a short validity, and that draft's prefix
 
+#### Scenario: Token for own returned request
+
+- GIVEN a student who owns a request in `devuelta`
+- WHEN they request an upload token for that request
+- THEN a token is issued limited to the three types, 10 MB, a short validity, and that request's prefix
+
 #### Scenario: Token denied
 
-- GIVEN no session, a non-student role, another student's draft, or an expired draft
+- GIVEN no session, a non-student role, another student's draft or request, an expired draft, or an own request that is not `devuelta`
 - WHEN a token is requested
 - THEN it is denied and no token is issued
 
@@ -57,14 +65,17 @@ a document from the draft; removal MUST delete the stored file and the record.
 
 ### Requirement: At most five documents per request (D12, RF-02 a)
 
-A draft MUST hold at most 5 documents. The count MUST include every document
-record of the draft in state `pendiente` (finalize in progress) or `valido`.
-When the draft already holds 5 such documents, the token route MUST NOT issue
-an upload token and MUST return the reason `too_many_documents`. Finalize MUST
+A draft, or the caller's own request in `devuelta` during a correction, MUST
+hold at most 5 documents. The count MUST include every document record of that
+draft or request in state `pendiente` (finalize in progress) or `valido`, and
+MUST exclude retired documents (`RetiradoEn IS NOT NULL`). When the draft or
+request already holds 5 such documents, the token route MUST NOT issue an
+upload token and MUST return the reason `too_many_documents`. Finalize MUST
 re-check the cap when it claims its `pendiente` row, so concurrently issued
 tokens cannot exceed it; a finalize that would make a sixth document MUST be
 rejected with `too_many_documents`, delete the stored file, and create no
-document record. Removing a document frees a slot.
+document record. Removing a document frees a slot, whether it is deleted or
+retired.
 
 #### Scenario: Sixth upload rejected at the token
 
@@ -89,6 +100,13 @@ document record. Removing a document frees a slot.
 - GIVEN a draft with 5 `valido` documents
 - WHEN the student removes one and requests a token
 - THEN a token is issued
+
+#### Scenario: Correction cap excludes retired documents
+
+- GIVEN a `devuelta` request with 2 retired documents and 5 current `valido` documents
+- WHEN the owner requests an upload token
+- THEN no token is issued and the reason `too_many_documents` is shown
+- AND after the owner removes one current document of the returned revision (retiring it), a token is issued
 
 ### Requirement: Finalize with magic-byte validation (RN-04, RF-02 b, D3)
 
@@ -152,20 +170,23 @@ Rejection reasons (distinct, translatable): `unsupported_format`, `too_large`,
 ### Requirement: Authenticated inline view (RNF-01, RNF-02, RNF-06, D13, D15)
 
 Documents MUST be served only through an authenticated server route that
-re-checks session, role, and that the document belongs to a request or draft
-of the caller. A document MUST NOT have a public URL, and no stored location
-MUST be exposed to clients. The only authorized reader in this change is the
-owning student (D15); access by other roles belongs to later changes.
-Unauthorized or unknown ids MUST yield identical denials with no file bytes.
-The route MUST serve the file inline (`Content-Disposition: inline` with the
-RFC 5987 original name), with `Content-Security-Policy: sandbox`,
+re-checks session, role, scope and the readable-document predicate on every
+call. A document MUST NOT have a public URL, and no stored location MUST be
+exposed to clients. Authorized readers: (a) the owning student, for their own
+`valido` documents of a draft or request; (b) a `secretaria` whose `FacultadId`
+equals the facultad of the request's student (via the student's current
+`CarreraId`), for `valido` documents of a non-`borrador` request, including
+retired ones (`RetiradoEn` set). No other role MAY read. Unauthorized, out-of-scope,
+draft-of-another-user and unknown ids MUST yield identical denials with no file
+bytes. The route MUST accept a mode: `ver` (default) serves inline
+(`Content-Disposition: inline` with the RFC 5987 original name); `descarga`
+serves as an attachment (`Content-Disposition: attachment` with the same
+name). Both MUST send `Content-Security-Policy: sandbox`,
 `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store` and the
-`Content-Type` of the verified detected type. The student only views the
-document to check it before submitting; an explicit download for staff is
-deferred to `secretary-review` (owner-approved 2026-10-09).
-Every successful read MUST write exactly one `documento.descargado` audit
-row (D13, RNF-06 a; see the `audit-log` delta; the event name is kept and
-records a read); a denied or failed read MUST write none.
+`Content-Type` of the verified detected type. An unknown mode value MUST be
+refused. Every successful read, in either mode, MUST write exactly one
+`documento.descargado` audit row whose payload records the mode (see the
+`audit-log` delta); a denied or failed read MUST write none.
 
 #### Scenario: Owner views inline
 
@@ -207,6 +228,50 @@ records a read); a denied or failed read MUST write none.
 - WHEN the page, API responses, and database records are inspected
 - THEN none contains a directly fetchable store URL
 
+#### Scenario: Staff in scope views inline
+
+- GIVEN a `secretaria` of facultad A and a `valido` document of a `pendiente` request of a facultad A student
+- WHEN they call the route in mode `ver`
+- THEN the file is streamed inline with the security headers
+- AND one `documento.descargado` row exists with the secretary as actor and mode `ver`
+
+#### Scenario: Staff attachment download
+
+- GIVEN the same document
+- WHEN the secretary calls the route in mode `descarga`
+- THEN `Content-Disposition` is `attachment` with the original name
+- AND one `documento.descargado` row exists with mode `descarga`
+
+#### Scenario: Retired document visible to staff
+
+- GIVEN a document retired by a correction of a request in scope
+- WHEN the secretary opens it
+- THEN it is served and audited; the owning student is not offered it in the current revision
+
+#### Scenario: Out-of-scope secretary denied
+
+- GIVEN a `secretaria` of facultad A and a document of a facultad B student
+- WHEN they call the route in any mode
+- THEN the response equals that for a nonexistent id, no bytes are returned and no audit row is written
+
+#### Scenario: Staff cannot read drafts or unfinalized files
+
+- GIVEN a document of a `borrador` or a `pendiente` (unfinalized) document of a presented request
+- WHEN an in-scope secretary calls the route
+- THEN the response is the same denial as for a nonexistent id
+
+#### Scenario: Secretary without facultad or other staff role denied
+
+- GIVEN a `secretaria` with null `FacultadId`, or a `coordinacion`
+- WHEN they call the route
+- THEN access is denied with no bytes and no audit row
+
+#### Scenario: Unknown mode refused
+
+- GIVEN an authorized caller
+- WHEN the mode is neither `ver` nor `descarga`
+- THEN the request is refused with no bytes and no audit row
+
 ### Requirement: Orphan blob cleanup (D8, D14)
 
 The cleanup sweep MUST delete stored files under draft prefixes that are not
@@ -243,3 +308,44 @@ rules. Domain rules MUST be testable with a fake store.
 - GIVEN a fake `DocumentStore`
 - WHEN finalize, discard, and sweep rules are tested
 - THEN no network or real store is needed
+
+### Requirement: Soft retirement of documents on correction (RF-08 b)
+
+While a request is `devuelta`, when its owner removes a document that belongs
+to the latest returned revision (listed in that revision's snapshot), the
+document MUST be retired, not deleted: its record is marked with `RetiradoEn`
+(server time), it stays `valido`, and its stored file MUST be kept. There is no
+revision marker column; the revision snapshot already lists the document.
+Retirement MUST happen in the same transaction as its single
+`documento.retirado` audit row (see the `audit-log` delta). A document uploaded
+during the current correction and then removed MUST be deleted as in a draft
+(record and file), with no `documento.retirado` row. A retired document
+(`RetiradoEn IS NOT NULL`) MUST NOT count toward the 5-document cap, MUST NOT
+count as a valid document for RN-03, and MUST NOT be offered to the student for
+viewing in the current revision. The cleanup sweep MUST NOT delete a retired
+document or its file.
+
+#### Scenario: Removal retires, does not delete
+
+- GIVEN a `devuelta` request whose latest revision lists a `valido` document D1
+- WHEN the owner removes D1
+- THEN D1's record and stored file remain, `RetiradoEn` is set, and exactly one `documento.retirado` row is written in the same transaction
+- AND after attaching D2 and resubmitting, D2 is current and D1 stays retired
+
+#### Scenario: Document added during the correction is deleted
+
+- GIVEN a `devuelta` request where the owner attached D2 during the current correction
+- WHEN the owner removes D2 before resubmitting
+- THEN D2's record and stored file are deleted and no `documento.retirado` row is written
+
+#### Scenario: Cap ignores retired
+
+- GIVEN a request with 5 retired documents and 3 current ones
+- WHEN the owner requests an upload token during a correction
+- THEN a token is issued
+
+#### Scenario: Sweep keeps retired
+
+- GIVEN a retired document whose request is older than 30 days
+- WHEN the cleanup sweep runs
+- THEN the record and file remain

@@ -51,6 +51,8 @@ import {
 
 const USER = 7;
 const DRAFT = 4;
+/** The intake flow edits the caller's draft, never a returned request. */
+const TARGET = { kind: "draft" } as const;
 // 2026-10-07 09:00 in Managua (UTC-6).
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 
@@ -175,7 +177,7 @@ describe("intake actions", () => {
       });
       expect(h.removeDocument).toHaveBeenNthCalledWith(
         1,
-        { userId: USER, documentId: 999 },
+        { userId: USER, documentId: 999, target: TARGET },
         deps.store,
       );
     });
@@ -198,7 +200,7 @@ describe("intake actions", () => {
       });
 
       expect(result).toEqual({ ok: true });
-      expect(h.saveDraftDetails).toHaveBeenCalledWith(USER, NOW, valid);
+      expect(h.saveDraftDetails).toHaveBeenCalledWith(USER, NOW, valid, TARGET);
     });
 
     it("returns every invalid field and saves nothing", async () => {
@@ -256,7 +258,7 @@ describe("intake actions", () => {
       });
 
       expect(result).toEqual({ ok: true });
-      expect(h.saveDraftSubjects).toHaveBeenCalledWith(USER, NOW, [21]);
+      expect(h.saveDraftSubjects).toHaveBeenCalledWith(USER, NOW, [21], TARGET);
     });
 
     it("lists groups through the port for the draft's dates", async () => {
@@ -283,7 +285,12 @@ describe("intake actions", () => {
         ],
       });
 
-      expect(h.saveDraftSubjects).toHaveBeenCalledWith(USER, NOW, [21, 31]);
+      expect(h.saveDraftSubjects).toHaveBeenCalledWith(
+        USER,
+        NOW,
+        [21, 31],
+        TARGET,
+      );
     });
 
     it("blocks an ambiguous subject without a chosen group", async () => {
@@ -383,6 +390,7 @@ describe("intake actions", () => {
           userId: USER,
           pathname: "intake/4/x.png",
           nombreOriginal: "foto.png",
+          target: TARGET,
         },
         deps.store,
       );
@@ -427,7 +435,7 @@ describe("intake actions", () => {
 
       expect(await removeDocumentAction(11)).toEqual({ ok: true });
       expect(h.removeDocument).toHaveBeenCalledWith(
-        { userId: USER, documentId: 11 },
+        { userId: USER, documentId: 11, target: TARGET },
         deps.store,
       );
     });

@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog and five intake ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake and seven review ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -51,6 +51,13 @@ describe("AUDIT_ACTIONS", () => {
         "documento.rechazado",
         "documento.eliminado",
         "documento.descargado",
+        "solicitud.aprobada",
+        "solicitud.rechazada",
+        "solicitud.devuelta",
+        "solicitud.corregida",
+        "solicitud.consultada",
+        "solicitud.cola.consultada",
+        "documento.retirado",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([
@@ -70,5 +77,10 @@ describe("AuditEntityType", () => {
       "Grupo",
     ];
     expect(types).toHaveLength(4);
+  });
+
+  it("includes Facultad for the queue read event", () => {
+    const facultad: AuditEntityType = "Facultad";
+    expect(facultad).toBe("Facultad");
   });
 });

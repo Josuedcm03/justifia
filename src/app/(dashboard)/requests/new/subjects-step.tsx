@@ -13,7 +13,8 @@ import {
   errorsOf,
   invalidProps,
 } from "@/app/(dashboard)/requests/new/form-field";
-import { stepHref } from "@/app/(dashboard)/requests/new/steps";
+import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
+import { FLOW_PATH, stepHref } from "@/app/(dashboard)/requests/new/steps";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -41,6 +42,11 @@ function bySubject(groups: readonly EnrollmentGroup[]): Subject[] {
   return [...subjects.values()];
 }
 
+const NEW_FLOW: StepFlow<"saveSubjects"> = {
+  basePath: FLOW_PATH,
+  actions: { saveSubjects: saveSubjectsAction },
+};
+
 /**
  * Step 2: affected subjects (RF-04). The student ticks subjects from their own
  * enrollment; the group and teacher are shown without any search. Only when the
@@ -53,12 +59,14 @@ export function SubjectsStep({
   hasDates,
   degraded,
   fromReview = false,
+  flow = NEW_FLOW,
 }: {
   groups: readonly EnrollmentGroup[];
   selected: readonly { asignaturaId: number; grupoId: number }[];
   hasDates: boolean;
   degraded: boolean;
   fromReview?: boolean;
+  flow?: StepFlow<"saveSubjects">;
 }) {
   const t = useTranslations("intake");
   const router = useRouter();
@@ -69,7 +77,7 @@ export function SubjectsStep({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, startTransition] = useTransition();
 
-  const back = <BackLink href={stepHref(fromReview ? 4 : 1)} />;
+  const back = <BackLink href={stepHref(fromReview ? 4 : 1, flow.basePath)} />;
 
   const notice = !hasDates
     ? t("subjects.datesRequired")
@@ -97,7 +105,10 @@ export function SubjectsStep({
           {notice}
         </p>
         {hasDates ? null : (
-          <Link href={stepHref(1)} className="text-primary text-sm underline">
+          <Link
+            href={stepHref(1, flow.basePath)}
+            className="text-primary text-sm underline"
+          >
             {t("subjects.goToDates")}
           </Link>
         )}
@@ -125,10 +136,10 @@ export function SubjectsStep({
     }));
 
     startTransition(async () => {
-      const result = await saveSubjectsAction({ selections });
+      const result = await flow.actions.saveSubjects({ selections });
       if (result.ok) {
         setErrors([]);
-        router.push(stepHref(fromReview ? 4 : 3));
+        router.push(stepHref(fromReview ? 4 : 3, flow.basePath));
       } else {
         setErrors(result.errors);
       }

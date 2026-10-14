@@ -162,13 +162,13 @@ describe("AppSidebar", () => {
       ).not.toBeInTheDocument();
       expect(topLevelLabels()).toEqual(
         rol === "estudiante"
-          ? ["Panel", "Nueva solicitud", "Configuración"]
+          ? ["Panel", "Mis solicitudes", "Nueva solicitud", "Configuración"]
           : ["Panel", "Configuración"],
       );
     },
   );
 
-  it.each(["administrador", "coordinacion", "secretaria"] as const)(
+  it.each(["administrador", "coordinacion"] as const)(
     "orders the top level Panel, Administración, Configuración for %s",
     (rol) => {
       renderSidebar(rol);
@@ -180,6 +180,17 @@ describe("AppSidebar", () => {
       ]);
     },
   );
+
+  it("orders the top level Panel, Revisión de solicitudes, Administración, Configuración for secretaria", () => {
+    renderSidebar("secretaria");
+
+    expect(topLevelLabels()).toEqual([
+      "Panel",
+      "Revisión de solicitudes",
+      "Administración",
+      "Configuración",
+    ]);
+  });
 
   it.each([
     [
@@ -194,6 +205,7 @@ describe("AppSidebar", () => {
       "secretaria",
       [
         "/",
+        "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
         "/catalog/import",
@@ -202,7 +214,7 @@ describe("AppSidebar", () => {
       ],
     ],
     ["docente", ["/", "/settings"]],
-    ["estudiante", ["/", "/requests/new", "/settings"]],
+    ["estudiante", ["/", "/requests", "/requests/new", "/settings"]],
   ] as const)("offers exactly the permitted links to %s", (rol, hrefs) => {
     renderSidebar(rol);
 
@@ -221,7 +233,7 @@ describe("AppSidebar", () => {
       menu.querySelectorAll(":scope > li > a"),
     ).map((link) => link.getAttribute("href"));
 
-    expect(topLevelHrefs).toEqual(["/", "/settings"]);
+    expect(topLevelHrefs).toEqual(["/", "/review", "/settings"]);
   });
 });
 
@@ -688,6 +700,7 @@ describe("AppSidebar copy (both locales)", () => {
       "es",
       {
         dashboard: "Panel",
+        review: "Revisión de solicitudes",
         group: "Administración",
         catalogImport: "Carga de catálogo",
         users: "Usuarios",
@@ -698,6 +711,7 @@ describe("AppSidebar copy (both locales)", () => {
       "en",
       {
         dashboard: "Dashboard",
+        review: "Review requests",
         group: "Administration",
         catalogImport: "Catalog import",
         users: "Users",
@@ -711,6 +725,7 @@ describe("AppSidebar copy (both locales)", () => {
 
     expect(topLevelLabels()).toEqual([
       labels.dashboard,
+      labels.review,
       labels.group,
       labels.settings,
     ]);

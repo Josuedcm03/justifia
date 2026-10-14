@@ -46,6 +46,16 @@ export interface SubmissionError {
   asignaturaId?: number;
 }
 
+/** Options of `validateSubmission`. */
+export interface SubmissionOptions {
+  /**
+   * Apply the RN-23 filing window (default). A correction resubmit passes
+   * `false`: the window was met when the request was first presented, so it is
+   * not re-applied (RF-08 c). RN-05 and eligibility are always applied.
+   */
+  filingWindow?: boolean;
+}
+
 export type SubmissionResult =
   { ok: true } | { ok: false; errors: SubmissionError[] };
 
@@ -69,6 +79,7 @@ function endErrors(
   start: string | null,
   end: string | null,
   today: string,
+  filingWindow: boolean,
 ): SubmissionError[] {
   if (end === null || end === "") {
     return [{ field: "fechaFin", code: "end_required" }];
@@ -77,7 +88,7 @@ function endErrors(
   if (start !== null && isIsoDate(start) && end < start) {
     return [{ field: "fechaFin", code: "end_before_start" }];
   }
-  return isEndWithinWindow(end, today)
+  return !filingWindow || isEndWithinWindow(end, today)
     ? []
     : [{ field: "fechaFin", code: "end_too_old" }];
 }
@@ -94,11 +105,12 @@ function subjectErrors(input: SubmissionInput): SubmissionError[] {
 export function validateSubmission(
   input: SubmissionInput,
   today: string,
+  { filingWindow = true }: SubmissionOptions = {},
 ): SubmissionResult {
   const errors: SubmissionError[] = [
     ...causeErrors(input.causa),
     ...startErrors(input.fechaInicio),
-    ...endErrors(input.fechaInicio, input.fechaFin, today),
+    ...endErrors(input.fechaInicio, input.fechaFin, today, filingWindow),
     ...subjectErrors(input),
     ...(input.validDocumentCount > 0
       ? []

@@ -46,3 +46,5 @@ next-env.d.ts
 .atl
 .neon
 docs/otros
+# local
+.vercel
