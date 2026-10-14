@@ -171,14 +171,12 @@ describe("AsignaturasTable sorting (CM-LST-1, DT-SORT-2)", () => {
     ).toBeVisible();
   });
 
-  it("shows the sort state as visible text next to the label", () => {
+  it("shows no visible sort state text, only the icon", () => {
     renderTable({ state: stateOf({ sort: { key: "hours", dir: "desc" } }) });
 
     const header = screen.getByRole("columnheader", { name: /Hours/ });
     expect(header).toHaveAttribute("aria-sort", "descending");
-    expect(header.textContent).toContain(
-      messages.en.tables.sort.indicator.descending,
-    );
+    expect(header.textContent).toMatch(/^(Email|Hours)$/);
   });
 
   it("activating an unsorted header replaces the entry with that column ascending", async () => {

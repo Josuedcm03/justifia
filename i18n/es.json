@@ -99,12 +99,7 @@
     "sort": {
       "sortable": "Ordenable. Actívalo para ordenar por esta columna.",
       "ascending": "Orden ascendente. Actívalo para ordenar de forma descendente.",
-      "descending": "Orden descendente. Actívalo para ordenar de forma ascendente.",
-      "indicator": {
-        "sortable": "Ordenable",
-        "ascending": "Ascendente",
-        "descending": "Descendente"
-      }
+      "descending": "Orden descendente. Actívalo para ordenar de forma ascendente."
     }
   },
   "changePassword": {

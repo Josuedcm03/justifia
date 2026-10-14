@@ -1629,3 +1629,13 @@ reverted in that order.
 
 - G-5 closed: each of `users/page.test.tsx`, `catalog/asignaturas/page.test.tsx`, `catalog/docentes/page.test.tsx` and `page.test.tsx` (home, once per role) now asserts a single `[data-slot="page-frame"]` carrying `flex flex-col gap-8` that contains exactly one `h1`. Mutation proof: temporarily replacing `PageFrame` with a plain `div` in the four pages made 8 of the new tests fail (1 users, 1 asignaturas, 1 docentes, 5 home); the pages were restored afterwards.
 - S-2 closed: `docs/design-system.md` "Sortable header" now documents the visible, `aria-hidden` sort-state text, the column-label accessible name, `aria-sort` on the `th` and wrapping on narrow widths.
+
+## Batch N: sort indicator, icon only
+
+Owner decision, supersedes 2c.0 ("sort state is visible text"): the sortable header shows only the icon (ChevronsUpDown / ArrowUp / ArrowDown). No Sortable / Ascending / Descending text.
+
+- RED first: `sortable-header.test.tsx` (text content equals the column label, no `span`, name unchanged, description from `title`, no `flex-wrap`), `data-table.test.tsx` (no header carries state text) and `catalog-parity.test.ts` (`tables` leaf set without `sort.indicator.*`). 8 failures confirmed before any production edit.
+- GREEN: removed the `aria-hidden` span and the `flex-wrap` / `whitespace-normal` wrapping from `sortable-header.tsx`; kept `min-h-11`, focus ring, no transition, `title` and `aria-sort`.
+- Keys: `tables.sort.indicator.{sortable,ascending,descending}` removed from `i18n/es.json` and `i18n/en.json`; `rg` showed no consumer outside the tests. `tables.sort.{sortable,ascending,descending}` (the description) are kept.
+- Docs: `docs/design-system.md` "Sortable header" now states the icon is the only visual indicator and the state lives in `aria-sort` and the description. Section 2 untouched.
+- HANDOFF.md: the "visible text" decision bullet was replaced.

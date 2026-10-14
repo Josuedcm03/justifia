@@ -381,13 +381,12 @@ concentric. While new rows load, the card is `aria-busy`, the rows dim to
 **Sortable header.** A sortable column header is a button inside the header
 cell, at least 44px tall, with the column label on `label-caps` and a
 direction icon: up, down, or a muted double chevron when the column is not
-the sorted one. The header cell carries `aria-sort`; the icon is decoration.
-Beside the icon sits a visible sentence-case state text (Sortable, Ascending,
-Descending). It is `aria-hidden`, so the button's accessible name stays the
-column label and the state is exposed to assistive technology through
-`aria-sort` on the `th`. The text wraps on narrow widths instead of being
-truncated. Pressing it sorts ascending, pressing again reverses. One column is
-sorted at a time. The change is instant: nothing animates.
+the sorted one. The icon is the only visual indicator: no state text sits
+beside it, and the icon itself is decoration. The state is exposed through
+`aria-sort` on the header cell (set only on the sorted column) and through the
+button's description, so it never relies on colour alone. The button's
+accessible name stays exactly the column label. Pressing it sorts ascending,
+pressing again reverses. One column is sorted at a time. The change is instant: nothing animates.
 
 **Loading skeleton.** While a screen loads, its shape is drawn in `secondary`
 blocks on the page frame: a title bar, one line of context and a table card

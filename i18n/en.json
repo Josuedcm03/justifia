@@ -99,12 +99,7 @@
     "sort": {
       "sortable": "Sortable. Activate to sort by this column.",
       "ascending": "Sorted ascending. Activate to sort descending.",
-      "descending": "Sorted descending. Activate to sort ascending.",
-      "indicator": {
-        "sortable": "Sortable",
-        "ascending": "Ascending",
-        "descending": "Descending"
-      }
+      "descending": "Sorted descending. Activate to sort ascending."
     }
   },
   "changePassword": {

@@ -131,45 +131,34 @@ describe("SortableHeader (DT-SORT-2, DT-DENS-1)", () => {
     ["desc", "descending"],
     [false, "sortable"],
   ] as const)(
-    "shows the %s state as visible text that does not change the name",
+    "renders no visible state text for the %s state: the icon is the only indicator",
     (direction, key) => {
       const { button } = renderHeader({ direction });
-      const visible = messages.en.tables.sort.indicator[key];
+      const words = messages.en.tables.sort;
 
-      const text = within(button).getByText(visible);
-      expect(text).toBeVisible();
-      // Decoration for the accessible name: `aria-sort` and the description
-      // already carry the state for assistive technology.
-      expect(text).toHaveAttribute("aria-hidden", "true");
+      expect(button).toHaveTextContent(/^Name$/);
+      expect(button.textContent).toBe("Name");
+      expect(button.querySelector("span")).toBeNull();
+      expect(button).not.toHaveTextContent(words[key]);
+      // The state is still exposed through the description and aria-sort.
       expect(button).toHaveAccessibleName("Name");
-      expect(button).toHaveTextContent(`Name${visible}`);
+      expect(button).toHaveAccessibleDescription(words[key]);
     },
   );
 
-  it("shows the visible state text in Spanish when the locale is es", () => {
+  it("renders no visible state text in Spanish either", () => {
     const { button } = renderHeader({ direction: "desc" }, "es");
 
-    expect(
-      within(button).getByText(messages.es.tables.sort.indicator.descending),
-    ).toBeVisible();
-    expect(messages.es.tables.sort.indicator.descending).not.toBe(
-      messages.en.tables.sort.indicator.descending,
-    );
+    expect(button.textContent).toBe("Name");
     expect(button).toHaveAccessibleName("Name");
   });
 
-  it("wraps on narrow widths: no fixed width, wrapping allowed, 44px kept", () => {
+  it("keeps the 44px target without wrapping classes or fixed widths", () => {
     const { button } = renderHeader({ direction: "asc" });
-    const text = within(button).getByText(
-      messages.en.tables.sort.indicator.ascending,
-    );
 
-    // `th` is `whitespace-nowrap`; the button must opt back in to wrapping.
-    expect(button).toHaveClass("flex-wrap", "whitespace-normal", "min-h-11");
+    expect(button).toHaveClass("min-h-11");
+    expect(button).not.toHaveClass("flex-wrap");
     expect(button.className).not.toMatch(/(^|\s)(w|min-w|max-w)-/);
-    expect(text.className).not.toMatch(/(^|\s)(w|min-w|max-w)-/);
-    // Sentence-case helper text, not another uppercase caps label.
-    expect(text).toHaveClass("normal-case");
   });
 
   it("activates onSort with Enter", async () => {

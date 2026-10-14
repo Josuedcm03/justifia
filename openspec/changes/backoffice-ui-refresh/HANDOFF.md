@@ -50,7 +50,7 @@ All implementation slices (0 to 3d) and the automated part of the final phase (F
 - Collation `es-x-icu` exists in Neon; the database default is `C.UTF-8` (gate S1). `TEXT_SORT_COLLATION = "es-x-icu"`; the `lower(column)` fallback is not used.
 - OC-3, OC-4, OC-5 confirmed: docente home shows one sentence and no cards; failed stats read shows `DegradedAlert`, never zeros; secretaria count cards show system-wide totals with no new query (D9).
 - **OC-6 answered (owner, 2026-10-12): alphabetical.** The docentes default `name asc` order uses `TEXT_SORT_COLLATION` (`es-x-icu`), so accented and lowercase-initial names sort by their alphabetical position. Same rule as every other collated name column.
-- Sort indicator is visible text (`aria-hidden`), the button's accessible name stays the column label.
+- Sort indicator is icon only (owner decision, Batch N, supersedes the 2c.0 visible text): the state is exposed by `aria-sort` and the button description, the accessible name stays the column label.
 - No-results "clear filters" link clears only the search term and the status filter, keeps `sort`, `dir` and `size`, and goes to page 1.
 - Sortability is opt-in per column (`enableSorting === true`).
 
