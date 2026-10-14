@@ -95,7 +95,7 @@ function shortcutHrefs() {
 
 // BS-HOME-1 "Home per role" table.
 const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
-  ["estudiante", ["/requests/new"], false],
+  ["estudiante", ["/requests", "/requests/new"], false],
   ["docente", [], false],
   [
     "administrador",
@@ -109,7 +109,13 @@ const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
   ],
   [
     "secretaria",
-    ["/catalog/asignaturas", "/catalog/docentes", "/catalog/import", "/users"],
+    [
+      "/review",
+      "/catalog/asignaturas",
+      "/catalog/docentes",
+      "/catalog/import",
+      "/users",
+    ],
     true,
   ],
 ];
@@ -229,7 +235,7 @@ describe("DashboardPage (BS-HOME-1)", () => {
   it("tints a shortcut on hover only (hover-capable pointers)", async () => {
     await renderHome("estudiante");
 
-    const link = screen.getByRole("link");
+    const link = screen.getAllByRole("link")[0]!;
     expect(link.className).toContain("hover:bg-primary/5");
     expect(link.className.split(/\s+/)).not.toContain("bg-primary/5");
   });
@@ -319,7 +325,7 @@ describe("DashboardPage (BS-HOME-1)", () => {
 
       const { homeHrefs, sidebarHrefs } = await homeAndSidebar("secretaria");
 
-      expect(homeHrefs).toEqual(["/catalog/import", "/users"]);
+      expect(homeHrefs).toEqual(["/review", "/catalog/import", "/users"]);
       expect([...sidebarHrefs].sort()).toEqual([...homeHrefs].sort());
     });
   });
@@ -334,7 +340,9 @@ describe("DashboardPage copy", () => {
         }
       ).dashboard.shortcuts;
       for (const key of [
+        "myRequests",
         "newRequest",
+        "review",
         "catalogAsignaturas",
         "catalogDocentes",
         "catalogImport",

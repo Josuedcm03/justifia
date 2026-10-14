@@ -1,10 +1,12 @@
 import {
   BookOpen,
   Briefcase,
+  ClipboardCheck,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
   LayoutDashboard,
+  ListChecks,
   type LucideIcon,
   Settings,
   Users,
@@ -15,6 +17,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canReviewRequests,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -23,6 +26,11 @@ export type NavLink = {
   href: string;
   icon: LucideIcon;
   visibleTo?: (rol: RolUsuario) => boolean;
+  /**
+   * `false` keeps Next.js from prefetching the target. The review pages write an
+   * audit row when they render, so nothing may render them speculatively.
+   */
+  prefetch?: false;
 };
 
 export type NavGroup = {
@@ -42,10 +50,23 @@ export type NavGroup = {
 export const NAV_ITEMS = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
   {
+    key: "myRequests",
+    href: "/requests",
+    icon: ListChecks,
+    visibleTo: canFileRequests,
+  },
+  {
     key: "newRequest",
     href: "/requests/new",
     icon: FilePlus,
     visibleTo: canFileRequests,
+  },
+  {
+    key: "review",
+    href: "/review",
+    icon: ClipboardCheck,
+    visibleTo: canReviewRequests,
+    prefetch: false,
   },
   {
     key: "administration",
@@ -98,6 +119,21 @@ export function isCurrentPath(pathname: string, href: string): boolean {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+// `/requests/new` sits under `/requests`: the more specific top-level link owns
+// the page, so two top-level entries are never current together.
+const TOP_LEVEL_HREFS: readonly string[] = NAV_ITEMS.flatMap((item) =>
+  "href" in item ? [item.href] : [],
+);
+
+export function isCurrentTopLevel(pathname: string, href: string): boolean {
+  return (
+    isCurrentPath(pathname, href) &&
+    !TOP_LEVEL_HREFS.some(
+      (other) => other.startsWith(`${href}/`) && isCurrentPath(pathname, other),
+    )
+  );
+}
+
 export function isNavVisible(item: NavLink, rol: RolUsuario): boolean {
   return !item.visibleTo || item.visibleTo(rol);
 }
@@ -118,7 +154,11 @@ export function trailFor(pathname: string): NavTrail | null {
     ...NAV_CONTEXT_ONLY,
   ];
 
-  const match = places.find((place) => isCurrentPath(pathname, place.href));
+  // The most specific entry owns the page: `/requests/new` is not a page
+  // "below" `/requests`.
+  const match = places
+    .filter((place) => isCurrentPath(pathname, place.href))
+    .sort((a, b) => b.href.length - a.href.length)[0];
   if (!match) return null;
 
   return {

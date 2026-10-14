@@ -198,12 +198,14 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
     ),
   ].sort();
 
-  it("offers shortcuts for at least the five destinations the roles reach", () => {
+  it("offers shortcuts for the seven destinations the roles reach", () => {
     expect(SHORTCUT_KEYS).toEqual([
       "catalogAsignaturas",
       "catalogDocentes",
       "catalogImport",
+      "myRequests",
       "newRequest",
+      "review",
       "users",
     ]);
   });

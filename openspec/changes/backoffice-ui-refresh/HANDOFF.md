@@ -81,3 +81,5 @@ All implementation slices (0 to 3d) and the automated part of the final phase (F
 - Gate V1 observed by the owner (Batch Q): the `(dashboard)/loading.tsx` skeleton DOES replace the table on a query-only navigation. Keyboard focus returns to the same sort header through a module-level control id in `list-navigation.tsx`; pagination, status filter and search are not covered yet. A page-level `<Suspense>` to keep the old table visible is an unimplemented option (risks in Batch Q).
 
 - `main` was merged into this branch (bddcc22): `/review` now uses the bounded table kit through the client module `review/review-queue-table.tsx` (Batch R). The merged sidebar still lacks main's `/review` and `/requests` entries (open finding in Batch R).
+
+- Batch S: the merged sidebar now has main's `/requests` and `/review` entries again, in `src/lib/navigation.ts` (single source); `review` carries `prefetch: false` (the sidebar and the home cards forward it) and both appear as home shortcuts. The Batch R open finding is closed.

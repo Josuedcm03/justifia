@@ -742,7 +742,11 @@ describe("AppSidebar copy (both locales)", () => {
 
 describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
   it.each([
-    ["estudiante", ["Panel", "Nueva solicitud", "Configuración"], []],
+    [
+      "estudiante",
+      ["Panel", "Mis solicitudes", "Nueva solicitud", "Configuración"],
+      [],
+    ],
     ["docente", ["Panel", "Configuración"], []],
     [
       "administrador",
@@ -756,7 +760,7 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
     ],
     [
       "secretaria",
-      ["Panel", "Administración", "Configuración"],
+      ["Panel", "Revisión de solicitudes", "Administración", "Configuración"],
       ["Asignaturas", "Docentes", "Carga de catálogo", "Usuarios"],
     ],
   ] as const)(
@@ -789,6 +793,33 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
       expect(topLevelLabels().at(-1)).toBe("Configuración");
     },
   );
+
+  it.each([
+    ["/requests/new", "Nueva solicitud"],
+    ["/requests", "Mis solicitudes"],
+    ["/requests/7", "Mis solicitudes"],
+  ] as const)(
+    "marks only the more specific top-level link on %s",
+    (pathname, label) => {
+      env.pathname = pathname;
+      renderSidebar("estudiante");
+
+      const marked = document.querySelectorAll("[aria-current]");
+
+      expect(marked).toHaveLength(1);
+      expect(marked[0]).toHaveTextContent(label);
+    },
+  );
+
+  it("marks the review queue and its detail pages as one current entry", () => {
+    env.pathname = "/review/42";
+    renderSidebar("secretaria");
+
+    const marked = document.querySelectorAll("[aria-current]");
+
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveAttribute("href", "/review");
+  });
 
   it("marks only Asignaturas on a nested grupos route, with the group open", () => {
     env.pathname = "/catalog/asignaturas/3/grupos/new";

@@ -1,10 +1,12 @@
 import {
   BookOpen,
   Briefcase,
+  ClipboardCheck,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
   LayoutDashboard,
+  ListChecks,
   Settings,
   Users,
 } from "lucide-react";
@@ -15,6 +17,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canReviewRequests,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -23,6 +26,7 @@ import {
   isNavVisible,
   NAV_CONTEXT_ONLY,
   NAV_ITEMS,
+  type NavLink,
   shortcutsFor,
   trailFor,
 } from "./navigation";
@@ -36,18 +40,32 @@ const ALL_ROLES: readonly RolUsuario[] = [
 ];
 
 // Characterization pin (BS-NAV-1): the list the sidebar rendered before the
-// config moved out of `app-sidebar.tsx`. Content and order must not change
-// (D7: the settings entry stays as it was, even though its route does not
+// config moved out of `app-sidebar.tsx`, plus the `/requests` and `/review`
+// entries main added and the merge dropped (Batch S). Content and order must not
+// change (D7: the settings entry stays as it was, even though its route does not
 // exist). Proved by a mutation check, see apply-progress.
 describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
   it("equals the previous sidebar list in content and order", () => {
     expect(NAV_ITEMS).toEqual([
       { key: "dashboard", href: "/", icon: LayoutDashboard },
       {
+        key: "myRequests",
+        href: "/requests",
+        icon: ListChecks,
+        visibleTo: canFileRequests,
+      },
+      {
         key: "newRequest",
         href: "/requests/new",
         icon: FilePlus,
         visibleTo: canFileRequests,
+      },
+      {
+        key: "review",
+        href: "/review",
+        icon: ClipboardCheck,
+        visibleTo: canReviewRequests,
+        prefetch: false,
       },
       {
         key: "administration",
@@ -81,6 +99,22 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
       },
       { key: "settings", href: "/settings", icon: Settings },
     ]);
+  });
+
+  it("opts the review entry out of prefetching (it writes an audited read)", () => {
+    const review = NAV_ITEMS.find((item) => item.key === "review");
+
+    expect(review).toMatchObject({ href: "/review", prefetch: false });
+  });
+
+  it("leaves every other leaf without a prefetch flag", () => {
+    const leaves = NAV_ITEMS.flatMap((item): readonly NavLink[] =>
+      "children" in item ? item.children : [item],
+    );
+
+    for (const leaf of leaves.filter((l) => l.key !== "review")) {
+      expect(leaf, leaf.key).not.toHaveProperty("prefetch");
+    }
   });
 
   it("keeps the settings entry last and pointing at /settings", () => {
@@ -133,7 +167,9 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
   it.each([
     ["dashboard", ALL_ROLES],
     ["settings", ALL_ROLES],
+    ["myRequests", ["estudiante"]],
     ["newRequest", ["estudiante"]],
+    ["review", ["secretaria"]],
     ["catalogAsignaturas", STAFF],
     ["catalogDocentes", STAFF],
     ["catalogImport", ["secretaria"]],
@@ -208,10 +244,14 @@ describe("trailFor (BS-CTX-1)", () => {
         exact: true,
       },
     ],
+    ["/requests", { key: "myRequests", href: "/requests", exact: true }],
     [
       "/requests/new",
       { key: "newRequest", href: "/requests/new", exact: true },
     ],
+    ["/requests/42", { key: "myRequests", href: "/requests", exact: false }],
+    ["/review", { key: "review", href: "/review", exact: true }],
+    ["/review/42", { key: "review", href: "/review", exact: false }],
     ["/profile", { key: "profile", href: "/profile", exact: true }],
   ])("%s resolves to its section trail", (pathname, trail) => {
     expect(trailFor(pathname)).toEqual(trail);
@@ -239,13 +279,14 @@ describe("trailFor (BS-CTX-1)", () => {
 
 describe("shortcutsFor (BS-HOME-1 inputs)", () => {
   it.each([
-    ["estudiante", ["/requests/new"]],
+    ["estudiante", ["/requests", "/requests/new"]],
     ["docente", []],
     ["administrador", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
     ["coordinacion", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
     [
       "secretaria",
       [
+        "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
         "/catalog/import",

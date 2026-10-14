@@ -36,7 +36,9 @@ const LABELS = {
   es: {
     trail: "Ubicación de la página",
     dashboard: "Panel",
+    myRequests: "Mis solicitudes",
     newRequest: "Nueva solicitud",
+    review: "Revisión de solicitudes",
     administration: "Administración",
     asignaturas: "Asignaturas",
     docentes: "Docentes",
@@ -46,7 +48,9 @@ const LABELS = {
   en: {
     trail: "Page location",
     dashboard: "Dashboard",
+    myRequests: "My requests",
     newRequest: "New request",
+    review: "Review requests",
     administration: "Administration",
     asignaturas: "Subjects",
     docentes: "Teachers",
@@ -78,7 +82,11 @@ const TRAILS: readonly (readonly [string, boolean, Key, boolean, string])[] = [
     "/catalog/asignaturas",
   ],
   ["/catalog/docentes", true, "docentes", true, "/catalog/docentes"],
+  ["/requests", false, "myRequests", true, "/requests"],
   ["/requests/new", false, "newRequest", true, "/requests/new"],
+  ["/requests/42", false, "myRequests", false, "/requests"],
+  ["/review", false, "review", true, "/review"],
+  ["/review/42", false, "review", false, "/review"],
   ["/profile", false, "profile", true, "/profile"],
 ];
 

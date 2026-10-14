@@ -79,6 +79,7 @@ export default async function DashboardPage() {
             <Link
               key={link.key}
               href={link.href}
+              prefetch={"prefetch" in link ? link.prefetch : undefined}
               className="border-border bg-card text-card-foreground shadow-soft hover:bg-primary/5 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-1 rounded-xl border p-6 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               <span

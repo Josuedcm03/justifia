@@ -147,14 +147,22 @@ describe("review structure: links opt out of prefetch (SR-11, guard 2)", () => {
   );
 
   it("opts the sidebar entry out as well", () => {
-    const sidebar =
-      sources.find((s) => s.path === "src/components/app-sidebar.tsx")?.text ??
-      "";
-    const entry = sidebar.match(/\{[^{}]*href:\s*"\/review"[^{}]*\}/)?.[0];
+    // The entry lives in the shared navigation config (single source for the
+    // sidebar, the home shortcuts and the trail); the sidebar and the home
+    // read the flag from it.
+    const textOf = (path: string) =>
+      sources.find((s) => s.path === path)?.text ?? "";
+    const config = textOf("src/lib/navigation.ts");
+    const entry = config.match(/\{[^{}]*href:\s*"\/review"[^{}]*\}/)?.[0];
 
     expect(entry).toBeDefined();
     expect(entry).toContain("prefetch: false");
-    expect(sidebar).toContain("prefetch={prefetchOf(item)}");
+    expect(textOf("src/components/app-sidebar.tsx")).toContain(
+      "prefetch={prefetchOf(item)}",
+    );
+    expect(textOf("src/app/(dashboard)/(home)/page.tsx")).toContain(
+      "prefetch=",
+    );
   });
 
   it("never links to a review page with a plain prefetching <Link> elsewhere", () => {

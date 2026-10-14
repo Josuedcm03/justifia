@@ -32,6 +32,7 @@ import {
 import { initials } from "@/lib/initials";
 import {
   isCurrentPath,
+  isCurrentTopLevel,
   isNavVisible,
   NAV_ITEMS,
   type NavLink,
@@ -43,6 +44,11 @@ import type { RolUsuario } from "@/lib/validations/auth";
 // colour.
 const currentMarker =
   "data-active:shadow-[inset_4px_0_0_0_var(--sidebar-primary)]";
+
+// Only a leaf that opts out carries a value; the rest stay on Next.js defaults.
+function prefetchOf(item: NavLink) {
+  return item.prefetch;
+}
 
 function NavGroupItem({
   label,
@@ -180,7 +186,7 @@ export function AppSidebar({
 
                   if (!isNavVisible(item, rol)) return null;
 
-                  const isActive = isCurrentPath(pathname, item.href);
+                  const isActive = isCurrentTopLevel(pathname, item.href);
 
                   return (
                     <SidebarMenuItem key={item.key}>
@@ -190,6 +196,7 @@ export function AppSidebar({
                         render={
                           <Link
                             href={item.href}
+                            prefetch={prefetchOf(item)}
                             aria-current={isActive ? "page" : undefined}
                           />
                         }

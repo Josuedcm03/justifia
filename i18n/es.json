@@ -51,7 +51,9 @@
     "degraded": "No se pudieron cargar las cifras. Inténtalo de nuevo más tarde.",
     "empty": "Por ahora no tienes accesos directos en el panel.",
     "shortcuts": {
+      "myRequests": "Consulta el estado de tus solicitudes de justificación.",
       "newRequest": "Presenta una nueva solicitud de justificación.",
+      "review": "Revisa las solicitudes de justificación de tu facultad.",
       "catalogAsignaturas": "Consulta y administra las asignaturas y sus grupos.",
       "catalogDocentes": "Consulta los docentes registrados.",
       "catalogImport": "Carga el catálogo desde un archivo de Excel.",
