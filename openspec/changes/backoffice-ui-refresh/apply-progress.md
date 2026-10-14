@@ -1092,3 +1092,103 @@ Signed in as `administrador`, `coordinacion` and `secretaria`, on `/catalog/doce
 ### Suggested commit (owner)
 
 `feat(catalog): TanStack docentes list with sorting, email-last ordering and page-size selector`
+
+
+## Batch K: Slice 3d (Bounded tables and removal of the old components)
+
+Mode: Strict TDD. Tasks 3d.1 to 3d.11 done and ticked. 3d.12 CHECKPOINT left unticked for the owner commit: V passed (below). Nothing committed, staged, pushed or run against the database.
+
+### TDD evidence
+
+| Task | RED | GREEN |
+|---|---|---|
+| 3d.1 / 3d.2 | `asignatura-grupos-table.test.tsx`: suite failed at import (module missing) | `asignatura-grupos-table.tsx`: 13 test runs pass (es and en) |
+| 3d.3 | `asignatura-grupos-section.test.tsx`: 6 of 7 failed against the old section (function props and labels shape: `TypeError` reading `labels.columns.periodo`) | new section: 7 pass; the 64 edit page tests still pass; one wiring test added to `[id]/edit/page.test.tsx` |
+| 3d.4 | `import-preview.test.tsx` new describe: 3 failures (`scope="col"` absent on the legacy `DataTable` headers) | `import-preview.tsx` on the bounded `DataTable`: all pass |
+| 3d.5 | `import-errors.test.tsx` new describe: 1 failure (`scope="col"`); the order, row 0 dash, reason text and four-column assertions passed at once (characterization of today's behavior) | `import-errors.tsx` migrated: all pass |
+| 3d.6 | consumer check (below) | n/a |
+| 3d.7 | characterization update, run GREEN before deleting | 10 pass |
+| 3d.8 | `npm test` right after deleting: 171 files, 3,686 tests, no stale reference | n/a |
+| 3d.9 | `catalog-parity.test.ts`: key-list pins for asignaturas and docentes shortened and a "retired list copy" test added: 6 failures | keys removed from both locale files: 232 i18n tests pass |
+| 3d.10 | tests of `parseCatalogListParams` and `CATALOG_PAGE_SIZE` ported to the two new parsers first (status, page, q, round trip) | symbols removed; 147 catalog lib tests pass |
+| 3d.11 | `src/components/tables/structure.test.ts` written as a pin (characterization, cannot be RED) | 5 pass |
+
+Refactor: none beyond the migrations. `ErrorsTable` and `CountsTable` build their columns in `useMemo` like the list tables.
+
+### What changed
+
+- `asignatura-grupos-table.tsx` (new, client): `GrupoRow` is a `Pick` of `GrupoListItem` (six fields); props `{ rows, asignaturaId, caption }`; headers, status labels, edit label and day names come from `useTranslations`; `DiasCell` called unchanged; bounded `DataTable` (no `sorting`).
+- `asignatura-grupos-section.tsx`: still a server component. `AsignaturaGruposLabels` shrank to `title, add, empty, inactiveHint, tableCaption, truncated, degraded`; `edit`, `editLabel`, `columns`, `statusActive`, `statusInactive`, `diasNotSet`, `diaShort` and `diaLong` no longer travel. The rows are picked field by field. The inline degraded paragraph is now the shared `DegradedAlert` (BS-STATE-2 "Used inside a section").
+- `[id]/edit/page.tsx`: the two extra translators and the function props are gone.
+- `import-preview.tsx` (`CountsTable`) and `import-errors.tsx` (`ErrorsTable`): moved from the legacy `DataTable` to `src/components/tables/data-table.tsx` in bounded mode. Figures, layout, row key and order unchanged. Header cells now carry `scope="col"`, which the legacy component did not write.
+- `current-marker-usage.test.ts` (R7): scans `src/components/tables/status-filter.tsx` and `tables/table-toolbar.tsx` instead of the two legacy files; the four-breadcrumb `.is-current` pin is untouched.
+- Deleted: `src/components/{data-table,data-table-pagination,data-table-search,status-filter}.tsx` and their four tests. The pre-existing flaky `data-table-search.test.tsx` disappears with its component.
+- i18n: 25 leaf keys removed from each of `es.json` and `en.json` (identical set): `users.search.submit`, `users.search.clear`, `users.count`, `users.pagination.*`, `catalog.asignaturas.{search.submit,search.clear,count,pagination.*}`, `catalog.docentes.{search.submit,search.clear,count,pagination.*}`, `catalog.shared.filter.*`. `GUARDED_SECTIONS` unchanged (no section disappeared).
+- `src/lib/catalog/list-params.ts`: removed `parseCatalogListParams`, `CATALOG_PAGE_SIZE`, the private `parseStatus` and the `USERS_PAGE_SIZE` import.
+
+### 3d.6 consumer check
+
+`codegraph_explore` over the four legacy symbols reported callers only in their own tests; it also listed four callers of the legacy `StatusFilter` in `src/components/tables/table-toolbar.tsx`, a name collision with `src/components/tables/status-filter.tsx`. An `rg` over `src` confirmed it: `table-toolbar.tsx` imports `@/components/tables/status-filter`; the only imports of `@/components/{data-table,data-table-pagination,data-table-search,status-filter}` were the four tests deleted in 3d.8. `DataTableColumn`, `getRowKey`, `DataTableSearch` and `DataTablePagination` have no reference left in `src`.
+
+### 3d.9 evidence per key
+
+Each removed key had no `t("...")`, `getTranslations` or literal reference in `src` outside `catalog-parity.test.ts` and `src/test/intl.test.tsx` (the latter uses its own key echo). Checked with `rg` for `search.submit`, `search.clear`, `("count"` (the surviving hits are `tables.count` in the toolbar and pagination and `catalog.import.credentials.count`), `pagination.`, `shared.filter` and `filter.`. Kept on purpose: `search.label`, `search.placeholder` (read by the three list tables), every `noResults.*`, `tableCaption`, `degraded`.
+
+### 3d.10 consumers
+
+`codegraph_explore` and `rg`: `parseCatalogListParams` and `CATALOG_PAGE_SIZE` were referenced only by `src/lib/catalog/list-params.ts` and its test. Both removed with their tests (behavior moved to the two new parsers, see the TDD table). `catalogListHref`, `ASIGNATURA_GRUPOS_MAX` and `CATALOG_OPTIONS_MAX` stay (live consumers).
+
+### 3d.11 DT-DENS-1 "Header height" and BS-MOT-1 "No `all` transitions"
+
+Pinned by `src/components/tables/structure.test.ts` over every non-test source of `src/components` and `src/app`:
+
+- `rg -n "transition-all|transition:\s*all" src/components src/app` finds `src/components/ui/button.tsx:8` and `src/components/ui/sidebar.tsx:293` only, besides tests asserting absence. Both are vendored shadcn primitives that this change does not touch and are not shell components; the pin lists them and fails on any other file. The shell files named by BS-MOT-1 (`theme-toggle`, `dashboard-header`, `app-sidebar`) stay clean (`shell-motion.test.ts`). Replacing the two primitives' `transition-all` is not done here.
+- Header: `TableHead` carries `h-12 px-6`; the sortable button is `min-h-11` inside it; no column `meta.className` sets a height or padding.
+- Not pinned: `active:translate-y-px` on the vendored `Button` is a 1px nudge, not a scale; Q7 forbids scale only.
+
+### Authored lines by path (additions / deletions)
+
+| Path | Lines |
+|---|---|
+| `asignatura-grupos-table.tsx` | +119 |
+| `asignatura-grupos-table.test.tsx` | +189 |
+| `asignatura-grupos-section.tsx` | +25 / -92 |
+| `asignatura-grupos-section.test.tsx` | +202 |
+| `[id]/edit/page.tsx` | -21 |
+| `[id]/edit/page.test.tsx` | +57 |
+| `import-preview.tsx` | +25 / -18 |
+| `import-preview.test.tsx` | +47 |
+| `import-errors.tsx` | +45 / -38 |
+| `import-errors.test.tsx` | +59 |
+| `current-marker-usage.test.ts` | +3 / -3 |
+| `catalog-parity.test.ts` | +27 / -19 |
+| `list-params.ts` | +1 / -24 |
+| `list-params.test.ts` | +20 / -46 |
+| `i18n/en.json`, `i18n/es.json` | +5 / -38 each |
+| `src/components/tables/structure.test.ts` | +84 |
+| **Deleted files (8)** | **-874** (`data-table` 90 + 124, `data-table-pagination` 76 + 129, `data-table-search` 73 + 195, `status-filter` 53 + 134) |
+| **Total** | 913 added (plus 5 in each locale file counted), 337 removed, 874 in deleted files |
+
+Against the 1,100-1,300 estimate (about 780 deletions) the slice is over the +25% threshold (1,625) if counted as added + deleted-file lines (1,787, +37% over the upper bound); counted as added plus removed (1,250) it is inside the range. Deletions were about 94 lines more than estimated (874 against about 780). Roughly 640 of the added lines are tests. Running total of 1a to 3d: about 11,590 lines added.
+
+### Deviations
+
+1. `ErrorsTable` row id stays the old composite key (no index) to keep rendering identical; two identical error rows would still share a key, as before.
+2. The RED of 3d.4 and 3d.5 is `scope="col"` plus static-control assertions, because the legacy and the bounded table render the same text and columns; the spec's content scenarios were already satisfied and are pinned as characterization.
+3. `git rm` was used briefly and then un-staged: the eight deletions are working-tree deletions only; the index is untouched.
+4. `[id]/edit/page.test.tsx` gained one wiring test (section props are data and strings only) written after the page change; the section test carries the RED for that behavior.
+5. The catalog list parsers read `page` and `q` through `firstValue` (3a decision, same as the users parser), so a repeated `q` takes its first value; the retired `parseCatalogListParams` returned an empty term for an array. Not changed here; flagged.
+6. Files: new files are LF; the modified source and test files and both locale files kept CRLF (verified by byte count). Prettier `--write --end-of-line auto` was run on three files.
+7. `DegradedAlert` replaced the inline degraded paragraph of the section (same classes, same `role="status"`); not a listed task step but required by BS-STATE-2 "Used inside a section".
+
+### Not verified
+
+Rendering in a browser (Grupos table at 320 and 360 px, import preview and errors panel); `npx eslint src` reports only `prettier/prettier` findings (CRLF noise, checked from JSON output: no other rule); the `data-table-search.test.tsx` flake is gone with its file, so its cause was not diagnosed. One run of `vitest run "src/app/(dashboard)/catalog"` made under load (concurrent with prettier and the build) showed 1 failed test that did not reproduce in three later runs and two full runs; the failing name was not captured.
+
+### V results
+
+`npm test` 172 files, 3,691 tests pass; `npm run typecheck` clean; `npx eslint src` only `prettier/prettier`; `npx prettier --check --end-of-line auto` on all touched paths clean; `npm run build` compiles all routes; `git diff --stat src/app/globals.css` empty.
+
+### Suggested commit (owner)
+
+`refactor(tables): bounded TanStack tables for grupos and import, remove legacy table components`

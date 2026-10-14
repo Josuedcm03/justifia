@@ -654,14 +654,7 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
     "degraded",
     "search.label",
     "search.placeholder",
-    "search.submit",
-    "search.clear",
-    "count",
     "tableCaption",
-    "pagination.region",
-    "pagination.previous",
-    "pagination.next",
-    "pagination.status",
   ];
 
   it.each(["es", "en"] as const)(
@@ -697,11 +690,6 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
       });
 
       expect(t("noResults.title", { q: "calc" })).toContain("calc");
-      expect(t("pagination.status", { page: 2, pages: 5 })).toMatch(/2.*5/);
-      for (const count of [0, 1, 7]) {
-        expect(t("count", { count }).trim()).not.toBe("");
-      }
-      expect(t("count", { count: 7 })).toContain("7");
     },
   );
 
@@ -1490,14 +1478,7 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     "degraded",
     "search.label",
     "search.placeholder",
-    "search.submit",
-    "search.clear",
-    "count",
     "tableCaption",
-    "pagination.region",
-    "pagination.previous",
-    "pagination.next",
-    "pagination.status",
   ];
 
   it.each(["es", "en"] as const)(
@@ -1822,4 +1803,31 @@ describe("catalog parity (DT-I18N-1, CM-LST-1: Asignaturas table and page copy)"
       ).toMatch(status);
     },
   );
+});
+
+describe("catalog parity (DT-I18N-1: retired list copy)", () => {
+  // The old table components read these keys; the shared table kit reads
+  // `tables.*` instead, so they were removed from both catalogs (slice 3d).
+  const RETIRED = [
+    "users.search.submit",
+    "users.search.clear",
+    "users.count",
+    "users.pagination",
+    "catalog.asignaturas.search.submit",
+    "catalog.asignaturas.search.clear",
+    "catalog.asignaturas.count",
+    "catalog.asignaturas.pagination",
+    "catalog.docentes.search.submit",
+    "catalog.docentes.search.clear",
+    "catalog.docentes.count",
+    "catalog.docentes.pagination",
+    "catalog.shared.filter",
+  ];
+
+  it.each(["es", "en"] as const)("%s no longer carries them", (locale) => {
+    const messages = locale === "es" ? esMessages : enMessages;
+    for (const key of RETIRED) {
+      expect(resolve(messages, key), key).toBeUndefined();
+    }
+  });
 });

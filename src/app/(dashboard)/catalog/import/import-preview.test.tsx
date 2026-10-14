@@ -463,3 +463,50 @@ describe("ImportResult (CEI: result screen shows the per-entity summary)", () =>
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 });
+
+describe("CountsTable as a bounded table (DT-MODE-1 fixed matrix, DT-A11Y-1)", () => {
+  it.each(["en", "es"] as const)(
+    "keeps the matrix static: column-scoped headers, aligned figures, no control, in %s",
+    (locale) => {
+      const copy = locale === "en" ? en : es;
+      renderUi(
+        <ImportPreview
+          state={PREVIEW}
+          fileName="catalogo.xlsx"
+          action={vi.fn()}
+          pending={false}
+        />,
+        locale,
+      );
+
+      const table = screen.getByRole("table", {
+        name: copy.preview.countsCaption,
+      });
+      const headers = within(table).getAllByRole("columnheader");
+      expect(headers).toHaveLength(6);
+      for (const header of headers) {
+        expect(header).toHaveAttribute("scope", "col");
+        expect(header).not.toHaveAttribute("aria-sort");
+      }
+      // Figures line up on the right, the entity name on the left.
+      const [, first] = within(table).getAllByRole("row");
+      const cells = within(first).getAllByRole("cell");
+      expect(cells[0]).not.toHaveClass("text-right");
+      for (const figure of cells.slice(1)) {
+        expect(figure).toHaveClass("text-right");
+      }
+      expect(within(table).queryByRole("button")).toBeNull();
+      expect(within(table).queryByRole("link")).toBeNull();
+    },
+  );
+
+  it("renders the applied summary the same way", () => {
+    renderUi(<ImportResult state={APPLIED} />);
+
+    const table = screen.getByRole("table", { name: en.result.countsCaption });
+    for (const header of within(table).getAllByRole("columnheader")) {
+      expect(header).toHaveAttribute("scope", "col");
+    }
+    expect(within(table).queryByRole("button")).toBeNull();
+  });
+});

@@ -15,11 +15,11 @@ const MARKER = "is-current";
 
 // Catalog-specific components that live outside the catalog route directory.
 const SHARED_CATALOG_COMPONENTS = [
-  "src/components/status-filter.tsx",
+  "src/components/tables/status-filter.tsx",
   "src/components/status-pill.tsx",
   "src/components/form-field.tsx",
   "src/components/checkbox-group.tsx",
-  "src/components/data-table-search.tsx",
+  "src/components/tables/table-toolbar.tsx",
   "src/components/ui/checkbox.tsx",
   "src/components/ui/combobox.tsx",
 ];
@@ -90,7 +90,7 @@ describe("current-marker usage (characterization)", () => {
   );
 
   it("keeps the status filter on the accent pair", () => {
-    const { code } = byPath("src/components/status-filter.tsx");
+    const { code } = byPath("src/components/tables/status-filter.tsx");
     expect(code).toContain("bg-accent");
     expect(code).toContain("text-accent-foreground");
     expect(code).not.toContain(MARKER);

@@ -3,34 +3,30 @@ import { describe, expect, it } from "vitest";
 import {
   ASIGNATURAS_SORT_KEYS,
   CATALOG_OPTIONS_MAX,
-  CATALOG_PAGE_SIZE,
   DOCENTES_SORT_KEYS,
   catalogListHref,
   parseAsignaturasListParams,
-  parseCatalogListParams,
   parseDocentesListParams,
 } from "@/lib/catalog/list-params";
-import { USERS_PAGE_SIZE } from "@/lib/users/list-params";
 
 describe("constants", () => {
-  it("the page size equals the one of /users (A-4, CM-LST-1)", () => {
-    expect(CATALOG_PAGE_SIZE).toBe(USERS_PAGE_SIZE);
-    expect(CATALOG_PAGE_SIZE).toBe(10);
-  });
-
   it("the option cap is 2000", () => {
     expect(CATALOG_OPTIONS_MAX).toBe(2000);
   });
 });
 
-describe("parseCatalogListParams — status", () => {
-  it("defaults to active", () => {
-    expect(parseCatalogListParams(undefined).status).toBe("active");
-    expect(parseCatalogListParams({}).status).toBe("active");
+describe("catalog list parsers — status, page and q", () => {
+  it.each([
+    ["asignaturas", parseAsignaturasListParams],
+    ["docentes", parseDocentesListParams],
+  ] as const)("%s: status defaults to active", (_name, parse) => {
+    expect(parse(undefined).status).toBe("active");
+    expect(parse({}).status).toBe("active");
   });
 
-  it.each(["inactive", "all", "active"])("accepts %s", (status) => {
-    expect(parseCatalogListParams({ status }).status).toBe(status);
+  it.each(["inactive", "all", "active"])("accepts status %s", (status) => {
+    expect(parseAsignaturasListParams({ status }).status).toBe(status);
+    expect(parseDocentesListParams({ status }).status).toBe(status);
   });
 
   it.each([
@@ -39,31 +35,15 @@ describe("parseCatalogListParams — status", () => {
     ["wrong case", "ALL"],
     ["padded", " all"],
     ["array", ["all", "inactive"]],
-  ])("falls back to active for a %s value", (_label, status) => {
-    expect(parseCatalogListParams({ status }).status).toBe("active");
-  });
-});
-
-describe("parseCatalogListParams — page and q", () => {
-  it("parses page and q like the users list", () => {
-    expect(parseCatalogListParams({ page: "3", q: "  mat  101 " })).toEqual({
-      page: 3,
-      q: "mat 101",
-      status: "active",
-    });
-    expect(parseCatalogListParams({ page: "0", q: ["a"] })).toEqual({
-      page: 1,
-      q: "",
-      status: "active",
-    });
+  ])("falls back to active for a %s status", (_label, status) => {
+    expect(parseAsignaturasListParams({ status }).status).toBe("active");
+    expect(parseDocentesListParams({ status }).status).toBe("active");
   });
 
-  it("ignores unrecognised keys such as a scope or a carrera", () => {
-    const result = parseCatalogListParams({
-      scope: "all",
-      carreraId: "7",
-    });
-    expect(result).toEqual({ page: 1, q: "", status: "active" });
+  it("falls back to page 1 for a zero page and collapses the q", () => {
+    const result = parseDocentesListParams({ page: "0", q: "  mat  101 " });
+    expect(result.page).toBe(1);
+    expect(result.q).toBe("mat 101");
   });
 });
 
@@ -108,14 +88,14 @@ describe("catalogListHref", () => {
     );
   });
 
-  it("round-trips through parseCatalogListParams", () => {
+  it("round-trips through parseAsignaturasListParams", () => {
     const href = catalogListHref(base, {
       page: 4,
       q: "ana maría",
       status: "inactive",
     });
     const sp = Object.fromEntries(new URLSearchParams(href.split("?")[1]));
-    expect(parseCatalogListParams(sp)).toEqual({
+    expect(parseAsignaturasListParams(sp)).toMatchObject({
       page: 4,
       q: "ana maría",
       status: "inactive",
@@ -243,7 +223,7 @@ describe("parseAsignaturasListParams / parseDocentesListParams — dir, size, ot
     }
   });
 
-  it("parses page, q and status like the old parser and ignores a scope", () => {
+  it("parses page, q and status and ignores a scope", () => {
     const result = parseAsignaturasListParams({
       page: "3",
       q: "  mat  101 ",
@@ -258,12 +238,6 @@ describe("parseAsignaturasListParams / parseDocentesListParams — dir, size, ot
       sort: { key: "code", dir: "asc" },
       size: 10,
     });
-  });
-
-  it("the old parser still returns only page, q and status", () => {
-    expect(
-      parseCatalogListParams({ sort: "name", dir: "desc", size: "50" }),
-    ).toEqual({ page: 1, q: "", status: "active" });
   });
 });
 

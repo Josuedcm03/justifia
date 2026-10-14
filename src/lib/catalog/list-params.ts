@@ -19,11 +19,8 @@ import {
   type PageSize,
   type RawSearchParams,
 } from "@/lib/list-params";
-import { USERS_PAGE_SIZE, USERS_SEARCH_MAX } from "@/lib/users/list-params";
+import { USERS_SEARCH_MAX } from "@/lib/users/list-params";
 
-/** Same page size as `/users` (CM-LST-1, amendment A-4); derived so the two
- *  cannot drift apart. */
-export const CATALOG_PAGE_SIZE = USERS_PAGE_SIZE;
 /** Cap on the rows a select or combobox loads (design Decision 8). */
 export const CATALOG_OPTIONS_MAX = 2000;
 /** Cap on the Grupos listed on the Asignatura edit page (amendment A-AGS-1). */
@@ -33,26 +30,6 @@ export const ASIGNATURA_GRUPOS_MAX = 100;
 export const ASIGNATURA_MATCHES_MAX = 3;
 
 const DEFAULT_STATUS: CatalogStatusFilter = "active";
-
-/** Exact, case-sensitive match; an array or anything else is the default. */
-function parseStatus(raw: string | string[] | undefined): CatalogStatusFilter {
-  return raw === "active" || raw === "inactive" || raw === "all"
-    ? raw
-    : DEFAULT_STATUS;
-}
-
-export function parseCatalogListParams(sp: RawSearchParams | undefined): {
-  page: number;
-  q: string;
-  status: CatalogStatusFilter;
-} {
-  const raw = sp ?? {};
-  return {
-    page: parsePage(raw.page),
-    q: parseQ(raw.q, USERS_SEARCH_MAX),
-    status: parseStatus(raw.status),
-  };
-}
 
 export type CatalogListBase = "/catalog/asignaturas" | "/catalog/docentes";
 

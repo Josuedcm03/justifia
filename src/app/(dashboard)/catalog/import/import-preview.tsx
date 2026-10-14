@@ -1,14 +1,15 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
-import type { Ref } from "react";
+import { useMemo, type Ref } from "react";
 
 import type {
   ApplyState,
   PreviewState,
 } from "@/app/(dashboard)/catalog/import/actions";
 import { CredentialsDownload } from "@/app/(dashboard)/catalog/import/credentials-download";
-import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import type { EntityCounts, EntityName } from "@/lib/import/types";
 
@@ -24,6 +25,10 @@ const COUNT_KEYS = [
   "error",
 ] as const satisfies readonly (keyof EntityCounts)[];
 
+/**
+ * The counts as a fixed matrix (DT-MODE-1): one row per entity, one column per
+ * outcome, in bounded mode, so it has no sort control, paging or toolbar.
+ */
 function CountsTable({
   counts,
   caption,
@@ -32,28 +37,30 @@ function CountsTable({
   caption: string;
 }) {
   const t = useTranslations("catalog.import");
-  const columns: readonly DataTableColumn<EntityName>[] = [
-    {
-      key: "entity",
-      header: t("preview.columns.entity"),
-      cell: (entity) => t(`entities.${entity}`),
-      className: "font-medium",
-    },
-    ...COUNT_KEYS.map((key): DataTableColumn<EntityName> => ({
-      key,
-      header: t(`preview.columns.${key}`),
-      cell: (entity) => counts[entity][key],
-      align: "end",
-    })),
-  ];
+  const columns = useMemo<ColumnDef<EntityName>[]>(
+    () => [
+      {
+        id: "entity",
+        header: t("preview.columns.entity"),
+        cell: ({ row }) => t(`entities.${row.original}`),
+        meta: { className: "font-medium" },
+      },
+      ...COUNT_KEYS.map((key): ColumnDef<EntityName> => ({
+        id: key,
+        header: t(`preview.columns.${key}`),
+        cell: ({ row }) => counts[row.original][key],
+        meta: { align: "end" },
+      })),
+    ],
+    [t, counts],
+  );
 
   return (
     <DataTable
       columns={columns}
       rows={ENTITIES}
-      getRowKey={(entity) => entity}
+      getRowId={(entity) => entity}
       caption={caption}
-      empty={null}
     />
   );
 }
