@@ -18,20 +18,23 @@ Read this file first, then `tasks.md`, `apply-progress.md`, `design.md` and `spe
 | 2b Table core | `c47cc2d` |
 | 2c Table controls | `e3fc185` |
 | 2d Users migration (code) | `d290c0d` |
+| Handoff and OC-6 decision | `7a5ef4d` |
+| 3a Catalog URL contract and data layer | `ef14c81` |
+| 3b Asignaturas list | `a19f352` |
+| 3c Docentes list | `437d56d` |
+| 3d Bounded tables, legacy components removed | `b4178c6` |
 
-Last known green: 171 files, 3,554 tests, `npm run typecheck`, `npm run build`.
+Last verified green (2026-10-13, Batch L): 172 files, 3,691 tests, `npm run typecheck`, `npm run build`; `npx prettier --check --end-of-line auto src i18n` clean. The four commits `ef14c81` to `b4178c6` are not pushed (`ahead 4` of `origin/feature/better-ui`).
 
 ## What is left
 
-Work in this order, one slice per pass, committing by slice:
+All implementation slices (0 to 3d) and the automated part of the final phase (F.1, F.2, F.3, F.7, recorded in `apply-progress.md` Batch L) are done. Everything that remains is owner-only:
 
-1. **3a** Catalog URL contract and data layer. OC-6 is already answered (below), so 3a.1 needs no stop.
-2. **3b** Asignaturas list.
-3. **3c** Docentes list.
-4. **3d** Bounded tables, deletion of the four legacy table components, i18n key sweep.
-5. **Final phase** F.1, F.2, F.3, F.7, then stop for `sdd-verify`.
-
-Use the suggested commit message written in each slice's CHECKPOINT task in `tasks.md`. Stop at every CHECKPOINT: run V, append one batch section to `apply-progress.md` (never overwrite), tick the tasks, report.
+1. 2d.5 Gate V1 and 2d.6 users smoke; 3b.6 asignaturas smoke; 3c.6 docentes smoke (signed-in session and real database). Tick 2d.8 once V1 is recorded.
+2. F.4 manual checklist (320/360px, keyboard, reduced motion, themes and brands, es/en, touch, error screen).
+3. F.5 `docs/roadmap.md` row and F.6 spec merge confirmation (owner edits).
+4. Push the commits, open the single PR (size:exception text and PR draft are in Batch L), then run `sdd-verify` (F.8).
+5. Optional follow-ups recorded as gaps in Batch L: a real-Postgres ordering suite (G-1), page-frame and users `h1` assertions (G-5), one sentence in `docs/design-system.md` "Sortable header" about the visible state text (S-2).
 
 ## Not yours (leave unticked, list them in `apply-progress.md`)
 
@@ -71,4 +74,4 @@ Use the suggested commit message written in each slice's CHECKPOINT task in `tas
 - Under Vitest, `next/link` resolves to the pages implementation: use the stand-in in `src/test/navigation-mock.ts`. `keyEchoIntl` lives in `src/test/key-echo-intl.ts` (a mock factory that imports the mocked module deadlocks).
 - Drizzle's `QueryBuilder.toSQL()` proves scope, ordering, collation and projection without a database; do not split `order by` text on `", "` (it breaks `nullif(col, '')`).
 - `users.search.*`, `users.count` and `users.pagination.*` are unused after 2d; they are removed in 3d.9.
-- Slices run well over their estimates (about 8,470 lines so far, roughly 65% tests). Record per-slice line counts in `apply-progress.md` for the `size:exception` justification; split only at slice seams.
+- Slices ran well over their estimates (final: about 13,300 changed lines excluding openspec notes and the lock file, 67% tests, against 5,800 to 7,250 forecast). Per-slice counts are in `apply-progress.md` Batch L for the `size:exception` justification.

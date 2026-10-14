@@ -1192,3 +1192,435 @@ Rendering in a browser (Grupos table at 320 and 360 px, import preview and error
 ### Suggested commit (owner)
 
 `refactor(tables): bounded TanStack tables for grupos and import, remove legacy table components`
+
+## Batch L: Final phase (2026-10-13)
+
+Mode: documentation and verification only. No production code, no test file, no locale file, no `globals.css`, no spec and no `docs/roadmap.md` was edited. Nothing was committed, staged, pushed, branched or installed; no database command was run and no dev server was started. Tasks F.1, F.2, F.3 and F.7 are done. F.4, F.5, F.6 and F.8 are untouched (owner). Housekeeping: 3a.8 (commit `ef14c81`) and 3d.12 (commit `b4178c6`) ticked in `tasks.md`; 2d.5, 2d.6, 3b.6 and 3c.6 stay unticked (manual, owner). 2d.8 also stays unticked because its V1 outcome was never observed (see "Owner open items").
+
+Tree: branch `feature/better-ui`, HEAD `b4178c6`, working tree clean before and after the gates.
+
+### F.1 Gates on the final tree
+
+| Command | Result |
+|---|---|
+| `npm test` | PASS, rc 0: 172 files, 3,691 tests, 0 failed, 96.08 s. No failure at all, so none outside the 0.8 set. The three 0.8 watch-list files: `denied/page.test.tsx` passed, `users/page.test.tsx` passed, `data-table-search.test.tsx` no longer exists (deleted with its component in 3d.8). Stdout noise only: five "Not implemented: navigation to another Document" lines from jsdom for modifier-key clicks. Baseline 0.8 was 146 files, 2,919 tests |
+| `npm run typecheck` | PASS, rc 0 (`tsc --noEmit`) |
+| `npx eslint src` (run with `-f json`) | rc 1. 382 files linted, 56,123 messages in 327 files, 56,123 errors and 0 warnings. Every message is `prettier/prettier` "Delete `CR`" (CRLF working tree); 0 findings of any other rule, so by the agreed judge the result is clean. The single `react-hooks/incompatible-library` directive in `tables/data-table.tsx` is in use and reports nothing. Baseline 0.8 was 54,812 messages, all the same kind |
+| `npm run format:check` | rc 2: 455 files warned (328 under `src`, the rest `.agents/**`, docs and root config), baseline 461. Cause is CRLF only (`core.autocrlf=true`; index LF, working tree CRLF) |
+| `npx prettier --check --end-of-line auto src i18n` (the real judge) | rc 0: "All matched files use Prettier code style!" |
+| `npm run build` | PASS, rc 0: "Compiled successfully in 4.7s", TypeScript finished, 20 static pages generated, 23 route lines, all `ƒ` dynamic, plus the proxy. No warning |
+| `git status --short` after all gates | empty (clean) |
+
+Pre-existing, not caused by this change: `docs/design-system.md` fails `prettier --check --end-of-line auto` at an old line wrap (already recorded in Batch B; the lines this change added format cleanly).
+
+### F.2 Compliance sweeps
+
+| Sweep | Exact command | Result |
+|---|---|---|
+| BS-DS-1 colour tokens untouched | `git diff main...HEAD --stat -- src/app/globals.css`, and `git diff --stat -- src/app/globals.css` | Both empty (0 output lines). PASS. Local `main` is stale (merge-base `d118b67`), but the file has no change on either side of the range |
+| BS-I18N-1 / DT-I18N-1 key parity | Node script over `i18n/es.json` and `i18n/en.json` (leaf paths, set difference, empty values); plus `src/i18n/catalog-parity.test.ts` inside `npm test` | es 525 leaf keys, en 525; only in es: none; only in en: none; empty values: none. PASS; the parity test file is green |
+| BS-MOT-1 no `transition-all` in changed files | `git diff --name-only --diff-filter=AM d118b67 HEAD`, filtered to `^(src\|i18n)/` (123 files), then `rg -l "transition-all\|transition:\s*all"` on each file | Only five TEST files match, all assert absence: `shell-motion.test.ts`, `table-card.test.tsx`, `tables/list-table.test.tsx`, `tables/status-filter.test.tsx`, `tables/structure.test.ts`. No non-test source file changed by this change contains it. PASS |
+| Same, whole tree (informational) | `rg -n "transition-all\|transition:\s*all" src --glob '!*.test.*'` | `src/components/ui/button.tsx:8` and `src/components/ui/sidebar.tsx:293`: vendored shadcn primitives, not touched by this change, out of scope per Batch K (pinned by `tables/structure.test.ts`, which fails on any other file) |
+| No press scale (DT-DENS-1, informational) | `rg -n "active:[a-z:-]*scale\|scale-9[0-9]" src --glob '!*.test.*'` | No match. The vendored `Button` keeps `active:translate-y-px` (a 1px nudge, not a scale) |
+| DT-DATA-1 / UL:fields no `hashClave`, `cif`, `telefono`, `correo` in props to a client table | `rg -n -i "hashClave\|\bcif\b\|telefono\|correo"` over the ten table and page modules (users, asignaturas, docentes, grupos table and section, import-preview, import-errors) | `hashClave`, `cif`, `telefono`: no field reference in any module (only comments in `docentes-table.tsx:23` and `docentes/page.tsx:33`). `correo`: appears ONLY in the Docentes list (`docentes-table.tsx:28,74,75`, `docentes/page.tsx:38`) because Correo is a displayed column of that table (DT-DATA-1 forbids e-mail only "that is not a column of that table"). The users rows are exactly `{ id, nombreCompleto, login, rol, activo, creadoEnLabel }` (`users-table.tsx:24-30`, `users/page.tsx:36-43`). Pinned by `users/page.test.tsx` (table-driven by forbidden field, three roles, with and without an e-mail term), `users-table.test.tsx`, `docentes-table.test.tsx`, `docentes/page.test.tsx` and `users-query.test.ts`. PASS, with the literal wording of the sweep over-broad for Docentes (finding S-1) |
+| Every sortable column has a `Record` entry | `rg -n "SORT_MAP\|SORT_KEYS\|Record<\|enableSorting\|id: \""` over the three maps and three tables, plus `tsc` | `USERS_SORT_MAP` (`src/lib/data/users.ts:106`) `satisfies Record<UsersSortKey, SortExpr>`: name, login, role, status, created. `DOCENTES_SORT_MAP` (`users.ts:385`) `satisfies Record<DocentesSortKey, SortExpr>`: name, login, email, status. `ASIGNATURAS_SORT_MAP` (`asignaturas.ts:68`) `satisfies Record<AsignaturasSortKey, SortExpr>`: code, name, hours, status. Columns with `enableSorting: true` carry `id: "<key>" satisfies <SortKey>` and are exactly: users 5, docentes 4, asignaturas 4 (code, name, hours, status). Non-sortable: asignaturas `career`, `groups`, `actions`. A missing entry fails `tsc` (green) and `sort-sql.test.ts` "a map without an entry for every key does not compile". PASS |
+| BS-DS-1 patterns documented | read `docs/design-system.md` against the BS-DS-1 list | PASS, table below |
+
+BS-DS-1 pattern coverage in `docs/design-system.md`:
+
+| Pattern (BS-DS-1) | Where documented |
+|---|---|
+| Top-bar context | section 4.3 "Page context" (line 320); first-row diagram (line 306) |
+| Sidebar brand block | section 4.2 "Brand block" (line 289) |
+| Sidebar footer (identity block) | section 4.2 "Identity block" (line 293) |
+| Page frame | section 4.3 "Page frame" (line 330) |
+| Table card with toolbar and footer | section 5 "Table card" (line 372) |
+| Sortable header | section 5 "Sortable header" (line 381) |
+| Revised pagination (first, last, page size) | section 5 "Pagination" (line 431) |
+| Loading skeleton | section 5 "Loading skeleton" (line 388) |
+| Route error state | section 5 "Route error" (line 393) |
+| No-results variant (and empty state) | section 5 "Empty state" (line 467) |
+| Shortcut card (home) | section 5 "Shortcut card" (line 399) |
+| Motion rules (named transitions, no row animation, no press scale, hover-capable pointers, motion never the only signal) | section 6 "Motion" (lines 474-492) |
+
+Findings from the sweeps (none requires a code change to pass a gate):
+
+- S-1 (informational): the sweep wording "no `correo` key in props passed to any client table" is wider than DT-DATA-1. The Docentes table legitimately delivers `correo` (a displayed column). The users list does not.
+- S-2 (documentation drift, low): `docs/design-system.md` "Sortable header" (lines 381-387) describes only the icon and `aria-sort`. The visible sentence-case state text (Sortable / Ascending / Descending) added by owner decision 2c.0 is not described there. The pattern itself is documented, so BS-DS-1 "Patterns documented" holds; the paragraph should gain one sentence.
+- S-3 (informational): the two vendored `transition-all` hits (button, sidebar) remain by design; BS-MOT-1 names only the shell components this change touched.
+
+### F.3 Traceability matrix (for `sdd-verify`)
+
+129 scenarios: 105 covered (C), 22 partial (P), 2 manual only (M). No scenario is without any route.
+
+Legend. **C** covered by automated tests at the level reachable without a database or a browser. **P** partial: the automated part is named and the remainder is named. **M** manual only. "Data" in a P row means the test proves the SQL text or the query shape (DB-free `toSQL()`), never rows read from PostgreSQL.
+
+Test path abbreviations (repository root):
+
+| Abbrev. | Path |
+|---|---|
+| NAV | `src/lib/navigation.test.ts` |
+| INI | `src/lib/initials.test.ts` |
+| CTX | `src/components/page-context.test.tsx` |
+| SB | `src/components/app-sidebar.test.tsx` |
+| MARK | `src/app/(dashboard)/catalog/current-marker-usage.test.ts` |
+| LOAD | `src/app/(dashboard)/loading.test.tsx` |
+| ERR | `src/app/(dashboard)/error.test.tsx` |
+| HOME | `src/app/(dashboard)/page.test.tsx` |
+| DEG | `src/components/degraded-alert.test.tsx` |
+| EMP | `src/components/empty-state.test.tsx` |
+| CARD | `src/components/table-card.test.tsx` |
+| FRAME | `src/components/page-frame.test.tsx` |
+| MOT | `src/components/shell-motion.test.ts` |
+| RSP | `src/components/shell-responsive.test.ts` |
+| PAR | `src/i18n/catalog-parity.test.ts` |
+| LP | `src/lib/list-params.test.ts` |
+| ULP | `src/lib/users/list-params.test.ts` |
+| CLP | `src/lib/catalog/list-params.test.ts` |
+| SQL | `src/lib/data/sort-sql.test.ts` |
+| UQ | `src/lib/data/users-query.test.ts` |
+| UD | `src/lib/data/users.test.ts` (`listDocentes`, `buildDocentesWhere`) |
+| AD | `src/lib/data/asignaturas.test.ts` |
+| DTBL | `src/components/tables/data-table.test.tsx` |
+| SH | `src/components/tables/sortable-header.test.tsx` |
+| TP | `src/components/tables/table-pagination.test.tsx` |
+| TT | `src/components/tables/table-toolbar.test.tsx` |
+| LT | `src/components/tables/list-table.test.tsx` |
+| LN | `src/components/tables/list-navigation.test.tsx` |
+| SF | `src/components/tables/status-filter.test.tsx` |
+| STR | `src/components/tables/structure.test.ts` |
+| UIT | `src/components/ui/table.test.tsx` |
+| UP / UT | `src/app/(dashboard)/users/page.test.tsx` / `users-table.test.tsx` |
+| AP / AT | `src/app/(dashboard)/catalog/asignaturas/page.test.tsx` / `asignaturas-table.test.tsx` |
+| DP / DOCT | `src/app/(dashboard)/catalog/docentes/page.test.tsx` / `docentes-table.test.tsx` |
+| GT / GS / EP | `src/app/(dashboard)/catalog/asignaturas/asignatura-grupos-table.test.tsx` / `asignatura-grupos-section.test.tsx` / `[id]/edit/page.test.tsx` |
+| IP / IE | `src/app/(dashboard)/catalog/import/import-preview.test.tsx` / `import-errors.test.tsx` |
+
+#### backoffice-shell (36 scenarios: 26 C, 8 P, 2 M)
+
+| Requirement | Scenario | Coverage (file: test or describe) | Status |
+|---|---|---|---|
+| BS-CTX-1 | Trail per section | CTX: `it.each(TRAILS)` (8 paths x es/en), "never shows a record name, code or id", unknown routes; NAV: `trailFor (BS-CTX-1)`; MOT: "renders the page context on the leading side" | C |
+| BS-CTX-1 | Narrow viewport | CTX: "shows only the entry below md"; RSP: "the top-bar trail keeps only the entry below md" (class level) | P (real 360px: F.4) |
+| BS-CTX-1 | Page breadcrumbs unchanged | MARK: describe "current-marker usage (characterization)"; CTX: "takes neither the sidebar bar nor the breadcrumb underline" | C |
+| BS-NAV-1 | Entries per role | SB: `AppSidebar entries per role (BS-NAV-1, table-driven)`; NAV: "equals the previous sidebar list in content and order" | C |
+| BS-NAV-1 | Settings entry unchanged | NAV: "keeps the settings entry last and pointing at /settings"; SB: entries per role | C |
+| BS-NAV-1 | Active marker | SB: "marks only Asignaturas on a nested grupos route"; MARK | C |
+| BS-NAV-1 | Administration group hidden when empty | SB: `AppSidebar Administración group trigger`, entries per role for estudiante and docente | C |
+| BS-NAV-2 | Identity shown | SB: `AppSidebar identity block (BS-NAV-2)` | C |
+| BS-NAV-2 | Role per locale | SB: "changes the role label with the locale and leaves the name alone", "labels the %s role from the roles namespace" | C |
+| BS-NAV-2 | Not a menu and no extra read | SB: "is text only: no link, no button and no popup trigger", "hides the initials avatar from assistive technology", "makes no data request" | C (the layout passing `nombre` has no test; the required prop is enforced by `tsc`, Batch B deviation 5) |
+| BS-NAV-2 | Name edge cases | INI: `initials (BS-NAV-2 name edge cases)`; SB: one-word and padded names | C |
+| BS-FRM-1 | Frame structure | CARD: "renders toolbar, body and footer in that order, divided by hairlines", "omits the toolbar and footer regions when they are not passed"; LT: "draws toolbar, table and footer in that order inside one card"; FRAME; AP and DP: "has exactly one h1 and no skipped levels"; HOME h1 | P: no page test asserts that users, asignaturas, docentes and home wrap their content in `PageFrame`, and `users/page.test.tsx` has no single-`h1` assertion (gap G-5) |
+| BS-LOAD-1 | Skeleton on navigation | LOAD: "draws the page frame: title bar, one context line, then a table card of five rows", "keeps the shell out of it", "is built from the Skeleton primitive" | P: component only; whether it shows on a real client navigation is Gate V1 (2d.5) and F.4 |
+| BS-LOAD-1 | Announced and static under reduced motion | LOAD: label and `aria-busy` assertions, "pulses only when the user has not asked for reduced motion" (class `motion-safe`) | P (browser reduced-motion check: F.4) |
+| BS-ERR-1 | Unexpected throw | ERR: "never renders the raw error message", "renders exactly one h1, announced as an alert", "moves focus to the heading", "links back to the dashboard" | C |
+| BS-ERR-1 | Retry | ERR: "calls retry (not reset) from the primary try-again button", "retries from the keyboard with Enter and Space" | P: props level; Next re-rendering the route is not exercised (F.4 last bullet) |
+| BS-ERR-1 | Degraded read does not use the boundary | UP: "renders the degraded pill and no misleading count or empty message"; AP and DP: `states (CM-LST-1: Empty states, Database unavailable)` | C |
+| BS-ERR-1 | Error screen accessible | ERR: "keeps the retry button at the 44px touch target", Enter and Space, "renders exactly one h1", "adds no main landmark" | C |
+| BS-STATE-1 | Empty with a primary action | EMP: "offers the create action as a link when given"; LT: "shows the empty state with the create action and no table"; UT: "shows the empty state with the new-user action and no table" | C |
+| BS-STATE-1 | No results always offers a clear control | EMP: "names what matches nothing, hints, and always offers the clear link", "keeps the clear link for a filter-only miss", "rejects a missing clear link at compile time and at runtime"; LT, UT | C |
+| BS-STATE-2 | Degraded notice | DEG: `DegradedAlert (BS-STATE-2)`; UP, AP, DP degraded cases | C |
+| BS-STATE-2 | Used inside a section | GS: `AsignaturaGruposSection (server part)` degraded case; EP: `Grupos section degraded, cap, scope and structure` | C |
+| BS-HOME-1 | Home per role | HOME: `it.each(HOME_PER_ROLE)` (cards and counts for 5 roles), "shows one short sentence, no cards and no links, to a docente" | C |
+| BS-HOME-1 | Counts hidden from student and docente | HOME: `it.each([estudiante, docente])` stats read not called | C |
+| BS-HOME-1 | No shortcut to settings | HOME: each shortcut href equals its sidebar entry; NAV: "never offers the dashboard or settings to %s" | C |
+| BS-HOME-1 | Stats read degrades | HOME: `when the stats read degrades` (three roles, cards kept, no alert for roles that never read) | C |
+| BS-HOME-1 | Predicates stay in step | HOME: `stays in step with the sidebar`, "hides Asignaturas and Docentes from both when the catalog predicate flips" | C |
+| BS-RSP-1 | 360px | RSP: no fixed pixel widths in shell files; HOME: "keeps the shortcut grid to one column below sm" (class level) | M (F.4: no horizontal scroll) |
+| BS-RSP-1 | 320px | RSP: "the loading skeleton and the error screen wrap instead of overflowing"; ERR: "wraps on narrow screens" | M (F.4: no clipping) |
+| BS-MOT-1 | Reduced motion | LOAD: motion-safe pulse; CARD: opacity-only dimming; DTBL: "dims the body by opacity only while pending"; MOT: "names the properties the theme toggle icons change" | P (class level; browser check F.4) |
+| BS-MOT-1 | No `all` transitions | MOT: `it.each` over `theme-toggle`, `dashboard-header`, `app-sidebar`; STR: "writes no `all` transition outside the two vendored primitives"; CARD, LT, SF: absence assertions | C |
+| BS-MOT-1 | Hover only on hover-capable pointers | UIT: hover tint only behind `hover:`; HOME: "tints a shortcut on hover only (hover-capable pointers)" | P (class level; touch pointer F.4) |
+| BS-A11Y-1 | Landmarks and focus | CTX: "is a labelled landmark distinct from the sidebar's own", "traps no focus"; SB: `AppSidebar landmark (BS-A11Y-1)` | P (keyboard order and visible focus in a browser: F.4) |
+| BS-I18N-1 | Key parity | PAR: `BS-I18N-1: shell copy`, `BS-I18N-1: states and home copy`; F.2 key-set sweep (525 = 525) | C |
+| BS-DS-1 | Colour tokens untouched | F.2: empty `git diff main...HEAD --stat -- src/app/globals.css` (no automated test) | C (sweep) |
+| BS-DS-1 | Patterns documented | F.2: pattern table above (no automated test) | C (sweep; drift S-2) |
+
+#### data-table (47 scenarios: 39 C, 8 P)
+
+| Requirement | Scenario | Coverage | Status |
+|---|---|---|---|
+| DT-URL-1 | Fallback table | LP: `parseEnum`, `parsePageSize`, `parseSort` (hostile keys, repeated, other list's key); ULP: `status (UL:status)`, `sort and dir (UL:sort)`, `size (DT-URL-1)`; CLP: `sort fallback`, `dir, size, others` | C |
+| DT-URL-1 | Valid values are honoured | ULP: "round-trips every non-default field through parseUsersListParams"; UP: "forwards status, sort, dir and size parsed"; AP, DP: `list params` | C |
+| DT-URL-1 | Sort never reaches the query as text | SQL: "falls back to the default order and never interpolates the key", "an inherited property name such as __proto__ is not a map entry"; UQ: sorting describe | C |
+| DT-URL-1 | Generated links omit defaults | ULP: `usersListHref - canonical order and omitted defaults`; CLP: `catalogListHref - sort and size`; LP: `listHref` | C |
+| DT-URL-1 | Parameters do not change the data scope | UP: hostile-parameter cases and "a denied role is redirected before any read happens"; AP: `scope` and `list params`; DP: `is not Carrera-scoped`; UQ: status inside the scope | C |
+| DT-URL-2 | Reset to page 1 | LP: `applyListChange` ("a non-page change wins over an accompanying page value"); LT: "sorts a new column ascending with replace, back on page 1", "pushes a status change back to page 1", "pushes a search without page and keeps the other parameters", "replaces with the chosen page size and page 1"; TT, TP | C |
+| DT-URL-2 | Paging keeps the view | LT: "pushes the next page with every other parameter kept"; UP: "page links keep status, sort and size"; TP: hrefs | C |
+| DT-URL-3 | Page larger than the new page count | UQ: `clampPage`; UP: "builds the paging links from the page the read clamped to"; AD: `sorting and page size` clamp | C |
+| DT-URL-3 | Page clamps for each size | UQ: `clampPage` (sizes 10, 25, 50 with 60 rows) and `it.each([10, 25, 50])`; AD | C |
+| DT-NAV-1 | Back after a content change | LN: "pushes without scrolling to the top"; LT: next page, status and search push | P: the `push` call is asserted; the browser Back result is manual (2d.6 item 7) |
+| DT-NAV-1 | Back after sort or page size | LN: "replaces without scrolling to the top"; LT: sort and size use `replace` | P: same as above |
+| DT-NAV-1 | Links open in a new tab | TP: "links first, previous, next and last to the hrefs the caller built", "leaves modifier-key clicks to the browser and never scrolls"; SF: "renders three real links", "leaves modifier-key clicks to the browser" | C (the real App Router `next/link` is replaced by the stand-in, gate 0.9) |
+| DT-SORT-1 | Stable across pages with equal sort keys | SQL: "always ends with the id, in the direction of the chosen key"; UQ: every sort key ends with `Id`; AD and UD: `sorting` describes (both directions) | P (data): SQL text only; no test reads rows from PostgreSQL (gap G-1) |
+| DT-SORT-1 | Ties fall back to the default order, then id | SQL: "a catalog-style default (code asc) adds only the id term"; UQ: "ties on a non-default key fall back to newest first, then the id" | C |
+| DT-SORT-1 | Accented names sort alphabetically | SQL: `TEXT_SORT_COLLATION`, `collation scope` (name and login collated); S1 (collation exists, owner-run) | P (data): resulting order not executed (gap G-1; manual 2d.6, 3b.6, 3c.6) |
+| DT-SORT-1 | Empty emails last in both directions | SQL: `empty e-mails and status` (`nullif`, `nulls last`, asc and desc); UD: `sorting` | P (data): gap G-1 |
+| DT-SORT-1 | Status order | SQL: "status ascending means active first (boolean descending)"; AD, UD | P (data): gap G-1 |
+| DT-SORT-1 | Header activation cycle | LP: `nextSort`; LT: "sorts a new column ascending with replace, back on page 1", "reverses the direction of the sorted column"; UT: "activating an unsorted header replaces the entry with that column ascending", "activating the active header reverses its direction" | C |
+| DT-SORT-1 | Non-sortable columns | DTBL: "gives non-sortable columns no button and no aria-sort"; UT: "makes exactly name, login, role, status and created sortable"; AT and DOCT: `sorting` | C |
+| DT-SORT-1 | Sort survives a reload | UT: "follows the URL state", "marks only the sorted column with aria-sort..."; ULP: round trip | C |
+| DT-SORT-2 | aria-sort follows the state | DTBL: `aria-sort` table and unknown key; UT: "marks only the sorted column with aria-sort, the default being created descending"; AT, DOCT | C |
+| DT-SORT-2 | Keyboard operation | SH: "activates onSort with Enter", "activates onSort with Space", "keeps focus on the same control after activation" | P: unit level; focus after a real route update depends on Gate V1 (2d.5, open) |
+| DT-SORT-2 | Direction is not colour alone | SH: "shows a different icon for ascending, descending and unsorted", visible state text in es and en, "keeps the column name as the accessible name in every state"; DTBL: "writes the sort state of every sortable header as visible text" | C |
+| DT-TOOL-1 | Search is submit-only | TT: "does nothing while the user types", "submits with Enter as a push to the href the caller built" | C |
+| DT-TOOL-1 | Filter and search combine | LT: "keeps the search and the filter usable beside the no-results state", "hands the search form the path and every other parameter"; TT: hidden fields; UQ: "status and search combine inside the same scope" | C |
+| DT-TOOL-1 | Count is announced politely | TT: "renders the count in a polite status region", "does not move focus when the count changes" | C |
+| DT-PAG-1 | Bounds | TP: `TablePagination bounds (DT-PAG-1)` (3 pages), "exposes an unavailable control as disabled text, not a dead link" | C |
+| DT-PAG-1 | First and last navigation | TP: "targets the last page computed from total and size", "pushes the first page with its own href"; UT: "shows the footer with first and last when the total exceeds one page"; UP | C |
+| DT-PAG-1 | Page-size selector options | TP: "offers exactly 10, 25 and 50 with the current size selected", "replaces the history entry with the href for the chosen size"; UQ: `it.each([10, 25, 50])` limit | C |
+| DT-PAG-1 | Footer omitted when everything fits | UT: "omits the footer when everything fits on one page"; LT: footer for totals 0, 1, 10, 11 | C |
+| DT-PAG-1 | One page of a larger size | TP: "shows 1 of 1 with every control unavailable for 20 results at size 25" | C |
+| DT-PEND-1 | Update in progress | LT: "is busy and dimmed with the previous rows and enabled controls"; TT: "reads the updating text while pending, then the count again"; DTBL, CARD, LN | C (pending simulated through a suspending child; real router unobserved) |
+| DT-PEND-1 | Pending ends | TT: "reads the updating text while pending, then the count again"; LN: "is pending while the navigation is in flight and idle after" | C |
+| DT-PEND-1 | Reduced motion | CARD and DTBL: opacity-only dimming plus the static text and busy state | P (browser check F.4) |
+| DT-STATE-1 | Three situations | LT: `ListTable empty and no-results (DT-STATE-1)`; UT, AT, DOCT: `states`; UP, AP, DP: degraded cases | C |
+| DT-STATE-1 | Degraded with sort and page size | UP: "degraded with every parameter shows the alert only (UL:soft)"; AP and DP: `states` (sort=name&dir=desc&size=25&page=2) | C |
+| DT-STATE-1 | Clear link restores the list | LT: "clears only the term and the filter, keeping sort and size, on page 1" (owner decision 2d.0) and two variants; UT | C |
+| DT-MODE-1 | Grupos section order and cap unchanged | GT: `bounded mode` (no sort button, no pagination, order as given); GS; EP: `Grupos section rows and links`, `degraded, cap, scope and structure`, `wiring (DT-MODE-1, DT-DATA-1)` | C |
+| DT-MODE-1 | CountsTable is a fixed matrix | IP: `CountsTable as a bounded table (DT-MODE-1 fixed matrix, DT-A11Y-1)` | C |
+| DT-MODE-1 | Import errors table is unchanged | IE: `ErrorsTable as a bounded table (design R2, DT-MODE-1 unchanged table)` | C |
+| DT-DATA-1 | Users rows | UP: `the browser receives only displayed fields (UL:fields)` (table-driven by forbidden field); UT: "renders nothing beyond the six delivered fields, even if a row carried more"; UQ: "the select list never names hashClave, cif, telefono or correo" | C |
+| DT-DATA-1 | Docentes rows carry no credential | DOCT: `DocentesTable displayed fields only (DT-DATA-1)`; DP: serialized delivered data; UD: `listDocentes ... carries no credential` | C |
+| DT-DATA-1 | Asignaturas and Grupos rows | AT: `displayed fields only (DT-DATA-1)`; GT: `GrupoRow (DT-DATA-1)`; EP: wiring | C |
+| DT-DENS-1 | Header height | STR: "keeps the header row at 48px in the one table head primitive", "gives the sortable header button a 44px target inside the 48px row"; DTBL: "keeps the header row at the documented 48px for both kinds of header" | C (class level; the no-press-scale sentence has no test pin, F.2 `rg` sweep only: gap G-6) |
+| DT-A11Y-1 | Structure | DTBL: `DataTable structure (DT-A11Y-1)` (caption, `scope="col"`); UT: "names the table and shows each field as text (DT-A11Y-1)"; TP, TT: labelled landmarks | C |
+| DT-I18N-1 | Key parity | PAR: `DT-I18N-1: table core copy`, `users list copy`, `Asignaturas table and page copy`, `retired list copy`, `Docentes list copy`; F.2 key-set sweep | C |
+| DT-I18N-1 | Copy per locale | UT, AT, DOCT: `describe.each(["es", "en"])`; SH, TP, TT, LT, SF, ERR: es cases | C |
+
+#### users-listing (27 scenarios: 23 C, 4 P)
+
+| Requirement | Scenario | Coverage | Status |
+|---|---|---|---|
+| UL:sort | Sort by column and direction | ULP: `sort and dir (UL:sort)`; UQ: `buildListUsuariosQuery - sorting (UL:sort)`; SQL: `orderByFor` | C (SQL text) |
+| UL:sort | Stable across pages with equal values | UQ: every key ends with `Id`; SQL: "always ends with the id" | P (data): gap G-1 |
+| UL:sort | Accented names sort alphabetically | SQL: `collation scope`; UQ: collated name and login | P (data): gap G-1 |
+| UL:sort | Ties on the chosen column keep the default order | UQ: "ties on a non-default key fall back to newest first, then the id" | C |
+| UL:sort | Unknown sort falls back | ULP: 10 valid and 11 hostile `sort`/`dir` rows; UP: seven hostile-parameter rows | C |
+| UL:sort | Sorting does not change the scope | UQ: `buildUsersWhere - status (UL:status, UL:scope)`, "an empty scope stays closed whatever the status"; UP: role from the session | C |
+| UL:status | Filter values | ULP: `status (UL:status)`; UQ: `it.each(STATUSES)` exact where text | C |
+| UL:status | Filter combines with search and scope | UQ: "status and search combine inside the same scope" | C |
+| UL:status | Filter with no results | UP: "words a status-only no-results without the term and clears to the same sort (UL:status)"; UT: "words a filter-only no-results without a search term" | C |
+| UL:scope | Hostile and extra parameters | UP: hostile-parameter rows (`sort='; DROP TABLE...'`, `size=9999`, `role=administrador`, `scope=all`); ULP: "ignores extra keys such as rol, role, scope, viewerRol" | C |
+| UL:scope | Denied roles stay denied | UP: "a denied role is redirected before any read happens", "runs the guard before the read", "guards with exactly rolesQueCreanUsuarios" | C |
+| UL:reset | Reset on each change | LT: reset tests; UT: "offers the status filter as links that keep the view and reset the page"; LP: `applyListChange` | C |
+| UL:fields | Delivered rows are picked | UP: `it.each(forbidden)` (hashClave, cif, telefono, correo), "the rendered markup does not carry the secret values either"; UT | C |
+| UL:fields | Same guarantee for every viewer | UP: `it.each(cases)` (administrador, secretaria, coordinacion; with and without an e-mail term) | C |
+| UL:fields | The list read does not select private fields | UQ: "selects exactly the six displayed columns", "the select list never names hashClave, cif, telefono or correo" | C |
+| UL:fields | Search by e-mail still works | UQ: "search by e-mail still builds its predicate"; UP: e-mail-term delivery case | P (data): predicate text only; manual 2d.6 item 5 (gap G-1) |
+| UL:pag | Page parameter handling | ULP: `page` describe (absent, `0`, `-1`, `abc`, `2.5`, empty, array); UQ: `clampPage` | C |
+| UL:pag | Controls at the bounds | TP: `bounds (DT-PAG-1)`; UT footer | C |
+| UL:pag | Page size options | ULP: `size (DT-URL-1)`; UQ: `it.each([10, 25, 50])` | C |
+| UL:pag | Page clamps against the chosen size | UQ: `clampPage` with sizes 25 and 50; UP: clamped page links | C |
+| UL:pag | First and last navigation | TP; UP: "offers first and last beside previous and next (DT-PAG-1)" | C |
+| UL:pag | Stable order across pages with equal creation dates | UQ: "the default sort produces today's order text" (ends with `Id`) | P (data): gap G-1 |
+| UL:pag | Page survives a reload | ULP: `usersListHref` round trip | C |
+| UL:pag | Single page or no results | UT: "omits the footer when everything fits on one page", empty state; TP: "shows 1 of 1 ... for 20 results at size 25" | C |
+| UL:soft | Database unavailable | UP: "renders the degraded pill and no misleading count or empty message"; UQ: `listUsuarios - fail-soft` | C |
+| UL:soft | Degraded state with a search or page | UP: degraded cases | C |
+| UL:soft | Degraded state with sort, filter and page size | UP: "degraded with every parameter shows the alert only (UL:soft)" | C |
+
+#### catalog-management, CM-LST-1 (19 scenarios: 17 C, 2 P)
+
+| Scenario | Coverage | Status |
+|---|---|---|
+| Default shows active only | CLP: `defaults`; AP and DP: `list params (CM-LST-1: Default, ...)`; AD | C |
+| Filter (table-driven) | AP and DP: `rows (CM-LST-1: Filter, state in words)`; AD: `buildAsignaturasWhere`; UD: `buildDocentesWhere` | C |
+| Search | AD: `buildAsignaturasWhere`, `matching groups of a search (CM-ASG-9)`; UD: `buildDocentesWhere` | C |
+| Pagination clamps | AD: `listAsignaturas`; UD: `listDocentes`; AP, DP: `list params` | C |
+| Empty states | AP, DP: `states`; AT, DOCT: `states (DT-STATE-1, BS-STATE-1)` | C |
+| Docentes list is read-only and unscoped | DP: `is not Carrera-scoped`, `is read-only`; DOCT: `is read-only (CM-LST-1, CM-ACC-1)` | C |
+| Unrecognised status falls back | CLP: `catalog list parsers - status, page and q`; AP, DP | C |
+| Docentes list carries no credential | UD: `listDocentes ... carries no credential`; DP; DOCT | C |
+| Database unavailable | AP, DP: `states`; AD, UD: fail-soft cases | C |
+| Sortable columns | CLP: `sort keys`; AD and UD: `sorting` (both directions); AT and DOCT: `sorting` | C (SQL text) |
+| Unsortable and unknown sort values fall back | CLP: `sort fallback` (groups, actions, hashClave, cif, password, Name, `name;`, empty, other list's key, repeated) | C |
+| Collation, empty emails and status order | AD, UD: sort maps; SQL: collation, `nullif ... nulls last`, active first | P (data): gap G-1; manual 3b.6, 3c.6 |
+| Footer omitted when everything fits | AT, DOCT: `controls`/`states`; LT | C |
+| Stable across pages with equal sort keys | AD, UD: every sorted order ends with `Id` | P (data): gap G-1 |
+| Page size options | CLP: `dir, size, others`; AD: sizes 25 and 50 | C |
+| First and last navigation and clamping with a size | TP; LT; AD: clamp with sizes | C |
+| Reset to page 1 on any view change | AT, DOCT: `controls (CM-LST-1, DT-URL-2, DT-NAV-1)`; LT; LP | C |
+| Sort and page size never widen the Carrera scope | AD: scope by Carrera unchanged for a `coordinacion` actor with extra parameters; AP: `scope` and hostile values | C |
+| Degraded read keeps the notice with the new parameters | AP and DP: `states` (sort=name&dir=desc&size=25&page=2) | C |
+
+#### Coverage gaps (explicit)
+
+No scenario is without any route. The following are not fully proven by automated tests:
+
+| Gap | Scenarios affected | What is missing | Route to close |
+|---|---|---|---|
+| G-1 Real-data ordering | DT-SORT-1 stable, accented, empty emails, status order; UL:sort stable and accented; UL:pag stable order; UL:fields search by e-mail; CM-LST-1 collation and stable (10 scenario rows) | Every ordering proof is the SQL text from the DB-free query builder. No test runs a list query against PostgreSQL, so "Álvaro, angel, Beatriz, Zoe", `nulls last` and no skipped row across pages are not demonstrated. S1 confirmed only that `es-x-icu` exists | Owner smoke 2d.6, 3b.6, 3c.6; or a new opt-in real-Postgres suite in the style of `vitest.integration.config.mts` (not in this change) |
+| G-2 Browser history and focus | DT-NAV-1 back x2; DT-SORT-2 keyboard focus after update | Calls to `router.push` and `replace` are asserted; the browser Back result and focus retention after a real route update are not. Gate V1 is open | 2d.5 (V1), 2d.6 item 7, F.4 keyboard |
+| G-3 Real Next runtime | BS-LOAD-1 navigation, BS-ERR-1 retry, DT-PEND-1 against the real router | Component-level and simulated pending only; the real App Router `next/link` is a stand-in (gate 0.9) | F.4 (error screen, keyboard), 2d.5 |
+| G-4 Responsive, motion, touch, themes | BS-RSP-1 x2, BS-MOT-1 reduced motion and hover, BS-A11Y-1 keyboard order, BS-LOAD-1 static skeleton, DT-PEND-1 reduced motion | Class-level structural tests only; no browser or E2E layer exists | F.4 checklist |
+| G-5 Page frame use | BS-FRM-1 Frame structure | No page test asserts that users, asignaturas, docentes and home render inside `PageFrame`; `users/page.test.tsx` has no single-`h1` assertion (asignaturas, docentes and home do) | One test per page, a later small change (not blocking) |
+| G-6 No press scale | DT-DENS-1 second sentence | No automated pin; only the F.2 `rg` sweep (no match) | Optional one-line assertion in `structure.test.ts` |
+
+### F.7 Final state and size measurements
+
+`git status --short`: empty. `git status -sb`: `## feature/better-ui...origin/feature/better-ui [ahead 4]` (the four commits of slices 3a to 3d are not pushed). Nothing is staged.
+
+`git log --oneline main..HEAD` lists 21 commits because the LOCAL `main` is stale (merge-base `d118b67`; eight earlier commits already merged upstream appear in the list). The 13 commits of this change are `b74f5f3^..HEAD`:
+
+| Commit | Content |
+|---|---|
+| `b74f5f3` | docs(openspec): add backoffice-ui-refresh change artifacts |
+| `5af89f7` | chore(deps): add @tanstack/react-table (Phase 0) |
+| `a173b35` | feat(shell): page context, shared navigation config and sidebar identity block (1a) |
+| `54fd126` | feat(shell): loading and error boundaries, shared states and role-aware home (1b) |
+| `c0bc25a` | feat(users): validated sort, status and page-size parameters with a narrowed list projection (2a) |
+| `c47cc2d` | feat(tables): TanStack table core with accessible sortable headers (2b) |
+| `e3fc185` | feat(tables): toolbar, status filter, first and last pagination and page-size selector (2c) |
+| `d290c0d` | feat(users): TanStack list with sorting, status filter and page-size selector (2d) |
+| `7a5ef4d` | docs(openspec): add backoffice-ui-refresh handoff and record OC-6 decision |
+| `ef14c81` | feat(catalog): validated sort and page-size parameters and whitelisted catalog orderings (3a) |
+| `a19f352` | feat(catalog): TanStack asignaturas list with sorting and page-size selector (3b) |
+| `437d56d` | feat(catalog): TanStack docentes list with sorting, email-last ordering and page-size selector (3c) |
+| `b4178c6` | refactor(tables): bounded TanStack tables for grupos and import, remove legacy table components (3d) |
+
+Raw `git diff --shortstat <commit>~1 <commit>` per commit (includes the openspec notes and the lock file of that commit):
+
+| Slice | Commit | Raw shortstat |
+|---|---|---|
+| artifacts | `b74f5f3` | 10 files changed, 3,429 insertions(+) |
+| Phase 0 | `5af89f7` | 2 files changed, 35 insertions(+) |
+| 1a | `a173b35` | 16 files changed, 1,158 insertions(+), 146 deletions(-) |
+| 1b | `54fd126` | 19 files changed, 1,454 insertions(+), 31 deletions(-) |
+| 2a | `c0bc25a` | 14 files changed, 1,509 insertions(+), 58 deletions(-) |
+| 2b | `c47cc2d` | 20 files changed, 1,661 insertions(+), 13 deletions(-) |
+| 2c | `e3fc185` | 20 files changed, 2,021 insertions(+), 15 deletions(-) |
+| 2d | `d290c0d` | 15 files changed, 845 insertions(+), 196 deletions(-) |
+| handoff | `7a5ef4d` | 2 files changed, 75 insertions(+), 1 deletion(-) |
+| 3a | `ef14c81` | 10 files changed, 703 insertions(+), 19 deletions(-) |
+| 3b | `a19f352` | 7 files changed, 974 insertions(+), 267 deletions(-) |
+| 3c | `437d56d` | 7 files changed, 740 insertions(+), 198 deletions(-) |
+| 3d | `b4178c6` | 27 files changed, 1,024 insertions(+), 1,222 deletions(-) |
+
+Per-slice lines excluding `openspec/` notes and `package-lock.json` (`git diff --numstat`, added + deleted, split by kind), compared with the Review Workload Forecast:
+
+| Slice | Commit | Files | Added | Deleted | Changed | Tests | Production src | Locale | Docs | Forecast | Over upper bound |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Phase 0 | `5af89f7` | 1 | 1 | 0 | 1 | 0 | 1 | 0 | 0 | ~30 (lock excluded; lock +34) | n/a |
+| 1a | `a173b35` | 16 | 1,158 | 146 | 1,304 | 785 | 417 | 22 | 80 | 600-750 | 1.74x |
+| 1b | `54fd126` | 19 | 1,454 | 31 | 1,485 | 1,037 | 408 | 40 | 0 | 600-750 | 1.98x |
+| 2a | `c0bc25a` | 12 | 1,384 | 44 | 1,428 | 1,061 | 367 | 0 | 0 | 500-650 | 2.20x |
+| 2b | `c47cc2d` | 18 | 1,534 | 2 | 1,536 | 1,185 | 331 | 20 | 0 | 500-650 | 2.36x |
+| 2c | `e3fc185` | 18 | 1,878 | 6 | 1,884 | 1,303 | 513 | 68 | 0 | 650-850 | 2.22x |
+| 2d | `d290c0d` | 13 | 688 | 189 | 877 | 531 | 342 | 4 | 0 | 450-550 | 1.59x |
+| 3a | `ef14c81` | 8 | 642 | 13 | 655 | 468 | 187 | 0 | 0 | 350-450 | 1.46x |
+| 3b | `a19f352` | 5 | 901 | 262 | 1,163 | 696 | 467 | 0 | 0 | 600-750 | 1.55x |
+| 3c | `437d56d` | 5 | 661 | 193 | 854 | 554 | 300 | 0 | 0 | 450-550 | 1.55x |
+| 3d | `b4178c6` | 25 | 913 | 1,211 | 2,124 | 1,338 | 700 | 86 | 0 | 1,100-1,300 (about 780 deletions) | 1.63x |
+| **Total** | | 140 | 11,214 | 2,097 | **13,311** | 8,958 | 4,033 | 240 | 80 | 5,800-7,250 | 1.84x |
+
+"Tests" includes `src/test/` helpers; "Production src" is every other path outside `i18n/` and `docs/`.
+
+Reading the table:
+
+- Net change of the whole range `5af89f7~1..b4178c6`, excluding `openspec/` and the lock file: 11,138 insertions and 2,021 deletions (13,159 changed lines). The per-slice sum is higher (13,311) because several files (catalog-parity test, locale files, list-table) are edited by more than one slice.
+- Against the forecast the change is 1.8x the upper bound (7,250) and 2.3x the lower bound (5,800); it also passes the +25% stop threshold (9,062) by 47%. Against the 800-line review budget it is about 16.6x.
+- Tests are 8,958 lines (67%); production source 4,033 (30%); locale files 240; docs 80. Of slice 3d's 1,211 deleted lines, 874 are the eight legacy files (four components, four tests), which are mechanical.
+- Every slice exceeded its upper bound. None was cut because each overrun was measurable only at its seam (see Batches B to K). The single-PR decision (D14) and the accepted `size:exception` stand.
+
+### Owner open items
+
+| Item | What is needed |
+|---|---|
+| 2d.5 Gate V1 | Observe in `next dev` and in a production build (`npm run build`, `npm start`) whether a sort click or page-size change on `/users` shows the `loading.tsx` skeleton and whether focus survives. Unobserved (no credentials in the apply sessions). Contingency (module-level last control id, RED test first) only if the skeleton does show |
+| 2d.6 | Users smoke as `administrador` and `secretaria`: the nine-point checklist in Batch G |
+| 3b.6 | Asignaturas smoke as `coordinacion` and `secretaria`: Batch I checklist |
+| 3c.6 | Docentes smoke as `administrador`, `coordinacion` and `secretaria`: Batch J checklist |
+| 2d.8 | Tick after V1 is recorded (its task text requires the V1 outcome); commit `d290c0d` exists |
+| F.4 | The seven-bullet manual checklist (320 and 360px, keyboard, reduced motion, themes and brands, es/en, touch, error screen) |
+| F.5 | `docs/roadmap.md` row for this change (owner edit only; not touched here) |
+| F.6 | Confirm the spec merge at archive: users-listing "Assumptions withdrawn or changed at archive"; CM-ASG-7, CM-NAV-1, CM-UX-1 unmodified |
+| F.8 | Hand off to `sdd-verify` |
+| Delivery | Push the four unpushed commits and open the single PR with the `size:exception` justification below |
+
+### PR description draft (ready to paste)
+
+Title: `feat(backoffice): redesigned shell, TanStack tables and sortable server-driven lists`
+
+````
+## Summary
+
+Backoffice UI refresh: a role-aware shell (page context in the top bar,
+sidebar identity block, loading and error boundaries, shared empty,
+no-results and degraded states, role-aware home) and a shared table kit on
+TanStack Table v8.21.3 (manual mode) used by the Users, Asignaturas and
+Docentes lists. Lists gain validated server-side sorting, a status filter
+on Users, a page-size selector (10, 25, 50) and first/last pagination. The
+Grupos section and the import tables use the same primitives in bounded mode.
+The four legacy table components are removed. No colour token, no schema and
+no route changed; no database command is part of this change.
+
+## Slices and commits
+
+| Slice | Commit |
+|---|---|
+| Phase 0: dependency | 5af89f7 |
+| 1a Orientation (page context, navigation config, sidebar identity) | a173b35 |
+| 1b States and home (loading, error, shared states, role-aware home) | 54fd126 |
+| 2a URL contract and users data layer (narrowed projection) | c0bc25a |
+| 2b Table core (sortable header, DataTable) | c47cc2d |
+| 2c Table controls (toolbar, status filter, pagination, ListTable) | e3fc185 |
+| 2d Users migration | d290c0d |
+| 3a Catalog URL contract and data layer | ef14c81 |
+| 3b Asignaturas list | a19f352 |
+| 3c Docentes list | 437d56d |
+| 3d Bounded tables, legacy components removed | b4178c6 |
+
+## Behaviour changes worth reviewing
+
+- Docentes default order is now alphabetical under the es-x-icu collation
+  (accented and lowercase-initial names no longer sort after "Z"); owner decision.
+- The no-results "clear filters" link clears only the search term and the status,
+  keeping sort and page size.
+- The Users list read no longer selects hashClave, cif, telefono or correo,
+  and the page picks the six displayed fields explicitly.
+- The dashboard home shows the degraded alert instead of zeros when the stats
+  read fails; the docente home shows one sentence.
+
+## Verified
+
+- npm test: 172 files, 3,691 tests, 0 failed.
+- npm run typecheck: clean. npm run build: compiles, all routes dynamic.
+- npx eslint src: only prettier CRLF findings from the Windows checkout (no
+  other rule); prettier --check --end-of-line auto src i18n: clean.
+- src/app/globals.css has an empty diff; es.json and en.json have identical
+  525-key sets; no transition-all in changed source files.
+- Traceability: 129 spec scenarios mapped to tests (105 covered, 22 partial,
+  2 manual only); see openspec/changes/backoffice-ui-refresh/apply-progress.md,
+  Batch L.
+
+## Not verified
+
+- No query was executed against PostgreSQL: the collation, empty-email-last and
+  stable-paging behaviour is proven as SQL text only.
+- No browser run: 320/360px layouts, keyboard order, reduced motion, themes,
+  touch hover and the real App Router link behaviour.
+- Gate V1: whether the route skeleton shows on a query-only navigation.
+
+## Owner manual items (open)
+
+- 2d.5 (V1), 2d.6 (users smoke), 3b.6 (asignaturas smoke), 3c.6 (docentes smoke).
+- F.4 manual checklist; F.5 roadmap row; F.6 spec merge confirmation.
+
+## size:exception
+
+About 13,300 changed lines (about 9,000 are tests, about 870 are deletions of
+the legacy table components) against the 800-line budget. The work is one
+cross-cutting UI contract (URL state, table kit, shell) that cannot ship
+partially without leaving mixed legacy and new tables. It was built and
+committed slice by slice (11 implementation commits) so it can be reviewed and
+reverted in that order.
+````
+
+### Deviations and notes for this batch
+
+1. The F.2 sweep for `correo` is satisfied with the documented exception (S-1).
+2. Per-slice measurements use `git diff --numstat` per commit and differ slightly from the figures in earlier batch notes, which were taken before the commits existed (for example 2a: 1,428 against "about 1,420").
+3. No gate rewrote a tracked file; the working tree was clean after every gate.
+4. `HANDOFF.md` state table updated (commits `ef14c81`, `a19f352`, `437d56d`, `b4178c6`); remaining items are marked owner-only.

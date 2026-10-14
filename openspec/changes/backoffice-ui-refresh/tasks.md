@@ -211,7 +211,7 @@ Estimate 350-450 lines.
 - [x] 3a.5 GREEN `src/lib/data/asignaturas.ts` list function with the map and `orderByFor`. `listMatchingGrupos` and search predicates untouched (D3).
 - [x] 3a.6 RED `listDocentes` tests (existing test file or new `src/lib/data/docentes.test.ts` if none exists): sort map `name`, `login` collated, `email` using `nullif` with `nulls last` in both directions, `status` active first; default `name asc, id asc`; projection and returned items contain no `HashClave`, password, temporary password or `Cif` (CM-LST-1 "Docentes list carries no credential", DT-DATA-1); not Carrera-scoped.
 - [x] 3a.7 GREEN `listDocentes` in its data module with the map, `status` filter semantics unchanged, `size` parameter.
-- [ ] 3a.8 CHECKPOINT: run V. The catalog pages still use the old table components and ignore `sort` and `size` (parsers unchanged for them), so the app is unchanged for users. Batch note. Stop. Suggested commit: `feat(catalog): validated sort and page-size parameters and whitelisted catalog orderings`.
+- [x] 3a.8 CHECKPOINT: run V. The catalog pages still use the old table components and ignore `sort` and `size` (parsers unchanged for them), so the app is unchanged for users. Batch note. Stop. Suggested commit: `feat(catalog): validated sort and page-size parameters and whitelisted catalog orderings`.
 
 ---
 
@@ -259,15 +259,15 @@ Estimate 1,100-1,300 lines (about 780 are pure deletions).
 - [x] 3d.9 Remove now-unused i18n keys in BOTH locale files (`catalog.shared.filter`, per-list pagination keys, any key whose last consumer was a deleted component) after proving they are unused with `rg` on `src`; update `GUARDED_SECTIONS` if a section is gone. Parity test stays green.
 - [x] 3d.10 Remove `parseCatalogListParams` and the old pagination page-size constants only if `codegraph_explore` shows no consumer; otherwise record why they stay.
 - [x] 3d.11 Re-verify DT-DENS-1 "Header height" and BS-MOT-1 "No `all` transitions" over the whole `src/components` and `src/app` trees with a structural test or an `rg` check recorded in `apply-progress.md`.
-- [ ] 3d.12 CHECKPOINT: run V including `npm run build`. Batch note. Stop. Suggested commit: `refactor(tables): bounded TanStack tables for grupos and import, remove legacy table components`.
+- [x] 3d.12 CHECKPOINT: run V including `npm run build`. Batch note. Stop. Suggested commit: `refactor(tables): bounded TanStack tables for grupos and import, remove legacy table components`.
 
 ---
 
 ## Final phase: Verification and hand-off
 
-- [ ] F.1 Full gates on the final tree: `npm test` (no failure outside the 0.8 set), `npm run typecheck`, `npx eslint src | rg -v 'Delete .␍.'`, `npm run format:check`, `npm run build`. Record exact results.
-- [ ] F.2 Compliance sweeps recorded in `apply-progress.md`: `git diff src/app/globals.css` empty (BS-DS-1); `i18n/es.json` and `i18n/en.json` key sets identical (parity test green, DT-I18N-1, BS-I18N-1); no `transition-all` remains in changed files (BS-MOT-1); no `hashClave`, `cif`, `telefono` or `correo` key in any props passed to a client table (DT-DATA-1, UL:fields); every sortable column has a `Record` entry in its sort map; `docs/design-system.md` describes every pattern listed in BS-DS-1.
-- [ ] F.3 Traceability matrix in `apply-progress.md`: each BS-*, DT-*, UL:* and CM-LST-1 scenario mapped to the test file (or the manual item) that covers it, for `sdd-verify`.
+- [x] F.1 Full gates on the final tree: `npm test` (no failure outside the 0.8 set), `npm run typecheck`, `npx eslint src | rg -v 'Delete .␍.'`, `npm run format:check`, `npm run build`. Record exact results.
+- [x] F.2 Compliance sweeps recorded in `apply-progress.md`: `git diff src/app/globals.css` empty (BS-DS-1); `i18n/es.json` and `i18n/en.json` key sets identical (parity test green, DT-I18N-1, BS-I18N-1); no `transition-all` remains in changed files (BS-MOT-1); no `hashClave`, `cif`, `telefono` or `correo` key in any props passed to a client table (DT-DATA-1, UL:fields); every sortable column has a `Record` entry in its sort map; `docs/design-system.md` describes every pattern listed in BS-DS-1.
+- [x] F.3 Traceability matrix in `apply-progress.md`: each BS-*, DT-*, UL:* and CM-LST-1 scenario mapped to the test file (or the manual item) that covers it, for `sdd-verify`.
 - [ ] F.4 [MANUAL] Checklist, ticked by the owner or implementer, recorded in `apply-progress.md`:
   - 320px and 360px: no horizontal scroll from 360px on shell and home for each role (BS-RSP-1, RNF-11); no clipping at 320px; staff tables scroll inside their card only.
   - Keyboard: tab order through sidebar, top-bar trail, toolbar, headers, rows, footer; Enter and Space on sort buttons; focus stays on the header after a sort; visible focus everywhere (DT-SORT-2, BS-A11Y-1).
@@ -278,7 +278,7 @@ Estimate 1,100-1,300 lines (about 780 are pure deletions).
   - Error screen: temporarily throw in a dev-only page to see the screen and the retry (do not commit the throw).
 - [ ] F.5 [OWNER] `docs/roadmap.md` needs a row for this change (the proposal suggests: `9 | backoffice-ui-refresh | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué | No | en curso`). This is the owner's edit: no agent edits `docs/roadmap.md`. Remind the owner at archive time to set the status.
 - [ ] F.6 [OWNER] Confirm the spec edits that archive will merge: users-listing "Assumptions withdrawn or changed at archive", and that CM-ASG-7, CM-NAV-1, CM-UX-1 are unmodified.
-- [ ] F.7 Leave the working tree with all slices uncommitted or committed as the owner prefers; list the final `git status` and the per-slice changed-line measurements (compare with the Review Workload Forecast) in `apply-progress.md` so the owner can fill the `size:exception` justification in the PR.
+- [x] F.7 Leave the working tree with all slices uncommitted or committed as the owner prefers; list the final `git status` and the per-slice changed-line measurements (compare with the Review Workload Forecast) in `apply-progress.md` so the owner can fill the `size:exception` justification in the PR.
 - [ ] F.8 CHECKPOINT: stop. Hand off to `sdd-verify`. Suggested final commit if the owner squashes the tail: `docs(ui): finalize backoffice refresh verification notes`.
 
 ---
