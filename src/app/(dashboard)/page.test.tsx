@@ -199,6 +199,22 @@ describe("DashboardPage (BS-HOME-1)", () => {
     },
   );
 
+  it.each(HOME_PER_ROLE)(
+    "%s wraps its content in the page frame with exactly one h1",
+    async (rol) => {
+      await renderHome(rol);
+
+      const frames = document.querySelectorAll('[data-slot="page-frame"]');
+      expect(frames).toHaveLength(1);
+      const frame = frames[0] as HTMLElement;
+      expect(frame).toHaveClass("flex", "flex-col", "gap-8");
+      expect(within(frame).getAllByRole("heading", { level: 1 })).toHaveLength(
+        1,
+      );
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    },
+  );
+
   it("gives each shortcut a title, one muted sentence and a hidden icon chip", async () => {
     await renderHome("secretaria");
 

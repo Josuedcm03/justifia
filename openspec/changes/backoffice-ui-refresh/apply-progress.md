@@ -1246,7 +1246,7 @@ BS-DS-1 pattern coverage in `docs/design-system.md`:
 Findings from the sweeps (none requires a code change to pass a gate):
 
 - S-1 (informational): the sweep wording "no `correo` key in props passed to any client table" is wider than DT-DATA-1. The Docentes table legitimately delivers `correo` (a displayed column). The users list does not.
-- S-2 (documentation drift, low): `docs/design-system.md` "Sortable header" (lines 381-387) describes only the icon and `aria-sort`. The visible sentence-case state text (Sortable / Ascending / Descending) added by owner decision 2c.0 is not described there. The pattern itself is documented, so BS-DS-1 "Patterns documented" holds; the paragraph should gain one sentence.
+- S-2 (documentation drift, low): `docs/design-system.md` "Sortable header" (lines 381-387) describes only the icon and `aria-sort`. The visible sentence-case state text (Sortable / Ascending / Descending) added by owner decision 2c.0 is not described there. The pattern itself is documented, so BS-DS-1 "Patterns documented" holds; the paragraph should gain one sentence. Closed in Batch M.
 - S-3 (informational): the two vendored `transition-all` hits (button, sidebar) remain by design; BS-MOT-1 names only the shell components this change touched.
 
 ### F.3 Traceability matrix (for `sdd-verify`)
@@ -1455,7 +1455,7 @@ No scenario is without any route. The following are not fully proven by automate
 | G-2 Browser history and focus | DT-NAV-1 back x2; DT-SORT-2 keyboard focus after update | Calls to `router.push` and `replace` are asserted; the browser Back result and focus retention after a real route update are not. Gate V1 is open | 2d.5 (V1), 2d.6 item 7, F.4 keyboard |
 | G-3 Real Next runtime | BS-LOAD-1 navigation, BS-ERR-1 retry, DT-PEND-1 against the real router | Component-level and simulated pending only; the real App Router `next/link` is a stand-in (gate 0.9) | F.4 (error screen, keyboard), 2d.5 |
 | G-4 Responsive, motion, touch, themes | BS-RSP-1 x2, BS-MOT-1 reduced motion and hover, BS-A11Y-1 keyboard order, BS-LOAD-1 static skeleton, DT-PEND-1 reduced motion | Class-level structural tests only; no browser or E2E layer exists | F.4 checklist |
-| G-5 Page frame use | BS-FRM-1 Frame structure | No page test asserts that users, asignaturas, docentes and home render inside `PageFrame`; `users/page.test.tsx` has no single-`h1` assertion (asignaturas, docentes and home do) | One test per page, a later small change (not blocking) |
+| G-5 Page frame use | BS-FRM-1 Frame structure | No page test asserts that users, asignaturas, docentes and home render inside `PageFrame`; `users/page.test.tsx` has no single-`h1` assertion (asignaturas, docentes and home do) | One test per page, a later small change (not blocking). Closed in Batch M. |
 | G-6 No press scale | DT-DENS-1 second sentence | No automated pin; only the F.2 `rg` sweep (no match) | Optional one-line assertion in `structure.test.ts` |
 
 ### F.7 Final state and size measurements
@@ -1624,3 +1624,8 @@ reverted in that order.
 2. Per-slice measurements use `git diff --numstat` per commit and differ slightly from the figures in earlier batch notes, which were taken before the commits existed (for example 2a: 1,428 against "about 1,420").
 3. No gate rewrote a tracked file; the working tree was clean after every gate.
 4. `HANDOFF.md` state table updated (commits `ef14c81`, `a19f352`, `437d56d`, `b4178c6`); remaining items are marked owner-only.
+
+## Batch M: gap closure
+
+- G-5 closed: each of `users/page.test.tsx`, `catalog/asignaturas/page.test.tsx`, `catalog/docentes/page.test.tsx` and `page.test.tsx` (home, once per role) now asserts a single `[data-slot="page-frame"]` carrying `flex flex-col gap-8` that contains exactly one `h1`. Mutation proof: temporarily replacing `PageFrame` with a plain `div` in the four pages made 8 of the new tests fail (1 users, 1 asignaturas, 1 docentes, 5 home); the pages were restored afterwards.
+- S-2 closed: `docs/design-system.md` "Sortable header" now documents the visible, `aria-hidden` sort-state text, the column-label accessible name, `aria-sort` on the `th` and wrapping on narrow widths.

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import enMessages from "../../../../i18n/en.json";
@@ -99,6 +99,20 @@ describe("UsersPage", () => {
     requireRoleMock.mockReset();
     listUsuariosMock.mockClear();
     deliveredRows.length = 0;
+  });
+
+  it("wraps its content in the page frame and renders exactly one h1", async () => {
+    requireRoleMock.mockResolvedValue(sessionFor("secretaria"));
+    listUsuariosMock.mockResolvedValue(emptyResult(USERS_PAGE_SIZE));
+
+    await renderUsersPage(searchParamsOf({}));
+
+    const frames = document.querySelectorAll('[data-slot="page-frame"]');
+    expect(frames).toHaveLength(1);
+    const frame = frames[0] as HTMLElement;
+    expect(frame).toHaveClass("flex", "flex-col", "gap-8");
+    expect(within(frame).getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
   it("guards with exactly rolesQueCreanUsuarios", async () => {

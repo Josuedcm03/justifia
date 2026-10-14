@@ -748,6 +748,19 @@ describe("AsignaturasPage structure and copy (CM-NFR-3; CM-I18N-1)", () => {
     },
   );
 
+  it("wraps its content in the page frame and renders exactly one h1", async () => {
+    listMock.mockResolvedValue(result({ total: 1, data: [row()] }));
+
+    await renderPage();
+
+    const frames = document.querySelectorAll('[data-slot="page-frame"]');
+    expect(frames).toHaveLength(1);
+    const frame = frames[0] as HTMLElement;
+    expect(frame).toHaveClass("flex", "flex-col", "gap-8");
+    expect(within(frame).getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
   it("renders the title and the state word in Spanish", async () => {
     state.locale = "es";
     listMock.mockResolvedValue(

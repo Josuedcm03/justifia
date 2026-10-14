@@ -382,8 +382,12 @@ concentric. While new rows load, the card is `aria-busy`, the rows dim to
 cell, at least 44px tall, with the column label on `label-caps` and a
 direction icon: up, down, or a muted double chevron when the column is not
 the sorted one. The header cell carries `aria-sort`; the icon is decoration.
-Pressing it sorts ascending, pressing again reverses. One column is sorted
-at a time. The change is instant: nothing animates.
+Beside the icon sits a visible sentence-case state text (Sortable, Ascending,
+Descending). It is `aria-hidden`, so the button's accessible name stays the
+column label and the state is exposed to assistive technology through
+`aria-sort` on the `th`. The text wraps on narrow widths instead of being
+truncated. Pressing it sorts ascending, pressing again reverses. One column is
+sorted at a time. The change is instant: nothing animates.
 
 **Loading skeleton.** While a screen loads, its shape is drawn in `secondary`
 blocks on the page frame: a title bar, one line of context and a table card
