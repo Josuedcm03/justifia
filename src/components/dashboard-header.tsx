@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { logoutAction } from "@/app/(auth)/login/actions";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { PageContext } from "@/components/page-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,15 +19,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getUserLocale } from "@/i18n/locale";
 import type { SessionPayload } from "@/lib/auth/session";
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
+import { initials } from "@/lib/initials";
 
 export async function DashboardHeader({ user }: { user: SessionPayload }) {
   const locale = await getUserLocale();
@@ -35,6 +28,7 @@ export async function DashboardHeader({ user }: { user: SessionPayload }) {
   return (
     <header className="bg-card sticky top-0 z-10 flex h-16 items-center gap-2 border-b px-4 md:px-8">
       <SidebarTrigger />
+      <PageContext />
       <div className="ml-auto flex items-center gap-2">
         <LocaleSwitcher current={locale} />
         <ThemeToggle />

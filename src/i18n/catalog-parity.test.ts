@@ -5,6 +5,8 @@ import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import { DIAS_SEMANA } from "@/lib/catalog/dias";
+import { shortcutsFor } from "@/lib/navigation";
+import { rolesUsuario } from "@/lib/validations/auth";
 import { CATALOG_FIELD_ERROR_KEYS } from "@/lib/validations/catalog";
 
 import enMessages from "../../i18n/en.json";
@@ -30,6 +32,20 @@ const GUARDED_SECTIONS = [
   "catalog.grupos",
   "nav.catalogDocentes",
   "catalog.docentes",
+  // Backoffice shell (backoffice-ui-refresh): the top-bar trail reuses the
+  // sidebar's `nav.*` labels and adds its landmark label and the profile page;
+  // `roles` labels the sidebar identity block.
+  "nav.profile",
+  "nav.trailLabel",
+  "roles",
+  // Backoffice shell, slice 1b: route error screen and the role-aware home.
+  "shell",
+  "dashboard",
+  // Backoffice table kit, slice 2b: sortable headers and the caption sentence.
+  "tables",
+  // Backoffice users list, slice 2d: the whole `users` section (list copy and
+  // the create form) keeps identical key sets.
+  "users",
 ] as const;
 
 type Node = string | { [key: string]: Node };
@@ -116,6 +132,107 @@ describe("catalog parity (FPC: Copy in both locales)", () => {
       [...required].sort(),
     );
   });
+});
+
+describe("catalog parity (BS-I18N-1: shell copy)", () => {
+  it.each(["es", "en"] as const)(
+    "%s labels exactly one role per RolUsuario",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+
+      expect(leafPaths(resolve(messages, "roles")).sort()).toEqual(
+        [...rolesUsuario].sort(),
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s carries the trail landmark label apart from the sidebar's",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      const trail = resolve(messages, "nav.trailLabel");
+
+      expect(typeof trail).toBe("string");
+      expect(trail).not.toBe(resolve(messages, "nav.sectionLabel"));
+    },
+  );
+});
+
+describe("catalog parity (BS-I18N-1: states and home copy)", () => {
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the route error keys",
+    (locale) => {
+      expect(leafPaths(resolve(messagesOf(locale), "shell")).sort()).toEqual([
+        "error.dashboardLink",
+        "error.description",
+        "error.reference",
+        "error.retry",
+        "error.title",
+      ]);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s renders the error reference with the digest through the real translator",
+    (locale) => {
+      const t = createTranslator({
+        locale,
+        messages: messagesOf(locale),
+        namespace: "shell",
+        onError: (error: Error) => {
+          throw error;
+        },
+      });
+
+      expect(t("error.reference", { digest: "ab12cd" })).toContain("ab12cd");
+    },
+  );
+
+  // Every destination any role can be offered needs a one-sentence description.
+  const SHORTCUT_KEYS = [
+    ...new Set(
+      rolesUsuario.flatMap((rol) => shortcutsFor(rol)).map((l) => l.key),
+    ),
+  ].sort();
+
+  it("offers shortcuts for the seven destinations the roles reach", () => {
+    expect(SHORTCUT_KEYS).toEqual([
+      "catalogAsignaturas",
+      "catalogDocentes",
+      "catalogImport",
+      "myRequests",
+      "newRequest",
+      "review",
+      "users",
+    ]);
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s describes every shortcut and carries the degraded and empty sentences",
+    (locale) => {
+      const paths = leafPaths(resolve(messagesOf(locale), "dashboard"));
+
+      for (const key of SHORTCUT_KEYS) {
+        expect(paths, key).toContain(`shortcuts.${key}`);
+      }
+      expect(paths).toEqual(expect.arrayContaining(["degraded", "empty"]));
+    },
+  );
+
+  it.each([
+    ["es", /no se pudieron/i],
+    ["en", /could not/i],
+  ] as const)(
+    "%s home degraded sentence says the figures could not be loaded",
+    (locale, notLoaded) => {
+      expect(resolve(messagesOf(locale), "dashboard.degraded")).toMatch(
+        notLoaded,
+      );
+    },
+  );
 });
 
 describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
@@ -539,14 +656,7 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
     "degraded",
     "search.label",
     "search.placeholder",
-    "search.submit",
-    "search.clear",
-    "count",
     "tableCaption",
-    "pagination.region",
-    "pagination.previous",
-    "pagination.next",
-    "pagination.status",
   ];
 
   it.each(["es", "en"] as const)(
@@ -582,11 +692,6 @@ describe("catalog parity (CM-I18N-1, CM-LST-1: Asignaturas list copy)", () => {
       });
 
       expect(t("noResults.title", { q: "calc" })).toContain("calc");
-      expect(t("pagination.status", { page: 2, pages: 5 })).toMatch(/2.*5/);
-      for (const count of [0, 1, 7]) {
-        expect(t("count", { count }).trim()).not.toBe("");
-      }
-      expect(t("count", { count: 7 })).toContain("7");
     },
   );
 
@@ -1375,14 +1480,7 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     "degraded",
     "search.label",
     "search.placeholder",
-    "search.submit",
-    "search.clear",
-    "count",
     "tableCaption",
-    "pagination.region",
-    "pagination.previous",
-    "pagination.next",
-    "pagination.status",
   ];
 
   it.each(["es", "en"] as const)(
@@ -1401,40 +1499,331 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     expect(section(locale, "nav.catalogDocentes")).toBe(label);
   });
 
-  it("the Docentes page chooses only keys that exist in both locales", () => {
+  // The page reads its copy through `getTranslations`, the client table
+  // through `useTranslations`; every literal key either chooses must exist in
+  // both locales (DT-I18N-1, CM-LST-1).
+  function keysUsedBy(file: string) {
     const source = readFileSync(
-      join(process.cwd(), "src/app/(dashboard)/catalog/docentes/page.tsx"),
+      join(process.cwd(), "src/app/(dashboard)/catalog/docentes", file),
       "utf8",
     );
     const translators = [
-      ...source.matchAll(/const (\w+) = await getTranslations\("([^"]+)"\)/g),
+      ...source.matchAll(
+        /const (\w+) = (?:await getTranslations|useTranslations)\("([^"]+)"\)/g,
+      ),
     ];
-    const used = new Set<string>();
+    const keys: string[] = [];
     for (const [, variable, namespace] of translators) {
       for (const call of source.matchAll(
         new RegExp(`\\b${variable}\\(([^()]*)`, "g"),
       )) {
         for (const literal of call[1].matchAll(/"([A-Za-z.]+)"/g)) {
-          used.add(`${namespace}.${literal[1]}`);
+          keys.push(`${namespace}.${literal[1]}`);
         }
       }
     }
+    return keys;
+  }
 
-    expect([...used]).toEqual(
+  const used = [
+    ...new Set(["docentes-table.tsx", "page.tsx"].flatMap(keysUsedBy)),
+  ];
+
+  it("the scan finds the keys the Docentes table and page choose, all reused", () => {
+    expect(used).toEqual(
       expect.arrayContaining([
         "catalog.docentes.title",
+        "catalog.docentes.subtitle",
         "catalog.docentes.usersLink",
+        "catalog.docentes.degraded",
+        "catalog.docentes.columns.name",
+        "catalog.docentes.columns.login",
         "catalog.docentes.columns.email",
+        "catalog.docentes.columns.status",
         "catalog.docentes.noEmail",
-        "catalog.docentes.count",
-        "catalog.docentes.pagination.status",
+        "catalog.docentes.tableCaption",
+        "catalog.docentes.empty",
+        "catalog.docentes.noResults.title",
+        "catalog.docentes.noResults.titleStatus",
+        "catalog.docentes.noResults.hint",
         "catalog.shared.status.active",
       ]),
     );
-    for (const messages of [esMessages, enMessages]) {
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every key the Docentes table and page use",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
       for (const key of used) {
         expect(typeof resolve(messages, key), key).toBe("string");
       }
+    },
+  );
+
+  // One hint serves the term and the status-only no-results, so it must point
+  // at the status filter as well as at the search fields.
+  it.each([
+    ["es", /estado/i],
+    ["en", /status/i],
+  ] as const)(
+    "%s Docentes no-results hint also names the status filter",
+    (locale, status) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      expect(resolve(messages, "catalog.docentes.noResults.hint")).toMatch(
+        status,
+      );
+    },
+  );
+});
+
+describe("catalog parity (DT-I18N-1: table core copy)", () => {
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the table core and table control keys",
+    (locale) => {
+      expect(leafPaths(resolve(messagesOf(locale), "tables")).sort()).toEqual([
+        "caption.sortable",
+        "clear",
+        "count",
+        "filter.active",
+        "filter.all",
+        "filter.inactive",
+        "filter.label",
+        "pageSize.label",
+        "pageSize.option",
+        "pagination.first",
+        "pagination.last",
+        "pagination.next",
+        "pagination.previous",
+        "pagination.region",
+        "pagination.status",
+        "search.submit",
+        "sort.ascending",
+        "sort.descending",
+        "sort.sortable",
+        "toolbar.label",
+        "updating",
+      ]);
+    },
+  );
+
+  // `pageSize.option` is a bare number format and is the same in both.
+  it("words each locale in its own language", () => {
+    for (const key of [
+      "tables.caption.sortable",
+      "tables.clear",
+      "tables.count",
+      "tables.filter.active",
+      "tables.filter.all",
+      "tables.filter.inactive",
+      "tables.filter.label",
+      "tables.pageSize.label",
+      "tables.pagination.first",
+      "tables.pagination.last",
+      "tables.pagination.next",
+      "tables.pagination.previous",
+      "tables.pagination.region",
+      "tables.pagination.status",
+      "tables.search.submit",
+      "tables.sort.ascending",
+      "tables.sort.descending",
+      "tables.sort.sortable",
+      "tables.toolbar.label",
+      "tables.updating",
+    ]) {
+      expect(resolve(esMessages, key), key).not.toBe(resolve(enMessages, key));
+    }
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s interpolates counts and pages instead of concatenating them",
+    (locale) => {
+      const tables = resolve(messagesOf(locale), "tables") as Record<
+        string,
+        Node
+      >;
+      const count = tables.count as string;
+      const status = (tables.pagination as Record<string, string>).status;
+
+      expect(count).toMatch(/\{count, plural,.*=0 .*one .*other /);
+      expect(count.match(/#/g)?.length).toBe(2);
+      expect(status).toContain("{page}");
+      expect(status).toContain("{pages}");
+      expect((tables.pageSize as Record<string, string>).option).toContain(
+        "{size",
+      );
+    },
+  );
+});
+
+describe("catalog parity (DT-I18N-1, UL: users list copy)", () => {
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  // Everything the users table and its page render. Most keys predate this
+  // slice and are reused; the two status keys are new (a no-results state
+  // caused by the status filter alone has no search term to name).
+  const LIST_KEYS = [
+    "columns.createdAt",
+    "columns.login",
+    "columns.name",
+    "columns.role",
+    "columns.status",
+    "degraded",
+    "empty",
+    "newButton",
+    "noResults.hintStatus",
+    "noResults.titleStatus",
+    "noResults.hint",
+    "noResults.title",
+    "search.label",
+    "search.placeholder",
+    "status.active",
+    "status.inactive",
+    "tableCaption",
+  ];
+
+  it.each(["es", "en"] as const)(
+    "%s carries every key the users table renders",
+    (locale) => {
+      const paths = leafPaths(resolve(messagesOf(locale), "users"));
+
+      expect(paths).toEqual(expect.arrayContaining(LIST_KEYS));
+    },
+  );
+
+  it("words the status-only no-results copy in each locale's language", () => {
+    for (const key of [
+      "users.noResults.hintStatus",
+      "users.noResults.titleStatus",
+    ]) {
+      expect(resolve(esMessages, key), key).not.toBe(resolve(enMessages, key));
+    }
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s names the search term in the term title and not in the status title",
+    (locale) => {
+      const users = resolve(messagesOf(locale), "users") as Record<
+        string,
+        Node
+      >;
+      const noResults = users.noResults as Record<string, string>;
+
+      expect(noResults.title).toContain("{q}");
+      expect(noResults.titleStatus).not.toContain("{q}");
+    },
+  );
+});
+
+describe("catalog parity (DT-I18N-1, CM-LST-1: Asignaturas table and page copy)", () => {
+  const DIR = "src/app/(dashboard)/catalog/asignaturas";
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  // Source scan, like the Docentes one: the client table reads its copy through
+  // `useTranslations`, the page through `getTranslations`. Every literal key
+  // either of them chooses must exist in both locales, so a renamed or removed
+  // key fails here instead of throwing at render time.
+  function keysUsedBy(file: string) {
+    const source = readFileSync(join(process.cwd(), DIR, file), "utf8");
+    const translators = [
+      ...source.matchAll(
+        /const (\w+) = (?:await getTranslations|useTranslations)\("([^"]+)"\)/g,
+      ),
+    ];
+    const keys: string[] = [];
+    for (const [, variable, namespace] of translators) {
+      for (const call of source.matchAll(
+        new RegExp(`\\b${variable}\\(([^()]*)`, "g"),
+      )) {
+        for (const literal of call[1].matchAll(/"([A-Za-z.]+)"/g)) {
+          keys.push(`${namespace}.${literal[1]}`);
+        }
+      }
+    }
+    return keys;
+  }
+
+  const used = [
+    ...new Set(["asignaturas-table.tsx", "page.tsx"].flatMap(keysUsedBy)),
+  ];
+
+  it("the scan finds the keys the table and the page choose, all reused", () => {
+    expect(used).toEqual(
+      expect.arrayContaining([
+        "catalog.asignaturas.title",
+        "catalog.asignaturas.newButton",
+        "catalog.asignaturas.columns.code",
+        "catalog.asignaturas.columns.name",
+        "catalog.asignaturas.columns.career",
+        "catalog.asignaturas.columns.hours",
+        "catalog.asignaturas.columns.groups",
+        "catalog.asignaturas.columns.status",
+        "catalog.asignaturas.columns.actions",
+        "catalog.asignaturas.tableCaption",
+        "catalog.asignaturas.empty",
+        "catalog.asignaturas.noResults.title",
+        "catalog.asignaturas.noResults.titleStatus",
+        "catalog.asignaturas.noResults.hint",
+        "catalog.asignaturas.degraded",
+        "catalog.asignaturas.matches.label",
+        "catalog.shared.status.active",
+        "catalog.shared.noCarrera.title",
+      ]),
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every key the table and the page use",
+    (locale) => {
+      for (const key of used) {
+        expect(typeof resolve(messagesOf(locale), key), key).toBe("string");
+      }
+    },
+  );
+
+  // One hint serves the term and the status-only no-results, so it must point
+  // at the status filter as well as at the search fields.
+  it.each([
+    ["es", /estado/i],
+    ["en", /status/i],
+  ] as const)(
+    "%s no-results hint also names the status filter",
+    (locale, status) => {
+      expect(
+        resolve(messagesOf(locale), "catalog.asignaturas.noResults.hint"),
+      ).toMatch(status);
+    },
+  );
+});
+
+describe("catalog parity (DT-I18N-1: retired list copy)", () => {
+  // The old table components read these keys; the shared table kit reads
+  // `tables.*` instead, so they were removed from both catalogs (slice 3d).
+  const RETIRED = [
+    "users.search.submit",
+    "users.search.clear",
+    "users.count",
+    "users.pagination",
+    "catalog.asignaturas.search.submit",
+    "catalog.asignaturas.search.clear",
+    "catalog.asignaturas.count",
+    "catalog.asignaturas.pagination",
+    "catalog.docentes.search.submit",
+    "catalog.docentes.search.clear",
+    "catalog.docentes.count",
+    "catalog.docentes.pagination",
+    "catalog.shared.filter",
+  ];
+
+  it.each(["es", "en"] as const)("%s no longer carries them", (locale) => {
+    const messages = locale === "es" ? esMessages : enMessages;
+    for (const key of RETIRED) {
+      expect(resolve(messages, key), key).toBeUndefined();
     }
   });
 });

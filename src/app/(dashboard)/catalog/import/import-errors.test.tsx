@@ -185,3 +185,62 @@ describe("ImportErrors (CEI: Preview with errors blocks confirmation)", () => {
     expect(container.innerHTML).not.toContain("shadow");
   });
 });
+
+describe("ErrorsTable as a bounded table (design R2, DT-MODE-1 unchanged table)", () => {
+  const REPORTED: RowError[] = [
+    {
+      sheet: "Asignaturas",
+      row: 4,
+      reason: "horasTotales.invalid",
+      value: "0",
+    },
+    { sheet: "Grupos", row: 9, reason: "dias.invalid", value: "Luns" },
+    { sheet: "Docentes", row: 0, reason: "accountsToCreate.capExceeded" },
+  ];
+
+  it("shows the four columns, the reported order, the dash for row 0 and catalog text", () => {
+    renderErrors(REPORTED);
+
+    const table = screen.getByRole("table", { name: en.errorsPanel.caption });
+    const rows = cellsOf(table);
+    expect(rows[0]).toEqual([
+      en.errorsPanel.columns.sheet,
+      en.errorsPanel.columns.row,
+      en.errorsPanel.columns.reason,
+      en.errorsPanel.columns.value,
+    ]);
+    expect(rows.slice(1).map((r) => [r[0], r[1], r[3]])).toEqual([
+      ["Asignaturas", "4", "0"],
+      ["Grupos", "9", "Luns"],
+      ["Docentes", "—", ""],
+    ]);
+    expect(rows[1][2]).toBe(en.reasons.horasTotales.invalid);
+    expect(rows[2][2]).toContain("Luns");
+  });
+
+  it("has column-scoped headers and no sort, paging or toolbar control", () => {
+    renderErrors(REPORTED);
+
+    const table = screen.getByRole("table", { name: en.errorsPanel.caption });
+    const headers = within(table).getAllByRole("columnheader");
+    expect(headers).toHaveLength(4);
+    for (const header of headers) {
+      expect(header).toHaveAttribute("scope", "col");
+      expect(header).not.toHaveAttribute("aria-sort");
+    }
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("search")).toBeNull();
+    expect(screen.queryByRole("navigation")).toBeNull();
+    // The row column is the only right-aligned one.
+    const [, first] = within(table).getAllByRole("row");
+    const cells = within(first).getAllByRole("cell");
+    expect(cells[1]).toHaveClass("text-right");
+    expect(cells[0]).not.toHaveClass("text-right");
+  });
+
+  it("renders no table for zero errors", () => {
+    renderErrors([]);
+
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+});

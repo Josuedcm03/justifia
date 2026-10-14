@@ -1,16 +1,15 @@
 import Link from "next/link";
 
-import { DiasCell } from "@/app/(dashboard)/catalog/dias-cell";
-import { DataTable, type DataTableColumn } from "@/components/data-table";
-import { StatusPill } from "@/components/status-pill";
+import { AsignaturaGruposTable } from "@/app/(dashboard)/catalog/asignaturas/asignatura-grupos-table";
+import { DegradedAlert } from "@/components/degraded-alert";
 import { buttonVariants } from "@/components/ui/button";
-import type { DiaSemana } from "@/lib/catalog/dias";
-import type {
-  AsignaturaGruposResult,
-  GrupoListItem,
-} from "@/lib/catalog/types";
+import type { AsignaturaGruposResult } from "@/lib/catalog/types";
 
-/** Already-translated copy; the section never calls a translator itself. */
+/**
+ * Already-translated copy for the strings this server part renders. The
+ * table's own copy (headers, status labels, edit label, day names) is read by
+ * the client table from the catalog, so none of it travels here.
+ */
 export type AsignaturaGruposLabels = {
   title: string;
   add: string;
@@ -19,100 +18,33 @@ export type AsignaturaGruposLabels = {
   tableCaption: string;
   truncated: string;
   degraded: string;
-  edit: string;
-  editLabel: (grupo: GrupoListItem) => string;
-  columns: {
-    periodo: string;
-    numeroGrupo: string;
-    docente: string;
-    dias: string;
-    status: string;
-    actions: string;
-  };
-  statusActive: string;
-  statusInactive: string;
-  diasNotSet: string;
 };
 
 const TITLE_ID = "asignatura-grupos-title";
 
 /**
- * The Grupos of one Asignatura on its edit page (CM-ASG-7): synchronous,
- * links only. One "Add group" link while the Asignatura is active, else none.
+ * The Grupos of one Asignatura on its edit page (CM-ASG-7): a server
+ * component with the heading, the add link, the hints, the degraded alert, the
+ * empty state and the cap note. The rows go to a bounded client table as plain
+ * data, picked field by field. One "Add group" link while the Asignatura is
+ * active, else none.
  */
 export function AsignaturaGruposSection({
   result,
   asignaturaId,
   activo,
   labels,
-  diaShort,
-  diaLong,
 }: {
   result: AsignaturaGruposResult;
   asignaturaId: number;
   activo: boolean;
   labels: AsignaturaGruposLabels;
-  diaShort: (dia: DiaSemana) => string;
-  diaLong: (dia: DiaSemana) => string;
 }) {
   const hasRows = result.data.length > 0;
   // Built from the numeric id only; the code never reaches this URL.
   const addHref = `/catalog/asignaturas/${asignaturaId}/grupos/new`;
   // The empty state carries the action when the header does not.
   const headerAdd = activo && (hasRows || result.degraded);
-
-  const columns: readonly DataTableColumn<GrupoListItem>[] = [
-    { key: "periodo", header: labels.columns.periodo, cell: (g) => g.periodo },
-    {
-      key: "numeroGrupo",
-      header: labels.columns.numeroGrupo,
-      cell: (g) => g.numeroGrupo,
-    },
-    {
-      key: "docente",
-      header: labels.columns.docente,
-      cell: (g) => g.docenteNombre,
-      className: "text-muted-foreground",
-    },
-    {
-      key: "dias",
-      header: labels.columns.dias,
-      cell: (g) => (
-        <DiasCell
-          dias={g.dias}
-          short={diaShort}
-          long={diaLong}
-          notSet={labels.diasNotSet}
-        />
-      ),
-    },
-    {
-      key: "status",
-      header: labels.columns.status,
-      cell: (g) => (
-        <StatusPill
-          active={g.activo}
-          label={g.activo ? labels.statusActive : labels.statusInactive}
-        />
-      ),
-    },
-    {
-      key: "actions",
-      header: labels.columns.actions,
-      align: "end",
-      cell: (g) => (
-        <Link
-          // Built from the numeric ids of the page and of the row only.
-          href={`/catalog/asignaturas/${asignaturaId}/grupos/${g.id}/edit`}
-          // The name tells two groups of one subject apart.
-          aria-label={labels.editLabel(g)}
-          className={buttonVariants({ variant: "ghost", size: "lg" })}
-        >
-          {labels.edit}
-        </Link>
-      ),
-    },
-  ];
 
   return (
     <section aria-labelledby={TITLE_ID} className="flex flex-col gap-4">
@@ -135,21 +67,22 @@ export function AsignaturaGruposSection({
       )}
 
       {result.degraded ? (
-        <p
-          role="status"
-          className="border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm"
-        >
-          {labels.degraded}
-        </p>
+        <DegradedAlert message={labels.degraded} />
       ) : hasRows ? (
         <>
           <div className="border-border bg-card shadow-soft overflow-hidden rounded-xl border">
-            <DataTable
-              columns={columns}
-              rows={result.data}
-              getRowKey={(g) => g.id}
+            <AsignaturaGruposTable
+              // Only the displayed fields and the id reach the browser.
+              rows={result.data.map((g) => ({
+                id: g.id,
+                periodo: g.periodo,
+                numeroGrupo: g.numeroGrupo,
+                docenteNombre: g.docenteNombre,
+                activo: g.activo,
+                dias: g.dias,
+              }))}
+              asignaturaId={asignaturaId}
               caption={labels.tableCaption}
-              empty={null}
             />
           </div>
           {result.truncated ? (

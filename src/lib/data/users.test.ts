@@ -515,6 +515,18 @@ describe("listDocentes (CM-LST-1: Docentes list carries no credential, Database 
   const calls = (index: number, method: string) =>
     statements[index].filter((c) => c.method === method);
   const whereOf = (index: number) => render(calls(index, "where")[0].args[0]);
+  const orderOf = (index: number) =>
+    (calls(index, "orderBy")[0].args as unknown[]).map((o) => render(o).sql);
+  const NAME = '"Usuario"."NombreCompleto" collate "es-x-icu"';
+  const LOGIN = '"Usuario"."Login" collate "es-x-icu"';
+  const NAME_ASC = `${NAME} asc`;
+  const NAME_DESC = `${NAME} desc`;
+  const LOGIN_ASC = `${LOGIN} asc`;
+  const LOGIN_DESC = `${LOGIN} desc`;
+  const EMAIL_ASC = `nullif("Usuario"."Correo", '') asc nulls last`;
+  const EMAIL_DESC = `nullif("Usuario"."Correo", '') desc nulls last`;
+  const ID_ASC = '"Usuario"."Id" asc';
+  const ID_DESC = '"Usuario"."Id" desc';
 
   const item = {
     id: 1,
@@ -589,7 +601,101 @@ describe("listDocentes (CM-LST-1: Docentes list carries no credential, Database 
     await listDocentes(params(1));
     expect(
       (calls(1, "orderBy")[0].args as unknown[]).map((o) => render(o).sql),
-    ).toEqual(['"Usuario"."NombreCompleto" asc', '"Usuario"."Id" asc']);
+    ).toEqual([NAME_ASC, ID_ASC]);
+  });
+
+  it("the default name order is alphabetical under the Spanish collation (OC-6)", async () => {
+    results.push([{ count: 1 }], [item]);
+    await listDocentes(params(1));
+    expect(orderOf(1)[0]).toContain('collate "es-x-icu"');
+  });
+
+  describe("sorting (CM-LST-1, DT-SORT-1)", () => {
+    it.each([
+      ["name", "asc", [NAME_ASC, ID_ASC]],
+      ["name", "desc", [NAME_DESC, ID_DESC]],
+      ["login", "asc", [LOGIN_ASC, NAME_ASC, ID_ASC]],
+      ["login", "desc", [LOGIN_DESC, NAME_ASC, ID_DESC]],
+      ["email", "asc", [EMAIL_ASC, NAME_ASC, ID_ASC]],
+      ["email", "desc", [EMAIL_DESC, NAME_ASC, ID_DESC]],
+      ["status", "asc", ['"Usuario"."Activo" desc', NAME_ASC, ID_ASC]],
+      ["status", "desc", ['"Usuario"."Activo" asc', NAME_ASC, ID_DESC]],
+    ] as const)(
+      "orders by %s %s, then the default order, then the id",
+      async (key, dir, expected) => {
+        results.push([{ count: 1 }], [item]);
+        await listDocentes({ ...params(1), sort: { key, dir } });
+        expect(orderOf(1)).toEqual([...expected]);
+      },
+    );
+
+    it("an empty or missing e-mail comes last in both directions", async () => {
+      for (const dir of ["asc", "desc"] as const) {
+        statements.length = 0;
+        results.push([{ count: 1 }], [item]);
+        await listDocentes({ ...params(1), sort: { key: "email", dir } });
+        expect(orderOf(1)[0]).toBe(
+          `nullif("Usuario"."Correo", '') ${dir} nulls last`,
+        );
+      }
+    });
+
+    it("sorting leaves the where, the count and the projection unchanged", async () => {
+      results.push([{ count: 1 }], [item], [{ count: 1 }], [item]);
+      await listDocentes(params(1));
+      await listDocentes({
+        ...params(1),
+        sort: { key: "status", dir: "desc" },
+      });
+      expect(whereOf(2)).toEqual(whereOf(0));
+      expect(whereOf(3)).toEqual(whereOf(1));
+      expect(calls(3, "select")[0].args[0]).toEqual(
+        calls(1, "select")[0].args[0],
+      );
+    });
+  });
+
+  it("projection and returned items hold no credential, temporary password or Cif (DT-DATA-1)", async () => {
+    results.push([{ count: 1 }], [item]);
+    const result = await listDocentes({
+      ...params(1),
+      sort: { key: "login", dir: "desc" },
+    });
+    const projection = calls(1, "select")[0].args[0] as Record<string, unknown>;
+    for (const key of [
+      "hashClave",
+      "cif",
+      "telefono",
+      "debeCambiarClave",
+      "password",
+      "temporaryPassword",
+    ]) {
+      expect(projection).not.toHaveProperty(key);
+      expect(result.data[0]).not.toHaveProperty(key);
+    }
+  });
+
+  it.each([
+    [25, 60, 99, 3, 50],
+    [50, 60, 99, 2, 50],
+  ])(
+    "with size %s and %s rows, page %s clamps to %s (offset %s)",
+    async (size, count, requested, page, offset) => {
+      results.push([{ count }], [item]);
+      const result = await listDocentes({
+        ...params(requested),
+        pageSize: size,
+      });
+      expect(result.page).toBe(page);
+      expect(calls(1, "limit")[0].args).toEqual([size]);
+      expect(calls(1, "offset")[0].args).toEqual([offset]);
+    },
+  );
+
+  it("a degraded page echoes the requested size", async () => {
+    failure = new Error("connection refused");
+    const result = await listDocentes({ ...params(1), pageSize: 50 });
+    expect(result).toMatchObject({ degraded: true, pageSize: 50 });
   });
 
   it("clamps an out-of-range page to the last page", async () => {

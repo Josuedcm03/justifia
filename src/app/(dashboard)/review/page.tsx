@@ -2,7 +2,10 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
-import { DataTable, type DataTableColumn } from "@/components/data-table";
+import {
+  ReviewQueueTable,
+  type ReviewQueueTableRow,
+} from "@/app/(dashboard)/review/review-queue-table";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
@@ -78,6 +81,12 @@ export default async function ReviewQueuePage({
       vencida: t("deadline.overdue"),
     })[row.status];
   const name = (row: QueueRow) => row.estudianteNombre ?? t("unnamed");
+  const resubmitted = (row: QueueRow) =>
+    row.reenviada ? (
+      <span className="text-muted-foreground text-xs">{t("resubmitted")}</span>
+    ) : null;
+  const subjects = (row: QueueRow) =>
+    t("subjectsCount", { count: row.asignaturas });
   const reviewLink = (row: QueueRow) => (
     <Link
       href={`${BASE}/${row.id}`}
@@ -104,41 +113,23 @@ export default async function ReviewQueuePage({
       ) : null}
     </div>
   );
-  const resubmitted = (row: QueueRow) =>
-    row.reenviada ? (
-      <span className="text-muted-foreground text-xs">{t("resubmitted")}</span>
-    ) : null;
-  const subjects = (row: QueueRow) =>
-    t("subjectsCount", { count: row.asignaturas });
 
-  const columns: readonly DataTableColumn<QueueRow>[] = [
-    {
-      key: "received",
-      header: t("columns.received"),
-      cell: (row) => (
-        <div className="flex flex-col">
-          <span>{received(row)}</span>
-          {resubmitted(row)}
-        </div>
-      ),
-      className: "tabular-nums",
-    },
-    { key: "student", header: t("columns.student"), cell: student },
-    {
-      key: "career",
-      header: t("columns.career"),
-      cell: (row) => row.estudianteCarrera ?? "",
-      className: "text-muted-foreground",
-    },
-    { key: "subjects", header: t("columns.subjects"), cell: subjects },
-    { key: "deadline", header: t("columns.deadline"), cell: deadline },
-    {
-      key: "action",
-      header: t("columns.action"),
-      align: "end",
-      cell: reviewLink,
-    },
-  ];
+  // The desktop table is a client module: it receives plain display values,
+  // picked field by field, never the data-layer row and never a function.
+  const tableRows: ReviewQueueTableRow[] = queue.rows.map((row) => ({
+    id: row.id,
+    receivedText: received(row),
+    resubmittedNote: row.reenviada ? t("resubmitted") : null,
+    name: name(row),
+    cif: row.estudianteCif,
+    career: row.estudianteCarrera ?? "",
+    subjectsText: subjects(row),
+    deadlineStatus: row.status,
+    deadlineLabel: deadlineLabel(row),
+    dueOnText: dueOn(row),
+    reviewLabel: t("review"),
+    reviewAriaLabel: t("reviewNamed", { name: name(row) }),
+  }));
 
   return (
     <div className="flex flex-col gap-8">
@@ -185,13 +176,7 @@ export default async function ReviewQueuePage({
           </ul>
 
           <div className="border-border bg-card shadow-soft hidden overflow-hidden rounded-xl border md:block">
-            <DataTable
-              columns={columns}
-              rows={queue.rows}
-              getRowKey={(row) => row.id}
-              caption={t("caption")}
-              empty={null}
-            />
+            <ReviewQueueTable rows={tableRows} caption={t("caption")} />
           </div>
         </>
       )}

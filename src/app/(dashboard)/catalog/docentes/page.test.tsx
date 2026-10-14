@@ -5,7 +5,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import enMessages from "../../../../../i18n/en.json";
 import esMessages from "../../../../../i18n/es.json";
 import { ACCESS_DENIED_PATH, PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
-import { CATALOG_PAGE_SIZE, catalogListHref } from "@/lib/catalog/list-params";
+import { catalogListHref } from "@/lib/catalog/list-params";
+import { DEFAULT_PAGE_SIZE } from "@/lib/list-params";
 import { rolesUsuario, type RolUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
@@ -21,7 +22,16 @@ const { redirectMock, getSessionMock, getCatalogActorMock, listMock, state } =
     state: { locale: "en" as "en" | "es" },
   }));
 
-vi.mock("next/navigation", () => ({ redirect: redirectMock }));
+// `redirect` is the guard's; the router and link stand-ins serve the client
+// table the page renders.
+vi.mock("next/navigation", async () => ({
+  ...(await import("@/test/navigation-mock")).module,
+  redirect: redirectMock,
+}));
+vi.mock(
+  "next/link",
+  async () => (await import("@/test/navigation-mock")).linkModule,
+);
 
 // The REAL dal and the REAL requireCatalogAccess run on a mocked session
 // source and a mocked actor read, so the guard order is the production one.
@@ -72,7 +82,7 @@ function result(overrides: Partial<Record<string, unknown>> = {}) {
     data: [],
     total: 0,
     page: 1,
-    pageSize: CATALOG_PAGE_SIZE,
+    pageSize: DEFAULT_PAGE_SIZE,
     degraded: false,
     ...overrides,
   };
@@ -126,7 +136,7 @@ function serializedProps(node: unknown, seen = new Set<unknown>()): string {
 /** The cell of a body row under the column whose header reads `header`. */
 function cellOf(tableRow: HTMLElement, header: string) {
   const heads = within(screen.getByRole("table")).getAllByRole("columnheader");
-  const index = heads.findIndex((h) => h.textContent === header);
+  const index = heads.findIndex((h) => h.textContent?.startsWith(header));
   expect(index, `column ${header}`).toBeGreaterThanOrEqual(0);
   return within(tableRow).getAllByRole("cell")[index];
 }
@@ -223,11 +233,13 @@ describe("DocentesPage is not Carrera-scoped (CM-LST-1: Docentes list is read-on
 
       await renderPage({ carreraId: "9", scope: "carrera" });
 
+      // Nothing from the URL or the actor reaches the query as a scope.
       expect(listMock).toHaveBeenCalledWith({
         status: "active",
         q: "",
         page: 1,
-        pageSize: CATALOG_PAGE_SIZE,
+        pageSize: 10,
+        sort: { key: "name", dir: "asc" },
       });
       expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
       expect(screen.queryByText(shared.noCarrera.title)).toBeNull();
@@ -241,15 +253,67 @@ describe("DocentesPage list params (CM-LST-1: Default, Search, Pagination, Unrec
     getSessionMock.mockResolvedValue(sessionFor("administrador"));
   });
 
-  it("passes status, q and page through with the shared page size", async () => {
-    await renderPage({ status: "inactive", q: "  Ana  ", page: "2" });
+  it("passes status, q, page, sort and size through, parsed (CM-LST-1, DT-URL-1)", async () => {
+    await renderPage({
+      status: "inactive",
+      q: "  Ana  ",
+      page: "2",
+      sort: "email",
+      dir: "desc",
+      size: "25",
+    });
 
     expect(listMock).toHaveBeenCalledWith({
       status: "inactive",
       q: "Ana",
       page: 2,
-      pageSize: CATALOG_PAGE_SIZE,
+      pageSize: 25,
+      sort: { key: "email", dir: "desc" },
     });
+  });
+
+  it("passes today's order and the default size when no sort or size is given", async () => {
+    await renderPage();
+
+    expect(listMock).toHaveBeenCalledWith({
+      status: "active",
+      q: "",
+      page: 1,
+      pageSize: 10,
+      sort: { key: "name", dir: "asc" },
+    });
+  });
+
+  it.each([
+    [{ sort: "hours", dir: "desc" }],
+    [{ sort: "hashClave" }],
+    [{ sort: "cif", dir: "asc" }],
+    [{ sort: "name;drop", dir: "asc" }],
+    [{ sort: "Name", dir: "desc" }],
+    [{ sort: ["login", "email"] }],
+    [{ size: "7" }],
+    [{ size: "9999" }],
+    [{ size: ["25", "50"] }],
+  ] as const)(
+    "gives the data layer the defaults for the hostile values %j",
+    async (params) => {
+      await renderPage({ ...params } as Record<string, string | string[]>);
+
+      const call = listMock.mock.calls[0][0] as {
+        sort: { key: string; dir: string };
+        pageSize: number;
+      };
+      expect(call.pageSize).toBe(10);
+      expect(call.sort).toEqual({ key: "name", dir: "asc" });
+    },
+  );
+
+  it("keeps a valid sort key and falls back to ascending for an unknown direction", async () => {
+    await renderPage({ sort: "login", dir: "sideways" });
+
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: { key: "login", dir: "asc" } }),
+    );
   });
 
   it("treats status=bogus as active", async () => {
@@ -291,10 +355,17 @@ describe("DocentesPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () => 
       "columnheader",
     );
     expect(heads.map((h) => h.textContent)).toEqual([
-      en.columns.name,
-      en.columns.login,
-      en.columns.email,
-      en.columns.status,
+      expect.stringContaining(en.columns.name),
+      expect.stringContaining(en.columns.login),
+      expect.stringContaining(en.columns.email),
+      expect.stringContaining(en.columns.status),
+    ]);
+    // All four sort (CM-LST-1) and none is an action column.
+    expect(heads.map((h) => h.querySelector("button") !== null)).toEqual([
+      true,
+      true,
+      true,
+      true,
     ]);
   });
 
@@ -357,8 +428,10 @@ describe("DocentesPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () => 
 
     await renderPage();
 
-    expect(screen.getByRole("table")).toHaveAccessibleName(en.tableCaption);
-    const count = screen.getByText("1 teacher");
+    expect(screen.getByRole("table")).toHaveAccessibleName(
+      new RegExp(en.tableCaption),
+    );
+    const count = screen.getByText("1 result");
     expect(count).toHaveAttribute("role", "status");
     expect(count).toHaveAttribute("aria-live", "polite");
   });
@@ -370,16 +443,12 @@ describe("DocentesPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () => 
 
     await renderPage({ status: "all", q: "ana", page: "2" });
 
-    const nav = screen.getByRole("navigation", { name: en.pagination.region });
-    expect(
-      within(nav).getByRole("link", { name: en.pagination.previous }),
-    ).toHaveAttribute(
+    const nav = screen.getByRole("navigation", { name: "Pagination" });
+    expect(within(nav).getByRole("link", { name: "Previous" })).toHaveAttribute(
       "href",
       catalogListHref(BASE, { q: "ana", status: "all" }),
     );
-    expect(
-      within(nav).getByRole("link", { name: en.pagination.next }),
-    ).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "Next" })).toHaveAttribute(
       "href",
       catalogListHref(BASE, { q: "ana", status: "all", page: 3 }),
     );
@@ -404,7 +473,9 @@ describe("DocentesPage is read-only (CM-LST-1: read-only; CM-ACC-1)", () => {
 
     const table = screen.getByRole("table");
     expect(within(table).queryAllByRole("link")).toHaveLength(0);
-    expect(within(table).queryAllByRole("button")).toHaveLength(0);
+    for (const tr of within(table).getAllByRole("row").slice(1)) {
+      expect(within(tr).queryAllByRole("button")).toHaveLength(0);
+    }
     const hrefs = screen
       .getAllByRole("link")
       .map((a) => a.getAttribute("href") ?? "");
@@ -417,9 +488,14 @@ describe("DocentesPage is read-only (CM-LST-1: read-only; CM-ACC-1)", () => {
       ),
     ).toEqual([]);
     expect(hrefs.filter((h) => h === "/users")).toHaveLength(1);
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual([
-      en.search.submit,
-    ]);
+    // Outside the table the only button is the search submit; the header
+    // buttons inside it sort and change nothing.
+    expect(
+      screen
+        .getAllByRole("button")
+        .filter((b) => b.closest("table") === null)
+        .map((b) => b.textContent),
+    ).toEqual([enMessages.tables.search.submit]);
     expect(screen.queryByRole("checkbox")).toBeNull();
     expect(document.querySelector("form")?.getAttribute("method")).not.toBe(
       "post",
@@ -487,9 +563,26 @@ describe("DocentesPage states (CM-LST-1: Empty states, Database unavailable)", (
     expect(screen.getByText(`No results for “zz”`)).toBeInTheDocument();
     expect(screen.getByText(en.noResults.hint)).toBeInTheDocument();
     expect(screen.queryByText(en.empty)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: en.search.clear })).toHaveAttribute(
+    // The clear link drops the term and the filter.
+    expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute(
       "href",
-      `${BASE}?status=inactive`,
+      BASE,
+    );
+  });
+
+  it("keeps sort and size in the clear link and returns to page 1", async () => {
+    await renderPage({
+      q: "zz",
+      status: "inactive",
+      sort: "login",
+      dir: "desc",
+      size: "25",
+      page: "2",
+    });
+
+    expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute(
+      "href",
+      `${BASE}?sort=login&dir=desc&size=25`,
     );
   });
 
@@ -503,10 +596,8 @@ describe("DocentesPage states (CM-LST-1: Empty states, Database unavailable)", (
   it("renders the status filter as a labelled nav", async () => {
     await renderPage({ status: "inactive", q: "ana" });
 
-    const nav = screen.getByRole("navigation", { name: shared.filter.label });
-    expect(
-      within(nav).getByRole("link", { name: shared.filter.all }),
-    ).toHaveAttribute(
+    const nav = screen.getByRole("group", { name: "Filter by status" });
+    expect(within(nav).getByRole("link", { name: "All" })).toHaveAttribute(
       "href",
       catalogListHref(BASE, { q: "ana", status: "all" }),
     );
@@ -515,10 +606,21 @@ describe("DocentesPage states (CM-LST-1: Empty states, Database unavailable)", (
   it("renders a status notice and no table, count or raw error when degraded", async () => {
     listMock.mockResolvedValue(result({ degraded: true }));
 
-    const { container } = await renderPage({ q: "zz", page: "3" });
+    const { container } = await renderPage({
+      q: "zz",
+      page: "3",
+      sort: "email",
+      dir: "desc",
+      size: "25",
+    });
 
+    expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(screen.getByRole("status")).toHaveTextContent(en.degraded);
     expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByRole("search")).toBeNull();
+    expect(
+      screen.queryByRole("group", { name: "Filter by status" }),
+    ).toBeNull();
     expect(screen.queryByText(en.empty)).not.toBeInTheDocument();
     expect(screen.queryByText(en.noResults.hint)).not.toBeInTheDocument();
     expect(container.textContent).not.toMatch(/error|exception|ECONN/i);
@@ -552,6 +654,19 @@ describe("DocentesPage structure and copy (CM-NFR-3; CM-I18N-1)", () => {
     },
   );
 
+  it("wraps its content in the page frame and renders exactly one h1", async () => {
+    listMock.mockResolvedValue(result({ total: 1, data: [row()] }));
+
+    await renderPage();
+
+    const frames = document.querySelectorAll('[data-slot="page-frame"]');
+    expect(frames).toHaveLength(1);
+    const frame = frames[0] as HTMLElement;
+    expect(frame).toHaveClass("flex", "flex-col", "gap-8");
+    expect(within(frame).getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
   it("renders the title, the link, a header and the state word in Spanish", async () => {
     state.locale = "es";
     listMock.mockResolvedValue(
@@ -569,7 +684,7 @@ describe("DocentesPage structure and copy (CM-NFR-3; CM-I18N-1)", () => {
       "/users",
     );
     expect(
-      screen.getByRole("columnheader", { name: es.columns.email }),
+      screen.getByRole("columnheader", { name: new RegExp(es.columns.email) }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(esMessages.catalog.shared.status.inactive),

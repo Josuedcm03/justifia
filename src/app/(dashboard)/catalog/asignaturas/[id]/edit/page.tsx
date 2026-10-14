@@ -95,8 +95,6 @@ export default async function EditAsignaturaPage({
   // Only a record the scoped read answered reaches this one, so a foreign or
   // missing id never queries its groups. The read is fail-soft (degraded).
   const grupos = await listGruposByAsignatura(scope, record.id);
-  const tStatus = await getTranslations("catalog.shared.status");
-  const tDias = await getTranslations("catalog.shared.dias");
 
   const stateTitleId = "asignatura-state-title";
 
@@ -131,8 +129,6 @@ export default async function EditAsignaturaPage({
         result={grupos}
         asignaturaId={record.id}
         activo={record.activo}
-        diaShort={(dia) => tDias(`short.${dia}`)}
-        diaLong={(dia) => tDias(`long.${dia}`)}
         labels={{
           title: t("grupos.title"),
           add: t("grupos.add"),
@@ -141,23 +137,6 @@ export default async function EditAsignaturaPage({
           tableCaption: t("grupos.tableCaption", { codigo: record.codigo }),
           truncated: t("grupos.truncated", { max: ASIGNATURA_GRUPOS_MAX }),
           degraded: t("grupos.degraded"),
-          edit: t("grupos.edit"),
-          editLabel: (g) =>
-            t("grupos.editLabel", {
-              periodo: g.periodo,
-              numeroGrupo: g.numeroGrupo,
-            }),
-          columns: {
-            periodo: t("grupos.columns.periodo"),
-            numeroGrupo: t("grupos.columns.numeroGrupo"),
-            docente: t("grupos.columns.docente"),
-            dias: t("grupos.columns.dias"),
-            status: t("grupos.columns.status"),
-            actions: t("grupos.columns.actions"),
-          },
-          statusActive: tStatus("active"),
-          statusInactive: tStatus("inactive"),
-          diasNotSet: tDias("notSet"),
         }}
       />
 

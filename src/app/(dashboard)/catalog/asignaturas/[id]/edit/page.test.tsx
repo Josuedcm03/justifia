@@ -971,3 +971,60 @@ describe("EditAsignaturaPage Grupos section degraded, cap, scope and structure (
     expect(section).not.toMatch(/is-current|aria-current/);
   });
 });
+
+// Design decision 5: no function-valued prop crosses from the page to the
+// section, so the day names and the edit label are read by the client table.
+describe("EditAsignaturaPage Grupos section wiring (DT-MODE-1, DT-DATA-1)", () => {
+  beforeEach(() => {
+    getSessionMock.mockResolvedValue(sessionFor("administrador"));
+  });
+
+  function findSectionProps(node: unknown): Record<string, unknown> | null {
+    if (node === null || typeof node !== "object") return null;
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const found = findSectionProps(child);
+        if (found) return found;
+      }
+      return null;
+    }
+    const element = node as {
+      type?: unknown;
+      props?: Record<string, unknown>;
+    };
+    if (
+      typeof element.type === "function" &&
+      element.type.name === "AsignaturaGruposSection"
+    ) {
+      return element.props ?? null;
+    }
+    return findSectionProps(element.props?.children);
+  }
+
+  it("hands the section only data and strings, no function and no day-name resolver", async () => {
+    gruposMock.mockResolvedValue(answer({ data: THREE_GRUPOS }));
+
+    const ui = await Page({ params: Promise.resolve({ id: "12" }) });
+    const props = findSectionProps(ui);
+
+    expect(props).not.toBeNull();
+    expect(Object.keys(props ?? {}).sort()).toEqual([
+      "activo",
+      "asignaturaId",
+      "labels",
+      "result",
+    ]);
+    expect(Object.keys(props?.labels as object).sort()).toEqual([
+      "add",
+      "degraded",
+      "empty",
+      "inactiveHint",
+      "tableCaption",
+      "title",
+      "truncated",
+    ]);
+    for (const value of Object.values(props?.labels as object)) {
+      expect(typeof value).toBe("string");
+    }
+  });
+});

@@ -249,7 +249,145 @@ describe("listAsignaturas", () => {
     const order = (calls(1, "orderBy")[0].args as SQL[]).map(
       (part) => render(part).sql,
     );
-    expect(order).toEqual(['"Asignatura"."Codigo" asc']);
+    expect(order).toEqual([
+      '"Asignatura"."Codigo" asc',
+      '"Asignatura"."Id" asc',
+    ]);
+  });
+
+  describe("sorting and page size (CM-LST-1, DT-SORT-1)", () => {
+    const orderOf = (index: number) =>
+      (calls(index, "orderBy")[0].args as SQL[]).map(
+        (part) => render(part).sql,
+      );
+    const code = '"Asignatura"."Codigo" asc';
+
+    it.each([
+      ["code", "asc", ['"Asignatura"."Codigo" asc', '"Asignatura"."Id" asc']],
+      [
+        "code",
+        "desc",
+        ['"Asignatura"."Codigo" desc', '"Asignatura"."Id" desc'],
+      ],
+      [
+        "name",
+        "asc",
+        [
+          '"Asignatura"."Nombre" collate "es-x-icu" asc',
+          code,
+          '"Asignatura"."Id" asc',
+        ],
+      ],
+      [
+        "name",
+        "desc",
+        [
+          '"Asignatura"."Nombre" collate "es-x-icu" desc',
+          code,
+          '"Asignatura"."Id" desc',
+        ],
+      ],
+      [
+        "hours",
+        "asc",
+        ['"Asignatura"."HorasTotales" asc', code, '"Asignatura"."Id" asc'],
+      ],
+      [
+        "hours",
+        "desc",
+        ['"Asignatura"."HorasTotales" desc', code, '"Asignatura"."Id" desc'],
+      ],
+      [
+        "status",
+        "asc",
+        ['"Asignatura"."Activo" desc', code, '"Asignatura"."Id" asc'],
+      ],
+      [
+        "status",
+        "desc",
+        ['"Asignatura"."Activo" asc', code, '"Asignatura"."Id" desc'],
+      ],
+    ] as const)(
+      "orders by %s %s, then the default order, then the id",
+      async (key, dir, expected) => {
+        results.push([{ count: 1 }], [item]);
+        await listAsignaturas({ ...params(1, ""), sort: { key, dir } });
+        expect(orderOf(1)).toEqual([...expected]);
+      },
+    );
+
+    it("the name order is collated and the code order is the plain column", async () => {
+      results.push([{ count: 1 }], [item]);
+      await listAsignaturas({
+        ...params(1, ""),
+        sort: { key: "name", dir: "asc" },
+      });
+      expect(orderOf(1)[0]).toContain('collate "es-x-icu"');
+      expect(orderOf(1)[1]).not.toContain("collate");
+    });
+
+    it("without a sort keeps today's order, codigo then id", async () => {
+      results.push([{ count: 1 }], [item]);
+      await listAsignaturas(params(1, ""));
+      expect(orderOf(1)).toEqual([code, '"Asignatura"."Id" asc']);
+    });
+
+    it("keeps the scope, the search and the count unchanged for a coordinacion actor with extra parameters", async () => {
+      results.push([{ count: 1 }], [item], [{ count: 1 }], [item]);
+      const base = params(1, "");
+      await listAsignaturas(base);
+      await listAsignaturas({
+        ...base,
+        sort: { key: "hours", dir: "desc" },
+        // Extra parameters a URL could carry are not inputs of the list.
+        ...({ carreraId: 99, scopeKind: "all" } as object),
+      });
+      expect(whereOf(2)).toEqual(whereOf(0));
+      expect(whereOf(3)).toEqual(whereOf(1));
+      expect(whereOf(2).sql).toContain('"Asignatura"."CarreraId" = $1');
+      expect(whereOf(2).params[0]).toBe(7);
+    });
+
+    it("keeps the search fields (CM-ASG-9) whatever the sort", async () => {
+      results.push([{ count: 1 }], [item], []);
+      await listAsignaturas({
+        ...params(1, "mat"),
+        sort: { key: "status", dir: "desc" },
+      });
+      expect(whereOf(0).sql).toContain('"Asignatura"."Codigo" ilike');
+      expect(whereOf(0).sql).toContain('"Asignatura"."Nombre" ilike');
+      expect(whereOf(0).sql).toContain("exists (select 1 from");
+      expect(whereOf(0)).toEqual(whereOf(1));
+    });
+
+    it.each([
+      [25, 60, 99, 3, 50],
+      [50, 120, 99, 3, 100],
+      [50, 60, 99, 2, 50],
+    ])(
+      "with size %s and %s rows, page %s clamps to %s (offset %s)",
+      async (size, count, requested, page, offset) => {
+        results.push([{ count }], [item]);
+        const result = await listAsignaturas({
+          ...params(requested, ""),
+          pageSize: size,
+        });
+        expect(result.page).toBe(page);
+        expect(result.pageSize).toBe(size);
+        expect(calls(1, "limit")[0].args).toEqual([size]);
+        expect(calls(1, "offset")[0].args).toEqual([offset]);
+      },
+    );
+
+    it("a degraded page echoes the requested size", async () => {
+      failure = new Error("connection refused");
+      const result = await listAsignaturas({
+        ...params(1, ""),
+        pageSize: 25,
+        sort: { key: "name", dir: "desc" },
+      });
+      expect(result).toMatchObject({ degraded: true, pageSize: 25 });
+    });
   });
 
   it("aggregates the distinct, ordered numbers of the active groups in one subquery column", async () => {

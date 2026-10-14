@@ -286,11 +286,21 @@ alias the page tokens, so the FIA brand follows without a block of its own.
 
 `aria-current="page"` marks the active link; see 2.3.
 
+**Brand block.** The sidebar header is 64px tall, level with the top bar,
+with a hairline under it: the logo at 28px, then the product name on the
+`title` step in `primary`, bold. It holds nothing else.
+
+**Identity block.** The sidebar footer, above a hairline, padded 16px: an
+initials avatar (32px, a pill), the user's name on `body-sm` in semibold and
+the role on the `label` step in muted text, in the user's language. Long
+names truncate. It is information, not a control: it has no hover state and
+no link. The user menu stays in the top bar.
+
 ### 4.3 Screen skeleton
 
 ```
 +-----------+----------------------------------------------+
-|  logo     |  top bar  .  menu / locale / theme / user    |  64px, white, hairline under
+|  logo     |  menu · section / page        locale / theme / user  |  64px, white, hairline under
 |-----------+----------------------------------------------+
 |  white    |                                              |
 |  sidebar  |   display title                              |
@@ -306,6 +316,19 @@ alias the page tokens, so the FIA brand follows without a block of its own.
 Content is left-aligned inside a 1440px container, with 32px margins on desktop
 and 16px on mobile. Grids use the 24px gutter. Below `md` the sidebar becomes a
 sheet opened from the top bar.
+
+**Page context.** The leading side of the top bar names where the user is:
+the section and the menu entry, taken from the navigation config
+("Administration / Subjects"), on `body-sm`. The section is muted text; the
+entry is `foreground` in medium weight. On a page below the entry (a create
+or edit form) the entry is a link back to it. Below `md` only the entry
+shows. It is orientation text, not a third "you are here" marker (2.3): it
+takes neither the bar nor the underline, and it carries
+`aria-current="page"` only when the entry is the page itself. The page keeps
+its single `h1`.
+
+**Page frame.** Inside the container, a screen is one vertical stack with a
+32px gap: the page header, then its cards.
 
 Centre alignment is reserved for the auth screens (sign-in, sign-up, change
 password), where there is a single focal object. They stack three things on the
@@ -343,7 +366,44 @@ of the screen.
 **Table.** Header row on `muted` with `label-caps` uppercase headers in muted
 text. Horizontal dividers only, no vertical rules, no zebra striping. Cells are
 padded 24px / 16px. Row hover is `primary` at 5%. The table sits in a card
-frame (12px radius, 1px border, clipped).
+frame (12px radius, 1px border, clipped). The row hover tint is instant; it
+does not animate.
+
+**Table card.** A list is one card (12px radius, 1px border, `shadow-soft`,
+clipped) with up to three regions divided by hairlines. The toolbar, padded
+24px / 16px, holds the search form, the status filter and the result count;
+it wraps on narrow screens. The table follows, edge to edge. The footer,
+padded 24px / 16px, holds the pagination. Controls inside keep their own 8px
+radius: the inset is not even on both axes, so the surfaces are not
+concentric. While new rows load, the card is `aria-busy`, the rows dim to
+60% opacity and the count reads "Updating…".
+
+**Sortable header.** A sortable column header is a button inside the header
+cell, at least 44px tall, with the column label on `label-caps` and a
+direction icon: up, down, or a muted double chevron when the column is not
+the sorted one. The icon is the only visual indicator: no state text sits
+beside it, and the icon itself is decoration. The state is exposed through
+`aria-sort` on the header cell (set only on the sorted column) and through the
+button's description, so it never relies on colour alone. The button's
+accessible name stays exactly the column label. Pressing it sorts ascending,
+pressing again reverses. One column is sorted at a time. The change is instant: nothing animates.
+
+**Loading skeleton.** While a screen loads, its shape is drawn in `secondary`
+blocks on the page frame: a title bar, one line of context and a table card
+with five rows. The home has its own skeleton (`(dashboard)/(home)/loading.tsx`)
+that draws the title bar, the subtitle line, two count cards and four shortcut
+cards in the same responsive grid. Both are `aria-busy` and names itself for assistive technology.
+The pulse is the only movement and stops under reduced motion.
+
+**Route error.** When a screen fails unexpectedly: one heading, one sentence
+saying what to do, a primary "Try again" button, a link to the dashboard and
+a reference code in muted text. No stack trace, no technical message, no
+apology. A list that fails to load is not this state; it keeps the degraded
+alert.
+
+**Shortcut card.** A card that is a link: the tinted icon chip of the metric
+card, a title on the `title` step and one muted sentence. Hover is `primary`
+at 5%, on hover-capable pointers only; focus is the ring of 7.
 
 **Badge.** A pill: `rounded-full`, 12px medium text, a 10% tint of the state
 colour with the matching `-ink` text (2.5). A neutral or inactive badge is
@@ -373,8 +433,20 @@ token or primitive.
 **Breadcrumb.** Muted links that go `primary` on hover, chevron separators,
 current segment styled by the rule in 2.3.
 
-**Pagination.** Real links, 44px tall, 8px radius, `primary` text with a 5%
-primary hover. At an edge the control is muted text with `aria-disabled`.
+**Pagination.** In the footer of the table card, in three regions. The
+centered cluster holds four icon controls and the page status: first
+(`ChevronsLeft`), previous (`ChevronLeft`), "Page 2 of 7", next
+(`ChevronRight`), last (`ChevronsRight`). Each control is a real link at least
+44px by 44px, 8px radius, `primary` icon with a 5% primary hover; the icon is
+decoration and the accessible name is the localized label, with no visible
+text and no tooltip. At an edge the control is the same icon, muted, with
+`aria-disabled`. The rows-per-page select (10, 25, 50), styled as a form
+select at 44px, sits at the far trailing edge. From `sm` up the cluster is
+centered; on narrow screens the cluster comes first and the select follows,
+wrapping without horizontal scroll. The footer does not repeat the total: the
+toolbar holds the only count. Changing the search, the filter, the sort or the
+page size returns to page 1. The footer is omitted when the list fits in the
+smallest page size.
 
 **Dropdown, select popup, sheet.** `popover` surface, 8px radius, 1px
 `border`, `shadow-soft`. Items highlight with the `accent` pair.
@@ -405,7 +477,9 @@ goes in the hint. The optional `disabled` prop sets the native attribute on the
 7. No new token.
 
 **Empty state.** One sentence naming what would be here, and the button that
-creates the first one. No illustration, no apology.
+creates the first one. No illustration, no apology. **No results** is its
+second form, shown when a search or a filter matches nothing: a sentence
+naming the term or the filter, a hint, and always a link that clears it.
 
 ---
 
@@ -418,6 +492,14 @@ action: open, expand, confirm.
 - Easing `cubic-bezier(0.32, 0.72, 0, 1)`.
 - No entrance animation on cards, sections or list items.
 - `@media (prefers-reduced-motion: reduce)` drops all of it to `0.01ms`.
+- Hover styling applies on hover-capable pointers only.
+- A transition names the properties it changes; never `all`.
+- Row hover, sorting, paging and filtering do not animate. A table that is
+  waiting for rows dims by opacity over `150ms`; opacity is the only
+  property that moves.
+- No press scale on buttons.
+- Motion is never the only signal: a changed state also changes text, an
+  icon or an ARIA state.
 
 ---
 

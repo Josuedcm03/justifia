@@ -147,14 +147,22 @@ describe("review structure: links opt out of prefetch (SR-11, guard 2)", () => {
   );
 
   it("opts the sidebar entry out as well", () => {
-    const sidebar =
-      sources.find((s) => s.path === "src/components/app-sidebar.tsx")?.text ??
-      "";
-    const entry = sidebar.match(/\{[^{}]*href:\s*"\/review"[^{}]*\}/)?.[0];
+    // The entry lives in the shared navigation config (single source for the
+    // sidebar, the home shortcuts and the trail); the sidebar and the home
+    // read the flag from it.
+    const textOf = (path: string) =>
+      sources.find((s) => s.path === path)?.text ?? "";
+    const config = textOf("src/lib/navigation.ts");
+    const entry = config.match(/\{[^{}]*href:\s*"\/review"[^{}]*\}/)?.[0];
 
     expect(entry).toBeDefined();
     expect(entry).toContain("prefetch: false");
-    expect(sidebar).toContain("prefetch={prefetchOf(item)}");
+    expect(textOf("src/components/app-sidebar.tsx")).toContain(
+      "prefetch={prefetchOf(item)}",
+    );
+    expect(textOf("src/app/(dashboard)/(home)/page.tsx")).toContain(
+      "prefetch=",
+    );
   });
 
   it("never links to a review page with a plain prefetching <Link> elsewhere", () => {
@@ -206,5 +214,42 @@ describe("review structure: page bodies are not prefetched (SR-11 amendment)", (
   it("keeps cacheComponents and partial prefetching off", () => {
     expect(config).not.toMatch(/cacheComponents\s*:\s*true/);
     expect(config).not.toMatch(/partialPrefetching\s*:\s*true/);
+  });
+});
+
+describe("review structure: the queue table is a client module of the kit (RF-06)", () => {
+  const reviewSources = filesUnder(REVIEW_DIR)
+    .filter(isSource)
+    .map((path) => ({
+      path: relative(ROOT, path).replace(/\\/g, "/"),
+      text: readFileSync(path, "utf8"),
+    }));
+  const TABLE = "src/app/(dashboard)/review/review-queue-table.tsx";
+
+  it("imports no legacy table component from the review folder", () => {
+    const offenders = reviewSources.filter((s) =>
+      /from\s+["']@\/components\/data-table["']/.test(s.text),
+    );
+
+    expect(offenders.map((s) => s.path)).toEqual([]);
+  });
+
+  it("builds the columns in a client module, never in the server page", () => {
+    const table = reviewSources.find((s) => s.path === TABLE)?.text ?? "";
+    const page = reviewSources.find((s) => s.path === REVIEW_PAGE)?.text ?? "";
+
+    expect(table).toMatch(/^"use client";/);
+    expect(table).toContain("@/components/tables/data-table");
+    expect(page).not.toContain("DataTableColumn");
+    expect(page).not.toMatch(/<DataTable/);
+    expect(page).toContain("<ReviewQueueTable");
+  });
+
+  it("renders the table in bounded mode: no sorting, paging or toolbar", () => {
+    const table = reviewSources.find((s) => s.path === TABLE)?.text ?? "";
+
+    expect(table).not.toMatch(
+      /sorting=|enableSorting|ListTable|TableToolbar|TablePagination/,
+    );
   });
 });

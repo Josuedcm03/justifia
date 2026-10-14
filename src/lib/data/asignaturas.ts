@@ -17,7 +17,9 @@ import { db } from "@/db";
 import { asignatura, carrera, grupo, usuario } from "@/db/schema";
 import {
   ASIGNATURA_MATCHES_MAX,
+  ASIGNATURAS_DEFAULT_SORT,
   CATALOG_OPTIONS_MAX,
+  type AsignaturasSortKey,
 } from "@/lib/catalog/list-params";
 import { changedFields } from "@/lib/audit/diff";
 import { carreraIdForWrite, type CatalogScope } from "@/lib/catalog/scope";
@@ -35,8 +37,16 @@ import {
   asignaturaInScope,
   asignaturaRowInScope,
 } from "@/lib/data/catalog-scope-sql";
+import {
+  activeFirst,
+  collatedText,
+  orderByFor,
+  plainColumn,
+  type SortExpr,
+} from "@/lib/data/sort-sql";
 import { containsPattern } from "@/lib/data/sql-like";
 import { clampPage } from "@/lib/data/users";
+import type { ListSort } from "@/lib/list-params";
 
 const listColumns = {
   id: asignatura.id,
@@ -47,6 +57,20 @@ const listColumns = {
   horasTotales: asignatura.horasTotales,
   activo: asignatura.activo,
 } as const;
+
+/**
+ * Whitelist of sortable Asignatura columns (DT-SORT-1). The URL value is only a
+ * lookup key, already narrowed to `AsignaturasSortKey` by the parser; it is
+ * never interpolated. The name is collated, the code and hours are the plain
+ * columns, `status` ascending means active first. The Groups column is not a
+ * key.
+ */
+const ASIGNATURAS_SORT_MAP = {
+  code: plainColumn(asignatura.codigo),
+  name: collatedText(asignatura.nombre),
+  hours: plainColumn(asignatura.horasTotales),
+  status: activeFirst(asignatura.activo),
+} satisfies Record<AsignaturasSortKey, SortExpr>;
 
 /**
  * The ONE definition of "a group matches the search term" (CM-ASG-9): its
@@ -154,6 +178,9 @@ export async function listAsignaturas(p: {
   q: string;
   page: number;
   pageSize: number;
+  /** Already narrowed to a whitelisted key and a direction; omitted = today's
+   *  order (`Codigo` ascending, then `Id`). */
+  sort?: ListSort<AsignaturasSortKey>;
 }): Promise<CatalogListResult<AsignaturaListItem>> {
   try {
     const where = buildAsignaturasWhere(p.scope, p);
@@ -173,7 +200,14 @@ export async function listAsignaturas(p: {
       .from(asignatura)
       .innerJoin(carrera, eq(asignatura.carreraId, carrera.id))
       .where(where)
-      .orderBy(asc(asignatura.codigo))
+      .orderBy(
+        ...orderByFor(
+          ASIGNATURAS_SORT_MAP,
+          p.sort ?? ASIGNATURAS_DEFAULT_SORT,
+          ASIGNATURAS_DEFAULT_SORT,
+          asignatura.id,
+        ),
+      )
       .limit(p.pageSize)
       .offset((page - 1) * p.pageSize);
     const matches =

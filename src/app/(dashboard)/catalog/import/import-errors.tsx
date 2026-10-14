@@ -1,63 +1,70 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
-import type { Ref } from "react";
+import { useMemo, type Ref } from "react";
 
-import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { DataTable } from "@/components/tables/data-table";
 import {
   MAX_ACCOUNT_EVENTS_PER_APPLY,
   MAX_NEW_ACCOUNTS_PER_APPLY,
 } from "@/lib/import/limits";
 import type { RowError } from "@/lib/import/types";
 
+/**
+ * The reported errors in bounded mode (design R2, DT-MODE-1): four columns,
+ * the order the workbook analysis reported, no sort control, paging or toolbar.
+ */
 function ErrorsTable({ errors }: { errors: readonly RowError[] }) {
   const t = useTranslations("catalog.import");
   // A reason the catalog does not know (e.g. a default validator message)
   // falls back to the raw code rather than to a missing-message marker.
-  const reasonText = (error: RowError) =>
-    t.has(`reasons.${error.reason}`)
-      ? t(`reasons.${error.reason}`, {
-          maxAccounts: MAX_NEW_ACCOUNTS_PER_APPLY,
-          maxEvents: MAX_ACCOUNT_EVENTS_PER_APPLY,
-          // The offending token, for the reasons that name it (`dias.invalid`).
-          value: error.value ?? "",
-        })
-      : error.reason;
-  const columns: readonly DataTableColumn<RowError>[] = [
-    {
-      key: "sheet",
-      header: t("errorsPanel.columns.sheet"),
-      cell: (error) => error.sheet,
-      className: "font-medium",
-    },
-    {
-      key: "row",
-      header: t("errorsPanel.columns.row"),
-      // Workbook-wide errors (the caps) have no row.
-      cell: (error) => (error.row > 0 ? error.row : "—"),
-      align: "end",
-    },
-    {
-      key: "reason",
-      header: t("errorsPanel.columns.reason"),
-      cell: (error) => reasonText(error),
-    },
-    {
-      key: "value",
-      header: t("errorsPanel.columns.value"),
-      cell: (error) => error.value ?? "",
-    },
-  ];
+  const columns = useMemo<ColumnDef<RowError>[]>(() => {
+    const reasonText = (error: RowError) =>
+      t.has(`reasons.${error.reason}`)
+        ? t(`reasons.${error.reason}`, {
+            maxAccounts: MAX_NEW_ACCOUNTS_PER_APPLY,
+            maxEvents: MAX_ACCOUNT_EVENTS_PER_APPLY,
+            // The offending token, for the reasons that name it
+            // (`dias.invalid`).
+            value: error.value ?? "",
+          })
+        : error.reason;
+    return [
+      {
+        id: "sheet",
+        header: t("errorsPanel.columns.sheet"),
+        cell: ({ row }) => row.original.sheet,
+        meta: { className: "font-medium" },
+      },
+      {
+        id: "row",
+        header: t("errorsPanel.columns.row"),
+        // Workbook-wide errors (the caps) have no row.
+        cell: ({ row }) => (row.original.row > 0 ? row.original.row : "—"),
+        meta: { align: "end" },
+      },
+      {
+        id: "reason",
+        header: t("errorsPanel.columns.reason"),
+        cell: ({ row }) => reasonText(row.original),
+      },
+      {
+        id: "value",
+        header: t("errorsPanel.columns.value"),
+        cell: ({ row }) => row.original.value ?? "",
+      },
+    ];
+  }, [t]);
 
   return (
     <DataTable
       columns={columns}
       rows={errors}
-      getRowKey={(error) =>
+      getRowId={(error) =>
         `${error.sheet}|${error.row}|${error.reason}|${error.value ?? ""}`
       }
       caption={t("errorsPanel.caption")}
-      empty={null}
     />
   );
 }

@@ -21,7 +21,16 @@
     "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
-    "sectionLabel": "Navigation"
+    "sectionLabel": "Navigation",
+    "profile": "My profile",
+    "trailLabel": "Page location"
+  },
+  "roles": {
+    "estudiante": "Student",
+    "docente": "Teacher",
+    "coordinacion": "Coordination",
+    "secretaria": "Secretary",
+    "administrador": "Administrator"
   },
   "theme": {
     "toggle": "Toggle theme",
@@ -38,7 +47,64 @@
     "title": "Dashboard",
     "subtitle": "Overview of your backoffice",
     "totalUsers": "Total users",
-    "activeUsers": "Active users"
+    "activeUsers": "Active users",
+    "degraded": "The figures could not be loaded. Try again later.",
+    "empty": "You have no dashboard shortcuts for now.",
+    "shortcuts": {
+      "myRequests": "Check the status of your justification requests.",
+      "newRequest": "Submit a new justification request.",
+      "review": "Review the justification requests of your faculty.",
+      "catalogAsignaturas": "Browse and manage subjects and their groups.",
+      "catalogDocentes": "Browse the registered teachers.",
+      "catalogImport": "Load the catalog from an Excel file.",
+      "users": "Manage user accounts."
+    }
+  },
+  "shell": {
+    "error": {
+      "title": "Something went wrong",
+      "description": "We could not show this screen. Try again or go back to the dashboard.",
+      "retry": "Try again",
+      "dashboardLink": "Go to the dashboard",
+      "reference": "Reference: {digest}"
+    }
+  },
+  "tables": {
+    "caption": {
+      "sortable": "Headers with a button sort the table."
+    },
+    "toolbar": {
+      "label": "Table controls"
+    },
+    "search": {
+      "submit": "Search"
+    },
+    "filter": {
+      "label": "Filter by status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "all": "All"
+    },
+    "count": "{count, plural, =0 {No results} one {# result} other {# results}}",
+    "updating": "Updating…",
+    "pagination": {
+      "region": "Pagination",
+      "status": "Page {page} of {pages}",
+      "first": "First",
+      "previous": "Previous",
+      "next": "Next",
+      "last": "Last"
+    },
+    "pageSize": {
+      "label": "Rows per page",
+      "option": "{size, number}"
+    },
+    "clear": "Clear filters",
+    "sort": {
+      "sortable": "Sortable. Activate to sort by this column.",
+      "ascending": "Sorted ascending. Activate to sort descending.",
+      "descending": "Sorted descending. Activate to sort ascending."
+    }
   },
   "changePassword": {
     "title": "Change your password",
@@ -224,12 +290,6 @@
       }
     },
     "shared": {
-      "filter": {
-        "label": "Filter by status",
-        "active": "Active",
-        "inactive": "Inactive",
-        "all": "All"
-      },
       "notFound": {
         "title": "This record is not available",
         "message": "It may not exist, or it may not be available to your account. Go back and check the list.",
@@ -349,9 +409,7 @@
       "degraded": "Could not load the subjects. Try again in a few minutes.",
       "search": {
         "label": "Search subjects by code, name, teacher or period",
-        "placeholder": "Code, name, teacher or period",
-        "submit": "Search",
-        "clear": "Clear search"
+        "placeholder": "Code, name, teacher or period"
       },
       "matches": {
         "label": "Groups matching the search",
@@ -359,14 +417,7 @@
         "itemInactive": "{periodo} · Group {numeroGrupo} · {docente} (inactive)",
         "more": "{count, plural, other {+# more}}"
       },
-      "count": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
       "tableCaption": "Subjects list",
-      "pagination": {
-        "region": "Subjects pagination",
-        "previous": "Previous",
-        "next": "Next",
-        "status": "Page {page} of {pages}"
-      },
       "errors": {
         "unexpected": "The change could not be saved. Try again in a few minutes."
       },
@@ -474,18 +525,9 @@
       "degraded": "Could not load the teachers. Try again in a few minutes.",
       "search": {
         "label": "Search teachers",
-        "placeholder": "Name or email",
-        "submit": "Search",
-        "clear": "Clear search"
+        "placeholder": "Name or email"
       },
-      "count": "{count, plural, =0 {No teachers} one {# teacher} other {# teachers}}",
-      "tableCaption": "Teachers list",
-      "pagination": {
-        "region": "Teachers pagination",
-        "previous": "Previous",
-        "next": "Next",
-        "status": "Page {page} of {pages}"
-      }
+      "tableCaption": "Teachers list"
     }
   },
   "denied": {
@@ -511,21 +553,14 @@
     "empty": "No users yet",
     "search": {
       "label": "Search users",
-      "placeholder": "Name, username or email",
-      "submit": "Search",
-      "clear": "Clear search"
+      "placeholder": "Name, username or email"
     },
-    "count": "{count, plural, =0 {No users} one {# user} other {# users}}",
     "tableCaption": "Users list",
     "noResults": {
       "title": "No results for “{q}”",
+      "titleStatus": "There are no users with this filter.",
+      "hintStatus": "Try another status or clear the filters.",
       "hint": "Try another name, username or email."
-    },
-    "pagination": {
-      "region": "Users pagination",
-      "previous": "Previous",
-      "next": "Next",
-      "status": "Page {page} of {pages}"
     },
     "new": {
       "title": "Create staff account",
