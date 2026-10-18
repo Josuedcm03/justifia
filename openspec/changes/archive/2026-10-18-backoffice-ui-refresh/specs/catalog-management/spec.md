@@ -55,7 +55,9 @@ lowercase-initial names may sit in a different place than before this change
 Page size MUST be selectable among 10, 25 and 50 (`size` parameter), with
 the same default (10) and the same options as in `/users`; any other value falls
 back to 10. The pagination controls MUST offer first, previous, next and last,
-with the current page, the total pages and the total count. Changing the search,
+with the page status (the current page of the total pages); the total count is
+shown once, in the toolbar, and not repeated in the footer (`data-table`
+DT-PAG-1, DT-TOOL-1). Changing the search,
 the status filter, the sort or the page size MUST return to page 1. The Docentes
 list MUST show active and inactive users with role `docente` (default active)
 and is not carrera-scoped; it is read-only and MUST link to `/users` for account

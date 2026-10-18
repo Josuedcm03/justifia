@@ -1704,3 +1704,19 @@ Closes the open finding of Batch R. Owner decision: restore both entries in the 
 - Premise changes: `structure.test.ts` now reads the review entry from `src/lib/navigation.ts` (the config moved) and pins the prefetch pass-through in the sidebar and the home; the per-role table in `app-sidebar.test.tsx` and the home "catalog predicate flips" expectation gained the new entries. No assertion from main was deleted.
 - `/settings` entry untouched and still last; `globals.css` untouched.
 - Not verified: visual result of the sidebar and the home cards needs the owner's eyes.
+
+## Batch T: owner manual checks and final V (2026-10-17)
+
+Closes the manual and checkpoint tasks before `sdd-verify`. No production code, test, spec or `docs/roadmap.md` was edited.
+
+- Owner report: every manual check was run by the owner (2d.6 users smoke, 3b.6 asignaturas smoke, 3c.6 docentes smoke, F.4 checklist, plus the Batch S sidebar and home cards). The owner reported all of them as passing, with no per-item observations recorded. `feature/better-ui` was merged into `main` through PR #27 (`6e0c10c`) and `main` is deployed on Vercel.
+- V on `f8fb7cf` (same tree as `main` minus the merge commit): `npm run typecheck` clean; `npm test` 4,537 passed; `npm run build` ok. `npm run lint` fails only with 72,530 `prettier/prettier` "Delete `␍`" errors. The cause is local: `core.autocrlf=true` checks out the 411 LF-indexed files under `src` as CRLF (`git ls-files --eol`). `npx eslint --rule '{"prettier/prettier": ["error", {"endOfLine": "auto"}]}' .` exits 0, so no other lint error exists.
+- Ticked: 2d.6, 2d.8, 3b.6, 3c.6, F.4. Still open for the owner: F.5 (roadmap row) and F.6 (spec edits that archive merges). F.8 ticks at the hand-off to `sdd-verify`.
+
+## Batch U: pre-archive owner decisions (2026-10-18)
+
+- F.6 confirmed by the owner: archive merges the new `backoffice-shell` and `data-table` specs, modifies `users-listing`, and touches `catalog-management` only in CM-LST-1; CM-ASG-7, CM-NAV-1 and CM-UX-1 stay unmodified.
+- The owner authorized the agent to add the roadmap row as id 11 (id 9 was taken by `request-consent`), with status `en curso` until archive. F.5, F.6 and F.8 are ticked.
+- `sdd-verify`: PASS WITH WARNINGS, 0 critical.
+- The owner accepted the DT-PEND-1 behaviour: a same-route list change shows the `(dashboard)/loading.tsx` skeleton instead of keeping the previous rows visible.
+- Delta specs amended for W1 (footer shows the page status only; the total count is in the toolbar), W2 (My requests and Review requests in the navigation, trail and home tables) and W3 (DT-PEND-1 rewritten for the skeleton, with the dependent text in BS-LOAD-1, BS-MOT-1 and the open points). `design.md` gained "Deviations accepted during apply" (W8).

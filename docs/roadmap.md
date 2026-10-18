@@ -4,19 +4,20 @@ Orden de los changes de SDD que cubren la línea base de
 [`docs/requirements.md`](./requirements.md). Los identificadores RF, RN y RNF
 remiten a ese archivo.
 
-| #   | Change                 | Cubre                                       | Responsable | Prototipo            | Estado    |
-| --- | ---------------------- | ------------------------------------------- | ----------- | -------------------- | --------- |
-| 0   | `catalog-schedule`     | Horarios en el catálogo (RN-22, RF-12)      | Josué       | Sí                   | pendiente |
-| 1   | `justification-intake` | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23 | Armando     | Sí                   | archivado |
-| 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Armando     | Sí                   | archivado |
-| 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | pendiente |
-| 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | pendiente |
-| 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
-| 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
-| 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
-| 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
-| 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | pendiente |
-| 10  | `secretary-templates`  | Plantillas propias de la secretaría (RF-07) | Por asignar | No                   | pendiente |
+| #   | Change                  | Cubre                                                                                | Responsable | Prototipo            | Estado    |
+| --- | ----------------------- | ------------------------------------------------------------------------------------ | ----------- | -------------------- | --------- |
+| 0   | `catalog-schedule`      | Horarios en el catálogo (RN-22, RF-12)                                               | Josué       | Sí                   | pendiente |
+| 1   | `justification-intake`  | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23                                          | Armando     | Sí                   | archivado |
+| 2   | `secretary-review`      | RF-06 a RF-08; RN-08, RN-15 a RN-17                                                  | Armando     | Sí                   | archivado |
+| 3   | `teacher-remission`     | RF-09; RN-18, RN-19; RNF-07                                                          | Por asignar | Sí                   | pendiente |
+| 4   | `document-extraction`   | RF-11; RNF-03                                                                        | Por asignar | Si alcanza el tiempo | pendiente |
+| 5   | `validation-signals`    | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24                                            | Por asignar | Si alcanza el tiempo | pendiente |
+| 6   | `escalation`            | RF-10, RF-15; RN-20                                                                  | Por asignar | No                   | pendiente |
+| 7   | `coordination-reports`  | RF-13                                                                                | Por asignar | No                   | pendiente |
+| 8   | `normative-parameters`  | RNF-14                                                                               | Por asignar | No                   | pendiente |
+| 9   | `request-consent`       | RF-01 (d), RF-03 (f); RN-25                                                          | Por asignar | Sí                   | pendiente |
+| 10  | `secretary-templates`   | Plantillas propias de la secretaría (RF-07)                                          | Por asignar | No                   | pendiente |
+| 11  | `backoffice-ui-refresh` | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué       | No                   | archivado |
 
 **Notas:**
 
