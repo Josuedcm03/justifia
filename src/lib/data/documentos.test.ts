@@ -29,6 +29,7 @@ import {
   finalizeDocument,
   getDocumentForDownload,
   getUploadContext,
+  inspectStoredFile,
   recordDocumentDownload,
   removeDocument,
 } from "@/lib/data/documentos";
@@ -92,6 +93,83 @@ describe("documentos data layer", () => {
 
       expect(await getUploadContext(USER, new Date())).toBeNull();
       expect(double.log).toHaveLength(1);
+    });
+  });
+
+  describe("inspectStoredFile", () => {
+    it.each([
+      ["pdf", PDF],
+      ["png", PNG],
+      ["jpeg", JPEG],
+    ] as const)(
+      "reads a real %s: detected type and stored size",
+      async (tipo, bytes) => {
+        const store = createFakeDocumentStore();
+        store.seed(PATH, bytes);
+
+        expect(await inspectStoredFile(PATH, store)).toEqual({
+          ok: true,
+          tipo,
+          size: bytes.length,
+        });
+      },
+    );
+
+    it("refuses a zero-byte file as empty_file", async () => {
+      const store = createFakeDocumentStore();
+      store.seed(PATH, []);
+
+      expect(await inspectStoredFile(PATH, store)).toEqual({
+        ok: false,
+        reason: "empty_file",
+      });
+    });
+
+    it("refuses a spoofed executable as unsupported_format", async () => {
+      const store = createFakeDocumentStore();
+      store.seed(PATH, EXE);
+
+      expect(await inspectStoredFile(PATH, store)).toEqual({
+        ok: false,
+        reason: "unsupported_format",
+      });
+    });
+
+    it("refuses one byte over 10 MiB as too_large and accepts exactly 10 MiB", async () => {
+      const store = createFakeDocumentStore();
+      store.readHead = vi
+        .fn()
+        .mockResolvedValueOnce({
+          size: MAX_DOCUMENT_BYTES + 1,
+          head: new Uint8Array(PDF),
+        })
+        .mockResolvedValueOnce({
+          size: MAX_DOCUMENT_BYTES,
+          head: new Uint8Array(PDF),
+        });
+
+      expect(await inspectStoredFile(PATH, store)).toEqual({
+        ok: false,
+        reason: "too_large",
+      });
+      expect(await inspectStoredFile(PATH, store)).toEqual({
+        ok: true,
+        tipo: "pdf",
+        size: MAX_DOCUMENT_BYTES,
+      });
+    });
+
+    it("answers not_found for a missing file and lets a store failure through", async () => {
+      const store = createFakeDocumentStore();
+      expect(await inspectStoredFile(PATH, store)).toEqual({
+        ok: false,
+        reason: "not_found",
+      });
+
+      store.readHead = vi.fn().mockRejectedValue(new Error("store down"));
+      await expect(inspectStoredFile(PATH, store)).rejects.toThrow(
+        "store down",
+      );
     });
   });
 
