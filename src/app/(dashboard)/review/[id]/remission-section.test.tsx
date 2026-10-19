@@ -1,10 +1,12 @@
 import { screen, within } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
 
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),
+  attachSpecialFormatAction: vi.fn(),
 }));
 
 import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
@@ -38,12 +40,53 @@ function show(
   remissions: RemissionView[],
   unassigned: (typeof CLASS)[] = [],
   locale: "en" | "es" = "en",
+  specialFormat?: ComponentProps<typeof RemissionSection>["specialFormat"],
 ) {
   return renderIntl(
-    <RemissionSection remissions={remissions} unassigned={unassigned} />,
+    <RemissionSection
+      remissions={remissions}
+      unassigned={unassigned}
+      specialFormat={specialFormat}
+    />,
     locale,
   );
 }
+
+describe("RemissionSection: special format (RN-19)", () => {
+  const upload = messages.en.review.remission.upload;
+
+  it("offers the upload for a marked request without a format", () => {
+    show([view()], [], "en", { solicitudId: 12, attached: null });
+
+    expect(
+      screen.getByRole("heading", { level: 3, name: upload.title }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: upload.action }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the attached format by name instead of the control", () => {
+    show([view()], [], "en", {
+      solicitudId: 12,
+      attached: { id: 30, nombreOriginal: "firmado.pdf" },
+    });
+
+    expect(screen.getByRole("link", { name: "firmado.pdf" })).toHaveAttribute(
+      "href",
+      "/api/intake/documents/30",
+    );
+    expect(
+      screen.queryByRole("button", { name: upload.action }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows nothing about a format for an unmarked request", () => {
+    show([view()]);
+
+    expect(screen.queryByText(upload.title)).not.toBeInTheDocument();
+  });
+});
 
 describe("RemissionSection (RF-09 c)", () => {
   it("shows each teacher with the snapshot email, the groups and the state as text", () => {

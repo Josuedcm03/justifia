@@ -1065,6 +1065,24 @@
         "error_envio": "No se pudo enviar el correo. Se reintentará automáticamente o puede reenviarlo ahora."
       },
       "noTeacher": "No hay docente identificado para: {groups}. No se envía aviso por esas asignaturas.",
+      "upload": {
+        "title": "Formato especial firmado",
+        "hint": "Sube el formato firmado y sellado por coordinación (PDF, PNG o JPEG, hasta {size} MB). Los docentes lo reciben en lugar de los documentos del estudiante. No se puede reemplazar después.",
+        "action": "Subir el formato firmado",
+        "uploading": "Subiendo {name}...",
+        "sending": "El formato quedó adjunto. El envío a los docentes está en curso; recarga la página para ver el resultado.",
+        "attached": "Formato firmado en el expediente",
+        "errors": {
+          "not_allowed": "Esta solicitud no admite un formato especial.",
+          "not_found": "No se encontró el archivo después de subirlo. Inténtalo de nuevo.",
+          "already_attached": "Ya hay un formato adjunto a esta solicitud. No se puede reemplazar.",
+          "empty_file": "El archivo está vacío.",
+          "too_large": "El archivo supera los 10 MB.",
+          "unsupported_format": "Formato no admitido. Sube un PDF, PNG o JPEG.",
+          "upload_failed": "La subida falló. Revisa la conexión e inténtalo de nuevo.",
+          "unexpected": "No se pudo adjuntar el formato. Inténtalo de nuevo."
+        }
+      },
       "resend": {
         "action": "Reenviar",
         "actionNamed": "Reenviar el aviso a {name}",

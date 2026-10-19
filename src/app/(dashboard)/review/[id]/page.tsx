@@ -196,6 +196,17 @@ export default async function ReviewDetailPage({
           <RemissionSection
             remissions={remissions}
             unassigned={detail.clases.filter((c) => c.docenteNombre === null)}
+            specialFormat={
+              detail.formatoEspecial
+                ? {
+                    solicitudId: detail.id,
+                    attached: detail.formato && {
+                      id: detail.formato.id,
+                      nombreOriginal: detail.formato.nombreOriginal,
+                    },
+                  }
+                : undefined
+            }
           />
         ) : null}
         <HistorySection

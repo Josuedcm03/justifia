@@ -153,6 +153,36 @@ describe("review messages", () => {
     },
   );
 
+  it.each(catalogs)(
+    "%s words the special-format upload and every error it can show",
+    (_l, m) => {
+      const u = m.review.remission.upload;
+
+      for (const code of [
+        "not_allowed",
+        "not_found",
+        "already_attached",
+        "empty_file",
+        "too_large",
+        "unsupported_format",
+        "upload_failed",
+        "unexpected",
+      ]) {
+        expect((u.errors as Record<string, string>)[code], code).toBeTruthy();
+      }
+      for (const text of [
+        u.title,
+        u.hint,
+        u.action,
+        u.uploading,
+        u.sending,
+        u.attached,
+      ]) {
+        expect(text).toBeTruthy();
+      }
+    },
+  );
+
   it.each(catalogs)("%s words the RN-19 special-format mark", (_l, m) => {
     const mark = m.review.decision.approve.specialFormat;
 
