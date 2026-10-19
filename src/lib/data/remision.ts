@@ -18,10 +18,13 @@ import {
   remisionBloqueadaEvent,
   remisionEnviadaEvent,
   remisionFallidaEvent,
+  remisionReenviadaEvent,
 } from "@/lib/audit/events";
 import type { RemissionFailureCode } from "@/lib/audit/types";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
+import { requestInScope } from "@/lib/data/request-scope-sql";
 import type { Causa } from "@/lib/intake/causes";
+import type { RequestScope } from "@/lib/intake/request-scope";
 import { MAX_AUTO_ATTEMPTS, RETRY_BATCH_SIZE } from "@/lib/remission/limits";
 import type { PlanBlocker, PlanDocument } from "@/lib/remission/plan";
 import {
@@ -281,6 +284,46 @@ export async function listRemissions(
     .from(remision)
     .where(eq(remision.solicitudId, solicitudId))
     .orderBy(asc(remision.docenteNombre), asc(remision.id));
+}
+
+/**
+ * The remission a secretary asked to resend, when its request is in her scope.
+ * An unknown id and an out-of-scope one are the same `null` (RNF-01), with no
+ * audit row. Any resend that is not a no-op (`enviada` sends nothing) writes
+ * `remision.reenviada` with the state it started from.
+ */
+export async function authorizeResend(
+  scope: RequestScope,
+  remisionId: number,
+  actorId: number,
+): Promise<{
+  id: number;
+  solicitudId: number;
+  estado: RemissionState;
+} | null> {
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({
+        id: remision.id,
+        solicitudId: remision.solicitudId,
+        estado: remision.estado,
+      })
+      .from(remision)
+      .innerJoin(solicitud, eq(solicitud.id, remision.solicitudId))
+      .where(and(eq(remision.id, remisionId), requestInScope(scope)))
+      .limit(1);
+    if (!target) return null;
+    if (target.estado !== "enviada") {
+      await insertAuditEvents(tx, actorId, [
+        remisionReenviadaEvent({
+          remisionId: target.id,
+          solicitudId: target.solicitudId,
+          estadoPrevio: target.estado,
+        }),
+      ]);
+    }
+    return target;
+  });
 }
 
 /**

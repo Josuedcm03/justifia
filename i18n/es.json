@@ -910,7 +910,11 @@
         "title": "¿Aprobar esta solicitud?",
         "description": "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes.",
         "confirm": "Aprobar solicitud",
-        "pending": "Aprobando..."
+        "pending": "Aprobando...",
+        "specialFormat": {
+          "label": "Requiere formato especial (fuerza mayor)",
+          "hint": "Marque esta opción si coordinación debe firmar y sellar el formato. Los docentes recibirán solo ese formato, que usted carga desde esta página después de aprobar."
+        }
       },
       "return": {
         "trigger": "Devolver para corrección",
@@ -1038,6 +1042,42 @@
       },
       "decisionPanel": {
         "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Cada decisión le pide confirmarla."
+      }
+    },
+    "remission": {
+      "title": "Aviso a los docentes",
+      "fields": {
+        "email": "Correo del docente",
+        "groups": "Grupos",
+        "state": "Estado",
+        "sentAt": "Enviada el"
+      },
+      "group": "{code} · {name}, grupo {number}",
+      "states": {
+        "pendiente": "Pendiente de envío",
+        "enviada": "Enviada",
+        "bloqueada": "Bloqueada"
+      },
+      "reasons": {
+        "sin_correo": "El docente no tiene correo registrado. Pida que se actualice el catálogo y reenvíe.",
+        "formato_especial_faltante": "Falta cargar el formato especial firmado por coordinación.",
+        "adjuntos_exceden_limite": "Los documentos adjuntos superan el tamaño máximo permitido por correo.",
+        "error_envio": "No se pudo enviar el correo. Se reintentará automáticamente o puede reenviarlo ahora."
+      },
+      "noTeacher": "No hay docente identificado para: {groups}. No se envía aviso por esas asignaturas.",
+      "resend": {
+        "action": "Reenviar",
+        "actionNamed": "Reenviar el aviso a {name}",
+        "pending": "Reenviando...",
+        "result": {
+          "enviada": "El aviso se envió al docente.",
+          "pendiente": "No se pudo enviar. Queda pendiente y se reintentará.",
+          "bloqueada": "El aviso sigue bloqueado. Recargue la página para ver el motivo."
+        },
+        "errors": {
+          "not_found": "Este aviso ya no está disponible para usted.",
+          "unexpected": "No se pudo reenviar. Inténtelo de nuevo."
+        }
       }
     },
     "notFound": {
