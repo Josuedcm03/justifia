@@ -10,11 +10,11 @@
 
 | Field | Value |
 |-------|-------|
-| Estimated changed lines | ~7,100 authored total (measured S1-S3 and the cron: 5,750; S4 UI and upload ~1,300 still to write); generated SQL snapshot and `openspec/` excluded |
+| Estimated changed lines | ~7,100 authored total (measured S1-S3 and the cron: 5,750; S4 UI measured 1,709 with the cron; the RN-19 upload (~1,200) moved to S5); generated SQL snapshot and `openspec/` excluded |
 | 400-line budget risk | High |
 | 2000-line budget risk (session `review_budget_lines`) | Every slice is at or under 2,000 (owner rejected any `size:exception`) |
 | Chained PRs recommended | Yes |
-| Suggested split | S1 foundation -> S2 mail and data -> S3 dispatch -> S4 review UI + RN-19 upload |
+| Suggested split | S1 foundation -> S2 mail and data -> S3 dispatch -> S4 review UI -> S5 RN-19 upload |
 | Delivery strategy | auto-chain (review_budget_lines=2000 per PR, no exceptions) |
 | Chain strategy | feature-branch-chain |
 
@@ -23,14 +23,15 @@
 | S1 Foundation | `feat/teacher-remission-s1-foundation` | Schema, migration 0009, audit events (unit 1); pure domain (unit 2) | 1,710 measured | Inside |
 | S2 Mail and data | `feat/teacher-remission-s2-mail-data` | Mail port, Resend adapter, fake, env (unit 3); data layer `remision.ts` and `getSolicitudClases` (first half of unit 4) | 1,784 measured | Inside |
 | S3 Dispatch | `feat/teacher-remission-s3-dispatch` | `remission-dispatch`, creation in the approval transaction, decision validation, concurrency test, write-surface pin (second half of unit 4); `after()` in `decideAction` (unit 5) | 1,897 measured | Inside |
-| S4 Review UI | `feat/teacher-remission-s4-review-ui` | Retry cron (unit 6, 359 measured); detail section, resend, dialog mark, i18n (unit 7); RN-19 upload (unit 8) | ~1,660 estimated | Inside; re-measure before the PR. If it passes 2,000, cut unit 8 into S5 |
+| S4 Review UI | `feat/teacher-remission-s4-review-ui` | Retry cron (unit 6, 359 measured); detail section, resend, dialog mark, i18n (unit 7) | 1,709 measured | Inside (291 lines left; unit 8 needs ~1,200, so it was cut) |
+| S5 Special format | `feat/teacher-remission-s5-special-format` | RN-19 upload (unit 8): token route, `inspectStoredFile`, `attachSpecialFormat`, upload UI, student-list exclusion | ~1,200 estimated | Branch created from the S4 head; no code yet |
 
 Decision needed before apply: No
 Chained PRs recommended: Yes
 Chain strategy: feature-branch-chain
 400-line budget risk: High
 
-Chain: tracker `feat/teacher-remission`. Each slice branches from the previous one and its PR targets the tracker (retarget as the previous slice merges into it; until then the diff shows the stacked commits). Only the tracker merges to `main`. Until S4 merges, marked requests stay blocked with `formato_especial_faltante` (spec allows it). Boundary notes: the mark and the dispatch rules for the format (backend) live in S3; the dialog checkbox, upload and student-list filter are S4. All schema (including `SubidoPorId`, `FormatoEspecial`) ships in S1 so migration 0009 is one unit. `remision-writes.test.ts` (write-surface pin) lives in S3 because it scans `remission-dispatch.ts` and `solicitud-decision.ts`. The earlier single S1 (5,391 lines) and the S2 branch were replaced by this chain with identical source (`git diff 50067b0 <S3 head> -- src` is empty).
+Chain: tracker `feat/teacher-remission`. Each slice branches from the previous one and its PR targets the tracker (retarget as the previous slice merges into it; until then the diff shows the stacked commits). Only the tracker merges to `main`. Until S5 merges, marked requests stay blocked with `formato_especial_faltante` (spec allows it). Boundary notes: the mark and the dispatch rules for the format (backend) live in S3; the dialog checkbox is S4; the upload and the student-list filter are S5. All schema (including `SubidoPorId`, `FormatoEspecial`) ships in S1 so migration 0009 is one unit. `remision-writes.test.ts` (write-surface pin) lives in S3 because it scans `remission-dispatch.ts` and `solicitud-decision.ts`. The earlier single S1 (5,391 lines) and the S2 branch were replaced by this chain with identical source (`git diff 50067b0 <S3 head> -- src` is empty).
 
 ### Suggested Work Units
 
@@ -44,7 +45,7 @@ Chain: tracker `feat/teacher-remission`. Each slice branches from the previous o
 | 5 | `decideAction`: `after()` dispatch, redirect when marked | S3 | `npx vitest run "src/app/(dashboard)/review"` | `npm run dev` approve with fake mail env unset: rows stay `pendiente` | Revert `actions.ts` |
 | 6 | Retry cron + shared scheduler auth + `vercel.json` | S4 | `npx vitest run src/app/api/cron` | `curl` cron route with and without secret | Revert cron files and `vercel.json` entry |
 | 7 | Detail remission section + "Reenviar" + dialog mark + i18n | S4 | `npx vitest run "src/app/(dashboard)/review" src/i18n` | `npm run dev`: approve, open detail, resend at 1280 and 360 px | Revert section, actions, dialog, i18n keys |
-| 8 | RN-19 staff upload: token route, `inspectStoredFile`, `attachSpecialFormat`, upload UI, student exclusion | S4 | `npx vitest run src/lib/data src/app/api/review "src/app/(dashboard)/review" src/lib/data/student-requests.test.ts` | `npm run dev`: marked approval -> upload format -> sent with only the format | Revert `special-format.ts`, token route, upload UI, filters |
+| 8 | RN-19 staff upload: token route, `inspectStoredFile`, `attachSpecialFormat`, upload UI, student exclusion | S5 | `npx vitest run src/lib/data src/app/api/review "src/app/(dashboard)/review" src/lib/data/student-requests.test.ts` | `npm run dev`: marked approval -> upload format -> sent with only the format | Revert `special-format.ts`, token route, upload UI, filters |
 
 ## Phase 1: S1 - Schema, migration, audit (work unit 1)
 
@@ -115,15 +116,17 @@ Chain: tracker `feat/teacher-remission`. Each slice branches from the previous o
 ## Phase 8: S4 - Detail remission section and resend (work unit 7)
 
 - [x] 8.1 Branch `feat/teacher-remission-s4-review-ui` from the S3 branch (created early to carry the cron commit); PR targets the tracker
-- [ ] 8.2 RED: `src/i18n/review-messages.test.ts` additions: `review.remission.*` and `review.decision.approve.specialFormat.*` parity in `es` and `en` (reason sentences for the four codes, states, actions, upload errors `empty_file|too_large|unsupported_format|already_attached|not_allowed`, "no teacher identified"); GREEN: add keys to `i18n/es.json` and `i18n/en.json`
-- [ ] 8.3 RED: `src/app/(dashboard)/review/[id]/remission-actions.test.ts` for `resendRemissionAction`: role guard, `none` scope -> `not_found`, unknown id equals out-of-scope (identical denial, no audit row, nothing sent), `enviada` -> `{ok, estado: "enviada"}` with nothing sent, `pendiente`/`bloqueada` awaits `dispatchRemission` with `reenvio_manual`, writes `remision.reenviada`, no `revalidatePath`/`redirect` (SR-11 exactly-once read)
-- [ ] 8.4 GREEN: `src/app/(dashboard)/review/[id]/remission-actions.ts` (`resendRemissionAction`)
-- [ ] 8.5 RED: `src/app/(dashboard)/review/[id]/remission-section.test.tsx`: shown only for `aprobada`, none for `devuelta`; per teacher name, snapshot email, groups, state pill with text, send time in `America/Managua`, reason sentence, "Reenviar" (`outline`, `lg`) hidden when `enviada`, pending state, `role="alert"` on failure, "no teacher identified" for teacherless groups; student views never get the email
-- [ ] 8.6 GREEN: `remission-section.tsx`; `page.tsx` adds `listRemissions(detail.id)` before `recordRequestRead` (one audit row per render, none for the section)
-- [ ] 8.7 RED: `decision-dialog.test.tsx` additions: RN-19 checkbox and hint only when `causa = fuerza_mayor`, absent otherwise, no file input anywhere in the dialog; GREEN: `decision-dialog.tsx` and mark passthrough in `actions.ts` payload
-- [ ] 8.8 Design-system check (`docs/design-system.md`: tokens only, pill badges with text, 44 px targets, alert pattern, 360 px stacked), pinned in `src/app/(dashboard)/review/design-system.test.tsx`
+- [x] 8.2 RED: `src/i18n/review-messages.test.ts` additions: `review.remission.*` and `review.decision.approve.specialFormat.*` parity in `es` and `en` (reason sentences for the four codes, states, actions, "no teacher identified"; the upload-error keys `empty_file|too_large|unsupported_format|already_attached|not_allowed` ship with S5 so S4 holds no unused keys); GREEN: add keys to `i18n/es.json` and `i18n/en.json`
+- [x] 8.3 RED: `src/app/(dashboard)/review/[id]/remission-actions.test.ts` for `resendRemissionAction`: role guard, `none` scope -> `not_found`, unknown id equals out-of-scope (identical denial, no audit row, nothing sent), `enviada` -> `{ok, estado: "enviada"}` with nothing sent, `pendiente`/`bloqueada` awaits `dispatchRemission` with `reenvio_manual`, writes `remision.reenviada`, no `revalidatePath`/`redirect` (SR-11 exactly-once read)
+- [x] 8.4 GREEN: `src/app/(dashboard)/review/[id]/remission-actions.ts` (`resendRemissionAction`)
+- [x] 8.5 RED: `src/app/(dashboard)/review/[id]/remission-section.test.tsx`: shown only for `aprobada`, none for `devuelta`; per teacher name, snapshot email, groups, state pill with text, send time in `America/Managua`, reason sentence, "Reenviar" (`outline`, `lg`) hidden when `enviada`, pending state, `role="alert"` on failure, "no teacher identified" for teacherless groups; student views never get the email
+- [x] 8.6 GREEN: `remission-section.tsx`; `page.tsx` adds `listRemissions(detail.id)` before `recordRequestRead` (one audit row per render, none for the section)
+- [x] 8.7 RED: `decision-dialog.test.tsx` additions: RN-19 checkbox and hint only when `causa = fuerza_mayor`, absent otherwise, no file input anywhere in the dialog; GREEN: `decision-dialog.tsx` and mark passthrough in `actions.ts` payload
+- [x] 8.8 Design-system check (`docs/design-system.md`: tokens only, pill badges with text, 44 px targets, alert pattern, 360 px stacked), pinned in `src/app/(dashboard)/review/design-system.test.tsx`
 
-## Phase 9: S4 - Special-format upload (work unit 8)
+## Phase 9: S5 - Special-format upload (work unit 8)
+
+> Cut from S4: after unit 7 the S4 diff is 1,709 authored lines against 2,000, and this unit is ~1,200. It ships as S5 (`feat/teacher-remission-s5-special-format`, from the S4 head). Nothing here is started.
 
 - [ ] 9.1 RED: `src/lib/data/documentos.test.ts`: existing `finalizeDocument` tests unchanged after extraction; new tests for `inspectStoredFile(pathname, store)` (valid pdf/png/jpeg, empty, oversized, forged type); GREEN: extract `inspectStoredFile` in `src/lib/data/documentos.ts`
 - [ ] 9.2 RED: `src/lib/data/special-format.test.ts` (`getSpecialFormatContext`, `attachSpecialFormat`): request locked `FOR UPDATE`; in-scope, `aprobada`, marked, no format required, else uniform denial; inserts `valido` document with detected type/real size, `SubidoPorId = actor`, `FormatoEspecial = true`; `unblockSpecialFormat` only `formato_especial_faltante` rows (`sin_correo` stays) plus other `pendiente` ids returned; writes `documento.formato_especial` (payload ids/type/size/count only); second attach and unique violations -> `already_attached`; refused file -> blob deleted best effort, `documento.rechazado`, nothing stored, rows stay blocked; no audit on denied/`already_attached`
@@ -134,10 +137,10 @@ Chain: tracker `feat/teacher-remission`. Each slice branches from the previous o
 - [ ] 9.7 RED: `special-format-upload.test.tsx`: shown only when marked, approved and no format; client pre-check on size; `upload()` to the token route with pathname `intake/{id}/{uuid}.{ext}`, then the action; pending and `role="alert"` error states for each code; "sending in progress, reload" message; after success the format name with download link and control gone; no replace/remove/choose-existing control; GREEN: `special-format-upload.tsx` and its wiring in `remission-section.tsx`
 - [ ] 9.8 RED: `src/lib/data/solicitud-detail.test.ts` and `student-requests.test.ts`: staff detail exposes `formatoEspecial` and the format apart from student documents (`subidoPorStaff`); student list and detail exclude `SubidoPorId IS NOT NULL`; GREEN: `src/lib/data/solicitud-detail.ts`, `src/lib/data/student-requests.ts`
 - [ ] 9.9 Design-system and 360 px check for the upload control, pinned in `design-system.test.tsx`
-- [ ] 9.10 Gates S4: `npx vitest run src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; record measured diff size and open the S4 PR (base: tracker)
+- [ ] 9.10 Gates S5: `npx vitest run src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; record measured diff size and open the S5 PR (base: tracker)
 - [ ] 9.11 [CONFIRM] Owner walk on a disposable Neon branch (0009 applied; seeded accounts are a separate confirmed data step): approve unmarked (fake or real mail) and marked `fuerza_mayor`; upload a format; resend; check 360 px, one `solicitud.consultada` per detail open, no audit row for denied/`already_attached` attempts (read-only query)
 
-## Phase 10: Archive (after S4 merged)
+## Phase 10: Archive (after S5 merged)
 
 - [ ] 10.1 Spec sync: merge deltas into `openspec/specs/{request-review,audit-log}/spec.md` and create `openspec/specs/teacher-remission/spec.md`; drop change-specific sections
 - [ ] 10.2 Update `docs/roadmap.md` row 3 `Estado` = `archivado`; note follow-ups (replace/remove wrong format, `printable-forms` #12, `validation-signals` migration source)

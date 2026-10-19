@@ -10,7 +10,9 @@
 | S1-S3 (units 1-5) | 1.1-1.6, 2.1-2.8, 3.1-3.5, 4.1-4.10, 5.1-5.3 | Done (31 tasks marked `[x]`), split over S1 (phases 1-2), S2 (phase 3, 4.1-4.6), S3 (4.7-4.10, phase 5) |
 | S1 gate stop | 4.11 | PENDING OWNER: needs 0009 on a disposable Neon branch; four separate "yes" answers (create, apply, run, delete) |
 | S4 (unit 6) | 6.1-6.3 | Implemented and committed as the first commit of `feat/teacher-remission-s4-review-ui` |
-| Not started | 6.4, phases 7-10 | 6.4 (open PRs) not done: no push, no PR. Phase 7 is owner-run. Phases 8-9 (S4 UI and upload) and archive remain |
+| S4 (unit 7) | 8.1-8.8 | Done and committed (two commits). The upload-error i18n keys of 8.2 moved to S5 (no unused keys in S4) |
+| S5 (unit 8) | 9.1-9.11 | CUT from S4 to branch `feat/teacher-remission-s5-special-format` (from the S4 head); not started, ~1,200 lines |
+| Not started | 6.4, phases 7, 10 | 6.4 (open PRs) not done: no push, no PR. Phase 7 is owner-run. Archive remains |
 
 ## Delivery and size (chained-pr, work-unit-commits)
 
@@ -21,7 +23,8 @@ Strategy: auto-chain, `feature-branch-chain`, `review_budget_lines = 2000`. Coun
 | S1 foundation | `feat/teacher-remission-s1-foundation` | schema, migration 0009, audit; pure domain | 1,710 |
 | S2 mail and data | `feat/teacher-remission-s2-mail-data` | MailSender, Resend adapter, fake, env; `remision.ts` + `getSolicitudClases` | 1,784 |
 | S3 dispatch | `feat/teacher-remission-s3-dispatch` | creation in approval + dispatch + concurrency test + write pin; `after()` in `decideAction` | 1,897 |
-| S4 review UI | `feat/teacher-remission-s4-review-ui` | retry cron (359 measured); UI and RN-19 upload (phases 8-9, not started, ~1,300 estimated) | ~1,660 estimated |
+| S4 review UI | `feat/teacher-remission-s4-review-ui` | retry cron (359); remission section, resend, dialog mark, i18n (phase 8) | 1,709 measured (`git diff --numstat 06c75d2..HEAD`, excluding `drizzle/meta`, `openspec/`, `.engram/`, `package-lock.json`) |
+| S5 special format | `feat/teacher-remission-s5-special-format` | RN-19 upload (phase 9): token route, `inspectStoredFile`, `attachSpecialFormat`, upload UI, student-list exclusion | ~1,200 estimated; not started |
 
 Boundary: `remision-writes.test.ts` scans `remission-dispatch.ts` and `solicitud-decision.ts`, so it ships with S3 (it failed on S2 alone). `.env.example` lines (`RESEND_API_KEY=`, `MAIL_FROM=`) could not be added: the file is outside the apply agent's permissions; the owner adds them with S2.
 
@@ -77,6 +80,22 @@ Safety net: `npx vitest run src/db src/lib/audit` before touching existing files
 - Layers: Unit, Adapter (injected fake `fetch`), structural pin, hoisted-mock route/action tests; 1 opt-in integration test written, not run.
 - Pure functions created: states, recipients, limits, message, plan and the digest.
 
+### S4 additions (unit 7, Strict TDD)
+
+Safety net before touching existing files: `npx vitest run "src/app/(dashboard)/review" src/i18n src/lib/data/remision.test.ts` = 14 files, 506/506 passing.
+
+| Task | Test file (tests added) | Layer | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-------------------------|-------|-----|-------|-------------|----------|
+| 8.2 | `src/i18n/review-messages.test.ts` (+4) | Unit (catalogs) | 4 failing (undefined `review.remission`) | 264/264 after keys in es and en | es and en; every state and reason from the constants | Label `sentAt` renamed after a name clash found by the section test |
+| 8.3/8.4 (data) | `src/lib/data/remision.test.ts` (+3, `authorizeResend`) | Unit (DB double) | 3 failing (`authorizeResend is not a function`) | 41/41 | pending-before, `enviada` (no audit), unknown/out-of-scope (no audit) | Clean |
+| 8.3/8.4 | `remission-actions.test.ts` (21, new) | Unit (hoisted mocks, real dal) | Written first (module missing) | 21/21 | 7 roles, malformed ids, scope none, unknown id, 6 outcomes mapped, no revalidate/redirect, thrown error not leaked | Clean |
+| 8.5 | `resend-remission-button.test.tsx` (7, new) | Component | Written first | 7/7 | pending disabled, sent removes control, pendiente/bloqueada keep it, two refusals | Outcome region kept mounted (`role=status`) |
+| 8.5/8.6 | `remission-section.test.tsx` (10, new); `page.test.tsx` (+5) | Component and page | 1 + 2 failing first | 10/10; page 59/59 | two teachers, Managua time (03:30Z is the 18th), Reenviar rules, 4 reasons x es/en, no alert when pending, teacherless groups, missing email; page: approved only, load order before the audited read, 3 other states | Nested `li` queries fixed in the test |
+| 8.7 | `decision-dialog.test.tsx` (+9); `actions.test.ts` (+5); `page.test.tsx` (+2) | Component and action | 3 + 4 failing first | 35/35, 51/51, 61/61 | fuerza_mayor vs 3 other causes, reject/return, no file input, payload with and without mark, reset on cancel; action: mark kept, absent, refused on reject/return, non-boolean | The page `causa` passthrough was written with the action edit, before the page-level test (two-case test confirms it) |
+| 8.8 | `design-system.test.tsx` (+6) | Component (class-level, as the file does) | n/a: pins | 33/33 | 3 pills, card + 360 px single column, alert pattern, 44 px outline button, 44 px checkbox row | Expected `border-border` corrected to `border-primary` (outline variant) |
+
+Tests written in S4: 66 (plus the cron's). Full suite at S4 head: 226 files, 4,850 tests passing.
+
 ## Work Unit Evidence
 
 | Unit | Focused test command and result | Runtime harness | Rollback boundary |
@@ -86,7 +105,8 @@ Safety net: `npx vitest run src/db src/lib/audit` before touching existing files
 | 3 | `npx vitest run src/lib/intake src/env.test.ts src/app/api/intake`: 30 files, 332 passed | Manual Resend send with a test key: NOT run (needs the owner's key and the UAM IT domain) | Adapter, port, fake, deps, env, `src/lib/intake/adapters/resend-mail-sender*` |
 | 4 | `npx vitest run src/lib/data`: 34 files, 731 passed | Opt-in `npm run test:integration` (concurrent claim): NOT run, task 4.11 STOP (needs 0009 on a disposable Neon branch) | `src/lib/data/{remision,remission-dispatch,remision-writes,solicitud-clases,solicitud-decision}*`, `decision-validation*`, integration fixtures/test |
 | 5 | `npx vitest run "src/app/(dashboard)/review"`: 8 files, 212 passed | `npm run dev` approve flow: NOT run (the `Remision` table does not exist until 0009 is applied; no DB change allowed). `npm run build` compiled the action | `src/app/(dashboard)/review/[id]/actions.ts` and its test |
-| 6 (S2) | `npx vitest run src/app/api/cron`: 3 files, 39 passed | `next start` then `curl` the routes: no header and a wrong secret on `/api/cron/remission-retry` returned `401 {"error":"unauthorized"}`; `/api/cron/intake-sweep` without header `401`. The valid-secret call was not run (it reads `Remision`, not migrated) | `src/app/api/cron/{scheduler-auth*,remission-retry/*}`, `intake-sweep/route.ts`, `vercel.json` |
+| 7 (S4) | `npx vitest run "src/app/(dashboard)/review" src/i18n src/lib/data/remision.test.ts src/lib/data/remision-writes.test.ts`: 18 files, 560 passed (579 after the dialog and design pins) | `npm run dev` walk at 1280 and 360 px: NOT run (needs 0009 applied on a disposable branch, task 9.11 and 4.11). `npm run build` compiled; `/review/[id]` stays dynamic | `remission-section.tsx`, `resend-remission-button.tsx`, `remission-actions.ts`, `authorizeResend` in `remision.ts`, page wiring, dialog mark and `actions.ts` payload, i18n keys |
+| 6 (S4) | `npx vitest run src/app/api/cron`: 3 files, 39 passed | `next start` then `curl` the routes: no header and a wrong secret on `/api/cron/remission-retry` returned `401 {"error":"unauthorized"}`; `/api/cron/intake-sweep` without header `401`. The valid-secret call was not run (it reads `Remision`, not migrated) | `src/app/api/cron/{scheduler-auth*,remission-retry/*}`, `intake-sweep/route.ts`, `vercel.json` |
 
 ## Gates (S1, after the move of unit 6)
 
@@ -99,6 +119,19 @@ Safety net: `npx vitest run src/db src/lib/audit` before touching existing files
 | Build | `npm run build` | compiled; S1 has no new route |
 | DB | none | no database command was run |
 
+## Gates (S4 head)
+
+| Gate | Command | Result |
+|------|---------|--------|
+| Tests | `npm test` | 226 files, 4,850 tests passed |
+| Types | `npm run typecheck` | clean |
+| Lint | `npx eslint src`, lines other than the CRLF `Delete ␍` noise | none |
+| Format | `npx prettier --check --end-of-line auto src i18n vercel.json` | clean |
+| Build | `npm run build` | compiled |
+| DB | none | no database command was run |
+
+Evidence revision (code head `6c91838`): sha256 of `git diff 06c75d2..6c91838` = `ab1a88561eface573ea706aa72e65582568f21619f897f0dc28c968236527871`. The final head also carries this documentation commit; its hash is reported to the orchestrator.
+
 ## Deviations and decisions
 
 1. **Re-sliced into four PRs** (no size exception): unit 6 (cron) is the first commit of S4, see Delivery.
@@ -109,16 +142,22 @@ Safety net: `npx vitest run src/db src/lib/audit` before touching existing files
 6. **Completions build their own audit events** in `remision.ts` (same transaction), and `dispatchRemission` returns an outcome (`sent`, `failed`, `blocked`, `skipped`, `lost`) for the S2 resend action. Missing approving secretary or request data throws `remission_actor_missing` / `remission_request_missing`: the claim is left to expire and the retry runs again; contained by `dispatchRemissions`.
 7. **Payload of `decideAction` is unchanged** in S1: the zod schema strips `formatoEspecial`, so the mark cannot be sent until the S2 dialog and passthrough (task 8.7). The backend path (validation, rollback for another cause, blocked rows, redirect to the detail) is complete and tested.
 8. **`.env.example` not updated** (task 3.5): the file is outside the apply agent's permissions. The owner adds `RESEND_API_KEY=` and `MAIL_FROM=` lines.
-9. Task 1.4: the journal `when` (1792429485555) is later than 0008's (1791852138908); comparison with Neon's last applied `created_at` was not done (would need a read-only DB query).
+10. **S4 cut (no size exception)**: after unit 7 the S4 diff is 1,709 of 2,000 lines and unit 8 (RN-19 upload) is ~1,200, so unit 8 moved to S5. Until S5 merges, a marked approval stays blocked with `formato_especial_faltante` and the detail shows that reason; the mark is reachable from the dialog now.
+11. **Resend authorization**: `authorizeResend` (in `remision.ts`) joins the request and applies `requestInScope`, so an unknown id and an out-of-scope id give the same `null`; it writes `remision.reenviada` (state before the attempt) only when the remission is not `enviada`. Its audit row is committed before the send, so a resend that finds the claim held still leaves the row.
+12. **Resend outcome**: the action returns `{ ok, estado, motivo }` (not only `estado`) so the control can say what happened without revalidating the page (SR-11). `skipped` and `lost` map to `pendiente`.
+13. **Student views**: the section is built only in `review/[id]/page.tsx` (staff, `requireRole(...rolesRevisores)`); the student detail and list do not import `listRemissions`, so the teacher email never reaches them.
+14. Task 1.4: the journal `when` (1792429485555) is later than 0008's (1791852138908); comparison with Neon's last applied `created_at` was not done (would need a read-only DB query).
 
 ## Risks
 
-- Every slice is within 2,000 lines (S4 is an estimate until phases 8-9 are written; if it passes 2,000, cut unit 8 into an S5).
-- Gates were run per slice (typecheck + focused tests) and `npm test` at the S3 head: 221 files, 4,749 tests (one unrelated flaky catalog import-form test failed once under load and passed on rerun).
+- Every slice is within 2,000 lines (S4 measured 1,709; S5 is an estimate of ~1,200).
+- Gates were run per slice (typecheck + focused tests); `npm test` at the S3 head: 221 files, 4,749 tests (one unrelated flaky catalog import-form test failed once under load and passed on rerun); at the S4 head: 226 files, 4,850 tests.
 - The concurrency test and the real mail send are unproven until the owner runs 4.11 and the Resend domain exists.
-- Until S2: a request marked special-format cannot be created from the UI (no checkbox), and nothing retries or resends a pending remission (cron is on the S2 branch; resend UI is S2).
+- With S4: the dialog marks an approval and the cron plus "Reenviar" retry pending remissions. Until S5 there is no way to upload the format, so a marked approval stays blocked.
+- `.env.example` shows as modified in the working tree; it is not part of any commit of this apply.
 - `after()` is cut off at the function duration; the 10-minute lease plus the daily cron (S2) are the recovery path.
 
 ## Remaining
 
-- 4.11 (owner confirmations and integration run), 6.4 (open the S1 PR to the tracker once the size decision is made), phase 7 (owner-run migration), S2 phases 8-9, archive phase 10.
+- S5: phase 9 (RN-19 upload) on `feat/teacher-remission-s5-special-format`.
+- 4.11 (owner confirmations and integration run), 6.4 (open the S1 PR to the tracker once the size decision is made), phase 7 (owner-run migration), archive phase 10.
