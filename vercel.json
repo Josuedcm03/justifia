@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["cle1"],
-  "crons": [{ "path": "/api/cron/intake-sweep", "schedule": "0 9 * * *" }]
+  "crons": [
+    { "path": "/api/cron/intake-sweep", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/remission-retry", "schedule": "0 10 * * *" }
+  ]
 }

@@ -14,8 +14,25 @@ describe("vercel.json (task 5.5)", () => {
   it("schedules the intake sweep daily at 09:00 UTC (03:00 Managua)", () => {
     expect(existsSync(CONFIG)).toBe(true);
     const config = JSON.parse(readFileSync(CONFIG, "utf8"));
-    expect(config.crons).toEqual([
-      { path: "/api/cron/intake-sweep", schedule: "0 9 * * *" },
+    expect(config.crons).toContainEqual({
+      path: "/api/cron/intake-sweep",
+      schedule: "0 9 * * *",
+    });
+  });
+
+  it("retries pending teacher remissions daily at 10:00 UTC (TR-12, Hobby ceiling)", () => {
+    const config = JSON.parse(readFileSync(CONFIG, "utf8"));
+    expect(config.crons).toContainEqual({
+      path: "/api/cron/remission-retry",
+      schedule: "0 10 * * *",
+    });
+  });
+
+  it("registers exactly the two scheduled jobs, each once", () => {
+    const config = JSON.parse(readFileSync(CONFIG, "utf8"));
+    expect(config.crons.map((c: { path: string }) => c.path).sort()).toEqual([
+      "/api/cron/intake-sweep",
+      "/api/cron/remission-retry",
     ]);
   });
 
