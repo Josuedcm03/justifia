@@ -12,7 +12,7 @@
 | S4 (unit 6) | 6.1-6.3 | Implemented and committed as the first commit of `feat/teacher-remission-s4-review-ui` |
 | S4 (unit 7) | 8.1-8.8 | Done and committed (two commits). The upload-error i18n keys of 8.2 moved to S5 (no unused keys in S4) |
 | S5 (unit 8, backend) | 9.1-9.6, 9.8 | Done and committed (5 commits); 9.10 gates green on the S5 head, PR not opened |
-| S6 (unit 8, UI) | 9.7, 9.9 | Written and committed on `feat/teacher-remission-s6-special-format-ui` (one commit, 9.9 pin not yet written); needs rebase on the S5 head |
+| S6 (unit 8, UI) | 9.7, 9.9 | Done and committed on `feat/teacher-remission-s6-special-format-ui` (2 commits on the S5 head); gates green, PR not opened |
 | Not started | 6.4, phases 7, 10 | 6.4 (open PRs) not done: no push, no PR. Phase 7 is owner-run. Archive remains |
 
 ## Delivery and size (chained-pr, work-unit-commits)
@@ -148,6 +148,17 @@ Branch `feat/teacher-remission-s5-special-format` from d488171. Measured 1,470 a
 Gates at S5 head 0ef2afd: `npm test` 228 files, 4,922 tests passed; `npm run typecheck` clean; `npx eslint src` only the CRLF `Delete` noise; `npx prettier --check --end-of-line auto src i18n vercel.json` clean; `npm run build` compiled (`/api/review/special-format-token` dynamic). No database command run.
 
 Decisions: (1) token route answers 403 only for `debeCambiarClave`; every non-reviewer role gets the uniform `400 not_allowed` (spec reading); (2) action denials are all `not_allowed`, `not_found` means the stored file is missing; (3) a file already referenced by any document row is never deleted by the attach (student evidence), and a unique-violation backstop keeps the file; (4) "marked + format sends only the format" is covered at dispatch level by the existing `remission-dispatch.test.ts`, not duplicated in the action test; (5) i18n RED for the upload keys was written before the keys but not executed on its own.
+
+## S6 additions (unit 8 UI, Strict TDD)
+
+Branch `feat/teacher-remission-s6-special-format-ui` from the S5 head 734a262 (the UI commit was re-applied with cherry-pick because the unrelated working-tree changes blocked `git rebase`). Measured 586 authored lines vs 734a262 (same exclusions).
+
+| Task | Test file (tests) | Layer | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-------------------|-------|-----|-------|-------------|----------|
+| 9.7 | `special-format-upload.test.tsx` (14, new); `remission-section.test.tsx` (+3); `page.test.tsx` (+3); `review-messages.test.ts` (+2 cases) | Component, page, catalogs | Written first (module missing; page tests broke when two existing i18n keys were removed by mistake, then restored) | 589/589 on review + i18n | refused empty/oversize/type, 4 server answers, store refusal, es alert, attached format, marked/unmarked/with format on the page | Clean |
+| 9.9 | `design-system.test.tsx` (+2) | Component (class-level pins, as 8.8) | n/a: pins, pass on arrival | 35/35 | button 44 px + full width at 360 px, hidden input, catalog alert, attached link wraps | Clean |
+
+Gates at the S6 head: `npm test` 229 files, 4,946 tests passed; typecheck clean; eslint only the CRLF `Delete` noise; prettier `--end-of-line auto` clean; `npm run build` compiled. No database command run. 9.10 PRs and 9.11 owner walk remain.
 
 ## Deviations and decisions
 
