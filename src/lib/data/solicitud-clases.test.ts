@@ -7,7 +7,10 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: {} }));
 
 import type { Transaction } from "@/lib/data/audit";
-import { listRequestClasses } from "@/lib/data/solicitud-clases";
+import {
+  listRequestClasses,
+  listRequestTeachers,
+} from "@/lib/data/solicitud-clases";
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -101,5 +104,121 @@ describe("listRequestClasses (SR-3)", () => {
 
     expect(map.size).toBe(0);
     expect(double.log).toHaveLength(0);
+  });
+});
+
+describe("listRequestTeachers (teacher-remission TR-4)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function teacherRow(overrides: Record<string, unknown> = {}) {
+    return {
+      docenteId: 5,
+      docenteNombre: "Ana Perez",
+      docenteCorreo: "ana@uam.edu.ni",
+      asignaturaId: 10,
+      codigo: "MAT101",
+      nombre: "Matematica I",
+      numeroGrupo: "A",
+      ...overrides,
+    };
+  }
+
+  function runTeachers(rows: unknown[]) {
+    const double = createDbDouble([{ kind: "select", rows }]);
+    const result = listRequestTeachers(double.tx as unknown as Transaction, 42);
+    return { double, result };
+  }
+
+  it("returns one entry per teacher with that teacher's groups only", async () => {
+    const { result } = runTeachers([
+      teacherRow(),
+      teacherRow({
+        docenteId: 6,
+        docenteNombre: "Luis Mora",
+        docenteCorreo: "luis@uam.edu.ni",
+        asignaturaId: 11,
+        codigo: "FIS101",
+        nombre: "Fisica I",
+        numeroGrupo: "B",
+      }),
+    ]);
+
+    expect(await result).toEqual([
+      {
+        docenteId: 5,
+        nombre: "Ana Perez",
+        correo: "ana@uam.edu.ni",
+        clases: [
+          {
+            asignaturaId: 10,
+            codigo: "MAT101",
+            nombre: "Matematica I",
+            numeroGrupo: "A",
+          },
+        ],
+      },
+      {
+        docenteId: 6,
+        nombre: "Luis Mora",
+        correo: "luis@uam.edu.ni",
+        clases: [
+          {
+            asignaturaId: 11,
+            codigo: "FIS101",
+            nombre: "Fisica I",
+            numeroGrupo: "B",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("merges two groups of the same teacher, keeping the row order", async () => {
+    const { result } = runTeachers([
+      teacherRow(),
+      teacherRow({ asignaturaId: 12, codigo: "QUI101", numeroGrupo: "C" }),
+    ]);
+
+    const teachers = await result;
+    expect(teachers).toHaveLength(1);
+    expect(teachers[0].clases.map((c) => c.codigo)).toEqual([
+      "MAT101",
+      "QUI101",
+    ]);
+  });
+
+  it("keeps a teacher without an email as null", async () => {
+    const { result } = runTeachers([teacherRow({ docenteCorreo: null })]);
+
+    expect((await result)[0].correo).toBeNull();
+  });
+
+  it("reports a group without an identified teacher with a null id", async () => {
+    const { result } = runTeachers([
+      teacherRow({ docenteId: null, docenteNombre: null, docenteCorreo: null }),
+    ]);
+
+    expect((await result)[0]).toMatchObject({ docenteId: null, nombre: null });
+  });
+
+  it("returns an empty list for a request without classes", async () => {
+    const { result } = runTeachers([]);
+
+    expect(await result).toEqual([]);
+  });
+
+  it("issues one statement and returns no period or group id", async () => {
+    const { result, double } = runTeachers([
+      teacherRow({ periodo: "2026-1", grupoId: 99 }),
+    ]);
+
+    const [teacher] = await result;
+    expect(double.log).toHaveLength(1);
+    expect(Object.keys(teacher.clases[0]).sort()).toEqual([
+      "asignaturaId",
+      "codigo",
+      "nombre",
+      "numeroGrupo",
+    ]);
   });
 });
