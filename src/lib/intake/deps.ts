@@ -1,13 +1,20 @@
 import "server-only";
 
 import { listGrupoDias } from "@/lib/data/grupo-dias";
+import { createResendMailSender } from "@/lib/intake/adapters/resend-mail-sender";
 import { createVercelBlobStore } from "@/lib/intake/adapters/vercel-blob-store";
 import { createWeekdaySchedule } from "@/lib/intake/adapters/weekday-schedule";
-import type { DocumentStore, GroupScheduleProvider } from "@/lib/intake/ports";
+import type {
+  DocumentStore,
+  GroupScheduleProvider,
+  MailSender,
+} from "@/lib/intake/ports";
 
 export type IntakeDeps = {
   store: DocumentStore;
   schedule: GroupScheduleProvider;
+  /** Mail configuration is asserted at send, not here (TR-9). */
+  mail: MailSender;
 };
 
 /**
@@ -20,5 +27,6 @@ export function getIntakeDeps(): IntakeDeps {
   return {
     store: createVercelBlobStore(),
     schedule: createWeekdaySchedule(listGrupoDias),
+    mail: createResendMailSender(),
   };
 }
