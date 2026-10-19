@@ -5,17 +5,24 @@ import { and, eq, inArray, isNull, max } from "drizzle-orm";
 import { db } from "@/db";
 import {
   documentoRespaldo,
+  remision,
   solicitud,
   solicitudDecision,
   solicitudRevision,
 } from "@/db/schema";
-import { solicitudDecididaEvent } from "@/lib/audit/events";
+import {
+  remisionCreadaEvent,
+  solicitudDecididaEvent,
+} from "@/lib/audit/events";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import {
   requestInScope,
   requestRowInScope,
 } from "@/lib/data/request-scope-sql";
-import { listRequestClasses } from "@/lib/data/solicitud-clases";
+import {
+  listRequestClasses,
+  listRequestTeachers,
+} from "@/lib/data/solicitud-clases";
 import type { Causa } from "@/lib/intake/causes";
 import { renderTemplate } from "@/lib/intake/decision-templates";
 import {
@@ -23,6 +30,7 @@ import {
   type DecisionInput,
 } from "@/lib/intake/decision-validation";
 import type { RequestScope } from "@/lib/intake/request-scope";
+import { buildRemissionRows } from "@/lib/remission/recipients";
 import { VISIBLE_STATES, type EstadoSolicitud } from "@/lib/intake/states";
 import { TRANSITIONS } from "@/lib/intake/transitions";
 
@@ -34,7 +42,19 @@ import { TRANSITIONS } from "@/lib/intake/transitions";
 // scope; the actor is the session user, never request input.
 
 export type DecisionOutcome =
-  { ok: true } | { ok: false; reason: "not_found" | "conflict" | "invalid" };
+  | {
+      ok: true;
+      /** Remissions created by an approval, for the post-commit dispatch. */
+      remisionIds: number[];
+      /** The approval carried the RN-19 special-format mark. */
+      formatoEspecial: boolean;
+    }
+  | { ok: false; reason: "not_found" | "conflict" | "invalid" };
+
+/** Thrown inside the transaction to roll it back with an `invalid` outcome. */
+class InvalidDecision extends Error {}
+
+const FORCE_MAJEURE: Causa = "fuerza_mayor";
 
 export type DecideInput = {
   actorId: number;
@@ -121,76 +141,144 @@ export async function decideRequest(
     plantilla: input.decision.plantilla,
     motivo: input.decision.tipo === "devuelta" ? input.decision.motivo : null,
     texto: input.decision.texto,
+    formatoEspecial: (input.decision as { formatoEspecial?: boolean })
+      .formatoEspecial,
   });
   if (!checked.ok) return { ok: false, reason: "invalid" };
   const decision = checked.decision;
 
-  return db.transaction(async (tx): Promise<DecisionOutcome> => {
-    const updated = await tx
-      .update(solicitud)
-      .set({ estado: decision.tipo, actualizadoEn: now })
-      .where(
-        and(
-          eq(solicitud.id, solicitudId),
-          eq(solicitud.estado, stateBefore(decision.tipo)),
-          requestInScope(scope),
-        ),
-      )
-      .returning({
-        id: solicitud.id,
-        causa: solicitud.causa,
-        fechaInicio: solicitud.fechaInicio,
-        fechaFin: solicitud.fechaFin,
-        estudianteNombre: solicitud.estudianteNombre,
-      });
-    const [request] = updated;
-    if (!request) {
-      const [existing] = await tx
-        .select({ id: solicitud.id })
-        .from(solicitud)
+  const marked =
+    decision.tipo === "aprobada" && decision.formatoEspecial === true;
+
+  try {
+    return await db.transaction(async (tx): Promise<DecisionOutcome> => {
+      const updated = await tx
+        .update(solicitud)
+        .set({ estado: decision.tipo, actualizadoEn: now })
         .where(
           and(
-            requestRowInScope(scope, solicitudId),
-            inArray(solicitud.estado, [...VISIBLE_STATES]),
+            eq(solicitud.id, solicitudId),
+            eq(solicitud.estado, stateBefore(decision.tipo)),
+            requestInScope(scope),
           ),
         )
-        .limit(1);
-      return { ok: false, reason: existing ? "conflict" : "not_found" };
-    }
+        .returning({
+          id: solicitud.id,
+          causa: solicitud.causa,
+          fechaInicio: solicitud.fechaInicio,
+          fechaFin: solicitud.fechaFin,
+          estudianteNombre: solicitud.estudianteNombre,
+        });
+      const [request] = updated;
+      if (!request) {
+        const [existing] = await tx
+          .select({ id: solicitud.id })
+          .from(solicitud)
+          .where(
+            and(
+              requestRowInScope(scope, solicitudId),
+              inArray(solicitud.estado, [...VISIBLE_STATES]),
+            ),
+          )
+          .limit(1);
+        return { ok: false, reason: existing ? "conflict" : "not_found" };
+      }
 
-    const revisionId =
-      decision.tipo === "devuelta" ? await writeRevision(tx, request) : null;
+      // RN-19: the mark is only valid for force majeure. Throwing rolls the
+      // whole transaction back, so the request stays `pendiente`.
+      if (marked) {
+        if (request.causa !== FORCE_MAJEURE) throw new InvalidDecision();
+        await tx
+          .update(solicitud)
+          .set({ formatoEspecial: true })
+          .where(eq(solicitud.id, solicitudId));
+      }
 
-    const [row] = await tx
-      .insert(solicitudDecision)
-      .values({
-        solicitudId,
-        tipo: decision.tipo,
-        plantillaCodigo: decision.plantilla,
-        motivoCodigo: decision.tipo === "devuelta" ? decision.motivo : null,
-        texto: decision.texto,
-        revisionId,
-        secretariaId: actorId,
-        decididaEn: now,
-      })
-      .returning({ id: solicitudDecision.id });
+      const revisionId =
+        decision.tipo === "devuelta" ? await writeRevision(tx, request) : null;
 
-    const rendered = renderTemplate(decision.plantilla, {
-      estudiante: request.estudianteNombre ?? "",
-      causa: request.causa as Causa,
-      fechaInicio: request.fechaInicio ?? "",
-      fechaFin: request.fechaFin ?? "",
+      const [row] = await tx
+        .insert(solicitudDecision)
+        .values({
+          solicitudId,
+          tipo: decision.tipo,
+          plantillaCodigo: decision.plantilla,
+          motivoCodigo: decision.tipo === "devuelta" ? decision.motivo : null,
+          texto: decision.texto,
+          revisionId,
+          secretariaId: actorId,
+          decididaEn: now,
+        })
+        .returning({ id: solicitudDecision.id });
+
+      const rendered = renderTemplate(decision.plantilla, {
+        estudiante: request.estudianteNombre ?? "",
+        causa: request.causa as Causa,
+        fechaInicio: request.fechaInicio ?? "",
+        fechaFin: request.fechaFin ?? "",
+      });
+      await insertAuditEvents(tx, actorId, [
+        solicitudDecididaEvent({
+          solicitudId,
+          tipo: decision.tipo,
+          decisionId: row.id,
+          plantilla: decision.plantilla,
+          ...(decision.tipo === "devuelta" ? { motivo: decision.motivo } : {}),
+          textoEditado: (decision.texto ?? "") !== rendered,
+        }),
+      ]);
+
+      const remisionIds =
+        decision.tipo === "aprobada"
+          ? await createRemissions(tx, actorId, solicitudId, marked)
+          : [];
+      return { ok: true, remisionIds, formatoEspecial: marked };
     });
-    await insertAuditEvents(tx, actorId, [
-      solicitudDecididaEvent({
+  } catch (error) {
+    if (error instanceof InvalidDecision) {
+      return { ok: false, reason: "invalid" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * One remission per distinct teacher of the approved request, inserted in the
+ * approval's own transaction with the snapshot of id, name, email and groups
+ * (TR-4, RF-09 a), each with its `remision.creada` event. A mail outage can
+ * never undo the approval because no send happens here.
+ */
+async function createRemissions(
+  tx: Transaction,
+  actorId: number,
+  solicitudId: number,
+  formatoEspecial: boolean,
+): Promise<number[]> {
+  const drafts = buildRemissionRows(
+    await listRequestTeachers(tx, solicitudId),
+    {
+      formatoEspecial,
+    },
+  );
+  if (drafts.length === 0) return [];
+
+  const created = await tx
+    .insert(remision)
+    .values(drafts.map((draft) => ({ solicitudId, ...draft })))
+    .returning({ id: remision.id, docenteId: remision.docenteId });
+
+  const byTeacher = new Map(created.map((r) => [r.docenteId, r.id]));
+  await insertAuditEvents(
+    tx,
+    actorId,
+    drafts.map((draft) =>
+      remisionCreadaEvent({
+        remisionId: byTeacher.get(draft.docenteId) as number,
         solicitudId,
-        tipo: decision.tipo,
-        decisionId: row.id,
-        plantilla: decision.plantilla,
-        ...(decision.tipo === "devuelta" ? { motivo: decision.motivo } : {}),
-        textoEditado: (decision.texto ?? "") !== rendered,
+        estado: draft.estado,
+        ...(draft.motivoCodigo ? { motivo: draft.motivoCodigo } : {}),
       }),
-    ]);
-    return { ok: true };
-  });
+    ),
+  );
+  return created.map((r) => r.id);
 }

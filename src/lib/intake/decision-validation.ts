@@ -19,11 +19,21 @@ export interface DecisionDraft {
   plantilla: string;
   motivo?: string | null;
   texto: string | null;
+  /** RN-19 special-format mark; meaningful on an approval only. */
+  formatoEspecial?: boolean | null;
 }
 
-/** A validated decision; `texto` is trimmed (and `null` for a blank approval). */
+/**
+ * A validated decision; `texto` is trimmed (and `null` for a blank approval).
+ * `formatoEspecial` is present (true) only on a marked approval.
+ */
 export type DecisionInput =
-  | { tipo: "aprobada"; plantilla: string; texto: string | null }
+  | {
+      tipo: "aprobada";
+      plantilla: string;
+      texto: string | null;
+      formatoEspecial?: true;
+    }
   | { tipo: "rechazada"; plantilla: string; texto: string }
   | {
       tipo: "devuelta";
@@ -32,7 +42,8 @@ export type DecisionInput =
       texto: string;
     };
 
-export type DecisionField = "tipo" | "plantilla" | "motivo" | "texto";
+export type DecisionField =
+  "tipo" | "plantilla" | "motivo" | "texto" | "formatoEspecial";
 
 export type DecisionErrorCode =
   | "tipo_invalid"
@@ -43,7 +54,8 @@ export type DecisionErrorCode =
   | "motivo_not_allowed"
   | "text_required"
   | "text_too_long"
-  | "text_placeholder";
+  | "text_placeholder"
+  | "special_format_not_allowed";
 
 export interface DecisionError {
   field: DecisionField;
@@ -92,6 +104,16 @@ function reasonErrors(
     : [{ field: "motivo", code: "motivo_invalid" }];
 }
 
+/** RN-19: the mark only exists on an approval. */
+function markErrors(
+  tipo: DecisionKind,
+  formatoEspecial: boolean | null | undefined,
+): DecisionError[] {
+  return formatoEspecial === true && tipo !== "aprobada"
+    ? [{ field: "formatoEspecial", code: "special_format_not_allowed" }]
+    : [];
+}
+
 function textErrors(tipo: DecisionKind, texto: string): DecisionError[] {
   if (texto.length === 0) {
     return tipo === "aprobada"
@@ -118,6 +140,7 @@ export function validateDecision(input: DecisionDraft): DecisionResult {
     ...templateErrors(tipo, input.plantilla, motivo),
     ...reasonErrors(tipo, input.motivo),
     ...textErrors(tipo, texto),
+    ...markErrors(tipo, input.formatoEspecial),
   ];
   if (errors.length > 0) return { ok: false, errors };
 
@@ -134,6 +157,7 @@ export function validateDecision(input: DecisionDraft): DecisionResult {
         tipo,
         plantilla: input.plantilla,
         texto: texto === "" ? null : texto,
+        ...(input.formatoEspecial === true ? { formatoEspecial: true } : {}),
       },
     };
   }

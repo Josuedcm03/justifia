@@ -24,6 +24,55 @@ const APPROVE: DecisionDraft = {
   texto: null,
 };
 
+describe("validateDecision special-format mark (RN-19, TR-5)", () => {
+  it("accepts the mark on an approval and carries it in the decision", () => {
+    expect(validateDecision({ ...APPROVE, formatoEspecial: true })).toEqual({
+      ok: true,
+      decision: {
+        tipo: "aprobada",
+        plantilla: "aprobacion.general",
+        texto: null,
+        formatoEspecial: true,
+      },
+    });
+  });
+
+  it("leaves an unmarked approval exactly as before", () => {
+    for (const formatoEspecial of [false, null, undefined]) {
+      const result = validateDecision({ ...APPROVE, formatoEspecial });
+      expect(result).toEqual({
+        ok: true,
+        decision: {
+          tipo: "aprobada",
+          plantilla: "aprobacion.general",
+          texto: null,
+        },
+      });
+    }
+  });
+
+  it("refuses the mark on a rejection", () => {
+    expect(codes({ ...REJECT, formatoEspecial: true })).toEqual([
+      "formatoEspecial:special_format_not_allowed",
+    ]);
+  });
+
+  it("refuses the mark on a return", () => {
+    expect(codes({ ...RETURN, formatoEspecial: true })).toEqual([
+      "formatoEspecial:special_format_not_allowed",
+    ]);
+  });
+
+  it("accepts an explicit false on a rejection and a return", () => {
+    expect(validateDecision({ ...REJECT, formatoEspecial: false }).ok).toBe(
+      true,
+    );
+    expect(validateDecision({ ...RETURN, formatoEspecial: false }).ok).toBe(
+      true,
+    );
+  });
+});
+
 describe("validateDecision (RF-07, RN-17, RNF-12)", () => {
   it("accepts a valid decision of each kind and normalizes the text", () => {
     expect(validateDecision(APPROVE)).toEqual({

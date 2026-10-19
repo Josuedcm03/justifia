@@ -92,9 +92,45 @@ function render(fragment: unknown) {
 const ofKind = (log: LoggedStatement[], kind: LoggedStatement["kind"]) =>
   log.filter((s) => s.kind === kind);
 
-const approveScript = (): Step[] => [
+const rejectScript = (): Step[] => [
   { kind: "update", rows: [requestRow] },
   { kind: "insert", rows: [{ id: 9 }] },
+];
+
+/** A row of the teacher listing joined on the request's groups. */
+function teacherRow(overrides: Record<string, unknown> = {}) {
+  return {
+    docenteId: 5,
+    docenteNombre: "Ana Perez",
+    docenteCorreo: "ana@uam.edu.ni",
+    asignaturaId: 10,
+    codigo: "MAT101",
+    nombre: "Matematica I",
+    numeroGrupo: "A",
+    ...overrides,
+  };
+}
+
+/**
+ * Approval: guarded update, [mark update], decision insert, teacher listing,
+ * [remission insert]. Teachers default to none, so the base approval writes
+ * the decision only.
+ */
+const approveScript = (
+  options: {
+    marked?: boolean;
+    request?: Record<string, unknown>;
+    teachers?: unknown[];
+    remisiones?: { id: number; docenteId: number }[];
+  } = {},
+): Step[] => [
+  { kind: "update", rows: [options.request ?? requestRow] },
+  ...(options.marked ? [{ kind: "update" as const, rows: [] }] : []),
+  { kind: "insert", rows: [{ id: 9 }] },
+  { kind: "select", rows: options.teachers ?? [] },
+  ...(options.remisiones
+    ? [{ kind: "insert" as const, rows: options.remisiones }]
+    : []),
 ];
 
 const returnScript = (maxNumero: number | null = null): Step[] => [
@@ -126,17 +162,27 @@ describe("decideRequest (SR-4, SR-7)", () => {
   });
 
   describe.each([
-    ["aprobada", APPROVE, "aprobada"],
-    ["rechazada", REJECT, "rechazada"],
-  ] as const)("%s", (_name, decision, estado) => {
+    [
+      "aprobada",
+      APPROVE,
+      "aprobada",
+      approveScript,
+      ["update", "insert", "select"],
+    ],
+    ["rechazada", REJECT, "rechazada", rejectScript, ["update", "insert"]],
+  ] as const)("%s", (_name, decision, estado, script, kinds) => {
     it("moves the request, writes one decision row and one audit row", async () => {
-      const double = use(approveScript());
+      const double = use(script());
 
       const result = await decideRequest(input(decision));
 
-      expect(result).toEqual({ ok: true });
+      expect(result).toEqual({
+        ok: true,
+        remisionIds: [],
+        formatoEspecial: false,
+      });
       expect(double.transactions).toBe(1);
-      expect(double.log.map((s) => s.kind)).toEqual(["update", "insert"]);
+      expect(double.log.map((s) => s.kind)).toEqual(kinds);
       expect(double.log.every((s) => s.inTransaction)).toBe(true);
       expect(double.log[0].set).toEqual({ estado, actualizadoEn: NOW });
       expect(double.log[1].values).toMatchObject({
@@ -158,7 +204,7 @@ describe("decideRequest (SR-4, SR-7)", () => {
     });
 
     it("writes no revision snapshot", async () => {
-      const double = use(approveScript());
+      const double = use(script());
 
       await decideRequest(input(decision));
 
@@ -173,7 +219,11 @@ describe("decideRequest (SR-4, SR-7)", () => {
 
       const result = await decideRequest(input(RETURN));
 
-      expect(result).toEqual({ ok: true });
+      expect(result).toEqual({
+        ok: true,
+        remisionIds: [],
+        formatoEspecial: false,
+      });
       expect(double.log[0].set).toEqual({
         estado: "devuelta",
         actualizadoEn: NOW,
@@ -353,6 +403,304 @@ describe("decideRequest (SR-4, SR-7)", () => {
         "insert failed",
       );
       expect(insertAuditMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("teacher remissions created with the approval (TR-4, RF-09 a)", () => {
+    const fuerzaMayor = { ...requestRow, causa: "fuerza_mayor" };
+    const luis = teacherRow({
+      docenteId: 6,
+      docenteNombre: "Luis Mora",
+      docenteCorreo: "luis@uam.edu.ni",
+      asignaturaId: 11,
+      codigo: "FIS101",
+      nombre: "Fisica I",
+      numeroGrupo: "B",
+    });
+
+    it("inserts one pending remission per distinct teacher with the snapshot", async () => {
+      const double = use(
+        approveScript({
+          teachers: [teacherRow(), luis],
+          remisiones: [
+            { id: 31, docenteId: 5 },
+            { id: 32, docenteId: 6 },
+          ],
+        }),
+      );
+
+      const result = await decideRequest(input(APPROVE));
+
+      expect(result).toEqual({
+        ok: true,
+        remisionIds: [31, 32],
+        formatoEspecial: false,
+      });
+      expect(double.log.map((s) => s.kind)).toEqual([
+        "update",
+        "insert",
+        "select",
+        "insert",
+      ]);
+      expect(double.log.every((s) => s.inTransaction)).toBe(true);
+      expect(double.log[3].values).toEqual([
+        {
+          solicitudId: ID,
+          docenteId: 5,
+          docenteNombre: "Ana Perez",
+          correo: "ana@uam.edu.ni",
+          clases: [
+            {
+              asignaturaId: 10,
+              codigo: "MAT101",
+              nombre: "Matematica I",
+              numeroGrupo: "A",
+            },
+          ],
+          estado: "pendiente",
+          motivoCodigo: null,
+        },
+        {
+          solicitudId: ID,
+          docenteId: 6,
+          docenteNombre: "Luis Mora",
+          correo: "luis@uam.edu.ni",
+          clases: [
+            {
+              asignaturaId: 11,
+              codigo: "FIS101",
+              nombre: "Fisica I",
+              numeroGrupo: "B",
+            },
+          ],
+          estado: "pendiente",
+          motivoCodigo: null,
+        },
+      ]);
+    });
+
+    it("creates one remission when two groups belong to the same teacher", async () => {
+      const double = use(
+        approveScript({
+          teachers: [
+            teacherRow(),
+            teacherRow({
+              asignaturaId: 12,
+              codigo: "QUI101",
+              numeroGrupo: "C",
+            }),
+          ],
+          remisiones: [{ id: 31, docenteId: 5 }],
+        }),
+      );
+
+      await decideRequest(input(APPROVE));
+
+      const rows = double.log[3].values as { clases: unknown[] }[];
+      expect(rows).toHaveLength(1);
+      expect(rows[0].clases).toHaveLength(2);
+    });
+
+    it("writes one remision.creada per row after the approval event, in the same transaction", async () => {
+      use(
+        approveScript({
+          teachers: [teacherRow(), luis],
+          remisiones: [
+            { id: 31, docenteId: 5 },
+            { id: 32, docenteId: 6 },
+          ],
+        }),
+      );
+
+      await decideRequest(input(APPROVE));
+
+      expect(insertAuditMock).toHaveBeenCalledTimes(2);
+      expect(
+        insertAuditMock.mock.calls[0][2].map(
+          (e: { accion: string }) => e.accion,
+        ),
+      ).toEqual(["solicitud.aprobada"]);
+      expect(insertAuditMock.mock.calls[1][1]).toBe(ACTOR);
+      expect(insertAuditMock.mock.calls[1][2]).toEqual([
+        {
+          accion: "remision.creada",
+          entidadTipo: "Remision",
+          entidadId: 31,
+          datos: { solicitudId: ID, estado: "pendiente" },
+        },
+        {
+          accion: "remision.creada",
+          entidadTipo: "Remision",
+          entidadId: 32,
+          datos: { solicitudId: ID, estado: "pendiente" },
+        },
+      ]);
+    });
+
+    it("blocks a teacher without an email with sin_correo and audits the reason", async () => {
+      const double = use(
+        approveScript({
+          teachers: [teacherRow({ docenteCorreo: null })],
+          remisiones: [{ id: 31, docenteId: 5 }],
+        }),
+      );
+
+      await decideRequest(input(APPROVE));
+
+      expect(double.log[3].values).toMatchObject([
+        { correo: null, estado: "bloqueada", motivoCodigo: "sin_correo" },
+      ]);
+      expect(insertAuditMock.mock.calls[1][2][0].datos).toEqual({
+        solicitudId: ID,
+        estado: "bloqueada",
+        motivo: "sin_correo",
+      });
+    });
+
+    it("inserts nothing when no group has an identified teacher", async () => {
+      const double = use(
+        approveScript({
+          teachers: [
+            teacherRow({
+              docenteId: null,
+              docenteNombre: null,
+              docenteCorreo: null,
+            }),
+          ],
+        }),
+      );
+
+      const result = await decideRequest(input(APPROVE));
+
+      expect(result).toEqual({
+        ok: true,
+        remisionIds: [],
+        formatoEspecial: false,
+      });
+      expect(ofKind(double.log, "insert")).toHaveLength(1);
+      expect(insertAuditMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("creates no remission on rejection or return", async () => {
+      const rejected = use(rejectScript());
+      await decideRequest(input(REJECT));
+      expect(rejected.log.map((s) => s.kind)).toEqual(["update", "insert"]);
+
+      // A return reads classes and documents for its snapshot, but inserts
+      // only the revision and the decision.
+      const returned = use(returnScript());
+      await decideRequest(input(RETURN));
+      expect(ofKind(returned.log, "insert")).toHaveLength(2);
+
+      expect(
+        insertAuditMock.mock.calls
+          .flatMap((c) => c[2] as { accion: string }[])
+          .map((e) => e.accion),
+      ).toEqual(["solicitud.rechazada", "solicitud.devuelta"]);
+    });
+
+    it("rolls back everything when the remission insert fails", async () => {
+      use([
+        ...approveScript({ teachers: [teacherRow()] }),
+        { kind: "insert", error: new Error("insert failed") },
+      ]);
+
+      await expect(decideRequest(input(APPROVE))).rejects.toThrow(
+        "insert failed",
+      );
+      expect(insertAuditMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("rolls back everything when the remission audit fails", async () => {
+      use(
+        approveScript({
+          teachers: [teacherRow()],
+          remisiones: [{ id: 31, docenteId: 5 }],
+        }),
+      );
+      insertAuditMock
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("audit down"));
+
+      await expect(decideRequest(input(APPROVE))).rejects.toThrow("audit down");
+    });
+
+    describe("special-format mark (RN-19)", () => {
+      const MARKED: DecisionInput = { ...APPROVE, formatoEspecial: true };
+
+      it("sets the mark and creates every remission blocked as formato_especial_faltante", async () => {
+        const double = use(
+          approveScript({
+            marked: true,
+            request: fuerzaMayor,
+            teachers: [teacherRow(), luis],
+            remisiones: [
+              { id: 31, docenteId: 5 },
+              { id: 32, docenteId: 6 },
+            ],
+          }),
+        );
+
+        const result = await decideRequest(input(MARKED));
+
+        expect(result).toEqual({
+          ok: true,
+          remisionIds: [31, 32],
+          formatoEspecial: true,
+        });
+        expect(double.log[1].kind).toBe("update");
+        expect(double.log[1].set).toEqual({ formatoEspecial: true });
+        const rows = double.log[4].values as {
+          estado: string;
+          motivoCodigo: string;
+        }[];
+        expect(rows.map((r) => [r.estado, r.motivoCodigo])).toEqual([
+          ["bloqueada", "formato_especial_faltante"],
+          ["bloqueada", "formato_especial_faltante"],
+        ]);
+      });
+
+      it("reports sin_correo before the missing format", async () => {
+        const double = use(
+          approveScript({
+            marked: true,
+            request: fuerzaMayor,
+            teachers: [teacherRow({ docenteCorreo: null })],
+            remisiones: [{ id: 31, docenteId: 5 }],
+          }),
+        );
+
+        await decideRequest(input(MARKED));
+
+        expect(double.log[4].values).toMatchObject([
+          { motivoCodigo: "sin_correo" },
+        ]);
+      });
+
+      it("refuses the mark on another cause: invalid, nothing created, state untouched", async () => {
+        const double = use([{ kind: "update", rows: [requestRow] }]);
+
+        const result = await decideRequest(input(MARKED));
+
+        expect(result).toEqual({ ok: false, reason: "invalid" });
+        expect(ofKind(double.log, "insert")).toHaveLength(0);
+        expect(insertAuditMock).not.toHaveBeenCalled();
+        expect(double.transactions).toBe(1);
+      });
+
+      it("refuses the mark on a rejection before touching the database", async () => {
+        const double = use([]);
+
+        const result = await decideRequest(
+          input({
+            ...REJECT,
+            formatoEspecial: true,
+          } as unknown as DecisionInput),
+        );
+
+        expect(result).toEqual({ ok: false, reason: "invalid" });
+        expect(double.transactions).toBe(0);
+      });
     });
   });
 
