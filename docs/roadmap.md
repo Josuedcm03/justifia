@@ -17,6 +17,7 @@ remiten a ese archivo.
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
 | 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | pendiente |
 | 10  | `secretary-templates`  | Plantillas propias de la secretaría (RF-07) | Por asignar | No                   | pendiente |
+| 12  | `printable-forms`      | Formato especial prellenado e impresión (RN-19); requiere RF nuevo | Por asignar | No | pendiente |
 
 **Notas:**
 
@@ -43,6 +44,18 @@ remiten a ese archivo.
   secretaría haya escrito en el piloto, en especial los de rechazo y devolución,
   de los que no hay ejemplos reales. Puede planificarse junto con
   `normative-parameters`.
+- `printable-forms` genera, a partir de los datos que el estudiante ya
+  ingresó en la solicitud, el formato especial de la FIA «Solicitud de
+  Justificación de Ausencia» (casos de fuerza mayor de RN-19) listo para
+  imprimir con un solo botón, para que la coordinación lo firme y lo selle sin
+  que nadie lo llene a mano. El mismo botón sirve para imprimir otros
+  documentos de una solicitud que la secretaría necesite en papel. No cubre la
+  firma electrónica ni la remisión por correo, que hace `teacher-remission`.
+  Bloqueos: falta el ejemplar en blanco del formato (pendiente T-5 del
+  repositorio de tesis; los campos se conocen solo por el expediente EXP-05) y
+  no hay un RF en la línea base, por lo que hay que agregarlo a
+  `docs/requirements.md` antes de planificarlo. Lleva el número 12 porque el
+  11 lo usa `backoffice-ui-refresh` en la rama de Josué.
 - El calendario de días no hábiles de RN-08 (2026 y 2027) se validó contra el
   calendario académico de la UAM el 2026-10-12. Debe extenderse cada año antes
   de que empiece: `src/lib/intake/calendar.test.ts` falla cuando el año en
