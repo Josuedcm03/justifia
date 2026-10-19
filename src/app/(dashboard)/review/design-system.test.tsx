@@ -17,6 +17,7 @@ vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
 }));
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),
+  attachSpecialFormatAction: vi.fn(),
 }));
 
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
@@ -578,6 +579,53 @@ describe("design system: remission section and special-format mark (§2.5, §5 B
     expect(
       screen.getByRole("button", { name: "Resend the notice to Pedro Ruiz" }),
     ).toHaveClass("h-11", "border-primary");
+  });
+
+  it("draws the special-format upload as a 44px outline button that is full width at 360px, with a catalog alert on refusal", async () => {
+    const up = rem.upload;
+    renderIntl(
+      <RemissionSection
+        remissions={[
+          { ...base, id: 1, estado: "bloqueada", motivoCodigo: null },
+        ]}
+        unassigned={[]}
+        specialFormat={{ solicitudId: 12, attached: null }}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: up.action });
+    expect(button).toHaveClass("h-11", "border-primary", "w-full", "sm:w-auto");
+    expect(screen.getByLabelText(up.action)).toHaveClass("sr-only");
+
+    await userEvent
+      .setup({ applyAccept: false })
+      .upload(
+        screen.getByLabelText(up.action),
+        new File([""], "a.pdf", { type: "application/pdf" }),
+      );
+    expect(await screen.findByRole("alert")).toHaveClass(
+      "border-l-4",
+      "border-l-destructive",
+      "bg-destructive/8",
+      "text-destructive-ink",
+    );
+  });
+
+  it("shows the attached format as a 44px link that wraps long names", () => {
+    renderIntl(
+      <RemissionSection
+        remissions={[]}
+        unassigned={[]}
+        specialFormat={{
+          solicitudId: 12,
+          attached: { id: 30, nombreOriginal: "formato-firmado.pdf" },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "formato-firmado.pdf" }),
+    ).toHaveClass("h-11", "break-all", "w-full", "sm:w-auto");
   });
 
   it("gives the special-format checkbox a 44px row with the hint under it", async () => {
