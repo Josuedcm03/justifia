@@ -66,6 +66,7 @@ const payloadSchema = z.object({
   plantilla: z.string(),
   motivo: z.string().nullish(),
   texto: z.string().nullable(),
+  formatoEspecial: z.boolean().nullish(),
 });
 
 const MALFORMED: DecideFailure = {
@@ -82,7 +83,8 @@ export async function decideAction(input: unknown): Promise<DecideFailure> {
 
   const parsed = payloadSchema.safeParse(input);
   if (!parsed.success) return MALFORMED;
-  const { solicitudId, tipo, plantilla, motivo, texto } = parsed.data;
+  const { solicitudId, tipo, plantilla, motivo, texto, formatoEspecial } =
+    parsed.data;
   if (
     typeof solicitudId !== "number" ||
     !Number.isSafeInteger(solicitudId) ||
@@ -94,7 +96,13 @@ export async function decideAction(input: unknown): Promise<DecideFailure> {
   const scope = await resolveRequestScope(actorId, user.rol);
   if (scope.kind === "none") return NOT_FOUND;
 
-  const checked = validateDecision({ tipo, plantilla, motivo, texto });
+  const checked = validateDecision({
+    tipo,
+    plantilla,
+    motivo,
+    texto,
+    formatoEspecial,
+  });
   if (!checked.ok) {
     return { ok: false, reason: "invalid", errors: checked.errors };
   }

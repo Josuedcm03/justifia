@@ -836,3 +836,34 @@ describe("ReviewDetailPage remission section (RF-09 c)", () => {
     },
   );
 });
+
+describe("ReviewDetailPage special-format mark (RN-19)", () => {
+  const mark = messages.en.review.decision.approve.specialFormat;
+
+  async function openApprove() {
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: messages.en.review.decision.approve.trigger,
+      }),
+    );
+    return screen.findByRole("alertdialog");
+  }
+
+  it("offers the mark in the approve dialog of a fuerza_mayor request", async () => {
+    detailMock.mockResolvedValue(detail({ causa: "fuerza_mayor" }));
+
+    await renderPage();
+    const dialog = await openApprove();
+
+    expect(
+      within(dialog).getByRole("checkbox", { name: mark.label }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer the mark for another cause", async () => {
+    await renderPage();
+    const dialog = await openApprove();
+
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+  });
+});

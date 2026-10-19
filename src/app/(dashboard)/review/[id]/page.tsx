@@ -214,6 +214,7 @@ export default async function ReviewDetailPage({
                   key={kind}
                   kind={kind}
                   solicitudId={detail.id}
+                  causa={detail.causa}
                   templates={templatesFor(kind)}
                 />
               ))}

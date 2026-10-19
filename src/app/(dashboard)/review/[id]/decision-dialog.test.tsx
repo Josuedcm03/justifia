@@ -509,3 +509,104 @@ describe("DecisionDialog conflict and not found", () => {
     );
   });
 });
+
+describe("DecisionDialog special-format mark (RN-19)", () => {
+  function showFor(
+    kind: "aprobada" | "rechazada" | "devuelta",
+    causa: string | null,
+  ) {
+    return renderIntl(
+      <DecisionDialog
+        kind={kind}
+        solicitudId={12}
+        causa={causa}
+        templates={TEMPLATES[kind]}
+      />,
+    );
+  }
+  const mark = en.approve.specialFormat;
+
+  it("offers an unchecked checkbox with its hint when the cause is fuerza_mayor", async () => {
+    showFor("aprobada", "fuerza_mayor");
+    const dialog = await open("aprobada");
+
+    const checkbox = within(dialog).getByRole("checkbox", { name: mark.label });
+    expect(checkbox).not.toBeChecked();
+    expect(checkbox).toHaveAccessibleDescription(mark.hint);
+  });
+
+  it.each(["medica", "laboral", null])(
+    "does not offer the mark when the cause is %s",
+    async (causa) => {
+      showFor("aprobada", causa);
+      const dialog = await open("aprobada");
+
+      expect(within(dialog).queryByRole("checkbox")).toBeNull();
+      expect(within(dialog).queryByText(mark.hint)).toBeNull();
+    },
+  );
+
+  it.each(["rechazada", "devuelta"] as const)(
+    "does not offer the mark on %s even for fuerza_mayor",
+    async (kind) => {
+      showFor(kind, "fuerza_mayor");
+      const dialog = await open(kind);
+
+      expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    },
+  );
+
+  it("never offers a file input: the format is uploaded from the detail afterwards", async () => {
+    showFor("aprobada", "fuerza_mayor");
+    const dialog = await open("aprobada");
+
+    expect(dialog.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it("sends the mark only when the checkbox is checked", async () => {
+    decideAction.mockReturnValue(hang());
+    showFor("aprobada", "fuerza_mayor");
+    const dialog = await open("aprobada");
+
+    await userEvent.click(
+      within(dialog).getByRole("checkbox", { name: mark.label }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.approve.confirm }),
+    );
+
+    expect(decideAction).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: "aprobada", formatoEspecial: true }),
+    );
+  });
+
+  it("leaves the mark out of the payload when it is not checked", async () => {
+    decideAction.mockReturnValue(hang());
+    showFor("aprobada", "fuerza_mayor");
+    const dialog = await open("aprobada");
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.approve.confirm }),
+    );
+
+    expect(decideAction).toHaveBeenCalledTimes(1);
+    expect(decideAction.mock.calls[0][0]).not.toHaveProperty("formatoEspecial");
+  });
+
+  it("clears the mark when the dialog is cancelled and reopened", async () => {
+    showFor("aprobada", "fuerza_mayor");
+    const dialog = await open("aprobada");
+    await userEvent.click(
+      within(dialog).getByRole("checkbox", { name: mark.label }),
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.cancel }),
+    );
+    const reopened = await open("aprobada");
+
+    expect(
+      within(reopened).getByRole("checkbox", { name: mark.label }),
+    ).not.toBeChecked();
+  });
+});
