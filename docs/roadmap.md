@@ -9,7 +9,7 @@ remiten a ese archivo.
 | 0   | `catalog-schedule`     | Horarios en el catálogo (RN-22, RF-12)      | Josué       | Sí                   | pendiente |
 | 1   | `justification-intake` | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23 | Armando     | Sí                   | archivado |
 | 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Armando     | Sí                   | archivado |
-| 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | pendiente |
+| 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | archivado |
 | 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | pendiente |
 | 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
 | 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
@@ -44,6 +44,16 @@ remiten a ese archivo.
   secretaría haya escrito en el piloto, en especial los de rechazo y devolución,
   de los que no hay ejemplos reales. Puede planificarse junto con
   `normative-parameters`.
+- `teacher-remission` (archivado el 2026-10-20) envía la justificación a cada
+  docente por correo tras la aprobación. Pendiente de operación, no de código:
+  configurar `RESEND_API_KEY` y `MAIL_FROM` en Vercel una vez que la UAM
+  verifique el dominio del remitente. Mientras tanto, las remisiones quedan
+  `pendiente` o `error_envio`, y el reenvío automático o el botón «Reenviar»
+  las envían cuando el correo esté configurado. Reemplazar o retirar un formato
+  especial mal subido queda fuera de alcance (seguimiento). El formato especial
+  prellenado e imprimible es el change #12 `printable-forms`. RN-19 se solapa
+  con `validation-signals` (RF-14 d): al planificar ese change, confirmar qué
+  parte de RN-19 ya cubre `teacher-remission`.
 - `printable-forms` genera, a partir de los datos que el estudiante ya
   ingresó en la solicitud, el formato especial de la FIA «Solicitud de
   Justificación de Ausencia» (casos de fuerza mayor de RN-19) listo para
