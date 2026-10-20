@@ -161,6 +161,24 @@ describe("RemissionSection (RF-09 c)", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers no Reenviar while the signed special format is missing", () => {
+    // Only the format upload unblocks these rows; a resend would change nothing.
+    show([
+      view({
+        id: 34,
+        estado: "bloqueada",
+        motivoCodigo: "formato_especial_faltante",
+      }),
+    ]);
+
+    expect(
+      screen.queryByRole("button", { name: /^Resend the notice to / }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      en.reasons.formato_especial_faltante,
+    );
+  });
+
   it.each([
     ["bloqueada", "sin_correo"],
     ["bloqueada", "formato_especial_faltante"],

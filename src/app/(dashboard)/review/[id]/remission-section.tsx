@@ -88,7 +88,9 @@ export function RemissionSection({
                 {t(`reasons.${r.motivoCodigo}`)}
               </p>
             ) : null}
-            {r.estado === "enviada" ? null : (
+            {/* Only the format upload unblocks a missing-format row (RN-19). */}
+            {r.estado === "enviada" ||
+            r.motivoCodigo === "formato_especial_faltante" ? null : (
               <ResendRemissionButton
                 remisionId={r.id}
                 teacherName={r.docenteNombre}

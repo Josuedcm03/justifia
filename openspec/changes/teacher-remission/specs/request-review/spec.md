@@ -69,7 +69,9 @@ regardless of mail availability.
 The staff detail of an `aprobada` request MUST show, per teacher: state
 (`pendiente`, `enviada`, `bloqueada`), send time when sent, and the reason code
 as readable text when pending or blocked. A resend control MUST be offered for
-each non-sent remission and MUST work as stated in `teacher-remission`.
+each non-sent remission and MUST work as stated in `teacher-remission`,
+except a remission blocked with `formato_especial_faltante`: only the format
+upload unblocks it, so no resend control is shown.
 The teacher email recorded at approval MAY be shown to in-scope staff only,
 never to students. A
 request not `aprobada` MUST show no remission section. State MUST carry text,
@@ -84,6 +86,11 @@ never color alone.
 - GIVEN a remission `bloqueada` with `sin_correo`
 - WHEN the secretary opens the detail
 - THEN the reason is shown and a resend control is offered
+
+#### Scenario: Blocked by the missing special format
+- GIVEN a remission `bloqueada` with `formato_especial_faltante`
+- WHEN the secretary opens the detail
+- THEN the reason is shown and no resend control is offered
 
 #### Scenario: Non-approved request
 - GIVEN a `devuelta` request
