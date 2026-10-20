@@ -421,3 +421,61 @@ describe("decideAction remission dispatch after approval (RF-09 a, RNF-07, TR-8)
     });
   });
 });
+
+describe("decideAction special-format mark (RN-19)", () => {
+  it("passes the mark of an approval to the decision", async () => {
+    await expect(
+      decideAction({ ...APPROVE, formatoEspecial: true }),
+    ).rejects.toThrow("REDIRECT:");
+
+    expect(decideMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: expect.objectContaining({
+          tipo: "aprobada",
+          formatoEspecial: true,
+        }),
+      }),
+    );
+  });
+
+  it("leaves the mark out of an approval that did not send it", async () => {
+    await expect(decideAction(APPROVE)).rejects.toThrow("REDIRECT:");
+    await expect(
+      decideAction({ ...APPROVE, formatoEspecial: false }),
+    ).rejects.toThrow("REDIRECT:");
+
+    for (const [call] of decideMock.mock.calls) {
+      expect(call.decision).not.toHaveProperty("formatoEspecial");
+    }
+    expect(decideMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([REJECT, RETURN])(
+    "refuses the mark on a $tipo before deciding",
+    async (payload) => {
+      await expect(
+        decideAction({ ...payload, formatoEspecial: true }),
+      ).resolves.toEqual({
+        ok: false,
+        reason: "invalid",
+        errors: [
+          { field: "formatoEspecial", code: "special_format_not_allowed" },
+        ],
+      });
+
+      expect(decideMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("treats a mark that is not a boolean as a malformed payload", async () => {
+    await expect(
+      decideAction({ ...APPROVE, formatoEspecial: "yes" }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+      errors: [{ field: "tipo", code: "tipo_invalid" }],
+    });
+
+    expect(decideMock).not.toHaveBeenCalled();
+  });
+});

@@ -256,6 +256,14 @@
       "sessions": 1,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "febc72f1",
+      "created_by": "Arnia",
+      "created_at": "2026-10-19T18:33:03Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }

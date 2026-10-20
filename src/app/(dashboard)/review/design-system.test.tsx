@@ -15,6 +15,9 @@ import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
 vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
   decideAction: vi.fn(),
 }));
+vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
+  resendRemissionAction: vi.fn(),
+}));
 
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
@@ -25,6 +28,7 @@ import {
   RequestSection,
   Section,
 } from "@/app/(dashboard)/review/[id]/request-sections";
+import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
 
 const ROOT = process.cwd();
 const REVIEW_DIR = join(ROOT, "src/app/(dashboard)/review");
@@ -484,5 +488,125 @@ describe("design system: changes since the return (SR-17, §2.5, §5 Badge, §7)
     const row = screen.getByText(changes.sections.causeDates).closest("li");
     expect(row).toHaveClass("flex-wrap");
     expect(screen.getByText(/borroso-original-/)).toHaveClass("break-all");
+  });
+});
+
+describe("design system: remission section and special-format mark (§2.5, §5 Badge, Alert, §7)", () => {
+  const rem = messages.en.review.remission;
+  const base = {
+    docenteNombre: "Pedro Ruiz",
+    correo: "pedro@uam.edu.ni",
+    clases: [
+      {
+        asignaturaId: 1,
+        codigo: "MAT-101",
+        nombre: "Calculo",
+        numeroGrupo: "2",
+      },
+    ],
+    enviadaEn: null,
+    intentos: 0,
+  };
+
+  it.each([
+    ["pendiente", "bg-warning/10", "text-warning-ink"],
+    ["enviada", "bg-success/10", "text-success-ink"],
+    ["bloqueada", "bg-destructive/10", "text-destructive-ink"],
+  ] as const)(
+    "draws the %s state as a pill with a tint, its ink and always its text",
+    (estado, tint, ink) => {
+      renderIntl(
+        <RemissionSection
+          remissions={[{ ...base, id: 1, estado, motivoCodigo: null }]}
+          unassigned={[]}
+        />,
+      );
+
+      expect(screen.getByText(rem.states[estado])).toHaveClass(
+        "rounded-full",
+        "px-3",
+        "py-1",
+        "text-xs",
+        tint,
+        ink,
+      );
+    },
+  );
+
+  it("frames the section as a card and stacks the facts on one column at 360px", () => {
+    renderIntl(
+      <RemissionSection
+        remissions={[
+          { ...base, id: 1, estado: "pendiente", motivoCodigo: null },
+        ]}
+        unassigned={[]}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: rem.title })).toHaveClass(
+      "bg-card",
+      "shadow-soft",
+      "rounded-xl",
+      "p-6",
+    );
+    const facts = screen.getByText(rem.fields.email).closest("dl");
+    expect(facts).toHaveClass("grid", "sm:grid-cols-2");
+    expect(facts).not.toHaveClass("grid-cols-2");
+  });
+
+  it("writes a failure as the catalog alert and offers Reenviar as a 44px outline button", () => {
+    renderIntl(
+      <RemissionSection
+        remissions={[
+          {
+            ...base,
+            id: 1,
+            estado: "pendiente",
+            motivoCodigo: "error_envio",
+          },
+        ]}
+        unassigned={[]}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveClass(
+      "border-l-4",
+      "border-l-destructive",
+      "bg-destructive/8",
+      "text-destructive-ink",
+    );
+    expect(
+      screen.getByRole("button", { name: "Resend the notice to Pedro Ruiz" }),
+    ).toHaveClass("h-11", "border-primary");
+  });
+
+  it("gives the special-format checkbox a 44px row with the hint under it", async () => {
+    renderIntl(
+      <DecisionDialog
+        kind="aprobada"
+        solicitudId={1}
+        causa="fuerza_mayor"
+        templates={[
+          { codigo: "aprobacion.general", motivo: null, texto: "Hola" },
+        ]}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: messages.en.review.decision.approve.trigger,
+      }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    const mark = messages.en.review.decision.approve.specialFormat;
+
+    expect(
+      within(dialog)
+        .getByRole("checkbox", { name: mark.label })
+        .closest("label"),
+    ).toHaveClass("min-h-11", "items-center");
+    expect(within(dialog).getByText(mark.hint)).toHaveClass(
+      "text-muted-foreground",
+      "text-xs",
+    );
   });
 });

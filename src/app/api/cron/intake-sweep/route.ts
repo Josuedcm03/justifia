@@ -1,29 +1,11 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-
+import { NO_STORE, isScheduler } from "@/app/api/cron/scheduler-auth";
 import { env } from "@/env";
 import { runIntakeSweep } from "@/lib/data/intake-sweep";
 import { getIntakeDeps } from "@/lib/intake/deps";
 
 // Daily cleanup of drafts, failed finalizations and orphan files (D8, D10).
-// Only the platform scheduler may call it: Vercel sends
-// `Authorization: Bearer ${CRON_SECRET}`. The proxy never sees `/api`, so the
-// handler checks the credential itself, fails closed when the secret is not
-// configured, and compares in constant time. It writes no audit row (D14) and
-// logs counts only.
-
-const NO_STORE = { "Cache-Control": "private, no-store" } as const;
-
-function digest(value: string): Buffer {
-  return createHash("sha256").update(value).digest();
-}
-
-/** Constant-time check of `Authorization` against `Bearer ${secret}`. */
-function isScheduler(request: Request, secret: string | undefined): boolean {
-  if (!secret) return false;
-  const header = request.headers.get("authorization") ?? "";
-  // Equal-length digests: the comparison time does not depend on the input.
-  return timingSafeEqual(digest(header), digest(`Bearer ${secret}`));
-}
+// Only the platform scheduler may call it (shared credential check in
+// `../scheduler-auth`). It writes no audit row (D14) and logs counts only.
 
 export async function GET(request: Request): Promise<Response> {
   if (!isScheduler(request, env.CRON_SECRET)) {

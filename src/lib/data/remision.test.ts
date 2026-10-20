@@ -26,6 +26,7 @@ vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
 import type { Transaction } from "@/lib/data/audit";
 import {
+  authorizeResend,
   CLAIM_LEASE_MS,
   claimRemission,
   completeBlocked,
@@ -644,5 +645,60 @@ describe("findTeacherEmail", () => {
 
     use([{ kind: "select", rows: [] }]);
     await expect(findTeacherEmail(5)).resolves.toBeNull();
+  });
+});
+
+describe("authorizeResend (RF-09 c, RNF-01)", () => {
+  const SCOPE = { kind: "facultad", facultadId: 4 } as const;
+
+  beforeEach(() => {
+    insertAuditMock.mockReset();
+    insertAuditMock.mockResolvedValue(undefined);
+  });
+
+  it("returns the target and audits the resend with the state before it", async () => {
+    const double = use([
+      {
+        kind: "select",
+        rows: [{ id: 31, solicitudId: 42, estado: "bloqueada" }],
+      },
+    ]);
+
+    const target = await authorizeResend(SCOPE, 31, ACTOR);
+
+    expect(target).toEqual({ id: 31, solicitudId: 42, estado: "bloqueada" });
+    expect(double.transactions).toBe(1);
+    expect(render(double.log[0].where).params).toEqual([31, 4]);
+    expect(insertAuditMock).toHaveBeenCalledWith(expect.anything(), ACTOR, [
+      {
+        accion: "remision.reenviada",
+        entidadTipo: "Remision",
+        entidadId: 31,
+        datos: { solicitudId: 42, estadoPrevio: "bloqueada" },
+      },
+    ]);
+  });
+
+  it("returns an already sent remission without an audit row", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [{ id: 31, solicitudId: 42, estado: "enviada" }],
+      },
+    ]);
+
+    await expect(authorizeResend(SCOPE, 31, ACTOR)).resolves.toEqual({
+      id: 31,
+      solicitudId: 42,
+      estado: "enviada",
+    });
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null without an audit row when the id is unknown or out of scope", async () => {
+    use([{ kind: "select", rows: [] }]);
+
+    await expect(authorizeResend(SCOPE, 99, ACTOR)).resolves.toBeNull();
+    expect(insertAuditMock).not.toHaveBeenCalled();
   });
 });
