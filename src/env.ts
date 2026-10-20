@@ -18,6 +18,11 @@ const envSchema = z.object({
   // cron route assert them at use (justification-intake D1, D10).
   BLOB_READ_WRITE_TOKEN: optionalSecret(1),
   CRON_SECRET: optionalSecret(16),
+  // Teacher remission mail (teacher-remission TR-9). Optional so builds and
+  // tests need no provider; the Resend adapter asserts both at send time and
+  // a missing value leaves the remission `pendiente`.
+  RESEND_API_KEY: optionalSecret(1),
+  MAIL_FROM: optionalSecret(1),
 });
 
 export const env = envSchema.parse(process.env);

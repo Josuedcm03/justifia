@@ -44,3 +44,30 @@ describe("env (justification-intake D1, D10)", () => {
     await expect(loadEnv({ CRON_SECRET: "short" })).rejects.toThrow();
   });
 });
+
+describe("env mail settings (teacher-remission TR-9)", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("exposes RESEND_API_KEY and MAIL_FROM when set", async () => {
+    const env = await loadEnv({
+      RESEND_API_KEY: "re_placeholder",
+      MAIL_FROM: "Justifia UAM <justificaciones@uam.edu.ni>",
+    });
+    expect(env.RESEND_API_KEY).toBe("re_placeholder");
+    expect(env.MAIL_FROM).toBe("Justifia UAM <justificaciones@uam.edu.ni>");
+  });
+
+  it("treats both as optional so builds and tests need no mail provider", async () => {
+    const env = await loadEnv({
+      RESEND_API_KEY: undefined,
+      MAIL_FROM: undefined,
+    });
+    expect(env.RESEND_API_KEY).toBeUndefined();
+    expect(env.MAIL_FROM).toBeUndefined();
+  });
+});
