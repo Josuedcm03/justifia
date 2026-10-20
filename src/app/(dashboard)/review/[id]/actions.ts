@@ -1,12 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { requireRole } from "@/lib/auth/dal";
 import { rolesRevisores } from "@/lib/auth/permissions";
 import { resolveRequestScope } from "@/lib/data/request-scope";
+import { dispatchRemissions } from "@/lib/data/remission-dispatch";
 import { decideRequest } from "@/lib/data/solicitud-decision";
+import { getIntakeDeps } from "@/lib/intake/deps";
 import {
   validateDecision,
   type DecisionError,
@@ -25,6 +28,37 @@ export type DecideFailure =
   | { ok: false; reason: "conflict" | "not_found" };
 
 const QUEUE_PATH = "/review";
+
+/**
+ * Sends the remissions of an approval after the response (TR-8). The mail
+ * never decides the outcome: the approval is already committed, so any
+ * failure here is logged by code only and left to the retry job and the
+ * manual resend. The dependencies are built inside the callback because a
+ * missing store configuration must not surface to the secretary.
+ */
+async function dispatchApproved(remisionIds: number[], actorId: number) {
+  try {
+    await dispatchRemissions(
+      remisionIds,
+      { trigger: "aprobacion", actorId },
+      getIntakeDeps(),
+    );
+  } catch (error) {
+    console.error("remission_dispatch_failed", {
+      code: error instanceof Error ? error.name : "unknown",
+    });
+  }
+}
+
+function scheduleDispatch(remisionIds: number[], actorId: number) {
+  try {
+    after(() => dispatchApproved(remisionIds, actorId));
+  } catch (error) {
+    console.error("remission_dispatch_not_scheduled", {
+      code: error instanceof Error ? error.name : "unknown",
+    });
+  }
+}
 
 const payloadSchema = z.object({
   solicitudId: z.unknown(),
@@ -76,6 +110,15 @@ export async function decideAction(input: unknown): Promise<DecideFailure> {
     return outcome.reason === "invalid"
       ? { ok: false, reason: "invalid", errors: [] }
       : { ok: false, reason: outcome.reason };
+  }
+
+  // A marked approval (RN-19) creates every remission blocked until the
+  // signed format is uploaded, so there is nothing to send yet; its upload
+  // dispatches them. The secretary lands on the detail, where the upload is.
+  if (outcome.formatoEspecial) redirect(`${QUEUE_PATH}/${solicitudId}`);
+
+  if (outcome.remisionIds.length > 0) {
+    scheduleDispatch(outcome.remisionIds, actorId);
   }
   redirect(`${QUEUE_PATH}?resultado=${checked.decision.tipo}`);
 }
