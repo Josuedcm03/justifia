@@ -104,6 +104,8 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
       },
     ],
     documentosRetirados: [],
+    formatoEspecial: false,
+    formato: null,
     decisiones: [],
     revisiones: [],
     ...overrides,
@@ -807,6 +809,62 @@ describe("ReviewDetailPage remission section (RF-09 c)", () => {
     expect(
       within(section).getByText(/No teacher is identified for: FIS-200/),
     ).toBeInTheDocument();
+  });
+
+  it("offers the signed-format upload on a marked approval that has no format", async () => {
+    detailMock.mockResolvedValue(
+      detail({ estado: "aprobada", formatoEspecial: true }),
+    );
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    const section = screen.getByRole("region", {
+      name: messages.en.review.remission.title,
+    });
+    expect(
+      within(section).getByRole("button", {
+        name: messages.en.review.remission.upload.action,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the uploaded format by name, apart from the student's documents", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "aprobada",
+        formatoEspecial: true,
+        formato: { id: 30, nombreOriginal: "firmado.pdf" },
+      }),
+    );
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    const section = screen.getByRole("region", {
+      name: messages.en.review.remission.title,
+    });
+    expect(
+      within(section).getByRole("link", { name: "firmado.pdf" }),
+    ).toHaveAttribute("href", "/api/intake/documents/30");
+    expect(
+      within(section).queryByRole("button", {
+        name: messages.en.review.remission.upload.action,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no upload for an approval that was not marked", async () => {
+    detailMock.mockResolvedValue(detail({ estado: "aprobada" }));
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    expect(
+      screen.queryByRole("button", {
+        name: messages.en.review.remission.upload.action,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("loads the remissions before the audited read and adds no audit row of its own", async () => {

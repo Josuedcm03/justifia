@@ -1,6 +1,6 @@
 # Apply Progress: Teacher Remission
 
-> Strict TDD (vitest). Re-sliced into the chain S1 foundation, S2 mail-data, S3 dispatch, S4 review-ui (tracker `feat/teacher-remission` at 907cfa0). Units 1-5 were implemented on the former `s1-outbox` branch. Hybrid store: this file plus Engram `sdd/teacher-remission/apply-progress`.
+> Strict TDD (vitest). Re-sliced into the chain S1 foundation, S2 mail-data, S3 dispatch, S4 review-ui, S5 special-format backend, S6 special-format UI (tracker `feat/teacher-remission` at 907cfa0). All six slices are implemented and committed (top of the chain 9f2b4e3). Units 1-5 were implemented on the former `s1-outbox` branch. Hybrid store: this file plus Engram `sdd/teacher-remission/apply-progress`.
 > No database command was run (no `drizzle-kit migrate/push`, no seed, no write SQL, no Neon call). Migration 0009 was only generated locally.
 
 ## Status
@@ -12,12 +12,13 @@
 | S4 (unit 6) | 6.1-6.3 | Implemented and committed as the first commit of `feat/teacher-remission-s4-review-ui` |
 | S4 (unit 7) | 8.1-8.8 | Done and committed (two commits). The upload-error i18n keys of 8.2 moved to S5 (no unused keys in S4) |
 | S5 (unit 8, backend) | 9.1-9.6, 9.8 | Done and committed (5 commits); 9.10 gates green on the S5 head, PR not opened |
-| S6 (unit 8, UI) | 9.7, 9.9 | Written and committed on `feat/teacher-remission-s6-special-format-ui` (one commit, 9.9 pin not yet written); needs rebase on the S5 head |
-| Not started | 6.4, phases 7, 10 | 6.4 (open PRs) not done: no push, no PR. Phase 7 is owner-run. Archive remains |
+| S6 (unit 8, UI) | 9.7, 9.9 | Done and committed on `feat/teacher-remission-s6-special-format-ui` (2 commits on the S5 head); gates green, PR not opened |
+| Verify | whole change | Ran 2026-10-19 on 9f2b4e3: pass with warnings, 16/16 requirements, 44/44 scenarios, 0 CRITICAL; gates re-run green (`npm test` 229 files, 4,946 tests; typecheck; build; eslint CRLF-only; prettier clean) |
+| Remaining (gated) | 4.11, 6.4 and the PR part of 9.10, phase 7, 9.11, phase 10 | No push, no PR yet (six PRs S1-S6). Phase 7 and 9.11 are owner-run. Archive after the PRs merge |
 
 ## Delivery and size (chained-pr, work-unit-commits)
 
-Strategy: auto-chain, `feature-branch-chain`, `review_budget_lines = 2000`. Count = additions + deletions of authored text; generated `drizzle/meta/*`, `.engram/` chunks, `package-lock.json` and `openspec/` excluded. The owner rejected any `size:exception`, so the original single S1 (5,391 lines) was re-sliced into four branches with identical source (`git diff 50067b0 feat/teacher-remission-s3-dispatch -- src` is empty). Old branches `feat/teacher-remission-s1-outbox` and `feat/teacher-remission-s2-review-ui` were never pushed and were deleted after verification.
+Strategy: auto-chain, `feature-branch-chain`, `review_budget_lines = 2000`. Count = additions + deletions of authored text; generated `drizzle/meta/*`, `.engram/` chunks, `package-lock.json` and `openspec/` excluded. The owner rejected any `size:exception`, so the original single S1 (5,391 lines) was re-sliced into four branches (later six, after the S4 and S5 cuts) with identical source (`git diff 50067b0 feat/teacher-remission-s3-dispatch -- src` is empty). Old branches `feat/teacher-remission-s1-outbox` and `feat/teacher-remission-s2-review-ui` were never pushed and were deleted after verification.
 
 | Slice | Branch | Commits | Authored lines |
 |-------|--------|---------|---------------:|
@@ -25,7 +26,8 @@ Strategy: auto-chain, `feature-branch-chain`, `review_budget_lines = 2000`. Coun
 | S2 mail and data | `feat/teacher-remission-s2-mail-data` | MailSender, Resend adapter, fake, env; `remision.ts` + `getSolicitudClases` | 1,784 |
 | S3 dispatch | `feat/teacher-remission-s3-dispatch` | creation in approval + dispatch + concurrency test + write pin; `after()` in `decideAction` | 1,897 |
 | S4 review UI | `feat/teacher-remission-s4-review-ui` | retry cron (359); remission section, resend, dialog mark, i18n (phase 8) | 1,709 measured (`git diff --numstat 06c75d2..HEAD`, excluding `drizzle/meta`, `openspec/`, `.engram/`, `package-lock.json`) |
-| S5 special format | `feat/teacher-remission-s5-special-format` | RN-19 upload (phase 9): token route, `inspectStoredFile`, `attachSpecialFormat`, upload UI, student-list exclusion | ~1,200 estimated; not started |
+| S5 special format | `feat/teacher-remission-s5-special-format` | RN-19 upload backend (9.1-9.6, 9.8): token route, `inspectStoredFile`, `attachSpecialFormat`, attach action, student-list exclusion | 1,470 measured (head 734a262) |
+| S6 special format UI | `feat/teacher-remission-s6-special-format-ui` | RN-19 upload UI (9.7, 9.9): upload control, section and page wiring, i18n keys, design-system pin | 586 measured (head 9f2b4e3) |
 
 Boundary: `remision-writes.test.ts` scans `remission-dispatch.ts` and `solicitud-decision.ts`, so it ships with S3 (it failed on S2 alone). `.env.example` lines (`RESEND_API_KEY=`, `MAIL_FROM=`) could not be added: the file is outside the apply agent's permissions; the owner adds them with S2.
 
@@ -149,6 +151,17 @@ Gates at S5 head 0ef2afd: `npm test` 228 files, 4,922 tests passed; `npm run typ
 
 Decisions: (1) token route answers 403 only for `debeCambiarClave`; every non-reviewer role gets the uniform `400 not_allowed` (spec reading); (2) action denials are all `not_allowed`, `not_found` means the stored file is missing; (3) a file already referenced by any document row is never deleted by the attach (student evidence), and a unique-violation backstop keeps the file; (4) "marked + format sends only the format" is covered at dispatch level by the existing `remission-dispatch.test.ts`, not duplicated in the action test; (5) i18n RED for the upload keys was written before the keys but not executed on its own.
 
+## S6 additions (unit 8 UI, Strict TDD)
+
+Branch `feat/teacher-remission-s6-special-format-ui` from the S5 head 734a262 (the UI commit was re-applied with cherry-pick because the unrelated working-tree changes blocked `git rebase`). Measured 586 authored lines vs 734a262 (same exclusions).
+
+| Task | Test file (tests) | Layer | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-------------------|-------|-----|-------|-------------|----------|
+| 9.7 | `special-format-upload.test.tsx` (14, new); `remission-section.test.tsx` (+3); `page.test.tsx` (+3); `review-messages.test.ts` (+2 cases) | Component, page, catalogs | Written first (module missing; page tests broke when two existing i18n keys were removed by mistake, then restored) | 589/589 on review + i18n | refused empty/oversize/type, 4 server answers, store refusal, es alert, attached format, marked/unmarked/with format on the page | Clean |
+| 9.9 | `design-system.test.tsx` (+2) | Component (class-level pins, as 8.8) | n/a: pins, pass on arrival | 35/35 | button 44 px + full width at 360 px, hidden input, catalog alert, attached link wraps | Clean |
+
+Gates at the S6 head: `npm test` 229 files, 4,946 tests passed; typecheck clean; eslint only the CRLF `Delete` noise; prettier `--end-of-line auto` clean; `npm run build` compiled. No database command run. 9.10 PRs and 9.11 owner walk remain.
+
 ## Deviations and decisions
 
 1. **Re-sliced into four PRs** (no size exception): unit 6 (cron) is the first commit of S4, see Delivery.
@@ -159,7 +172,7 @@ Decisions: (1) token route answers 403 only for `debeCambiarClave`; every non-re
 6. **Completions build their own audit events** in `remision.ts` (same transaction), and `dispatchRemission` returns an outcome (`sent`, `failed`, `blocked`, `skipped`, `lost`) for the S2 resend action. Missing approving secretary or request data throws `remission_actor_missing` / `remission_request_missing`: the claim is left to expire and the retry runs again; contained by `dispatchRemissions`.
 7. **Payload of `decideAction` is unchanged** in S1: the zod schema strips `formatoEspecial`, so the mark cannot be sent until the S2 dialog and passthrough (task 8.7). The backend path (validation, rollback for another cause, blocked rows, redirect to the detail) is complete and tested.
 8. **`.env.example` not updated** (task 3.5): the file is outside the apply agent's permissions. The owner adds `RESEND_API_KEY=` and `MAIL_FROM=` lines.
-10. **S4 cut (no size exception)**: after unit 7 the S4 diff is 1,709 of 2,000 lines and unit 8 (RN-19 upload) is ~1,200, so unit 8 moved to S5. Until S5 merges, a marked approval stays blocked with `formato_especial_faltante` and the detail shows that reason; the mark is reachable from the dialog now.
+10. **S4 cut (no size exception)**: after unit 7 the S4 diff is 1,709 of 2,000 lines and unit 8 (RN-19 upload) is ~1,200, so unit 8 moved to S5 (and its UI later to S6). Until S6 merges, a marked approval stays blocked with `formato_especial_faltante` and the detail shows that reason; the mark is reachable from the dialog now.
 11. **Resend authorization**: `authorizeResend` (in `remision.ts`) joins the request and applies `requestInScope`, so an unknown id and an out-of-scope id give the same `null`; it writes `remision.reenviada` (state before the attempt) only when the remission is not `enviada`. Its audit row is committed before the send, so a resend that finds the claim held still leaves the row.
 12. **Resend outcome**: the action returns `{ ok, estado, motivo }` (not only `estado`) so the control can say what happened without revalidating the page (SR-11). `skipped` and `lost` map to `pendiente`.
 13. **Student views**: the section is built only in `review/[id]/page.tsx` (staff, `requireRole(...rolesRevisores)`); the student detail and list do not import `listRemissions`, so the teacher email never reaches them.
@@ -167,14 +180,17 @@ Decisions: (1) token route answers 403 only for `debeCambiarClave`; every non-re
 
 ## Risks
 
-- Every slice is within 2,000 lines (S4 measured 1,709; S5 is an estimate of ~1,200).
+- Every slice is within 2,000 lines, all measured (largest S3 at 1,897; S5 1,470; S6 586).
 - Gates were run per slice (typecheck + focused tests); `npm test` at the S3 head: 221 files, 4,749 tests (one unrelated flaky catalog import-form test failed once under load and passed on rerun); at the S4 head: 226 files, 4,850 tests.
 - The concurrency test and the real mail send are unproven until the owner runs 4.11 and the Resend domain exists.
-- With S4: the dialog marks an approval and the cron plus "Reenviar" retry pending remissions. Until S5 there is no way to upload the format, so a marked approval stays blocked.
-- `.env.example` shows as modified in the working tree; it is not part of any commit of this apply.
+- With S4: the dialog marks an approval and the cron plus "Reenviar" retry pending remissions. Until S6 merges there is no upload control, so a marked approval stays blocked.
+- `.env.example` shows as modified in the working tree; it is not part of any commit of this apply. The owner commits the `RESEND_API_KEY=` and `MAIL_FROM=` lines on S2 (task 3.5) and confirms the file holds exactly those lines before the mail rollout.
 - `after()` is cut off at the function duration; the 10-minute lease plus the daily cron (S2) are the recovery path.
 
 ## Remaining
 
-- S5: phase 9 (RN-19 upload) on `feat/teacher-remission-s5-special-format`.
-- 4.11 (owner confirmations and integration run), 6.4 (open the S1 PR to the tracker once the size decision is made), phase 7 (owner-run migration), archive phase 10.
+- 4.11 (owner confirmations, then the opt-in integration run on a disposable Neon branch).
+- 6.4 and the PR part of 9.10: open the six chain PRs S1-S6 to the tracker (gates already green on the S6 head).
+- Phase 7 (owner-run migration 0009 and mail rollout) and 9.11 (owner walk on a disposable branch).
+- `.env.example` mail vars (`RESEND_API_KEY=`, `MAIL_FROM=`): pending commit on S2 by the owner.
+- Phase 10: spec sync, roadmap, archive.

@@ -1,8 +1,9 @@
 import { cn } from "cn";
 import { useFormatter, useTranslations } from "next-intl";
 
-import { ResendRemissionButton } from "@/app/(dashboard)/review/[id]/resend-remission-button";
 import { Fact, Section } from "@/app/(dashboard)/review/[id]/request-sections";
+import { ResendRemissionButton } from "@/app/(dashboard)/review/[id]/resend-remission-button";
+import { SpecialFormatUpload } from "@/app/(dashboard)/review/[id]/special-format-upload";
 import type { RemissionView } from "@/lib/data/remision";
 import type { RemissionState } from "@/lib/remission/states";
 import type { RevisionClase } from "@/db/schema";
@@ -26,10 +27,16 @@ const ALERT =
 export function RemissionSection({
   remissions,
   unassigned,
+  specialFormat,
 }: {
   remissions: readonly RemissionView[];
   /** Groups of the request that have no teacher: nothing is sent for them. */
   unassigned: readonly RevisionClase[];
+  /** Present when the approval was marked for the RN-19 format. */
+  specialFormat?: {
+    solicitudId: number;
+    attached: { id: number; nombreOriginal: string } | null;
+  };
 }) {
   const t = useTranslations("review.remission");
   const notSet = useTranslations("review.detail")("notSet");
@@ -90,6 +97,11 @@ export function RemissionSection({
           </li>
         ))}
       </ul>
+      {specialFormat ? (
+        <div className="border-border border-t pt-6">
+          <SpecialFormatUpload {...specialFormat} />
+        </div>
+      ) : null}
       {unassigned.length > 0 ? (
         <p className="text-muted-foreground text-sm">
           {t("noTeacher", { groups: unassigned.map(group).join("; ") })}

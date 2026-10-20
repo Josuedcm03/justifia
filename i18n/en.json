@@ -1065,6 +1065,24 @@
         "error_envio": "The email could not be sent. It will be retried automatically, or you can resend it now."
       },
       "noTeacher": "No teacher is identified for: {groups}. No notice is sent for those subjects.",
+      "upload": {
+        "title": "Signed special format",
+        "hint": "Upload the format signed and stamped by coordination (PDF, PNG or JPEG, up to {size} MB). The teachers receive it instead of the student's documents. It cannot be replaced afterwards.",
+        "action": "Upload the signed format",
+        "uploading": "Uploading {name}...",
+        "sending": "The format was attached. Sending to the teachers is in progress; reload the page to see the result.",
+        "attached": "Signed format on file",
+        "errors": {
+          "not_allowed": "This request does not accept a special format.",
+          "not_found": "The file was not found after the upload. Try again.",
+          "already_attached": "A format is already attached to this request. It cannot be replaced.",
+          "empty_file": "The file is empty.",
+          "too_large": "The file is larger than 10 MB.",
+          "unsupported_format": "Unsupported format. Upload a PDF, PNG or JPEG.",
+          "upload_failed": "The upload failed. Check the connection and try again.",
+          "unexpected": "The format could not be attached. Try again."
+        }
+      },
       "resend": {
         "action": "Resend",
         "actionNamed": "Resend the notice to {name}",

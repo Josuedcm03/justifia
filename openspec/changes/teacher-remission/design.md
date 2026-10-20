@@ -429,6 +429,22 @@ entry; a `[CONFIRM]` down-migration drops `Remision` and the three new columns
 (staff-uploaded format blobs remain under `intake/{id}/` and are swept as
 orphans once their rows are gone); requests and decisions are untouched.
 
+## Accepted deviations during apply
+
+Recorded in `apply-progress.md` (Deviations and decisions; S5 decisions) and
+confirmed by verify on 2026-10-19 (pass with warnings). The TR text above is
+unchanged; where they differ, the code follows this table.
+
+| TR | Deviation | Reason |
+|---|---|---|
+| TR-5, TR-8 (task 5.1) | A marked approval does not schedule `after()`; also skipped when the approval created no remission | Every row of a marked approval is born `bloqueada` (`sin_correo` or `formato_especial_faltante`) and `aprobacion` claims only `pendiente`, so the dispatch is a provable no-op; the format upload (TR-15) dispatches the unblocked rows |
+| TR-6 | A `not_configured` send gives the claim's attempt back (`Intentos - 1`) | Otherwise rows burn the automatic-attempt cap (8) while the mail env is unset and the cron never takes over after the rollout; pinned by `remision.test.ts` |
+| TR-9 (task 3.2) | The Resend adapter maps `408`, `409` and `429` to `unavailable`; every other `4xx` is `rejected` | All three clear on a later attempt (lease or key expiry, rate or quota reset); both outcomes leave the row `pendiente` with `error_envio`, only the audit `codigo` differs |
+| TR-10 | The opening reads "por motivos {causa}" (shared `CAUSE_PHRASES`), not "por {causa}" | Wording only; subject, `RN18_WARNING`, `RN18_DISCRETION_NOTE` and the closing stay verbatim |
+| TR-11 | `resendRemissionAction` returns `{ ok, estado, motivo }`, not only `estado`; `skipped` and `lost` map to `pendiente` | The control says what happened without revalidating the page (SR-11) |
+| TR-15 (token) | The token route answers `403` only for `debeCambiarClave` (`401` when unauthenticated); every non-reviewer role and every request-related failure gets the uniform `400 not_allowed` | Spec reading of RNF-01: one answer, no existence or role oracle |
+| TR-15 (attach) | The attach never deletes a file already referenced by any document row (student evidence); the unique-violation backstop keeps the file. Action denials are all `not_allowed`; `not_found` means the stored file is missing | A best-effort delete must never remove evidence another row points to |
+
 ## Open Questions
 
 - [ ] Delivery: the estimate (~3,270 lines) exceeds the 2,000-line single-PR
