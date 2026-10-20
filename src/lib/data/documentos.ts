@@ -202,49 +202,79 @@ export async function finalizeDocument(
   }
   const claimId = claim.documentId;
 
-  let head: Awaited<ReturnType<DocumentStore["readHead"]>>;
+  let inspection: StoredFileInspection;
   try {
-    head = await store.readHead(pathname, SIGNATURE_HEAD_BYTES);
+    inspection = await inspectStoredFile(pathname, store);
   } catch (error) {
     await db.delete(documentoRespaldo).where(eq(documentoRespaldo.id, claimId));
     throw error;
   }
 
-  if (head === null) {
+  if (!inspection.ok && inspection.reason === "not_found") {
     await db.delete(documentoRespaldo).where(eq(documentoRespaldo.id, claimId));
     return { ok: false, reason: "not_found" };
   }
-
-  const refusal = refusalFor(head);
-  if (refusal !== null) {
+  if (!inspection.ok) {
     return reject(
-      { userId, solicitudId, pathname, reason: refusal, claimId },
+      { userId, solicitudId, pathname, reason: inspection.reason, claimId },
       store,
     );
   }
-  const tipo = detectSignature(head.head) as TipoDetectado;
+  const { tipo, size } = inspection;
 
   await db.transaction(async (tx) => {
     await tx
       .update(documentoRespaldo)
-      .set({ estado: "valido", tipoDetectado: tipo, tamanoBytes: head.size })
+      .set({ estado: "valido", tipoDetectado: tipo, tamanoBytes: size })
       .where(eq(documentoRespaldo.id, claimId));
     await insertAuditEvents(tx, userId, [
       documentAttachedEvent({
         documentoId: claimId,
         solicitudId,
         tipo,
-        tamanoBytes: head.size,
+        tamanoBytes: size,
       }),
     ]);
   });
   return { ok: true, documentId: claimId, tipo };
 }
 
+/** What the stored bytes of an uploaded file say about it (RN-04, D3). */
+export type StoredFileInspection =
+  | { ok: true; tipo: TipoDetectado; size: number }
+  | { ok: false; reason: InspectionRefusal };
+
+type InspectionRefusal = Extract<
+  DocumentRejectionReason,
+  "not_found" | "empty_file" | "too_large" | "unsupported_format"
+>;
+
+/**
+ * Reads the head of a stored file and decides what it really is: never the
+ * client type or the upload callback. Shared by the student finalize and the
+ * staff special-format attach. A store failure throws; it is the caller's job
+ * to clean up whatever it claimed before reading.
+ */
+export async function inspectStoredFile(
+  pathname: string,
+  store: DocumentStore,
+): Promise<StoredFileInspection> {
+  const head = await store.readHead(pathname, SIGNATURE_HEAD_BYTES);
+  if (head === null) return { ok: false, reason: "not_found" };
+
+  const refusal = refusalFor(head);
+  if (refusal !== null) return { ok: false, reason: refusal };
+  return {
+    ok: true,
+    tipo: detectSignature(head.head) as TipoDetectado,
+    size: head.size,
+  };
+}
+
 function refusalFor(head: {
   size: number;
   head: Uint8Array;
-}): DocumentRejectionReason | null {
+}): Exclude<InspectionRefusal, "not_found"> | null {
   if (head.size === 0) return "empty_file";
   if (head.size > MAX_DOCUMENT_BYTES) return "too_large";
   if (detectSignature(head.head) === null) return "unsupported_format";

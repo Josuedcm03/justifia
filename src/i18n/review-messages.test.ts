@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { templateKey } from "@/app/(dashboard)/review/template-key";
 import { DECISION_TEMPLATES } from "@/lib/intake/decision-templates";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
+import { REMISSION_REASONS, REMISSION_STATES } from "@/lib/remission/states";
 
 import en from "../../i18n/en.json";
 import es from "../../i18n/es.json";
@@ -120,5 +121,72 @@ describe("review messages", () => {
     const errors = m.review.decision.errors as Record<string, string>;
 
     for (const code of codes) expect(errors[code], code).toBeTruthy();
+  });
+
+  it.each(catalogs)(
+    "%s words the remission section, its states, reasons and resend",
+    (_l, m) => {
+      const r = m.review.remission;
+
+      for (const state of REMISSION_STATES) {
+        expect((r.states as Record<string, string>)[state], state).toBeTruthy();
+      }
+      for (const reason of REMISSION_REASONS) {
+        expect(
+          (r.reasons as Record<string, string>)[reason],
+          reason,
+        ).toBeTruthy();
+      }
+      for (const text of [
+        r.title,
+        r.noTeacher,
+        r.resend.action,
+        r.resend.pending,
+        r.resend.result.enviada,
+        r.resend.result.pendiente,
+        r.resend.result.bloqueada,
+        r.resend.errors.not_found,
+        r.resend.errors.unexpected,
+      ]) {
+        expect(text).toBeTruthy();
+      }
+    },
+  );
+
+  it.each(catalogs)(
+    "%s words the special-format upload and every error it can show",
+    (_l, m) => {
+      const u = m.review.remission.upload;
+
+      for (const code of [
+        "not_allowed",
+        "not_found",
+        "already_attached",
+        "empty_file",
+        "too_large",
+        "unsupported_format",
+        "upload_failed",
+        "unexpected",
+      ]) {
+        expect((u.errors as Record<string, string>)[code], code).toBeTruthy();
+      }
+      for (const text of [
+        u.title,
+        u.hint,
+        u.action,
+        u.uploading,
+        u.sending,
+        u.attached,
+      ]) {
+        expect(text).toBeTruthy();
+      }
+    },
+  );
+
+  it.each(catalogs)("%s words the RN-19 special-format mark", (_l, m) => {
+    const mark = m.review.decision.approve.specialFormat;
+
+    expect(mark.label).toBeTruthy();
+    expect(mark.hint).toBeTruthy();
   });
 });

@@ -13,6 +13,7 @@ import {
   timestamp,
   unique,
   uniqueIndex,
+  uuid,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -22,6 +23,12 @@ import { DECISION_KINDS } from "@/lib/intake/decision-templates";
 import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { ESTADOS_SOLICITUD } from "@/lib/intake/states";
+import {
+  REMISSION_REASONS,
+  REMISSION_STATES,
+  type RemissionReason,
+  type RemissionState,
+} from "@/lib/remission/states";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 /**
@@ -253,6 +260,9 @@ export const solicitud = pgTable(
     // Set on each resubmission after a return (RF-08); `PresentadaEn` keeps the
     // first presentation (secretary-review, SR-1).
     reenviadaEn: timestamp("ReenviadaEn", { withTimezone: true }),
+    // RN-19: the secretary marked the approval as a special-format case; the
+    // signed format is uploaded afterwards (teacher-remission, TR-1).
+    formatoEspecial: boolean("FormatoEspecial").notNull().default(false),
     estudianteNombre: varchar("EstudianteNombre", { length: 160 }),
     estudianteCif: varchar("EstudianteCif", { length: 20 }),
     estudianteCarrera: varchar("EstudianteCarrera", { length: 160 }),
@@ -283,6 +293,10 @@ export const solicitud = pgTable(
       sql`${t.reenviadaEn} IS NULL OR (${t.presentadaEn} IS NOT NULL AND ${t.reenviadaEn} >= ${t.presentadaEn})`,
     ),
     // The review queue: pending requests by effective start (SR-1).
+    check(
+      "CK_Solicitud_FormatoEspecial",
+      sql`NOT ${t.formatoEspecial} OR (${t.estado} = 'aprobada' AND ${t.causa} = 'fuerza_mayor')`,
+    ),
     index("IX_Solicitud_Cola")
       .on(sql`coalesce(${t.reenviadaEn}, ${t.presentadaEn})`, t.id)
       .where(sql`${t.estado} = 'pendiente'`),
@@ -346,6 +360,12 @@ export const documentoRespaldo = pgTable(
     // Soft retirement during a correction: the row and blob stay visible to
     // staff and leave the five-document cap (secretary-review, SR-1).
     retiradoEn: timestamp("RetiradoEn", { withTimezone: true }),
+    // Staff upload (teacher-remission, TR-16): NULL = uploaded by the student.
+    // `FormatoEspecial` marks the signed RN-19 format and is tied to it.
+    subidoPorId: bigint("SubidoPorId", { mode: "number" }).references(
+      () => usuario.id,
+    ),
+    formatoEspecial: boolean("FormatoEspecial").notNull().default(false),
     creadoEn: timestamp("CreadoEn", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -368,6 +388,14 @@ export const documentoRespaldo = pgTable(
       "CK_Documento_Validado",
       sql`${t.estado} = 'pendiente' OR ${t.tipoDetectado} IS NOT NULL`,
     ),
+    check(
+      "CK_Documento_FormatoEspecial",
+      sql`${t.formatoEspecial} = (${t.subidoPorId} IS NOT NULL) AND (NOT ${t.formatoEspecial} OR ${t.estado} = 'valido')`,
+    ),
+    // At most one signed format per request (TR-1).
+    uniqueIndex("UX_Documento_FormatoEspecial")
+      .on(t.solicitudId)
+      .where(sql`${t.formatoEspecial}`),
     index("IX_Documento_Solicitud").on(t.solicitudId),
   ],
 );
@@ -482,3 +510,84 @@ export const solicitudDecision = pgTable(
 
 export type SolicitudDecision = typeof solicitudDecision.$inferSelect;
 export type NuevaSolicitudDecision = typeof solicitudDecision.$inferInsert;
+
+/**
+ * Remision — one delivery of an approved justification to one teacher
+ * (teacher-remission, TR-1): a transactional outbox row created in the
+ * approval's transaction. Teacher id, name, email and groups are a snapshot
+ * taken at approval. Not append-only: it is a state machine, so every write
+ * goes through `src/lib/data/remision.ts` (pinned by a structural test). The
+ * claim columns make each send at-most-once under concurrency (TR-6). No
+ * cascade: a decided request is never deleted.
+ */
+export const remision = pgTable(
+  "Remision",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    solicitudId: bigint("SolicitudId", { mode: "number" })
+      .notNull()
+      .references(() => solicitud.id),
+    docenteId: bigint("DocenteId", { mode: "number" })
+      .notNull()
+      .references(() => usuario.id),
+    docenteNombre: varchar("DocenteNombre", { length: 160 }).notNull(),
+    correo: varchar("Correo", { length: 160 }),
+    clases: jsonb("Clases").$type<RevisionClase[]>().notNull(),
+    estado: varchar("Estado", { length: 20 })
+      .$type<RemissionState>()
+      .notNull()
+      .default("pendiente"),
+    motivoCodigo: varchar("MotivoCodigo", {
+      length: 40,
+    }).$type<RemissionReason>(),
+    intentos: smallint("Intentos").notNull().default(0),
+    reclamoId: uuid("ReclamoId"),
+    reclamadaEn: timestamp("ReclamadaEn", { withTimezone: true }),
+    enviadaEn: timestamp("EnviadaEn", { withTimezone: true }),
+    proveedorMensajeId: varchar("ProveedorMensajeId", { length: 100 }),
+    creadaEn: timestamp("CreadaEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    actualizadaEn: timestamp("ActualizadaEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("UQ_Remision_SolicitudDocente").on(t.solicitudId, t.docenteId),
+    check(
+      "CK_Remision_Estado",
+      sql`${t.estado} IN (${inList(REMISSION_STATES)})`,
+    ),
+    check(
+      "CK_Remision_Motivo",
+      sql`${t.motivoCodigo} IS NULL OR ${t.motivoCodigo} IN (${inList(REMISSION_REASONS)})`,
+    ),
+    check(
+      "CK_Remision_Enviada",
+      sql`(${t.estado} = 'enviada') = (${t.enviadaEn} IS NOT NULL)`,
+    ),
+    check(
+      "CK_Remision_MotivoEstado",
+      sql`(${t.estado} <> 'enviada' OR ${t.motivoCodigo} IS NULL) AND (${t.estado} <> 'bloqueada' OR (${t.motivoCodigo} IS NOT NULL AND ${t.motivoCodigo} <> 'error_envio')) AND (${t.estado} <> 'pendiente' OR ${t.motivoCodigo} IS NULL OR ${t.motivoCodigo} = 'error_envio')`,
+    ),
+    check(
+      "CK_Remision_Correo",
+      sql`${t.correo} IS NOT NULL OR ${t.motivoCodigo} = 'sin_correo'`,
+    ),
+    check(
+      "CK_Remision_Reclamo",
+      sql`(${t.reclamoId} IS NULL) = (${t.reclamadaEn} IS NULL)`,
+    ),
+    check("CK_Remision_Intentos", sql`${t.intentos} >= 0`),
+    // The retry job reads pending rows oldest first (TR-12).
+    index("IX_Remision_Pendiente")
+      .on(t.creadaEn, t.id)
+      .where(sql`${t.estado} = 'pendiente'`),
+    index("IX_Remision_Solicitud").on(t.solicitudId),
+  ],
+);
+
+export type Remision = typeof remision.$inferSelect;
+export type NuevaRemision = typeof remision.$inferInsert;

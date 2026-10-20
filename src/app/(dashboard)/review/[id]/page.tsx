@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
+import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
 import {
   ChangesSection,
   DocumentsSection,
@@ -16,6 +17,7 @@ import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesRevisores } from "@/lib/auth/permissions";
+import { listRemissions } from "@/lib/data/remision";
 import { recordRequestRead } from "@/lib/data/request-reads";
 import { resolveRequestScope } from "@/lib/data/request-scope";
 import {
@@ -119,6 +121,10 @@ export default async function ReviewDetailPage({
       : null;
   const templatesFor = pending ? renderedTemplates(detail) : null;
   const changes = changesSinceReturn(detail);
+  // The remissions exist only once the request is approved (RF-09 c). They are
+  // loaded with the rest, before the single audited read below.
+  const remissions =
+    detail.estado === "aprobada" ? await listRemissions(detail.id) : null;
 
   await recordRequestRead(actorId, detail.id, detail.estado);
 
@@ -186,6 +192,23 @@ export default async function ReviewDetailPage({
         <StudentSection student={detail.estudiante} />
         <SubjectsSection classes={detail.clases} />
         <DocumentsSection documents={detail.documentos} />
+        {remissions ? (
+          <RemissionSection
+            remissions={remissions}
+            unassigned={detail.clases.filter((c) => c.docenteNombre === null)}
+            specialFormat={
+              detail.formatoEspecial
+                ? {
+                    solicitudId: detail.id,
+                    attached: detail.formato && {
+                      id: detail.formato.id,
+                      nombreOriginal: detail.formato.nombreOriginal,
+                    },
+                  }
+                : undefined
+            }
+          />
+        ) : null}
         <HistorySection
           decisions={detail.decisiones}
           revisions={detail.revisiones}
@@ -202,6 +225,7 @@ export default async function ReviewDetailPage({
                   key={kind}
                   kind={kind}
                   solicitudId={detail.id}
+                  causa={detail.causa}
                   templates={templatesFor(kind)}
                 />
               ))}

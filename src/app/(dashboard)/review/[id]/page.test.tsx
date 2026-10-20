@@ -20,6 +20,7 @@ const {
   scopeMock,
   detailMock,
   readMock,
+  remissionsMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -32,6 +33,7 @@ const {
   scopeMock: vi.fn(),
   detailMock: vi.fn(),
   readMock: vi.fn(),
+  remissionsMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -48,6 +50,10 @@ vi.mock("@/lib/data/solicitud-detail", () => ({
   getRequestDetail: detailMock,
 }));
 vi.mock("@/lib/data/request-reads", () => ({ recordRequestRead: readMock }));
+vi.mock("@/lib/data/remision", () => ({ listRemissions: remissionsMock }));
+vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
+  resendRemissionAction: vi.fn(),
+}));
 vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
   decideAction: vi.fn(),
 }));
@@ -98,6 +104,8 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
       },
     ],
     documentosRetirados: [],
+    formatoEspecial: false,
+    formato: null,
     decisiones: [],
     revisiones: [],
     ...overrides,
@@ -142,6 +150,8 @@ beforeEach(() => {
   detailMock.mockResolvedValue(detail());
   readMock.mockReset();
   readMock.mockResolvedValue(undefined);
+  remissionsMock.mockReset();
+  remissionsMock.mockResolvedValue([]);
 });
 
 describe("ReviewDetailPage access (RNF-01)", () => {
@@ -762,5 +772,156 @@ describe("ReviewDetailPage audited read (SR-11)", () => {
     readMock.mockRejectedValue(new Error("audit down"));
 
     await expect(renderPage()).rejects.toThrow("audit down");
+  });
+});
+
+describe("ReviewDetailPage remission section (RF-09 c)", () => {
+  const REMISSION = {
+    id: 31,
+    docenteNombre: "Pedro Ruiz",
+    correo: "pedro@uam.edu.ni",
+    clases: [
+      {
+        asignaturaId: 1,
+        codigo: "MAT-101",
+        nombre: "Calculo",
+        numeroGrupo: "2",
+      },
+    ],
+    estado: "bloqueada",
+    motivoCodigo: "formato_especial_faltante",
+    enviadaEn: null,
+    intentos: 0,
+  };
+
+  it("lists the remissions of an approved request, with the unassigned groups", async () => {
+    detailMock.mockResolvedValue(detail({ estado: "aprobada" }));
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    expect(remissionsMock).toHaveBeenCalledWith(12);
+    const section = screen.getByRole("region", {
+      name: messages.en.review.remission.title,
+    });
+    expect(within(section).getByText("Pedro Ruiz")).toBeInTheDocument();
+    expect(within(section).getByText("pedro@uam.edu.ni")).toBeInTheDocument();
+    expect(
+      within(section).getByText(/No teacher is identified for: FIS-200/),
+    ).toBeInTheDocument();
+  });
+
+  it("offers the signed-format upload on a marked approval that has no format", async () => {
+    detailMock.mockResolvedValue(
+      detail({ estado: "aprobada", formatoEspecial: true }),
+    );
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    const section = screen.getByRole("region", {
+      name: messages.en.review.remission.title,
+    });
+    expect(
+      within(section).getByRole("button", {
+        name: messages.en.review.remission.upload.action,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the uploaded format by name, apart from the student's documents", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "aprobada",
+        formatoEspecial: true,
+        formato: { id: 30, nombreOriginal: "firmado.pdf" },
+      }),
+    );
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    const section = screen.getByRole("region", {
+      name: messages.en.review.remission.title,
+    });
+    expect(
+      within(section).getByRole("link", { name: "firmado.pdf" }),
+    ).toHaveAttribute("href", "/api/intake/documents/30");
+    expect(
+      within(section).queryByRole("button", {
+        name: messages.en.review.remission.upload.action,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no upload for an approval that was not marked", async () => {
+    detailMock.mockResolvedValue(detail({ estado: "aprobada" }));
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    expect(
+      screen.queryByRole("button", {
+        name: messages.en.review.remission.upload.action,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("loads the remissions before the audited read and adds no audit row of its own", async () => {
+    detailMock.mockResolvedValue(detail({ estado: "aprobada" }));
+
+    await renderPage();
+
+    expect(remissionsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      readMock.mock.invocationCallOrder[0],
+    );
+    expect(readMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["devuelta", "pendiente", "rechazada"])(
+    "shows no section and reads no remission for a %s request",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+
+      await renderPage();
+
+      expect(remissionsMock).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("region", {
+          name: messages.en.review.remission.title,
+        }),
+      ).not.toBeInTheDocument();
+    },
+  );
+});
+
+describe("ReviewDetailPage special-format mark (RN-19)", () => {
+  const mark = messages.en.review.decision.approve.specialFormat;
+
+  async function openApprove() {
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: messages.en.review.decision.approve.trigger,
+      }),
+    );
+    return screen.findByRole("alertdialog");
+  }
+
+  it("offers the mark in the approve dialog of a fuerza_mayor request", async () => {
+    detailMock.mockResolvedValue(detail({ causa: "fuerza_mayor" }));
+
+    await renderPage();
+    const dialog = await openApprove();
+
+    expect(
+      within(dialog).getByRole("checkbox", { name: mark.label }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer the mark for another cause", async () => {
+    await renderPage();
+    const dialog = await openApprove();
+
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
   });
 });

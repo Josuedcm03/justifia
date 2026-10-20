@@ -240,6 +240,54 @@
       "sessions": 0,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "f01132e6",
+      "created_by": "Arnia",
+      "created_at": "2026-10-19T17:00:51Z",
+      "sessions": 1,
+      "memories": 21,
+      "prompts": 0
+    },
+    {
+      "id": "ad7fd29a",
+      "created_by": "Arnia",
+      "created_at": "2026-10-19T18:15:52Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "febc72f1",
+      "created_by": "Arnia",
+      "created_at": "2026-10-19T18:33:03Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "8a235936",
+      "created_by": "Arnia",
+      "created_at": "2026-10-19T18:42:57Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "02a17d29",
+      "created_by": "Arnia",
+      "created_at": "2026-10-19T19:10:48Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "e9dd76b4",
+      "created_by": "Arnia",
+      "created_at": "2026-10-20T16:23:41Z",
+      "sessions": 1,
+      "memories": 3,
+      "prompts": 0
     }
   ]
 }

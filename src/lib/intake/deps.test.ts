@@ -13,6 +13,11 @@ const { listGrupoDiasMock } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/data/grupo-dias", () => ({ listGrupoDias: listGrupoDiasMock }));
 
+const { createMailMock } = vi.hoisted(() => ({ createMailMock: vi.fn() }));
+vi.mock("@/lib/intake/adapters/resend-mail-sender", () => ({
+  createResendMailSender: createMailMock,
+}));
+
 import { encodeDias } from "@/lib/catalog/dias";
 import { getIntakeDeps } from "@/lib/intake/deps";
 
@@ -20,6 +25,7 @@ describe("getIntakeDeps", () => {
   beforeEach(() => {
     createStoreMock.mockReset();
     listGrupoDiasMock.mockReset();
+    createMailMock.mockReset();
   });
 
   it("wires the Vercel Blob store behind the DocumentStore port", () => {
@@ -44,6 +50,21 @@ describe("getIntakeDeps", () => {
 
     expect([...groups]).toEqual([1]);
     expect(listGrupoDiasMock).toHaveBeenCalledWith([1, 2]);
+  });
+
+  it("wires the Resend adapter behind the MailSender port", () => {
+    const mail = { tag: "resend" };
+    createStoreMock.mockReturnValue({});
+    createMailMock.mockReturnValue(mail);
+
+    expect(getIntakeDeps().mail).toBe(mail);
+  });
+
+  it("still builds with the mail configuration unset (checked at send)", () => {
+    createStoreMock.mockReturnValue({});
+    createMailMock.mockReturnValue({});
+
+    expect(() => getIntakeDeps()).not.toThrow();
   });
 
   it("propagates a missing store configuration instead of degrading", () => {

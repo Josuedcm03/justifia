@@ -21,6 +21,7 @@ import {
   documentDownloadedEvent,
   documentRejectedEvent,
   documentRemovedEvent,
+  documentoFormatoEspecialEvent,
   documentoRetiradoEvent,
   grupoActiveChangedEvent,
   grupoCreatedEvent,
@@ -28,6 +29,11 @@ import {
   grupoWriteEvents,
   importAppliedEvent,
   MANUAL_ORIGIN,
+  remisionBloqueadaEvent,
+  remisionCreadaEvent,
+  remisionEnviadaEvent,
+  remisionFallidaEvent,
+  remisionReenviadaEvent,
   solicitudColaConsultadaEvent,
   solicitudConsultadaEvent,
   solicitudCorregidaEvent,
@@ -1038,5 +1044,189 @@ describe("review event builders (RF-07, RF-08, RNF-06, RN-02)", () => {
         documentos: 1,
       }).datos,
     ).toEqual({ asignaturas: 2, documentos: 1 });
+  });
+});
+
+describe("remission event builders (RF-09 c, RNF-06, RNF-07)", () => {
+  type Case = {
+    name: string;
+    event: AuditEvent;
+    accion: string;
+    entidadTipo: string;
+    entidadId: number;
+    datos: Record<string, unknown>;
+  };
+
+  const cases: Case[] = [
+    {
+      name: "creation of a pending remission",
+      event: remisionCreadaEvent({
+        remisionId: 11,
+        solicitudId: 41,
+        estado: "pendiente",
+      }),
+      accion: "remision.creada",
+      entidadTipo: "Remision",
+      entidadId: 11,
+      datos: { solicitudId: 41, estado: "pendiente" },
+    },
+    {
+      name: "creation of a blocked remission",
+      event: remisionCreadaEvent({
+        remisionId: 12,
+        solicitudId: 41,
+        estado: "bloqueada",
+        motivo: "sin_correo",
+      }),
+      accion: "remision.creada",
+      entidadTipo: "Remision",
+      entidadId: 12,
+      datos: { solicitudId: 41, estado: "bloqueada", motivo: "sin_correo" },
+    },
+    {
+      name: "successful send",
+      event: remisionEnviadaEvent({
+        remisionId: 13,
+        solicitudId: 41,
+        origen: "aprobacion",
+        intentos: 1,
+        adjuntos: 2,
+      }),
+      accion: "remision.enviada",
+      entidadTipo: "Remision",
+      entidadId: 13,
+      datos: {
+        solicitudId: 41,
+        origen: "aprobacion",
+        intentos: 1,
+        adjuntos: 2,
+      },
+    },
+    {
+      name: "failed send",
+      event: remisionFallidaEvent({
+        remisionId: 14,
+        solicitudId: 41,
+        origen: "reintento_automatico",
+        intentos: 3,
+        codigo: "unavailable",
+      }),
+      accion: "remision.fallida",
+      entidadTipo: "Remision",
+      entidadId: 14,
+      datos: {
+        solicitudId: 41,
+        origen: "reintento_automatico",
+        intentos: 3,
+        codigo: "unavailable",
+      },
+    },
+    {
+      name: "blocked remission",
+      event: remisionBloqueadaEvent({
+        remisionId: 15,
+        solicitudId: 41,
+        origen: "reenvio_manual",
+        motivo: "adjuntos_exceden_limite",
+      }),
+      accion: "remision.bloqueada",
+      entidadTipo: "Remision",
+      entidadId: 15,
+      datos: {
+        solicitudId: 41,
+        origen: "reenvio_manual",
+        motivo: "adjuntos_exceden_limite",
+      },
+    },
+    {
+      name: "manual resend",
+      event: remisionReenviadaEvent({
+        remisionId: 16,
+        solicitudId: 41,
+        estadoPrevio: "bloqueada",
+      }),
+      accion: "remision.reenviada",
+      entidadTipo: "Remision",
+      entidadId: 16,
+      datos: { solicitudId: 41, estadoPrevio: "bloqueada" },
+    },
+    {
+      name: "special-format upload",
+      event: documentoFormatoEspecialEvent({
+        documentoId: 77,
+        solicitudId: 41,
+        tipo: "pdf",
+        tamanoBytes: 20480,
+        remisionesDesbloqueadas: 2,
+      }),
+      accion: "documento.formato_especial",
+      entidadTipo: "DocumentoRespaldo",
+      entidadId: 77,
+      datos: {
+        solicitudId: 41,
+        tipo: "pdf",
+        tamanoBytes: 20480,
+        remisionesDesbloqueadas: 2,
+      },
+    },
+  ];
+
+  it.each(cases)(
+    "$name maps to $accion on $entidadTipo $entidadId",
+    ({ event, accion, entidadTipo, entidadId, datos }) => {
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe(entidadTipo);
+      expect(event.entidadId).toBe(entidadId);
+      expect(event.datos).toEqual(datos);
+      expect(AUDIT_ACTIONS).toContain(accion);
+    },
+  );
+
+  it("omits the reason key when a remission is created pending", () => {
+    expect(Object.keys(cases[0].event.datos)).not.toContain("motivo");
+    expect(Object.keys(cases[1].event.datos)).toContain("motivo");
+  });
+
+  it("no payload leaks an email, name, CIF, cause, file name, path, provider id or message text", () => {
+    for (const { event } of cases) {
+      const datos = event.datos as Record<string, unknown>;
+      expect(Object.keys(datos).length).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(datos)) {
+        expect(key).not.toMatch(
+          /texto$|nombre|cif|correo|email|fecha|causa|carrera|pathname|proveedor|mensaje|ids$/i,
+        );
+        expect(["number", "string"]).toContain(typeof value);
+        if (typeof value === "string") {
+          expect(value).toMatch(/^[a-z_]+$/);
+        }
+      }
+      expect(JSON.stringify(datos)).not.toMatch(
+        /\d{4}-\d{2}-\d{2}|@|\.pdf|intake\//,
+      );
+    }
+  });
+
+  it("a failure payload stays a closed code even when the provider error carried an email", () => {
+    // The builder accepts a closed code only; whatever the provider said is
+    // reduced to it by the dispatcher before this point.
+    const event = remisionFallidaEvent({
+      remisionId: 14,
+      solicitudId: 41,
+      origen: "aprobacion",
+      intentos: 1,
+      codigo: "rejected",
+    });
+    expect(JSON.stringify(event.datos)).toBe(
+      '{"solicitudId":41,"origen":"aprobacion","intentos":1,"codigo":"rejected"}',
+    );
+  });
+
+  it("leaves the existing document and request payloads unchanged", () => {
+    expect(
+      documentRejectedEvent({ solicitudId: 5, reason: "too_large" }).datos,
+    ).toEqual({ reason: "too_large" });
+    expect(
+      solicitudConsultadaEvent({ solicitudId: 5, estado: "aprobada" }).datos,
+    ).toEqual({ estado: "aprobada" });
   });
 });
