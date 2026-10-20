@@ -122,6 +122,8 @@ export async function getOwnRequestDetail(
           eq(documentoRespaldo.solicitudId, id),
           eq(documentoRespaldo.estado, "valido"),
           isNull(documentoRespaldo.retiradoEn),
+          // A staff upload (the RN-19 format) is not the student's evidence.
+          isNull(documentoRespaldo.subidoPorId),
         ),
       )
       .orderBy(asc(documentoRespaldo.id)),

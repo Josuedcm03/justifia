@@ -39,6 +39,7 @@ const requestRow = {
   estudianteCif: "2020-001",
   estudianteCarrera: "Ingenieria",
   estudianteCorreo: "ana@example.test",
+  formatoEspecial: false,
 };
 
 const classRow = {
@@ -57,6 +58,7 @@ function document(overrides: Record<string, unknown> = {}) {
     tipoDetectado: "pdf",
     tamanoBytes: 2048,
     retiradoEn: null,
+    formatoEspecial: false,
     creadoEn: new Date("2026-10-04T10:00:00.000Z"),
     ...overrides,
   };
@@ -192,6 +194,57 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
       "tamanoBytes",
       "tipoDetectado",
     ]);
+  });
+
+  it("shows the special format apart from the student's documents (RN-19)", async () => {
+    const [, classes, , decisions, revisions] = loaded();
+    use([
+      {
+        kind: "select",
+        rows: [
+          {
+            ...(requestRow as object),
+            estado: "aprobada",
+            formatoEspecial: true,
+          },
+        ],
+      },
+      classes,
+      {
+        kind: "select",
+        rows: [
+          document(),
+          document({
+            id: 30,
+            nombreOriginal: "formato.pdf",
+            formatoEspecial: true,
+          }),
+        ],
+      },
+      decisions,
+      revisions,
+    ]);
+
+    const detail = await getRequestDetail(SCOPE, ID);
+
+    expect(detail?.formatoEspecial).toBe(true);
+    expect(detail?.documentos.map((d) => d.id)).toEqual([11]);
+    expect(detail?.formato).toEqual({
+      id: 30,
+      nombreOriginal: "formato.pdf",
+      tipoDetectado: "pdf",
+      tamanoBytes: 2048,
+      creadoEn: new Date("2026-10-04T10:00:00.000Z"),
+    });
+  });
+
+  it("has no format and is not marked for an ordinary request", async () => {
+    use(loaded());
+
+    const detail = await getRequestDetail(SCOPE, ID);
+
+    expect(detail?.formatoEspecial).toBe(false);
+    expect(detail?.formato).toBeNull();
   });
 
   it("looks the request up by id inside the scope and the visible states", async () => {

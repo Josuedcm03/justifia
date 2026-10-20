@@ -194,6 +194,15 @@ describe("getOwnRequestDetail (RF-07 c, RF-08 b, RNF-01)", () => {
     expect(detail?.historial).toEqual([]);
   });
 
+  it("lists only the student's own documents, never a staff upload (RN-19)", async () => {
+    const double = use(loaded());
+
+    await getOwnRequestDetail(USER, ID);
+
+    const query = render(double.log[2].where);
+    expect(query.sql).toContain('"SubidoPorId" is null');
+  });
+
   it("looks the request up by id and owner in the visible states, and issues only selects", async () => {
     const double = use(loaded());
 

@@ -11,7 +11,8 @@
 | S1 gate stop | 4.11 | PENDING OWNER: needs 0009 on a disposable Neon branch; four separate "yes" answers (create, apply, run, delete) |
 | S4 (unit 6) | 6.1-6.3 | Implemented and committed as the first commit of `feat/teacher-remission-s4-review-ui` |
 | S4 (unit 7) | 8.1-8.8 | Done and committed (two commits). The upload-error i18n keys of 8.2 moved to S5 (no unused keys in S4) |
-| S5 (unit 8) | 9.1-9.11 | CUT from S4 to branch `feat/teacher-remission-s5-special-format` (from the S4 head); not started, ~1,200 lines |
+| S5 (unit 8, backend) | 9.1-9.6, 9.8 | Done and committed (5 commits); 9.10 gates green on the S5 head, PR not opened |
+| S6 (unit 8, UI) | 9.7, 9.9 | Written and committed on `feat/teacher-remission-s6-special-format-ui` (one commit, 9.9 pin not yet written); needs rebase on the S5 head |
 | Not started | 6.4, phases 7, 10 | 6.4 (open PRs) not done: no push, no PR. Phase 7 is owner-run. Archive remains |
 
 ## Delivery and size (chained-pr, work-unit-commits)
@@ -131,6 +132,22 @@ Tests written in S4: 66 (plus the cron's). Full suite at S4 head: 226 files, 4,8
 | DB | none | no database command was run |
 
 Evidence revision (code head `6c91838`): sha256 of `git diff 06c75d2..6c91838` = `ab1a88561eface573ea706aa72e65582568f21619f897f0dc28c968236527871`. The final head also carries this documentation commit; its hash is reported to the orchestrator.
+
+## S5 additions (unit 8 backend, Strict TDD)
+
+Branch `feat/teacher-remission-s5-special-format` from d488171. Measured 1,470 authored lines vs d488171 (`git diff --numstat`, excluding drizzle/meta, openspec, .engram, package-lock.json, .env.example). The upload UI (9.7: component, i18n es/en, section and page wiring, ~540 lines) was written and then moved to S6 because S5 would have reached ~2,010 before the 9.9 pin; no code was shrunk to fit. Until S6 merges there is still no upload control, so a marked approval stays blocked.
+
+| Task | Test file (tests) | Layer | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-------------------|-------|-----|-------|-------------|----------|
+| 9.1 | `documentos.test.ts` (+7) | Unit (fake store) | 7 failing (`inspectStoredFile` missing); 45 existing green | 52/52 | pdf/png/jpeg, empty, forged, 10 MiB edge, not_found, store failure | `finalizeDocument` now uses it; existing tests unchanged |
+| 9.2/9.3 | `special-format.test.ts` (21, new) | Unit (DB double, fake store) | Written first (module missing) | 21/21 | 2 types, name fallback, denied, 3 bad pathnames, referenced file kept, race, already_attached, unique violation, 2 refusals, blob delete failure, not_found, store failure | Clean |
+| 9.4/9.5 | `api/review/special-format-token/route.test.ts` (16, new) | Route (hoisted mocks) | Failed first (module missing) | 16/16 | 401, 403, 6 roles, bad JSON, token limits, no callback, 4 pathnames, neighbour id, scope none, null context, SDK error | Test for a neighbouring id corrected (id comes from the pathname) |
+| 9.6 | `remission-actions.test.ts` (+25) | Action | 24 failing first | 46/46 | 6 roles, malformed input, mapped outcomes, after() once, nothing scheduled, scheduling failure contained, attach throw | `scheduleDispatch` split out after a failing test |
+| 9.8 | `solicitud-detail.test.ts` (+2), `student-requests.test.ts` (+1) | Unit (DB double) | 4 failing first | 36/36 | marked with format, unmarked | Clean |
+
+Gates at S5 head 0ef2afd: `npm test` 228 files, 4,922 tests passed; `npm run typecheck` clean; `npx eslint src` only the CRLF `Delete` noise; `npx prettier --check --end-of-line auto src i18n vercel.json` clean; `npm run build` compiled (`/api/review/special-format-token` dynamic). No database command run.
+
+Decisions: (1) token route answers 403 only for `debeCambiarClave`; every non-reviewer role gets the uniform `400 not_allowed` (spec reading); (2) action denials are all `not_allowed`, `not_found` means the stored file is missing; (3) a file already referenced by any document row is never deleted by the attach (student evidence), and a unique-violation backstop keeps the file; (4) "marked + format sends only the format" is covered at dispatch level by the existing `remission-dispatch.test.ts`, not duplicated in the action test; (5) i18n RED for the upload keys was written before the keys but not executed on its own.
 
 ## Deviations and decisions
 
