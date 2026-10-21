@@ -8,7 +8,8 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "tagline": "Your academic absence requests, all in one place.",
-    "institution": "Universidad Americana - UAM"
+    "institution": "Universidad Americana - UAM",
+    "privacyNotice": "Privacy notice"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1113,6 +1114,43 @@
       "title": "Request not found",
       "message": "This request does not exist or is not available to you.",
       "back": "Back to the queue"
+    }
+  },
+  "privacy": {
+    "title": "Privacy notice",
+    "draft": "Draft pending UAM review",
+    "version": "Notice version: <date>{version}</date>",
+    "controller": {
+      "title": "Data controller",
+      "body": "Universidad Americana (UAM) is the controller of the data collected in this system.",
+      "contact": "[UAM address and contact office: to be defined]"
+    },
+    "purpose": {
+      "title": "Purpose",
+      "body": "The data is used only to process your justification request and its corrections. It is not used for any other purpose."
+    },
+    "recipients": {
+      "title": "Recipients",
+      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names."
+    },
+    "data": {
+      "title": "Data we process",
+      "identity": "Identity and academic data from your account.",
+      "request": "Request data: cause, dates and subjects.",
+      "documents": "The supporting documents you attach.",
+      "health": "Health data, which is sensitive data and may appear in those documents."
+    },
+    "mandatory": {
+      "title": "Required data",
+      "body": "To submit a request, the data and documents each step asks for and your consent are required. Without them the request cannot be processed."
+    },
+    "rights": {
+      "title": "Your rights and withdrawing consent",
+      "body": "You may exercise your rights of access, rectification, cancellation and opposition, and withdraw your consent, in writing addressed to the faculty secretary's office. Withdrawal has no retroactive effect."
+    },
+    "retention": {
+      "title": "Retention period",
+      "body": "The data is kept for five years and then cancelled."
     }
   }
 }
