@@ -758,6 +758,9 @@
         "confirm": "Sí, presentar",
         "pending": "Presentando…"
       },
+      "consent": {
+        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. <link>Ver aviso de privacidad</link>"
+      },
       "discard": {
         "button": "Descartar borrador",
         "title": "¿Descartar el borrador?",
