@@ -1,0 +1,155 @@
+# Tasks: Request Consent
+
+> Strict TDD (vitest): every behavior task is a RED task (failing test) followed by a GREEN task. Test commands: `npx vitest run <paths>`. Gates per slice: `npm test`, `npm run typecheck`, `npx eslint src` (filter CRLF noise: `| rg -v 'Delete .␍.'`), `npm run format:check` (CRLF: `--end-of-line auto`), `npm run build`. Run `npm test` and `npm run build` with a dummy `DATABASE_URL` (`postgres://u:p@127.0.0.1:9/x`) so no database is targeted.
+> DB rule (`CLAUDE.md`): every task tagged `ASK OWNER` needs the owner's explicit "yes" for that single command, never batched. `[LOCAL]` touches no database. Slice code and unit tests never touch Neon. No agent task runs `drizzle-kit migrate`, `drizzle-kit push`, `db:seed` or write SQL.
+> Spec IDs: RF-01 (d), RF-03 (e, f), RN-25, RNF-02, RNF-04, RNF-06, RNF-11, RNF-12. Decisions RC-1..RC-13 refer to `design.md`; D1-D11 to `proposal.md`.
+> Skills for apply: `C:\Users\Arnia\.claude\skills\chained-pr\SKILL.md`, `C:\Users\Arnia\.claude\skills\work-unit-commits\SKILL.md` (registry: `C:\justifia\.atl\skill-registry.md`). One commit per work unit (test + code together).
+> Threat matrix: N/A (design). The one routing change (RC-11) carries an explicit allow-list RED test (6.3) and a runtime check (6.4).
+> Size note: the `sdd-tasks` cap (530 words) is exceeded on purpose; the repository precedent (`teacher-remission`) keeps one line per task with spec links.
+
+## Review Workload Forecast
+
+| Field | Value |
+|-------|-------|
+| Estimated changed lines | ~865 authored total (S1 ~330, S2 ~330, S3 ~150-190); generated SQL, `drizzle/meta/*` snapshot and `openspec/` excluded |
+| 400-line budget risk | High in aggregate (~865); every slice is under 400 on its own |
+| 800-line budget risk (session `review_budget_lines`) | Medium: aggregate slightly over, every slice well inside; S1 carries the most test churn, so measure it before the PR |
+| Chained PRs recommended | Yes |
+| Suggested split | S1 data and rules -> S2 UI -> S3 privacy page and closeout |
+| Delivery strategy | auto-chain (review_budget_lines=800 per PR) |
+| Chain strategy | feature-branch-chain |
+
+| Slice | Branch | Content | Authored lines | PR base |
+|-------|--------|---------|---------------:|---------|
+| Docs | tracker `feat/request-consent` | SDD planning documents, one docs commit, before S1 | n/a (`openspec/` excluded) | tracker to `main` (draft, no-merge) |
+| S1 Data and rules | `feat/request-consent-s1-data-rules` | Unit 1 schema, migration 0010 (generated), consent module and text pin; unit 2 validation, correction opt-out, action payload, persistence, audit | ~330 | tracker |
+| S2 UI | `feat/request-consent-s2-ui` | Unit 3 review-step checkbox and submit dialog; unit 4 staff detail fact; S2 i18n keys | ~330 | S1 branch, retarget to tracker after S1 merges |
+| S3 Privacy and closeout | `feat/request-consent-s3-privacy` | Unit 5 public `/privacy` page, allow-list, auth-layout link, notice pin; unit 6 closeout (spec sync, roadmap, archive) | ~150-190 | S2 branch, retarget to tracker after S2 merges |
+
+Decision needed before apply: No
+Chained PRs recommended: Yes
+Chain strategy: feature-branch-chain
+400-line budget risk: High
+
+Chain: tracker `feat/request-consent` is created and exists. Each child slice branches from the previous slice (S1 from the tracker); its PR base is the previous slice branch while that PR is open (clean diff) and is retargeted to the tracker after the previous slice merges. Only the tracker merges to `main`; the tracker is never deleted; slice branches are deleted after merge. Open the tracker PR as draft/no-merge.
+
+**Merge gate: the tracker MUST NOT reach `main` before S2 is merged into it.** Between S1 and S2 the existing dialog sends no consent payload, so every submit fails closed with `consent_required`. S1 and S2 may sit on the tracker; `main` gets them together. S3 is separable and revertable, but reverting it leaves the checkbox link pointing to a missing page.
+
+### Suggested Work Units
+
+| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
+|------|------|-----------|----------------------|-----------------|-------------------|
+| 1 | Schema columns and CHECKs, generated migration 0010, `consent.ts` with text pin | S1 (base: tracker) | `npx vitest run src/db src/lib/intake/consent.test.ts src/i18n` | N/A: SQL read by test, not applied | Revert `schema.ts`, `drizzle/0010*`, `meta/`, `consent.ts`, label keys (unapplied) |
+| 2 | Fail-closed validation, correction opt-out, action payload, `submitDraft` write, audit payload | S1 | `npx vitest run src/lib/intake src/lib/data src/lib/audit "src/app/(dashboard)/requests/new/actions.test.ts" src/i18n` | N/A: DB double; opt-in `npm run test:integration` on a disposable branch (ASK OWNER) | Revert `submission.ts`, `solicitud-correction.ts`, `solicitudes.ts`, `actions.ts`, audit files |
+| 3 | Checkbox on the review step; dialog sends the version | S2 (base: S1 branch) | `npx vitest run "src/app/(dashboard)/requests/new" src/i18n` | `npm run dev` (owner walk, phase 8): unchecked -> inline error; checked -> submit | Revert `review-step.tsx`, `submit-dialog.tsx`, keys; S1 then fails closed |
+| 4 | Staff detail shows consent version and date, or "not recorded" | S2 | `npx vitest run src/lib/data/solicitud-detail.test.ts "src/app/(dashboard)/review" src/i18n` | `npm run dev` (owner walk): recorded and legacy detail | Revert `solicitud-detail.ts`, `request-sections.tsx`, `page.tsx`, keys |
+| 5 | Public `/privacy`, allow-list, auth-layout link, notice pin | S3 (base: S2 branch) | `npx vitest run src/lib/auth src/app/privacy "src/app/(auth)" src/lib/intake/consent.test.ts src/i18n` | `npm run dev` + `curl -i http://localhost:3000/privacy` (200, no redirect) and `/requests` (redirect to login) | Revert `privacy/`, `public-paths.ts`, `middleware.ts`, layout, keys |
+| 6 | Verify, spec sync, roadmap row 9, archive | S3 / tracker docs commits | `npm test` | N/A: documentation | Revert docs commits; code untouched |
+
+## Phase 0: Planning docs and tracker (before S1)
+
+- [ ] 0.1 On tracker `feat/request-consent`, stage only `openspec/changes/request-consent/` (exploration, research, preproposal, proposal, `specs/`, design, tasks) and commit `docs(request-consent): add the SDD planning documents` as its own docs commit. Do not stage `package-lock.json` (read-only; the existing unrelated modification stays out of this change)
+- [ ] 0.2 Push the tracker; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate (not before S2)
+- [ ] 0.3 Re-check `drizzle/` (read-only) on `main` for a migration newer than `0009_teacher_remission.sql`; if `document-extraction` already merged a `0010`, STOP and tell the owner (renumber decision)
+
+## Phase 1: S1 - Schema, migration, consent module (work unit 1)
+
+- [ ] 1.1 Branch `feat/request-consent-s1-data-rules` from the tracker; PR targets the tracker
+- [ ] 1.2 RED: `src/lib/intake/consent.test.ts`: `CONSENT_VERSION === "2026-10-20"`; `CONSENT_LABEL_KEY`; es label with tags stripped equals the approved D1 text and en equals its approved translation; SHA-256 of the raw es message (tags included) equals `PINNED[CONSENT_VERSION]`; `PINNED` hashes distinct and `CONSENT_VERSION` is its last key (RC-3; scenarios "Text is the approved one", "Text changed without version change")
+- [ ] 1.3 GREEN: create `src/lib/intake/consent.ts` (pure, no `server-only`); add `intake.review.consent.label` to `i18n/es.json` and `i18n/en.json` with a `<link>` tag around "Ver aviso de privacidad" / "View privacy notice"; compute the hash from the final string and write the `PINNED` literal
+- [ ] 1.4 RED: `src/db/migration-request-consent.test.ts` (pattern of `migration-teacher-remission.test.ts`): SQL located by `request_consent` name; journal `when` later than 0009's; both columns nullable; `CK_Solicitud_Consentimiento` and `CK_Solicitud_ConsentimientoFecha` bodies equal RC-1 (constraint-case table: set/set `<=`, set/empty, empty/set, set/set `>` rejected, legacy empty/empty accepted); no `DROP`, no `ALTER ... TYPE`, no `UPDATE` (no backfill) (RC-1, RC-2)
+- [ ] 1.5 GREEN: `src/db/schema.ts` adds `Solicitud.ConsentimientoEn` (`timestamptz` NULL), `ConsentimientoVersion` (`varchar(20)` NULL) and the two CHECKs per RC-1
+- [ ] 1.6 [LOCAL] `npm run db:generate -- --name request_consent` (generate only; expected `drizzle/0010_request_consent.sql`, `drizzle/meta/0010_snapshot.json`, `drizzle/meta/_journal.json`); confirm two `ADD COLUMN` and two `ADD CONSTRAINT` only and a journal `when` later than 0009's. STOP: no `migrate`, no `push`
+- [ ] 1.7 Commit unit 1: `feat(consent): add the consent version, text pin and schema with migration 0010`
+
+## Phase 2: S1 - Rules, action, persistence, audit (work unit 2)
+
+- [ ] 2.1 RED: `src/lib/intake/submission.test.ts`: `consentVersion` equal to the version -> no error; absent, `null`, `""` -> `consent_required`; non-string (`true`, `1`, `{}`, cast) -> `consent_required`; `"2025-01-01"`, `"x"` -> `consent_outdated`; `{ consent: false }` -> no consent error even when missing; no cause + end before start + no documents + no consent -> four fields at once; consent valid does not mask the documents error; existing valid fixtures gain `consentVersion` (RC-4)
+- [ ] 2.2 GREEN: `src/lib/intake/submission.ts` (`SubmissionInput.consentVersion`, `SubmissionOptions.consent` default `true`, `"consent"` field, two codes, `consentErrors` joined to the rule list)
+- [ ] 2.3 RED: `src/lib/data/solicitud-correction.test.ts`: `resubmitCorrection` validates with `{ filingWindow: false, consent: false }`; a legacy request with both columns NULL is accepted; a forged `consentVersion`/timestamp key is ignored; the `devuelta` -> `pendiente` UPDATE never sets the consent columns (RC-4, C4/C12; scenarios "Correction never asks for consent", "Legacy request is correctable", "Forged consent on correction")
+- [ ] 2.4 GREEN: `src/lib/data/solicitud-correction.ts` passes `consent: false`; keep the "rerun hook" comment (RC-13)
+- [ ] 2.5 RED: `src/lib/audit/events.test.ts`: `solicitudPresentadaEvent` payload is `{ asignaturas, documentos, consentimientoVersion }` with no consent text and no timestamp; leak test still green; `AUDIT_ACTIONS` and pinned lists unchanged; `solicitud.corregida` untouched (RC-7)
+- [ ] 2.6 GREEN: `src/lib/audit/types.ts` (`RequestSubmittedPayload`) and `src/lib/audit/events.ts` (extra argument)
+- [ ] 2.7 RED: `src/lib/data/solicitudes.test.ts`: `submitDraft` guarded UPDATE `set` carries `consentimientoEn: now` (the same instant as `presentadaEn`) and `consentimientoVersion`; `SubmitInput.consentimientoVersion` is required; a guard conflict or drift check rolls the consent back with the presentation; the audit event receives the stored version. Also update `src/lib/data/integration/intake-concurrency.integration.test.ts` for the new input (opt-in suite, not run here) (RC-6; scenarios "Successful submit stores consent", "Failure rolls back")
+- [ ] 2.8 GREEN: `src/lib/data/solicitudes.ts` (`SubmitInput`, `set`, audit call)
+- [ ] 2.9 RED: `src/app/(dashboard)/requests/new/actions.test.ts`: replace the twelve zero-argument `submitRequestAction()` calls; role table (line ~139) still checks the role before parsing; table-driven payloads (no key, `null`, `""`, `true`, `1`, object, `undefined`, a string) -> `consent_required`, nothing stored or audited; `"2025-01-01"`, `"x"` -> `consent_outdated`; consent error beside a documents error in one response; success calls `submitDraft` with `consentimientoVersion: CONSENT_VERSION` (the server constant, never the received string); a forged consent timestamp, snapshot or state is ignored (RC-5; scenarios "Absent, empty or malformed payload", "Client timestamp ignored", "Different string")
+- [ ] 2.10 GREEN: `submitPayloadSchema` in `src/lib/validations/solicitud.ts` (non-strict, parse failure -> `null`); `src/app/(dashboard)/requests/new/actions.ts` (`submitRequestAction(input: unknown)`, `validateSubmission` with `consentVersion`, `submissionErrors` maps `consent_*` to `intake.errors.consent_*`, doc comment updated)
+- [ ] 2.11 RED: `src/i18n/intake-messages.test.ts` additions: `intake.errors.consent_required` and `intake.errors.consent_outdated` present in `es` and `en`, each stating the correction (check the box / reload and read the updated text); GREEN: add both keys to `i18n/es.json` and `i18n/en.json`
+- [ ] 2.12 Keep S1 typecheck green: `src/app/(dashboard)/requests/new/submit-dialog.tsx` passes `action={submitRequestAction}`, which no longer fits once `input` is required. Apply the minimal wrapper `action={() => submitRequestAction(null)}` (fails closed with `consent_required`, the intended S1 state); S2 task 5.4 replaces it. Run `npm run typecheck` to confirm
+- [ ] 2.13 Commit unit 2: `feat(consent): require consent in validation, action and the submit transaction`
+
+## Phase 3: S1 - Gates and PR
+
+- [ ] 3.1 Gates S1: `npx vitest run src/db src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; record exact results; no DB command run
+- [ ] 3.2 Measure the authored diff against the tracker (generated SQL and `drizzle/meta/*` excluded); target ~330, stop and report if over 800
+- [ ] 3.3 Open the S1 PR (base: tracker): Chain Context with the diagram marking S1 with `📍`, forecast, gates, measured size, "0010 generated, NOT applied", and "submit fails closed until S2; the tracker must not reach `main` before S2"
+- [ ] 3.4 After review, merge S1 into the tracker with a merge commit; delete the S1 branch only after S2 is retargeted
+
+## Phase 4: Migration apply (owner-run; after S1 merged, before the walk)
+
+> Every step: ASK OWNER, explicit yes per command. Nothing here is an agent task. The migration is additive and nullable, so production code that predates S1 keeps working with it applied.
+
+- [ ] 4.1 ASK OWNER, explicit yes per command: P1 `[READ-ONLY]` count `Solicitud` by `Estado`; confirm the consent columns are absent and `__drizzle_migrations` has 10 rows
+- [ ] 4.2 ASK OWNER, explicit yes per command: B1 `[CONFIRM]` create Neon branch `backup-before-request-consent` from production; STOP until "yes"
+- [ ] 4.3 ASK OWNER, explicit yes per command: M1 `[CONFIRM]` `drizzle-kit migrate` over the direct (non-pooler) URL, naming the exact command; never unprompted
+- [ ] 4.4 ASK OWNER, explicit yes per command: V1 `[READ-ONLY]` P1 counts unchanged; both consent columns exist and are NULL on every row; migrations 10 -> 11
+- [ ] 4.5 ASK OWNER, explicit yes per command: V2 `[CONFIRM]` `db:generate` drift check writes nothing ("No schema changes, nothing to migrate")
+- [ ] 4.6 Record each result and date in this file next to its step; delete `backup-before-request-consent` only on the owner's explicit yes after production is stable
+
+## Phase 5: S2 - Review-step checkbox and staff detail (work units 3 and 4)
+
+- [ ] 5.1 Branch `feat/request-consent-s2-ui` from the S1 branch; PR base is the S1 branch until S1 merges, then retarget to the tracker
+- [ ] 5.2 RED: `src/app/(dashboard)/requests/new/review-step.test.tsx`: checkbox unchecked on mount and on resume, nothing stored on the draft; rendered only when `flow` is absent (none in the correction flow); label from `review.consent.label` with the link `href="/privacy" target="_blank" rel="noopener noreferrer"` and an `sr-only` "(opens in a new tab)"; clicking the label toggles, clicking the link does not; checking clears a consent error; consent errors render under the box with `aria-describedby`, never in the form-level block (`"consent"` in `SECTION_FIELDS`); submit button enabled when unchecked; the checkbox is the only input on the review step (RC-8; scenarios "Unchecked on every visit", "Link keeps the work", "Checking clears the consent error", "Review is read-only")
+- [ ] 5.3 RED: `src/app/(dashboard)/requests/new/submit-dialog.test.tsx`: confirm sends `{ consentVersion: CONSENT_VERSION }` when consented and `{ consentVersion: null }` otherwise; `ConfirmDialog` unchanged; server `consent` errors reach `onErrors` (RC-8, RNF-12; scenarios "Submit stays enabled and the dialog opens unchecked", "Checked box sends the version")
+- [ ] 5.4 GREEN: `src/app/(dashboard)/requests/new/review-step.tsx` (state `consented`, block above the footer, `Checkbox` + `Label` + `t.rich` link, `SECTION_FIELDS`) and `src/app/(dashboard)/requests/new/submit-dialog.tsx` (`consentVersion` prop, `action={() => submitRequestAction({ consentVersion })}`, replacing the 2.12 wrapper)
+- [ ] 5.5 RED+GREEN: `src/i18n/intake-messages.test.ts` additions then `i18n/es.json` and `i18n/en.json`: `intake.review.consent.newTab` in both locales (scenario "Translation keys present")
+- [ ] 5.6 RED+GREEN: `src/app/(dashboard)/requests/new/layout-360.test.tsx` and `src/app/(dashboard)/requests/new/design-system.test.tsx`: 360 px review step with a consent error showing (no horizontal overflow, label wraps, clicking the label toggles, axe clean); tokens only per `docs/design-system.md` (read-only: `text-sm`, `gap-3`, `text-destructive-ink`, `accent-primary`) (scenario "360 px and accessibility")
+- [ ] 5.7 Commit unit 3: `feat(consent): add the consent checkbox to the review step`
+- [ ] 5.8 RED: `src/lib/data/solicitud-detail.test.ts`: `getRequestDetail` returns `consentimiento: { version, en }` when recorded and `null` for a legacy row; a corrected request keeps the original consent; `getOwnRequestDetail` exposes no consent; update every fixture typed as `RequestDetail` (RC-9, C11; scenarios "Corrected request keeps its consent", "Student does not see it")
+- [ ] 5.9 GREEN: `src/lib/data/solicitud-detail.ts` selects both columns and extends `RequestDetail`
+- [ ] 5.10 RED: `src/app/(dashboard)/review/[id]/request-sections.test.tsx`: `StudentSection` shows the `review.detail.fields.consent` fact as "Version 2026-10-20, <date>" with the date in America/Managua, or the "Not recorded (presented before consent existed)" label; text only, no `role="alert"`, no error styling; no audit row beyond `solicitud.consultada`; `src/app/(dashboard)/review/design-system.test.tsx` updated (RC-9; scenarios "Recorded consent", "Legacy request", "Out of scope and audit")
+- [ ] 5.11 GREEN: `src/app/(dashboard)/review/[id]/request-sections.tsx` (`consent` prop, one `Fact`) and `src/app/(dashboard)/review/[id]/page.tsx` (passes `detail.consentimiento`)
+- [ ] 5.12 RED+GREEN: `src/i18n/review-messages.test.ts` additions then `i18n/es.json` and `i18n/en.json`: `review.detail.fields.consent`, `review.detail.consent.recorded`, `review.detail.consent.notRecorded` in both locales
+- [ ] 5.13 Commit unit 4: `feat(consent): show the recorded consent on the staff request detail`
+
+## Phase 6: S2 - Gates and PR
+
+- [ ] 6.1 Gates S2: `npx vitest run src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; measured authored diff vs the S1 head (target ~330)
+- [ ] 6.2 Open the S2 PR (base: S1 branch, retarget to the tracker after S1 merges): diagram marking S2 with `📍`, gates, measured size, note that the owner walk (phase 8) follows. Merging S2 lifts the S1 fail-closed state on the tracker
+
+## Phase 7: S3 - Public privacy page (work unit 5)
+
+- [ ] 7.1 Branch `feat/request-consent-s3-privacy` from the S2 branch; PR base is the S2 branch until S2 merges, then retarget to the tracker
+- [ ] 7.2 [READ-ONLY] Read the server-component page, metadata and middleware guides in `node_modules/next/dist/docs/` (read-only) before coding (`AGENTS.md`); keep the root `middleware.ts` name (the `proxy.ts` rename is not this change)
+- [ ] 7.3 RED: `src/lib/auth/public-paths.test.ts`: `isPublicPage("/privacy")` true; `/privacy/x`, `/privacy-policy`, `/requests`, `/login`, `/` false (RC-11; scenario "Other routes stay protected")
+- [ ] 7.4 GREEN: `src/lib/auth/public-paths.ts` and `middleware.ts` (checks `isPublicPage` first, returns `NextResponse.next()` for every session state; a signed-in user is not redirected). Runtime check with `npm run dev`: `curl -i http://localhost:3000/privacy` is 200 without redirect, `/requests` redirects to login (the root `middleware.ts` is outside vitest's `src/**`; the owner walk repeats it signed in)
+- [ ] 7.5 STOP [OWNER] (open input): wording for the controller's domicile and contact office (notice item 3). If not supplied, use a visibly marked placeholder (for example "[Domicilio y oficina de contacto de la UAM: por definir]"); allowed while the draft marker shows. Record the choice here before the pin in 7.8. A later wording change requires a new `CONSENT_VERSION` and pin
+- [ ] 7.6 RED: `src/app/privacy/page.test.tsx`: draft marker first, then the nine items of RC-10 in order, in `es` and `en`; version shown as the date of `CONSENT_VERSION`; no per-user data and no session read; no mail provider name in either locale; 360 px no horizontal overflow; axe clean (scenarios "Anonymous visitor", "All facts present", "Version matches the consent", "Marker shown", "Provider absent", "360 px")
+- [ ] 7.7 GREEN: `src/app/privacy/page.tsx` (server component outside `(dashboard)` and `(auth)`, `getTranslations("privacy")`, `generateMetadata` like `/denied`); add `privacy.*` and `common.privacyNotice` to `i18n/es.json` and `i18n/en.json`; parity test `src/i18n/privacy-messages.test.ts` (RED first, same keys in both locales)
+- [ ] 7.8 RED+GREEN: extend `src/lib/intake/consent.test.ts`: the es `privacy` subtree (sorted-key serialisation) hashes to a literal pinned under `CONSENT_VERSION`; compute the hash from the final es copy after 7.5 and 7.7 (RC-3; the notice-edit-without-version scenario)
+- [ ] 7.9 RED: `src/app/(auth)/layout.test.tsx` (create if absent): a link to `/privacy` labelled `common.privacyNotice`, same tab, present on the login and register pages; GREEN: `src/app/(auth)/layout.tsx` (scenario "Links from entry pages")
+- [ ] 7.10 Commit unit 5: `feat(privacy): add the public privacy notice and link it from login and register`
+- [ ] 7.11 Gates S3 (same five) and measured diff vs the S2 head (target ~150-190); open the S3 PR (base: S2 branch, retarget after S2 merges)
+
+## Phase 8: Owner manual walk (before verify; after S1, S2 and S3 are on the tracker)
+
+> Every DB step: ASK OWNER, explicit yes per command. The owner walks; the agent records the result.
+
+- [ ] 8.1 ASK OWNER, explicit yes per command: create disposable Neon branch `test-request-consent` from production (0010 applied in 4.3); point the local dev server at it
+- [ ] 8.2 ASK OWNER, explicit yes per command: separate data step for practice accounts (student and secretary); no seeding without the yes
+- [ ] 8.3 Walk at 360 px and desktop, `es` and `en`: (a) unchecked submit -> dialog opens -> `consent_required` under the box, not in the form-level block, button was enabled; (b) checking clears the error; (c) the link opens a new tab, the box stays checked, clicking the link does not toggle it; (d) checked submit -> confirmation; (e) no document + unchecked -> both errors at once; (f) keyboard only; (g) review step in a resumed draft is unchecked
+- [ ] 8.4 Walk, staff and correction: secretary detail shows "Version 2026-10-20, <date>" in Managua time and "Not recorded" for a pre-change request; return then correct a request -> no checkbox, consent unchanged; the student detail shows no consent; one `solicitud.consultada` per detail open
+- [ ] 8.5 Walk, privacy page: `/privacy` in a private window (no redirect) and signed in (no redirect to the dashboard); `/requests` anonymous still redirects to login; draft marker first; login and register links
+- [ ] 8.6 ASK OWNER, explicit yes per command: read-only query on the walk branch: consent columns set with `ConsentimientoEn = PresentadaEn` for the new request, one `solicitud.presentada` row carrying the version, no row for refused submits; codes and counts only
+- [ ] 8.7 Optional, ASK OWNER, explicit yes per command: `INTEGRATION_DATABASE_URL=<walk branch> INTEGRATION_ALLOW_WRITES=1 npm run test:integration` (constraint cases against real Postgres)
+- [ ] 8.8 ASK OWNER, explicit yes per command: delete `test-request-consent`; record every result and date here
+
+## Phase 9: Closeout (unit 6; after phase 8 and S3 merged)
+
+- [ ] 9.1 Verify (`sdd-verify`): re-run `npm test`, typecheck, eslint, `npm run build` on the tracker head with the dummy `DATABASE_URL`; check every spec scenario against a test or the walk record
+- [ ] 9.2 Spec sync: merge the deltas into `openspec/specs/{justification-intake,request-review,student-requests,audit-log}/spec.md` and create `openspec/specs/privacy-notice/spec.md`; drop change-specific sections; readback with `diff -r`
+- [ ] 9.3 `docs/roadmap.md` row 9 `Estado` = `archivado`; Notas: UAM legal review of the text and the notice before production (a changed text means a new `CONSENT_VERSION` and pin), domicile wording status, legacy requests stay "not recorded", re-consent and revocation workflow out of scope, and the teammate note (9.4)
+- [ ] 9.4 Teammate note (roadmap Notas, archive report and a message from the owner): `document-extraction` regenerates its migration after consent reaches `main` (it becomes `0011`, never hand-numbered), rebases onto `submitRequestAction(input: unknown)` and `SubmitInput.consentimientoVersion`, and adds its trigger after the consent write without moving it
+- [ ] 9.5 Archive to `openspec/changes/archive/<date>-request-consent/` with `git mv` and an `archive-report.md` (`diff -r` readback); run `npm test` and `npm run build` first (no DB targeted)
+- [ ] 9.6 Owner: merge the tracker PR into `main` with a merge commit only after S1, S2 and S3 are merged into it; keep the tracker branch; delete merged slice branches (`feat/request-consent-s1-data-rules`, `-s2-ui`, `-s3-privacy`)
+- [ ] 9.7 Owner, outside the change: UAM legal review of the checkbox text and the notice before production; supply the domicile wording if 7.5 used the placeholder

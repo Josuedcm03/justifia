@@ -1,0 +1,67 @@
+schema: gentle-ai.sdd-preproposal/v1
+change: request-consent
+revision: 3
+exploration:
+  outcome: done
+  reference:
+    openspec: openspec/changes/request-consent/exploration.md
+    engram: sdd/request-consent/explore
+research:
+  selected: true
+  request_id: request-consent-research-001
+  source_classes: [documentation, open-web]
+  admission: admitted
+  outcome: done
+  evidence_revision: 1
+  questions:
+    - id: Q1
+      text: Ley 787 (Ley de Protección de Datos Personales, Nicaragua, 2012) and its regulation (Decreto 36-2012) - required content of informed consent (purpose, recipients and transfers, ARCO rights, controller identity, form) and whether electronic checkbox consent is valid. Cite articles.
+    - id: Q2
+      text: Sensitive data (datos sensibles), in particular health data - special requirements for consent and processing.
+    - id: Q3
+      text: Communication or transfer to third parties (emailing the supporting document and cause to affected teachers through an external mail provider hosted outside Nicaragua) - consent or notice requirements and international transfer rules.
+    - id: Q4
+      text: Retention, right to revoke consent, and what a privacy notice must state.
+    - id: Q5
+      text: Whether a supervisory authority (Dirección de Protección de Datos Personales) exists and operates; practical enforcement status.
+    - id: Q6
+      text: Check the draft v1 consent text against Q1-Q5 and propose a minimal corrected Spanish text plus the list of facts the privacy notice page must contain.
+  evidence:
+    openspec: openspec/changes/request-consent/research.md
+    engram: sdd/request-consent/research
+product_decisions:
+  status: confirmed
+  confirmed:
+    - id: C1
+      decision: Consent text v1 is the new draft (names teachers as institutional-mail recipients, covers corrections, says documents may include health information), subject to research findings. Stored as a CONSENT_VERSION per request; a test pins the es text hash to the version.
+    - id: C3
+      decision: Requests presented before this change keep NULL consent; no backfill. main is not real production yet, so legacy rows get minimal handling.
+    - id: C4
+      decision: A correction resubmit never asks for consent again.
+    - id: C5
+      decision: In-app static privacy notice page, marked as a draft pending UAM review, in the last separable slice.
+  defaults_accepted:
+    - C2 two columns on Solicitud (ConsentimientoEn, ConsentimientoVersion)
+    - C6 checkbox not persisted in the draft
+    - C7 consentimientoVersion added to the solicitud.presentada audit payload
+    - C8 checkbox on the review step above the submit button
+    - C9 button enabled; consent_required error under the checkbox
+    - C10 client sends the consentVersion it showed; mismatch returns consent_outdated
+    - C11 consent visible to staff only
+    - C12 validateSubmission requires consent by default; correction opts out
+    - Merge order - consent before document-extraction (both generate migration 0010)
+    - id: R1
+      decision: One checkbox that names health data explicitly; the text must be short (owner finds the long prose excessive). Revocation, rights and retention live in the privacy notice, not in the checkbox.
+    - id: R2
+      decision: The mail provider (Resend) is not mentioned in the checkbox nor in the notice (owner decision). Recorded risk - Ley 787 Arts. 13-14 (cesión, international transfer); UAM legal review.
+    - id: R3
+      decision: "Consent text v1 (es), owner-approved 2026-10-20: «Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. Ver aviso de privacidad». The en text is a faithful translation."
+    - id: D10
+      decision: Privacy notice page is public (outside the dashboard group, one middleware allow-list entry), linked from the checkbox, login and register. Owner accepted 2026-10-20.
+  pending: []
+  proposed_defaults:
+    - Retention stated in the notice as five years (RNF-04), then cancellation
+    - Revocation and ARCO rights exercised in writing to the faculty secretary's office; no in-app revocation feature in this change
+    - Consent version doubles as the privacy notice version
+    - Minimizing what teachers receive (no medical documents by email) is a teacher-remission follow-up, out of scope
+proposal_ready: true
