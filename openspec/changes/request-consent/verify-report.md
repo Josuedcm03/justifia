@@ -30,7 +30,7 @@ build_output_hash: sha256:a4cfd0f80dfd57dac621554f110ef4fd968c9d7d552a8588f75e0d
 
 Incomplete tasks. None is code or test work; all are owner-gated, optional or closeout steps that run after this verify (reported as gated, not as failures, following the `teacher-remission` precedent and the orchestrator brief):
 - 4.6: delete the Neon branch `backup-before-request-consent` only on the owner's explicit yes after production is stable (the recording half of the task is done in 4.1-4.5).
-- 8.7: optional real-Postgres integration run on a disposable branch; not run (see WARNING 1).
+- 8.7: optional real-Postgres integration run on a disposable branch; not run (see WARNING 1). Done after this run, 2026-10-21: constraint probe 7/7, integration suite 8/8.
 - 9.1: this verification.
 - 9.2-9.7: spec sync, roadmap row 9, teammate note, archive, tracker merge to `main`, UAM legal review. Run after this verify.
 
@@ -228,7 +228,7 @@ Totals: 15 requirements, 60 scenarios (justification-intake 7/31, request-review
 **CRITICAL**: None.
 
 **WARNING**:
-1. Real-Postgres proof is missing for two scenarios. The Constraint cases reject rows (set/empty, empty/set, set/set later than PresentadaEn) are verified as exact SQL text plus a JavaScript mirror of the two predicates, never by Postgres; Failure rolls back is proven with the DB double (update inside the transaction, no audit row on conflict or drift). The optional run 8.7 (test:integration, constraint cases) was not done; the integration file was updated for the new `SubmitInput` and asserts `ConsentimientoEn = PresentadaEn` but never ran. Mitigation: migration 0010 is applied in production with both constraints present (4.4), and the walk exercised the accept rows for real (new submit; legacy NULL pair).
+1. **Resolved after this run (2026-10-21, task 8.7).** On a disposable branch from production, Postgres rejected the four reject rows with the expected constraint names and accepted the three accept rows (7/7, every case rolled back), and `npm run test:integration` passed 8/8. Failure rolls back stays at DB-double level. Original finding: Real-Postgres proof is missing for two scenarios. The Constraint cases reject rows (set/empty, empty/set, set/set later than PresentadaEn) are verified as exact SQL text plus a JavaScript mirror of the two predicates, never by Postgres; Failure rolls back is proven with the DB double (update inside the transaction, no audit row on conflict or drift). The optional run 8.7 (test:integration, constraint cases) was not done; the integration file was updated for the new `SubmitInput` and asserts `ConsentimientoEn = PresentadaEn` but never ran. Mitigation: migration 0010 is applied in production with both constraints present (4.4), and the walk exercised the accept rows for real (new submit; legacy NULL pair).
 2. Nine tasks are unchecked: 4.6, 8.7, 9.1 (this run) and 9.2-9.7. All are owner, optional or closeout steps (see Completeness). The `backup-before-request-consent` Neon branch still exists until the owner decides (4.6).
 3. `axe-core` is imported by two test files (`layout-360.test.tsx`, `privacy/page.test.tsx`) but is not a declared dependency; it arrives through `eslint-config-next` and `eslint-plugin-jsx-a11y` (lock entry ^4.10.0). A dependency change could silently break two suites. Declaring it as a devDependency edits `package.json` and `package-lock.json`, and the lockfile carries an unrelated local diff, so this was left as an owner decision (apply-progress).
 4. The 360 px scenarios rest on class-level guards and axe inside jsdom, which has no layout (no overflow can be measured, color contrast is disabled). The real 360 px check is the owner walk 8.3 for the review step; the walk record 8.5 does not list 360 px for `/privacy`. The `fixedWidths` guard in `privacy/page.test.tsx` has no self-test (the review-step guard has one).
@@ -241,7 +241,7 @@ Totals: 15 requirements, 60 scenarios (justification-intake 7/31, request-review
 **SUGGESTION**:
 1. Re-forecast with the test tables in mind: the tasks file forecast about 865 authored lines and the change measured about 2,400 (S1 916 and S2 801 had to be split). For the next change, forecast tests at 4 to 5 times the production lines.
 2. Declare `axe-core` as a devDependency once the unrelated `package-lock.json` diff is resolved (WARNING 3).
-3. Run task 8.7 (constraint cases against real Postgres on a disposable branch) before or at archive if the owner wants the reject rows proven; otherwise record the acceptance in the archive report.
+3. Done 2026-10-21: task 8.7 ran on a disposable branch (constraint probe 7/7, integration 8/8), see WARNING 1.
 4. Add a 360 px line for `/privacy` to the walk record or run it once at archive; add a self-test for the `fixedWidths` guard.
 5. The `submitDraft` doc comment in `src/lib/data/solicitudes.ts` has a line of about 118 characters (prettier does not rewrap comments); cosmetic.
 6. Documentation drift: apply-progress S2 says `submit-dialog.test.tsx` is 10/10 while the file has 9 tests today (6 existing plus 3 new); the tasks file still quotes S2 and S3 forecasts beside the measured values. Refresh at archive.
