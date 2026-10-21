@@ -1137,7 +1137,7 @@
       "title": "Datos que se tratan",
       "identity": "Datos de identidad y académicos de tu cuenta.",
       "request": "Datos de la solicitud: causa, fechas y asignaturas.",
-      "documents": "Los documentos de soporte que adjuntas.",
+      "documents": "Los documentos de respaldo que adjuntas.",
       "health": "Datos de salud, que son datos sensibles y pueden aparecer en esos documentos."
     },
     "mandatory": {

@@ -23,7 +23,7 @@ const PINNED: Record<string, string> = {
  */
 const PINNED_NOTICE: Record<string, string> = {
   "2026-10-20":
-    "0d17917555920ecf851a0393c52332155437382f166f7622c8f16d6ccedec335",
+    "d98acff47bc848672db35ef731f94764351ca599852f4c4fa92a828a94f1965a",
 };
 
 const APPROVED_ES =
