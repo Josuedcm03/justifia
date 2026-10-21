@@ -296,6 +296,14 @@
       "sessions": 1,
       "memories": 12,
       "prompts": 0
+    },
+    {
+      "id": "0cd08834",
+      "created_by": "Arnia",
+      "created_at": "2026-10-21T17:32:03Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
     }
   ]
 }

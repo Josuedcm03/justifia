@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderIntl } from "@/app/(dashboard)/requests/new/test-support";
+import { CONSENT_VERSION } from "@/lib/intake/consent";
 
 const { submitRequestAction } = vi.hoisted(() => ({
   submitRequestAction: vi.fn(),
@@ -29,7 +30,7 @@ async function open() {
 
 describe("SubmitDialog (RNF-12: explicit confirmation)", () => {
   it("submits nothing until the dialog is opened and confirmed", async () => {
-    renderIntl(<SubmitDialog onErrors={onErrors} />);
+    renderIntl(<SubmitDialog consentVersion={null} onErrors={onErrors} />);
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(submitRequestAction).not.toHaveBeenCalled();
 
@@ -42,7 +43,7 @@ describe("SubmitDialog (RNF-12: explicit confirmation)", () => {
   });
 
   it("cancel closes the dialog and changes nothing", async () => {
-    renderIntl(<SubmitDialog onErrors={onErrors} />);
+    renderIntl(<SubmitDialog consentVersion={null} onErrors={onErrors} />);
     await open();
     await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
@@ -54,7 +55,7 @@ describe("SubmitDialog (RNF-12: explicit confirmation)", () => {
   });
 
   it("Escape cancels as well", async () => {
-    renderIntl(<SubmitDialog onErrors={onErrors} />);
+    renderIntl(<SubmitDialog consentVersion={null} onErrors={onErrors} />);
     await open();
     await userEvent.keyboard("{Escape}");
     await vi.waitFor(() =>
@@ -65,7 +66,7 @@ describe("SubmitDialog (RNF-12: explicit confirmation)", () => {
 
   it("confirming runs the submit action once and keeps the dialog while it works", async () => {
     submitRequestAction.mockReturnValue(new Promise(() => {}));
-    renderIntl(<SubmitDialog onErrors={onErrors} />);
+    renderIntl(<SubmitDialog consentVersion={null} onErrors={onErrors} />);
     await open();
     await userEvent.click(
       screen.getByRole("button", { name: "Sí, presentar" }),
@@ -86,7 +87,7 @@ describe("SubmitDialog (RNF-12: explicit confirmation)", () => {
       { field: "documents", key: "intake.errors.documents_required" },
     ];
     submitRequestAction.mockResolvedValue({ ok: false, errors });
-    renderIntl(<SubmitDialog onErrors={onErrors} />);
+    renderIntl(<SubmitDialog consentVersion={null} onErrors={onErrors} />);
     await open();
     await userEvent.click(
       screen.getByRole("button", { name: "Sí, presentar" }),
@@ -99,12 +100,61 @@ describe("SubmitDialog (RNF-12: explicit confirmation)", () => {
   });
 
   it("speaks English", async () => {
-    renderIntl(<SubmitDialog onErrors={onErrors} />, "en");
+    renderIntl(
+      <SubmitDialog consentVersion={null} onErrors={onErrors} />,
+      "en",
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Submit request" }),
     );
     expect(await screen.findByRole("alertdialog")).toHaveAccessibleName(
       "Submit the request?",
     );
+  });
+});
+
+describe("SubmitDialog consent payload (RC-8; spec: Checked box sends the version)", () => {
+  async function confirm() {
+    await open();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Sí, presentar" }),
+    );
+  }
+
+  it("sends the version when the box was checked", async () => {
+    submitRequestAction.mockResolvedValue({ ok: false, errors: [] });
+    renderIntl(
+      <SubmitDialog consentVersion={CONSENT_VERSION} onErrors={onErrors} />,
+    );
+    await confirm();
+
+    await vi.waitFor(() =>
+      expect(submitRequestAction).toHaveBeenCalledTimes(1),
+    );
+    expect(submitRequestAction).toHaveBeenCalledWith({
+      consentVersion: "2026-10-20",
+    });
+  });
+
+  it("sends null when the box was not checked", async () => {
+    submitRequestAction.mockResolvedValue({ ok: false, errors: [] });
+    renderIntl(<SubmitDialog consentVersion={null} onErrors={onErrors} />);
+    await confirm();
+
+    await vi.waitFor(() =>
+      expect(submitRequestAction).toHaveBeenCalledTimes(1),
+    );
+    expect(submitRequestAction).toHaveBeenCalledWith({ consentVersion: null });
+  });
+
+  it("hands a consent refusal to the page like any other", async () => {
+    const errors = [
+      { field: "consent", key: "intake.errors.consent_required" },
+    ];
+    submitRequestAction.mockResolvedValue({ ok: false, errors });
+    renderIntl(<SubmitDialog consentVersion={null} onErrors={onErrors} />);
+    await confirm();
+
+    await vi.waitFor(() => expect(onErrors).toHaveBeenCalledWith(errors));
   });
 });

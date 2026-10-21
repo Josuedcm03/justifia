@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,6 +15,7 @@ vi.mock("@/app/(dashboard)/requests/new/actions", () => ({
 }));
 
 import { ReviewStep } from "@/app/(dashboard)/requests/new/review-step";
+import { CONSENT_VERSION } from "@/lib/intake/consent";
 
 const GROUP = {
   grupoId: 1,
@@ -134,8 +135,23 @@ describe("ReviewStep: what is shown (RF-01)", () => {
 });
 
 describe("ReviewStep: read only with links to edit (spec: Review is read-only)", () => {
-  it("has no editable control inside the review", () => {
+  it("has no editable control but the consent checkbox", () => {
     renderIntl(ui());
+    for (const role of ["textbox", "radio", "combobox", "switch", "slider"]) {
+      expect(screen.queryAllByRole(role), role).toHaveLength(0);
+    }
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+  });
+
+  it("has no editable control at all in the correction flow", () => {
+    renderIntl(
+      ui({
+        flow: {
+          basePath: "/requests/31/correct",
+          actions: { resubmit: vi.fn() },
+        },
+      }),
+    );
     for (const role of ["textbox", "radio", "checkbox", "combobox"]) {
       expect(screen.queryAllByRole(role), role).toHaveLength(0);
     }
@@ -230,6 +246,182 @@ describe("ReviewStep: per-field submit errors (RF-03)", () => {
   });
 });
 
+const CONSENT_ERROR = {
+  field: "consent",
+  key: "intake.errors.consent_required",
+};
+const consentBox = () =>
+  screen.getByRole("checkbox", { name: /Acepto que la UAM/ });
+const consentLabelText = () =>
+  screen.getByText(/Acepto que la UAM use los datos de esta solicitud/);
+
+describe("ReviewStep: consent checkbox (RF-03 e, RN-25)", () => {
+  it("starts unchecked, above the footer, labelled with the approved text", () => {
+    renderIntl(ui());
+
+    expect(consentBox()).not.toBeChecked();
+    expect(consentLabelText()).toHaveTextContent(
+      "incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas.",
+    );
+    const footer = document.querySelector('[data-slot="card-footer"]');
+    expect(footer).not.toBeNull();
+    expect(
+      consentBox().compareDocumentPosition(footer as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("is unchecked again when the step is opened again, storing nothing", async () => {
+    const first = renderIntl(ui());
+    await userEvent.click(consentBox());
+    expect(consentBox()).toBeChecked();
+    first.unmount();
+
+    renderIntl(ui());
+    expect(consentBox()).not.toBeChecked();
+    expect(submitRequestAction).not.toHaveBeenCalled();
+    expect(discardDraftAction).not.toHaveBeenCalled();
+  });
+
+  it("speaks English", () => {
+    renderIntl(ui(), "en");
+    expect(
+      screen.getByRole("checkbox", { name: /I agree that UAM may use/ }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByRole("link", { name: /View privacy notice/ }),
+    ).toHaveAttribute("href", "/privacy");
+  });
+
+  it("links the notice in a new tab and says so to a screen reader", () => {
+    renderIntl(ui());
+    const link = screen.getByRole("link", {
+      name: "Ver aviso de privacidad (se abre en una pestaña nueva)",
+    });
+    expect(link).toHaveAttribute("href", "/privacy");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(
+      within(link).getByText("(se abre en una pestaña nueva)"),
+    ).toHaveClass("sr-only");
+  });
+
+  it("toggles on a click on the label text", async () => {
+    renderIntl(ui());
+    await userEvent.click(consentLabelText());
+    expect(consentBox()).toBeChecked();
+    await userEvent.click(consentLabelText());
+    expect(consentBox()).not.toBeChecked();
+  });
+
+  it("does not toggle on a click on the privacy link", async () => {
+    renderIntl(ui());
+    await userEvent.click(consentBox());
+    expect(consentBox()).toBeChecked();
+
+    // A raw click event: jsdom applies the label rule (an interactive
+    // descendant does not activate the label's control), as a browser does.
+    // user-event would emulate its own label click and mask the rule.
+    fireEvent.click(
+      screen.getByRole("link", { name: /Ver aviso de privacidad/ }),
+    );
+
+    expect(consentBox()).toBeChecked();
+  });
+
+  it("keeps the submit button enabled and opens the dialog while unchecked", async () => {
+    renderIntl(ui());
+    const submit = screen.getByRole("button", { name: "Presentar solicitud" });
+    expect(submit).toBeEnabled();
+
+    await userEvent.click(submit);
+
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(submitRequestAction).not.toHaveBeenCalled();
+  });
+
+  it("sends null when unchecked and the version when checked", async () => {
+    submitRequestAction.mockResolvedValue({ ok: false, errors: [] });
+    renderIntl(ui());
+    await submitWith([]);
+    expect(submitRequestAction).toHaveBeenLastCalledWith({
+      consentVersion: null,
+    });
+
+    await userEvent.click(consentBox());
+    await submitWith([]);
+    expect(submitRequestAction).toHaveBeenLastCalledWith({
+      consentVersion: CONSENT_VERSION,
+    });
+    expect(submitRequestAction).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a consent error under the box, tied to it, not in the form-level block", async () => {
+    renderIntl(ui());
+    await submitWith([
+      CONSENT_ERROR,
+      { field: "form", key: "intake.errors.submit_conflict" },
+    ]);
+
+    const alert = await screen.findByText(
+      "Marca la casilla de consentimiento para presentar la solicitud.",
+    );
+    expect(alert).toBeInTheDocument();
+    const box = consentBox();
+    expect(box).toHaveAttribute("aria-invalid", "true");
+    const describedBy = box.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)).toContainElement(
+      alert,
+    );
+    // The form-level block only holds the unrelated conflict message.
+    const formLevel = document.getElementById("review-form-error");
+    expect(formLevel).not.toBeNull();
+    expect(formLevel).not.toContainElement(alert);
+    expect(formLevel).toHaveTextContent(/La solicitud cambió/);
+  });
+
+  it("does not claim a consent error exists before one is returned", () => {
+    renderIntl(ui());
+    expect(consentBox()).not.toHaveAttribute("aria-invalid");
+    expect(consentBox()).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("clears the consent error when the box is checked, keeping the others", async () => {
+    renderIntl(ui());
+    await submitWith([
+      CONSENT_ERROR,
+      { field: "documents", key: "intake.errors.documents_required" },
+    ]);
+    const message =
+      "Marca la casilla de consentimiento para presentar la solicitud.";
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await userEvent.click(consentBox());
+
+    expect(screen.queryByText(message)).toBeNull();
+    expect(consentBox()).not.toHaveAttribute("aria-invalid");
+    expect(
+      within(section("Documentos")).getByText(
+        "Adjunta al menos un documento de respaldo.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the box checked after a refusal, and shows an outdated-text error", async () => {
+    renderIntl(ui());
+    await userEvent.click(consentBox());
+    await submitWith([
+      { field: "consent", key: "intake.errors.consent_outdated" },
+    ]);
+
+    expect(consentBox()).toBeChecked();
+    expect(
+      await screen.findByText(/El texto del consentimiento cambió/),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("ReviewStep inside the correction flow", () => {
   const resubmit = vi.fn();
   const flow = { basePath: "/requests/31/correct", actions: { resubmit } };
@@ -255,6 +447,16 @@ describe("ReviewStep inside the correction flow", () => {
     expect(
       screen.getByRole("link", { name: "Editar Causa y fechas" }),
     ).toHaveAttribute("href", "/requests/31/correct?step=1&from=review");
+  });
+
+  it("shows no consent checkbox, text or link (C4: consent is given once)", () => {
+    renderIntl(ui({ flow }));
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByText(/Acepto que la UAM/)).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: /aviso de privacidad/i }),
+    ).toBeNull();
   });
 
   it("resubmits only after the confirmation", async () => {
