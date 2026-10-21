@@ -93,11 +93,11 @@ Chain: tracker `feat/request-consent` is created and exists. Each child slice br
 
 > Every step: ASK OWNER, explicit yes per command. Nothing here is an agent task. The migration is additive and nullable, so production code that predates S1 keeps working with it applied.
 
-- [ ] 4.1 ASK OWNER, explicit yes per command: P1 `[READ-ONLY]` count `Solicitud` by `Estado`; confirm the consent columns are absent and `__drizzle_migrations` has 10 rows
-- [ ] 4.2 ASK OWNER, explicit yes per command: B1 `[CONFIRM]` create Neon branch `backup-before-request-consent` from production; STOP until "yes"
-- [ ] 4.3 ASK OWNER, explicit yes per command: M1 `[CONFIRM]` `drizzle-kit migrate` over the direct (non-pooler) URL, naming the exact command; never unprompted
-- [ ] 4.4 ASK OWNER, explicit yes per command: V1 `[READ-ONLY]` P1 counts unchanged; both consent columns exist and are NULL on every row; migrations 10 -> 11
-- [ ] 4.5 ASK OWNER, explicit yes per command: V2 `[CONFIRM]` `db:generate` drift check writes nothing ("No schema changes, nothing to migrate")
+- [x] 4.1 ASK OWNER, explicit yes per command: P1 `[READ-ONLY]` count `Solicitud` by `Estado`; confirm the consent columns are absent and `__drizzle_migrations` has 10 rows **DONE 2026-10-21** (read-only, via `neon connection-string production`): host ep-orange-math (production); migrations 10; Solicitud borrador=1, no presented requests; consent columns absent. Note: `.env` DATABASE_URL is stale (password auth failed), so M1 must use the production URL from the Neon CLI.
+- [x] 4.2 ASK OWNER, explicit yes per command: B1 `[CONFIRM]` create Neon branch `backup-before-request-consent` from production; STOP until "yes" **DONE 2026-10-21** (owner-confirmed): branch backup-before-request-consent (br-long-dream-aycjhpu4) from production.
+- [x] 4.3 ASK OWNER, explicit yes per command: M1 `[CONFIRM]` `drizzle-kit migrate` over the direct (non-pooler) URL, naming the exact command; never unprompted **DONE 2026-10-21** (owner-confirmed): `npm run db:migrate` with the production direct URL from the Neon CLI, "migrations applied successfully".
+- [x] 4.4 ASK OWNER, explicit yes per command: V1 `[READ-ONLY]` P1 counts unchanged; both consent columns exist and are NULL on every row; migrations 10 -> 11 **DONE 2026-10-21** (read-only): migrations 10 -> 11; Solicitud borrador=1 unchanged; both columns nullable, 0 rows with consent; CK_Solicitud_Consentimiento and CK_Solicitud_ConsentimientoFecha present.
+- [x] 4.5 ASK OWNER, explicit yes per command: V2 `[CONFIRM]` `db:generate` drift check writes nothing ("No schema changes, nothing to migrate") **DONE 2026-10-21** (local, no DB): "No schema changes, nothing to migrate".
 - [ ] 4.6 Record each result and date in this file next to its step; delete `backup-before-request-consent` only on the owner's explicit yes after production is stable
 
 ## Phase 5: S2 - Review-step checkbox and staff detail (work units 3 and 4)
