@@ -80,8 +80,8 @@ Chain: tracker `feat/request-consent` is created and exists. Each child slice br
 
 ## Phase 3: S1 - Gates and PR
 
-- [ ] 3.1 Gates S1: `npx vitest run src/db src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; record exact results; no DB command run
-- [ ] 3.2 Measure the authored diff against the tracker (generated SQL and `drizzle/meta/*` excluded); target ~330, stop and report if over 800
+- [x] 3.1 Gates S1: `npx vitest run src/db src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; record exact results; no DB command run
+- [x] 3.2 Measure the authored diff against the tracker (generated SQL and `drizzle/meta/*` excluded); target ~330, stop and report if over 800
 - [ ] 3.3 Open the S1 PR (base: tracker): Chain Context with the diagram marking S1 with `📍`, forecast, gates, measured size, "0010 generated, NOT applied", and "submit fails closed until S2; the tracker must not reach `main` before S2"
 - [ ] 3.4 After review, merge S1 into the tracker with a merge commit; delete the S1 branch only after S2 is retargeted
 
