@@ -125,6 +125,17 @@ describe("intake messages", () => {
     }
   });
 
+  // Scenario "Translation keys present": the link tells a screen reader that it
+  // opens a new tab, in each locale.
+  it.each([
+    ["es", es, /pestaña nueva/i],
+    ["en", en, /new tab/i],
+  ] as const)("%s words the consent link's new-tab hint", (_l, m, hint) => {
+    const newTab = m.intake?.review?.consent?.newTab;
+    expect(newTab).toEqual(expect.any(String));
+    expect(newTab).toMatch(hint);
+  });
+
   it("has the sidebar entry in both locales", () => {
     expect(es.nav.newRequest).toEqual(expect.any(String));
     expect(en.nav.newRequest).toEqual(expect.any(String));

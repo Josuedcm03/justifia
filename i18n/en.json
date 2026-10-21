@@ -761,7 +761,8 @@
         "pending": "Submitting…"
       },
       "consent": {
-        "label": "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, and that they be sent to the teachers of the affected subjects. <link>View privacy notice</link>"
+        "label": "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, and that they be sent to the teachers of the affected subjects. <link>View privacy notice</link>",
+        "newTab": "(opens in a new tab)"
       },
       "discard": {
         "button": "Discard draft",
