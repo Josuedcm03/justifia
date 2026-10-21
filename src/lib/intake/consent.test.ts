@@ -17,6 +17,15 @@ const PINNED: Record<string, string> = {
     "34017ff7d7a760ae5828451eafb8c2415e0f4ec93f91eb43c0450384eea2fd90",
 };
 
+/**
+ * SHA-256 of the es `privacy` subtree (sorted-key JSON), by consent version.
+ * The notice and the checkbox text share one version (RC-3, D9).
+ */
+const PINNED_NOTICE: Record<string, string> = {
+  "2026-10-20":
+    "0d17917555920ecf851a0393c52332155437382f166f7622c8f16d6ccedec335",
+};
+
 const APPROVED_ES =
   "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. Ver aviso de privacidad";
 const APPROVED_EN =
@@ -36,6 +45,15 @@ function message(catalog: unknown, key: string): string {
 
 function stripTags(text: string): string {
   return text.replace(/<\/?link>/g, "");
+}
+
+/** Stable serialisation: keys sorted at every level, no whitespace. */
+function canonical(value: unknown): string {
+  if (typeof value !== "object" || value === null) return JSON.stringify(value);
+  const entries = Object.entries(value as Record<string, unknown>)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, child]) => `${JSON.stringify(key)}:${canonical(child)}`);
+  return `{${entries.join(",")}}`;
 }
 
 function sha256(text: string): string {
@@ -95,5 +113,39 @@ describe("consent text pin (RC-3)", () => {
     const hashes = Object.values(PINNED);
     expect(new Set(hashes).size).toBe(hashes.length);
     expect(versions.at(-1)).toBe(CONSENT_VERSION);
+  });
+});
+
+describe("privacy notice pin (RC-3, RF-01 d)", () => {
+  const notice = () => (es as Record<string, unknown>).privacy;
+
+  it("hashes the es privacy subtree to the pin of the current version", () => {
+    expect(sha256(canonical(notice()))).toBe(PINNED_NOTICE[CONSENT_VERSION]);
+  });
+
+  it("detects a notice edit that keeps the version", () => {
+    const edited = JSON.parse(JSON.stringify(notice())) as {
+      retention: { body: string };
+    };
+    edited.retention.body = edited.retention.body.replace("cinco", "diez");
+    expect(edited.retention.body).not.toBe(
+      (notice() as typeof edited).retention.body,
+    );
+    expect(sha256(canonical(edited))).not.toBe(PINNED_NOTICE[CONSENT_VERSION]);
+  });
+
+  it("ignores key order but not content (sorted-key serialisation)", () => {
+    expect(canonical({ b: 1, a: { d: 2, c: 3 } })).toBe(
+      canonical({ a: { c: 3, d: 2 }, b: 1 }),
+    );
+    expect(canonical({ a: 1 })).not.toBe(canonical({ a: 2 }));
+  });
+
+  it("keeps the notice pins distinct, the current version last", () => {
+    const versions = Object.keys(PINNED_NOTICE);
+    const hashes = Object.values(PINNED_NOTICE);
+    expect(new Set(hashes).size).toBe(hashes.length);
+    expect(versions.at(-1)).toBe(CONSENT_VERSION);
+    expect(versions).toEqual(Object.keys(PINNED));
   });
 });

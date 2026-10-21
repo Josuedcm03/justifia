@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PRIVACY_PATH } from "@/lib/auth/public-paths";
 
 /**
  * Centred auth shell (docs/design-system.md §4.3): the brand block, the form
  * card and the institution line stacked on the page background, over a quiet
  * dotted field. Each form brings its own card (`AuthCard`) and measure.
+ * One privacy-notice link (same tab) here covers both login and register.
  */
 export default async function AuthLayout({
   children,
@@ -42,9 +45,15 @@ export default async function AuthLayout({
 
         {children}
 
-        <p className="text-label text-muted-foreground text-center">
-          {t("institution")}
-        </p>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <p className="text-label text-muted-foreground">{t("institution")}</p>
+          <Link
+            href={PRIVACY_PATH}
+            className="text-primary hover:text-primary-hover inline-flex min-h-11 items-center rounded-sm text-sm underline-offset-4 hover:underline"
+          >
+            {t("privacyNotice")}
+          </Link>
+        </div>
       </div>
     </main>
   );
