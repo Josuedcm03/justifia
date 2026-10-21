@@ -1,0 +1,1680 @@
+{
+  "id": "9617ba17-fd85-4aa2-ba54-9eda3394433f",
+  "prevId": "98c44526-c59d-43e5-a7cd-3d4e0ed1e79c",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.Asignatura": {
+      "name": "Asignatura",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Asignatura_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CarreraId": {
+          "name": "CarreraId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "HorasTotales": {
+          "name": "HorasTotales",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Asignatura_CarreraId_Carrera_Id_fk": {
+          "name": "Asignatura_CarreraId_Carrera_Id_fk",
+          "tableFrom": "Asignatura",
+          "tableTo": "Carrera",
+          "columnsFrom": [
+            "CarreraId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Asignatura_Codigo_unique": {
+          "name": "Asignatura_Codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_Asignatura_Horas": {
+          "name": "CK_Asignatura_Horas",
+          "value": "\"Asignatura\".\"HorasTotales\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.Carrera": {
+      "name": "Carrera",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Carrera_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "FacultadId": {
+          "name": "FacultadId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Carrera_FacultadId_Facultad_Id_fk": {
+          "name": "Carrera_FacultadId_Facultad_Id_fk",
+          "tableFrom": "Carrera",
+          "tableTo": "Facultad",
+          "columnsFrom": [
+            "FacultadId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Carrera_Nombre_unique": {
+          "name": "Carrera_Nombre_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Nombre"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.DocumentoRespaldo": {
+      "name": "DocumentoRespaldo",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "DocumentoRespaldo_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "SolicitudId": {
+          "name": "SolicitudId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Pathname": {
+          "name": "Pathname",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "NombreOriginal": {
+          "name": "NombreOriginal",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "TipoDetectado": {
+          "name": "TipoDetectado",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "TamanoBytes": {
+          "name": "TamanoBytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RetiradoEn": {
+          "name": "RetiradoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SubidoPorId": {
+          "name": "SubidoPorId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FormatoEspecial": {
+          "name": "FormatoEspecial",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "UX_Documento_FormatoEspecial": {
+          "name": "UX_Documento_FormatoEspecial",
+          "columns": [
+            {
+              "expression": "SolicitudId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"DocumentoRespaldo\".\"FormatoEspecial\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "IX_Documento_Solicitud": {
+          "name": "IX_Documento_Solicitud",
+          "columns": [
+            {
+              "expression": "SolicitudId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "DocumentoRespaldo_SolicitudId_Solicitud_Id_fk": {
+          "name": "DocumentoRespaldo_SolicitudId_Solicitud_Id_fk",
+          "tableFrom": "DocumentoRespaldo",
+          "tableTo": "Solicitud",
+          "columnsFrom": [
+            "SolicitudId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "DocumentoRespaldo_SubidoPorId_Usuario_Id_fk": {
+          "name": "DocumentoRespaldo_SubidoPorId_Usuario_Id_fk",
+          "tableFrom": "DocumentoRespaldo",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "SubidoPorId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "DocumentoRespaldo_Pathname_unique": {
+          "name": "DocumentoRespaldo_Pathname_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Pathname"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_Documento_Retiro": {
+          "name": "CK_Documento_Retiro",
+          "value": "\"DocumentoRespaldo\".\"RetiradoEn\" IS NULL OR \"DocumentoRespaldo\".\"Estado\" = 'valido'"
+        },
+        "CK_Documento_Tipo": {
+          "name": "CK_Documento_Tipo",
+          "value": "\"DocumentoRespaldo\".\"TipoDetectado\" IS NULL OR \"DocumentoRespaldo\".\"TipoDetectado\" IN ('pdf', 'png', 'jpeg')"
+        },
+        "CK_Documento_Tamano": {
+          "name": "CK_Documento_Tamano",
+          "value": "\"DocumentoRespaldo\".\"TamanoBytes\" > 0 AND \"DocumentoRespaldo\".\"TamanoBytes\" <= 10485760"
+        },
+        "CK_Documento_Estado": {
+          "name": "CK_Documento_Estado",
+          "value": "\"DocumentoRespaldo\".\"Estado\" IN ('pendiente', 'valido')"
+        },
+        "CK_Documento_Validado": {
+          "name": "CK_Documento_Validado",
+          "value": "\"DocumentoRespaldo\".\"Estado\" = 'pendiente' OR \"DocumentoRespaldo\".\"TipoDetectado\" IS NOT NULL"
+        },
+        "CK_Documento_FormatoEspecial": {
+          "name": "CK_Documento_FormatoEspecial",
+          "value": "\"DocumentoRespaldo\".\"FormatoEspecial\" = (\"DocumentoRespaldo\".\"SubidoPorId\" IS NOT NULL) AND (NOT \"DocumentoRespaldo\".\"FormatoEspecial\" OR \"DocumentoRespaldo\".\"Estado\" = 'valido')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.Facultad": {
+      "name": "Facultad",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Facultad_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Siglas": {
+          "name": "Siglas",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Facultad_Nombre_unique": {
+          "name": "Facultad_Nombre_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Nombre"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Grupo": {
+      "name": "Grupo",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Grupo_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "AsignaturaId": {
+          "name": "AsignaturaId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Periodo": {
+          "name": "Periodo",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "NumeroGrupo": {
+          "name": "NumeroGrupo",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DocenteId": {
+          "name": "DocenteId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "Origen": {
+          "name": "Origen",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'importacion'"
+        },
+        "Dias": {
+          "name": "Dias",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "IX_Grupo_Docente": {
+          "name": "IX_Grupo_Docente",
+          "columns": [
+            {
+              "expression": "DocenteId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "IX_Grupo_Activo": {
+          "name": "IX_Grupo_Activo",
+          "columns": [
+            {
+              "expression": "AsignaturaId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "Periodo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"Grupo\".\"Activo\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Grupo_AsignaturaId_Asignatura_Id_fk": {
+          "name": "Grupo_AsignaturaId_Asignatura_Id_fk",
+          "tableFrom": "Grupo",
+          "tableTo": "Asignatura",
+          "columnsFrom": [
+            "AsignaturaId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Grupo_DocenteId_Usuario_Id_fk": {
+          "name": "Grupo_DocenteId_Usuario_Id_fk",
+          "tableFrom": "Grupo",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "DocenteId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Grupo_AsignaturaId_Periodo_NumeroGrupo_unique": {
+          "name": "Grupo_AsignaturaId_Periodo_NumeroGrupo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "AsignaturaId",
+            "Periodo",
+            "NumeroGrupo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_Grupo_Origen": {
+          "name": "CK_Grupo_Origen",
+          "value": "\"Grupo\".\"Origen\" in ('importacion', 'manual')"
+        },
+        "CK_Grupo_Dias": {
+          "name": "CK_Grupo_Dias",
+          "value": "\"Grupo\".\"Dias\" between 0 and 127"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.Inscripcion": {
+      "name": "Inscripcion",
+      "schema": "",
+      "columns": {
+        "EstudianteId": {
+          "name": "EstudianteId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "GrupoId": {
+          "name": "GrupoId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "IX_Inscripcion_Grupo": {
+          "name": "IX_Inscripcion_Grupo",
+          "columns": [
+            {
+              "expression": "GrupoId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Inscripcion_EstudianteId_Usuario_Id_fk": {
+          "name": "Inscripcion_EstudianteId_Usuario_Id_fk",
+          "tableFrom": "Inscripcion",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "EstudianteId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Inscripcion_GrupoId_Grupo_Id_fk": {
+          "name": "Inscripcion_GrupoId_Grupo_Id_fk",
+          "tableFrom": "Inscripcion",
+          "tableTo": "Grupo",
+          "columnsFrom": [
+            "GrupoId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "Inscripcion_EstudianteId_GrupoId_pk": {
+          "name": "Inscripcion_EstudianteId_GrupoId_pk",
+          "columns": [
+            "EstudianteId",
+            "GrupoId"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Remision": {
+      "name": "Remision",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Remision_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "SolicitudId": {
+          "name": "SolicitudId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DocenteId": {
+          "name": "DocenteId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DocenteNombre": {
+          "name": "DocenteNombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Correo": {
+          "name": "Correo",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Clases": {
+          "name": "Clases",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "MotivoCodigo": {
+          "name": "MotivoCodigo",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Intentos": {
+          "name": "Intentos",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "ReclamoId": {
+          "name": "ReclamoId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ReclamadaEn": {
+          "name": "ReclamadaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "EnviadaEn": {
+          "name": "EnviadaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ProveedorMensajeId": {
+          "name": "ProveedorMensajeId",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CreadaEn": {
+          "name": "CreadaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ActualizadaEn": {
+          "name": "ActualizadaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "IX_Remision_Pendiente": {
+          "name": "IX_Remision_Pendiente",
+          "columns": [
+            {
+              "expression": "CreadaEn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "Id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"Remision\".\"Estado\" = 'pendiente'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "IX_Remision_Solicitud": {
+          "name": "IX_Remision_Solicitud",
+          "columns": [
+            {
+              "expression": "SolicitudId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Remision_SolicitudId_Solicitud_Id_fk": {
+          "name": "Remision_SolicitudId_Solicitud_Id_fk",
+          "tableFrom": "Remision",
+          "tableTo": "Solicitud",
+          "columnsFrom": [
+            "SolicitudId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Remision_DocenteId_Usuario_Id_fk": {
+          "name": "Remision_DocenteId_Usuario_Id_fk",
+          "tableFrom": "Remision",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "DocenteId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "UQ_Remision_SolicitudDocente": {
+          "name": "UQ_Remision_SolicitudDocente",
+          "nullsNotDistinct": false,
+          "columns": [
+            "SolicitudId",
+            "DocenteId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_Remision_Estado": {
+          "name": "CK_Remision_Estado",
+          "value": "\"Remision\".\"Estado\" IN ('pendiente', 'enviada', 'bloqueada')"
+        },
+        "CK_Remision_Motivo": {
+          "name": "CK_Remision_Motivo",
+          "value": "\"Remision\".\"MotivoCodigo\" IS NULL OR \"Remision\".\"MotivoCodigo\" IN ('sin_correo', 'formato_especial_faltante', 'adjuntos_exceden_limite', 'error_envio')"
+        },
+        "CK_Remision_Enviada": {
+          "name": "CK_Remision_Enviada",
+          "value": "(\"Remision\".\"Estado\" = 'enviada') = (\"Remision\".\"EnviadaEn\" IS NOT NULL)"
+        },
+        "CK_Remision_MotivoEstado": {
+          "name": "CK_Remision_MotivoEstado",
+          "value": "(\"Remision\".\"Estado\" <> 'enviada' OR \"Remision\".\"MotivoCodigo\" IS NULL) AND (\"Remision\".\"Estado\" <> 'bloqueada' OR (\"Remision\".\"MotivoCodigo\" IS NOT NULL AND \"Remision\".\"MotivoCodigo\" <> 'error_envio')) AND (\"Remision\".\"Estado\" <> 'pendiente' OR \"Remision\".\"MotivoCodigo\" IS NULL OR \"Remision\".\"MotivoCodigo\" = 'error_envio')"
+        },
+        "CK_Remision_Correo": {
+          "name": "CK_Remision_Correo",
+          "value": "\"Remision\".\"Correo\" IS NOT NULL OR \"Remision\".\"MotivoCodigo\" = 'sin_correo'"
+        },
+        "CK_Remision_Reclamo": {
+          "name": "CK_Remision_Reclamo",
+          "value": "(\"Remision\".\"ReclamoId\" IS NULL) = (\"Remision\".\"ReclamadaEn\" IS NULL)"
+        },
+        "CK_Remision_Intentos": {
+          "name": "CK_Remision_Intentos",
+          "value": "\"Remision\".\"Intentos\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.Rol": {
+      "name": "Rol",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Rol_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Rol_Codigo_unique": {
+          "name": "Rol_Codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Solicitud": {
+      "name": "Solicitud",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Solicitud_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "EstudianteId": {
+          "name": "EstudianteId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'borrador'"
+        },
+        "Causa": {
+          "name": "Causa",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FechaInicio": {
+          "name": "FechaInicio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FechaFin": {
+          "name": "FechaFin",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "PresentadaEn": {
+          "name": "PresentadaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ReenviadaEn": {
+          "name": "ReenviadaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FormatoEspecial": {
+          "name": "FormatoEspecial",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "ConsentimientoEn": {
+          "name": "ConsentimientoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ConsentimientoVersion": {
+          "name": "ConsentimientoVersion",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "EstudianteNombre": {
+          "name": "EstudianteNombre",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "EstudianteCif": {
+          "name": "EstudianteCif",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "EstudianteCarrera": {
+          "name": "EstudianteCarrera",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "EstudianteCorreo": {
+          "name": "EstudianteCorreo",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ActualizadoEn": {
+          "name": "ActualizadoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "IX_Solicitud_Cola": {
+          "name": "IX_Solicitud_Cola",
+          "columns": [
+            {
+              "expression": "coalesce(\"ReenviadaEn\", \"PresentadaEn\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "Id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"Solicitud\".\"Estado\" = 'pendiente'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "UX_Solicitud_Borrador": {
+          "name": "UX_Solicitud_Borrador",
+          "columns": [
+            {
+              "expression": "EstudianteId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"Solicitud\".\"Estado\" = 'borrador'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "IX_Solicitud_Estado": {
+          "name": "IX_Solicitud_Estado",
+          "columns": [
+            {
+              "expression": "Estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "PresentadaEn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "IX_Solicitud_BorradorActualizado": {
+          "name": "IX_Solicitud_BorradorActualizado",
+          "columns": [
+            {
+              "expression": "ActualizadoEn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"Solicitud\".\"Estado\" = 'borrador'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Solicitud_EstudianteId_Usuario_Id_fk": {
+          "name": "Solicitud_EstudianteId_Usuario_Id_fk",
+          "tableFrom": "Solicitud",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "EstudianteId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "CK_Solicitud_Estado": {
+          "name": "CK_Solicitud_Estado",
+          "value": "\"Solicitud\".\"Estado\" IN ('borrador', 'pendiente', 'en_revision_coordinacion', 'devuelta', 'aprobada', 'rechazada')"
+        },
+        "CK_Solicitud_Causa": {
+          "name": "CK_Solicitud_Causa",
+          "value": "\"Solicitud\".\"Causa\" IS NULL OR \"Solicitud\".\"Causa\" IN ('maternidad_paternidad', 'actividad_representativa', 'intercambio_academico', 'medica', 'fuerza_mayor')"
+        },
+        "CK_Solicitud_Fechas": {
+          "name": "CK_Solicitud_Fechas",
+          "value": "\"Solicitud\".\"FechaFin\" >= \"Solicitud\".\"FechaInicio\""
+        },
+        "CK_Solicitud_Presentada": {
+          "name": "CK_Solicitud_Presentada",
+          "value": "\"Solicitud\".\"Estado\" = 'borrador' OR (\"Solicitud\".\"PresentadaEn\" IS NOT NULL AND \"Solicitud\".\"Causa\" IS NOT NULL AND \"Solicitud\".\"FechaInicio\" IS NOT NULL AND \"Solicitud\".\"FechaFin\" IS NOT NULL AND \"Solicitud\".\"EstudianteNombre\" IS NOT NULL AND \"Solicitud\".\"EstudianteCif\" IS NOT NULL AND \"Solicitud\".\"EstudianteCarrera\" IS NOT NULL AND \"Solicitud\".\"EstudianteCorreo\" IS NOT NULL)"
+        },
+        "CK_Solicitud_Reenvio": {
+          "name": "CK_Solicitud_Reenvio",
+          "value": "\"Solicitud\".\"ReenviadaEn\" IS NULL OR (\"Solicitud\".\"PresentadaEn\" IS NOT NULL AND \"Solicitud\".\"ReenviadaEn\" >= \"Solicitud\".\"PresentadaEn\")"
+        },
+        "CK_Solicitud_Consentimiento": {
+          "name": "CK_Solicitud_Consentimiento",
+          "value": "(\"Solicitud\".\"ConsentimientoEn\" IS NULL) = (\"Solicitud\".\"ConsentimientoVersion\" IS NULL)"
+        },
+        "CK_Solicitud_ConsentimientoFecha": {
+          "name": "CK_Solicitud_ConsentimientoFecha",
+          "value": "\"Solicitud\".\"ConsentimientoEn\" IS NULL OR (\"Solicitud\".\"PresentadaEn\" IS NOT NULL AND \"Solicitud\".\"ConsentimientoEn\" <= \"Solicitud\".\"PresentadaEn\")"
+        },
+        "CK_Solicitud_FormatoEspecial": {
+          "name": "CK_Solicitud_FormatoEspecial",
+          "value": "NOT \"Solicitud\".\"FormatoEspecial\" OR (\"Solicitud\".\"Estado\" = 'aprobada' AND \"Solicitud\".\"Causa\" = 'fuerza_mayor')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.SolicitudAsignatura": {
+      "name": "SolicitudAsignatura",
+      "schema": "",
+      "columns": {
+        "SolicitudId": {
+          "name": "SolicitudId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "GrupoId": {
+          "name": "GrupoId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "SolicitudAsignatura_SolicitudId_Solicitud_Id_fk": {
+          "name": "SolicitudAsignatura_SolicitudId_Solicitud_Id_fk",
+          "tableFrom": "SolicitudAsignatura",
+          "tableTo": "Solicitud",
+          "columnsFrom": [
+            "SolicitudId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "SolicitudAsignatura_GrupoId_Grupo_Id_fk": {
+          "name": "SolicitudAsignatura_GrupoId_Grupo_Id_fk",
+          "tableFrom": "SolicitudAsignatura",
+          "tableTo": "Grupo",
+          "columnsFrom": [
+            "GrupoId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "SolicitudAsignatura_SolicitudId_GrupoId_pk": {
+          "name": "SolicitudAsignatura_SolicitudId_GrupoId_pk",
+          "columns": [
+            "SolicitudId",
+            "GrupoId"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.SolicitudDecision": {
+      "name": "SolicitudDecision",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "SolicitudDecision_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "SolicitudId": {
+          "name": "SolicitudId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Tipo": {
+          "name": "Tipo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PlantillaCodigo": {
+          "name": "PlantillaCodigo",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "MotivoCodigo": {
+          "name": "MotivoCodigo",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Texto": {
+          "name": "Texto",
+          "type": "varchar(1000)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "RevisionId": {
+          "name": "RevisionId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "SecretariaId": {
+          "name": "SecretariaId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DecididaEn": {
+          "name": "DecididaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "IX_SolicitudDecision_Solicitud": {
+          "name": "IX_SolicitudDecision_Solicitud",
+          "columns": [
+            {
+              "expression": "SolicitudId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "DecididaEn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "SolicitudDecision_SolicitudId_Solicitud_Id_fk": {
+          "name": "SolicitudDecision_SolicitudId_Solicitud_Id_fk",
+          "tableFrom": "SolicitudDecision",
+          "tableTo": "Solicitud",
+          "columnsFrom": [
+            "SolicitudId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "SolicitudDecision_RevisionId_SolicitudRevision_Id_fk": {
+          "name": "SolicitudDecision_RevisionId_SolicitudRevision_Id_fk",
+          "tableFrom": "SolicitudDecision",
+          "tableTo": "SolicitudRevision",
+          "columnsFrom": [
+            "RevisionId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "SolicitudDecision_SecretariaId_Usuario_Id_fk": {
+          "name": "SolicitudDecision_SecretariaId_Usuario_Id_fk",
+          "tableFrom": "SolicitudDecision",
+          "tableTo": "Usuario",
+          "columnsFrom": [
+            "SecretariaId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "CK_SolicitudDecision_Tipo": {
+          "name": "CK_SolicitudDecision_Tipo",
+          "value": "\"SolicitudDecision\".\"Tipo\" IN ('aprobada', 'rechazada', 'devuelta')"
+        },
+        "CK_SolicitudDecision_Motivo": {
+          "name": "CK_SolicitudDecision_Motivo",
+          "value": "(\"SolicitudDecision\".\"Tipo\" = 'devuelta') = (\"SolicitudDecision\".\"MotivoCodigo\" IS NOT NULL)"
+        },
+        "CK_SolicitudDecision_MotivoCodigo": {
+          "name": "CK_SolicitudDecision_MotivoCodigo",
+          "value": "\"SolicitudDecision\".\"MotivoCodigo\" IS NULL OR \"SolicitudDecision\".\"MotivoCodigo\" IN ('fecha_incorrecta', 'fecha_alterada', 'documento_ilegible')"
+        },
+        "CK_SolicitudDecision_Texto": {
+          "name": "CK_SolicitudDecision_Texto",
+          "value": "\"SolicitudDecision\".\"Tipo\" = 'aprobada' OR (\"SolicitudDecision\".\"Texto\" IS NOT NULL AND length(btrim(\"SolicitudDecision\".\"Texto\")) > 0)"
+        },
+        "CK_SolicitudDecision_Revision": {
+          "name": "CK_SolicitudDecision_Revision",
+          "value": "(\"SolicitudDecision\".\"Tipo\" = 'devuelta') = (\"SolicitudDecision\".\"RevisionId\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.SolicitudRevision": {
+      "name": "SolicitudRevision",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "SolicitudRevision_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "SolicitudId": {
+          "name": "SolicitudId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Numero": {
+          "name": "Numero",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Causa": {
+          "name": "Causa",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "FechaInicio": {
+          "name": "FechaInicio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "FechaFin": {
+          "name": "FechaFin",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Clases": {
+          "name": "Clases",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DocumentoIds": {
+          "name": "DocumentoIds",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CreadaEn": {
+          "name": "CreadaEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "SolicitudRevision_SolicitudId_Solicitud_Id_fk": {
+          "name": "SolicitudRevision_SolicitudId_Solicitud_Id_fk",
+          "tableFrom": "SolicitudRevision",
+          "tableTo": "Solicitud",
+          "columnsFrom": [
+            "SolicitudId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "UQ_SolicitudRevision": {
+          "name": "UQ_SolicitudRevision",
+          "nullsNotDistinct": false,
+          "columns": [
+            "SolicitudId",
+            "Numero"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_SolicitudRevision_Numero": {
+          "name": "CK_SolicitudRevision_Numero",
+          "value": "\"SolicitudRevision\".\"Numero\" > 0"
+        },
+        "CK_SolicitudRevision_Causa": {
+          "name": "CK_SolicitudRevision_Causa",
+          "value": "\"SolicitudRevision\".\"Causa\" IN ('maternidad_paternidad', 'actividad_representativa', 'intercambio_academico', 'medica', 'fuerza_mayor')"
+        },
+        "CK_SolicitudRevision_Fechas": {
+          "name": "CK_SolicitudRevision_Fechas",
+          "value": "\"SolicitudRevision\".\"FechaFin\" >= \"SolicitudRevision\".\"FechaInicio\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.Usuario": {
+      "name": "Usuario",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Usuario_Id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "Login": {
+          "name": "Login",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "HashClave": {
+          "name": "HashClave",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RolId": {
+          "name": "RolId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "NombreCompleto": {
+          "name": "NombreCompleto",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Correo": {
+          "name": "Correo",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Telefono": {
+          "name": "Telefono",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Cif": {
+          "name": "Cif",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CarreraId": {
+          "name": "CarreraId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FacultadId": {
+          "name": "FacultadId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "DebeCambiarClave": {
+          "name": "DebeCambiarClave",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Usuario_RolId_Rol_Id_fk": {
+          "name": "Usuario_RolId_Rol_Id_fk",
+          "tableFrom": "Usuario",
+          "tableTo": "Rol",
+          "columnsFrom": [
+            "RolId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Usuario_CarreraId_Carrera_Id_fk": {
+          "name": "Usuario_CarreraId_Carrera_Id_fk",
+          "tableFrom": "Usuario",
+          "tableTo": "Carrera",
+          "columnsFrom": [
+            "CarreraId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Usuario_FacultadId_Facultad_Id_fk": {
+          "name": "Usuario_FacultadId_Facultad_Id_fk",
+          "tableFrom": "Usuario",
+          "tableTo": "Facultad",
+          "columnsFrom": [
+            "FacultadId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "Usuario_Login_unique": {
+          "name": "Usuario_Login_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Login"
+          ]
+        },
+        "Usuario_Correo_unique": {
+          "name": "Usuario_Correo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Correo"
+          ]
+        },
+        "Usuario_Cif_unique": {
+          "name": "Usuario_Cif_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "Cif"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "CK_Usuario_Ambito": {
+          "name": "CK_Usuario_Ambito",
+          "value": "\"Usuario\".\"FacultadId\" IS NULL OR \"Usuario\".\"CarreraId\" IS NULL"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

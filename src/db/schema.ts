@@ -263,6 +263,12 @@ export const solicitud = pgTable(
     // RN-19: the secretary marked the approval as a special-format case; the
     // signed format is uploaded afterwards (teacher-remission, TR-1).
     formatoEspecial: boolean("FormatoEspecial").notNull().default(false),
+    // RF-01 (d), RN-25: the consent of the first presentation, written in the
+    // same transaction and with the same instant as `PresentadaEn`. NULL while a
+    // draft and on every request presented before consent existed (request-
+    // consent, RC-1: no backfill, a backfill would fabricate consent).
+    consentimientoEn: timestamp("ConsentimientoEn", { withTimezone: true }),
+    consentimientoVersion: varchar("ConsentimientoVersion", { length: 20 }),
     estudianteNombre: varchar("EstudianteNombre", { length: 160 }),
     estudianteCif: varchar("EstudianteCif", { length: 20 }),
     estudianteCarrera: varchar("EstudianteCarrera", { length: 160 }),
@@ -291,6 +297,16 @@ export const solicitud = pgTable(
     check(
       "CK_Solicitud_Reenvio",
       sql`${t.reenviadaEn} IS NULL OR (${t.presentadaEn} IS NOT NULL AND ${t.reenviadaEn} >= ${t.presentadaEn})`,
+    ),
+    // Consent: both columns or neither, and never after the presentation. A
+    // draft has no presentation, so it cannot carry consent (RC-1).
+    check(
+      "CK_Solicitud_Consentimiento",
+      sql`(${t.consentimientoEn} IS NULL) = (${t.consentimientoVersion} IS NULL)`,
+    ),
+    check(
+      "CK_Solicitud_ConsentimientoFecha",
+      sql`${t.consentimientoEn} IS NULL OR (${t.presentadaEn} IS NOT NULL AND ${t.consentimientoEn} <= ${t.presentadaEn})`,
     ),
     // The review queue: pending requests by effective start (SR-1).
     check(

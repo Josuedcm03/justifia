@@ -48,19 +48,19 @@ Chain: tracker `feat/request-consent` is created and exists. Each child slice br
 
 ## Phase 0: Planning docs and tracker (before S1)
 
-- [ ] 0.1 On tracker `feat/request-consent`, stage only `openspec/changes/request-consent/` (exploration, research, preproposal, proposal, `specs/`, design, tasks) and commit `docs(request-consent): add the SDD planning documents` as its own docs commit. Do not stage `package-lock.json` (read-only; the existing unrelated modification stays out of this change)
-- [ ] 0.2 Push the tracker; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate (not before S2)
-- [ ] 0.3 Re-check `drizzle/` (read-only) on `main` for a migration newer than `0009_teacher_remission.sql`; if `document-extraction` already merged a `0010`, STOP and tell the owner (renumber decision)
+- [x] 0.1 On tracker `feat/request-consent`, stage only `openspec/changes/request-consent/` (exploration, research, preproposal, proposal, `specs/`, design, tasks) and commit `docs(request-consent): add the SDD planning documents` as its own docs commit. Do not stage `package-lock.json` (read-only; the existing unrelated modification stays out of this change)
+- [x] 0.2 Push the tracker; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate (not before S2)
+- [x] 0.3 Re-check `drizzle/` (read-only) on `main` for a migration newer than `0009_teacher_remission.sql`; if `document-extraction` already merged a `0010`, STOP and tell the owner (renumber decision)
 
 ## Phase 1: S1 - Schema, migration, consent module (work unit 1)
 
-- [ ] 1.1 Branch `feat/request-consent-s1-data-rules` from the tracker; PR targets the tracker
-- [ ] 1.2 RED: `src/lib/intake/consent.test.ts`: `CONSENT_VERSION === "2026-10-20"`; `CONSENT_LABEL_KEY`; es label with tags stripped equals the approved D1 text and en equals its approved translation; SHA-256 of the raw es message (tags included) equals `PINNED[CONSENT_VERSION]`; `PINNED` hashes distinct and `CONSENT_VERSION` is its last key (RC-3; scenarios "Text is the approved one", "Text changed without version change")
-- [ ] 1.3 GREEN: create `src/lib/intake/consent.ts` (pure, no `server-only`); add `intake.review.consent.label` to `i18n/es.json` and `i18n/en.json` with a `<link>` tag around "Ver aviso de privacidad" / "View privacy notice"; compute the hash from the final string and write the `PINNED` literal
-- [ ] 1.4 RED: `src/db/migration-request-consent.test.ts` (pattern of `migration-teacher-remission.test.ts`): SQL located by `request_consent` name; journal `when` later than 0009's; both columns nullable; `CK_Solicitud_Consentimiento` and `CK_Solicitud_ConsentimientoFecha` bodies equal RC-1 (constraint-case table: set/set `<=`, set/empty, empty/set, set/set `>` rejected, legacy empty/empty accepted); no `DROP`, no `ALTER ... TYPE`, no `UPDATE` (no backfill) (RC-1, RC-2)
-- [ ] 1.5 GREEN: `src/db/schema.ts` adds `Solicitud.ConsentimientoEn` (`timestamptz` NULL), `ConsentimientoVersion` (`varchar(20)` NULL) and the two CHECKs per RC-1
-- [ ] 1.6 [LOCAL] `npm run db:generate -- --name request_consent` (generate only; expected `drizzle/0010_request_consent.sql`, `drizzle/meta/0010_snapshot.json`, `drizzle/meta/_journal.json`); confirm two `ADD COLUMN` and two `ADD CONSTRAINT` only and a journal `when` later than 0009's. STOP: no `migrate`, no `push`
-- [ ] 1.7 Commit unit 1: `feat(consent): add the consent version, text pin and schema with migration 0010`
+- [x] 1.1 Branch `feat/request-consent-s1-data-rules` from the tracker; PR targets the tracker
+- [x] 1.2 RED: `src/lib/intake/consent.test.ts`: `CONSENT_VERSION === "2026-10-20"`; `CONSENT_LABEL_KEY`; es label with tags stripped equals the approved D1 text and en equals its approved translation; SHA-256 of the raw es message (tags included) equals `PINNED[CONSENT_VERSION]`; `PINNED` hashes distinct and `CONSENT_VERSION` is its last key (RC-3; scenarios "Text is the approved one", "Text changed without version change")
+- [x] 1.3 GREEN: create `src/lib/intake/consent.ts` (pure, no `server-only`); add `intake.review.consent.label` to `i18n/es.json` and `i18n/en.json` with a `<link>` tag around "Ver aviso de privacidad" / "View privacy notice"; compute the hash from the final string and write the `PINNED` literal
+- [x] 1.4 RED: `src/db/migration-request-consent.test.ts` (pattern of `migration-teacher-remission.test.ts`): SQL located by `request_consent` name; journal `when` later than 0009's; both columns nullable; `CK_Solicitud_Consentimiento` and `CK_Solicitud_ConsentimientoFecha` bodies equal RC-1 (constraint-case table: set/set `<=`, set/empty, empty/set, set/set `>` rejected, legacy empty/empty accepted); no `DROP`, no `ALTER ... TYPE`, no `UPDATE` (no backfill) (RC-1, RC-2)
+- [x] 1.5 GREEN: `src/db/schema.ts` adds `Solicitud.ConsentimientoEn` (`timestamptz` NULL), `ConsentimientoVersion` (`varchar(20)` NULL) and the two CHECKs per RC-1
+- [x] 1.6 [LOCAL] `npm run db:generate -- --name request_consent` (generate only; expected `drizzle/0010_request_consent.sql`, `drizzle/meta/0010_snapshot.json`, `drizzle/meta/_journal.json`); confirm two `ADD COLUMN` and two `ADD CONSTRAINT` only and a journal `when` later than 0009's. STOP: no `migrate`, no `push`
+- [x] 1.7 Commit unit 1: `feat(consent): add the consent version, text pin and schema with migration 0010`
 
 ## Phase 2: S1 - Rules, action, persistence, audit (work unit 2)
 
