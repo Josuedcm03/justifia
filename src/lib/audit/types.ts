@@ -91,8 +91,15 @@ type UserChangedPayload = {
   importacionSha256: string;
 };
 
-/** Counts only: no cause, dates or student data (RNF-02, RN-02). */
-type RequestSubmittedPayload = { asignaturas: number; documentos: number };
+/**
+ * Counts and the consent version code: no cause, dates or student data
+ * (RNF-02, RN-02), and neither the consent text nor its instant (RC-7).
+ */
+type RequestSubmittedPayload = {
+  asignaturas: number;
+  documentos: number;
+  consentimientoVersion: string;
+};
 
 /** Reason codes of a rejected finalize (supporting-documents). */
 export type DocumentRejectionReason =

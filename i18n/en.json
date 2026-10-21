@@ -724,6 +724,8 @@
       "group_required": "Choose the group for this subject.",
       "group_not_in_subject": "The chosen group does not belong to this subject.",
       "documents_required": "Attach at least one supporting document.",
+      "consent_required": "Check the box to give your consent and submit the request.",
+      "consent_outdated": "The consent text has changed. Reload the page, read the updated text and check the box again.",
       "no_draft": "We could not find your draft. Reload the page to start again.",
       "invalid_input": "Check the data you entered.",
       "dates_required": "Enter the absence dates first.",

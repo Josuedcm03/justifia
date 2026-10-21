@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CAUSAS } from "./causes";
+import { CONSENT_VERSION } from "./consent";
 import type { EligibleGroup } from "./eligibility";
 import { validateSubmission, type SubmissionInput } from "./submission";
 
@@ -20,6 +21,7 @@ function valid(overrides: Partial<SubmissionInput> = {}): SubmissionInput {
     selections: [{ asignaturaId: 10, grupoId: null }],
     eligibleGroups: ELIGIBLE,
     validDocumentCount: 1,
+    consentVersion: CONSENT_VERSION,
     ...overrides,
   };
 }
@@ -182,5 +184,101 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
       "fechaFin:end_before_start",
       "documents:documents_required",
     ]);
+  });
+
+  describe("consent (RC-4, RF-01 d, RN-25)", () => {
+    it("accepts the version the server currently serves", () => {
+      expect(
+        validateSubmission(valid({ consentVersion: CONSENT_VERSION }), TODAY),
+      ).toEqual({ ok: true });
+    });
+
+    it.each([
+      ["absent", undefined],
+      ["null", null],
+      ["empty", ""],
+    ])("requires consent when the version is %s", (_name, consentVersion) => {
+      expect(fields(valid({ consentVersion }))).toEqual([
+        "consent:consent_required",
+      ]);
+    });
+
+    it.each([
+      ["true", true],
+      ["a number", 1],
+      ["an object", {}],
+    ])("treats a non-string (%s) as missing, never as accepted", (_n, bad) => {
+      expect(
+        fields(valid({ consentVersion: bad as unknown as string })),
+      ).toEqual(["consent:consent_required"]);
+    });
+
+    it.each(["2025-01-01", "x"])(
+      "reports an outdated consent for version %s",
+      (consentVersion) => {
+        expect(fields(valid({ consentVersion }))).toEqual([
+          "consent:consent_outdated",
+        ]);
+      },
+    );
+
+    it("is not applied when the caller opts out (correction)", () => {
+      const missing = valid({ consentVersion: undefined });
+      expect(validateSubmission(missing, TODAY, { consent: false })).toEqual({
+        ok: true,
+      });
+      expect(
+        validateSubmission(valid({ consentVersion: "x" }), TODAY, {
+          consent: false,
+        }),
+      ).toEqual({ ok: true });
+    });
+
+    it("is applied by default and when set to true (fail closed)", () => {
+      const missing = valid({ consentVersion: undefined });
+      expect(validateSubmission(missing, TODAY).ok).toBe(false);
+      expect(validateSubmission(missing, TODAY, { consent: true }).ok).toBe(
+        false,
+      );
+    });
+
+    it("keeps applying the other rules when consent is opted out", () => {
+      const result = validateSubmission(
+        valid({ consentVersion: undefined, validDocumentCount: 0 }),
+        TODAY,
+        { consent: false },
+      );
+      expect(result).toEqual({
+        ok: false,
+        errors: [{ field: "documents", code: "documents_required" }],
+      });
+    });
+
+    it("is reported beside every other error, last (RF-03 e)", () => {
+      expect(
+        fields(
+          valid({
+            causa: null,
+            fechaInicio: "2026-10-10",
+            fechaFin: "2026-10-09",
+            validDocumentCount: 0,
+            consentVersion: null,
+          }),
+        ),
+      ).toEqual([
+        "causa:causa_required",
+        "fechaFin:end_before_start",
+        "documents:documents_required",
+        "consent:consent_required",
+      ]);
+    });
+
+    it("does not mask the documents error when the consent is valid", () => {
+      expect(
+        fields(
+          valid({ validDocumentCount: 0, consentVersion: CONSENT_VERSION }),
+        ),
+      ).toEqual(["documents:documents_required"]);
+    });
   });
 });

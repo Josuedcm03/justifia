@@ -24,7 +24,9 @@ export function SubmitDialog({
         pending: t("submit.pending"),
         cancel: t("cancel"),
       }}
-      action={submitRequestAction}
+      // S1 only: no consent is sent yet, so the server refuses with
+      // `consent_required` (fail closed). S2 replaces this with the checkbox.
+      action={() => submitRequestAction(null)}
       onErrors={onErrors}
     />
   );
