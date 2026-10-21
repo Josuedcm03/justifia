@@ -84,6 +84,11 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
       carrera: "Ingenieria de Sistemas",
       correo: "ana@uam.edu.ni",
     },
+    // 14:05 on 8 October 2026 in America/Managua.
+    consentimiento: {
+      version: "2026-10-20",
+      en: new Date("2026-10-08T20:05:00Z"),
+    },
     clases: [
       CLASS,
       {
@@ -233,6 +238,46 @@ describe("ReviewDetailPage content (RF-06, RF-08 b)", () => {
     expect(student).toHaveTextContent("2021-0042");
     expect(student).toHaveTextContent("Ingenieria de Sistemas");
     expect(student).toHaveTextContent("ana@uam.edu.ni");
+  });
+
+  it("shows the recorded consent in the student section, in Managua time", async () => {
+    await renderPage();
+
+    const student = screen.getByRole("region", { name: en.sections.student });
+    expect(within(student).getByText(en.fields.consent)).toBeInTheDocument();
+    expect(student).toHaveTextContent("Version 2026-10-20, Oct 8, 2026");
+    expect(student.textContent).toMatch(/2:05\s?PM/);
+  });
+
+  it("says no consent is recorded for a request presented before consent existed", async () => {
+    detailMock.mockResolvedValue(detail({ consentimiento: null }));
+
+    await renderPage();
+
+    const student = screen.getByRole("region", { name: en.sections.student });
+    expect(student).toHaveTextContent(
+      "Not recorded (presented before consent existed)",
+    );
+    expect(within(student).queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps showing the original consent after a correction and resubmission", async () => {
+    detailMock.mockResolvedValue(
+      detail({ reenviadaEn: new Date("2026-10-12T15:00:00Z") }),
+    );
+
+    await renderPage();
+
+    const student = screen.getByRole("region", { name: en.sections.student });
+    expect(student).toHaveTextContent("Version 2026-10-20, Oct 8, 2026");
+    expect(student).not.toHaveTextContent("Oct 12, 2026");
+  });
+
+  it("adds no audit row for the consent: one read per opened detail", async () => {
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 12, "pendiente");
   });
 
   it("shows a single absence day once", async () => {

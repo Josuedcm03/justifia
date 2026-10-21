@@ -23,7 +23,9 @@
 |-------|--------|---------|---------------:|---------|
 | Docs | tracker `feat/request-consent` | SDD planning documents, one docs commit, before S1 | n/a (`openspec/` excluded) | tracker to `main` (draft, no-merge) |
 | S1 Data and rules | `feat/request-consent-s1-data-rules` | Unit 1 schema, migration 0010 (generated), consent module and text pin; unit 2 validation, correction opt-out, action payload, persistence, audit | ~330 | tracker |
-| S2 UI | `feat/request-consent-s2-ui` | Unit 3 review-step checkbox and submit dialog; unit 4 staff detail fact; S2 i18n keys | ~330 | S1 branch, retarget to tracker after S1 merges |
+| S1a Schema | `feat/request-consent-s1a-consent-schema` | S1 split (916 > 800): unit 1 only (PR #37) | 315 measured | tracker |
+| S1b Rules | `feat/request-consent-s1b-rules` | S1 split: unit 2 only (PR #38) | 601 measured | S1a |
+| S2 UI | `feat/request-consent-s2-ui` | Unit 3 review-step checkbox and submit dialog; unit 4 staff detail fact; S2 i18n keys | ~330 forecast, 801 measured | S1b branch, retarget to tracker after S1b merges |
 | S3 Privacy and closeout | `feat/request-consent-s3-privacy` | Unit 5 public `/privacy` page, allow-list, auth-layout link, notice pin; unit 6 closeout (spec sync, roadmap, archive) | ~150-190 | S2 branch, retarget to tracker after S2 merges |
 
 Decision needed before apply: No
@@ -82,7 +84,7 @@ Chain: tracker `feat/request-consent` is created and exists. Each child slice br
 
 - [x] 3.1 Gates S1: `npx vitest run src/db src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; record exact results; no DB command run
 - [x] 3.2 Measure the authored diff against the tracker (generated SQL and `drizzle/meta/*` excluded); target ~330, stop and report if over 800
-- [ ] 3.3 Open the S1 PR (base: tracker): Chain Context with the diagram marking S1 with `📍`, forecast, gates, measured size, "0010 generated, NOT applied", and "submit fails closed until S2; the tracker must not reach `main` before S2"
+- [x] 3.3 Open the S1 PR (base: tracker): **S1 measured 916 > 800, so under auto-chain it was split into S1a `feat/request-consent-s1a-consent-schema` (unit 1, PR #37, base tracker) and S1b `feat/request-consent-s1b-rules` (unit 2, PR #38, base S1a); S1b keeps the fail-closed dialog wrapper until S2.** Original wording: Chain Context with the diagram marking S1 with `📍`, forecast, gates, measured size, "0010 generated, NOT applied", and "submit fails closed until S2; the tracker must not reach `main` before S2"
 - [ ] 3.4 After review, merge S1 into the tracker with a merge commit; delete the S1 branch only after S2 is retargeted
 
 ## Phase 4: Migration apply (owner-run; after S1 merged, before the walk)
@@ -98,23 +100,23 @@ Chain: tracker `feat/request-consent` is created and exists. Each child slice br
 
 ## Phase 5: S2 - Review-step checkbox and staff detail (work units 3 and 4)
 
-- [ ] 5.1 Branch `feat/request-consent-s2-ui` from the S1 branch; PR base is the S1 branch until S1 merges, then retarget to the tracker
-- [ ] 5.2 RED: `src/app/(dashboard)/requests/new/review-step.test.tsx`: checkbox unchecked on mount and on resume, nothing stored on the draft; rendered only when `flow` is absent (none in the correction flow); label from `review.consent.label` with the link `href="/privacy" target="_blank" rel="noopener noreferrer"` and an `sr-only` "(opens in a new tab)"; clicking the label toggles, clicking the link does not; checking clears a consent error; consent errors render under the box with `aria-describedby`, never in the form-level block (`"consent"` in `SECTION_FIELDS`); submit button enabled when unchecked; the checkbox is the only input on the review step (RC-8; scenarios "Unchecked on every visit", "Link keeps the work", "Checking clears the consent error", "Review is read-only")
-- [ ] 5.3 RED: `src/app/(dashboard)/requests/new/submit-dialog.test.tsx`: confirm sends `{ consentVersion: CONSENT_VERSION }` when consented and `{ consentVersion: null }` otherwise; `ConfirmDialog` unchanged; server `consent` errors reach `onErrors` (RC-8, RNF-12; scenarios "Submit stays enabled and the dialog opens unchecked", "Checked box sends the version")
-- [ ] 5.4 GREEN: `src/app/(dashboard)/requests/new/review-step.tsx` (state `consented`, block above the footer, `Checkbox` + `Label` + `t.rich` link, `SECTION_FIELDS`) and `src/app/(dashboard)/requests/new/submit-dialog.tsx` (`consentVersion` prop, `action={() => submitRequestAction({ consentVersion })}`, replacing the 2.12 wrapper)
-- [ ] 5.5 RED+GREEN: `src/i18n/intake-messages.test.ts` additions then `i18n/es.json` and `i18n/en.json`: `intake.review.consent.newTab` in both locales (scenario "Translation keys present")
-- [ ] 5.6 RED+GREEN: `src/app/(dashboard)/requests/new/layout-360.test.tsx` and `src/app/(dashboard)/requests/new/design-system.test.tsx`: 360 px review step with a consent error showing (no horizontal overflow, label wraps, clicking the label toggles, axe clean); tokens only per `docs/design-system.md` (read-only: `text-sm`, `gap-3`, `text-destructive-ink`, `accent-primary`) (scenario "360 px and accessibility")
-- [ ] 5.7 Commit unit 3: `feat(consent): add the consent checkbox to the review step`
-- [ ] 5.8 RED: `src/lib/data/solicitud-detail.test.ts`: `getRequestDetail` returns `consentimiento: { version, en }` when recorded and `null` for a legacy row; a corrected request keeps the original consent; `getOwnRequestDetail` exposes no consent; update every fixture typed as `RequestDetail` (RC-9, C11; scenarios "Corrected request keeps its consent", "Student does not see it")
-- [ ] 5.9 GREEN: `src/lib/data/solicitud-detail.ts` selects both columns and extends `RequestDetail`
-- [ ] 5.10 RED: `src/app/(dashboard)/review/[id]/request-sections.test.tsx`: `StudentSection` shows the `review.detail.fields.consent` fact as "Version 2026-10-20, <date>" with the date in America/Managua, or the "Not recorded (presented before consent existed)" label; text only, no `role="alert"`, no error styling; no audit row beyond `solicitud.consultada`; `src/app/(dashboard)/review/design-system.test.tsx` updated (RC-9; scenarios "Recorded consent", "Legacy request", "Out of scope and audit")
-- [ ] 5.11 GREEN: `src/app/(dashboard)/review/[id]/request-sections.tsx` (`consent` prop, one `Fact`) and `src/app/(dashboard)/review/[id]/page.tsx` (passes `detail.consentimiento`)
-- [ ] 5.12 RED+GREEN: `src/i18n/review-messages.test.ts` additions then `i18n/es.json` and `i18n/en.json`: `review.detail.fields.consent`, `review.detail.consent.recorded`, `review.detail.consent.notRecorded` in both locales
-- [ ] 5.13 Commit unit 4: `feat(consent): show the recorded consent on the staff request detail`
+- [x] 5.1 Branch `feat/request-consent-s2-ui` from the S1 branch (after the split: `feat/request-consent-s1b-rules`); PR base is that branch until S1b merges, then retarget to the tracker
+- [x] 5.2 RED: `src/app/(dashboard)/requests/new/review-step.test.tsx`: checkbox unchecked on mount and on resume, nothing stored on the draft; rendered only when `flow` is absent (none in the correction flow); label from `review.consent.label` with the link `href="/privacy" target="_blank" rel="noopener noreferrer"` and an `sr-only` "(opens in a new tab)"; clicking the label toggles, clicking the link does not; checking clears a consent error; consent errors render under the box with `aria-describedby`, never in the form-level block (`"consent"` in `SECTION_FIELDS`); submit button enabled when unchecked; the checkbox is the only input on the review step (RC-8; scenarios "Unchecked on every visit", "Link keeps the work", "Checking clears the consent error", "Review is read-only")
+- [x] 5.3 RED: `src/app/(dashboard)/requests/new/submit-dialog.test.tsx`: confirm sends `{ consentVersion: CONSENT_VERSION }` when consented and `{ consentVersion: null }` otherwise; `ConfirmDialog` unchanged; server `consent` errors reach `onErrors` (RC-8, RNF-12; scenarios "Submit stays enabled and the dialog opens unchecked", "Checked box sends the version")
+- [x] 5.4 GREEN: `src/app/(dashboard)/requests/new/review-step.tsx` (state `consented`, block above the footer, `Checkbox` + `Label` + `t.rich` link, `SECTION_FIELDS`) and `src/app/(dashboard)/requests/new/submit-dialog.tsx` (`consentVersion` prop, `action={() => submitRequestAction({ consentVersion })}`, replacing the 2.12 wrapper)
+- [x] 5.5 RED+GREEN: `src/i18n/intake-messages.test.ts` additions then `i18n/es.json` and `i18n/en.json`: `intake.review.consent.newTab` in both locales (scenario "Translation keys present")
+- [x] 5.6 RED+GREEN: `src/app/(dashboard)/requests/new/layout-360.test.tsx` and `src/app/(dashboard)/requests/new/design-system.test.tsx`: 360 px review step with a consent error showing (no horizontal overflow, label wraps, clicking the label toggles, axe clean); tokens only per `docs/design-system.md` (read-only: `text-sm`, `gap-3`, `text-destructive-ink`, `accent-primary`) (scenario "360 px and accessibility")
+- [x] 5.7 Commit unit 3: `feat(consent): add the consent checkbox to the review step`
+- [x] 5.8 RED: `src/lib/data/solicitud-detail.test.ts`: `getRequestDetail` returns `consentimiento: { version, en }` when recorded and `null` for a legacy row; a corrected request keeps the original consent; `getOwnRequestDetail` exposes no consent; update every fixture typed as `RequestDetail` (RC-9, C11; scenarios "Corrected request keeps its consent", "Student does not see it")
+- [x] 5.9 GREEN: `src/lib/data/solicitud-detail.ts` selects both columns and extends `RequestDetail`
+- [x] 5.10 RED: `src/app/(dashboard)/review/[id]/request-sections.test.tsx`: `StudentSection` shows the `review.detail.fields.consent` fact as "Version 2026-10-20, <date>" with the date in America/Managua, or the "Not recorded (presented before consent existed)" label; text only, no `role="alert"`, no error styling; no audit row beyond `solicitud.consultada`; `src/app/(dashboard)/review/design-system.test.tsx` updated (RC-9; scenarios "Recorded consent", "Legacy request", "Out of scope and audit")
+- [x] 5.11 GREEN: `src/app/(dashboard)/review/[id]/request-sections.tsx` (`consent` prop, one `Fact`) and `src/app/(dashboard)/review/[id]/page.tsx` (passes `detail.consentimiento`)
+- [x] 5.12 RED+GREEN: `src/i18n/review-messages.test.ts` additions then `i18n/es.json` and `i18n/en.json`: `review.detail.fields.consent`, `review.detail.consent.recorded`, `review.detail.consent.notRecorded` in both locales
+- [x] 5.13 Commit unit 4: `feat(consent): show the recorded consent on the staff request detail`
 
 ## Phase 6: S2 - Gates and PR
 
-- [ ] 6.1 Gates S2: `npx vitest run src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; measured authored diff vs the S1 head (target ~330)
+- [x] 6.1 Gates S2: `npx vitest run src/lib src/app src/i18n`, `npm test`, typecheck, eslint, format:check, `npm run build`; measured authored diff vs the S1 head (target ~330). Result: all gates green; measured 801 authored lines (unit 3: 477, unit 4: 324) against the S1b head `d1ede71`, 1 over the 800 stop rule, so 6.2 waits for an owner decision (see apply-progress)
 - [ ] 6.2 Open the S2 PR (base: S1 branch, retarget to the tracker after S1 merges): diagram marking S2 with `📍`, gates, measured size, note that the owner walk (phase 8) follows. Merging S2 lifts the S1 fail-closed state on the tracker
 
 ## Phase 7: S3 - Public privacy page (work unit 5)

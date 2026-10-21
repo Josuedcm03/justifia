@@ -189,7 +189,10 @@ export default async function ReviewDetailPage({
               : null
           }
         />
-        <StudentSection student={detail.estudiante} />
+        <StudentSection
+          student={detail.estudiante}
+          consent={detail.consentimiento}
+        />
         <SubjectsSection classes={detail.clases} />
         <DocumentsSection documents={detail.documentos} />
         {remissions ? (

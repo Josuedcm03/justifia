@@ -40,6 +40,8 @@ const requestRow = {
   estudianteCarrera: "Ingenieria",
   estudianteCorreo: "ana@example.test",
   formatoEspecial: false,
+  consentimientoEn: new Date("2026-10-05T15:59:30.000Z"),
+  consentimientoVersion: "2026-10-20",
 };
 
 const classRow = {
@@ -168,6 +170,72 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
       },
     ]);
     expect(detail?.revisiones).toEqual([revisionRow]);
+  });
+
+  describe("recorded consent (RC-9, RF-01 d, RN-25)", () => {
+    const legacyRow = {
+      ...requestRow,
+      consentimientoEn: null,
+      consentimientoVersion: null,
+    };
+
+    function withRequestRow(row: unknown): Step[] {
+      const [, ...rest] = loaded();
+      return [{ kind: "select", rows: [row] }, ...rest];
+    }
+
+    it("returns the version and the instant of a recorded consent", async () => {
+      use(loaded());
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.consentimiento).toEqual({
+        version: "2026-10-20",
+        en: new Date("2026-10-05T15:59:30.000Z"),
+      });
+    });
+
+    it("returns null for a legacy request presented before consent existed", async () => {
+      use(withRequestRow(legacyRow));
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail).not.toBeNull();
+      expect(detail?.consentimiento).toBeNull();
+    });
+
+    it("never invents a consent from half a pair", async () => {
+      use(
+        withRequestRow({ ...legacyRow, consentimientoVersion: "2026-10-20" }),
+      );
+      expect((await getRequestDetail(SCOPE, ID))?.consentimiento).toBeNull();
+
+      use(
+        withRequestRow({
+          ...legacyRow,
+          consentimientoEn: new Date("2026-10-05T15:59:30.000Z"),
+        }),
+      );
+      expect((await getRequestDetail(SCOPE, ID))?.consentimiento).toBeNull();
+    });
+
+    it("keeps the original consent after a correction and resubmission", async () => {
+      use(
+        withRequestRow({
+          ...requestRow,
+          estado: "pendiente",
+          reenviadaEn: new Date("2026-10-12T16:00:00.000Z"),
+        }),
+      );
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.reenviadaEn).toEqual(new Date("2026-10-12T16:00:00.000Z"));
+      expect(detail?.consentimiento).toEqual({
+        version: "2026-10-20",
+        en: new Date("2026-10-05T15:59:30.000Z"),
+      });
+    });
   });
 
   it("splits current documents from the ones retired by a correction", async () => {
