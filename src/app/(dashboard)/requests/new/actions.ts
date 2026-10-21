@@ -19,10 +19,14 @@ import {
   getLiveDraft,
   submitDraft,
 } from "@/lib/data/solicitudes";
+import { CONSENT_VERSION } from "@/lib/intake/consent";
 import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
 import { validateSubmission } from "@/lib/intake/submission";
-import type { FieldError } from "@/lib/validations/solicitud";
+import {
+  submitPayloadSchema,
+  type FieldError,
+} from "@/lib/validations/solicitud";
 
 // Server actions of the intake flow (RNF-01). Every action re-checks the
 // session and the student role itself (pages do not protect actions), takes the
@@ -74,13 +78,20 @@ export async function discardDraftAction(): Promise<ActionResult> {
 }
 
 /**
- * Submit the caller's stored draft. The payload is deliberately empty: cause,
- * dates, subjects and documents come from the draft, the student snapshot from
- * the account and the timestamp from this server's clock (RN-02, RN-06, A5).
+ * Submit the caller's stored draft. The payload carries only the consent
+ * version the client showed (RC-5): cause, dates, subjects and documents come
+ * from the draft, the student snapshot from the account and the timestamp from
+ * this server's clock (RN-02, RN-06, A5). A missing, malformed or outdated
+ * version is refused with `consent_required` / `consent_outdated` beside every
+ * other error (fail closed); what is stored is the server's own constant.
  */
-export async function submitRequestAction(): Promise<ActionResult> {
+export async function submitRequestAction(
+  input: unknown,
+): Promise<ActionResult> {
   const userId = await currentStudentId();
   const now = new Date();
+  const payload = submitPayloadSchema.safeParse(input);
+  const consentVersion = payload.success ? payload.data.consentVersion : null;
 
   const draft = await getLiveDraft(userId, now);
   if (!draft) return fail("form", "no_draft");
@@ -99,6 +110,7 @@ export async function submitRequestAction(): Promise<ActionResult> {
       eligibleGroups: groups,
       validDocumentCount: draft.documents.filter((d) => d.estado === "valido")
         .length,
+      consentVersion,
     },
     managuaToday(now),
   );
@@ -114,6 +126,8 @@ export async function submitRequestAction(): Promise<ActionResult> {
     fechaInicio: draft.fechaInicio as string,
     fechaFin: draft.fechaFin as string,
     grupoIds: draft.subjects.map((s) => s.grupoId),
+    // The server constant, once validation proved the client showed it.
+    consentimientoVersion: CONSENT_VERSION,
   });
   if (!outcome.ok) {
     return fail(

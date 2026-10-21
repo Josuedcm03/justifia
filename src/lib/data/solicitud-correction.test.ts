@@ -33,6 +33,14 @@ vi.mock("@/lib/data/enrollment", () => ({
   listEligibleGroups: listEligibleGroupsMock,
 }));
 
+vi.mock("@/lib/intake/submission", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/intake/submission")>();
+  return { ...actual, validateSubmission: vi.fn(actual.validateSubmission) };
+});
+
+import { validateSubmission } from "@/lib/intake/submission";
+
 import { resubmitCorrection } from "./solicitud-correction";
 
 const USER = 7;
@@ -98,6 +106,7 @@ const params = (statement: LoggedStatement) =>
   ).params;
 
 beforeEach(() => {
+  vi.mocked(validateSubmission).mockClear();
   insertAuditMock.mockReset().mockResolvedValue(undefined);
   listEligibleGroupsMock.mockReset().mockResolvedValue([GROUP]);
 });
@@ -281,6 +290,79 @@ describe("resubmitCorrection: validation (RF-03, RN-05, RN-23 not re-applied)", 
       "end_before_start",
       "subjects_required",
       "documents_required",
+    ]);
+  });
+});
+
+describe("resubmitCorrection: consent is never asked (RC-4, RN-25, C4, C12)", () => {
+  it("validates with the filing window and the consent rule both off", async () => {
+    use([...loaded(), ...transaction()]);
+
+    await resubmitCorrection(input);
+
+    expect(validateSubmission).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(validateSubmission).mock.calls[0][2]).toEqual({
+      filingWindow: false,
+      consent: false,
+    });
+  });
+
+  it("never sends a consent version to the validation", async () => {
+    use([...loaded(), ...transaction()]);
+
+    await resubmitCorrection(input);
+
+    expect(vi.mocked(validateSubmission).mock.calls[0][0]).not.toHaveProperty(
+      "consentVersion",
+    );
+  });
+
+  it("accepts a legacy request whose consent columns are both NULL", async () => {
+    use([
+      ...loaded({
+        row: { consentimientoEn: null, consentimientoVersion: null },
+      }),
+      ...transaction(),
+    ]);
+
+    expect(await resubmitCorrection(input)).toEqual({ ok: true });
+  });
+
+  it("ignores a forged consent version or instant on the caller's input", async () => {
+    const double = use([...loaded(), ...transaction()]);
+
+    const forged = {
+      ...input,
+      consentVersion: "2025-01-01",
+      consentimientoEn: new Date("2020-01-01T00:00:00.000Z"),
+    } as typeof input;
+    expect(await resubmitCorrection(forged)).toEqual({ ok: true });
+
+    const update = double.log.find((s) => s.kind === "update")!;
+    expect(Object.keys(update.set as object)).not.toContain("consentimientoEn");
+    expect(Object.keys(update.set as object)).not.toContain(
+      "consentimientoVersion",
+    );
+  });
+
+  it("never writes the consent columns when moving devuelta to pendiente", async () => {
+    const double = use([
+      ...loaded({
+        row: {
+          consentimientoEn: new Date("2026-09-01T10:00:00.000Z"),
+          consentimientoVersion: "2026-10-20",
+        },
+      }),
+      ...transaction(),
+    ]);
+
+    await resubmitCorrection(input);
+
+    const update = double.log.find((s) => s.kind === "update")!;
+    expect(Object.keys(update.set as object).sort()).toEqual([
+      "actualizadoEn",
+      "estado",
+      "reenviadaEn",
     ]);
   });
 });

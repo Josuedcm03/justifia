@@ -724,6 +724,8 @@
       "group_required": "Elige el grupo de esta asignatura.",
       "group_not_in_subject": "El grupo elegido no pertenece a esta asignatura.",
       "documents_required": "Adjunta al menos un documento de respaldo.",
+      "consent_required": "Marca la casilla de consentimiento para presentar la solicitud.",
+      "consent_outdated": "El texto del consentimiento cambió. Recarga la página, lee el texto actualizado y marca la casilla de nuevo.",
       "no_draft": "No encontramos tu borrador. Recarga la página para empezar de nuevo.",
       "invalid_input": "Revisa los datos ingresados.",
       "dates_required": "Indica primero las fechas de la ausencia.",

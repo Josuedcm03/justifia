@@ -730,19 +730,50 @@ describe("manual catalog event builders (AL-SET, AL-PAY)", () => {
 });
 
 describe("solicitudPresentadaEvent (justification-intake RNF-06, RNF-02)", () => {
-  it("targets the Solicitud and carries only counts", () => {
+  it("targets the Solicitud and carries counts and the consent version (RC-7)", () => {
     expect(
       solicitudPresentadaEvent({
         solicitudId: 4,
         asignaturas: 2,
         documentos: 3,
+        consentimientoVersion: "2026-10-20",
       }),
     ).toEqual({
       accion: "solicitud.presentada",
       entidadTipo: "Solicitud",
       entidadId: 4,
-      datos: { asignaturas: 2, documentos: 3 },
+      datos: {
+        asignaturas: 2,
+        documentos: 3,
+        consentimientoVersion: "2026-10-20",
+      },
     });
+  });
+
+  it("carries the version it is given, never a constant of its own", () => {
+    expect(
+      solicitudPresentadaEvent({
+        solicitudId: 5,
+        asignaturas: 1,
+        documentos: 1,
+        consentimientoVersion: "2027-01-15",
+      }).datos,
+    ).toMatchObject({ consentimientoVersion: "2027-01-15" });
+  });
+
+  it("holds neither the consent text nor an instant: only the version code", () => {
+    const { datos } = solicitudPresentadaEvent({
+      solicitudId: 6,
+      asignaturas: 1,
+      documentos: 2,
+      consentimientoVersion: "2026-10-20",
+    });
+    expect(Object.keys(datos).sort()).toEqual([
+      "asignaturas",
+      "consentimientoVersion",
+      "documentos",
+    ]);
+    expect(JSON.stringify(datos)).not.toMatch(/acepto|agree|T\d{2}:\d{2}/i);
   });
 
   it("is registered in AUDIT_ACTIONS and the payload holds no personal data", () => {
@@ -752,6 +783,7 @@ describe("solicitudPresentadaEvent (justification-intake RNF-06, RNF-02)", () =>
         solicitudId: 9,
         asignaturas: 1,
         documentos: 1,
+        consentimientoVersion: "2026-10-20",
       }).datos,
     );
     expect(json).not.toMatch(
@@ -1036,14 +1068,35 @@ describe("review event builders (RF-07, RF-08, RNF-06, RN-02)", () => {
     }
   });
 
-  it("leaves the existing solicitud.presentada payload unchanged", () => {
+  it("extends the solicitud.presentada payload with the version and nothing else", () => {
     expect(
       solicitudPresentadaEvent({
         solicitudId: 4,
         asignaturas: 2,
         documentos: 1,
+        consentimientoVersion: "2026-10-20",
       }).datos,
-    ).toEqual({ asignaturas: 2, documentos: 1 });
+    ).toEqual({
+      asignaturas: 2,
+      documentos: 1,
+      consentimientoVersion: "2026-10-20",
+    });
+  });
+
+  it("leaves the solicitud.corregida payload untouched by consent (RC-7)", () => {
+    const { datos } = solicitudCorregidaEvent({
+      solicitudId: 4,
+      revision: 2,
+      asignaturas: 1,
+      documentos: 2,
+      documentosRetirados: 0,
+    });
+    expect(Object.keys(datos).sort()).toEqual([
+      "asignaturas",
+      "documentos",
+      "documentosRetirados",
+      "revision",
+    ]);
   });
 });
 

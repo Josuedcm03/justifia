@@ -1,4 +1,5 @@
 import { isCausa } from "./causes";
+import { CONSENT_VERSION } from "./consent";
 import { isEndWithinWindow, isIsoDate } from "./dates";
 import {
   validateSubjectSelections,
@@ -21,10 +22,15 @@ export interface SubmissionInput {
   eligibleGroups: readonly EligibleGroup[];
   /** Documents in state `valido` only (RN-03). */
   validDocumentCount: number;
+  /**
+   * The consent version the client says it showed (RF-01 d). `undefined`, `null`
+   * and anything that is not a string count as "not given".
+   */
+  consentVersion?: string | null;
 }
 
 export type SubmissionField =
-  "causa" | "fechaInicio" | "fechaFin" | "subjects" | "documents";
+  "causa" | "fechaInicio" | "fechaFin" | "subjects" | "documents" | "consent";
 
 export type SubmissionErrorCode =
   | "causa_required"
@@ -37,7 +43,9 @@ export type SubmissionErrorCode =
   | "end_too_old"
   | "subjects_required"
   | SubjectErrorCode
-  | "documents_required";
+  | "documents_required"
+  | "consent_required"
+  | "consent_outdated";
 
 export interface SubmissionError {
   field: SubmissionField;
@@ -54,6 +62,12 @@ export interface SubmissionOptions {
    * not re-applied (RF-08 c). RN-05 and eligibility are always applied.
    */
   filingWindow?: boolean;
+  /**
+   * Require the consent of a first presentation (default, fail closed; RC-4). A
+   * correction resubmit passes `false`: the request already carries the consent
+   * given when it was first presented, or none when it predates consent (C4).
+   */
+  consent?: boolean;
 }
 
 export type SubmissionResult =
@@ -102,10 +116,21 @@ function subjectErrors(input: SubmissionInput): SubmissionError[] {
   );
 }
 
+function consentErrors(
+  consentVersion: SubmissionInput["consentVersion"],
+): SubmissionError[] {
+  if (typeof consentVersion !== "string" || consentVersion === "") {
+    return [{ field: "consent", code: "consent_required" }];
+  }
+  return consentVersion === CONSENT_VERSION
+    ? []
+    : [{ field: "consent", code: "consent_outdated" }];
+}
+
 export function validateSubmission(
   input: SubmissionInput,
   today: string,
-  { filingWindow = true }: SubmissionOptions = {},
+  { filingWindow = true, consent = true }: SubmissionOptions = {},
 ): SubmissionResult {
   const errors: SubmissionError[] = [
     ...causeErrors(input.causa),
@@ -115,6 +140,7 @@ export function validateSubmission(
     ...(input.validDocumentCount > 0
       ? []
       : [{ field: "documents", code: "documents_required" } as const]),
+    ...(consent ? consentErrors(input.consentVersion) : []),
   ];
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }

@@ -15,6 +15,7 @@ import { dispatchRemission } from "@/lib/data/remission-dispatch";
 import { resolveRequestScope } from "@/lib/data/request-scope";
 import { decideRequest } from "@/lib/data/solicitud-decision";
 import { discardDraft, openDraft, submitDraft } from "@/lib/data/solicitudes";
+import { CONSENT_VERSION } from "@/lib/intake/consent";
 import type { DecisionInput } from "@/lib/intake/decision-validation";
 import {
   createFakeDocumentStore,
@@ -125,6 +126,7 @@ describe.skipIf(gate.mode !== "run")(
         now: new Date(),
         ...DETAILS,
         grupoIds: [group],
+        consentimientoVersion: CONSENT_VERSION,
       };
       const outcomes = await Promise.all(
         Array.from({ length: CONCURRENCY }, () => submitDraft(input)),
@@ -136,10 +138,19 @@ describe.skipIf(gate.mode !== "run")(
       }
 
       const [row] = await db
-        .select({ estado: solicitud.estado, cif: solicitud.estudianteCif })
+        .select({
+          estado: solicitud.estado,
+          cif: solicitud.estudianteCif,
+          presentadaEn: solicitud.presentadaEn,
+          consentimientoEn: solicitud.consentimientoEn,
+          consentimientoVersion: solicitud.consentimientoVersion,
+        })
         .from(solicitud)
         .where(eq(solicitud.id, draftId));
-      expect(row).toEqual({ estado: "pendiente", cif: student.cif });
+      expect(row).toMatchObject({ estado: "pendiente", cif: student.cif });
+      // Consent is stored with the presentation, at the same instant (RC-6).
+      expect(row.consentimientoVersion).toBe(CONSENT_VERSION);
+      expect(row.consentimientoEn).toEqual(row.presentadaEn);
 
       const [audit] = await db
         .select({ n: count() })
@@ -176,6 +187,7 @@ describe.skipIf(gate.mode !== "run")(
           now: new Date(),
           ...DETAILS,
           grupoIds: [group],
+          consentimientoVersion: CONSENT_VERSION,
         });
         expect(submitted).toEqual({ ok: true });
         return draftId;
@@ -276,6 +288,7 @@ describe.skipIf(gate.mode !== "run")(
             now: new Date(),
             ...DETAILS,
             grupoIds: [group],
+            consentimientoVersion: CONSENT_VERSION,
           });
           expect(submitted).toEqual({ ok: true });
 

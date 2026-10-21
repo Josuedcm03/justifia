@@ -98,12 +98,18 @@ export function solicitudPresentadaEvent(args: {
   solicitudId: number;
   asignaturas: number;
   documentos: number;
+  /** The consent version stored with the presentation (RC-7): a code, not text. */
+  consentimientoVersion: string;
 }): AuditEvent {
   return {
     accion: "solicitud.presentada",
     entidadTipo: "Solicitud",
     entidadId: args.solicitudId,
-    datos: { asignaturas: args.asignaturas, documentos: args.documentos },
+    datos: {
+      asignaturas: args.asignaturas,
+      documentos: args.documentos,
+      consentimientoVersion: args.consentimientoVersion,
+    },
   };
 }
 
