@@ -1018,9 +1018,14 @@
         "name": "Name",
         "cif": "CIF",
         "career": "Career",
-        "email": "Email"
+        "email": "Email",
+        "consent": "Consent"
       },
       "period": "{start} to {end}",
+      "consent": {
+        "recorded": "Version {version}, {date}",
+        "notRecorded": "Not recorded (presented before consent existed)"
+      },
       "subject": {
         "group": "Group {number}",
         "teacher": "Teacher: {name}",
