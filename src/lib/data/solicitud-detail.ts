@@ -68,6 +68,12 @@ export type RequestDetail = {
   formatoEspecial: boolean;
   /** The special format a secretary uploaded; never among `documentos`. */
   formato: DetailDocument | null;
+  /**
+   * The consent of the first presentation (RF-01 d, RN-25), or `null` for a
+   * request presented before consent existed. A correction never changes it.
+   * Staff only: `getOwnRequestDetail` does not select it.
+   */
+  consentimiento: { version: string; en: Date } | null;
   estudiante: {
     nombre: string | null;
     cif: string | null;
@@ -104,6 +110,8 @@ export async function getRequestDetail(
       estudianteCarrera: solicitud.estudianteCarrera,
       estudianteCorreo: solicitud.estudianteCorreo,
       formatoEspecial: solicitud.formatoEspecial,
+      consentimientoEn: solicitud.consentimientoEn,
+      consentimientoVersion: solicitud.consentimientoVersion,
     })
     .from(solicitud)
     .where(
@@ -185,6 +193,14 @@ export async function getRequestDetail(
     reenviadaEn: request.reenviadaEn,
     formatoEspecial: request.formatoEspecial,
     formato: format,
+    // Both or neither (CK_Solicitud_Consentimiento); half a pair is never shown.
+    consentimiento:
+      request.consentimientoEn && request.consentimientoVersion
+        ? {
+            version: request.consentimientoVersion,
+            en: request.consentimientoEn,
+          }
+        : null,
     estudiante: {
       nombre: request.estudianteNombre,
       cif: request.estudianteCif,

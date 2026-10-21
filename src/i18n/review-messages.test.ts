@@ -183,6 +183,29 @@ describe("review messages", () => {
     },
   );
 
+  // Scenario "Translation keys present" (request-review): the staff consent fact.
+  it.each(catalogs)(
+    "%s words the consent fact and both of its states",
+    (_l, m) => {
+      const d = m.review.detail;
+
+      expect(d.fields.consent.trim().length).toBeGreaterThan(0);
+      expect(d.consent.recorded).toContain("{version}");
+      expect(d.consent.recorded).toContain("{date}");
+      expect(d.consent.notRecorded.trim().length).toBeGreaterThan(0);
+      expect(d.consent.notRecorded).not.toBe(d.consent.recorded);
+    },
+  );
+
+  it("words the legacy consent label as a neutral fact in each language", () => {
+    expect(es.review.detail.consent.notRecorded).toBe(
+      "No registrado (presentada antes de que existiera el consentimiento)",
+    );
+    expect(en.review.detail.consent.notRecorded).toBe(
+      "Not recorded (presented before consent existed)",
+    );
+  });
+
   it.each(catalogs)("%s words the RN-19 special-format mark", (_l, m) => {
     const mark = m.review.decision.approve.specialFormat;
 

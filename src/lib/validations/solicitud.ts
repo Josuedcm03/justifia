@@ -85,3 +85,13 @@ export const finalizeDocumentSchema = z.object({
 });
 
 export const documentIdSchema = id;
+
+/**
+ * The submit payload carries only the consent version the client showed (RC-5).
+ * Non-strict on purpose: any other key (a forged snapshot, timestamp or state)
+ * is dropped. A parse failure is not an error of its own: the caller treats it
+ * as "no consent version" and answers `consent_required` beside the others.
+ */
+export const submitPayloadSchema = z.object({
+  consentVersion: z.string().max(20).nullable(),
+});

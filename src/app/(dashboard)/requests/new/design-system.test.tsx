@@ -21,6 +21,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
+import { submitRequestAction } from "@/app/(dashboard)/requests/new/actions";
 import { CauseDatesStep } from "@/app/(dashboard)/requests/new/cause-dates-step";
 import { DiscardDialog } from "@/app/(dashboard)/requests/new/discard-dialog";
 import { DocumentsStep } from "@/app/(dashboard)/requests/new/documents-step";
@@ -102,11 +103,53 @@ describe("design-system fixes (F.3)", () => {
         degraded={false}
       />,
     );
-    for (const link of screen.getAllByRole("link")) {
+    // The consent link is inline text inside a sentence, not a button-sized
+    // action (WCAG 2.5.8 exempts it); only the review's own actions are checked.
+    const actions = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("label") === null);
+    expect(actions.length).toBeGreaterThan(0);
+    for (const link of actions) {
       expect(link).toHaveClass("h-11");
     }
     const section = screen.getAllByRole("heading", { level: 3 })[0];
     expect(section).toHaveClass("text-title");
+  });
+
+  it("builds the consent row from existing tokens only (§5 Checkbox group)", async () => {
+    vi.mocked(submitRequestAction).mockResolvedValue({
+      ok: false,
+      errors: [{ field: "consent", key: "intake.errors.consent_required" }],
+    });
+    renderIntl(
+      <ReviewStep
+        draft={DRAFT}
+        groups={[]}
+        documents={[DOC]}
+        degraded={false}
+      />,
+    );
+
+    const box = screen.getByRole("checkbox");
+    expect(box).toHaveClass("accent-primary", "size-5");
+    const row = box.parentElement;
+    expect(row).toHaveClass("flex", "items-start", "gap-3");
+    const label = row?.querySelector("label");
+    expect(label).toHaveClass("text-sm", "min-h-11");
+    expect(
+      screen.getByRole("link", { name: /aviso de privacidad/ }),
+    ).toHaveClass("text-primary", "underline");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Presentar solicitud" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sí, presentar" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveClass(
+      "text-destructive-ink",
+      "text-sm",
+    );
   });
 
   it("renders the degraded review notice as the catalog alert", () => {

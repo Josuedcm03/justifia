@@ -1,0 +1,4 @@
+ALTER TABLE "Solicitud" ADD COLUMN "ConsentimientoEn" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "Solicitud" ADD COLUMN "ConsentimientoVersion" varchar(20);--> statement-breakpoint
+ALTER TABLE "Solicitud" ADD CONSTRAINT "CK_Solicitud_Consentimiento" CHECK (("Solicitud"."ConsentimientoEn" IS NULL) = ("Solicitud"."ConsentimientoVersion" IS NULL));--> statement-breakpoint
+ALTER TABLE "Solicitud" ADD CONSTRAINT "CK_Solicitud_ConsentimientoFecha" CHECK ("Solicitud"."ConsentimientoEn" IS NULL OR ("Solicitud"."PresentadaEn" IS NOT NULL AND "Solicitud"."ConsentimientoEn" <= "Solicitud"."PresentadaEn"));

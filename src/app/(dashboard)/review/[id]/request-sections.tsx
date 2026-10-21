@@ -155,10 +155,13 @@ export function RequestSection({
 
 export function StudentSection({
   student,
+  consent,
 }: {
   student: RequestDetail["estudiante"];
+  consent: RequestDetail["consentimiento"];
 }) {
   const t = useTranslations("review.detail");
+  const format = useFormatter();
   const notSet = t("notSet");
 
   return (
@@ -168,6 +171,18 @@ export function StudentSection({
         <Fact label={t("fields.cif")}>{student.cif ?? notSet}</Fact>
         <Fact label={t("fields.career")}>{student.carrera ?? notSet}</Fact>
         <Fact label={t("fields.email")}>{student.correo ?? notSet}</Fact>
+        <Fact label={t("fields.consent")}>
+          {consent
+            ? t("consent.recorded", {
+                version: consent.version,
+                date: format.dateTime(consent.en, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                  timeZone: BUSINESS_TIME_ZONE,
+                }),
+              })
+            : t("consent.notRecorded")}
+        </Fact>
       </dl>
     </Section>
   );

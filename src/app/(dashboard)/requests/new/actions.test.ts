@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
+import { CONSENT_VERSION } from "@/lib/intake/consent";
 import { createFakeIntakeDeps } from "@/lib/intake/fakes";
 
 vi.mock("server-only", () => ({}));
@@ -55,6 +56,9 @@ const DRAFT = 4;
 const TARGET = { kind: "draft" } as const;
 // 2026-10-07 09:00 in Managua (UTC-6).
 const NOW = new Date("2026-10-07T15:00:00.000Z");
+
+/** The payload the review step sends when the box is checked (RC-5). */
+const CONSENTED = { consentVersion: CONSENT_VERSION };
 
 const G1: Group = group(21, 10); // subject 10: one group
 const G2A: Group = group(30, 11); // subject 11: two groups
@@ -136,7 +140,11 @@ describe("intake actions", () => {
       ],
       ["removeDocumentAction", () => removeDocumentAction(11)],
       ["discardDraftAction", () => discardDraftAction()],
-      ["submitRequestAction", () => submitRequestAction()],
+      ["submitRequestAction", () => submitRequestAction(CONSENTED)],
+      [
+        "submitRequestAction with an invalid payload",
+        () => submitRequestAction(null),
+      ],
     ];
 
     it.each(calls)(
@@ -477,45 +485,134 @@ describe("intake actions", () => {
       fechaInicio: "2026-10-01",
       fechaFin: "2026-10-03",
       grupoIds: [21],
+      consentimientoVersion: CONSENT_VERSION,
     };
 
     it("submits the stored draft with the server clock and redirects to the confirmation", async () => {
       h.submitDraft.mockResolvedValue({ ok: true });
 
-      await expect(submitRequestAction()).rejects.toThrow(
+      await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
         "REDIRECT:/requests/new/confirmation",
       );
 
       expect(h.submitDraft).toHaveBeenCalledWith(expectedInput);
     });
 
-    it("ignores a forged snapshot, timestamp or state sent with the call", async () => {
+    it("ignores a forged snapshot, timestamp, state or consent instant sent with the call", async () => {
       h.submitDraft.mockResolvedValue({ ok: true });
       const forged = {
+        ...CONSENTED,
         presentadaEn: "2000-01-01T00:00:00.000Z",
+        consentimientoEn: "2000-01-01T00:00:00.000Z",
+        consentimientoVersion: "1999-01-01",
         estudianteNombre: "Mallory",
         estudianteCif: "00000000",
         estado: "aprobada",
       };
 
-      await expect(
-        (submitRequestAction as (...args: unknown[]) => Promise<unknown>)(
-          forged,
-        ),
-      ).rejects.toThrow("REDIRECT:");
+      await expect(submitRequestAction(forged)).rejects.toThrow("REDIRECT:");
 
       const [sent] = h.submitDraft.mock.calls[0];
       expect(Object.keys(sent).sort()).toEqual(
         Object.keys(expectedInput).sort(),
       );
       expect(sent.now).toEqual(NOW);
+      expect(sent.consentimientoVersion).toBe(CONSENT_VERSION);
       expect(JSON.stringify(sent)).not.toContain("Mallory");
+      expect(JSON.stringify(sent)).not.toContain("1999-01-01");
+    });
+
+    it("stores the server constant, never the string it received", async () => {
+      h.submitDraft.mockResolvedValue({ ok: true });
+
+      await expect(submitRequestAction(CONSENTED)).rejects.toThrow("REDIRECT:");
+
+      expect(h.submitDraft.mock.calls[0][0].consentimientoVersion).toBe(
+        CONSENT_VERSION,
+      );
+    });
+
+    describe("consent payload (fail closed, RC-5)", () => {
+      it.each([
+        ["no key", {}],
+        ["null version", { consentVersion: null }],
+        ["empty version", { consentVersion: "" }],
+        ["boolean", { consentVersion: true }],
+        ["number", { consentVersion: 1 }],
+        ["object", { consentVersion: {} }],
+        ["undefined version", { consentVersion: undefined }],
+        ["no payload at all", undefined],
+        ["null payload", null],
+        ["a string payload", "2026-10-20"],
+        ["an over-long version", { consentVersion: "x".repeat(21) }],
+      ])(
+        "answers consent_required for %s and stores nothing",
+        async (_n, p) => {
+          const result = await submitRequestAction(p);
+
+          expect(result).toEqual({
+            ok: false,
+            errors: [
+              { field: "consent", key: "intake.errors.consent_required" },
+            ],
+          });
+          expect(h.submitDraft).not.toHaveBeenCalled();
+          expect(h.redirect).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each(["2025-01-01", "x"])(
+        "answers consent_outdated for version %s and stores nothing",
+        async (consentVersion) => {
+          const result = await submitRequestAction({ consentVersion });
+
+          expect(result).toEqual({
+            ok: false,
+            errors: [
+              { field: "consent", key: "intake.errors.consent_outdated" },
+            ],
+          });
+          expect(h.submitDraft).not.toHaveBeenCalled();
+        },
+      );
+
+      it("reports the consent error beside a documents error in one response", async () => {
+        h.getLiveDraft.mockResolvedValue(draft({ documents: [] }));
+
+        expect(await submitRequestAction({ consentVersion: null })).toEqual({
+          ok: false,
+          errors: [
+            { field: "documents", key: "intake.errors.documents_required" },
+            { field: "consent", key: "intake.errors.consent_required" },
+          ],
+        });
+        expect(h.submitDraft).not.toHaveBeenCalled();
+      });
+
+      it("does not mask a documents error when the consent is valid", async () => {
+        h.getLiveDraft.mockResolvedValue(draft({ documents: [] }));
+
+        expect(await submitRequestAction(CONSENTED)).toEqual({
+          ok: false,
+          errors: [
+            { field: "documents", key: "intake.errors.documents_required" },
+          ],
+        });
+      });
+
+      it("still reports no draft before looking at the consent", async () => {
+        h.getLiveDraft.mockResolvedValue(null);
+
+        expect(await submitRequestAction({ consentVersion: null })).toEqual(
+          noDraft,
+        );
+      });
     });
 
     it("reports no draft for a missing or expired one", async () => {
       h.getLiveDraft.mockResolvedValue(null);
 
-      expect(await submitRequestAction()).toEqual(noDraft);
+      expect(await submitRequestAction(CONSENTED)).toEqual(noDraft);
       expect(h.submitDraft).not.toHaveBeenCalled();
     });
 
@@ -529,7 +626,7 @@ describe("intake actions", () => {
         }),
       );
 
-      const result = await submitRequestAction();
+      const result = await submitRequestAction(CONSENTED);
 
       expect(result).toEqual({
         ok: false,
@@ -545,7 +642,7 @@ describe("intake actions", () => {
     it("requires at least one subject (D15)", async () => {
       h.getLiveDraft.mockResolvedValue(draft({ subjects: [] }));
 
-      expect(await submitRequestAction()).toEqual({
+      expect(await submitRequestAction(CONSENTED)).toEqual({
         ok: false,
         errors: [{ field: "subjects", key: "intake.errors.subjects_required" }],
       });
@@ -566,7 +663,7 @@ describe("intake actions", () => {
         }),
       );
 
-      expect(await submitRequestAction()).toEqual({
+      expect(await submitRequestAction(CONSENTED)).toEqual({
         ok: false,
         errors: [
           { field: "documents", key: "intake.errors.documents_required" },
@@ -577,7 +674,7 @@ describe("intake actions", () => {
     it("re-checks eligibility through the port with the draft's dates", async () => {
       h.listEligibleGroups.mockResolvedValue([]);
 
-      const result = await submitRequestAction();
+      const result = await submitRequestAction(CONSENTED);
 
       expect(h.listEligibleGroups).toHaveBeenCalledWith(
         USER,
@@ -602,7 +699,7 @@ describe("intake actions", () => {
         draft({ fechaInicio: null, fechaFin: null }),
       );
 
-      const result = await submitRequestAction();
+      const result = await submitRequestAction(CONSENTED);
 
       expect(h.listEligibleGroups).toHaveBeenCalledWith(
         USER,
@@ -624,7 +721,7 @@ describe("intake actions", () => {
         draft({ fechaInicio: "2026-09-29", fechaFin: "2026-09-30" }),
       );
 
-      expect(await submitRequestAction()).toEqual({
+      expect(await submitRequestAction(CONSENTED)).toEqual({
         ok: false,
         errors: [{ field: "fechaFin", key: "intake.errors.end_too_old" }],
       });
@@ -633,7 +730,7 @@ describe("intake actions", () => {
     it("a double submit loses cleanly: conflict error, no redirect", async () => {
       h.submitDraft.mockResolvedValue({ ok: false, reason: "conflict" });
 
-      expect(await submitRequestAction()).toEqual({
+      expect(await submitRequestAction(CONSENTED)).toEqual({
         ok: false,
         errors: [{ field: "form", key: "intake.errors.submit_conflict" }],
       });
@@ -646,7 +743,7 @@ describe("intake actions", () => {
         reason: "snapshot_incomplete",
       });
 
-      expect(await submitRequestAction()).toEqual({
+      expect(await submitRequestAction(CONSENTED)).toEqual({
         ok: false,
         errors: [{ field: "form", key: "intake.errors.profile_incomplete" }],
       });
@@ -655,7 +752,9 @@ describe("intake actions", () => {
     it("lets a failure inside the submit transaction propagate (rollback) with no redirect", async () => {
       h.submitDraft.mockRejectedValue(new Error("audit down"));
 
-      await expect(submitRequestAction()).rejects.toThrow("audit down");
+      await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+        "audit down",
+      );
       expect(h.redirect).not.toHaveBeenCalled();
     });
   });

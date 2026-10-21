@@ -19,3 +19,11 @@ inspección de tablas) no requieren confirmación.
   por vez y se archiva antes de abrir el siguiente; al archivarlo se actualiza
   su estado en el roadmap.
 - Para iniciar un change, usar la plantilla de `docs/sdd-new-template.md`.
+
+## Insumo de experiencia del flujo
+
+Cuando el usuario pida anotar una mejora de experiencia de uso, de UX o del
+flujo («añadí esto al insumo», «a las mejoras de UX», etc.), se agrega como
+una entrada nueva en `docs/flow-experience-backlog.md`, con el formato de las
+existentes (origen, pantalla, hoy, esperado, requisitos). Ese archivo es el
+insumo del change `flow-experience` (fila #13 de `docs/roadmap.md`).

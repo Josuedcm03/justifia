@@ -168,15 +168,22 @@ owner's own latest decision (not audited, like every own read).
 - WHEN the owner opens `/requests/[id]/correct?step=2`
 - THEN the Subjects step (step 2) is shown
 
-### Requirement: Correction validation (RF-03, RN-01..RN-05, RN-23 not re-applied)
+### Requirement: Correction validation (RF-03, RN-01..RN-05, RN-23 and RN-25 not re-applied)
 
 A correction MUST be re-validated on the server with the rules of intake submit
 (cause from the five, ordered dates RN-05, at least one subject, group where
 required, at least one valid document, at most 5 documents). The RN-23 window
 (end date not older than 30 days before submission) MUST NOT be re-applied on
 correction, so a request that was inside the window when first presented can
-be corrected later. Subject eligibility MUST be re-checked through the
-`GroupScheduleProvider` port. All invalid fields MUST be reported together.
+be corrected later. The consent rule (RN-25) MUST NOT be applied on correction
+either: the correction screen MUST NOT show the consent checkbox, the
+resubmission MUST NOT require a consent value and MUST ignore any it receives
+(the correction path opts out of the consent rule explicitly, so no
+`consent_required` or `consent_outdated` is ever raised there), and the request's
+consent version and timestamp MUST stay exactly as they were, including empty
+for a legacy request, which MUST remain correctable. Subject eligibility MUST
+be re-checked through the `GroupScheduleProvider` port. All invalid fields MUST
+be reported together.
 
 #### Scenario: RN-23 not re-applied
 
@@ -208,6 +215,24 @@ be corrected later. Subject eligibility MUST be re-checked through the
 - WHEN the correction is processed
 - THEN identity comes from the session and the original snapshot is kept
 
+#### Scenario: Correction never asks for consent
+
+- GIVEN a returned request with recorded consent
+- WHEN the owner reaches the correction review step and resubmits
+- THEN no consent checkbox is shown and the resubmission is accepted
+- AND the stored consent version and timestamp are unchanged
+
+#### Scenario: Legacy request is correctable
+
+- GIVEN a returned request presented before this change (no consent recorded)
+- WHEN the owner corrects and resubmits it
+- THEN it is accepted, still has no consent recorded, and no consent error is raised
+
+#### Scenario: Forged consent on correction
+
+- GIVEN a correction payload carrying a `consentVersion`, a consent timestamp or any other consent key
+- WHEN the correction is processed
+- THEN the value is ignored and the stored consent is unchanged
 ### Requirement: Revision history and soft retirement (RF-08 b)
 
 Removing a document of the latest returned revision in a correction MUST

@@ -8,7 +8,8 @@
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
     "tagline": "Tus justificaciones académicas, en un solo lugar.",
-    "institution": "Universidad Americana - UAM"
+    "institution": "Universidad Americana - UAM",
+    "privacyNotice": "Aviso de privacidad"
   },
   "nav": {
     "dashboard": "Panel",
@@ -724,6 +725,8 @@
       "group_required": "Elige el grupo de esta asignatura.",
       "group_not_in_subject": "El grupo elegido no pertenece a esta asignatura.",
       "documents_required": "Adjunta al menos un documento de respaldo.",
+      "consent_required": "Marca la casilla de consentimiento para presentar la solicitud.",
+      "consent_outdated": "El texto del consentimiento cambió. Recarga la página, lee el texto actualizado y marca la casilla de nuevo.",
       "no_draft": "No encontramos tu borrador. Recarga la página para empezar de nuevo.",
       "invalid_input": "Revisa los datos ingresados.",
       "dates_required": "Indica primero las fechas de la ausencia.",
@@ -757,6 +760,10 @@
         "description": "Una vez presentada no podrás modificarla.",
         "confirm": "Sí, presentar",
         "pending": "Presentando…"
+      },
+      "consent": {
+        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. <link>Ver aviso de privacidad</link>",
+        "newTab": "(se abre en una pestaña nueva)"
       },
       "discard": {
         "button": "Descartar borrador",
@@ -1012,9 +1019,14 @@
         "name": "Nombre",
         "cif": "CIF",
         "career": "Carrera",
-        "email": "Correo"
+        "email": "Correo",
+        "consent": "Consentimiento"
       },
       "period": "{start} al {end}",
+      "consent": {
+        "recorded": "Versión {version}, {date}",
+        "notRecorded": "No registrado (presentada antes de que existiera el consentimiento)"
+      },
       "subject": {
         "group": "Grupo {number}",
         "teacher": "Docente: {name}",
@@ -1102,6 +1114,43 @@
       "title": "Solicitud no encontrada",
       "message": "Esta solicitud no existe o no está disponible para usted.",
       "back": "Volver a la cola"
+    }
+  },
+  "privacy": {
+    "title": "Aviso de privacidad",
+    "draft": "Borrador pendiente de revisión de la UAM",
+    "version": "Versión del aviso: <date>{version}</date>",
+    "controller": {
+      "title": "Responsable del tratamiento",
+      "body": "La Universidad Americana (UAM) es la responsable del tratamiento de los datos que se recogen en este sistema.",
+      "contact": "[Domicilio y oficina de contacto de la UAM: por definir]"
+    },
+    "purpose": {
+      "title": "Finalidad",
+      "body": "Los datos se usan solo para tramitar tu solicitud de justificación y sus correcciones. No se usan para ninguna otra finalidad."
+    },
+    "recipients": {
+      "title": "Destinatarios",
+      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud."
+    },
+    "data": {
+      "title": "Datos que se tratan",
+      "identity": "Datos de identidad y académicos de tu cuenta.",
+      "request": "Datos de la solicitud: causa, fechas y asignaturas.",
+      "documents": "Los documentos de respaldo que adjuntas.",
+      "health": "Datos de salud, que son datos sensibles y pueden aparecer en esos documentos."
+    },
+    "mandatory": {
+      "title": "Datos obligatorios",
+      "body": "Para presentar una solicitud son necesarios los datos y documentos que pide cada paso y tu consentimiento. Sin ellos la solicitud no puede tramitarse."
+    },
+    "rights": {
+      "title": "Tus derechos y la revocación del consentimiento",
+      "body": "Puedes ejercer los derechos de acceso, rectificación, cancelación y oposición, y revocar tu consentimiento, por escrito dirigido a la oficina de la secretaría de la facultad. La revocación no tiene efectos retroactivos."
+    },
+    "retention": {
+      "title": "Plazo de conservación",
+      "body": "Los datos se conservan durante cinco años y después se cancelan."
     }
   }
 }

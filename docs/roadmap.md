@@ -15,9 +15,10 @@ remiten a ese archivo.
 | 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
 | 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
-| 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | pendiente |
+| 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | archivado |
 | 10  | `secretary-templates`  | Plantillas propias de la secretaría (RF-07) | Por asignar | No                   | pendiente |
 | 12  | `printable-forms`      | Formato especial prellenado e impresión (RN-19); requiere RF nuevo | Por asignar | No | pendiente |
+| 13  | `flow-experience`      | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md` | Por asignar | No | pendiente |
 
 **Notas:**
 
@@ -31,10 +32,23 @@ remiten a ese archivo.
   proyecto existe y `main` se despliega a producción. Los previews de los
   commits de miembros que no pertenecen al equipo de Vercel fallan hasta que
   se les invite.
-- `request-consent` agrega el consentimiento informado (RN-25) al envío de la
-  solicitud. Modifica el flujo de `justification-intake`, ya archivado, por lo
-  que va como change propio. Las solicitudes enviadas antes de este change no
-  tienen consentimiento registrado; el change define cómo se tratan.
+- `request-consent` (archivado el 2026-10-21) agrega el consentimiento
+  informado (RN-25) al envío de la solicitud: casilla de consentimiento versión
+  1, con `CONSENT_VERSION` 2026-10-20, y aviso de privacidad público en
+  `/privacy`. Las solicitudes presentadas antes del change muestran «No
+  registrado»; una corrección nunca vuelve a pedir el consentimiento.
+  Pendiente fuera del código: la revisión jurídica de la UAM del texto del
+  consentimiento y del aviso de privacidad. El domicilio y la oficina de
+  contacto del responsable son un marcador provisional; reemplazarlo exige un
+  nuevo `CONSENT_VERSION`. El proveedor de correo no se nombra en el aviso, por
+  decisión del responsable del proyecto (riesgo de la Ley 787, arts. 13 y 14).
+  Quedan fuera de alcance el re-consentimiento y la revocación desde la
+  aplicación. Minimizar lo que reciben los docentes por correo es un
+  seguimiento de `teacher-remission`.
+- Nota para el equipo (`document-extraction`): una vez que `request-consent`
+  llegue a `main`, `document-extraction` debe regenerar su migración como `0011`
+  (la `0010` la ocupa `request-consent`; no numerar a mano) y rebasar sobre
+  `submitRequestAction(input: unknown)` y `SubmitInput.consentimientoVersion`.
 - `secretary-templates` se planifica después del piloto. `secretary-review`
   entrega las plantillas de mensaje de cada decisión (aprobación, rechazo y
   devolución por cada motivo de RN-17) como constantes del sistema; la
@@ -66,6 +80,12 @@ remiten a ese archivo.
   no hay un RF en la línea base, por lo que hay que agregarlo a
   `docs/requirements.md` antes de planificarlo. Lleva el número 12 porque el
   11 lo usa `backoffice-ui-refresh` en la rama de Josué.
+- `flow-experience` reúne las mejoras de experiencia de uso que se detectan
+  en los recorridos y en el piloto. Su insumo vivo es
+  [`docs/flow-experience-backlog.md`](./flow-experience-backlog.md): cada
+  mejora nueva se anota ahí y el change se planifica desde ese archivo. Cubre
+  RF y RN ya existentes; si alguna entrada cambia un requisito, se actualiza
+  `docs/requirements.md` antes de planificarlo.
 - El calendario de días no hábiles de RN-08 (2026 y 2027) se validó contra el
   calendario académico de la UAM el 2026-10-12. Debe extenderse cada año antes
   de que empiece: `src/lib/intake/calendar.test.ts` falla cuando el año en

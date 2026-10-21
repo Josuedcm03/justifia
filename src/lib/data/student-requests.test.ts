@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -381,4 +383,30 @@ describe("getCorrectionReason (RN-17, SR-17)", () => {
 
     expect(double.log.map((s) => s.kind)).toEqual(["select"]);
   });
+});
+
+// Scenario "Student does not see it" (request-review, C11): the recorded consent
+// is a staff-only fact. The own-detail read selects explicit columns, and the
+// db double cannot show a select list, so this pins the sources themselves: the
+// data function and the student detail screens never name the consent.
+describe("the student's own detail carries no consent (C11)", () => {
+  const root = process.cwd();
+  const sources = [
+    join(root, "src/lib/data/student-requests.ts"),
+    ...readdirSync(join(root, "src/app/(dashboard)/requests/[id]"))
+      .filter((name) => /\.tsx?$/.test(name) && !/\.test\./.test(name))
+      .map((name) => join(root, "src/app/(dashboard)/requests/[id]", name)),
+  ];
+
+  it("covers the data function and the detail screens", () => {
+    expect(sources.length).toBeGreaterThan(3);
+    expect(sources.some((path) => path.endsWith("page.tsx"))).toBe(true);
+  });
+
+  it.each(sources.map((path) => [path.slice(root.length + 1), path]))(
+    "%s never selects or shows the consent",
+    (_name, path) => {
+      expect(readFileSync(path, "utf8")).not.toMatch(/consent/i);
+    },
+  );
 });

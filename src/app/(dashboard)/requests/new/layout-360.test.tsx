@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderIntl } from "@/app/(dashboard)/requests/new/test-support";
@@ -23,6 +24,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
+import { submitRequestAction } from "@/app/(dashboard)/requests/new/actions";
 import { CauseDatesStep } from "@/app/(dashboard)/requests/new/cause-dates-step";
 import { DocumentsStep } from "@/app/(dashboard)/requests/new/documents-step";
 import { IntakeStepper } from "@/app/(dashboard)/requests/new/intake-stepper";
@@ -244,4 +246,81 @@ describe("dialogs at 360 px", () => {
       ).toHaveClass("flex-col-reverse");
     },
   );
+});
+
+describe("consent checkbox at 360 px (RNF-11; scenario: 360 px and accessibility)", () => {
+  const CONSENT_ERROR = {
+    field: "consent",
+    key: "intake.errors.consent_required",
+  };
+  const ERROR_TEXT =
+    "Marca la casilla de consentimiento para presentar la solicitud.";
+  const review = (
+    <ReviewStep
+      draft={{
+        causa: "medica",
+        fechaInicio: "2026-10-01",
+        fechaFin: "2026-10-03",
+      }}
+      groups={GROUPS}
+      documents={[DOC]}
+      degraded={false}
+    />
+  );
+
+  async function renderWithConsentError() {
+    vi.mocked(submitRequestAction).mockResolvedValue({
+      ok: false,
+      errors: [CONSENT_ERROR],
+    });
+    const view = renderIntl(review);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Presentar solicitud" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sí, presentar" }),
+    );
+    await screen.findByText(ERROR_TEXT);
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).toBeNull(),
+    );
+    return view;
+  }
+
+  it("lets the label wrap beside a box that does not shrink, with no width above the viewport", async () => {
+    await renderWithConsentError();
+
+    const box = screen.getByRole("checkbox");
+    const label = box.closest("div")?.querySelector("label");
+    expect(label).not.toBeNull();
+    expect(label).toHaveClass("min-w-0", "break-words");
+    expect(label).not.toHaveClass("truncate", "whitespace-nowrap");
+    expect(box).toHaveClass("shrink-0");
+    expect(tooWide(document.body)).toEqual([]);
+  });
+
+  it("toggles the box when the wrapped label is clicked, with the error showing", async () => {
+    await renderWithConsentError();
+
+    const box = screen.getByRole("checkbox");
+    expect(box).not.toBeChecked();
+    await userEvent.click(
+      screen.getByText(/Acepto que la UAM use los datos de esta solicitud/),
+    );
+    expect(box).toBeChecked();
+  });
+
+  it("reports no accessibility violation with the label, link and error showing", async () => {
+    const { container } = await renderWithConsentError();
+
+    // jsdom has no layout, so contrast cannot be computed here; the owner walk
+    // and docs/design-system.md cover it.
+    const results = await axe.run(container, {
+      runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+      rules: { "color-contrast": { enabled: false } },
+    });
+
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    expect(results.passes.length).toBeGreaterThan(0);
+  });
 });
