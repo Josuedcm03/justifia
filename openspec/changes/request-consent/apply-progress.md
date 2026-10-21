@@ -117,7 +117,7 @@ Forecast ~330, measured 801 (unit 3: 477, unit 4: 324): 1 line over the 800 rule
 
 Chain: tracker `feat/request-consent` (PR #36 draft) <- S1a (#37, merged) <- S1b (#38, merged) <- S2a (#39, merged) <- S2b (#40, merged) <- S3 (this). Every earlier slice is merged into the tracker, so the S3 PR base is the tracker directly.
 
-Status: tasks 7.1-7.11 complete. Phase 8 (owner walk) and phase 9 (closeout) are out of this work unit.
+Status: tasks 7.1-7.11 complete; PR #41 opened (base: the tracker, not merged). Phase 8 (owner walk) and phase 9 (closeout) are out of this work unit.
 
 | Commit | Unit | Authored lines (+/-) |
 |--------|------|----------------------|

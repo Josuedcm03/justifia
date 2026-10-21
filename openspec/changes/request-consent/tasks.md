@@ -133,7 +133,7 @@ Chain: tracker `feat/request-consent` is created and exists. Each child slice br
 - [x] 7.8 RED+GREEN: extend `src/lib/intake/consent.test.ts`: the es `privacy` subtree (sorted-key serialisation) hashes to a literal pinned under `CONSENT_VERSION`; compute the hash from the final es copy after 7.5 and 7.7 (RC-3; the notice-edit-without-version scenario)
 - [x] 7.9 RED: `src/app/(auth)/layout.test.tsx` (create if absent): a link to `/privacy` labelled `common.privacyNotice`, same tab, present on the login and register pages; GREEN: `src/app/(auth)/layout.tsx` (scenario "Links from entry pages")
 - [x] 7.10 Commit unit 5: `feat(privacy): add the public privacy notice and link it from login and register`
-- [x] 7.11 Gates S3 (same five) and measured diff vs the S2 head (target ~150-190); open the S3 PR (base: the tracker, see 7.1). Result: all five gates green; measured 685 authored lines (679 added + 6 deleted, `openspec/`, `.engram/` and `package-lock.json` excluded) against the tracker head `e54103c`, under the 800 budget; the PR number is in apply-progress
+- [x] 7.11 Gates S3 (same five) and measured diff vs the S2 head (target ~150-190); open the S3 PR (base: the tracker, see 7.1). Result: all five gates green; measured 685 authored lines (679 added + 6 deleted, `openspec/`, `.engram/` and `package-lock.json` excluded) against the tracker head `e54103c`, under the 800 budget; S3 PR #41 (base: the tracker)
 
 ## Phase 8: Owner manual walk (before verify; after S1, S2 and S3 are on the tracker)
 
