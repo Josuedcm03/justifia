@@ -379,7 +379,9 @@ affected record's id: `solicitud.presentada` to `Solicitud`;
 MUST use entity type `Solicitud` with the draft's id. There is no event for
 draft creation, autosave, discard, expiry, or orphan cleanup (D14).
 Events MUST be built only through the central builders. Existing events and
-payloads MUST be unchanged; no schema change to the audit log is required.
+payloads MUST be unchanged, except that the `solicitud.presentada` payload
+carries `consentimientoVersion` (see "Request and document payloads minimise
+personal data"); no schema change to the audit log is required.
 
 #### Scenario: Action to entity type (table-driven)
 
@@ -520,19 +522,34 @@ minimisation rules.
 - WHEN the audit log is read
 - THEN two rows exist with the secretary as actor and modes `ver` and `descarga`
 
-### Requirement: Request and document payloads minimise personal data (RNF-02, RN-02)
+### Requirement: Request and document payloads minimise personal data (RNF-02, RN-02, RN-25)
 
 Payloads MUST be structured and identify records by stable ids. They MAY carry
 counts (subjects, documents), the detected content type, size, and for
-`documento.rechazado` the rejection reason code. They MUST NOT carry the
-cause, dates, student name, CIF, email, career, file name, file content, or
-storage location or URL, nor any credential.
+`documento.rechazado` the rejection reason code. The `solicitud.presentada`
+payload MUST also carry `consentimientoVersion`, the consent version stored on
+the request in the same transaction. They MUST NOT carry the cause, dates,
+student name, CIF, email, career, file name, file content, or storage location
+or URL, nor any credential, nor the consent text or the consent timestamp.
 
 #### Scenario: Submit payload
 
 - GIVEN a submitted request
 - WHEN the `solicitud.presentada` payload is serialized and searched
 - THEN it contains no cause, date, name, CIF, email, or career value
+
+#### Scenario: Consent version in the payload
+
+- GIVEN a request submitted with consent version `2026-10-20`
+- WHEN the `solicitud.presentada` payload is read
+- THEN `consentimientoVersion` equals the version stored on the request
+- AND the payload contains no consent text and no consent timestamp
+
+#### Scenario: Blocked submit adds no consent audit
+
+- GIVEN a submit refused with `consent_required` or `consent_outdated`
+- WHEN the audit log is read
+- THEN no row was added
 
 #### Scenario: Rejection payload
 
@@ -545,7 +562,6 @@ storage location or URL, nor any credential.
 - GIVEN all events from one intake flow
 - WHEN every payload is searched for store URLs, tokens, or hash patterns
 - THEN none is found
-
 ### Requirement: Closed set of review events (RF-07, RF-08, RNF-06 a)
 
 The audit actions MUST gain exactly these seven: `solicitud.aprobada`,
