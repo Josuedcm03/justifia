@@ -49,3 +49,28 @@ equipo), `resuelta` (cubierta por un change).
 - **Idea:** al abrir el flujo con un borrador guardado, preguntar si se continúa
   con él o se empieza de cero.
 - **Requisitos:** RF-01; decisión D8 de `justification-intake`.
+
+### UX-04. Buscar solicitudes por CIF o nombre en la bandeja de la secretaría
+
+- **Estado:** abierta.
+- **Origen:** exploración de `escalation`, 2026-10-22.
+- **Pantalla:** bandeja de la secretaría (`/review`).
+- **Hoy:** la bandeja lista solo las solicitudes pendientes. Una solicitud ya
+  decidida solo se abre escribiendo su dirección (`/review/<id>`).
+  `escalation` agrega pestañas por estado (pendientes, en coordinación,
+  aprobadas), pero no una búsqueda.
+- **Esperado:** buscar una solicitud por el CIF o el nombre del estudiante,
+  en cualquier estado.
+- **Requisitos:** RF-06, RF-15; spec `request-review`.
+
+### UX-05. Explicar el estado en el detalle de una solicitud no pendiente
+
+- **Estado:** abierta.
+- **Origen:** exploración de `escalation`, 2026-10-22.
+- **Pantalla:** detalle de la solicitud para la secretaría (`/review/[id]`).
+- **Hoy:** el panel de decisión aparece solo cuando la solicitud está
+  pendiente. En cualquier otro estado la pantalla no dice en qué estado está
+  ni qué acciones quedan.
+- **Esperado:** un panel de estado que nombre el estado actual y las acciones
+  disponibles, o que diga que no queda ninguna.
+- **Requisitos:** RF-07 (a), RN-16; spec `request-review`.
