@@ -17,9 +17,17 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+import { effectiveClockStart } from "@/db/clock-start";
 import type { GrupoOrigen } from "@/lib/catalog/origen";
 import { CAUSAS } from "@/lib/intake/causes";
 import { DECISION_KINDS } from "@/lib/intake/decision-templates";
+import {
+  ESCALATION_KINDS,
+  ESCALATION_NOTICE_REASONS,
+  ESCALATION_NOTICE_STATES,
+  type EscalationNoticeReason,
+  type EscalationNoticeState,
+} from "@/lib/intake/escalation";
 import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { ESTADOS_SOLICITUD } from "@/lib/intake/states";
@@ -260,6 +268,11 @@ export const solicitud = pgTable(
     // Set on each resubmission after a return (RF-08); `PresentadaEn` keeps the
     // first presentation (secretary-review, SR-1).
     reenviadaEn: timestamp("ReenviadaEn", { withTimezone: true }),
+    // RN-08 stored effective clock start (escalation, ES-5): the coordinator
+    // answer moves it forward by the business days spent in coordination, and a
+    // resubmission clears it. NULL means the clock starts at `ReenviadaEn` or
+    // `PresentadaEn`.
+    plazoInicioEn: timestamp("PlazoInicioEn", { withTimezone: true }),
     // RN-19: the secretary marked the approval as a special-format case; the
     // signed format is uploaded afterwards (teacher-remission, TR-1).
     formatoEspecial: boolean("FormatoEspecial").notNull().default(false),
@@ -308,13 +321,17 @@ export const solicitud = pgTable(
       "CK_Solicitud_ConsentimientoFecha",
       sql`${t.consentimientoEn} IS NULL OR (${t.presentadaEn} IS NOT NULL AND ${t.consentimientoEn} <= ${t.presentadaEn})`,
     ),
-    // The review queue: pending requests by effective start (SR-1).
+    check(
+      "CK_Solicitud_PlazoInicio",
+      sql`${t.plazoInicioEn} IS NULL OR ${t.plazoInicioEn} >= coalesce(${t.reenviadaEn}, ${t.presentadaEn})`,
+    ),
     check(
       "CK_Solicitud_FormatoEspecial",
       sql`NOT ${t.formatoEspecial} OR (${t.estado} = 'aprobada' AND ${t.causa} = 'fuerza_mayor')`,
     ),
+    // The review queue: pending requests by effective start (SR-1, ES-5).
     index("IX_Solicitud_Cola")
-      .on(sql`coalesce(${t.reenviadaEn}, ${t.presentadaEn})`, t.id)
+      .on(effectiveClockStart(t), t.id)
       .where(sql`${t.estado} = 'pendiente'`),
     // D8: at most one open draft per student.
     uniqueIndex("UX_Solicitud_Borrador")
@@ -607,3 +624,150 @@ export const remision = pgTable(
 
 export type Remision = typeof remision.$inferSelect;
 export type NuevaRemision = typeof remision.$inferInsert;
+
+/**
+ * ReporteInasistencia — the RF-15 report that a teacher was told about excess
+ * absences of an approved request (escalation, ES-2). Append-only: no function
+ * updates or deletes it (structural test). The teacher name is a snapshot and
+ * the request has no percentage or count field. No cascade.
+ */
+export const reporteInasistencia = pgTable(
+  "ReporteInasistencia",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    solicitudId: bigint("SolicitudId", { mode: "number" })
+      .notNull()
+      .references(() => solicitud.id),
+    docenteId: bigint("DocenteId", { mode: "number" })
+      .notNull()
+      .references(() => usuario.id),
+    docenteNombre: varchar("DocenteNombre", { length: 160 }).notNull(),
+    comunicadoEl: date("ComunicadoEl", { mode: "string" }).notNull(),
+    nota: varchar("Nota", { length: 1000 }),
+    registradoPorId: bigint("RegistradoPorId", { mode: "number" })
+      .notNull()
+      .references(() => usuario.id),
+    registradoEn: timestamp("RegistradoEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "CK_ReporteInasistencia_Nota",
+      sql`${t.nota} IS NULL OR length(btrim(${t.nota})) > 0`,
+    ),
+    index("IX_ReporteInasistencia_Solicitud").on(t.solicitudId),
+  ],
+);
+
+export type ReporteInasistencia = typeof reporteInasistencia.$inferSelect;
+export type NuevoReporteInasistencia = typeof reporteInasistencia.$inferInsert;
+
+/**
+ * Escalamiento — one escalation to the career coordination and its own
+ * notification outbox (escalation, ES-1). Two kinds share the table: a
+ * `sospecha_documento` moves the request to `en_revision_coordinacion` and is
+ * answered by the coordination; an `exceso_inasistencias` is informational and
+ * leaves the request `aprobada`. The career is never stored: it is the
+ * student's live `CarreraId` (ES-3). The outbox columns mirror `Remision`; after
+ * creation only `src/lib/data/escalamiento.ts` writes them (structural test).
+ * No cascade: a decided request is never deleted.
+ */
+export const escalamiento = pgTable(
+  "Escalamiento",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    solicitudId: bigint("SolicitudId", { mode: "number" })
+      .notNull()
+      .references(() => solicitud.id),
+    tipo: varchar("Tipo", { length: 30 }).notNull(),
+    estadoPrevio: varchar("EstadoPrevio", { length: 30 }).notNull(),
+    nota: varchar("Nota", { length: 1000 }),
+    reporteId: bigint("ReporteId", { mode: "number" }).references(
+      () => reporteInasistencia.id,
+    ),
+    secretariaId: bigint("SecretariaId", { mode: "number" })
+      .notNull()
+      .references(() => usuario.id),
+    creadoEn: timestamp("CreadoEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    respuesta: varchar("Respuesta", { length: 1000 }),
+    respondidaPorId: bigint("RespondidaPorId", { mode: "number" }).references(
+      () => usuario.id,
+    ),
+    respondidaEn: timestamp("RespondidaEn", { withTimezone: true }),
+    notificacionEstado: varchar("NotificacionEstado", { length: 20 })
+      .$type<EscalationNoticeState>()
+      .notNull()
+      .default("pendiente"),
+    notificacionMotivo: varchar("NotificacionMotivo", {
+      length: 30,
+    }).$type<EscalationNoticeReason>(),
+    intentos: smallint("Intentos").notNull().default(0),
+    reclamoId: uuid("ReclamoId"),
+    reclamadaEn: timestamp("ReclamadaEn", { withTimezone: true }),
+    enviadaEn: timestamp("EnviadaEn", { withTimezone: true }),
+    proveedorMensajeId: varchar("ProveedorMensajeId", { length: 100 }),
+    actualizadaEn: timestamp("ActualizadaEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "CK_Escalamiento_Tipo",
+      sql`${t.tipo} IN (${inList(ESCALATION_KINDS)})`,
+    ),
+    check(
+      "CK_Escalamiento_Kind",
+      sql`(${t.tipo} = 'sospecha_documento' AND ${t.estadoPrevio} = 'pendiente' AND ${t.reporteId} IS NULL AND ${t.nota} IS NOT NULL AND length(btrim(${t.nota})) > 0) OR (${t.tipo} = 'exceso_inasistencias' AND ${t.estadoPrevio} = 'aprobada' AND ${t.reporteId} IS NOT NULL AND ${t.nota} IS NULL)`,
+    ),
+    check(
+      "CK_Escalamiento_Respuesta",
+      sql`(${t.respuesta} IS NULL) = (${t.respondidaPorId} IS NULL) AND (${t.respuesta} IS NULL) = (${t.respondidaEn} IS NULL) AND (${t.respuesta} IS NULL OR (length(btrim(${t.respuesta})) > 0 AND ${t.respondidaEn} >= ${t.creadoEn}))`,
+    ),
+    check(
+      "CK_Escalamiento_SinRespuesta",
+      sql`${t.tipo} = 'sospecha_documento' OR ${t.respondidaEn} IS NULL`,
+    ),
+    check(
+      "CK_Escalamiento_NotificacionEstado",
+      sql`${t.notificacionEstado} IN (${inList(ESCALATION_NOTICE_STATES)})`,
+    ),
+    check(
+      "CK_Escalamiento_NotificacionMotivo",
+      sql`${t.notificacionMotivo} IS NULL OR ${t.notificacionMotivo} IN (${inList(ESCALATION_NOTICE_REASONS)})`,
+    ),
+    check(
+      "CK_Escalamiento_Enviada",
+      sql`(${t.notificacionEstado} = 'enviada') = (${t.enviadaEn} IS NOT NULL)`,
+    ),
+    check(
+      "CK_Escalamiento_MotivoEstado",
+      sql`(${t.notificacionEstado} <> 'enviada' OR ${t.notificacionMotivo} IS NULL) AND (${t.notificacionEstado} <> 'bloqueada' OR (${t.notificacionMotivo} IS NOT NULL AND ${t.notificacionMotivo} = 'sin_destinatarios')) AND (${t.notificacionEstado} <> 'pendiente' OR ${t.notificacionMotivo} IS NULL OR ${t.notificacionMotivo} = 'error_envio')`,
+    ),
+    check(
+      "CK_Escalamiento_Reclamo",
+      sql`(${t.reclamoId} IS NULL) = (${t.reclamadaEn} IS NULL)`,
+    ),
+    check("CK_Escalamiento_Intentos", sql`${t.intentos} >= 0`),
+    // E12: at most one open suspicion per request.
+    uniqueIndex("UX_Escalamiento_Abierto")
+      .on(t.solicitudId)
+      .where(
+        sql`${t.tipo} = 'sospecha_documento' AND ${t.respondidaEn} IS NULL`,
+      ),
+    // The retry job reads pending notices oldest first.
+    index("IX_Escalamiento_Pendiente")
+      .on(t.creadoEn, t.id)
+      .where(sql`${t.notificacionEstado} = 'pendiente'`),
+    index("IX_Escalamiento_Solicitud").on(t.solicitudId, t.creadoEn),
+  ],
+);
+
+export type Escalamiento = typeof escalamiento.$inferSelect;
+export type NuevoEscalamiento = typeof escalamiento.$inferInsert;

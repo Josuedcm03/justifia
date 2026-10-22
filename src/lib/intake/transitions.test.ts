@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { rolesUsuario } from "@/lib/validations/auth";
 
+import { DECISION_KINDS } from "./decision-templates";
 import { ESTADOS_SOLICITUD } from "./states";
-import { canTransition, TRANSITIONS } from "./transitions";
+import { canTransition, sourceOf, TRANSITIONS } from "./transitions";
 
 const ALLOWED = new Set([
   "borrador>pendiente:estudiante",
@@ -11,10 +12,13 @@ const ALLOWED = new Set([
   "pendiente>rechazada:secretaria",
   "pendiente>devuelta:secretaria",
   "devuelta>pendiente:estudiante",
+  // Escalation to the career coordination and its answer (RF-10, ES-4).
+  "pendiente>en_revision_coordinacion:secretaria",
+  "en_revision_coordinacion>pendiente:coordinacion",
 ]);
 
 describe("canTransition (RN-15, RN-16, SR-4)", () => {
-  it("allows exactly the five edges of the table, for their actor only", () => {
+  it("allows exactly the seven edges of the table, for their actor only", () => {
     const found = new Set<string>();
     for (const from of ESTADOS_SOLICITUD) {
       for (const to of ESTADOS_SOLICITUD) {
@@ -52,16 +56,39 @@ describe("canTransition (RN-15, RN-16, SR-4)", () => {
     }
   });
 
-  it("has no edge into or out of en_revision_coordinacion (RF-10 out of scope)", () => {
-    for (const other of ESTADOS_SOLICITUD) {
+  it("reaches coordination only by the secretary escalation (RF-10)", () => {
+    expect(
+      canTransition("pendiente", "en_revision_coordinacion", "secretaria"),
+    ).toBe(true);
+    for (const from of ESTADOS_SOLICITUD) {
       for (const actor of rolesUsuario) {
-        expect(canTransition(other, "en_revision_coordinacion", actor)).toBe(
-          false,
-        );
-        expect(canTransition("en_revision_coordinacion", other, actor)).toBe(
-          false,
+        const allowed = from === "pendiente" && actor === "secretaria";
+        expect(canTransition(from, "en_revision_coordinacion", actor)).toBe(
+          allowed,
         );
       }
+    }
+  });
+
+  it("leaves coordination only by the coordinator answer, back to pendiente", () => {
+    expect(
+      canTransition("en_revision_coordinacion", "pendiente", "coordinacion"),
+    ).toBe(true);
+    for (const to of ESTADOS_SOLICITUD) {
+      for (const actor of rolesUsuario) {
+        const allowed = to === "pendiente" && actor === "coordinacion";
+        expect(canTransition("en_revision_coordinacion", to, actor)).toBe(
+          allowed,
+        );
+      }
+    }
+  });
+
+  it("never lets an approved request enter coordination", () => {
+    for (const actor of rolesUsuario) {
+      expect(canTransition("aprobada", "en_revision_coordinacion", actor)).toBe(
+        false,
+      );
     }
   });
 
@@ -77,5 +104,45 @@ describe("canTransition (RN-15, RN-16, SR-4)", () => {
     expect(
       TRANSITIONS.map((t) => `${t.from}>${t.to}:${t.actor}`).sort(),
     ).toEqual([...ALLOWED].sort());
+  });
+});
+
+describe("sourceOf (ES-4)", () => {
+  it("returns the single state an escalation starts from", () => {
+    expect(sourceOf("en_revision_coordinacion", "secretaria")).toBe(
+      "pendiente",
+    );
+  });
+
+  it("returns the single state an answer starts from", () => {
+    expect(sourceOf("pendiente", "coordinacion")).toBe(
+      "en_revision_coordinacion",
+    );
+  });
+
+  it("throws when the pair has no edge", () => {
+    expect(() => sourceOf("aprobada", "coordinacion")).toThrow(
+      /No unique coordinacion transition into aprobada/,
+    );
+    expect(() => sourceOf("pendiente", "secretaria")).toThrow(
+      /No unique secretaria transition into pendiente/,
+    );
+  });
+
+  it("throws when the pair has more than one source", () => {
+    // Submit (borrador) and resubmit (devuelta) both enter pendiente.
+    expect(() => sourceOf("pendiente", "estudiante")).toThrow(
+      /No unique estudiante transition into pendiente/,
+    );
+  });
+});
+
+describe("secretary decision sources stay unique (ES-4)", () => {
+  it.each(DECISION_KINDS)("%s has exactly one secretary source", (kind) => {
+    const sources = TRANSITIONS.filter(
+      (t) => t.to === kind && t.actor === "secretaria",
+    ).map((t) => t.from);
+    expect(sources).toEqual(["pendiente"]);
+    expect(sourceOf(kind, "secretaria")).toBe("pendiente");
   });
 });
