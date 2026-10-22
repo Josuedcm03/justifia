@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review and six remission ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission and three escalation ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -64,6 +64,9 @@ describe("AUDIT_ACTIONS", () => {
         "remision.bloqueada",
         "remision.reenviada",
         "documento.formato_especial",
+        "solicitud.escalada",
+        "solicitud.escalamiento_resuelto",
+        "solicitud.reporte_inasistencias",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([
@@ -93,5 +96,12 @@ describe("AuditEntityType", () => {
   it("includes Facultad for the queue read event", () => {
     const facultad: AuditEntityType = "Facultad";
     expect(facultad).toBe("Facultad");
+  });
+});
+
+describe("AuditEntityType (escalation)", () => {
+  it("includes Escalamiento and Carrera next to the existing types", () => {
+    const types: AuditEntityType[] = ["Escalamiento", "Carrera", "Solicitud"];
+    expect(types).toEqual(["Escalamiento", "Carrera", "Solicitud"]);
   });
 });

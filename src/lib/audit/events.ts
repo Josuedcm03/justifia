@@ -11,6 +11,7 @@ import type {
   GrupoWriteResult,
 } from "@/lib/catalog/types";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
+import type { EscalationKind } from "@/lib/intake/escalation";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type {
@@ -252,6 +253,65 @@ export function documentoRetiradoEvent(args: {
     entidadTipo: "DocumentoRespaldo",
     entidadId: args.documentoId,
     datos: { solicitudId: args.solicitudId },
+  };
+}
+
+/** The secretary escalated a pending request to the career coordination. */
+export function solicitudEscaladaEvent(args: {
+  solicitudId: number;
+  escalamientoId: number;
+  motivo: EscalationKind;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+}): AuditEvent {
+  return {
+    accion: "solicitud.escalada",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      escalamientoId: args.escalamientoId,
+      motivo: args.motivo,
+      estadoPrevio: args.estadoPrevio,
+      estadoNuevo: args.estadoNuevo,
+    },
+  };
+}
+
+/** The coordination answered an open escalation; the request left coordination. */
+export function solicitudEscalamientoResueltoEvent(args: {
+  solicitudId: number;
+  escalamientoId: number;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+}): AuditEvent {
+  return {
+    accion: "solicitud.escalamiento_resuelto",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      escalamientoId: args.escalamientoId,
+      estadoPrevio: args.estadoPrevio,
+      estadoNuevo: args.estadoNuevo,
+    },
+  };
+}
+
+/** An RF-15 absence report was recorded on an approved request. */
+export function solicitudReporteInasistenciasEvent(args: {
+  solicitudId: number;
+  reporteId: number;
+  escalamientoId: number;
+  docenteId: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.reporte_inasistencias",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      reporteId: args.reporteId,
+      escalamientoId: args.escalamientoId,
+      docenteId: args.docenteId,
+    },
   };
 }
 

@@ -1,3 +1,4 @@
+import type { EscalationKind } from "@/lib/intake/escalation";
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type {
@@ -42,6 +43,9 @@ export const AUDIT_ACTIONS = [
   "grupo.actualizado",
   "grupo.desactivado",
   "grupo.reactivado",
+  "solicitud.escalada",
+  "solicitud.escalamiento_resuelto",
+  "solicitud.reporte_inasistencias",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -54,7 +58,9 @@ export type AuditEntityType =
   | "Facultad"
   | "Asignatura"
   | "Grupo"
-  | "Remision";
+  | "Remision"
+  | "Escalamiento"
+  | "Carrera";
 
 /** Closed list. A field not named here can never be reported as changed.
  *  `login` and `hashClave` are ABSENT on purpose: `hashClave` is a
@@ -202,6 +208,28 @@ type SpecialFormatPayload = {
   tipo: "pdf" | "png" | "jpeg";
   tamanoBytes: number;
   remisionesDesbloqueadas: number;
+};
+
+/** Escalation events (escalation, ES-13). Ids and closed codes only: never the
+ *  secretary note, the coordinator answer, a teacher name or an email (RNF-06,
+ *  RN-02). The entity is the request, not the escalation. */
+type RequestEscalatedPayload = {
+  escalamientoId: number;
+  motivo: EscalationKind;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+};
+
+type EscalationResolvedPayload = {
+  escalamientoId: number;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+};
+
+type AbsenceReportedPayload = {
+  reporteId: number;
+  escalamientoId: number;
+  docenteId: number;
 };
 
 /** Closed lists for the manual catalog events. A field not named here can
@@ -374,4 +402,22 @@ export type AuditEvent =
       entidadTipo: "Grupo";
       entidadId: number;
       datos: CatalogRecordPayload<AuditableGrupoField>;
+    }
+  | {
+      accion: "solicitud.escalada";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: RequestEscalatedPayload;
+    }
+  | {
+      accion: "solicitud.escalamiento_resuelto";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: EscalationResolvedPayload;
+    }
+  | {
+      accion: "solicitud.reporte_inasistencias";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: AbsenceReportedPayload;
     };
