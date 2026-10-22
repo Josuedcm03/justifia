@@ -128,6 +128,7 @@ se hace en los dos a la vez y se anota aquí.
 | 2026-10-12 | RF-01 (d): registro positivo del consentimiento; RF-12 sube a Alta; RF-14 (d): la secretaría registra el tipo de documento; RN-13 se aplica también por RF-14. | Ronda 2 del gate sobre 4.2 (`bitacora/revisiones/2026-10-12_critico-ingenieria_4.1-4.2_r2.md`). RF-12 sube porque, sin acceso al registro académico, el catálogo es la única fuente de grupo y docente de RF-04 y RF-09. |
 | 2026-10-12 | RF-05 (e): señal de formato que no corresponde a la causa; RN-13 remite la correspondencia entre tipo de documento y causa a los parámetros normativos (RNF-14). | Ronda 3 del gate sobre 4.2 (`bitacora/revisiones/2026-10-12_critico-ingenieria_4.1-4.2_r3.md`). |
 | 2026-10-12 | RF-11 se dispara al enviar la solicitud (extracción y veredicto asíncronos); RF-07 (a) suma «en revisión de coordinación» por RF-10; RN-16 fija el estado inicial pendiente. | Gate sobre 4.3 (`bitacora/revisiones/2026-10-12_critico-ingenieria_4.3.md`). |
+| 2026-10-22 | RF-10 (a) se aplica solo a la solicitud pendiente, escalada por sospecha sobre el documento (RN-20). El reporte de exceso del 20 % (RF-15) se registra en la solicitud ya aprobada y remitida y notifica a la coordinación de carrera (RF-10 b), pero la solicitud sigue aprobada. | Decisión E2 del cambio `escalation` (`openspec/changes/escalation/preproposal.yaml`): la aprobación es definitiva, porque el docente ya recibió la remisión. Pendiente de sincronizar con la matriz de la tesis. |
 
 **Pendientes derivados del cambio del 2026-10-12:**
 
