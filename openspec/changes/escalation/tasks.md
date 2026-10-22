@@ -64,10 +64,10 @@ Chain: tracker `feat/escalation` exists. Each slice branches from the tracker he
 ## Phase 0: Planning docs, tracker and owner coordination (before S1)
 
 - [ ] 0.1 [OWNER] Agree the migration merge order with the `document-extraction` teammate before the S1 PR (both target `0011`; the second to merge regenerates, never hand-numbered); record the agreed order and date next to this task
-- [ ] 0.2 `[READ-ONLY]` Review `git diff docs/requirements.md`: it must hold only the 2026-10-22 changelog entry (RF-10 (a) deviation); anything else, STOP and ask the owner
-- [ ] 0.3 On tracker `feat/escalation`, stage only `openspec/changes/escalation/` and `docs/requirements.md` (if 0.2 is clean) and commit `docs(escalation): add the SDD planning documents` as its own docs commit; stage nothing else
-- [ ] 0.4 Push the tracker; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate (not before S5 and phases 14, 15, 16)
-- [ ] 0.5 `[READ-ONLY]` Re-check `drizzle/` on `main` for a migration newer than `0010_request_consent.sql`; if `document-extraction` already merged a `0011`, STOP and tell the owner (task 3.3 then regenerates on rebase)
+- [x] 0.2 `[READ-ONLY]` Review `git diff docs/requirements.md`: it must hold only the 2026-10-22 changelog entry (RF-10 (a) deviation); anything else, STOP and ask the owner. DONE 2026-10-22: one added line only.
+- [x] 0.3 On tracker `feat/escalation`, stage only `openspec/changes/escalation/` and `docs/requirements.md` (if 0.2 is clean) and commit `docs(escalation): add the SDD planning documents` as its own docs commit; stage nothing else. DONE 2026-10-22: `3858485`; the owner-approved backlog entries UX-04 and UX-05 went in a separate commit `e752b43`.
+- [x] 0.4 Push the tracker; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate (not before S5 and phases 14, 15, 16). DONE 2026-10-22: draft PR #42.
+- [x] 0.5 `[READ-ONLY]` Re-check `drizzle/` on `main` for a migration newer than `0010_request_consent.sql`; if `document-extraction` already merged a `0011`, STOP and tell the owner (task 3.3 then regenerates on rebase). DONE 2026-10-22: latest on `origin/main` is `0010_request_consent.sql`.
 
 ## Phase 1: S1 - Schema, migration, transitions, RN-08 rules (work unit 1)
 
