@@ -1,15 +1,18 @@
-import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 
 import {
   ApprovedQueueTable,
   type ApprovedQueueTableRow,
 } from "@/app/(dashboard)/review/approved-queue-table";
-import { buttonVariants } from "@/components/ui/button";
+import {
+  BUSINESS_TIME_ZONE,
+  QueueCard,
+  QueueEmpty,
+  QueueLayout,
+  QueueReviewLink,
+  QueueStudent,
+} from "@/app/(dashboard)/review/queue-parts";
 import type { ApprovedRow } from "@/lib/data/revision-queue";
-
-const BASE = "/review";
-const BUSINESS_TIME_ZONE = "America/Managua";
 
 /**
  * The Aprobadas tab (RF-15): the newest approvals with the number of absence
@@ -21,34 +24,25 @@ export function ApprovedTab({ rows }: { rows: readonly ApprovedRow[] }) {
   const format = useFormatter();
 
   if (rows.length === 0) {
-    return (
-      <div className="border-border bg-card flex flex-col items-start gap-4 rounded-xl border px-6 py-12 text-center sm:items-center">
-        <p className="text-muted-foreground max-w-prose">
-          {t("approved.empty")}
-        </p>
-      </div>
-    );
+    return <QueueEmpty message={t("approved.empty")} />;
   }
 
-  const day = (date: Date) =>
-    format.dateTime(date, {
-      dateStyle: "medium",
-      timeZone: BUSINESS_TIME_ZONE,
-    });
-  const name = (row: ApprovedRow) => row.estudianteNombre ?? t("unnamed");
-  const reports = (row: ApprovedRow) =>
-    t("approved.reportsCount", { count: row.reportes });
-
-  const tableRows: ApprovedQueueTableRow[] = rows.map((row) => ({
-    id: row.id,
-    approvedText: day(row.aprobadaEn),
-    name: name(row),
-    cif: row.estudianteCif,
-    career: row.estudianteCarrera ?? "",
-    reportsText: reports(row),
-    reviewLabel: t("review"),
-    reviewAriaLabel: t("reviewNamed", { name: name(row) }),
-  }));
+  const tableRows: ApprovedQueueTableRow[] = rows.map((row) => {
+    const name = row.estudianteNombre ?? t("unnamed");
+    return {
+      id: row.id,
+      approvedText: format.dateTime(row.aprobadaEn, {
+        dateStyle: "medium",
+        timeZone: BUSINESS_TIME_ZONE,
+      }),
+      name,
+      cif: row.estudianteCif,
+      career: row.estudianteCarrera ?? "",
+      reportsText: t("approved.reportsCount", { count: row.reportes }),
+      reviewLabel: t("review"),
+      reviewAriaLabel: t("reviewNamed", { name }),
+    };
+  });
 
   return (
     <>
@@ -56,45 +50,32 @@ export function ApprovedTab({ rows }: { rows: readonly ApprovedRow[] }) {
         {t("approved.latest")}
       </p>
 
-      <ul
-        aria-label={t("approved.caption")}
-        className="flex flex-col gap-4 md:hidden"
-      >
-        {rows.map((row) => (
-          <li
-            key={row.id}
-            className="border-border bg-card shadow-soft flex flex-col gap-3 rounded-xl border p-4"
-          >
-            <div className="flex flex-col">
-              <span className="font-medium break-words">{name(row)}</span>
-              {row.estudianteCif ? (
-                <span className="text-muted-foreground text-xs">
-                  {row.estudianteCif}
-                </span>
-              ) : null}
-            </div>
+      <QueueLayout
+        caption={t("approved.caption")}
+        cards={tableRows.map((row) => (
+          <QueueCard key={row.id}>
+            <QueueStudent name={row.name} cif={row.cif} />
             <p className="text-muted-foreground text-sm break-words">
-              {row.estudianteCarrera}
+              {row.career}
             </p>
             <p className="text-sm">
-              {t("approved.columns.approved")}: {day(row.aprobadaEn)}
+              {t("approved.columns.approved")}: {row.approvedText}
             </p>
-            <p className="text-muted-foreground text-sm">{reports(row)}</p>
-            <Link
-              href={`${BASE}/${row.id}`}
-              prefetch={false}
-              aria-label={t("reviewNamed", { name: name(row) })}
-              className={`${buttonVariants({ variant: "outline", size: "lg" })} w-full sm:w-auto`}
-            >
-              {t("review")}
-            </Link>
-          </li>
+            <p className="text-muted-foreground text-sm">{row.reportsText}</p>
+            <QueueReviewLink
+              id={row.id}
+              label={row.reviewLabel}
+              ariaLabel={row.reviewAriaLabel}
+            />
+          </QueueCard>
         ))}
-      </ul>
-
-      <div className="border-border bg-card shadow-soft hidden overflow-hidden rounded-xl border md:block">
-        <ApprovedQueueTable rows={tableRows} caption={t("approved.caption")} />
-      </div>
+        table={
+          <ApprovedQueueTable
+            rows={tableRows}
+            caption={t("approved.caption")}
+          />
+        }
+      />
     </>
   );
 }

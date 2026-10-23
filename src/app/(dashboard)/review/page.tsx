@@ -5,6 +5,12 @@ import { ApprovedTab } from "@/app/(dashboard)/review/approved-tab";
 import { CoordinationTab } from "@/app/(dashboard)/review/coordination-tab";
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
 import {
+  BUSINESS_TIME_ZONE,
+  QueueCard,
+  QueueEmpty,
+  QueueStudent,
+} from "@/app/(dashboard)/review/queue-parts";
+import {
   ReviewQueueTable,
   type ReviewQueueTableRow,
 } from "@/app/(dashboard)/review/review-queue-table";
@@ -30,7 +36,6 @@ import { reviewTabOf, type ReviewTab } from "@/lib/intake/review-tabs";
 import type { RequestScope } from "@/lib/intake/request-scope";
 
 const BASE = "/review";
-const BUSINESS_TIME_ZONE = "America/Managua";
 const ALERT =
   "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
 const NOTICE =
@@ -175,16 +180,6 @@ export default async function ReviewQueuePage({
       <span className="text-muted-foreground text-xs">{dueOn(row)}</span>
     </div>
   );
-  const student = (row: QueueRow) => (
-    <div className="flex flex-col">
-      <span className="font-medium break-words">{name(row)}</span>
-      {row.estudianteCif ? (
-        <span className="text-muted-foreground text-xs">
-          {row.estudianteCif}
-        </span>
-      ) : null}
-    </div>
-  );
 
   // The desktop table is a client module: it receives plain display values,
   // picked field by field, never the data-layer row and never a function.
@@ -218,9 +213,7 @@ export default async function ReviewQueuePage({
       )}
 
       {queue.rows.length === 0 ? (
-        <div className="border-border bg-card flex flex-col items-start gap-4 rounded-xl border px-6 py-12 text-center sm:items-center">
-          <p className="text-muted-foreground max-w-prose">{t("empty")}</p>
-        </div>
+        <QueueEmpty message={t("empty")} />
       ) : (
         <>
           <ul
@@ -228,11 +221,8 @@ export default async function ReviewQueuePage({
             className="flex flex-col gap-4 md:hidden"
           >
             {queue.rows.map((row) => (
-              <li
-                key={row.id}
-                className="border-border bg-card shadow-soft flex flex-col gap-3 rounded-xl border p-4"
-              >
-                {student(row)}
+              <QueueCard key={row.id}>
+                <QueueStudent name={name(row)} cif={row.estudianteCif} />
                 <p className="text-muted-foreground text-sm break-words">
                   {row.estudianteCarrera} · {subjects(row)}
                 </p>
@@ -241,7 +231,7 @@ export default async function ReviewQueuePage({
                 </p>
                 {deadline(row)}
                 {reviewLink(row)}
-              </li>
+              </QueueCard>
             ))}
           </ul>
 

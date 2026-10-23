@@ -34,6 +34,13 @@ import type { RequestScope } from "@/lib/intake/request-scope";
 // SQL needs no calendar, and the stored start (ES-5) moves a request that spent
 // time in coordination later than one that did not.
 
+/** The student snapshot every tab lists, in the order the selects name it. */
+const STUDENT = {
+  estudianteNombre: solicitud.estudianteNombre,
+  estudianteCif: solicitud.estudianteCif,
+  estudianteCarrera: solicitud.estudianteCarrera,
+};
+
 export type QueueRow = {
   id: number;
   estudianteNombre: string | null;
@@ -69,9 +76,7 @@ export async function listReviewQueue(
       presentadaEn: solicitud.presentadaEn,
       reenviadaEn: solicitud.reenviadaEn,
       plazoInicioEn: solicitud.plazoInicioEn,
-      estudianteNombre: solicitud.estudianteNombre,
-      estudianteCif: solicitud.estudianteCif,
-      estudianteCarrera: solicitud.estudianteCarrera,
+      ...STUDENT,
     })
     .from(solicitud)
     .where(and(eq(solicitud.estado, "pendiente"), requestInScope(scope)))
@@ -136,9 +141,7 @@ export async function listCoordinationQueue(
   const rows = await db
     .select({
       id: solicitud.id,
-      estudianteNombre: solicitud.estudianteNombre,
-      estudianteCif: solicitud.estudianteCif,
-      estudianteCarrera: solicitud.estudianteCarrera,
+      ...STUDENT,
       motivo: escalamiento.tipo,
       escaladaEn: escalamiento.creadoEn,
       notificacionEstado: escalamiento.notificacionEstado,
@@ -198,9 +201,7 @@ export async function listApprovedRequests(
   const rows = await db
     .select({
       id: solicitud.id,
-      estudianteNombre: solicitud.estudianteNombre,
-      estudianteCif: solicitud.estudianteCif,
-      estudianteCarrera: solicitud.estudianteCarrera,
+      ...STUDENT,
       aprobadaEn: solicitudDecision.decididaEn,
       reportes:
         sql<number>`(select count(*) from ${reporteInasistencia} where ${reporteInasistencia.solicitudId} = ${solicitud.id})`.mapWith(
