@@ -102,3 +102,28 @@ equipo), `resuelta` (cubierta por un change).
   justificación antes de registrar su reporte.
 - **Requisitos:** RF-09 (c), RF-15; specs `teacher-remission` y
   `coordination-escalation`.
+
+### UX-08. Mostrar que se agotaron los reintentos automáticos de un aviso
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S3), 2026-10-23.
+- **Pantalla:** estado del aviso a la coordinación en el detalle de la
+  solicitud (`/review/[id]`).
+- **Hoy:** tras los 8 intentos automáticos, la etiqueta sigue diciendo
+  «pendiente, último intento fallido», igual que antes de agotarlos.
+- **Esperado:** que la etiqueta indique que el sistema ya no reintentará solo
+  y que queda el reenvío manual.
+- **Requisitos:** RF-10 (b), RNF-07; spec `coordination-escalation`.
+
+### UX-09. Reenviar el aviso desde la pestaña «En coordinación»
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S3), 2026-10-23.
+- **Pantalla:** pestaña «En coordinación» de la bandeja de la secretaría
+  (`/review`).
+- **Hoy:** la pestaña muestra el estado del aviso de cada solicitud, pero el
+  reenvío solo está en el detalle; hay que abrir la solicitud para reenviar.
+- **Esperado:** el control de reenvío en la misma fila cuando el aviso no se
+  envió.
+- **Requisitos:** RF-10 (b); specs `request-review` y
+  `coordination-escalation`.
