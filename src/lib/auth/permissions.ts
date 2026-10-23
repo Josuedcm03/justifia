@@ -1,3 +1,4 @@
+import type { CoordinationScope } from "@/lib/intake/coordination-scope";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { isVisibleState } from "@/lib/intake/states";
 import { rolesUsuario } from "@/lib/validations/auth";
@@ -127,26 +128,63 @@ export function canReviewRequests(rol: RolUsuario | undefined): boolean {
   );
 }
 
+/**
+ * Roles that answer an escalation of their own career (escalation, ES-9,
+ * RNF-01). The coordinator never decides a request: `rolesRevisores` stays the
+ * secretary alone.
+ */
+export const rolesCoordinadores = [
+  "coordinacion",
+] as const satisfies readonly RolUsuario[];
+
+export function canCoordinate(rol: RolUsuario | undefined): boolean {
+  return (
+    rol !== undefined && (rolesCoordinadores as readonly string[]).includes(rol)
+  );
+}
+
 /** What the document predicate needs to know about the document's request. */
 export type ViewableDocument = {
   estudianteId: number;
   /** `Carrera.FacultadId` of the student's current career; null without one. */
   estudianteFacultadId: number | null;
+  /** The student's current `CarreraId`; null without one. */
+  estudianteCarreraId: number | null;
   solicitudEstado: string;
+  /** Set when a correction retired the document (still `valido`). */
+  retiradoEn: Date | null;
+  /** The request has an open `sospecha_documento` escalation. */
+  tieneEscalamientoAbierto: boolean;
 };
+
+const NO_COORDINATION: CoordinationScope = { kind: "none" };
 
 /**
  * Who may read a supporting document (D15, SR-12). The owning student reads
  * their own documents in any state, retired ones included. A reviewing role
  * reads only inside its facultad scope, and only a request that is not a
- * draft. Every other role, and a `none` scope, is denied.
+ * draft. A coordinator reads only while a suspicion escalation of the request
+ * is open for their career, and only a current document (the lookup returns
+ * `valido` ones only; a retired one is refused here). Every other role, and a
+ * `none` scope, is denied.
  */
 export function canViewDocument(
   viewer: { id: number; rol: RolUsuario },
   doc: ViewableDocument,
   scope: RequestScope,
+  coordination: CoordinationScope = NO_COORDINATION,
 ): boolean {
   if (canFileRequests(viewer.rol)) return viewer.id === doc.estudianteId;
+  if (canCoordinate(viewer.rol)) {
+    return (
+      coordination.kind === "carrera" &&
+      doc.estudianteCarreraId !== null &&
+      coordination.carreraId === doc.estudianteCarreraId &&
+      doc.solicitudEstado === "en_revision_coordinacion" &&
+      doc.tieneEscalamientoAbierto &&
+      doc.retiradoEn === null
+    );
+  }
   return (
     canReviewRequests(viewer.rol) &&
     scope.kind === "facultad" &&

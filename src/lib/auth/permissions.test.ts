@@ -13,9 +13,15 @@ import {
   rolesVisiblesPara,
 } from "@/lib/auth/permissions";
 import * as perms from "@/lib/auth/permissions";
+import {
+  coordinationScopeFor,
+  type CoordinationScope,
+} from "@/lib/intake/coordination-scope";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { ESTADOS_SOLICITUD, VISIBLE_STATES } from "@/lib/intake/states";
-import { rolesUsuario } from "@/lib/validations/auth";
+import { rolesUsuario, type RolUsuario } from "@/lib/validations/auth";
+
+const NO_COORDINATION: CoordinationScope = { kind: "none" };
 
 const ALLOWED_PAIRS = new Set([
   "administrador:coordinacion",
@@ -195,7 +201,10 @@ describe("canViewDocument (SR-12: owner, or staff in facultad scope)", () => {
     return {
       estudianteId: OWNER,
       estudianteFacultadId: FACULTAD_A as number | null,
+      estudianteCarreraId: 9 as number | null,
       solicitudEstado: "pendiente" as string,
+      retiradoEn: null as Date | null,
+      tieneEscalamientoAbierto: false,
       ...overrides,
     };
   }
@@ -299,6 +308,177 @@ describe("canViewDocument (SR-12: owner, or staff in facultad scope)", () => {
       );
     },
   );
+
+  describe("coordinacion (RNF-01, ES-9: only while an escalation of its career is open)", () => {
+    const viewer = { id: 30, rol: "coordinacion" } as const;
+    const CARRERA: CoordinationScope = { kind: "carrera", carreraId: 9 };
+    const escalated = (overrides: Record<string, unknown> = {}) =>
+      doc({
+        solicitudEstado: "en_revision_coordinacion",
+        tieneEscalamientoAbierto: true,
+        ...overrides,
+      });
+    const allowed = (
+      d: ReturnType<typeof doc>,
+      c: CoordinationScope = CARRERA,
+    ) => perms.canViewDocument(viewer, d, NONE, c);
+
+    it("is allowed for a current document of an escalated request of its career", () => {
+      expect(allowed(escalated())).toBe(true);
+    });
+
+    it("is allowed with a facultad scope of none: the secretary scope plays no part", () => {
+      expect(perms.canViewDocument(viewer, escalated(), NONE, CARRERA)).toBe(
+        true,
+      );
+      expect(perms.canViewDocument(viewer, escalated(), SCOPE_A, CARRERA)).toBe(
+        true,
+      );
+    });
+
+    it.each([
+      ["answered and back in pendiente", { solicitudEstado: "pendiente" }],
+      [
+        "aprobada with a notice but no open suspicion",
+        { solicitudEstado: "aprobada", tieneEscalamientoAbierto: false },
+      ],
+      [
+        "aprobada even if an escalation flag leaked",
+        { solicitudEstado: "aprobada" },
+      ],
+      [
+        "in coordination without an open escalation",
+        { tieneEscalamientoAbierto: false },
+      ],
+      ["a retired document", { retiradoEn: new Date("2026-10-07T10:00:00Z") }],
+      ["another career", { estudianteCarreraId: 10 }],
+      ["a student without a career", { estudianteCarreraId: null }],
+      ["a borrador", { solicitudEstado: "borrador" }],
+    ])("is denied for %s", (_label, overrides) => {
+      expect(allowed(escalated(overrides))).toBe(false);
+    });
+
+    it("is denied with the none coordination scope (no career, inactive)", () => {
+      expect(allowed(escalated(), NO_COORDINATION)).toBe(false);
+      expect(perms.canViewDocument(viewer, escalated(), SCOPE_A)).toBe(false);
+    });
+
+    it("never reads as the owner when the id matches the student", () => {
+      expect(
+        perms.canViewDocument(
+          { id: OWNER, rol: "coordinacion" },
+          escalated({ estudianteCarreraId: 10 }),
+          NONE,
+          CARRERA,
+        ),
+      ).toBe(false);
+    });
+
+    it.each(["secretaria", "estudiante", "docente", "administrador"] as const)(
+      "gives %s nothing from a coordination scope",
+      (rol) => {
+        expect(
+          perms.canViewDocument({ id: 99, rol }, escalated(), NONE, CARRERA),
+        ).toBe(false);
+      },
+    );
+  });
+});
+
+describe("canCoordinate (ES-9, RNF-01: only coordinacion answers an escalation)", () => {
+  it("lists exactly coordinacion as the coordinating role", () => {
+    expect([...perms.rolesCoordinadores]).toEqual(["coordinacion"]);
+  });
+
+  it("allows coordinacion", () => {
+    expect(perms.canCoordinate("coordinacion")).toBe(true);
+  });
+
+  it.each(["administrador", "secretaria", "docente", "estudiante"] as const)(
+    "denies %s",
+    (rol) => {
+      expect(perms.canCoordinate(rol)).toBe(false);
+    },
+  );
+
+  it("denies a missing role", () => {
+    expect(perms.canCoordinate(undefined)).toBe(false);
+  });
+});
+
+// The access matrix of the user-roles delta. A coordinator surface needs the
+// coordinating role AND a scope on the request's career; a secretary surface
+// (tabs, escalate, report, resend) needs the reviewing role. A coordinator can
+// never call a decision action: that guard is `rolesRevisores`.
+describe("escalation access matrix (RNF-01)", () => {
+  type Caller = {
+    label: string;
+    rol: RolUsuario | undefined;
+    carreraId: number | null;
+  };
+  const REQUEST_CAREER = 9;
+  const rows: readonly [Caller, boolean, boolean][] = [
+    [
+      { label: "coordinacion, own career", rol: "coordinacion", carreraId: 9 },
+      true,
+      false,
+    ],
+    [
+      {
+        label: "coordinacion, other career",
+        rol: "coordinacion",
+        carreraId: 10,
+      },
+      false,
+      false,
+    ],
+    [
+      {
+        label: "coordinacion without career",
+        rol: "coordinacion",
+        carreraId: null,
+      },
+      false,
+      false,
+    ],
+    [
+      { label: "secretaria in scope", rol: "secretaria", carreraId: null },
+      false,
+      true,
+    ],
+    [{ label: "estudiante", rol: "estudiante", carreraId: 9 }, false, false],
+    [{ label: "docente", rol: "docente", carreraId: 9 }, false, false],
+    [
+      { label: "administrador", rol: "administrador", carreraId: 9 },
+      false,
+      false,
+    ],
+    [{ label: "anonymous", rol: undefined, carreraId: null }, false, false],
+  ];
+
+  it.each(rows)(
+    "%j: coordinator surface %s, secretary surface %s",
+    (caller, coordinatorSurface, secretarySurface) => {
+      const scope = caller.rol
+        ? coordinationScopeFor(caller.rol, {
+            carreraId: caller.carreraId,
+            activo: true,
+          })
+        : NO_COORDINATION;
+      const coordinator =
+        perms.canCoordinate(caller.rol) &&
+        scope.kind === "carrera" &&
+        scope.carreraId === REQUEST_CAREER;
+
+      expect(coordinator).toBe(coordinatorSurface);
+      expect(perms.canReviewRequests(caller.rol)).toBe(secretarySurface);
+    },
+  );
+
+  it("keeps the decision actions out of the coordinator's reach", () => {
+    expect(perms.rolesRevisores).not.toContain("coordinacion");
+    expect(perms.canReviewRequests("coordinacion")).toBe(false);
+  });
 });
 
 describe("canManageCatalog (CM-ACC-1: role matrix)", () => {

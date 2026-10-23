@@ -2,6 +2,7 @@
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { carrera, usuario } from "@/db/schema";
 import { createFakeDocumentStore } from "@/lib/intake/fakes";
 import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 
@@ -512,14 +513,16 @@ describe("documentos data layer", () => {
       solicitudId: DRAFT,
       estudianteId: USER,
       estudianteFacultadId: 3,
+      estudianteCarreraId: 9,
       solicitudEstado: "pendiente",
       pathname: PATH,
       tipoDetectado: "pdf",
       nombreOriginal: "scan.pdf",
       retiradoEn: null,
+      tieneEscalamientoAbierto: false,
     };
 
-    it("returns the valid document with its owner, facultad, state and retirement", async () => {
+    it("returns the valid document with its owner, facultad, career, state, retirement and open escalation", async () => {
       use([{ kind: "select", rows: [downloadRow] }]);
 
       expect(await getDocumentForDownload(11)).toEqual({
@@ -527,8 +530,10 @@ describe("documentos data layer", () => {
         solicitudId: DRAFT,
         estudianteId: USER,
         estudianteFacultadId: 3,
+        estudianteCarreraId: 9,
         solicitudEstado: "pendiente",
         retiradoEn: null,
+        tieneEscalamientoAbierto: false,
         pathname: PATH,
         tipo: "pdf",
         nombreOriginal: "scan.pdf",
@@ -542,6 +547,53 @@ describe("documentos data layer", () => {
       expect((await getDocumentForDownload(11))?.retiradoEn).toEqual(
         retiradoEn,
       );
+    });
+
+    it("returns the open escalation flag and the current career of the student (coordinator access)", async () => {
+      use([
+        {
+          kind: "select",
+          rows: [
+            {
+              ...downloadRow,
+              solicitudEstado: "en_revision_coordinacion",
+              estudianteCarreraId: 12,
+              tieneEscalamientoAbierto: true,
+            },
+          ],
+        },
+      ]);
+
+      const doc = await getDocumentForDownload(11);
+
+      expect(doc?.tieneEscalamientoAbierto).toBe(true);
+      expect(doc?.estudianteCarreraId).toBe(12);
+    });
+
+    it("asks for an open suspicion of the request: no answer yet, never a notice", async () => {
+      const double = use([{ kind: "select", rows: [] }]);
+
+      await getDocumentForDownload(11);
+
+      const fields = double.log[0].fields as Record<string, never>;
+      const query = new PgDialect().sqlToQuery(fields.tieneEscalamientoAbierto);
+      expect(query.sql).toContain('from "Escalamiento"');
+      expect(query.sql).toContain(
+        '"Escalamiento"."SolicitudId" = "DocumentoRespaldo"."SolicitudId"',
+      );
+      expect(query.sql).toContain('"Escalamiento"."Tipo" = $1');
+      expect(query.sql).toContain('"Escalamiento"."RespondidaEn" is null');
+      expect(query.params).toEqual(["sospecha_documento"]);
+    });
+
+    it("reads the career of the student from the user row and the facultad from the career row", async () => {
+      const double = use([{ kind: "select", rows: [] }]);
+
+      await getDocumentForDownload(11);
+
+      const fields = double.log[0].fields as Record<string, unknown>;
+      expect(fields.estudianteCarreraId).toBe(usuario.carreraId);
+      expect(fields.estudianteFacultadId).toBe(carrera.facultadId);
     });
 
     it("returns a null facultad for a student without a carrera", async () => {
