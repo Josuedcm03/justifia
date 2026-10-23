@@ -127,3 +127,29 @@ equipo), `resuelta` (cubierta por un change).
   envió.
 - **Requisitos:** RF-10 (b); specs `request-review` y
   `coordination-escalation`.
+
+### UX-10. Avisos leídos en la lista de la coordinación
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S4), 2026-10-23.
+- **Pantalla:** lista de la coordinación (`/coordination`).
+- **Hoy:** los avisos informativos de exceso de inasistencias no indican si
+  ya se abrieron, la lista no tiene tope y cada apertura queda en la
+  auditoría.
+- **Esperado:** distinguir los avisos ya vistos de los nuevos y limitar la
+  lista (por ejemplo, los más recientes), sin perder el registro de lectura.
+- **Requisitos:** RF-10 (b), RF-15; specs `coordination-escalation` y
+  `audit-log`.
+
+### UX-11. Tiempo de espera en el detalle de la coordinación
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S4), 2026-10-23.
+- **Pantalla:** detalle de un escalamiento para la coordinación
+  (`/coordination/[id]`).
+- **Hoy:** el detalle muestra cuándo se escaló la solicitud, pero no cuánto
+  tiempo lleva esperando la respuesta. El plazo de RN-08 está pausado, así que
+  no hay ningún indicador de demora.
+- **Esperado:** un indicador del tiempo transcurrido desde el escalamiento
+  (por ejemplo, en días hábiles), para que la coordinación priorice.
+- **Requisitos:** RF-10, RN-08; spec `coordination-escalation`.
