@@ -764,7 +764,7 @@
         "pending": "Submitting…"
       },
       "consent": {
-        "label": "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, and that they be sent to the teachers of the affected subjects. <link>View privacy notice</link>",
+        "label": "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, that they be sent to the teachers of the affected subjects and that, if the request is escalated, my career coordination may consult them. <link>View privacy notice</link>",
         "newTab": "(opens in a new tab)"
       },
       "discard": {
@@ -1350,7 +1350,7 @@
     },
     "recipients": {
       "title": "Recipients",
-      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names."
+      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names. If the request is escalated, the coordination of the student's career receives a minimal notification by email and consults the request and its documents inside the system."
     },
     "data": {
       "title": "Data we process",

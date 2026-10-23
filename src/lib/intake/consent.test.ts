@@ -15,6 +15,8 @@ import { CONSENT_LABEL_KEY, CONSENT_VERSION } from "./consent";
 const PINNED: Record<string, string> = {
   "2026-10-20":
     "34017ff7d7a760ae5828451eafb8c2415e0f4ec93f91eb43c0450384eea2fd90",
+  "2026-10-22":
+    "06c97e4bf2433ff57986ee20701d0febb5f574c5c8fff36c95361c6bafb35a85",
 };
 
 /**
@@ -24,12 +26,16 @@ const PINNED: Record<string, string> = {
 const PINNED_NOTICE: Record<string, string> = {
   "2026-10-20":
     "d98acff47bc848672db35ef731f94764351ca599852f4c4fa92a828a94f1965a",
+  "2026-10-22":
+    "dbf381725384553e142fd05e84c08d99da51921e155f0eaca6078a00fc40be69",
 };
 
+// The v2 texts of the escalation change (E6): the career coordination may
+// consult the request when it is escalated. Proposal pending UAM legal review.
 const APPROVED_ES =
-  "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. Ver aviso de privacidad";
+  "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, que se envíen a los docentes de las asignaturas afectadas y que, si la solicitud se escala, la coordinación de mi carrera pueda consultarlos. Ver aviso de privacidad";
 const APPROVED_EN =
-  "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, and that they be sent to the teachers of the affected subjects. View privacy notice";
+  "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, that they be sent to the teachers of the affected subjects and that, if the request is escalated, my career coordination may consult them. View privacy notice";
 
 /** Resolve a dotted key such as `intake.review.consent.label` in a catalog. */
 function message(catalog: unknown, key: string): string {
@@ -61,8 +67,14 @@ function sha256(text: string): string {
 }
 
 describe("consent version and key", () => {
-  it("is the ISO date of the owner's approval", () => {
-    expect(CONSENT_VERSION).toBe("2026-10-20");
+  it("is the ISO date of the v2 approval", () => {
+    expect(CONSENT_VERSION).toBe("2026-10-22");
+  });
+
+  it("is a new value, later than the v1 date", () => {
+    expect(CONSENT_VERSION).not.toBe("2026-10-20");
+    expect(CONSENT_VERSION > "2026-10-20").toBe(true);
+    expect(CONSENT_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it("fits the ConsentimientoVersion varchar(20) column", () => {
@@ -81,6 +93,15 @@ describe("consent text (RF-01 d)", () => {
 
   it("is the approved en translation once the link tags are stripped", () => {
     expect(stripTags(message(en, CONSENT_LABEL_KEY))).toBe(APPROVED_EN);
+  });
+
+  it("names the career coordination as a recipient, in both locales", () => {
+    expect(stripTags(message(es, CONSENT_LABEL_KEY))).toContain(
+      "la coordinación de mi carrera pueda consultarlos",
+    );
+    expect(stripTags(message(en, CONSENT_LABEL_KEY))).toContain(
+      "my career coordination may consult them",
+    );
   });
 
   it("wraps only the notice phrase in the link tag, in both locales", () => {
@@ -106,6 +127,15 @@ describe("consent text pin (RC-3)", () => {
       "para cualquier fin",
     );
     expect(sha256(edited)).not.toBe(PINNED[CONSENT_VERSION]);
+  });
+
+  it("keeps the v1 pin unchanged: the history stays reviewable", () => {
+    expect(PINNED["2026-10-20"]).toBe(
+      "34017ff7d7a760ae5828451eafb8c2415e0f4ec93f91eb43c0450384eea2fd90",
+    );
+    expect(PINNED_NOTICE["2026-10-20"]).toBe(
+      "d98acff47bc848672db35ef731f94764351ca599852f4c4fa92a828a94f1965a",
+    );
   });
 
   it("keeps the pinned hashes distinct, the current version last", () => {

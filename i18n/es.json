@@ -764,7 +764,7 @@
         "pending": "Presentando…"
       },
       "consent": {
-        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. <link>Ver aviso de privacidad</link>",
+        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, que se envíen a los docentes de las asignaturas afectadas y que, si la solicitud se escala, la coordinación de mi carrera pueda consultarlos. <link>Ver aviso de privacidad</link>",
         "newTab": "(se abre en una pestaña nueva)"
       },
       "discard": {
@@ -1350,7 +1350,7 @@
     },
     "recipients": {
       "title": "Destinatarios",
-      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud."
+      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud. Si la solicitud se escala, la coordinación de la carrera del estudiante recibe un aviso mínimo por correo electrónico y consulta la solicitud y sus documentos dentro del sistema."
     },
     "data": {
       "title": "Datos que se tratan",
