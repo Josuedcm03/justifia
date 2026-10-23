@@ -153,3 +153,20 @@ equipo), `resuelta` (cubierta por un change).
 - **Esperado:** un indicador del tiempo transcurrido desde el escalamiento
   (por ejemplo, en días hábiles), para que la coordinación priorice.
 - **Requisitos:** RF-10, RN-08; spec `coordination-escalation`.
+
+### UX-12. Qué esperar mientras la coordinación revisa la solicitud
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S5), 2026-10-23.
+- **Pantalla:** detalle de la solicitud para el estudiante (`/requests/[id]`).
+- **Hoy:** en `en_revision_coordinacion` el estudiante ve una etiqueta neutra
+  («La coordinación de tu carrera está revisando esta solicitud. No necesitas
+  hacer nada por ahora.»). No sabe cuánto puede tardar ni cómo se enterará del
+  resultado; cuando la coordinación responde, la solicitud vuelve a
+  `pendiente` sin otro aviso.
+- **Esperado:** una indicación de qué sigue: que la solicitud vuelve a la
+  secretaría tras la respuesta y que el resultado se verá en esta pantalla (o
+  por correo, si se decide notificar). Sin revelar el motivo del escalamiento
+  (E13).
+- **Requisitos:** RF-10, RN-16; specs `student-requests` y
+  `coordination-escalation`.

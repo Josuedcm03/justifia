@@ -440,6 +440,14 @@
       "sessions": 1,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "e03cbeaa",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T23:44:08Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
     }
   ]
 }
