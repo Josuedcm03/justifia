@@ -109,6 +109,14 @@ describe("buildEscalationMessage (ES-10, E6)", () => {
     }
   });
 
+  it("greets the coordination without a time of day and signs as the secretary", () => {
+    const { text } = buildEscalationMessage(input());
+    const lines = text.split("\n");
+    expect(lines[0]).toBe("Estimada coordinación:");
+    expect(lines.slice(-2)).toEqual(["Atentamente,", "Secretaría Académica"]);
+    expect(text.toLowerCase()).not.toMatch(/buenos días|buenas tardes/);
+  });
+
   it("labels every reason in Spanish", () => {
     expect(REASON_LABELS).toEqual({
       sospecha_documento: "Sospecha sobre un documento",

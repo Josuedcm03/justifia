@@ -54,7 +54,7 @@ export function buildEscalationMessage(
 ): EscalationDraft {
   const link = `${input.baseUrl.replace(/\/+$/, "")}/coordination/${input.escalamientoId}`;
   const lines = [
-    "Buenos días,",
+    "Estimada coordinación:",
     "",
     INTROS[input.tipo],
     "",
@@ -66,7 +66,8 @@ export function buildEscalationMessage(
     "",
     `Para consultarla, inicie sesión en el sistema y abra: ${link}`,
     "",
-    "Gracias.",
+    "Atentamente,",
+    "Secretaría Académica",
   ];
 
   return {
