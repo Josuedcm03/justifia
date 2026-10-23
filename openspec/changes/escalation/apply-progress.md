@@ -195,6 +195,8 @@ Phase 5 (20 of 20) and 6.1, 6.2 complete; 6.3 waits on the S1 PRs. Cumulative: 2
 
 Branches (all pushed): `feat/escalation-s3-notifications` (S3 head `620a040`, both units), `feat/escalation-s3a-notice-outbox` (unit 5, `236a0d8`) and `feat/escalation-s3b-dispatch-cron` (unit 6, `620a040`, stacked on S3a). Cut from `origin/feat/escalation-s2b-detail` (4dd9616) by instruction: the S1 PRs are not open yet, so the future PR base of S3a is the S2b branch (until S2 merges) and of S3b the S3a branch, retargeted to the tracker as the earlier PRs merge. No PR opened (instruction). Strict TDD (vitest), artifact store hybrid, auto-chain, `feature-branch-chain`, review budget 1000 counted on production code only (non-test `src/` plus `i18n/`).
 
+**Update 2026-10-23 (owner wording fix).** The owner approved the email wording with the greeting "Estimada coordinación:" and the closing "Atentamente," / "Secretaría Académica". The orchestrator committed it as `fe31d88` on S3a (`src/lib/escalation/message.ts` and its test) and restacked S3b on it: the heads to use are now S3a `fe31d88` and S3b `6d11502` (5681 tests green). S4 is stacked on `6d11502`. The legal review of the wording (task 16.13) still applies.
+
 ### Completed tasks
 
 - Phase 7: 7.1 to 7.16 (notice plan and message, `APP_BASE_URL`, outbox claim and completions, recipients, audit builders, dispatcher, post-commit `after()`, resend action and control, cron drain of both outboxes, i18n).
@@ -263,7 +265,7 @@ The combined slice was over 1000, so it split once at the unit boundary (the pla
 6. The notice dependencies come from a new `getEscalationDeps()` (mail port and `APP_BASE_URL`) instead of `getIntakeDeps()`, so a notice builds no document store and a missing Blob token cannot stop it.
 7. The cron route answers a generic 500 after BOTH outboxes ran when either failed (before: any failure was a 500 with only the remission batch run); the success body adds `escalamientos`.
 8. The plan returns a third kind, `not_configured`, for an unset `APP_BASE_URL` (the task listed `blocked` and `send`); the dispatcher stores it as `pendiente` with `error_envio` and gives the attempt back, like a missing Resend key.
-9. The email copy (subject and body wording) is new institutional text written to the spec's field list; it is flagged for owner review below.
+9. The email copy (subject and body wording) is new institutional text written to the spec's field list; it is flagged for owner review below. RESOLVED 2026-10-23: the owner approved it with the greeting and closing above (`fe31d88`).
 
 ### Issues and notes
 
@@ -280,7 +282,7 @@ The combined slice was over 1000, so it split once at the unit boundary (the pla
 - A resend of a `bloqueada` notice for a career that still has no coordinator with an email answers the same blocked text; the text says to reload but not what to fix (an account with an email for the career). A hint that points to the administrator, as the E17 text does, would close the loop.
 - After the automatic-retry cap (8 attempts) a notice still reads "Envío pendiente: el último intento falló", the same as one that will be retried tomorrow; the secretary cannot tell that only a manual resend is left. The attempt count is stored but not shown.
 - The notice status pill appears in three places (escalation row, report entry and the En coordinacion queue tab) but the resend control only in the first two; on 360 px each of those entries grew by one control. A blocked notice listed in the queue tab needs a click into the request to be resent.
-- The email subject for a suspicion reads "Justifia: solicitud N escalada a coordinación" and for an excess report "Justifia: aviso sobre la solicitud N"; the body wording is mine and the owner (and the UAM legal review of task 16.13) should approve it before production.
+- The email subject for a suspicion reads "Justifia: solicitud N escalada a coordinación" and for an excess report "Justifia: aviso sobre la solicitud N"; the body wording is mine and the owner (and the UAM legal review of task 16.13) should approve it before production. The owner approved the wording on 2026-10-23 (greeting "Estimada coordinación:", closing "Atentamente," / "Secretaría Académica"); only the legal review remains.
 
 ### Remaining tasks
 
@@ -290,3 +292,112 @@ The combined slice was over 1000, so it split once at the unit boundary (the pla
 ### Status
 
 Phases 7 (16 of 16) and 8.1, 8.2 complete; 8.3 waits on the S1 PRs. Cumulative: 27 of 30 S1 tasks + 22 of 23 S2 tasks + 18 of 19 S3 tasks. Ready for sdd-verify of the S3 code (independent of S4), then the S4 apply.
+
+## Batch S4: Phases 9, 10 and 11 (2026-10-23)
+
+Branches (all pushed): `feat/escalation-s4-coordinator` (S4 head `07fed9f`, both units), `feat/escalation-s4a-scope-access` (unit 7, `308db3e`) and `feat/escalation-s4b-pages-answer` (unit 8, `07fed9f`, stacked on S4a). Cut from `origin/feat/escalation-s3b-dispatch-cron` (6d11502, after the owner wording fix) by instruction: the S1 PRs are not open yet, so the future PR base of S4a is the S3b branch (until S3 merges) and of S4b the S4a branch, retargeted to the tracker as the earlier PRs merge. No PR opened (instruction). Strict TDD (vitest), artifact store hybrid, auto-chain, `feature-branch-chain`, review budget 1000 counted on production code only (non-test `src/` plus `i18n/`).
+
+### Completed tasks
+
+- Phase 9: 9.1 to 9.8 (coordination scope and resolver, `rolesCoordinadores` / `canCoordinate`, menu entry, `escalationInScope`, coordinator reader rule of `canViewDocument`, document lookup, document route).
+- Phase 10: 10.1 to 10.12 (list and detail reads, the answer write with the RN-08 pause, answer action, the eighth audit action, list page, detail page, answer form, structure pins, catalogs, 360 px and token pins).
+- Phase 11: 11.1 (gates), 11.2 (measure and split).
+- Open: 11.3 (open the PRs, merge into the tracker), pending as noted above.
+
+### TDD cycle evidence
+
+| Task | Test file | Layer | Safety net (unaffected at RED) | RED | GREEN | Triangulate | Refactor |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 9.2 | `intake/coordination-scope.test.ts`, `data/coordination-scope.test.ts` | Unit / Data (db double) | N/A (new) | both files failed to load (modules absent) | 6 and 9 passed | two careers, no career, inactive, no actor, 4 other roles; resolver: 4 roles skip the read, row gone, re-read per call | none needed |
+| 9.3 | `auth/permissions.test.ts` | Unit | 116 of 142 stayed green in the RED run | 26 failed (with 9.2) | 142 passed in the 3 files | matrix 8 rows, coordinator reader rule: 1 allowed, 8 denied rows, none scope, 4 foreign roles, owner id match; fixture gained 3 fields | none needed (a first draft of the production code, written before its test, was reverted before the RED run) |
+| 9.4 | `navigation.test.ts`, `components/app-sidebar.test.tsx`, home `page.test.tsx`, `i18n/catalog-parity.test.ts` | Unit / UI | 432 stayed green | 11 failed | 481 passed (one sidebar table row fixed to the new label) | visibility table 9 keys, trail x2, shortcuts, 5 roles in menu and home, es and en copy | none needed |
+| 9.5 | `data/coordination-scope-sql.test.ts` | Data (SQL render) | N/A (new) | module absent | 6 passed | career 9 and 12, none literal false, no left join, unknown kind throws | none needed |
+| 9.6 | `data/documentos.test.ts` | Data (db double) | 51 stayed green | 4 failed | 55 passed | flag true and false, rendered EXISTS (open suspicion only), career from the user row | the db double now logs the `select()` field map |
+| 9.7 | `api/intake/documents/[id]/route.test.ts` | Route | 59 stayed green | 4 failed (denial rows pass trivially by design) | 63 passed | inline and attachment, audit failure, 5 denial cases x 3 modes, none scope, 4 roles never resolve | none needed |
+| 10.6 audit | `audit/events.test.ts`, `types.test.ts`, `data/request-reads.test.ts` | Unit / Data | 97 and 10 stayed green | 4 failed; 4 failed | `src/lib/audit` 101; reads 14 passed | count only, smuggled ids and names dropped, once per render and per actor/career | none needed |
+| 10.3/10.4 | `data/escalation-answer.test.ts` | Data (db double) | N/A (new) | module absent | 22 passed (one wrong expectation of mine fixed in the test) | spec table 2 rows, P = 0, two pauses, resubmission start, holiday, bounds 0/blank/1000/1001, none scope, not_found, conflict, 3 rollbacks | none needed |
+| 10.4 pin | `data/escalamiento-writes.test.ts` | Structural | 4 stayed green | 1 failed (answer module an offender) | 6 passed | answer module allowed, off the outbox columns | none needed |
+| 10.1/10.2 | `data/coordination-queue.test.ts` | Data (db double) | N/A (new) | module absent | 24 passed | order x2, filters x2, delivery state not a filter, career change, selected keys, class seam, documents filter, notice, 5 hidden states, none, unknown | none needed |
+| 10.5 | `coordination/[id]/actions.test.ts`; `review/[id]/actions.test.ts` | Action | decision actions 54 stayed green | module absent; the decision denial rows are characterization (passed at write) | 26 passed | 8 roles, anonymous, flagged session, no career, 7 bad ids, 4 bad payloads, client actor/scope ignored, refusals, thrown error | none needed |
+| 10.10 | `i18n/coordination-messages.test.ts` | Catalog | 3 passed | 10 failed | 13 passed (`src/i18n` 314) | es and en parity, dialog keys, refusals, no voseo, no email in fields | none needed |
+| form | `coordination/[id]/answer-form.test.tsx` | UI | `review/[id]` 473 stayed green after the dialog generalization | module absent | 12 passed | counter, send, cancel, Escape, es, 4 refusals, back link to the coordinator list | `dialog-parts` made generic, `backHref` added |
+| 10.7 | `coordination/page.test.tsx` | Page | N/A (new) | module absent | 24 passed | 8 denied roles, anonymous, flagged, no career, content, order, empty, banner x5, one audit row, count, order of calls, audit failure | none needed |
+| 10.8 | `coordination/[id]/page.test.tsx`; `review/structure.test.ts` | Page / Structural | review structure 20 stayed green | module absent; 1 failed (pin lists the new caller) | 30 passed; 21 passed | open detail fields, class and document links, no email/consent, notice (with and without note), 6 bad ids, none, null, draft, one audit row x2 states | none needed |
+| 10.9 | `coordination/structure.test.ts` | Structural | N/A (new) | passed at first run (pins for code already written) | 16 passed | guards per page and action, import allowlist, audit placement, prefetch, no revalidate | none needed |
+| 10.11 | `coordination/layout-360.test.tsx`, `design-system.test.tsx` | UI (axe, class pins) | N/A (new) | characterization: passed at first run | 17 and 10 passed | list, empty list, 2 card sets x es and en, dialog, token scans | typed fixtures instead of `as const` |
+| 10.8 | `coordination/not-found.test.tsx` | UI | N/A (new) | module absent | 2 passed | es and en | none needed |
+
+Safety net note: as in S1 to S3, the pre-existing files were not run as a separate baseline before editing; the tests that stayed green in each RED run are the evidence.
+
+Test summary: new files `coordination-scope` (intake and data), `coordination-scope-sql`, `coordination-queue`, `escalation-answer`, `coordination-messages`, and under `coordination/`: `page`, `[id]/page`, `[id]/actions`, `[id]/answer-form`, `not-found`, `structure`, `layout-360`, `design-system`; extended `permissions`, `documentos`, the document route, `navigation`, `app-sidebar`, home `page`, `catalog-parity`, audit `events` and `types`, `request-reads`, `escalamiento-writes`, `review/[id]/actions`, `review/structure`. `npm test` at the S4 head: 270 files / 5963 tests (S3b head: 5681). Layers: Unit (pure), Data (db double, SQL render), Action, Route, UI (Testing Library, axe), Page, Catalog, Structural. No approval tests (the only refactor, the generic dialog parts, is covered by the unchanged escalate, report and decision dialog suites). Pure functions added: `coordinationScopeFor`, `canCoordinate`.
+
+### Work unit evidence
+
+| Evidence | Unit 7 (S4a) | Unit 8 (S4b) |
+|---|---|---|
+| Focused test command and result | `npx vitest run src/lib/intake/coordination-scope.test.ts src/lib/auth src/lib/navigation.test.ts src/lib/data src/app/api src/components src/i18n "src/app/(dashboard)/(home)"` at `308db3e`: 90 files, 2130 passed | `npx vitest run src/lib/data src/lib/audit "src/app/(dashboard)/coordination" "src/app/(dashboard)/review" src/i18n` at `07fed9f`: 2131 passed |
+| Runtime harness | N/A here: the `npm run dev` walk of "document opens for the own career only" needs a migrated database (owner phase 15) | N/A here: the coordinator list, answer and pause walk needs a migrated database and an escalated request (owner phase 15) |
+| Rollback boundary | `coordination-scope.ts` (intake and data), `coordination-scope-sql.ts`, `permissions.ts` (coordinator role and reader rule), `navigation.ts`, `documentos.ts` lookup, the document route, the `nav.coordination` and shortcut keys | `coordination-queue.ts`, `escalation-answer.ts`, `app/(dashboard)/coordination/`, `request-reads.ts` coordinator read, `escalamiento.cola.consultada`, `dialog-parts.tsx` generalization, `queue-parts.tsx` `base`, the `coordination.*` keys |
+
+### Gates (S4 head `07fed9f`, dummy `DATABASE_URL`)
+
+- `npx vitest run src/lib src/app src/i18n`: 226 files, 5330 passed.
+- `npm test`: 270 files, 5963 passed.
+- `npm run typecheck`: clean.
+- `npx eslint src`: 0 problems other than the CRLF `Delete ␍` noise.
+- Prettier (`--end-of-line auto`) on every changed source file: clean.
+- `npm run build`: ok (`/coordination` and `/coordination/[id]` are dynamic routes).
+- S4a alone (`308db3e`): `npm test` 259 files / 5759 passed; typecheck, eslint and prettier were clean at its commit.
+- No `drizzle-kit migrate`/`push`, `db:seed`, `neon` command or SQL write run. S4 changes no schema.
+
+### Measured authored lines vs the S3b head 6d11502
+
+Excluding `openspec/`, `.engram/` and `package-lock.json` (no generated SQL in S4). The 1000 budget counts production (non-test `src/`) plus `i18n/`; tests are reviewed but not counted (`test-support` helpers count as tests).
+
+| Slice | Production | i18n | Budget total | Tests (not counted) |
+|-------|-----------:|-----:|-------------:|--------------------:|
+| S4 combined | 1304 (1269 added, 35 deleted) | 178 | 1482 | 3475 (3444 added, 31 deleted) |
+| S4a (unit 7) | 215 (196 added, 19 deleted) | 4 | 219 | 683 |
+| S4b (unit 8, vs S4a) | 1089 (1073 added, 16 deleted) | 174 | 1263 | 2792 |
+
+The combined slice was over 1000, so it split once at the unit boundary. S4a is under 1000. S4b is still over (1263) after the one allowed split: `size:exception` recommended, not squeezed. Where the lines are (production, with their comments): the coordinator reads 284, the answer write 148, the detail cards 135, the list 108, the two pages 169, the answer form 71, the action 65, the not-found 27, and 174 of catalog text (es and en). If the owner wants smaller PRs, the next honest cut inside S4b is (a) data: `coordination-queue.ts`, `escalation-answer.ts`, the audit builder and read helper, the write-surface pin (about 520 with their share of the catalogs) and (b) UI: pages, list, sections, form, action, not-found (about 740).
+
+### Deviations from design
+
+1. `resolveCoordinationScope` lives in `src/lib/data/coordination-scope.ts` (beside `request-scope.ts`); the pure scope stays in `src/lib/intake/coordination-scope.ts`.
+2. `ViewableDocument` gained `estudianteCarreraId`, `retiradoEn` and `tieneEscalamientoAbierto`, and `DownloadableDocument` is now that type plus the file fields. The predicate does not test `valido`: the lookup returns `valido` rows only (pinned in `documentos.test.ts`), so the design wording `doc.estado === "valido"` is satisfied there.
+3. Task 10.6 says the closed set gains eight escalation actions; seven were added in S1 and S3, so S4 adds the eighth, `escalamiento.cola.consultada` (the closed-set test lists all of them).
+4. After a failed guarded answer, one extra select tells an answered suspicion of the own career (`conflict`, "already answered") from everything else (`not_found`: another career, a notice, an unknown id). A `pendiente` request with no open escalation also reads `not_found`.
+5. As in S2 and S3, a role that may not call the action (student, secretary, administrator, teacher) is sent to `/denied` by `requireRole` and an anonymous caller to `/login`; only a coordinator without a career or of another career gets the nonexistent-id outcome. The spec table says "equals the nonexistent-id outcome" for every denied caller; this follows the repository precedent and is flagged for verify.
+6. The shared staff dialog frame was generalized instead of copied: `useEscalationAction` is generic in the failure type (default unchanged) and `EscalationFormDialog` takes `backHref` (default `/review`); the shared review link in `queue-parts.tsx` takes an optional `base`. The existing suites stayed green without changes.
+7. The coordinator list is cards at every width (no desktop table), since it has at most two short parts and no sorting; it reuses the S2 `queue-parts` cards, student cell and link.
+8. A `coordination/not-found.tsx` (same pattern as `review/not-found.tsx`) and its `coordination.notFound` keys were added so that every denial of the detail renders the same screen; it was not in the task list.
+9. The detail shows the student's live career name (joined through the user row) instead of the snapshot, to match the scope rule (ES-3). "Dates" of the open detail is the absence period; the presentation date is not shown to the coordinator.
+10. `review/structure.test.ts` (the exactly-once audit pin) now lists the coordinator detail page among the `recordRequestRead` callers. The db double (`test-support/db-double.ts`) also logs the `select()` field map so a test can render a selected expression.
+11. The answer redirects to `/coordination?resultado=respondida` (banner key `coordination.list.result.respondida`) and never revalidates, the same precedent as the decision and escalate actions (SR-11).
+
+### Issues and notes
+
+- Next.js 16: read `node_modules/next/dist/docs/01-app/03-api-reference/`: `03-file-conventions/page.md` (`params` and `searchParams` are promises, awaited as in the review pages), `04-functions/redirect.md` (in a Server Action `redirect` goes outside the `try` block, as the action does) and `03-file-conventions/not-found.md`.
+- All the SQL (the coordinator EXISTS scope, the guarded answer updates, the `tieneEscalamientoAbierto` column) is proved by rendering it and by the scripted double; none of it has run against Postgres. The real-Postgres suite (unit 10, S5) should add: two coordinators answering one escalation (one winner), the answer against a concurrent re-escalation, the scope predicate with a student who changed career, and the document lookup for an answered escalation.
+- `.next/types` left by `npm run build` on the S4 head makes `tsc` fail with a missing-module error when the working tree is switched to S4a (the pages do not exist there). It is a stale build artifact, not a code error; S4a typechecked clean at its commit.
+- The pre-commit hook added `.engram/` sync files to the unit commits (excluded from the budget). `.vitest/json/output.json` stayed unmodified; `package-lock.json` and the owner's files stay unstaged and untouched.
+- The notices list of the coordinator is not capped (pilot volume); the secretary Aprobadas tab caps at 50 with a note. Add a cap and note if a career accumulates many notices.
+- A coordinator who opens the same document twice writes two `documento.descargado` rows (one per read, as the spec says), and both modes (`ver`, `descarga`) are allowed.
+
+### UX observations (for owner decision)
+
+- After answering, the coordinator lands on the list with a banner and the answered escalation disappears (history is roadmap #7). There is no way to re-read what was answered or to see what the secretary decided afterwards.
+- The answer is final and cannot be edited (the dialog says so). A typo or a missing remark cannot be corrected; a follow-up note, or a short edit window, would help.
+- The notices list has no read/unread mark and no cap: a coordinator cannot tell which notices were already seen, and every open is audited.
+- The detail shows no waiting time. The deadline is paused while the request is in coordination (RN-08), so no due date is shown; "escalated N days ago" next to the date could convey urgency without implying a deadline.
+- A coordinator without a career sees an alert that asks to contact the administrator, with no link or contact; the same for an escalation whose student changed career (it silently moves to the other coordination, per the spec rule).
+
+### Remaining tasks
+
+- [ ] 11.3 open the S4a PR (base: the S3b branch until S3 merges) and the S4b PR (base: the S4a branch) with `size:exception` on S4b, after the S1 PRs and owner task 0.1; merge into the tracker after review
+- Not started by instruction: Phase 12 onward (S5).
+
+### Status
+
+Phase 9 (8 of 8), Phase 10 (12 of 12) and 11.1, 11.2 complete; 11.3 waits on the S1 PRs. Cumulative: 27 of 30 S1 tasks + 22 of 23 S2 tasks + 18 of 19 S3 tasks + 22 of 23 S4 tasks. Ready for sdd-verify of the S4 code (independent of S5), then the S5 apply.
