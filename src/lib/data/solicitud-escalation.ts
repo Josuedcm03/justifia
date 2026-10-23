@@ -102,6 +102,15 @@ export async function countCoordinationAccounts(
   return { carreraNombre: career.carreraNombre, cuentas: accounts?.n ?? 0 };
 }
 
+/**
+ * The count for the staff detail (E17): the caller has already proven the
+ * request is in scope, so this only reads the student's live career and its
+ * active coordination accounts to decide whether to offer the escalation.
+ */
+export function coordinationAccountsOf(solicitudId: number) {
+  return countCoordinationAccounts(db, solicitudId);
+}
+
 export type EscalateInput = {
   actorId: number;
   scope: RequestScope;

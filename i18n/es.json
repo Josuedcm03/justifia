@@ -936,7 +936,8 @@
       "result": {
         "aprobada": "La solicitud fue aprobada.",
         "rechazada": "La solicitud fue rechazada.",
-        "devuelta": "La solicitud fue devuelta al estudiante para su corrección."
+        "devuelta": "La solicitud fue devuelta al estudiante para su corrección.",
+        "escalada": "La solicitud fue escalada a la coordinación de la carrera."
       }
     },
     "escalation": {
@@ -949,6 +950,77 @@
         "pendienteFallido": "Envío pendiente: el último intento falló",
         "enviada": "Enviado el {date}",
         "bloqueada": "Sin destinatario de coordinación para la carrera"
+      },
+      "section": {
+        "title": "Escalamientos a coordinación",
+        "fields": {
+          "reason": "Motivo",
+          "note": "Nota de la secretaría",
+          "escalated": "Escalada",
+          "answer": "Respuesta de coordinación",
+          "notice": "Aviso a coordinación"
+        },
+        "escalatedBy": "{name}, {date}",
+        "answeredBy": "{name}, {date}",
+        "waiting": "En espera de la respuesta de coordinación. Mientras tanto no se puede aprobar, rechazar ni devolver la solicitud."
+      },
+      "dialog": {
+        "trigger": "Escalar a coordinación",
+        "title": "¿Escalar esta solicitud a coordinación?",
+        "description": "La solicitud pasa a revisión de la coordinación de la carrera y no se puede aprobar, rechazar ni devolver hasta que coordinación responda. Coordinación recibe un aviso por correo.",
+        "noteLabel": "Nota para coordinación",
+        "noteHint": "Explique qué le genera dudas del documento. Solo la ve el personal.",
+        "counter": "{count} de 1000",
+        "confirm": "Escalar solicitud",
+        "pending": "Escalando...",
+        "cancel": "Cancelar",
+        "backToQueue": "Volver a la cola"
+      },
+      "errors": {
+        "nota_required": "Escriba la nota para coordinación.",
+        "nota_too_long": "La nota no puede superar los 1000 caracteres.",
+        "motivo_invalid": "El motivo de la escalación no es válido.",
+        "conflict": "Esta solicitud ya no está pendiente o ya fue escalada. Vuelva a la cola para ver su estado.",
+        "not_found": "Esta solicitud ya no está disponible para usted.",
+        "unexpected": "No se pudo escalar la solicitud. Inténtelo de nuevo.",
+        "sin_coordinacion": "{carrera} no tiene coordinación registrada; solicite al administrador que cree la cuenta."
+      }
+    },
+    "report": {
+      "section": {
+        "title": "Reportes de inasistencias",
+        "empty": "Todavía no se registró ningún reporte.",
+        "noTeachers": "Esta solicitud no tiene docentes con aviso registrado, por lo que no se puede registrar un reporte."
+      },
+      "entry": {
+        "communicated": "Comunicado por el docente el {date}",
+        "recordedBy": "Registrado por {name}, {date}",
+        "note": "Nota"
+      },
+      "dialog": {
+        "trigger": "Registrar reporte de inasistencias",
+        "title": "¿Registrar este reporte de inasistencias?",
+        "description": "El reporte queda en el expediente y no se puede modificar ni eliminar. Coordinación de la carrera recibe un aviso por correo. La solicitud sigue aprobada.",
+        "teacherLabel": "Docente",
+        "teacherPlaceholder": "Seleccione un docente",
+        "dateLabel": "Fecha en que el docente lo comunicó",
+        "noteLabel": "Nota (opcional)",
+        "noteHint": "Solo la ve el personal.",
+        "counter": "{count} de 1000",
+        "confirm": "Registrar reporte",
+        "pending": "Registrando...",
+        "cancel": "Cancelar",
+        "backToQueue": "Volver a la cola"
+      },
+      "errors": {
+        "date_invalid": "Indique la fecha en que el docente lo comunicó.",
+        "date_future": "La fecha no puede ser posterior a hoy.",
+        "docente_invalid": "Seleccione uno de los docentes de esta solicitud.",
+        "nota_blank": "La nota no puede contener solo espacios.",
+        "nota_too_long": "La nota no puede superar los 1000 caracteres.",
+        "conflict": "Esta solicitud ya no está aprobada. Vuelva a la cola para ver su estado.",
+        "not_found": "Esta solicitud ya no está disponible para usted.",
+        "unexpected": "No se pudo registrar el reporte. Inténtelo de nuevo."
       }
     },
     "decision": {

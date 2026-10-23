@@ -15,6 +15,10 @@ import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
 vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
   decideAction: vi.fn(),
 }));
+vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
+  escalateRequestAction: vi.fn(),
+  recordExcessReportAction: vi.fn(),
+}));
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),
   attachSpecialFormatAction: vi.fn(),
@@ -30,6 +34,10 @@ import {
   Section,
 } from "@/app/(dashboard)/review/[id]/request-sections";
 import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
+import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
+import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
+import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
+import { ReviewTabs } from "@/app/(dashboard)/review/review-tabs";
 
 const ROOT = process.cwd();
 const REVIEW_DIR = join(ROOT, "src/app/(dashboard)/review");
@@ -658,5 +666,197 @@ describe("design system: remission section and special-format mark (§2.5, §5 B
       "text-muted-foreground",
       "text-xs",
     );
+  });
+});
+
+describe("design system: state tabs (§5 Button, §7)", () => {
+  it("draws the current tab filled and the others outlined, all at 44px", () => {
+    renderIntl(<ReviewTabs current="aprobada" />);
+
+    const tabs = messages.en.review.queue.tabs;
+    expect(screen.getByRole("link", { name: tabs.aprobada })).toHaveClass(
+      "h-11",
+      "bg-primary",
+    );
+    for (const name of [tabs.pendiente, tabs.en_revision_coordinacion]) {
+      const link = screen.getByRole("link", { name });
+      expect(link).toHaveClass("h-11", "border-primary");
+      expect(link).not.toHaveClass("bg-primary");
+    }
+  });
+});
+
+describe("design system: escalation and report screens (§2.5, §5 Badge, Dialog, Form, §7)", () => {
+  const esc = messages.en.review.escalation;
+  const rep = messages.en.review.report;
+  const escalation = {
+    id: 61,
+    motivo: "sospecha_documento",
+    nota: "Nota",
+    autorNombre: "Rosa Lopez",
+    creadoEn: new Date("2026-10-08T15:00:00Z"),
+    respuesta: null,
+    respondidaPorNombre: null,
+    respondidaEn: null,
+    notificacionMotivo: null,
+    enviadaEn: null,
+  } as const;
+
+  it.each([
+    [
+      "pendiente",
+      null,
+      null,
+      "bg-warning/10",
+      "text-warning-ink",
+      esc.notification.pendiente,
+    ],
+    [
+      "pendiente",
+      "error_envio",
+      null,
+      "bg-warning/10",
+      "text-warning-ink",
+      esc.notification.pendienteFallido,
+    ],
+    [
+      "enviada",
+      null,
+      new Date("2026-10-08T15:05:00Z"),
+      "bg-success/10",
+      "text-success-ink",
+      "Sent on Oct 8, 2026",
+    ],
+    [
+      "bloqueada",
+      "sin_destinatarios",
+      null,
+      "bg-destructive/10",
+      "text-destructive-ink",
+      esc.notification.bloqueada,
+    ],
+  ] as const)(
+    "draws the %s notification (%s) as a pill with a tint, its ink and always its text",
+    (notificacionEstado, notificacionMotivo, enviadaEn, tint, ink, text) => {
+      renderIntl(
+        <EscalationSection
+          escalations={[
+            {
+              ...escalation,
+              notificacionEstado,
+              notificacionMotivo,
+              enviadaEn,
+            },
+          ]}
+        />,
+      );
+
+      expect(screen.getByText(text)).toHaveClass(
+        "rounded-full",
+        "px-3",
+        "py-1",
+        "text-xs",
+        tint,
+        ink,
+      );
+    },
+  );
+
+  it("frames the escalation section as a card with the headline title", () => {
+    renderIntl(
+      <EscalationSection
+        escalations={[{ ...escalation, notificacionEstado: "pendiente" }]}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: esc.section.title })).toHaveClass(
+      "bg-card",
+      "shadow-soft",
+      "rounded-xl",
+      "p-6",
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: esc.section.title }),
+    ).toHaveClass("text-headline");
+  });
+
+  it("draws the escalate trigger as a 44px outline button and the confirm as the primary action", async () => {
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+
+    const trigger = screen.getByRole("button", { name: esc.dialog.trigger });
+    expect(trigger).toHaveClass(
+      "h-11",
+      "border-primary",
+      "w-full",
+      "sm:w-auto",
+    );
+    await userEvent.click(trigger);
+    const dialog = await screen.findByRole("alertdialog");
+
+    const confirm = within(dialog).getByRole("button", {
+      name: esc.dialog.confirm,
+    });
+    expect(confirm).toHaveClass("h-11", "bg-primary");
+    expect(confirm).not.toHaveClass("text-destructive-ink");
+    expect(
+      within(dialog).getByRole("button", { name: esc.dialog.cancel }),
+    ).toHaveClass("h-11", "hover:bg-muted");
+    expect(dialog).toHaveClass("shadow-soft", "rounded-xl", "p-6");
+    expect(
+      within(dialog).getByRole("textbox", { name: esc.dialog.noteLabel }),
+    ).toHaveClass(
+      "rounded-lg",
+      "focus-visible:ring-3",
+      "focus-visible:border-primary",
+    );
+  });
+
+  it("writes the career refusal as muted text, not as an alarm", () => {
+    renderIntl(
+      <EscalateDialog solicitudId={12} unavailableCareer="Ingenieria Civil" />,
+    );
+
+    expect(screen.getByRole("note")).toHaveClass(
+      "text-muted-foreground",
+      "text-sm",
+    );
+  });
+
+  it("draws the report fields at 44px with the destructive ink on errors", async () => {
+    const { recordExcessReportAction } =
+      await import("@/app/(dashboard)/review/[id]/escalation-actions");
+    vi.mocked(recordExcessReportAction).mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+      errors: [{ field: "comunicadoEl", code: "date_future" }],
+    });
+    renderIntl(
+      <AbsenceReportsSection
+        solicitudId={12}
+        reports={[]}
+        canReport
+        teachers={[{ remisionId: 31, nombre: "Luis Mora" }]}
+        maxDate="2026-10-14"
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: rep.dialog.trigger }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(
+      within(dialog).getByRole("combobox", { name: rep.dialog.teacherLabel }),
+    ).toHaveClass("min-h-11", "rounded-lg");
+    expect(within(dialog).getByLabelText(rep.dialog.dateLabel)).toHaveClass(
+      "min-h-11",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: rep.dialog.confirm }),
+    );
+    expect(
+      (await within(dialog).findByText(rep.errors.date_future)).closest(
+        "[role=alert]",
+      ),
+    ).toHaveClass("text-destructive-ink");
   });
 });
