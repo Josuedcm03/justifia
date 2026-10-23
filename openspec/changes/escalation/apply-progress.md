@@ -401,3 +401,100 @@ The combined slice was over 1000, so it split once at the unit boundary. S4a is 
 ### Status
 
 Phase 9 (8 of 8), Phase 10 (12 of 12) and 11.1, 11.2 complete; 11.3 waits on the S1 PRs. Cumulative: 27 of 30 S1 tasks + 22 of 23 S2 tasks + 18 of 19 S3 tasks + 22 of 23 S4 tasks. Ready for sdd-verify of the S4 code (independent of S5), then the S5 apply.
+
+## Batch S5: Phases 12 and 13.1 (2026-10-23)
+
+Branch (pushed): `feat/escalation-s5-student-consent`, head `501092b`, cut from `feat/escalation-s4b-pages-answer` at `415927a` by instruction (slices are stacked, so not from the tracker head). Commits: `013d607` `feat(requests): show a neutral coordination label to the student` (tasks 12.2, 12.3), `e50866b` `feat(consent): name the career coordination as recipient in consent v2 and the notice` (unit 9, tasks 12.4 to 12.8), `501092b` `test(escalation): add the real-Postgres proof suite` (unit 10, tasks 12.9 to 12.12). No PR opened and no database command run (13.2 and phase 14 are not part of this batch). Strict TDD (vitest), artifact store hybrid, auto-chain, `feature-branch-chain`, review budget 1000 counted on production code only.
+
+The task file and this file are committed on the tracker, not on the slice branch: the S5 branch is cut from the S4b head, which predates the docs commits that live on the tracker (the same split as S2 to S4).
+
+### Completed tasks
+
+- Phase 12: 12.1 to 12.12 (student callout, consent v2 and notice recipients with their pins, the three real-Postgres suites and their fixtures).
+- Phase 13: 13.1 (gates). Open: 13.2 (measure against the stack base and open the S5 PR).
+
+### TDD cycle evidence
+
+| Task | Test file | Layer | Safety net (unaffected at RED) | RED | GREEN | Triangulate | Refactor |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 12.2/12.3 | `requests/[id]/page.test.tsx` | Page (Testing Library) | 67 of 76 stayed green in the RED run | 9 failed (the `requests.detail.coordination` key was absent) | 391 passed in the page, correction and `src/i18n` run | label only in `en_revision_coordinacion`; 4 other states without it; es; forged reason code, note, answer, coordinator, report and notice fields never rendered; `pendiente` after an answer shows the state only; `aprobada` with a report shows nothing of it; neither locale contains "sospecha" or "suspicion" | none needed |
+| 12.2 | `data/solicitud-correction.test.ts` | Data (db double) | all other cases stayed green | characterization: passed when written (the load guard already holds `devuelta` alone, no student edge leaves coordination) | passed | guard params contain `devuelta` and not `en_revision_coordinacion`; transition table has no student edge from coordination; nothing audited | none needed |
+| 12.2 | `data/student-requests.test.ts` (existing) | Data | n/a | the "payload unchanged" case already existed (ES-14, no escalation fields, no read of those tables) and was not touched | passed | n/a | none needed |
+| 12.5/12.6 | `intake/consent.test.ts` | Unit / Catalog | 119 of the 133 tests in the four unit-9 files stayed green in the RED run | 14 failed (version, label and recipients assertions; the hash cases stayed green until the text changed because the old pins still matched the old text) | 133 passed | version is `2026-10-22`, a different later ISO date; es label equals the spec v2 text and en its translation, both naming the coordination; link tag only on the notice phrase; v2 label pin and v2 `privacy` subtree pin added; v1 pins asserted unchanged; pins distinct, current version last | none needed |
+| 12.7 | `app/privacy/page.test.tsx` | Page | existing cases stayed green | recipients and agreement cases failed (in the 14 above) | passed | recipients name the coordination, a minimal email and in-system consultation in es and en; notice and consent agree; the hard-coded `2026-10-20` assertion was removed (the version is pinned in `consent.test.ts`) | none needed |
+| 12.7 | `intake/submission.test.ts`, `requests/new/actions.test.ts` | Unit / Action | existing consent cases stayed green | `2026-10-20` accepted and the v2 literal not stored (in the 14 above) | passed | `2026-10-22` accepted and stored as `consentimientoVersion`; `2026-10-20`, `2025-01-01` and `x` answer `consent_outdated` with nothing stored | none needed |
+| 12.9 to 12.11 | `data/integration/*.integration.test.ts` | Real Postgres (opt-in) | n/a | not executable here: no database is allowed in this batch (phase 14 owner run); compiled by `npm run typecheck`, linted by `npx eslint src`, and collected then skipped by the integration config with `INTEGRATION_DATABASE_URL` unset (4 files, 57 tests skipped) | not run | see the notes below | none needed |
+| 12.9/12.11 pin | `data/escalamiento-writes.test.ts` | Structural | 5 of 6 stayed green | 1 failed (the fixtures cleanup deletes from `Escalamiento`) | 6 passed (`fixtures.ts` allowed to `delete`, as `remision-writes.test.ts` does) | n/a | none needed |
+
+Safety net note: as in S1 to S4, the pre-existing files were not run as a separate baseline before editing; the tests that stayed green in each RED run are the evidence.
+
+Real-Postgres suites (written, not executed): `escalation-constraints` has 47 cases (33 `Escalamiento` rows, 25 rejected and 8 accepted, over the 10 CHECKs; 4 on `CK_ReporteInasistencia_Nota`; 4 on `UX_Escalamiento_Abierto`: second open rejected, allowed after an answer, `exceso` alongside an open suspicion, other requests unaffected; 6 on `CK_Solicitud_PlazoInicio`). Each case runs in a transaction that always rolls back, and a rejection must match SQLSTATE and the constraint name. `queue-index` reads the plan of the ordering built from `effectiveClockStart` under `SET LOCAL enable_seqscan = off` and expects one `IX_Solicitud_Cola` index scan and no Sort. `escalation-race` runs 8 rounds of `escalateRequest` against `decideRequest` approve and checks one winner, the loser's `conflict` and a consistent final state and audit.
+
+Test summary: extended `requests/[id]/page`, `solicitud-correction`, `consent`, `submission`, `requests/new/actions`, `review-step`, `submit-dialog`, `privacy/page`, `escalamiento-writes`; new `escalation-constraints`, `queue-index` and `escalation-race` integration suites; `fixtures.ts` gained `addCoordinator`, `addTeacher` and the two tables in its cleanup. `npm test` at the S5 head: 270 files / 5990 tests (S4b head: 5969).
+
+### Work unit evidence
+
+| Evidence | Unit 9 (student callout, consent v2) | Unit 10 (proof suite) |
+|---|---|---|
+| Focused test command and result | `npx vitest run src/lib/intake/consent.test.ts src/lib/intake/submission.test.ts "src/app/(dashboard)/requests/new/actions.test.ts" src/app/privacy`: 4 files, 133 passed; `npx vitest run "src/app/(dashboard)/requests/[id]/page.test.tsx" src/lib/data/solicitud-correction.test.ts src/i18n`: 391 passed in the combined RED-to-GREEN run | `npx vitest run src/lib/data/escalamiento-writes.test.ts`: 6 passed; the suites themselves are skipped without a database |
+| Runtime harness | N/A here: the student walk (callout, consent text, `/privacy`, a v1 request still correctable) needs a migrated database (owner phase 15) | N/A here: the three suites need a disposable Neon branch (owner phase 14: `INTEGRATION_DATABASE_URL=<test-escalation-pg direct URL> INTEGRATION_ALLOW_WRITES=1 npm run test:integration`) |
+| Rollback boundary | `detail-sections.tsx` and `page.tsx` (callout), `consent.ts`, `intake.review.consent.label`, `privacy.recipients` and `requests.detail.coordination` in both catalogs, with their tests | `src/lib/data/integration/escalation-*.integration.test.ts`, `queue-index.integration.test.ts`, the additions to `fixtures.ts` and the one line in `escalamiento-writes.test.ts` |
+
+### Gates (S5 head `501092b`, dummy `DATABASE_URL`)
+
+- `npx vitest run src/lib src/app src/i18n`: 226 files, 5357 passed.
+- `npm test`: 270 files, 5990 passed.
+- `npm run typecheck`: clean.
+- `npx eslint src`: 0 problems other than the CRLF `Delete ␍` noise.
+- Prettier (`--end-of-line auto`) on every changed source file: clean.
+- `npm run build`: ok.
+- No `drizzle-kit migrate`/`push`, `db:seed`, `neon` command or SQL run. S5 changes no schema.
+
+### Consent v2 pins
+
+- `CONSENT_VERSION`: `2026-10-22` (placeholder, owner to confirm; v1 stays `2026-10-20`).
+- es label (raw message, tags included): `06c97e4bf2433ff57986ee20701d0febb5f574c5c8fff36c95361c6bafb35a85`.
+- es `privacy` subtree (sorted-key JSON): `dbf381725384553e142fd05e84c08d99da51921e155f0eaca6078a00fc40be69`.
+- v1 pins, unchanged: label `34017ff7d7a760ae5828451eafb8c2415e0f4ec93f91eb43c0450384eea2fd90`, notice `d98acff47bc848672db35ef731f94764351ca599852f4c4fa92a828a94f1965a`.
+
+### Measured authored lines vs the S4b head 415927a
+
+Excluding `openspec/`, `.engram/` and `package-lock.json`. The 1000 budget counts production (non-test `src/` plus `i18n/`); tests are reviewed but not counted.
+
+| Part | Added | Deleted | Total |
+|------|------:|--------:|------:|
+| Production `src/` non-test | 23 | 1 | 24 |
+| Production `i18n/` | 8 | 6 | 14 |
+| **Production (counted)** | 31 | 7 | **38** |
+| Tests of unit 9 and the write-surface pin | 234 | 9 | 243 |
+| Unit 10 suites and `fixtures.ts` | 951 | 1 | 952 |
+| **Tests (not counted)** | 1185 | 10 | **1195** |
+
+`git diff --shortstat 415927a..HEAD`: 20 files changed, 1224 insertions, 17 deletions (this includes the hook's `.engram` sync files). The slice is far under the 1000 budget; the proof suite is the bulk of the diff and is test code.
+
+### Deviations from design
+
+1. The branch is cut from the S4b head, not the tracker (task 12.1 text); the PR base is the S4b branch until S4 merges.
+2. `tasks.md` and this file are committed on the tracker; the slice branch carries code only.
+3. Unit 9 is two commits (the student callout, then consent v2 and the notice); the task allows the split.
+4. `src/app/privacy/page.tsx` is unchanged: the page renders `privacy.recipients.body` from the catalog, so the new wording needs no code (task 12.7 lists the file as GREEN).
+5. The student callout is one string key `requests.detail.coordination` rendered in a plain bordered paragraph (not a `role="status"` alert, so it never competes with the `corrected=1` status).
+6. The `getOwnRequestDetail` payload pin and the "correction refused in coordination" case are characterization: they were already true and passed when written.
+7. `queue-index` explains the ordering and the `pendiente` filter without the facultad filter (orthogonal to the order, and an EXISTS semi-join could change the plan shape), with the state as a literal, and it accepts an Index Only Scan as well as an Index Scan.
+8. The `CK_Escalamiento_NotificacionMotivo` CHECK is subsumed by `CK_Escalamiento_MotivoEstado` (every reason the first rejects the second rejects too, and Postgres reports the alphabetically first), so no row isolates it; the case accepts either name. Spec and design agree; this is a note on the schema, not a mismatch.
+9. No spec and design mismatch on the consent text or the recipients: the spec text is used verbatim, and `privacy.recipients.body` carries the design wording "la coordinación de la carrera del estudiante".
+
+### Issues and notes
+
+- Next.js 16: the page change is a conditional element in an existing async Server Component that awaits `params` and `searchParams`; no new Next API is used.
+- The pre-commit hook added `.engram/` sync files to the first commit. `.vitest/json/output.json` stayed unmodified; `package-lock.json` stays unstaged and untouched.
+- Phase 14 should confirm: the `EXPLAIN` plan (an Index Only Scan would also pass), that the 8 race rounds produce a consistent state whichever side wins (the assertions hold either way), and that `postgres-js` reports `constraint_name` on the wrapped error (the helper walks `cause`).
+
+### Remaining tasks
+
+- [ ] 13.2 measure against the stack base and open the S5 PR (base: the S4b branch until S4 merges; "tracker not to `main` before phases 14-16")
+- Not started by instruction: Phase 14 onward (owner-run proof, walk and closeout).
+
+### Status
+
+Phase 12 (12 of 12) and 13.1 complete; 13.2 waits on the earlier PRs. Cumulative: 27 of 30 S1 tasks + 22 of 23 S2 tasks + 18 of 19 S3 tasks + 22 of 23 S4 tasks + 13 of 14 S5 tasks. Ready for sdd-verify of the S5 code, then the owner phases 14 to 16.
