@@ -88,3 +88,17 @@ equipo), `resuelta` (cubierta por un change).
   aprobación de la solicitud. ¿Es correcta?», y que la secretaría pueda
   confirmar igual. El registro del reporte no cambia (RF-15).
 - **Requisitos:** RF-15 (a); spec `coordination-escalation`.
+
+### UX-07. Estado de la remisión en el selector de docentes del reporte
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S2), 2026-10-23.
+- **Pantalla:** diálogo de reporte de exceso de inasistencias en el detalle de
+  la solicitud aprobada (`/review/[id]`).
+- **Hoy:** el selector lista los docentes a los que se remitió la solicitud,
+  sin indicar si el correo de remisión ya se envió o sigue pendiente.
+- **Esperado:** junto a cada nombre, el estado de su remisión (enviada,
+  pendiente o bloqueada), para que la secretaría sepa si el docente recibió la
+  justificación antes de registrar su reporte.
+- **Requisitos:** RF-09 (c), RF-15; specs `teacher-remission` y
+  `coordination-escalation`.
