@@ -359,12 +359,15 @@ El proyecto tiene Strict TDD activo: cada fase empieza por los tests.
 | 10 | **RNF-03** | Test que bloquea toda red saliente durante 10 extracciones | Criterio de aceptación literal |
 | 11 | **Cierre** | `sdd-verify` + `sdd-archive`; actualizar el estado en `docs/roadmap.md` | — |
 
-### Decisiones a cerrar en la fase 2
+### Decisiones cerradas (2026-10-22)
 
-- **Cola**: Vercel Queues (beta) o `after()` + cron diario.
-- **Auditoría**: si la extracción escribe eventos en la bitácora (el precedente D14 dice que no hay auditoría sin actor humano).
-- **Reproceso en correcciones**: re-extraer solo los documentos nuevos o todos.
-- **Motor**: Tesseract solo, o Tesseract + adaptador VLM según el spike.
+- **Motor**: NuExtract3 4B sin razonamiento para imágenes y PDF escaneados; `unpdf` para PDF con capa de texto. Tesseract queda fuera (ver `spike-ocr-resultados.md`).
+- **Hosting del modelo**: GPU serverless (RunPod Serverless o Modal) con la misma imagen de llama.cpp del spike. Se despliega cuando los changes relacionados estén listos en local; mientras tanto se usa el contenedor local `nuextract3`. Cumple RNF-03 según el criterio precisado el 2026-10-22.
+- **Cola**: `after()` + máquina de estados en `ExtraccionDocumento` + paso de reencolado en el cron `intake-sweep`, detrás del puerto `ExtractionQueue`. Vercel Queues sigue en beta; se puede adoptar después cambiando el adaptador. Un documento por invocación para no exceder `maxDuration`.
+- **Auditoría**: la extracción no escribe en la bitácora (precedente D14: sin actor humano no hay evento). La trazabilidad queda en `Motor`, `Intentos`, `ErrorCodigo` y `ProcesadoEn`.
+- **Reproceso en correcciones**: solo los documentos nuevos. Al reenviar se encola todo documento válido, no retirado y sin fila en `ExtraccionDocumento`; los retirados pasan a `no_aplica`.
+- **Fase 10 (RNF-03)**: el test intercepta el tráfico saliente y verifica que el documento solo viaja al host del servidor del modelo.
+- **Pendiente para el diseño**: si los campos de un PDF con capa de texto se obtienen por reglas o enviando el texto a NuExtract3.
 
 ---
 
@@ -384,7 +387,7 @@ El proyecto tiene Strict TDD activo: cada fase empieza por los tests.
 - **Alucinación de un VLM**: mitigable con modo verbatim y validación contra el texto del OCR.
 - **`@napi-rs/canvas` en Vercel**: dependencia nativa; validar empaquetado y tamaño en un despliegue de prueba.
 - **Vercel Queues en beta**: posible cambio de API (`queue/v2beta`).
-- **Interpretación de RNF-03**: confirmar que «propio entorno de ejecución» incluye la infraestructura de Vercel donde ya corre la aplicación (Blob, Functions).
+- **Interpretación de RNF-03**: resuelta el 2026-10-22. Incluye la infraestructura alquilada donde el sistema despliega y opera sus propios componentes (Vercel Functions y Blob, el servidor del modelo en GPU serverless); excluye las API de terceros. Ver el historial de `docs/requirements.md`.
 - **Plan Hobby**: es para uso no comercial; revisar si aplica al proyecto en producción.
 - **Orden del roadmap**: antes del #4 siguen pendientes el #0 (`catalog-schedule`) y el #3 (`teacher-remission`); el #4 no tiene responsable asignado.
 - **Veredicto previo**: localizar y leer `bitacora/veredicto_ocr_anonimizacion_2026-10-12.md`.
