@@ -31,12 +31,17 @@ export const recordRequestRead = cache(
   },
 );
 
-/** One `solicitud.cola.consultada` row: the queue open, as a count only. */
+/** One `solicitud.cola.consultada` row: a tab open, as a count and tab code. */
 export const recordQueueRead = cache(
-  async (actorId: number, facultadId: number, total: number): Promise<void> => {
+  async (
+    actorId: number,
+    facultadId: number,
+    total: number,
+    estado: EstadoSolicitud,
+  ): Promise<void> => {
     await db.transaction(async (tx) => {
       await insertAuditEvents(tx, actorId, [
-        solicitudColaConsultadaEvent({ facultadId, total }),
+        solicitudColaConsultadaEvent({ facultadId, total, estado }),
       ]);
     });
   },

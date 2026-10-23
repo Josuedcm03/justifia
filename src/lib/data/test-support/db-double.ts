@@ -17,6 +17,7 @@ export type LoggedStatement = {
   set?: unknown;
   where?: unknown;
   orderBy?: unknown[];
+  limit?: number;
   inTransaction: boolean;
 };
 
@@ -58,6 +59,12 @@ function builder(
       if (prop === "set") {
         return (set: unknown) => {
           record({ set });
+          return proxy;
+        };
+      }
+      if (prop === "limit") {
+        return (limit: number) => {
+          record({ limit });
           return proxy;
         };
       }

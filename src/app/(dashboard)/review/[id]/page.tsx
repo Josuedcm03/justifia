@@ -29,6 +29,7 @@ import { deadlineStatus } from "@/lib/intake/business-days";
 import { calendar } from "@/lib/intake/calendar";
 import { isCausa } from "@/lib/intake/causes";
 import { managuaToday } from "@/lib/intake/dates";
+import { clockStartOf } from "@/lib/intake/deadline-clock";
 import {
   DECISION_TEMPLATES,
   renderTemplate,
@@ -114,10 +115,15 @@ export default async function ReviewDetailPage({
 
   const now = new Date();
   const pending = detail.estado === "pendiente";
-  const clockStart = detail.reenviadaEn ?? detail.presentadaEn;
+  // The deadline starts at the effective start: a coordination answer moves it
+  // later by the business days spent there (RN-08, ES-5).
   const due =
-    pending && clockStart
-      ? deadlineStatus(managuaToday(clockStart), managuaToday(now), calendar)
+    pending && detail.presentadaEn
+      ? deadlineStatus(
+          managuaToday(clockStartOf(detail)),
+          managuaToday(now),
+          calendar,
+        )
       : null;
   const templatesFor = pending ? renderedTemplates(detail) : null;
   const changes = changesSinceReturn(detail);

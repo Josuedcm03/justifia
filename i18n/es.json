@@ -879,6 +879,34 @@
       "title": "Cola de revisión",
       "description": "Solicitudes pendientes de su facultad, de la más antigua a la más reciente.",
       "caption": "Solicitudes pendientes",
+      "tabs": {
+        "label": "Estado de las solicitudes",
+        "pendiente": "Pendientes",
+        "en_revision_coordinacion": "En coordinación",
+        "aprobada": "Aprobadas"
+      },
+      "coordination": {
+        "description": "Solicitudes escaladas a la coordinación de la carrera, de la más antigua a la más reciente.",
+        "caption": "Solicitudes en coordinación",
+        "empty": "No hay solicitudes en coordinación en su facultad.",
+        "columns": {
+          "escalated": "Escalada",
+          "reason": "Motivo",
+          "status": "Plazo",
+          "notice": "Aviso a coordinación"
+        }
+      },
+      "approved": {
+        "description": "Solicitudes aprobadas de su facultad, de la más reciente a la más antigua.",
+        "caption": "Solicitudes aprobadas",
+        "empty": "No hay solicitudes aprobadas en su facultad.",
+        "latest": "Se muestran las 50 solicitudes aprobadas más recientes.",
+        "columns": {
+          "approved": "Aprobada",
+          "reports": "Reportes de inasistencias"
+        },
+        "reportsCount": "{count, plural, =0 {Sin reportes} one {# reporte} other {# reportes}}"
+      },
       "columns": {
         "received": "Recibida",
         "student": "Estudiante",
@@ -894,7 +922,8 @@
         "onTime": "En plazo",
         "dueSoon": "Vence en 1 día hábil o menos",
         "overdue": "Vencida",
-        "due": "Vence el {date}"
+        "due": "Vence el {date}",
+        "paused": "En pausa"
       },
       "review": "Revisar",
       "reviewNamed": "Revisar la solicitud de {name}",
@@ -908,6 +937,18 @@
         "aprobada": "La solicitud fue aprobada.",
         "rechazada": "La solicitud fue rechazada.",
         "devuelta": "La solicitud fue devuelta al estudiante para su corrección."
+      }
+    },
+    "escalation": {
+      "reasons": {
+        "sospecha_documento": "Sospecha sobre un documento",
+        "exceso_inasistencias": "Exceso de inasistencias"
+      },
+      "notification": {
+        "pendiente": "Envío pendiente",
+        "pendienteFallido": "Envío pendiente: el último intento falló",
+        "enviada": "Enviado el {date}",
+        "bloqueada": "Sin destinatario de coordinación para la carrera"
       }
     },
     "decision": {

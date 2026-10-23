@@ -879,6 +879,34 @@
       "title": "Review queue",
       "description": "Pending requests from your faculty, oldest first.",
       "caption": "Pending requests",
+      "tabs": {
+        "label": "Request status",
+        "pendiente": "Pending",
+        "en_revision_coordinacion": "In coordination",
+        "aprobada": "Approved"
+      },
+      "coordination": {
+        "description": "Requests escalated to the career coordination, oldest first.",
+        "caption": "Requests in coordination",
+        "empty": "There are no requests in coordination in your faculty.",
+        "columns": {
+          "escalated": "Escalated",
+          "reason": "Reason",
+          "status": "Deadline",
+          "notice": "Coordination notice"
+        }
+      },
+      "approved": {
+        "description": "Approved requests from your faculty, newest first.",
+        "caption": "Approved requests",
+        "empty": "There are no approved requests in your faculty.",
+        "latest": "The 50 most recent approved requests are shown.",
+        "columns": {
+          "approved": "Approved",
+          "reports": "Absence reports"
+        },
+        "reportsCount": "{count, plural, =0 {No reports} one {# report} other {# reports}}"
+      },
       "columns": {
         "received": "Received",
         "student": "Student",
@@ -894,7 +922,8 @@
         "onTime": "On time",
         "dueSoon": "Due within 1 business day",
         "overdue": "Overdue",
-        "due": "Due {date}"
+        "due": "Due {date}",
+        "paused": "Paused"
       },
       "review": "Review",
       "reviewNamed": "Review request from {name}",
@@ -908,6 +937,18 @@
         "aprobada": "The request was approved.",
         "rechazada": "The request was rejected.",
         "devuelta": "The request was returned to the student for correction."
+      }
+    },
+    "escalation": {
+      "reasons": {
+        "sospecha_documento": "Suspicion about a document",
+        "exceso_inasistencias": "Excess absences"
+      },
+      "notification": {
+        "pendiente": "Pending send",
+        "pendienteFallido": "Pending send: the last attempt failed",
+        "enviada": "Sent on {date}",
+        "bloqueada": "No coordination recipient for the career"
       }
     },
     "decision": {

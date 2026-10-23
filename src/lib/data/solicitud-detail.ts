@@ -64,6 +64,11 @@ export type RequestDetail = {
   fechaFin: string | null;
   presentadaEn: Date | null;
   reenviadaEn: Date | null;
+  /**
+   * The effective clock start a coordination answer stored (RN-08, ES-5), or
+   * `null`. The deadline starts at `clockStartOf(detail)`.
+   */
+  plazoInicioEn: Date | null;
   /** RN-19: the approval was marked for the signed special format. */
   formatoEspecial: boolean;
   /** The special format a secretary uploaded; never among `documentos`. */
@@ -105,6 +110,7 @@ export async function getRequestDetail(
       fechaFin: solicitud.fechaFin,
       presentadaEn: solicitud.presentadaEn,
       reenviadaEn: solicitud.reenviadaEn,
+      plazoInicioEn: solicitud.plazoInicioEn,
       estudianteNombre: solicitud.estudianteNombre,
       estudianteCif: solicitud.estudianteCif,
       estudianteCarrera: solicitud.estudianteCarrera,
@@ -191,6 +197,7 @@ export async function getRequestDetail(
     fechaFin: request.fechaFin,
     presentadaEn: request.presentadaEn,
     reenviadaEn: request.reenviadaEn,
+    plazoInicioEn: request.plazoInicioEn,
     formatoEspecial: request.formatoEspecial,
     formato: format,
     // Both or neither (CK_Solicitud_Consentimiento); half a pair is never shown.
