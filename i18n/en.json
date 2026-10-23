@@ -876,6 +876,93 @@
       "back": "Back to my requests"
     }
   },
+  "coordination": {
+    "notFound": {
+      "title": "Request not found",
+      "message": "This request does not exist or is not available to you.",
+      "back": "Back to the list"
+    },
+    "list": {
+      "title": "Escalated requests",
+      "description": "Requests the secretary escalated to the coordination of your career, and informational notices from the secretary.",
+      "unnamed": "Unnamed student",
+      "noCareer": {
+        "title": "Your account has no career assigned",
+        "message": "Ask the administrator to assign a career to your account before handling requests."
+      },
+      "result": {
+        "respondida": "Your answer was recorded and the request went back to the secretary."
+      },
+      "open": {
+        "title": "Waiting for your answer",
+        "empty": "There are no escalated requests waiting for an answer in your career.",
+        "caption": "Escalated requests waiting for an answer",
+        "escalated": "Escalated on {date}",
+        "attend": "Handle",
+        "attendNamed": "Handle the request of {name}"
+      },
+      "notices": {
+        "title": "Informational notices",
+        "empty": "There are no notices for your career.",
+        "caption": "Informational notices from the secretary",
+        "teacher": "Teacher: {name}",
+        "communicated": "Communicated on {date}",
+        "view": "View notice",
+        "viewNamed": "View the notice of {name}"
+      }
+    },
+    "detail": {
+      "title": "Request of {name}",
+      "description": "Review the documents and answer the secretary. The secretary decides the request.",
+      "noticeDescription": "Informational notice from the secretary. No answer is needed.",
+      "back": "Back to the list",
+      "unnamed": "Unnamed student",
+      "notSet": "Not set",
+      "noNote": "No note",
+      "period": "{start} to {end}",
+      "sections": {
+        "student": "Student",
+        "request": "Request",
+        "escalation": "Escalation",
+        "notice": "Notice",
+        "answer": "Answer to the secretary"
+      },
+      "fields": {
+        "name": "Name",
+        "cif": "CIF",
+        "career": "Career",
+        "cause": "Cause",
+        "period": "Absence dates",
+        "reason": "Reason",
+        "note": "Secretary note",
+        "escalated": "Escalated",
+        "teacher": "Teacher",
+        "communicated": "Date communicated by the teacher",
+        "reportNote": "Notice note"
+      }
+    },
+    "answer": {
+      "dialog": {
+        "trigger": "Answer the secretary",
+        "title": "Send this answer to the secretary?",
+        "description": "The request goes back to the secretary, who will decide it. The answer cannot be edited afterwards.",
+        "noteLabel": "Answer for the secretary",
+        "noteHint": "State your assessment of the documents. Only the secretary and the coordination of the career can see it.",
+        "counter": "{count} of 1000",
+        "confirm": "Send answer",
+        "pending": "Sending...",
+        "cancel": "Cancel",
+        "backToQueue": "Back to the list"
+      },
+      "errors": {
+        "texto_required": "Write the answer for the secretary.",
+        "texto_too_long": "The answer cannot exceed 1000 characters.",
+        "conflict": "This request was already answered. Go back to the list to see the pending ones.",
+        "not_found": "This request is no longer available to you.",
+        "unexpected": "The answer could not be sent. Please try again."
+      }
+    }
+  },
   "review": {
     "queue": {
       "title": "Review queue",

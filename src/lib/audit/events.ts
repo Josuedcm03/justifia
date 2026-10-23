@@ -403,6 +403,22 @@ export function escalamientoNotificacionReenviadaEvent(args: {
   };
 }
 
+/**
+ * A coordinator's open of the escalation list: the entity is the career of the
+ * caller, the payload the count only (RNF-06).
+ */
+export function escalamientoColaConsultadaEvent(args: {
+  carreraId: number;
+  total: number;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.cola.consultada",
+    entidadTipo: "Carrera",
+    entidadId: args.carreraId,
+    datos: { total: args.total },
+  };
+}
+
 /** A remission row was created in the approval transaction (TR-4). */
 export function remisionCreadaEvent(args: {
   remisionId: number;

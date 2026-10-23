@@ -54,6 +54,7 @@ export const AUDIT_ACTIONS = [
   "escalamiento.notificacion_fallida",
   "escalamiento.notificacion_bloqueada",
   "escalamiento.notificacion_reenviada",
+  "escalamiento.cola.consultada",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -268,6 +269,10 @@ type NoticeResentPayload = {
   estadoPrevio: EscalationNoticeState;
 };
 
+/** The coordinator's open of the escalation list: the count only, never the
+ *  request ids (RNF-06). */
+type CoordinatorQueueReadPayload = { total: number };
+
 /** Closed lists for the manual catalog events. A field not named here can
  *  never be reported as changed (AL-PAY). */
 export const AUDITABLE_ASIGNATURA_FIELDS = [
@@ -480,4 +485,10 @@ export type AuditEvent =
       entidadTipo: "Escalamiento";
       entidadId: number;
       datos: NoticeResentPayload;
+    }
+  | {
+      accion: "escalamiento.cola.consultada";
+      entidadTipo: "Carrera";
+      entidadId: number;
+      datos: CoordinatorQueueReadPayload;
     };
