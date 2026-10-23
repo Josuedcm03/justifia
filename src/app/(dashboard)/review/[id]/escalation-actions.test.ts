@@ -18,6 +18,7 @@ const {
   dispatchOneMock,
   dispatchManyMock,
   depsMock,
+  accountsMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
@@ -32,6 +33,7 @@ const {
   dispatchOneMock: vi.fn(),
   dispatchManyMock: vi.fn(),
   depsMock: vi.fn(),
+  accountsMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
@@ -43,6 +45,7 @@ vi.mock("@/lib/data/request-scope", () => ({ resolveRequestScope: scopeMock }));
 vi.mock("@/lib/data/solicitud-escalation", () => ({
   escalateRequest: escalateMock,
   recordExcessReport: reportMock,
+  coordinationAccountsOf: accountsMock,
 }));
 vi.mock("@/lib/data/escalamiento", () => ({
   authorizeNoticeResend: authorizeResendMock,
@@ -96,6 +99,8 @@ beforeEach(() => {
   dispatchManyMock.mockResolvedValue({});
   depsMock.mockReset();
   depsMock.mockReturnValue(DEPS);
+  accountsMock.mockReset();
+  accountsMock.mockResolvedValue({ carreraNombre: "Medicina", cuentas: 0 });
 });
 
 const actions = [
@@ -517,8 +522,6 @@ describe("resendEscalationNoticeAction (RF-10 b)", () => {
       "bloqueada",
       "sin_destinatarios",
     ],
-    [{ outcome: "skipped" }, "pendiente", null],
-    [{ outcome: "lost" }, "pendiente", null],
   ])("reports %j as %s", async (result, estado, motivo) => {
     dispatchOneMock.mockResolvedValue(result);
 
@@ -526,6 +529,55 @@ describe("resendEscalationNoticeAction (RF-10 b)", () => {
       ok: true,
       estado,
       motivo,
+    });
+  });
+
+  it.each([
+    [{ outcome: "skipped" }, "pendiente"],
+    [{ outcome: "lost" }, "pendiente"],
+    [{ outcome: "skipped" }, "bloqueada"],
+  ])(
+    "reports %j on a %s notice as a send already in progress",
+    async (result, estado) => {
+      authorizeResendMock.mockResolvedValue({ id: 5, solicitudId: 12, estado });
+      dispatchOneMock.mockResolvedValue(result);
+
+      await expect(resendEscalationNoticeAction(5)).resolves.toEqual({
+        ok: true,
+        estado,
+        motivo: null,
+        aviso: "en_curso",
+      });
+    },
+  );
+
+  it("says the coordination account lacks an email when the career has one but nobody to send to", async () => {
+    dispatchOneMock.mockResolvedValue({
+      outcome: "blocked",
+      motivo: "sin_destinatarios",
+    });
+    accountsMock.mockResolvedValue({ carreraNombre: "Medicina", cuentas: 2 });
+
+    await expect(resendEscalationNoticeAction(5)).resolves.toEqual({
+      ok: true,
+      estado: "bloqueada",
+      motivo: "sin_destinatarios",
+      aviso: "sin_correo",
+    });
+    expect(accountsMock).toHaveBeenCalledWith(12);
+  });
+
+  it("keeps the generic blocked answer when the career lookup fails", async () => {
+    dispatchOneMock.mockResolvedValue({
+      outcome: "blocked",
+      motivo: "sin_destinatarios",
+    });
+    accountsMock.mockRejectedValue(new Error("db down"));
+
+    await expect(resendEscalationNoticeAction(5)).resolves.toEqual({
+      ok: true,
+      estado: "bloqueada",
+      motivo: "sin_destinatarios",
     });
   });
 

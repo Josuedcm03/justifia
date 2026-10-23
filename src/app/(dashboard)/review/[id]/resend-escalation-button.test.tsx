@@ -101,6 +101,27 @@ describe("ResendEscalationButton (RF-10 b)", () => {
   );
 
   it.each([
+    ["pendiente", "en_curso", en.result.en_curso],
+    ["bloqueada", "sin_correo", en.result.sin_correo],
+  ] as const)(
+    "words a %s outcome with the %s notice and keeps the button",
+    async (estado, aviso, text) => {
+      resendEscalationNoticeAction.mockResolvedValue({
+        ok: true,
+        estado,
+        motivo: estado === "bloqueada" ? "sin_destinatarios" : null,
+        aviso,
+      });
+      show();
+
+      await userEvent.click(screen.getByRole("button", { name: NAMED }));
+
+      expect(await screen.findByRole("status")).toHaveTextContent(text);
+      expect(screen.getByRole("button", { name: NAMED })).toBeEnabled();
+    },
+  );
+
+  it.each([
     ["not_found", en.errors.not_found],
     ["unexpected", en.errors.unexpected],
   ] as const)("shows a %s refusal in an alert", async (reason, text) => {

@@ -16,6 +16,8 @@ export type ResendOutcome =
       ok: true;
       estado: "pendiente" | "enviada" | "bloqueada";
       motivo: string | null;
+      /** A `result` key more precise than the state, when the action has one. */
+      aviso?: string;
     }
   | { ok: false; reason: "not_found" | "unexpected" };
 
@@ -57,7 +59,7 @@ export function ResendButton({
         </Button>
       )}
       <p role="status" className="text-sm">
-        {result?.ok ? t(`result.${result.estado}`) : null}
+        {result?.ok ? t(`result.${result.aviso ?? result.estado}`) : null}
       </p>
       {result && !result.ok ? (
         <p role="alert" className="text-destructive-ink text-sm">

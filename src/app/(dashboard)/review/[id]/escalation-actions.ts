@@ -12,6 +12,7 @@ import {
 } from "@/lib/data/escalation-dispatch";
 import { resolveRequestScope } from "@/lib/data/request-scope";
 import {
+  coordinationAccountsOf,
   escalateRequest,
   recordExcessReport,
 } from "@/lib/data/solicitud-escalation";
@@ -157,8 +158,27 @@ export type ResendNoticeResult =
       ok: true;
       estado: EscalationNoticeState;
       motivo: EscalationNoticeReason | null;
+      /**
+       * A more precise text for the control: `en_curso` when another attempt
+       * holds the send, `sin_correo` when the career's coordination accounts
+       * exist but none has an email.
+       */
+      aviso?: "en_curso" | "sin_correo";
     }
   | { ok: false; reason: "not_found" | "unexpected" };
+
+/**
+ * Whether the blocked notice's career has an active coordination account, so
+ * the fix is to add its email. A failed lookup keeps the generic blocked text.
+ */
+async function hasCoordinationAccount(solicitudId: number): Promise<boolean> {
+  try {
+    const accounts = await coordinationAccountsOf(solicitudId);
+    return (accounts?.cuentas ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Resend of a notice that is not `enviada` (RF-10 b). An unknown id and an
@@ -194,10 +214,22 @@ export async function resendEscalationNoticeAction(
       case "failed":
         return { ok: true, estado: "pendiente", motivo: "error_envio" };
       case "blocked":
-        return { ok: true, estado: "bloqueada", motivo: result.motivo };
+        return (await hasCoordinationAccount(target.solicitudId))
+          ? {
+              ok: true,
+              estado: "bloqueada",
+              motivo: result.motivo,
+              aviso: "sin_correo",
+            }
+          : { ok: true, estado: "bloqueada", motivo: result.motivo };
       default:
-        // Another attempt holds it, or the lease was taken over: still pending.
-        return { ok: true, estado: "pendiente", motivo: null };
+        // Another attempt holds it, or took the lease over: a send is running.
+        return {
+          ok: true,
+          estado: target.estado,
+          motivo: null,
+          aviso: "en_curso",
+        };
     }
   } catch (error) {
     console.error("escalation_notice_resend_failed", {
