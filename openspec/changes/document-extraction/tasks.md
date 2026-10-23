@@ -1,0 +1,203 @@
+# Tasks: Document Extraction
+
+> Strict TDD (vitest): every behavior task is a RED task (failing test) followed by its GREEN task. Focused command: `npx vitest run <paths>`. Gates per slice: `npm test`, `npm run typecheck`, `npx eslint src` (filter CRLF noise: `| rg -v 'Delete .␍.'`), `npm run format:check` (CRLF: `--end-of-line auto`), `npm run build`. Run `npm test` and `npm run build` with a dummy `DATABASE_URL` (`postgres://u:p@127.0.0.1:9/x`) so no database is targeted.
+> DB rule (`CLAUDE.md`): every task tagged `ASK OWNER` needs the owner's explicit "yes" for that single command, never batched. `[LOCAL]` touches no database. No agent task runs `drizzle-kit migrate`, `drizzle-kit push`, `db:seed` or write SQL. Slice code and unit tests never touch Neon.
+> Spec IDs: RF-11 (a, b), RN-02, RNF-01, RNF-02, RNF-03 (criterion 2026-10-22), RNF-04, RNF-06; FA-04. Decisions DE-1..DE-14 refer to `design.md`; decisions 1-5 to `proposal.md`.
+> Skills for apply (registry `.atl/skill-registry.md`): `C:\Users\HP VICTUS\.agents\skills\chained-pr\SKILL.md`, `C:\Users\HP VICTUS\.agents\skills\work-unit-commits\SKILL.md`. One commit per work unit (test + code together).
+> Threat matrix: N/A (design). The one new outbound integration is covered by DE-8/DE-12 RED tests (7.x) and the RNF-03 test (8.x).
+> Size note: the `sdd-tasks` cap (530 words) is exceeded on purpose; the repository precedent (`request-consent`, `teacher-remission`) keeps one line per task with spec links.
+> Conditional tasks tagged `[TEXT PATH]` are built only if the DE-14 gate (task 0.3) passes. If it fails, drop them; PDFs then take the image path (DE-9 rendering) and no rules extractor is built.
+
+## Review Workload Forecast
+
+| Field | Value |
+|-------|-------|
+| Estimated changed lines | ~3,400 authored total (prod + tests): S1 ~700, S2 ~620, S3 ~520, S4 ~820, S5 ~740; generated SQL, `drizzle/meta/*`, `package-lock.json` and `openspec/` excluded |
+| 400-line budget risk | High (aggregate and most slices) |
+| 800-line budget risk (session `review_budget_lines`) | High as one PR (~4.25x the budget); Medium per PR after the proposed split (every PR ~300-700) |
+| Chained PRs recommended | Yes |
+| Suggested split | S1 domain -> S2 schema and data -> S3 ports and use case -> S4a preparer -> S4b extractor, env, RNF-03 -> S5a staff UI -> S5b producers, sweep, pins |
+| Delivery strategy | single-pr (received at session start) |
+| Chain strategy | not applicable: `size:exception`, single PR (owner decision 2026-10-22, task 0.1) |
+
+Decision needed before apply: Yes (resolved 2026-10-22: `size:exception`)
+Chained PRs recommended: Yes
+Chain strategy: not applicable (`size:exception`)
+400-line budget risk: High
+800-line budget risk: High
+
+**A single PR of ~3,400 authored lines cannot start under `single-pr`. Before `sdd-apply` the owner MUST choose one of:** (A, recommended) switch the delivery strategy to `auto-chain` and pick `feature-branch-chain` (7 PRs below, tracker = `feat/document-extraction`); or (B) accept `size:exception` for one ~3,400-line PR. `sdd-apply` MUST NOT start until task 0.1 records the choice.
+
+Design forecast vs this plan: S4 (~820) and S5 (~740) are split because S4 is over 800 on its own and S5 mixes an inert UI with the activating producers.
+
+| Slice | Branch | Content | Authored lines | PR base |
+|-------|--------|---------|---------------:|---------|
+| Docs | tracker `feat/document-extraction` | SDD planning documents, one docs commit, before S1 | n/a (`openspec/` excluded) | tracker to `main` (draft, no-merge) |
+| U0 | `feat/document-extraction-s0-measurement` | DE-14 measurement, unpdf signature check (docs only) | ~40 docs | tracker |
+| S1 Domain | `feat/document-extraction-s1-domain` | states, limits, template, config, validate, display | ~700 | tracker |
+| S2 Data | `feat/document-extraction-s2-data` | schema, migration 0011 (generated), `data/extraction.ts` | ~620 | S1 branch |
+| S3 Use case | `feat/document-extraction-s3-use-case` | ports, fakes, `run.ts`, sweep use case | ~520 | S2 branch |
+| S4a Preparer | `feat/document-extraction-s4a-preparer` | dependencies, `next.config`, sharp/unpdf/canvas preparer | ~400 | S3 branch |
+| S4b Extractor | `feat/document-extraction-s4b-extractor` | HTTP extractor, env, `deps.ts`, RNF-03 test | ~420 | S4a branch |
+| S5a Staff UI | `feat/document-extraction-s5a-staff-ui` | `extraction-section`, page wiring, i18n | ~300 | S4b branch |
+| S5b Producers | `feat/document-extraction-s5b-producers` | `after-queue`, both actions, `maxDuration` pins, sweep step 4 | ~440 | S5a branch |
+
+Chain: each child PR targets the previous slice branch while open (clean diff) and is retargeted to the tracker after the previous slice merges. Only the tracker merges to `main`; it is never deleted; slice branches are deleted after merge. Parallelism: S4a depends only on S1 and may be built beside S2/S3; keep the PR bases linear. Everything is inert until S5b wires the producers (S1-S4 add no caller; S5a only reads).
+
+**Merge gate: the tracker MUST NOT reach `main` before S5b is merged into it AND migration 0011 is applied to Neon (phase 10).** Before M1 the S5a list read is `degraded`, and a `main` deploy without the table makes the `after()` callback log and fail (submission is unaffected, DE-5).
+
+### Suggested Work Units
+
+| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
+|------|------|-----------|----------------------|-----------------|-------------------|
+| 0 | Prove or reject text mode; confirm `renderPageAsImage` signature | U0 | N/A: docs-only | Local `nuextract3` container on `http://127.0.0.1:8080` | Revert the spike-doc edit |
+| 1 | Pure domain: states, limits, template, config, validate, display | S1 (base: tracker) | `npx vitest run src/lib/extraction` | N/A: pure code | Delete the six modules and tests |
+| 2 | `ExtraccionDocumento` schema, generated migration 0011, data module | S2 | `npx vitest run src/db src/lib/data/extraction.test.ts` | N/A: SQL read by test, not applied; opt-in `npm run test:integration` on a disposable branch (ASK OWNER) | Revert `schema.ts`, `drizzle/0011*`, `meta/`, `extraction.ts` (unapplied) |
+| 3 | Ports, fakes, `runDocumentExtraction`, `processRequestExtractions`, sweep use case | S3 | `npx vitest run src/lib/extraction/run.test.ts src/lib/extraction/fakes.test.ts` | N/A: fakes and mocked data module | Delete `ports.ts`, `fakes.ts`, `run.ts` |
+| 4 | Dependencies, `serverExternalPackages`, preparer adapter | S4a | `npx vitest run src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` | Vercel preview proof (task 9.2) | Revert `package.json`, lock, `next.config.ts`, adapter |
+| 5 | HTTP extractor, env, composition root, RNF-03 test | S4b | `npx vitest run src/lib/extraction src/env.test.ts` | Local `nuextract3`: one real extraction (task 9.5) | Delete adapter, `deps.ts`, `rnf03.test.ts`; revert `env.ts` |
+| 6 | Staff "Extracted data" section, fail-soft read, i18n | S5a | `npx vitest run "src/app/(dashboard)/review" src/i18n` | `npm run dev` owner walk (task 9.5) | Revert `extraction-section.tsx`, `page.tsx`, keys |
+| 7 | Producers, `after-queue`, `maxDuration` pins, sweep step 4 | S5b | `npx vitest run "src/app/(dashboard)/requests" src/lib/data/intake-sweep.test.ts src/app/api/cron src/lib/extraction` | Preview + local walk (phase 9) | Revert actions, pages, route, sweep; or unset `EXTRACTION_API_URL` |
+
+## Phase 0: Decision, planning docs, measurement (before S1)
+
+- [x] 0.1 STOP [OWNER]: resolve the delivery decision above (A: `auto-chain` + `feature-branch-chain`, B: `size:exception`); record the choice and the tracker name here and flip `Chain strategy`. No apply before this. **Decided 2026-10-22: B, `size:exception` — one PR of ~3,400 lines from `feat/document-extraction` to `main`; the slices S1–S5b stay as commit work units, not PRs.**
+- [x] 0.2 On tracker `feat/document-extraction`, stage only `openspec/changes/document-extraction/` (explore, proposal, specs, design, tasks) and commit `docs(document-extraction): add the SDD planning documents`; push; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate. **2026-10-22: committed and pushed; the PR is not opened yet (owner asked for push only). With `size:exception` there is no chain table: open the single PR when the implementation is ready.**
+- [ ] 0.3 DE-14 [LOCAL] measurement (first apply task): start the `nuextract3` container (`docs/investigacion/nuextract3-instalacion.md`, `127.0.0.1:8080`); run the DE-8 contract in text mode on 2-3 text-layer PDFs (generated or anonymized, no personal data kept); append per-field results (correct / null / invented, appears-in-text yes/no) to `docs/investigacion/spike-ocr-resultados.md` without names, issuers or dates of real people. Gate: issuer and issue date correct and passing the appear-in-text check on every sample. Record PASS/FAIL and the consequence for `[TEXT PATH]` tasks here
+- [ ] 0.4 Confirm the unpdf `renderPageAsImage` signature and the `canvasImport` option against current docs (context7, then `node_modules/unpdf` after 5.2); note the exact call shape and the `getDocumentProxy`/`extractText` signatures in the spike doc; adjust the preparer tasks in phase 5 if it differs from DE-9
+- [ ] 0.5 Commit unit 0: `docs(document-extraction): record the text-mode measurement and the unpdf signature` (PR U0, base tracker, or fold into the docs commit if the chain is not chosen)
+
+## Phase 1: S1 - Pure domain (work unit 1)
+
+- [ ] 1.1 Branch `feat/document-extraction-s1-domain` from the tracker; PR targets the tracker (or per 0.1)
+- [ ] 1.2 RED: `src/lib/extraction/states.test.ts`: closed `EXTRACTION_STATES` (5) and `EXTRACTION_ERRORS` (7); `PERMANENT_ERRORS` is exactly `unreadable_document`; guards reject unknown strings; failure outcome: attempts < 3 and not permanent -> `pendiente`, attempts = 3 or permanent -> `fallida` (DE-3; scenario "Third failure is final")
+- [ ] 1.3 GREEN: `src/lib/extraction/states.ts`
+- [ ] 1.4 RED: `src/lib/extraction/limits.test.ts`: `MAX_ATTEMPTS` 3; `CLAIM_LEASE_MS` 10 min and greater than `EXTRACTION_MAX_DURATION_S * 1000`; `DEADLINE_SAFETY_MS` 25 s; `MIN_DOCUMENT_BUDGET_MS` 20 s; `FETCH_TIMEOUT_MS` 120 s; `MIN_TEXT_CHARS_PER_PAGE` 80; `MAX_PDF_PAGES` 5; `MAX_TEXT_CHARS` 6000; image width 1600; sweep batch 10; `deadlineFor(startedAt)` = start + 275 s; `canStartDocument(remaining)` false below 20 s; `modelTimeoutMs(remaining)` = `min(120 s, remaining - 10 s)` (DE-7; scenario "Deadline reached")
+- [ ] 1.5 GREEN: `src/lib/extraction/limits.ts`
+- [ ] 1.6 RED: `src/lib/extraction/template.test.ts`: `NUEXTRACT_TEMPLATE` keys and types equal DE-8; `buildChatRequest` for images (one `image_url` part per page in order, `data:image/jpeg;base64,`) and for text; `temperature` 0.2, `max_tokens` 512, `stream` false, `enable_thinking` false, `chat_template_kwargs.template` = `JSON.stringify(TEMPLATE, null, 4)`; `ENGINE_ID` values `nuextract3-4b/image` and `nuextract3-4b/text` (DE-8; engine contract). Define the `PreparedDocument` union (`images` | `text`) here; `ports.ts` re-exports it in S3 so S1 does not depend on S3
+- [ ] 1.7 GREEN: `src/lib/extraction/template.ts`
+- [ ] 1.8 RED: `src/lib/extraction/config.test.ts`: absent or empty -> not ok; `https:` ok; `http:` ok only for `localhost`, `127.0.0.0/8`, `[::1]`; `http://example.com`, `http://localhost.evil.com`, `http://127.0.0.1.evil.com` -> not ok; unparsable URL -> not ok; key optional and never echoed in the result of a not-ok; invalid config logs only `extraction_config_invalid` once, never the value (DE-12; scenarios "Plain HTTP to a remote host", "Loopback over HTTP allowed")
+- [ ] 1.9 GREEN: `src/lib/extraction/config.ts` (`resolveExtractionConfig(env)`)
+- [ ] 1.10 RED: `src/lib/extraction/validate.test.ts` strings and dates: trim and collapse spaces; empty or longer than the column (160 / 200) -> null; only real calendar dates (`2026-02-30` null); window table-driven (reference 2026-10-22: 2025-10-22 kept, 2025-10-21 no, 2026-10-22 kept, 2026-10-23 no; 29 Feb reference maps to 28 Feb); "202_" returned as 2022 -> null; issue date outside window -> null while other fields stay (DE-10; scenarios "Window boundaries", "Completed year")
+- [ ] 1.11 GREEN: `src/lib/extraction/validate.ts` strings, dates, window (reference = Managua date of `COALESCE(ReenviadaEn, PresentadaEn)`, computed by the caller and passed as `submittedOn`)
+- [ ] 1.12 RED: `validate.test.ts` rest period: form (a) from+to with to >= from, days computed inclusive in code (20-24 July = 5, model value 4 ignored); form (b) days 1..366 with no dates; lone `rest_from`, a date plus days, 0 or 367 days, to < from -> whole period null; running rest (2026-10-20..2026-10-25, ref 2026-10-22 -> kept, 6 days); rest-to 2026-11-22 -> null; rest-from 2026-10-23 -> null; all-null still a valid result (DE-10; scenarios "Days computed inclusive", "Invented rest discarded", "Duration only", "Rest still running", "Rest end outside the window", "Rest start after submission", "Empty answer completes")
+- [ ] 1.13 GREEN: `validate.ts` rest-period rules
+- [ ] 1.14 [TEXT PATH] RED: `validate.test.ts` `appearsInText`: normalization (NFD, no diacritics, lowercase, collapsed spaces); invented issuer -> null while supported fields stay; date "20/07/2026" supports 2026-07-20, long Spanish form ("20 de julio de 2026") supports it, day/month/year all required; `rest_days` supported only as `n día(s)` or `n*24 h/hrs/horas`; the source text is never returned or stored (DE-10; scenarios "Invented issuer discarded", "Date in another format")
+- [ ] 1.15 [TEXT PATH] GREEN: `validate.ts` `appearsInText` helpers and the `sourceText` branch of `validateFields`
+- [ ] 1.16 RED: `src/lib/extraction/display.test.ts`: `toExtractionDisplay` for `completada` (all fields; null -> "not recognized"; rest range with days, or days only), `pendiente`/`procesando`/no row -> extracting, `fallida` -> unavailable, request not `pendiente` and not `completada` -> unavailable (never extracting), not configured -> configuration state once, `completada` still shown when not configured; the display model carries no raw error code. Pin precedence in one table: completada > request not pending > fallida > not configured > extracting (spec "Extraction states", scenarios "Decided request never extracting", "Not configured"; resolves the DE-13 vs spec wording for a `fallida` row while unconfigured in favor of the spec)
+- [ ] 1.17 GREEN: `src/lib/extraction/display.ts` (signature adds the request state beside `configured`; design shows only `row, configured`)
+- [ ] 1.18 Gates S1; measure the authored diff vs the tracker (target ~700, stop and report if over 800); open the S1 PR
+- [ ] 1.19 Commit unit 1: `feat(extraction): add the pure extraction domain`
+
+## Phase 2: S2 - Schema, migration, data module (work unit 2)
+
+- [ ] 2.1 Branch `feat/document-extraction-s2-data` from the S1 branch; PR base is the S1 branch until it merges
+- [ ] 2.2 [READ-ONLY] Re-check `drizzle/` on `main` for a migration newer than `0010_request_consent.sql`. Expected: none, so the new file is `0011`. If another change merged a `0011`, STOP and tell the owner (renumber decision)
+- [ ] 2.3 RED: `src/db/migration-document-extraction.test.ts` (pattern of `migration-request-consent.test.ts`): SQL located by `document_extraction`; journal `when` later than 0010's; table, columns, types and defaults per DE-2; PK and FK `DocumentoRespaldo.Id` with `ON DELETE CASCADE`; bodies of `CK_Extraccion_{Estado,Error,Reclamo,Procesando,Fallida,Completada,Datos,Reposo,Intentos}` equal DE-2 (constraint-case table: `procesando` without claim rejected, `fallida` without code rejected, `completada` without `Motor` rejected, data columns on a non-`completada` row rejected, `ReposoHasta < ReposoDesde` rejected, `ReposoDias = 0` rejected); the state and error lists in the SQL equal `EXTRACTION_STATES` / `EXTRACTION_ERRORS`; partial index `IX_Extraccion_Abierta`; no `Confianza`, `NombreCoincide` or text column; no `DROP`, `ALTER ... TYPE` or `UPDATE` on existing tables (DE-2; scenario "Cascade and no audit")
+- [ ] 2.4 GREEN: `src/db/schema.ts` adds `ExtraccionDocumento` with the nine CHECKs (via `inList` over the S1 constants) and the partial index
+- [ ] 2.5 [LOCAL] `npm run db:generate -- --name document_extraction` (generate only; expected `drizzle/0011_document_extraction.sql`, `drizzle/meta/0011_snapshot.json`, `drizzle/meta/_journal.json`); confirm one `CREATE TABLE`, constraints, FK and index only. STOP: no `migrate`, no `push`
+- [ ] 2.6 RED: `src/lib/data/extraction.test.ts` registration (mocked db as the existing data tests): `registerPendingExtractions` inserts only documents `valido`, not retired, `SubidoPorId IS NULL`, `FormatoEspecial = false`, with `ON CONFLICT DO NOTHING`; running twice leaves two rows; retired document without a row -> `no_aplica`; open row of a retired document -> `no_aplica`; `completada`/`fallida` rows untouched; returns claimable ids ordered by id; one transaction (scenarios "Eligible document registered once", "Retired and staff documents", "Correction extracts only new documents", "Blocked submit registers nothing")
+- [ ] 2.7 GREEN: `src/lib/data/extraction.ts` `registerPendingExtractions`
+- [ ] 2.8 RED: `extraction.test.ts` claim: `claimExtraction` guarded `UPDATE ... FROM DocumentoRespaldo JOIN Solicitud RETURNING` pathname, `TipoDetectado`, `Intentos`, `ReclamoId`, submission date `ReenviadaEn ?? PresentadaEn`; `Intentos + 1`; refused at 3 attempts, for a retired document and for a live lease; takes over an expired lease under the cap; null when nothing claimed (scenarios "Concurrent claim", "Expired lease recovered")
+- [ ] 2.9 GREEN: `claimExtraction`
+- [ ] 2.10 RED: `extraction.test.ts` outcomes: `completeExtraction` is guarded by `DocumentoId`, `ReclamoId` and `Estado = 'procesando'` and sets fields, `Motor`, `ProcesadoEn`, clears the claim; a stale holder changes nothing; `failExtraction` returns to `pendiente` with the code below 3 attempts, to `fallida` at 3 or for a permanent code, holder-guarded; `not_configured` hands back to `pendiente` with `Intentos - 1`; an all-null answer still completes (scenarios "Stale holder cannot complete", "Third failure is final", "Not configured keeps the attempt", "Empty answer completes")
+- [ ] 2.11 GREEN: `completeExtraction`, `failExtraction`
+- [ ] 2.12 RED: `extraction.test.ts` sweep reads: `abandonExpiredExtractions` turns expired leases at 3 attempts into `fallida` + `timeout`; `selectExtractionCandidates(now, limit)` returns only requests in `pendiente` with a `pendiente` row, an expired lease under the cap, or an eligible document without a row (anti-join), oldest `PresentadaEn` first, at most `limit`; nothing for `aprobada`/`devuelta` requests or `completada`/`fallida`/`no_aplica` rows (scenarios "Lease expires on the last attempt", "Only pending requests", "Backfill is bounded")
+- [ ] 2.13 GREEN: `abandonExpiredExtractions`, `selectExtractionCandidates`
+- [ ] 2.14 RED: `extraction.test.ts` read model: `listExtractions(solicitudId)` returns `{ data, degraded }` with one entry per current student document (left join: a document without a row appears), omits `no_aplica` and retired documents; a thrown query returns `{ data: [], degraded: true }` with no partial data (scenario "Read failure")
+- [ ] 2.15 GREEN: `listExtractions`
+- [ ] 2.16 RED: structural tests in `extraction.test.ts`: no other file under `src` imports `extraccionDocumento` for writes (file scan); the module imports nothing from `@/lib/audit` (no audit row, D14); logs carry ids, states, codes and counts only, never a pathname, name or value (RNF-04, RNF-06; scenarios "No raw content kept", "Cascade and no audit"). GREEN: adjust the module until green
+- [ ] 2.17 RED+GREEN (opt-in, not run here): `src/lib/data/integration/extraction-claim.integration.test.ts`: two concurrent claims on one row -> one winner, one attempt counted; `ON DELETE CASCADE` removes the row. Run only on a disposable branch with the owner's yes (phase 9)
+- [ ] 2.18 Gates S2; measure the diff (generated SQL and `drizzle/meta/*` excluded; target ~620); open the S2 PR with "0011 generated, NOT applied"
+- [ ] 2.19 Commit unit 2: `feat(extraction): add the extraction table with migration 0011 and its data module`
+
+## Phase 3: S3 - Ports, fakes, use case (work unit 3)
+
+- [ ] 3.1 Branch `feat/document-extraction-s3-use-case` from the S2 branch
+- [ ] 3.2 RED: `src/lib/extraction/fakes.test.ts`: fake preparer returns a scripted `PreparedDocument` or error code; scripted extractor yields queued answers/errors in order, records its calls and `isConfigured()`; recording queue stores `enqueue(id, startedAt)` calls
+- [ ] 3.3 GREEN: `src/lib/extraction/ports.ts` (`DocumentPreparer`, `FieldExtractor`, `ExtractionQueue`; re-export `PreparedDocument`) and `src/lib/extraction/fakes.ts`
+- [ ] 3.4 RED: `src/lib/extraction/run.test.ts` `runDocumentExtraction` (fakes + `vi.mock("@/lib/data/extraction")`): claim null -> `skipped`, nothing else called; `isConfigured()` false -> `failExtraction(not_configured)` and no store read or network; `store.stream` null or throw -> `document_unavailable`; preparer error code passes through (`unreadable_document` permanent -> `fallida`); extractor `timeout`, `model_error`, `invalid_response` map to the closed set with no free text; success calls `validateFields` with `submittedOn` and, on the text path only, `sourceText`, then `completeExtraction` with `Motor`; a validation-null answer still completes; an unexpected throw is logged by name, `failExtraction` is not called and the lease is kept; logs never contain values, text, address or key (DE-6; scenarios "Model outage does not block submit", "Not configured keeps the attempt", "Empty answer completes", "No raw content kept")
+- [ ] 3.5 GREEN: `src/lib/extraction/run.ts` `runDocumentExtraction`
+- [ ] 3.6 RED: `run.test.ts` `processRequestExtractions(solicitudId, deps, { startedAt })`: registers first; stops without claiming when the extractor is not configured (rows stay `pendiente`, attempts unchanged); processes sequentially; with five rows and a budget for two it processes two and leaves three `pendiente`; never starts a document when `remaining < MIN_DOCUMENT_BUDGET_MS`; passes `modelTimeoutMs(remaining)` to the extractor (DE-5, DE-7; scenarios "Deadline reached", "Not configured")
+- [ ] 3.7 GREEN: `run.ts` `processRequestExtractions`
+- [ ] 3.8 RED: `run.test.ts` `runExtractionSweep(now, deadline, deps)` (DE-11): calls `abandonExpiredExtractions` first; skips candidates when not configured; selects at most 10 candidates; processes them via `processRequestExtractions` until the deadline; returns `{ run, abandoned, failures }` counts only; one request throwing counts into `failures` and the next still runs (scenarios "Backfill is bounded", "Missing row recovered", "Expired lease recovered")
+- [ ] 3.9 GREEN: `run.ts` `runExtractionSweep`
+- [ ] 3.10 Gates S3; measure the diff (target ~520); open the S3 PR
+- [ ] 3.11 Commit unit 3: `feat(extraction): add the extraction ports, fakes and use case`
+
+## Phase 4: S4a - Dependencies and preparer (work unit 4)
+
+- [ ] 4.1 Branch `feat/document-extraction-s4a-preparer` from the S3 branch (or from S1 if built in parallel; PR base stays linear). Apply `[TEXT PATH]` tasks only per the 0.3 result
+- [ ] 4.2 [LOCAL] `npm install sharp unpdf @napi-rs/canvas` as direct dependencies (versions as confirmed in 0.4); review the `package.json` and lock diff; no other dependency. Lock noise is excluded from the line count
+- [ ] 4.3 RED: `src/next-config.test.ts` (file scan): `next.config.ts` lists `@napi-rs/canvas` in `serverExternalPackages` and does not list `sharp` (Next auto-externalizes it). GREEN: `next.config.ts` (DE-12)
+- [ ] 4.4 RED: `src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` (`// @vitest-environment node`, generated fixtures, no real documents) image path: 3200 px JPEG with EXIF orientation 6 -> upright, width 1600; 800 px image is not enlarged; PNG -> JPEG q85; output is one image; unparseable bytes -> `unreadable_document` (scenario "Large rotated photo")
+- [ ] 4.5 GREEN: `src/lib/extraction/adapters/sharp-unpdf-preparer.ts` image branch
+- [ ] 4.6 [TEXT PATH] RED: `sharp-unpdf-preparer.test.ts` text PDF: every page >= 80 non-whitespace chars and <= 5 pages -> `text` kind with page markers, truncated to 6000 chars, engine `nuextract3-4b/text`; generated minimal PDFs
+- [ ] 4.7 [TEXT PATH] GREEN: preparer text branch (unpdf per-page text)
+- [ ] 4.8 RED: `sharp-unpdf-preparer.test.ts` render path: mixed PDF (text page + blank page) -> all pages rendered as images, not text; 8-page scanned PDF -> first 5 pages in order; without `[TEXT PATH]` every PDF takes this path; injected `canvasImport` that rejects -> `render_unavailable`; each rendered page passes the sharp step (width <= 1600) (scenarios "Mixed PDF", "Page cap")
+- [ ] 4.9 GREEN: preparer render branch (`renderPageAsImage` + lazy `canvasImport: () => import("@napi-rs/canvas")`, per the confirmed 0.4 signature)
+- [ ] 4.10 Gates S4a; measure the diff (target ~400); open the S4a PR. Do not merge before the preview proof (task 9.2) passes
+
+## Phase 5: S4b - Extractor, env, composition root, RNF-03 (work unit 5)
+
+- [ ] 5.1 Branch `feat/document-extraction-s4b-extractor` from the S4a branch
+- [ ] 5.2 RED: `src/env.test.ts` additions: `EXTRACTION_API_URL` and `EXTRACTION_API_KEY` are optional, validated at use and never at boot (a missing value does not throw at import); key shorter than 16 chars rejected when present. GREEN: `src/env.ts` (`optionalSecret(1)`, `optionalSecret(16)`) (DE-12)
+- [ ] 5.3 RED: `src/lib/extraction/adapters/nuextract-http-extractor.test.ts` (`// @vitest-environment node`, injected `fetch`): request is `POST {baseUrl}/v1/chat/completions` with the DE-8 body; `Authorization: Bearer` only when a key is set; `redirect: "error"`; `AbortSignal.timeout(min(120 s, remaining - 10 s))`; `isConfigured()` false -> no `fetch` call (scenarios "Bearer only with a key", "Not configured sends nothing")
+- [ ] 5.4 RED: same file, responses: reads at most 64 KiB; strips a code fence; zod schema (string/number or null per key; extra keys ignored); non-JSON, wrong shape or oversized -> `invalid_response`; abort -> `timeout`; non-2xx (including 401/403) and network error -> `model_error`; a thrown error never leaks its message, the address or the key into the error code or logs
+- [ ] 5.5 RED: same file, cold start (fake timers): one retry after 5 s on connection error or 502/503/504 only when the remaining budget still covers 20 s; same attempt (no `Intentos` change); no retry on 500/401/429; second failure maps to `model_error`/`timeout` (DE-7)
+- [ ] 5.6 GREEN: `src/lib/extraction/adapters/nuextract-http-extractor.ts` (uses `buildChatRequest` and `resolveExtractionConfig`)
+- [ ] 5.7 RED: `src/lib/extraction/deps.test.ts` (`vi.mock("server-only")`): `getExtractionDeps()` wires preparer, extractor and `getIntakeDeps().store` (the `queue` entry is added in S5b task 7.6, once `after-queue` exists); `isExtractionConfigured()` is a light server-only export that imports neither sharp nor unpdf (so the review page does not load them). GREEN: `src/lib/extraction/deps.ts` (+ `configured.ts` if the light export needs its own module)
+- [ ] 5.8 RED: `src/lib/extraction/rnf03.test.ts` (node env): 10 extractions (7 images, 3 PDFs; text-layer PDFs only with `[TEXT PATH]`) through the real preparer and HTTP extractor with `globalThis.fetch` stubbed: exactly 10 model calls, every outbound URL host equals the configured host, no request to any other host; unset address -> zero calls; static guard fails if `package.json` or any `src` import adds a hosted OCR or inference SDK (denylist e.g. `@google-cloud/vision`, `@aws-sdk/client-textract`, `@azure/ai-form-recognizer`, `openai`, `@anthropic-ai/sdk`, `cohere-ai`) (scenarios "Ten extractions, one host", "Third-party SDK added", "Not configured sends nothing")
+- [ ] 5.9 GREEN: make 5.8 pass with the real adapters; no production change expected beyond fixes
+- [ ] 5.10 Gates S4b; measure the diff (target ~420); open the S4b PR
+
+## Phase 6: S5a - Staff UI (work unit 6)
+
+- [ ] 6.1 Branch `feat/document-extraction-s5a-staff-ui` from the S4b branch. [READ-ONLY] read the server-component guides in `node_modules/next/dist/docs/` (`AGENTS.md`) before coding
+- [ ] 6.2 RED: `src/i18n/review-messages.test.ts` additions: same keys in `es` and `en` for `review.detail.sections.extraction` and `review.extraction.{note, fields.{studentName,issuer,issueDate,restPeriod}, notRecognized, restDays (plural), restRange, states.{extracting,unavailable,notConfigured}, degraded}`; the `es` configuration message equals «Hace falta configurar el servicio de extracción. Contacte al administrador del sistema.»; no value contains `EXTRACTION_API` or "URL" (decision 3; scenario "Translation keys present"). GREEN: `i18n/es.json`, `i18n/en.json`
+- [ ] 6.3 RED: `src/app/(dashboard)/review/[id]/extraction-section.test.tsx`: full data with range and days; "no reconocido" muted with no value; days only with no from/to; dates shown without time-zone shift; name labelled as read from the document and not compared with the snapshot; extracting state with no action and no polling; unavailable with no button/link; configuration message exactly once for several waiting documents and no variable name; decided request never extracting; completed data still shown when not configured; `degraded` notice replaces all entries; no `no_aplica` entries; 360 px no overflow; axe clean; tokens only from `docs/design-system.md` (`text-muted-foreground`, existing `Section`, `dl` layout) (scenarios in `request-review` spec: "Full data shown", "Unrecognized field", "Days only", "Snapshot name wins", "Extracting", "Permanently failed", "Not configured", "Decided request never extracting")
+- [ ] 6.4 GREEN: `src/app/(dashboard)/review/[id]/extraction-section.tsx` (server component)
+- [ ] 6.5 RED: `src/app/(dashboard)/review/[id]/page.test.tsx` additions: the section renders after `DocumentsSection`; `listExtractions` is loaded with the other reads and before `recordRequestRead`; a degraded or throwing read still renders the rest of the detail; exactly one `solicitud.consultada` row and no other audit event; the access gate is unchanged (`rolesRevisores`, scope rules in `permissions.ts`, no new role check in the page); `coordinacion` and the student view receive no extracted data (scenarios "Not for students or other roles", "Read failure", "One audit row")
+- [ ] 6.6 GREEN: `src/app/(dashboard)/review/[id]/page.tsx` wiring; update `src/app/(dashboard)/review/design-system.test.tsx` and `test-support.tsx` fixtures if they type the page data
+- [ ] 6.7 Gates S5a; measure the diff (target ~300); open the S5a PR
+- [ ] 6.8 Commit unit 6: `feat(extraction): show the extracted data on the staff request detail`
+
+## Phase 7: S5b - Producers, queue adapter, sweep, pins (work unit 7)
+
+- [ ] 7.1 Branch `feat/document-extraction-s5b-producers` from the S5a branch. [READ-ONLY] re-read `node_modules/next/dist/docs/.../after.md` and `maxDuration.md` (findings N1-N3) before coding
+- [ ] 7.2 RED: `src/lib/extraction/adapters/after-queue.test.ts` (mock `next/server` `after`): `enqueue(id, startedAt)` registers exactly one callback; the callback calls `processRequestExtractions(id, deps, { startedAt })`; a throwing `after` logs `extraction_not_scheduled` by error name and does not rethrow; a failing callback logs `extraction_run_failed` by name and does not rethrow; logs carry no values (DE-5; scenario "Hand-off failure is swallowed")
+- [ ] 7.3 GREEN: `src/lib/extraction/adapters/after-queue.ts`
+- [ ] 7.4 RED: `src/app/(dashboard)/requests/new/actions.test.ts` additions: after `submitDraft` ok, `queue.enqueue(draft.id, now)` is called before `redirect`; not called for a blocked, refused or failed submit (nothing registered); a throwing `enqueue` still ends in the normal redirect; the transaction path and existing assertions are untouched; the enqueue comes after the consent write and does not move it (roadmap teammate note) (scenarios "Model outage does not block submit", "Blocked submit registers nothing")
+- [ ] 7.5 RED: `src/app/(dashboard)/requests/[id]/correct/actions.test.ts` (existing correction action test file) additions: same for `resubmitCorrectionAction`, only inside `if (outcome.ok)` and before `redirect`; a failed resubmit enqueues nothing; a throwing hand-off still stores the correction with no error to the student (scenarios "Hand-off failure is swallowed", "Correction extracts only new documents")
+- [ ] 7.6 GREEN: `deps.ts` adds the `queue` entry (`after-queue`); both `actions.ts` files call `getExtractionDeps().queue.enqueue(...)` in a guarded block before `redirect`
+- [ ] 7.7 RED: `src/lib/extraction/max-duration.test.ts` (file scan): `requests/new/page.tsx`, `requests/[id]/correct/page.tsx` and `api/cron/intake-sweep/route.ts` each export a literal `maxDuration = 300` equal to `EXTRACTION_MAX_DURATION_S`; the test fails if one changes or is not a literal (DE-12; scenario "Duration pinned")
+- [ ] 7.8 GREEN: add `export const maxDuration = 300;` to the three files
+- [ ] 7.9 RED: `src/lib/data/intake-sweep.test.ts` additions: `runIntakeSweep(now, store, extraction?)` runs `extraction.sweep(now, deadline)` after cleanup steps 1-3; a throwing extraction step still leaves the cleanup steps done and counts into `failures`; `SweepCounts` gains `extractionsRun` and `extractionsAbandoned`; no extraction dependency -> step skipped; the step never deletes or modifies requests or documents; `intake-sweep.ts` imports no adapter (scenarios "Extraction failure does not stop cleanup", "Pending requests untouched", "One failure does not stop the sweep")
+- [ ] 7.10 GREEN: `src/lib/data/intake-sweep.ts` (optional injected step and counts)
+- [ ] 7.11 RED: `src/app/api/cron/intake-sweep/route.test.ts` additions: the route passes `runExtractionSweep` built from `getExtractionDeps()`; a call without the scheduler credential is rejected with nothing deleted or enqueued; the JSON report adds the two counts and no document data (scenario "Unauthorized sweep call"). GREEN: `route.ts`
+- [ ] 7.12 Gates S5b; measure the diff (target ~440); open the S5b PR with "activates extraction; merge gate: migration 0011 applied"
+- [ ] 7.13 Commit unit 7: `feat(extraction): extract documents after submit and correction and from the daily sweep`
+
+## Phase 8: Chain integration check
+
+- [ ] 8.1 On the tracker head with all slices merged: `npm test`, typecheck, `npx eslint src`, `npm run format:check`, `npm run build` with the dummy `DATABASE_URL`; record exact results
+- [ ] 8.2 Check every spec scenario of `document-extraction`, `justification-intake` and `request-review` against a test or the walk record (phase 9); list gaps here
+
+## Phase 9: Owner-run database and runtime steps (after S2 merged, before the tracker reaches `main`)
+
+> Every step below: ASK OWNER, explicit yes per command, never batched. Nothing here is an agent task. The migration is a new table only, so production code that predates S5b keeps working with it applied.
+
+- [ ] 9.1 ASK OWNER, explicit yes per command: P1 `[READ-ONLY]` count `Solicitud` in `pendiente` and their eligible documents (backfill size); confirm `ExtraccionDocumento` is absent and `__drizzle_migrations` has 11 rows
+- [ ] 9.2 Vercel preview proof (S4a branch, or the tracker): push the branch so a preview builds (the known non-team-author block may prevent it; the owner then redeploys). Verify (a) the build and runtime load `@napi-rs/canvas` and `sharp` with no `Cannot find module` or native-binary error (run the preparer on a generated one-page PDF through a throwaway preview-only route on an unmerged `spike/canvas-preview` branch, never committed to a slice, deleted afterwards); (b) the three `maxDuration = 300` entries show in the deployment's function configuration (`vercel inspect` or the dashboard Functions tab) and the project has Fluid compute enabled; (c) note the non-commercial Hobby terms question (design open question). Record the result and date here; if canvas fails, the render path degrades to `render_unavailable` and the owner decides before S4a merges
+- [ ] 9.3 ASK OWNER, explicit yes per command: B1 `[CONFIRM]` create Neon branch `backup-before-document-extraction` from production (precedent: request-consent 4.2)
+- [ ] 9.4 ASK OWNER, explicit yes per command: M1 `[CONFIRM]` `npm run db:migrate` (`drizzle-kit migrate`) over the direct (non-pooler) URL from the Neon CLI, naming the exact command; **requires explicit user confirmation before running; never run it unprompted or as part of any agent task**. Then V1 `[READ-ONLY]`: table exists and is empty, migrations 10 -> 11; V2 `db:generate` drift check writes nothing ("No schema changes, nothing to migrate")
+- [ ] 9.5 Owner walk on a disposable Neon branch (ASK OWNER for the branch and for any data step) with the local `nuextract3` container and `EXTRACTION_API_URL=http://127.0.0.1:8080`: (a) unset the variable -> staff see the configuration message once, rows register, no attempt burned; (b) set it -> submit with an image and a PDF -> secretary detail shows fields or "no reconocido"; (c) stop the container -> submit still succeeds, rows recover on the cron call; (d) correction replaces a document -> only the new one extracts; (e) 360 px, `es` and `en`; (f) one `solicitud.consultada` per detail open and no extraction audit row. Optional: `INTEGRATION_DATABASE_URL=<branch> INTEGRATION_ALLOW_WRITES=1 npm run test:integration` (task 2.17)
+- [ ] 9.6 Record each result and date next to its step; delete disposable branches and `backup-before-document-extraction` only on the owner's explicit yes after production is stable
+
+## Phase 10: Closeout
+
+- [ ] 10.1 Verify (`sdd-verify`) on the tracker head; fix warnings
+- [ ] 10.2 Spec sync: create `openspec/specs/document-extraction/spec.md`; merge the deltas into `openspec/specs/{justification-intake,request-review}/spec.md`; readback with `diff -r`
+- [ ] 10.3 `docs/roadmap.md` row 4 `Estado` = `archivado`; Notas: `EXTRACTION_API_URL` rollout order (migrate, deploy unset, set when the model server is deployed), serverless GPU deployment out of scope, `validation-signals` adds manual entry for `fallida` documents
+- [ ] 10.4 Archive to `openspec/changes/archive/<date>-document-extraction/` with `git mv` and an `archive-report.md` (`diff -r` readback)
+- [ ] 10.5 Owner: merge the tracker PR into `main` with a merge commit only after S5b is merged, M1 is applied and 9.5 passed; keep the tracker branch; delete merged slice branches
