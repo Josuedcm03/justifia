@@ -743,3 +743,24 @@ reports no new `react-hooks` finding on `useReactTable`.
 - [ ] **6. Unverified:** the `@tanstack/react-table` peer range against React
       19.2.8, its API names against the installed version, and whether the
       real `next/link` is clickable in jsdom.
+
+---
+
+## Deviations accepted during apply
+
+Recorded before archive (2026-10-18). The delta specs describe the shipped
+behaviour; these points differ from the design text above.
+
+- **Home route group (Batch O, owner request).** The home moved from
+  `(dashboard)/page.tsx` to `(dashboard)/(home)/page.tsx` with its own
+  `loading.tsx`; the URL is unchanged. Supersedes decision 8.
+- **Sort state by icon only (Batch N, owner decision).** The sortable header
+  shows the icon alone; the state lives in `aria-sort` and the description.
+  Supersedes task 2c.0 (visible sort-state text).
+- **Footer re-layout (Batch P, owner request).** Icon controls, the page status
+  centered and the page-size selector trailing; the total count moved from the
+  footer to the toolbar (DT-PAG-1, DT-TOOL-1).
+- **Skeleton on same-route changes (owner, 2026-10-18).** Gate V1 came out
+  positive: a query-only navigation shows the route skeleton instead of keeping
+  the previous rows. The owner accepted it, so DT-PEND-1 describes the skeleton
+  and the focus restoration for sortable headers (Batch Q).

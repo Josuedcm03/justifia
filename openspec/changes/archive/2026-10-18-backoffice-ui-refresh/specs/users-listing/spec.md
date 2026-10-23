@@ -222,15 +222,18 @@ Pagination MUST be performed on the server: a request loads only the rows of the
 requested page. The page MUST be kept in the URL, so that reloading or sharing
 the URL shows the same page. The page size MUST be selectable among 10, 25 and
 50, held in the `size` parameter, with a default of 10 (D11); any other or
-invalid value MUST fall back to 10. The controls MUST show the current page, the
-total number of pages and the total count of results, and MUST offer first,
+invalid value MUST fall back to 10. The footer controls MUST show the page
+status (the current page of the total number of pages) and MUST offer first,
 previous, next and last; first and previous MUST be unavailable (not operable,
 exposed as disabled) at the first page and next and last at the last page. The
-footer holding these controls MUST be omitted when the viewer's results fit in 10
-rows or fewer (`data-table` DT-PAG-1). The order MUST be deterministic and stable
-across pages, using the user `Id` as a tie-break, so that no row is skipped or
-repeated when several users share a creation date or any other sort value.
-(Previously: the page size was fixed at 10 and only previous and next existed.)
+total count of results MUST be shown once, in the toolbar, and MUST NOT be
+repeated in the footer (`data-table` DT-PAG-1, DT-TOOL-1). The footer holding
+these controls MUST be omitted when the viewer's results fit in 10 rows or fewer
+(`data-table` DT-PAG-1). The order MUST be deterministic and stable across
+pages, using the user `Id` as a tie-break, so that no row is skipped or repeated
+when several users share a creation date or any other sort value.
+(Previously: the page size was fixed at 10 and only previous and next existed;
+the controls showed the page, the total pages and the total count of results.)
 
 #### Scenario: Page parameter handling (table-driven)
 
@@ -260,7 +263,8 @@ Given 25 in-scope users and page size 10 (3 pages):
 - WHEN page 1 is shown, and separately page 3
 - THEN on page 1 first and previous are unavailable and next and last are available
 - AND on page 3 next and last are unavailable and first and previous are available
-- AND the controls show the current page, 3 total pages and 25 total results
+- AND the footer shows the page status "Page <n> of 3" and not the total count
+- AND the toolbar shows "25 results" once
 
 #### Scenario: Page size options (table-driven)
 
@@ -308,7 +312,7 @@ Given 25 in-scope users and page size 10 (3 pages):
 - WHEN the list renders
 - THEN with 10 or fewer results no footer is shown
 - AND with 20 results at size 25 the footer shows all four paging controls
-  unavailable and the page status "1 of 1"
+  unavailable and the page status "Page 1 of 1"
 - AND with zero results the empty state is shown without error and no footer
 
 ### Requirement: Fail-soft when the database is unavailable

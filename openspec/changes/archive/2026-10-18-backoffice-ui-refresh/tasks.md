@@ -193,9 +193,9 @@ Estimate 450-550 lines.
 - [x] 2d.3 GREEN `src/app/(dashboard)/users/users-table.tsx` (client): builds columns in `useMemo`, renders `ListTable` inside `ListNavigationProvider`, uses `useTranslations` for headers and labels.
 - [x] 2d.4 RED+GREEN `users/page.test.tsx` and `users/page.tsx`: the page renders `PageFrame`, `UsersTable`, `DegradedAlert` on degraded (no table, no count, no no-results), and `EmptyState`/no-results through `ListTable`; assertions move from key-echo column headers to sort buttons where sortable; "first"/"last" joined to previous/next; `listUsuarios` expectations gain `status`, `sort`, parsed `pageSize`; add the navigation mock and `keyEchoIntl` lines (two lines per design). Existing guard-first and denied-role assertions stay.
 - [x] 2d.5 V1 observed by owner: skeleton shown; contingency implemented. [MANUAL] Gate V1 (N8): in `next dev` and in a production build (`npm run build` then `npm start` on a free port; ask the owner if a server already holds `.next`), observe whether a sort click or page-size change on `/users` shows the `loading.tsx` skeleton. Record the outcome in `apply-progress.md`. If it does NOT show: nothing changes. If it does: keyboard focus on the toolbar is lost; implement the contingency (module-level "last control id" in `list-navigation.tsx`, restored in an effect when the table mounts, about 15 lines) with a RED test first, to hold DT-SORT-2 "focus stays on the same header control".
-- [ ] 2d.6 [MANUAL] Users list smoke by the implementer in the dev server as `administrador` and `secretaria`: sort cycle (asc then desc), status filter, size 25/50, first/last, search by e-mail fragment, back-button behaviour (sort/size replace, page/filter/search push). Record observations only; do not run any database write. Seed or data is whatever the dev environment already holds.
+- [x] 2d.6 [MANUAL] Users list smoke by the implementer in the dev server as `administrador` and `secretaria`: sort cycle (asc then desc), status filter, size 25/50, first/last, search by e-mail fragment, back-button behaviour (sort/size replace, page/filter/search push). Record observations only; do not run any database write. Seed or data is whatever the dev environment already holds.
 - [x] 2d.7 Confirm the old `DataTable`, `DataTablePagination`, `DataTableSearch`, `StatusFilter` are no longer imported by `users/` and still used by the catalog pages and import (`codegraph_explore`).
-- [ ] 2d.8 CHECKPOINT: run V including `npm run build`. Batch note including the V1 outcome. Stop. Suggested commit: `feat(users): TanStack list with sorting, status filter and page-size selector`.
+- [x] 2d.8 CHECKPOINT: run V including `npm run build`. Batch note including the V1 outcome. Stop. Suggested commit: `feat(users): TanStack list with sorting, status filter and page-size selector`.
 
 ---
 
@@ -225,7 +225,7 @@ Estimate 600-750 lines.
 - [x] 3b.3 GREEN `asignaturas-table.tsx` (client) using `ListTable` inside `ListNavigationProvider`.
 - [x] 3b.4 RED `asignaturas/page.test.tsx` updates: guard first; `status`, `sort`, `dir`, `size` reach the data function parsed and hostile values reach it as defaults; Carrera scope never widened by `carrera=Y` or `scope=all`; degraded with `sort=name&dir=desc&size=25&page=2` shows `DegradedAlert` only; no results with a term shows the no-results state with a clear link that returns to the default; default status stays `active`. GREEN `asignaturas/page.tsx`: `parseAsignaturasListParams`, `PageFrame`, `AsignaturasTable`, `DegradedAlert`, "new asignatura" action in the empty state.
 - [x] 3b.5 Confirm `current-marker-usage.test.ts` and the Asignaturas page breadcrumb pins still pass unchanged; confirm `AsignaturaGruposSection` still uses the old table (3d).
-- [ ] 3b.6 CHECKPOINT: run V including `npm run build`. [MANUAL] quick smoke on `/catalog/asignaturas` as `coordinacion` and `secretaria` (sort cycle, status filter, size, first/last). Batch note. Stop. Suggested commit: `feat(catalog): TanStack asignaturas list with sorting and page-size selector`.
+- [x] 3b.6 CHECKPOINT: run V including `npm run build`. [MANUAL] quick smoke on `/catalog/asignaturas` as `coordinacion` and `secretaria` (sort cycle, status filter, size, first/last). Batch note. Stop. Suggested commit: `feat(catalog): TanStack asignaturas list with sorting and page-size selector`.
 
 ---
 
@@ -239,7 +239,7 @@ Estimate 450-550 lines.
 - [x] 3c.3 GREEN `docentes-table.tsx` (client).
 - [x] 3c.4 RED `docentes/page.test.tsx` updates (parameter parsing, hostile values, degraded with new parameters, read-only and unscoped scenario for a `coordinacion` of Carrera X, link to `/users`, serialized delivered data has no credential). GREEN `docentes/page.tsx` using `parseDocentesListParams`, `PageFrame`, `DocentesTable`, `DegradedAlert`.
 - [x] 3c.5 Check whether `parseCatalogListParams`, `CATALOG_PAGE_SIZE` and old `catalogListHref` signature still have consumers (`codegraph_explore`). If none outside 3d's import preview, leave removal to 3d.12 for a single reviewable deletion.
-- [ ] 3c.6 CHECKPOINT: run V including `npm run build`. [MANUAL] smoke on `/catalog/docentes`. Batch note. Stop. Suggested commit: `feat(catalog): TanStack docentes list with sorting, email-last ordering and page-size selector`.
+- [x] 3c.6 CHECKPOINT: run V including `npm run build`. [MANUAL] smoke on `/catalog/docentes`. Batch note. Stop. Suggested commit: `feat(catalog): TanStack docentes list with sorting, email-last ordering and page-size selector`.
 
 ---
 
@@ -268,7 +268,7 @@ Estimate 1,100-1,300 lines (about 780 are pure deletions).
 - [x] F.1 Full gates on the final tree: `npm test` (no failure outside the 0.8 set), `npm run typecheck`, `npx eslint src | rg -v 'Delete .␍.'`, `npm run format:check`, `npm run build`. Record exact results.
 - [x] F.2 Compliance sweeps recorded in `apply-progress.md`: `git diff src/app/globals.css` empty (BS-DS-1); `i18n/es.json` and `i18n/en.json` key sets identical (parity test green, DT-I18N-1, BS-I18N-1); no `transition-all` remains in changed files (BS-MOT-1); no `hashClave`, `cif`, `telefono` or `correo` key in any props passed to a client table (DT-DATA-1, UL:fields); every sortable column has a `Record` entry in its sort map; `docs/design-system.md` describes every pattern listed in BS-DS-1.
 - [x] F.3 Traceability matrix in `apply-progress.md`: each BS-*, DT-*, UL:* and CM-LST-1 scenario mapped to the test file (or the manual item) that covers it, for `sdd-verify`.
-- [ ] F.4 [MANUAL] Checklist, ticked by the owner or implementer, recorded in `apply-progress.md`:
+- [x] F.4 [MANUAL] Checklist, ticked by the owner or implementer, recorded in `apply-progress.md`:
   - 320px and 360px: no horizontal scroll from 360px on shell and home for each role (BS-RSP-1, RNF-11); no clipping at 320px; staff tables scroll inside their card only.
   - Keyboard: tab order through sidebar, top-bar trail, toolbar, headers, rows, footer; Enter and Space on sort buttons; focus stays on the header after a sort; visible focus everywhere (DT-SORT-2, BS-A11Y-1).
   - Reduced motion (`prefers-reduced-motion: reduce`): skeleton static, pending table shows text and `aria-busy`, theme toggle and sidebar do not move (BS-MOT-1).
@@ -276,10 +276,10 @@ Estimate 1,100-1,300 lines (about 780 are pure deletions).
   - Locale switch `es`/`en`: trail, role label, table strings (DT-I18N-1).
   - Touch pointer: no latched hover styles (BS-MOT-1).
   - Error screen: temporarily throw in a dev-only page to see the screen and the retry (do not commit the throw).
-- [ ] F.5 [OWNER] `docs/roadmap.md` needs a row for this change (the proposal suggests: `9 | backoffice-ui-refresh | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué | No | en curso`). This is the owner's edit: no agent edits `docs/roadmap.md`. Remind the owner at archive time to set the status.
-- [ ] F.6 [OWNER] Confirm the spec edits that archive will merge: users-listing "Assumptions withdrawn or changed at archive", and that CM-ASG-7, CM-NAV-1, CM-UX-1 are unmodified.
+- [x] F.5 [OWNER] `docs/roadmap.md` needs a row for this change (the proposal suggests: `9 | backoffice-ui-refresh | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué | No | en curso`). This is the owner's edit: no agent edits `docs/roadmap.md`. Remind the owner at archive time to set the status.
+- [x] F.6 [OWNER] Confirm the spec edits that archive will merge: users-listing "Assumptions withdrawn or changed at archive", and that CM-ASG-7, CM-NAV-1, CM-UX-1 are unmodified.
 - [x] F.7 Leave the working tree with all slices uncommitted or committed as the owner prefers; list the final `git status` and the per-slice changed-line measurements (compare with the Review Workload Forecast) in `apply-progress.md` so the owner can fill the `size:exception` justification in the PR.
-- [ ] F.8 CHECKPOINT: stop. Hand off to `sdd-verify`. Suggested final commit if the owner squashes the tail: `docs(ui): finalize backoffice refresh verification notes`.
+- [x] F.8 CHECKPOINT: stop. Hand off to `sdd-verify`. Suggested final commit if the owner squashes the tail: `docs(ui): finalize backoffice refresh verification notes`.
 
 ---
 

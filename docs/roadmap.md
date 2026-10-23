@@ -17,6 +17,7 @@ remiten a ese archivo.
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
 | 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | archivado |
 | 10  | `secretary-templates`  | Plantillas propias de la secretaría (RF-07) | Por asignar | No                   | pendiente |
+| 11  | `backoffice-ui-refresh` | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué | No | archivado |
 | 12  | `printable-forms`      | Formato especial prellenado e impresión (RN-19); requiere RF nuevo | Por asignar | No | pendiente |
 | 13  | `flow-experience`      | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md` | Por asignar | No | pendiente |
 
