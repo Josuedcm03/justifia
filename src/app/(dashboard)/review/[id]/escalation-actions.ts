@@ -44,6 +44,21 @@ function payloadOf(input: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/**
+ * The session, role and scope checks both actions run first, then the payload
+ * and its request id. `null` means the request is not found for this caller.
+ */
+async function authorize(input: unknown) {
+  const user = await requireRole(...rolesRevisores);
+  const actorId = Number(user.sub);
+
+  const scope = await resolveRequestScope(actorId, user.rol);
+  if (scope.kind === "none") return null;
+  const payload = payloadOf(input);
+  if (!payload || !isId(payload.solicitudId)) return null;
+  return { actorId, scope, payload, solicitudId: payload.solicitudId };
+}
+
 /** Logs the error name only: a data error message may hold personal data. */
 function failed(event: string, error: unknown): EscalationActionFailure {
   console.error(event, {
@@ -55,14 +70,9 @@ function failed(event: string, error: unknown): EscalationActionFailure {
 export async function escalateRequestAction(
   input: unknown,
 ): Promise<EscalationActionFailure> {
-  const user = await requireRole(...rolesRevisores);
-  const actorId = Number(user.sub);
-
-  const scope = await resolveRequestScope(actorId, user.rol);
-  if (scope.kind === "none") return NOT_FOUND;
-  const payload = payloadOf(input);
-  if (!payload || !isId(payload.solicitudId)) return NOT_FOUND;
-  const solicitudId = payload.solicitudId;
+  const guard = await authorize(input);
+  if (!guard) return NOT_FOUND;
+  const { actorId, scope, payload, solicitudId } = guard;
 
   let outcome;
   try {
@@ -83,14 +93,9 @@ export async function escalateRequestAction(
 export async function recordExcessReportAction(
   input: unknown,
 ): Promise<EscalationActionFailure> {
-  const user = await requireRole(...rolesRevisores);
-  const actorId = Number(user.sub);
-
-  const scope = await resolveRequestScope(actorId, user.rol);
-  if (scope.kind === "none") return NOT_FOUND;
-  const payload = payloadOf(input);
-  if (!payload || !isId(payload.solicitudId)) return NOT_FOUND;
-  const solicitudId = payload.solicitudId;
+  const guard = await authorize(input);
+  if (!guard) return NOT_FOUND;
+  const { actorId, scope, payload, solicitudId } = guard;
   if (!isId(payload.remisionId)) {
     return {
       ok: false,

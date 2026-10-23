@@ -232,43 +232,41 @@ describe("long notes at 360 px", () => {
 });
 
 describe("dialogs at 360 px", () => {
-  it("opens the escalate dialog inside the viewport, with stacked reachable actions and no axe violation", async () => {
-    const t = messages.en.review.escalation.dialog;
-    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
-    await userEvent.click(screen.getByRole("button", { name: t.trigger }));
-    const dialog = await screen.findByRole("alertdialog");
+  it.each([
+    [
+      "escalate",
+      messages.en.review.escalation.dialog,
+      () => <EscalateDialog solicitudId={12} unavailableCareer={null} />,
+    ],
+    [
+      "report",
+      messages.en.review.report.dialog,
+      () => (
+        <AbsenceReportsSection
+          solicitudId={12}
+          reports={[]}
+          canReport
+          teachers={TEACHERS}
+          maxDate="2026-10-14"
+        />
+      ),
+    ],
+  ] as const)(
+    "opens the %s dialog inside the viewport, with stacked reachable actions and no axe violation",
+    async (_name, t, view) => {
+      renderIntl(view());
+      await userEvent.click(screen.getByRole("button", { name: t.trigger }));
+      const dialog = await screen.findByRole("alertdialog");
 
-    expect(tooWide(document.body)).toEqual([]);
-    expect(dialog).toHaveClass("w-[calc(100%-2rem)]");
-    expect(screen.getByRole("button", { name: t.cancel })).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: t.confirm }).parentElement,
-    ).toHaveClass("flex-col-reverse");
-    expect(await violations(dialog)).toEqual([]);
-  });
-
-  it("opens the report dialog inside the viewport, with stacked reachable actions and no axe violation", async () => {
-    const t = messages.en.review.report.dialog;
-    renderIntl(
-      <AbsenceReportsSection
-        solicitudId={12}
-        reports={[]}
-        canReport
-        teachers={TEACHERS}
-        maxDate="2026-10-14"
-      />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: t.trigger }));
-    const dialog = await screen.findByRole("alertdialog");
-
-    expect(tooWide(document.body)).toEqual([]);
-    expect(dialog).toHaveClass("w-[calc(100%-2rem)]");
-    expect(screen.getByRole("button", { name: t.cancel })).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: t.confirm }).parentElement,
-    ).toHaveClass("flex-col-reverse");
-    expect(await violations(dialog)).toEqual([]);
-  });
+      expect(tooWide(document.body)).toEqual([]);
+      expect(dialog).toHaveClass("w-[calc(100%-2rem)]");
+      expect(screen.getByRole("button", { name: t.cancel })).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: t.confirm }).parentElement,
+      ).toHaveClass("flex-col-reverse");
+      expect(await violations(dialog)).toEqual([]);
+    },
+  );
 
   it("flags a fixed width above the viewport (guard self-test)", () => {
     const { container } = render(

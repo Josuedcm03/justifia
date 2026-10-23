@@ -1,32 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useId, useState } from "react";
 
 import {
-  escalateRequestAction,
-  type EscalationActionFailure,
-} from "@/app/(dashboard)/review/[id]/escalation-actions";
-import {
-  DIALOG_ALERT,
-  DIALOG_TEXTAREA,
-  FieldMessages,
-} from "@/app/(dashboard)/review/[id]/escalation-dialog-parts";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { ESCALATION_NOTE_MAX } from "@/lib/intake/escalation";
+  EscalationFormDialog,
+  NoteField,
+  useEscalationAction,
+} from "@/app/(dashboard)/review/[id]/dialog-parts";
+import { escalateRequestAction } from "@/app/(dashboard)/review/[id]/escalation-actions";
 
 /**
  * "Escalar a coordinación" (RF-10 a, RN-20, RNF-12). Nothing is sent until the
@@ -59,10 +41,8 @@ export function EscalateDialog({
 function EscalateForm({ solicitudId }: { solicitudId: number }) {
   const t = useTranslations("review.escalation");
   const ids = useId();
-  const [open, setOpen] = useState(false);
   const [nota, setNota] = useState("");
-  const [failure, setFailure] = useState<EscalationActionFailure | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { failure, setFailure, pending, run } = useEscalationAction();
 
   const noteMessages =
     failure?.reason === "invalid"
@@ -81,109 +61,26 @@ function EscalateForm({ solicitudId }: { solicitudId: number }) {
             ? t("errors.motivo_invalid")
             : null
           : t(`errors.${failure.reason}`);
-  const backToQueue =
-    failure?.reason === "conflict" || failure?.reason === "not_found";
-
-  function confirm() {
-    setFailure(null);
-    startTransition(async () => {
-      const result = await escalateRequestAction({ solicitudId, nota });
-      // A success never resolves here: the action redirects.
-      if (result) setFailure(result);
-    });
-  }
 
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        if (pending) return;
-        setOpen(next);
-        if (!next) {
-          setNota("");
-          setFailure(null);
-        }
+    <EscalationFormDialog
+      copy={t}
+      failure={failure}
+      banner={banner}
+      pending={pending}
+      onConfirm={() => run(() => escalateRequestAction({ solicitudId, nota }))}
+      onDiscard={() => {
+        setNota("");
+        setFailure(null);
       }}
     >
-      <AlertDialogTrigger
-        render={
-          <Button
-            type="button"
-            size="lg"
-            variant="outline"
-            className="w-full sm:w-auto"
-          />
-        }
-      >
-        {t("dialog.trigger")}
-      </AlertDialogTrigger>
-      <AlertDialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto">
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t("dialog.title")}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t("dialog.description")}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-
-        {banner ? (
-          <div role="alert" className={DIALOG_ALERT}>
-            <p>{banner}</p>
-            {backToQueue ? (
-              <Link
-                href="/review"
-                prefetch={false}
-                className="text-primary w-fit font-medium underline underline-offset-4"
-              >
-                {t("dialog.backToQueue")}
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${ids}-note`}>{t("dialog.noteLabel")}</Label>
-          <textarea
-            id={`${ids}-note`}
-            value={nota}
-            onChange={(event) => setNota(event.target.value)}
-            aria-invalid={noteMessages.length > 0 || undefined}
-            aria-describedby={
-              noteMessages.length > 0 ? `${ids}-note-error` : `${ids}-note-hint`
-            }
-            className={DIALOG_TEXTAREA}
-          />
-          <div className="flex items-start justify-between gap-3">
-            <p
-              id={`${ids}-note-hint`}
-              className="text-muted-foreground text-xs"
-            >
-              {t("dialog.noteHint")}
-            </p>
-            <p
-              className={
-                nota.length > ESCALATION_NOTE_MAX
-                  ? "text-destructive-ink text-xs tabular-nums"
-                  : "text-muted-foreground text-xs tabular-nums"
-              }
-            >
-              {t("dialog.counter", { count: nota.length })}
-            </p>
-          </div>
-          <FieldMessages id={`${ids}-note-error`} messages={noteMessages} />
-        </div>
-
-        <AlertDialogFooter>
-          <AlertDialogCancel
-            disabled={pending}
-            render={<Button variant="ghost" size="lg" />}
-          >
-            {t("dialog.cancel")}
-          </AlertDialogCancel>
-          <AlertDialogAction size="lg" disabled={pending} onClick={confirm}>
-            {pending ? t("dialog.pending") : t("dialog.confirm")}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <NoteField
+        id={`${ids}-note`}
+        copy={t}
+        value={nota}
+        onChange={setNota}
+        messages={noteMessages}
+      />
+    </EscalationFormDialog>
   );
 }
