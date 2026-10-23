@@ -74,3 +74,17 @@ equipo), `resuelta` (cubierta por un change).
 - **Esperado:** un panel de estado que nombre el estado actual y las acciones
   disponibles, o que diga que no queda ninguna.
 - **Requisitos:** RF-07 (a), RN-16; spec `request-review`.
+
+### UX-06. Aviso suave por una fecha de reporte anterior a la aprobación
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S1), 2026-10-23.
+- **Pantalla:** diálogo de reporte de exceso de inasistencias en el detalle de
+  la solicitud aprobada (`/review/[id]`).
+- **Hoy:** la fecha en que el docente comunicó el exceso solo rechaza un día
+  futuro. Una fecha anterior a la aprobación se guarda sin aviso, aunque sea un
+  error de tipeo (por ejemplo, el año).
+- **Esperado:** un aviso que no bloquee, del tipo «La fecha es anterior a la
+  aprobación de la solicitud. ¿Es correcta?», y que la secretaría pueda
+  confirmar igual. El registro del reporte no cambia (RF-15).
+- **Requisitos:** RF-15 (a); spec `coordination-escalation`.
