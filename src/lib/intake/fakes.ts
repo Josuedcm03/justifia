@@ -1,5 +1,11 @@
 import { permissiveSchedule } from "@/lib/intake/adapters/permissive-schedule";
-import type { DocumentStore, GroupScheduleProvider } from "@/lib/intake/ports";
+import type {
+  DocumentStore,
+  GroupScheduleProvider,
+  MailMessage,
+  MailResult,
+  MailSender,
+} from "@/lib/intake/ports";
 
 // Test doubles for the intake ports. No `server-only`, no network: importable
 // from any test. Not used by production code.
@@ -45,9 +51,50 @@ export function createFakeDocumentStore(): FakeDocumentStore {
   };
 }
 
+export type FakeMailFailure = Extract<MailResult, { ok: false }>["code"];
+
+export type FakeMailSender = MailSender & {
+  /** Messages the provider accepted, once per idempotency key. */
+  readonly sent: readonly MailMessage[];
+  /** Every `send` call, accepted or not. */
+  readonly calls: readonly MailMessage[];
+  /** Fail every following send with this code; `null` clears it. */
+  failWith(code: FakeMailFailure | null): void;
+};
+
+export function createFakeMailSender(): FakeMailSender {
+  const sent: MailMessage[] = [];
+  const calls: MailMessage[] = [];
+  const byKey = new Map<string, string>();
+  let failure: FakeMailFailure | null = null;
+
+  return {
+    sent,
+    calls,
+    failWith(code) {
+      failure = code;
+    },
+    async send(message) {
+      calls.push(message);
+      if (failure) return { ok: false, code: failure };
+      const known = byKey.get(message.idempotencyKey);
+      if (known) return { ok: true, providerId: known };
+      const providerId = `fake-${byKey.size + 1}`;
+      byKey.set(message.idempotencyKey, providerId);
+      sent.push(message);
+      return { ok: true, providerId };
+    },
+  };
+}
+
 export function createFakeIntakeDeps(): {
   store: FakeDocumentStore;
   schedule: GroupScheduleProvider;
+  mail: FakeMailSender;
 } {
-  return { store: createFakeDocumentStore(), schedule: permissiveSchedule };
+  return {
+    store: createFakeDocumentStore(),
+    schedule: permissiveSchedule,
+    mail: createFakeMailSender(),
+  };
 }

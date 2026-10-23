@@ -35,7 +35,8 @@ import {
 // re-applied, and no `borrador` exists at any point.
 //
 // No consent is asked here: a resubmission must not ask for it again, and a
-// request presented before consent existed stays correctable (RN-25). If RF-11
+// request presented before consent existed stays correctable (RN-25). The
+// consent columns are never read or written by a correction. If RF-11
 // extraction must rerun for documents added in a correction, this is the hook.
 
 export type CorrectionInput = {
@@ -81,7 +82,9 @@ export async function resubmitCorrection(
       validDocumentCount: valid,
     },
     managuaToday(now),
-    { filingWindow: false },
+    // Neither rule is re-applied: the window was met, and the consent given (or
+    // not recorded for a legacy request) at the first presentation stands.
+    { filingWindow: false, consent: false },
   );
   const errors: CorrectionError[] = [
     ...(validation.ok ? [] : validation.errors),

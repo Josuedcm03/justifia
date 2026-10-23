@@ -43,6 +43,8 @@ const ERROR_CODES = [
   "not_allowed",
   "too_many_documents",
   "upload_failed",
+  "consent_required",
+  "consent_outdated",
 ] as const;
 
 describe("intake messages", () => {
@@ -100,6 +102,38 @@ describe("intake messages", () => {
     ]) {
       expect(paths, path).toContain(path);
     }
+  });
+
+  // RC-5, RNF-12: each consent error states the correction the student makes.
+  it.each([
+    ["consent_required", "es", es, /marca la casilla/i],
+    ["consent_required", "en", en, /check the box/i],
+    ["consent_outdated", "es", es, /recarga la página.*texto actualizado/i],
+    ["consent_outdated", "en", en, /reload the page.*updated text/i],
+  ] as const)(
+    "%s in %s states what to do",
+    (code, _locale, catalog, correction) => {
+      const message = (catalog.intake?.errors as Record<string, string>)[code];
+      expect(message).toMatch(correction);
+    },
+  );
+
+  it("has the consent label with the notice link in both locales", () => {
+    for (const m of [es, en]) {
+      const label = m.intake?.review?.consent?.label;
+      expect(label).toMatch(/<link>[^<]+<\/link>/);
+    }
+  });
+
+  // Scenario "Translation keys present": the link tells a screen reader that it
+  // opens a new tab, in each locale.
+  it.each([
+    ["es", es, /pestaña nueva/i],
+    ["en", en, /new tab/i],
+  ] as const)("%s words the consent link's new-tab hint", (_l, m, hint) => {
+    const newTab = m.intake?.review?.consent?.newTab;
+    expect(newTab).toEqual(expect.any(String));
+    expect(newTab).toMatch(hint);
   });
 
   it("has the sidebar entry in both locales", () => {

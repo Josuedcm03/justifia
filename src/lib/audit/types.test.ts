@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake and seven review ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review and six remission ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -58,6 +58,12 @@ describe("AUDIT_ACTIONS", () => {
         "solicitud.consultada",
         "solicitud.cola.consultada",
         "documento.retirado",
+        "remision.creada",
+        "remision.enviada",
+        "remision.fallida",
+        "remision.bloqueada",
+        "remision.reenviada",
+        "documento.formato_especial",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([
@@ -77,6 +83,11 @@ describe("AuditEntityType", () => {
       "Grupo",
     ];
     expect(types).toHaveLength(4);
+  });
+
+  it("includes Remision for the remission events", () => {
+    const remision: AuditEntityType = "Remision";
+    expect(remision).toBe("Remision");
   });
 
   it("includes Facultad for the queue read event", () => {

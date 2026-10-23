@@ -20,6 +20,33 @@ export interface DocumentStore {
   stream(pathname: string): Promise<ReadableStream<Uint8Array> | null>;
 }
 
+export type MailAttachment = {
+  filename: string;
+  contentType: string;
+  content: Uint8Array;
+};
+
+export type MailMessage = {
+  to: string;
+  cc: readonly string[];
+  subject: string;
+  /** Plain text only: names are data, never markup (TR-9). */
+  text: string;
+  attachments: readonly MailAttachment[];
+  /** Same key + same payload = the provider sends once (TR-6). */
+  idempotencyKey: string;
+};
+
+/** Closed outcome: the provider's own error text never crosses the port. */
+export type MailResult =
+  | { ok: true; providerId: string }
+  | { ok: false; code: "not_configured" | "rejected" | "unavailable" };
+
+/** Outbound mail of the teacher remission (RF-09, TR-9). */
+export interface MailSender {
+  send(message: MailMessage): Promise<MailResult>;
+}
+
 export interface GroupScheduleProvider {
   /** Subset of `grupoIds` that has class on at least one date in the range. */
   groupsWithClass(

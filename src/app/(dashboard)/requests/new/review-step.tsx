@@ -12,6 +12,7 @@ import {
   FieldErrors,
   StepShell,
   errorsOf,
+  invalidProps,
 } from "@/app/(dashboard)/requests/new/form-field";
 import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
 import { ResubmitDialog } from "@/app/(dashboard)/requests/new/resubmit-dialog";
@@ -22,7 +23,10 @@ import {
 } from "@/app/(dashboard)/requests/new/steps";
 import { SubmitDialog } from "@/app/(dashboard)/requests/new/submit-dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import type { EnrollmentGroup } from "@/lib/data/enrollment";
+import { CONSENT_VERSION } from "@/lib/intake/consent";
 import type { FieldError } from "@/lib/validations/solicitud";
 
 type ReviewDraft = {
@@ -43,6 +47,7 @@ const SECTION_FIELDS = [
   "fechaFin",
   "subjects",
   "documents",
+  "consent",
 ];
 
 /** One read-only block of the review with its link back to the step (RF-01). */
@@ -111,6 +116,8 @@ export function ReviewStep({
   const format = useFormatter();
   const locale = useLocale();
   const [errors, setErrors] = useState<FieldError[]>([]);
+  // Never saved on the draft: every visit to this step starts unchecked (C6).
+  const [consented, setConsented] = useState(false);
 
   const date = (iso: string) =>
     format.dateTime(new Date(`${iso}T00:00:00Z`), {
@@ -120,6 +127,7 @@ export function ReviewStep({
   const basePath = flow?.basePath ?? FLOW_PATH;
   const notSet = t("review.notSet");
   const { causa, fechaInicio, fechaFin } = draft;
+  const consentErrors = errorsOf(errors, "consent");
 
   return (
     <StepShell
@@ -136,7 +144,10 @@ export function ReviewStep({
           ) : (
             <>
               <DiscardDialog onErrors={setErrors} />
-              <SubmitDialog onErrors={setErrors} />
+              <SubmitDialog
+                consentVersion={consented ? CONSENT_VERSION : null}
+                onErrors={setErrors}
+              />
             </>
           )}
         </>
@@ -246,6 +257,49 @@ export function ReviewStep({
           </ul>
         )}
       </Section>
+
+      {flow ? null : (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="review-consent"
+              checked={consented}
+              onChange={(event) => {
+                setConsented(event.target.checked);
+                if (event.target.checked) {
+                  setErrors((current) =>
+                    current.filter((error) => error.field !== "consent"),
+                  );
+                }
+              }}
+              {...invalidProps("review-consent", consentErrors)}
+            />
+            <Label
+              htmlFor="review-consent"
+              className="block min-h-11 min-w-0 flex-1 text-sm break-words"
+            >
+              {t.rich("review.consent.label", {
+                // An interactive descendant of a label does not toggle its
+                // control, and the new tab keeps this step and its checkbox.
+                link: (chunks) => (
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-4"
+                  >
+                    {chunks}{" "}
+                    <span className="sr-only">
+                      {t("review.consent.newTab")}
+                    </span>
+                  </a>
+                ),
+              })}
+            </Label>
+          </div>
+          <FieldErrors id="review-consent" errors={consentErrors} />
+        </div>
+      )}
 
       <FieldErrors
         id="review-form"

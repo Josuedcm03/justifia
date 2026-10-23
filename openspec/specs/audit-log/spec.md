@@ -379,7 +379,9 @@ affected record's id: `solicitud.presentada` to `Solicitud`;
 MUST use entity type `Solicitud` with the draft's id. There is no event for
 draft creation, autosave, discard, expiry, or orphan cleanup (D14).
 Events MUST be built only through the central builders. Existing events and
-payloads MUST be unchanged; no schema change to the audit log is required.
+payloads MUST be unchanged, except that the `solicitud.presentada` payload
+carries `consentimientoVersion` (see "Request and document payloads minimise
+personal data"); no schema change to the audit log is required.
 
 #### Scenario: Action to entity type (table-driven)
 
@@ -520,19 +522,34 @@ minimisation rules.
 - WHEN the audit log is read
 - THEN two rows exist with the secretary as actor and modes `ver` and `descarga`
 
-### Requirement: Request and document payloads minimise personal data (RNF-02, RN-02)
+### Requirement: Request and document payloads minimise personal data (RNF-02, RN-02, RN-25)
 
 Payloads MUST be structured and identify records by stable ids. They MAY carry
 counts (subjects, documents), the detected content type, size, and for
-`documento.rechazado` the rejection reason code. They MUST NOT carry the
-cause, dates, student name, CIF, email, career, file name, file content, or
-storage location or URL, nor any credential.
+`documento.rechazado` the rejection reason code. The `solicitud.presentada`
+payload MUST also carry `consentimientoVersion`, the consent version stored on
+the request in the same transaction. They MUST NOT carry the cause, dates,
+student name, CIF, email, career, file name, file content, or storage location
+or URL, nor any credential, nor the consent text or the consent timestamp.
 
 #### Scenario: Submit payload
 
 - GIVEN a submitted request
 - WHEN the `solicitud.presentada` payload is serialized and searched
 - THEN it contains no cause, date, name, CIF, email, or career value
+
+#### Scenario: Consent version in the payload
+
+- GIVEN a request submitted with consent version `2026-10-20`
+- WHEN the `solicitud.presentada` payload is read
+- THEN `consentimientoVersion` equals the version stored on the request
+- AND the payload contains no consent text and no consent timestamp
+
+#### Scenario: Blocked submit adds no consent audit
+
+- GIVEN a submit refused with `consent_required` or `consent_outdated`
+- WHEN the audit log is read
+- THEN no row was added
 
 #### Scenario: Rejection payload
 
@@ -545,7 +562,6 @@ storage location or URL, nor any credential.
 - GIVEN all events from one intake flow
 - WHEN every payload is searched for store URLs, tokens, or hash patterns
 - THEN none is found
-
 ### Requirement: Closed set of review events (RF-07, RF-08, RNF-06 a)
 
 The audit actions MUST gain exactly these seven: `solicitud.aprobada`,
@@ -701,6 +717,81 @@ file name, or the list of request ids of the queue, nor any credential.
 - GIVEN a staff attachment download
 - WHEN its `documento.descargado` payload is read
 - THEN it carries mode `descarga`
+
+### Requirement: Closed set of remission events
+
+The audit actions MUST gain exactly these six: `remision.creada`,
+`remision.enviada`, `remision.fallida`, `remision.bloqueada`,
+`remision.reenviada`, `documento.formato_especial`. The entity types MUST gain
+`Remision` (entity id is the remission id); `documento.formato_especial` is
+recorded against the uploaded document (existing entity type `DocumentoRespaldo`,
+the document id) once per valid upload, in the upload's transaction. A refused
+staff upload MUST reuse the existing `documento.rechazado` event with its
+existing payload shape. `remision.creada` MUST be written in the approval transaction,
+one per remission. `remision.enviada` MUST be written when a send succeeds,
+`remision.fallida` when it fails, `remision.bloqueada` when a blocker is
+detected, and `remision.reenviada` when a secretary triggers a resend. Events
+MUST be built only through the central builders. Existing events and payloads
+MUST be unchanged.
+
+#### Scenario: Approval events
+- GIVEN an approval creating two remissions
+- WHEN the audit rows are read
+- THEN one `solicitud.aprobada` and two `remision.creada` exist, committed together
+
+#### Scenario: Send outcomes (table-driven)
+
+| Outcome | Row |
+|---|---|
+| send succeeds | `remision.enviada` |
+| provider error | `remision.fallida` |
+| missing email, missing format, size over limit | `remision.bloqueada` |
+| secretary resend | `remision.reenviada` |
+
+- GIVEN the outcome in the row
+- WHEN it completes
+- THEN the row shown exists with entity type `Remision`
+
+#### Scenario: Format upload audited
+- GIVEN a secretary uploading a valid special-format file
+- WHEN the upload succeeds
+- THEN one `documento.formato_especial` row exists for the document with the secretary as actor
+- AND its payload holds only the request id, file type code, size in bytes and the count of unblocked remissions, no file name, name or email
+
+#### Scenario: Refused format audited
+- GIVEN a secretary uploading a file whose real format or size is refused
+- WHEN the upload is refused
+- THEN one `documento.rechazado` row exists with the request id and reason code, and no `documento.formato_especial` row
+
+#### Scenario: No row without an attempt
+- GIVEN a denied, out-of-scope or `already_attached` resend or upload, or a retry that finds only `enviada` remissions
+- WHEN processed
+- THEN no audit row is written
+
+### Requirement: Remission and format-upload payloads are code-only
+
+Remission and `documento.formato_especial` payloads MUST be structured,
+identify records by ids, and MAY carry the reason code, attachment count, file
+type code, size in bytes, unblocked-remission count and the request id. They MUST NOT carry email
+addresses, teacher or student names, CIF, cause, message text, file names,
+provider response bodies, storage locations, or any credential.
+
+#### Scenario: Leak check
+- GIVEN all remission events of one approval, including a failed send whose provider error contains an email
+- WHEN every payload is serialized and searched
+- THEN no email, name, cause, file name, URL or token is found
+
+### Requirement: Actor of remission events
+
+Events from a secretary action (approval, resend, format upload) MUST carry the session user
+as actor. Events from the scheduled retry have no human session and MUST be
+attributed to the approving secretary of the request; the actor MUST never come
+from request input.
+
+#### Scenario: Scheduled retry actor
+- GIVEN a pending remission retried by the scheduled job
+- WHEN its audit row is read
+- THEN the actor is the secretary who approved the request
 
 ## Assumptions and open questions
 

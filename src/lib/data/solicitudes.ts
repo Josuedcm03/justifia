@@ -300,6 +300,12 @@ export type SubmitInput = {
   fechaInicio: string;
   fechaFin: string;
   grupoIds: readonly number[];
+  /**
+   * The consent version stored with the presentation (RC-6). Required: the
+   * caller has already validated that the client showed it, so a new caller
+   * cannot present a request without stating which consent it carries.
+   */
+  consentimientoVersion: string;
 };
 
 export type SubmitOutcome =
@@ -309,8 +315,8 @@ class SubmitConflict extends Error {}
 
 /**
  * Submit a validated draft (RN-02, RN-06, D9): in ONE transaction snapshot the
- * student's account, move `borrador` to `pendiente` at the server time and write
- * `solicitud.presentada`. The update is guarded by owner, state, liveness and
+ * student's account, move `borrador` to `pendiente` at the server time, record
+ * the consent (same instant, RC-6) and write `solicitud.presentada`. The update is guarded by owner, state, liveness and
  * the validated values, so a double submit or an edit between validation and
  * here changes nothing. After the update locks the row the stored groups and
  * documents are re-checked; any drift rolls the whole transaction back.
@@ -344,6 +350,10 @@ export async function submitDraft(input: SubmitInput): Promise<SubmitOutcome> {
           estudianteCif: account.cif,
           estudianteCorreo: account.correo,
           estudianteCarrera: account.carrera,
+          // Same instant as `presentadaEn` (CK_Solicitud_ConsentimientoFecha),
+          // inside this transaction: a conflict or drift rolls both back.
+          consentimientoEn: now,
+          consentimientoVersion: input.consentimientoVersion,
         })
         .where(
           and(
@@ -385,6 +395,7 @@ export async function submitDraft(input: SubmitInput): Promise<SubmitOutcome> {
           solicitudId,
           asignaturas: stored.length,
           documentos: documents.n,
+          consentimientoVersion: input.consentimientoVersion,
         }),
       ]);
       return { ok: true };

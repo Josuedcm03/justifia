@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
@@ -100,15 +101,20 @@ function Fieldset({
  * edits the text, and the server validates everything again. A success
  * redirects (the action rejects with a redirect that Next handles), so this
  * component only ever receives refusals. Reject is the destructive path:
- * secondary trigger, destructive confirm (docs/design-system.md §5).
+ * secondary trigger, destructive confirm (docs/design-system.md §5). An
+ * approval for force majeure can also be marked as needing the special format
+ * (RN-19); the format itself is uploaded from the detail afterwards, never here.
  */
 export function DecisionDialog({
   kind,
   solicitudId,
+  causa = null,
   templates,
 }: {
   kind: DecisionKind;
   solicitudId: number;
+  /** Cause of the request; only `fuerza_mayor` offers the RN-19 mark. */
+  causa?: string | null;
   templates: readonly DialogTemplate[];
 }) {
   const t = useTranslations("review.decision");
@@ -129,6 +135,8 @@ export function DecisionDialog({
 
   const [open, setOpen] = useState(false);
   const [{ choice, texto }, setDraft] = useState(fresh);
+  const [marked, setMarked] = useState(false);
+  const offersMark = kind === "aprobada" && causa === "fuerza_mayor";
   const [failure, setFailure] = useState<DecideFailure | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -170,6 +178,7 @@ export function DecisionDialog({
         plantilla: selected?.codigo ?? templates[0]?.codigo ?? "",
         motivo: isReturn ? choice || null : null,
         texto,
+        ...(offersMark && marked ? { formatoEspecial: true } : {}),
       });
       // A success never resolves here: the action redirects.
       if (result) setFailure(result);
@@ -184,6 +193,7 @@ export function DecisionDialog({
         setOpen(next);
         if (!next) {
           setDraft(fresh());
+          setMarked(false);
           setFailure(null);
         }
       }}
@@ -281,6 +291,25 @@ export function DecisionDialog({
           </div>
           <FieldAlert id={`${ids}-text-error`} codes={textCodes} />
         </div>
+
+        {offersMark ? (
+          <div className="flex flex-col gap-1">
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <Checkbox
+                checked={marked}
+                onChange={(event) => setMarked(event.target.checked)}
+                aria-describedby={`${ids}-mark-hint`}
+              />
+              {t("approve.specialFormat.label")}
+            </label>
+            <p
+              id={`${ids}-mark-hint`}
+              className="text-muted-foreground text-xs"
+            >
+              {t("approve.specialFormat.hint")}
+            </p>
+          </div>
+        ) : null}
 
         <AlertDialogFooter>
           <AlertDialogCancel

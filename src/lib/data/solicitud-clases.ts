@@ -5,6 +5,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import type { db } from "@/db";
 import { asignatura, grupo, solicitudAsignatura, usuario } from "@/db/schema";
 import type { Transaction } from "@/lib/data/audit";
+import type { RequestTeacher } from "@/lib/remission/recipients";
 
 /**
  * One class of a request as the review screens and the revision snapshot show
@@ -68,4 +69,51 @@ export async function listRequestClasses(
     byRequest.set(r.solicitudId, list);
   }
   return byRequest;
+}
+
+/**
+ * The teachers of one request with their own groups (teacher-remission, TR-4),
+ * read on the approval transaction so the snapshot is the state at approval.
+ * Same joins and order as `listRequestClasses`; a group whose teacher cannot
+ * be identified comes back with a null `docenteId` (it yields no remission).
+ * Teachers keep the order of their first group.
+ */
+export async function listRequestTeachers(
+  q: Db | Transaction,
+  solicitudId: number,
+): Promise<RequestTeacher[]> {
+  const rows = await q
+    .select({
+      docenteId: grupo.docenteId,
+      docenteNombre: usuario.nombreCompleto,
+      docenteCorreo: usuario.correo,
+      asignaturaId: asignatura.id,
+      codigo: asignatura.codigo,
+      nombre: asignatura.nombre,
+      numeroGrupo: grupo.numeroGrupo,
+    })
+    .from(solicitudAsignatura)
+    .innerJoin(grupo, eq(grupo.id, solicitudAsignatura.grupoId))
+    .innerJoin(asignatura, eq(asignatura.id, grupo.asignaturaId))
+    .leftJoin(usuario, eq(usuario.id, grupo.docenteId))
+    .where(eq(solicitudAsignatura.solicitudId, solicitudId))
+    .orderBy(asc(asignatura.codigo), asc(grupo.numeroGrupo));
+
+  const teachers = new Map<number | null, RequestTeacher>();
+  for (const r of rows) {
+    const teacher = teachers.get(r.docenteId) ?? {
+      docenteId: r.docenteId,
+      nombre: r.docenteNombre,
+      correo: r.docenteCorreo,
+      clases: [],
+    };
+    teacher.clases.push({
+      asignaturaId: r.asignaturaId,
+      codigo: r.codigo,
+      nombre: r.nombre,
+      numeroGrupo: r.numeroGrupo,
+    });
+    teachers.set(r.docenteId, teacher);
+  }
+  return [...teachers.values()];
 }

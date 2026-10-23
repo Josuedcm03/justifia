@@ -1,5 +1,10 @@
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
+import type {
+  RemissionReason,
+  RemissionState,
+  RemissionTrigger,
+} from "@/lib/remission/states";
 import type { EntityCounts, EntityName } from "@/lib/import/types";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -23,6 +28,12 @@ export const AUDIT_ACTIONS = [
   "solicitud.consultada",
   "solicitud.cola.consultada",
   "documento.retirado",
+  "remision.creada",
+  "remision.enviada",
+  "remision.fallida",
+  "remision.bloqueada",
+  "remision.reenviada",
+  "documento.formato_especial",
   "asignatura.creada",
   "asignatura.actualizada",
   "asignatura.desactivada",
@@ -42,7 +53,8 @@ export type AuditEntityType =
   | "DocumentoRespaldo"
   | "Facultad"
   | "Asignatura"
-  | "Grupo";
+  | "Grupo"
+  | "Remision";
 
 /** Closed list. A field not named here can never be reported as changed.
  *  `login` and `hashClave` are ABSENT on purpose: `hashClave` is a
@@ -79,8 +91,15 @@ type UserChangedPayload = {
   importacionSha256: string;
 };
 
-/** Counts only: no cause, dates or student data (RNF-02, RN-02). */
-type RequestSubmittedPayload = { asignaturas: number; documentos: number };
+/**
+ * Counts and the consent version code: no cause, dates or student data
+ * (RNF-02, RN-02), and neither the consent text nor its instant (RC-7).
+ */
+type RequestSubmittedPayload = {
+  asignaturas: number;
+  documentos: number;
+  consentimientoVersion: string;
+};
 
 /** Reason codes of a rejected finalize (supporting-documents). */
 export type DocumentRejectionReason =
@@ -138,6 +157,52 @@ type RequestReadPayload = { estado: EstadoSolicitud };
 type QueueReadPayload = { total: number };
 
 type DocumentRetiredPayload = { solicitudId: number };
+
+/** Remission events (teacher-remission, TR-13). Ids, closed codes and counts
+ *  only: no email, name, CIF, cause, dates, file name, pathname, provider id
+ *  or message text (RNF-06, RNF-02). */
+type RemissionCreatedPayload = {
+  solicitudId: number;
+  estado: RemissionState;
+  /** Present only when the remission is born blocked. */
+  motivo?: RemissionReason;
+};
+
+type RemissionSentPayload = {
+  solicitudId: number;
+  origen: RemissionTrigger;
+  intentos: number;
+  adjuntos: number;
+};
+
+/** Closed reason a send failed; never the provider's own message. */
+export type RemissionFailureCode =
+  "not_configured" | "rejected" | "unavailable" | "documento_no_disponible";
+
+type RemissionFailedPayload = {
+  solicitudId: number;
+  origen: RemissionTrigger;
+  intentos: number;
+  codigo: RemissionFailureCode;
+};
+
+type RemissionBlockedPayload = {
+  solicitudId: number;
+  origen: RemissionTrigger;
+  motivo: RemissionReason;
+};
+
+type RemissionResentPayload = {
+  solicitudId: number;
+  estadoPrevio: RemissionState;
+};
+
+type SpecialFormatPayload = {
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+  tamanoBytes: number;
+  remisionesDesbloqueadas: number;
+};
 
 /** Closed lists for the manual catalog events. A field not named here can
  *  never be reported as changed (AL-PAY). */
@@ -253,6 +318,42 @@ export type AuditEvent =
       entidadTipo: "DocumentoRespaldo";
       entidadId: number;
       datos: DocumentRetiredPayload;
+    }
+  | {
+      accion: "remision.creada";
+      entidadTipo: "Remision";
+      entidadId: number;
+      datos: RemissionCreatedPayload;
+    }
+  | {
+      accion: "remision.enviada";
+      entidadTipo: "Remision";
+      entidadId: number;
+      datos: RemissionSentPayload;
+    }
+  | {
+      accion: "remision.fallida";
+      entidadTipo: "Remision";
+      entidadId: number;
+      datos: RemissionFailedPayload;
+    }
+  | {
+      accion: "remision.bloqueada";
+      entidadTipo: "Remision";
+      entidadId: number;
+      datos: RemissionBlockedPayload;
+    }
+  | {
+      accion: "remision.reenviada";
+      entidadTipo: "Remision";
+      entidadId: number;
+      datos: RemissionResentPayload;
+    }
+  | {
+      accion: "documento.formato_especial";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: SpecialFormatPayload;
     }
   | {
       accion:

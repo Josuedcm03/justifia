@@ -367,6 +367,7 @@ describe("solicitudes data layer (drafts)", () => {
       fechaInicio: "2026-10-01",
       fechaFin: "2026-10-03",
       grupoIds: [21, 30],
+      consentimientoVersion: "2026-10-20",
     };
     const snapshot = {
       nombre: "Ana Perez",
@@ -396,6 +397,8 @@ describe("solicitudes data layer (drafts)", () => {
         estudianteCif: "20240001",
         estudianteCorreo: "ana@uam.edu.ni",
         estudianteCarrera: "Ingenieria",
+        consentimientoEn: NOW,
+        consentimientoVersion: "2026-10-20",
       });
       expect(insertAuditMock).toHaveBeenCalledTimes(1);
       const [, actor, events] = insertAuditMock.mock.calls[0];
@@ -405,9 +408,74 @@ describe("solicitudes data layer (drafts)", () => {
           accion: "solicitud.presentada",
           entidadTipo: "Solicitud",
           entidadId: DRAFT,
-          datos: { asignaturas: 2, documentos: 2 },
+          datos: {
+            asignaturas: 2,
+            documentos: 2,
+            consentimientoVersion: "2026-10-20",
+          },
         },
       ]);
+    });
+
+    it("stamps the consent with the same instant as the presentation, never a second clock (RC-6)", async () => {
+      const double = use(happy());
+
+      await submitDraft(input);
+
+      const set = double.log.find((s) => s.kind === "update")!.set as Record<
+        string,
+        unknown
+      >;
+      expect(set.consentimientoEn).toBe(set.presentadaEn);
+      expect(set.consentimientoEn).toBe(NOW);
+    });
+
+    it("stores and audits the version it is handed, not a fixed one", async () => {
+      const double = use(happy());
+
+      await submitDraft({ ...input, consentimientoVersion: "2027-03-01" });
+
+      const set = double.log.find((s) => s.kind === "update")!.set as Record<
+        string,
+        unknown
+      >;
+      expect(set.consentimientoVersion).toBe("2027-03-01");
+      const [, , events] = insertAuditMock.mock.calls[0];
+      expect(events[0].datos).toMatchObject({
+        consentimientoVersion: "2027-03-01",
+      });
+    });
+
+    it("writes the consent inside the submit transaction, so a guard conflict leaves none", async () => {
+      const double = use([
+        { kind: "select", rows: [snapshot] },
+        { kind: "update", rows: [] },
+      ]);
+
+      await submitDraft(input);
+
+      const update = double.log.find((s) => s.kind === "update")!;
+      expect(update.inTransaction).toBe(true);
+      expect(double.transactions).toBe(1);
+      expect(insertAuditMock).not.toHaveBeenCalled();
+    });
+
+    it("rolls the consent back with the presentation when drift is found after the update", async () => {
+      const double = use([
+        { kind: "select", rows: [snapshot] },
+        { kind: "update", rows: [{ id: DRAFT }] },
+        { kind: "select", rows: [{ grupoId: 21 }, { grupoId: 99 }] },
+      ]);
+
+      expect(await submitDraft(input)).toEqual({
+        ok: false,
+        reason: "conflict",
+      });
+
+      const update = double.log.find((s) => s.kind === "update")!;
+      expect(update.set).toMatchObject({ consentimientoVersion: "2026-10-20" });
+      expect(update.inTransaction).toBe(true);
+      expect(insertAuditMock).not.toHaveBeenCalled();
     });
 
     it("guards the update with owner, borrador, liveness and the validated values", async () => {

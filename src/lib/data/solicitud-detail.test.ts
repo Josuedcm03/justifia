@@ -39,6 +39,9 @@ const requestRow = {
   estudianteCif: "2020-001",
   estudianteCarrera: "Ingenieria",
   estudianteCorreo: "ana@example.test",
+  formatoEspecial: false,
+  consentimientoEn: new Date("2026-10-05T15:59:30.000Z"),
+  consentimientoVersion: "2026-10-20",
 };
 
 const classRow = {
@@ -57,6 +60,7 @@ function document(overrides: Record<string, unknown> = {}) {
     tipoDetectado: "pdf",
     tamanoBytes: 2048,
     retiradoEn: null,
+    formatoEspecial: false,
     creadoEn: new Date("2026-10-04T10:00:00.000Z"),
     ...overrides,
   };
@@ -168,6 +172,72 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
     expect(detail?.revisiones).toEqual([revisionRow]);
   });
 
+  describe("recorded consent (RC-9, RF-01 d, RN-25)", () => {
+    const legacyRow = {
+      ...requestRow,
+      consentimientoEn: null,
+      consentimientoVersion: null,
+    };
+
+    function withRequestRow(row: unknown): Step[] {
+      const [, ...rest] = loaded();
+      return [{ kind: "select", rows: [row] }, ...rest];
+    }
+
+    it("returns the version and the instant of a recorded consent", async () => {
+      use(loaded());
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.consentimiento).toEqual({
+        version: "2026-10-20",
+        en: new Date("2026-10-05T15:59:30.000Z"),
+      });
+    });
+
+    it("returns null for a legacy request presented before consent existed", async () => {
+      use(withRequestRow(legacyRow));
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail).not.toBeNull();
+      expect(detail?.consentimiento).toBeNull();
+    });
+
+    it("never invents a consent from half a pair", async () => {
+      use(
+        withRequestRow({ ...legacyRow, consentimientoVersion: "2026-10-20" }),
+      );
+      expect((await getRequestDetail(SCOPE, ID))?.consentimiento).toBeNull();
+
+      use(
+        withRequestRow({
+          ...legacyRow,
+          consentimientoEn: new Date("2026-10-05T15:59:30.000Z"),
+        }),
+      );
+      expect((await getRequestDetail(SCOPE, ID))?.consentimiento).toBeNull();
+    });
+
+    it("keeps the original consent after a correction and resubmission", async () => {
+      use(
+        withRequestRow({
+          ...requestRow,
+          estado: "pendiente",
+          reenviadaEn: new Date("2026-10-12T16:00:00.000Z"),
+        }),
+      );
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.reenviadaEn).toEqual(new Date("2026-10-12T16:00:00.000Z"));
+      expect(detail?.consentimiento).toEqual({
+        version: "2026-10-20",
+        en: new Date("2026-10-05T15:59:30.000Z"),
+      });
+    });
+  });
+
   it("splits current documents from the ones retired by a correction", async () => {
     use(loaded());
 
@@ -192,6 +262,57 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
       "tamanoBytes",
       "tipoDetectado",
     ]);
+  });
+
+  it("shows the special format apart from the student's documents (RN-19)", async () => {
+    const [, classes, , decisions, revisions] = loaded();
+    use([
+      {
+        kind: "select",
+        rows: [
+          {
+            ...(requestRow as object),
+            estado: "aprobada",
+            formatoEspecial: true,
+          },
+        ],
+      },
+      classes,
+      {
+        kind: "select",
+        rows: [
+          document(),
+          document({
+            id: 30,
+            nombreOriginal: "formato.pdf",
+            formatoEspecial: true,
+          }),
+        ],
+      },
+      decisions,
+      revisions,
+    ]);
+
+    const detail = await getRequestDetail(SCOPE, ID);
+
+    expect(detail?.formatoEspecial).toBe(true);
+    expect(detail?.documentos.map((d) => d.id)).toEqual([11]);
+    expect(detail?.formato).toEqual({
+      id: 30,
+      nombreOriginal: "formato.pdf",
+      tipoDetectado: "pdf",
+      tamanoBytes: 2048,
+      creadoEn: new Date("2026-10-04T10:00:00.000Z"),
+    });
+  });
+
+  it("has no format and is not marked for an ordinary request", async () => {
+    use(loaded());
+
+    const detail = await getRequestDetail(SCOPE, ID);
+
+    expect(detail?.formatoEspecial).toBe(false);
+    expect(detail?.formato).toBeNull();
   });
 
   it("looks the request up by id inside the scope and the visible states", async () => {

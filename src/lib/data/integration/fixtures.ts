@@ -9,6 +9,7 @@ import {
   documentoRespaldo,
   facultad,
   grupo,
+  remision,
   rol,
   solicitud,
   solicitudAsignatura,
@@ -139,8 +140,11 @@ export function createFixtures() {
       return { id: row.id, facultadId };
     },
 
-    /** A group (with its subject and teacher) a draft can point at. */
-    async addGroup(): Promise<number> {
+    /**
+     * A group (with its subject and teacher) a draft can point at. Pass the
+     * teacher's `correo` for a remission that can be sent (teacher-remission).
+     */
+    async addGroup(options: { correo?: string } = {}): Promise<number> {
       const tag = next();
       const [docente] = await db
         .insert(usuario)
@@ -149,6 +153,7 @@ export function createFixtures() {
           hashClave: "integration-not-a-real-hash",
           rolId: await ensureRole("docente", "Docente"),
           nombreCompleto: `IT Docente ${tag}`,
+          ...(options.correo ? { correo: options.correo } : {}),
         })
         .returning({ id: usuario.id });
       docenteIds.push(docente.id);
@@ -197,16 +202,18 @@ export function createFixtures() {
         .values({ solicitudId: draftId, grupoId: group });
     },
 
-    /** A finalized (`valido`) document row. */
-    async addValidDocument(draftId: number): Promise<void> {
+    /** A finalized (`valido`) document row; returns its pathname. */
+    async addValidDocument(draftId: number): Promise<string> {
+      const pathname = buildPathname(draftId, randomUUID(), "pdf");
       await db.insert(documentoRespaldo).values({
         solicitudId: draftId,
-        pathname: buildPathname(draftId, randomUUID(), "pdf"),
+        pathname,
         nombreOriginal: "constancia.pdf",
         tipoDetectado: "pdf",
         tamanoBytes: PDF_BYTES.length,
         estado: "valido",
       });
+      return pathname;
     },
 
     /** Delete everything created above, children first. */
@@ -221,6 +228,9 @@ export function createFixtures() {
           .where(inArray(solicitud.estudianteId, owners));
         const requestIds = requests.map((r) => r.id);
         if (requestIds.length > 0) {
+          await db
+            .delete(remision)
+            .where(inArray(remision.solicitudId, requestIds));
           await db
             .delete(solicitudDecision)
             .where(inArray(solicitudDecision.solicitudId, requestIds));

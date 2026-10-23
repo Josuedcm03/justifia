@@ -13,6 +13,11 @@ import type {
 import type { DecisionKind } from "@/lib/intake/decision-templates";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type { EstadoSolicitud } from "@/lib/intake/states";
+import type {
+  RemissionReason,
+  RemissionState,
+  RemissionTrigger,
+} from "@/lib/remission/states";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 import type { ImportSummary } from "../import/types";
@@ -29,6 +34,7 @@ import type {
   AuditOrigin,
   DocumentMode,
   DocumentRejectionReason,
+  RemissionFailureCode,
 } from "./types";
 
 export function importAppliedEvent(summary: ImportSummary): AuditEvent {
@@ -92,12 +98,18 @@ export function solicitudPresentadaEvent(args: {
   solicitudId: number;
   asignaturas: number;
   documentos: number;
+  /** The consent version stored with the presentation (RC-7): a code, not text. */
+  consentimientoVersion: string;
 }): AuditEvent {
   return {
     accion: "solicitud.presentada",
     entidadTipo: "Solicitud",
     entidadId: args.solicitudId,
-    datos: { asignaturas: args.asignaturas, documentos: args.documentos },
+    datos: {
+      asignaturas: args.asignaturas,
+      documentos: args.documentos,
+      consentimientoVersion: args.consentimientoVersion,
+    },
   };
 }
 
@@ -240,6 +252,123 @@ export function documentoRetiradoEvent(args: {
     entidadTipo: "DocumentoRespaldo",
     entidadId: args.documentoId,
     datos: { solicitudId: args.solicitudId },
+  };
+}
+
+/** A remission row was created in the approval transaction (TR-4). */
+export function remisionCreadaEvent(args: {
+  remisionId: number;
+  solicitudId: number;
+  estado: RemissionState;
+  motivo?: RemissionReason;
+}): AuditEvent {
+  return {
+    accion: "remision.creada",
+    entidadTipo: "Remision",
+    entidadId: args.remisionId,
+    datos: {
+      solicitudId: args.solicitudId,
+      estado: args.estado,
+      ...(args.motivo === undefined ? {} : { motivo: args.motivo }),
+    },
+  };
+}
+
+export function remisionEnviadaEvent(args: {
+  remisionId: number;
+  solicitudId: number;
+  origen: RemissionTrigger;
+  intentos: number;
+  adjuntos: number;
+}): AuditEvent {
+  return {
+    accion: "remision.enviada",
+    entidadTipo: "Remision",
+    entidadId: args.remisionId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      intentos: args.intentos,
+      adjuntos: args.adjuntos,
+    },
+  };
+}
+
+/** `codigo` is a closed code: the provider's own error text never reaches
+ *  the audit log (RNF-06). */
+export function remisionFallidaEvent(args: {
+  remisionId: number;
+  solicitudId: number;
+  origen: RemissionTrigger;
+  intentos: number;
+  codigo: RemissionFailureCode;
+}): AuditEvent {
+  return {
+    accion: "remision.fallida",
+    entidadTipo: "Remision",
+    entidadId: args.remisionId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      intentos: args.intentos,
+      codigo: args.codigo,
+    },
+  };
+}
+
+export function remisionBloqueadaEvent(args: {
+  remisionId: number;
+  solicitudId: number;
+  origen: RemissionTrigger;
+  motivo: RemissionReason;
+}): AuditEvent {
+  return {
+    accion: "remision.bloqueada",
+    entidadTipo: "Remision",
+    entidadId: args.remisionId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      motivo: args.motivo,
+    },
+  };
+}
+
+/** A secretary asked to resend a remission (state before the attempt). */
+export function remisionReenviadaEvent(args: {
+  remisionId: number;
+  solicitudId: number;
+  estadoPrevio: RemissionState;
+}): AuditEvent {
+  return {
+    accion: "remision.reenviada",
+    entidadTipo: "Remision",
+    entidadId: args.remisionId,
+    datos: {
+      solicitudId: args.solicitudId,
+      estadoPrevio: args.estadoPrevio,
+    },
+  };
+}
+
+/** A secretary attached the signed special format (RN-19, TR-15). */
+export function documentoFormatoEspecialEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+  tipo: "pdf" | "png" | "jpeg";
+  tamanoBytes: number;
+  remisionesDesbloqueadas: number;
+}): AuditEvent {
+  return {
+    accion: "documento.formato_especial",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      tipo: args.tipo,
+      tamanoBytes: args.tamanoBytes,
+      remisionesDesbloqueadas: args.remisionesDesbloqueadas,
+    },
   };
 }
 

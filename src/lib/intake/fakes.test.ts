@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { createFakeDocumentStore, createFakeIntakeDeps } from "./fakes";
+import type { MailMessage } from "./ports";
+import {
+  createFakeDocumentStore,
+  createFakeIntakeDeps,
+  createFakeMailSender,
+} from "./fakes";
 
 describe("createFakeDocumentStore", () => {
   it("serves seeded files: head, size, stream", async () => {
@@ -42,6 +47,68 @@ describe("createFakeDocumentStore", () => {
   });
 });
 
+function mail(overrides: Partial<MailMessage> = {}): MailMessage {
+  return {
+    to: "ana@uam.edu.ni",
+    cc: ["estudiante@uam.edu.ni"],
+    subject: "Asunto",
+    text: "Cuerpo",
+    attachments: [],
+    idempotencyKey: "remision-1-aaaa",
+    ...overrides,
+  };
+}
+
+describe("createFakeMailSender", () => {
+  it("records the delivered messages and returns a provider id", async () => {
+    const sender = createFakeMailSender();
+    const result = await sender.send(mail());
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.providerId).toMatch(/^fake-/);
+    expect(sender.sent).toEqual([mail()]);
+  });
+
+  it("dedupes by idempotency key: a replay delivers once and answers the same id", async () => {
+    const sender = createFakeMailSender();
+    const first = await sender.send(mail());
+    const replay = await sender.send(mail());
+    const other = await sender.send(
+      mail({ idempotencyKey: "remision-1-bbbb" }),
+    );
+
+    expect(replay).toEqual(first);
+    expect(sender.sent).toHaveLength(2);
+    expect(sender.calls).toHaveLength(3);
+    expect(other.ok && first.ok && other.providerId).not.toBe(
+      first.ok && first.providerId,
+    );
+  });
+
+  it("fails with a scripted code and delivers nothing", async () => {
+    const sender = createFakeMailSender();
+    sender.failWith("unavailable");
+
+    await expect(sender.send(mail())).resolves.toEqual({
+      ok: false,
+      code: "unavailable",
+    });
+    expect(sender.sent).toHaveLength(0);
+    expect(sender.calls).toHaveLength(1);
+  });
+
+  it("recovers once the scripted failure is cleared", async () => {
+    const sender = createFakeMailSender();
+    sender.failWith("rejected");
+    await sender.send(mail());
+    sender.failWith(null);
+
+    const result = await sender.send(mail());
+    expect(result.ok).toBe(true);
+    expect(sender.sent).toHaveLength(1);
+  });
+});
+
 describe("createFakeIntakeDeps", () => {
   it("pairs the fake store with an all-groups schedule", async () => {
     const deps = createFakeIntakeDeps();
@@ -51,5 +118,11 @@ describe("createFakeIntakeDeps", () => {
     });
     expect([...groups].sort()).toEqual([3, 4]);
     expect(deps.store.has("intake/1/a.pdf")).toBe(false);
+  });
+
+  it("includes a fake mail sender", async () => {
+    const deps = createFakeIntakeDeps();
+    await deps.mail.send(mail());
+    expect(deps.mail.sent).toHaveLength(1);
   });
 });

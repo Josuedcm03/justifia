@@ -8,7 +8,8 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "tagline": "Your academic absence requests, all in one place.",
-    "institution": "Universidad Americana - UAM"
+    "institution": "Universidad Americana - UAM",
+    "privacyNotice": "Privacy notice"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -724,6 +725,8 @@
       "group_required": "Choose the group for this subject.",
       "group_not_in_subject": "The chosen group does not belong to this subject.",
       "documents_required": "Attach at least one supporting document.",
+      "consent_required": "Check the box to give your consent and submit the request.",
+      "consent_outdated": "The consent text has changed. Reload the page, read the updated text and check the box again.",
       "no_draft": "We could not find your draft. Reload the page to start again.",
       "invalid_input": "Check the data you entered.",
       "dates_required": "Enter the absence dates first.",
@@ -757,6 +760,10 @@
         "description": "Once submitted you will not be able to change it.",
         "confirm": "Yes, submit",
         "pending": "Submitting…"
+      },
+      "consent": {
+        "label": "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, and that they be sent to the teachers of the affected subjects. <link>View privacy notice</link>",
+        "newTab": "(opens in a new tab)"
       },
       "discard": {
         "button": "Discard draft",
@@ -910,7 +917,11 @@
         "title": "Approve this request?",
         "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
         "confirm": "Approve request",
-        "pending": "Approving..."
+        "pending": "Approving...",
+        "specialFormat": {
+          "label": "Requires the special format (force majeure)",
+          "hint": "Check this if coordination must sign and stamp the format. Teachers receive only that format, which you upload from this page after approving."
+        }
       },
       "return": {
         "trigger": "Return for correction",
@@ -1008,9 +1019,14 @@
         "name": "Name",
         "cif": "CIF",
         "career": "Career",
-        "email": "Email"
+        "email": "Email",
+        "consent": "Consent"
       },
       "period": "{start} to {end}",
+      "consent": {
+        "recorded": "Version {version}, {date}",
+        "notRecorded": "Not recorded (presented before consent existed)"
+      },
       "subject": {
         "group": "Group {number}",
         "teacher": "Teacher: {name}",
@@ -1040,10 +1056,101 @@
         "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
       }
     },
+    "remission": {
+      "title": "Notice to teachers",
+      "fields": {
+        "email": "Teacher email",
+        "groups": "Groups",
+        "state": "Status",
+        "sentAt": "Sent on"
+      },
+      "group": "{code} · {name}, group {number}",
+      "states": {
+        "pendiente": "Pending delivery",
+        "enviada": "Sent",
+        "bloqueada": "Blocked"
+      },
+      "reasons": {
+        "sin_correo": "The teacher has no registered email. Ask for the catalog to be updated, then resend.",
+        "formato_especial_faltante": "The format signed by coordination has not been uploaded yet.",
+        "adjuntos_exceden_limite": "The attached documents exceed the maximum size allowed per email.",
+        "error_envio": "The email could not be sent. It will be retried automatically, or you can resend it now."
+      },
+      "noTeacher": "No teacher is identified for: {groups}. No notice is sent for those subjects.",
+      "upload": {
+        "title": "Signed special format",
+        "hint": "Upload the format signed and stamped by coordination (PDF, PNG or JPEG, up to {size} MB). The teachers receive it instead of the student's documents. It cannot be replaced afterwards.",
+        "action": "Upload the signed format",
+        "uploading": "Uploading {name}...",
+        "sending": "The format was attached. Sending to the teachers is in progress; reload the page to see the result.",
+        "attached": "Signed format on file",
+        "errors": {
+          "not_allowed": "This request does not accept a special format.",
+          "not_found": "The file was not found after the upload. Try again.",
+          "already_attached": "A format is already attached to this request. It cannot be replaced.",
+          "empty_file": "The file is empty.",
+          "too_large": "The file is larger than 10 MB.",
+          "unsupported_format": "Unsupported format. Upload a PDF, PNG or JPEG.",
+          "upload_failed": "The upload failed. Check the connection and try again.",
+          "unexpected": "The format could not be attached. Try again."
+        }
+      },
+      "resend": {
+        "action": "Resend",
+        "actionNamed": "Resend the notice to {name}",
+        "pending": "Resending...",
+        "result": {
+          "enviada": "The notice was sent to the teacher.",
+          "pendiente": "It could not be sent. It stays pending and will be retried.",
+          "bloqueada": "The notice is still blocked. Reload the page to see the reason."
+        },
+        "errors": {
+          "not_found": "This notice is no longer available to you.",
+          "unexpected": "It could not be resent. Try again."
+        }
+      }
+    },
     "notFound": {
       "title": "Request not found",
       "message": "This request does not exist or is not available to you.",
       "back": "Back to the queue"
+    }
+  },
+  "privacy": {
+    "title": "Privacy notice",
+    "draft": "Draft pending UAM review",
+    "version": "Notice version: <date>{version}</date>",
+    "controller": {
+      "title": "Data controller",
+      "body": "Universidad Americana (UAM) is the controller of the data collected in this system.",
+      "contact": "[UAM address and contact office: to be defined]"
+    },
+    "purpose": {
+      "title": "Purpose",
+      "body": "The data is used only to process your justification request and its corrections. It is not used for any other purpose."
+    },
+    "recipients": {
+      "title": "Recipients",
+      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names."
+    },
+    "data": {
+      "title": "Data we process",
+      "identity": "Identity and academic data from your account.",
+      "request": "Request data: cause, dates and subjects.",
+      "documents": "The supporting documents you attach.",
+      "health": "Health data, which is sensitive data and may appear in those documents."
+    },
+    "mandatory": {
+      "title": "Required data",
+      "body": "To submit a request, the data and documents each step asks for and your consent are required. Without them the request cannot be processed."
+    },
+    "rights": {
+      "title": "Your rights and withdrawing consent",
+      "body": "You may exercise your rights of access, rectification, cancellation and opposition, and withdraw your consent, in writing addressed to the faculty secretary's office. Withdrawal has no retroactive effect."
+    },
+    "retention": {
+      "title": "Retention period",
+      "body": "The data is kept for five years and then cancelled."
     }
   }
 }

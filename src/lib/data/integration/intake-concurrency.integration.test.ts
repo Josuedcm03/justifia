@@ -3,14 +3,24 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
 import { eventoAuditoria } from "@/db/audit-schema";
-import { documentoRespaldo, solicitud, solicitudDecision } from "@/db/schema";
+import {
+  documentoRespaldo,
+  remision,
+  solicitud,
+  solicitudDecision,
+} from "@/db/schema";
 import { finalizeDocument } from "@/lib/data/documentos";
 import { createFixtures, PDF_BYTES } from "@/lib/data/integration/fixtures";
+import { dispatchRemission } from "@/lib/data/remission-dispatch";
 import { resolveRequestScope } from "@/lib/data/request-scope";
 import { decideRequest } from "@/lib/data/solicitud-decision";
 import { discardDraft, openDraft, submitDraft } from "@/lib/data/solicitudes";
+import { CONSENT_VERSION } from "@/lib/intake/consent";
 import type { DecisionInput } from "@/lib/intake/decision-validation";
-import { createFakeDocumentStore } from "@/lib/intake/fakes";
+import {
+  createFakeDocumentStore,
+  createFakeMailSender,
+} from "@/lib/intake/fakes";
 import { MAX_DOCUMENTS_PER_DRAFT } from "@/lib/intake/limits";
 import { buildPathname } from "@/lib/intake/pathnames";
 
@@ -27,7 +37,11 @@ import { buildPathname } from "@/lib/intake/pathnames";
 //   - concurrent decisions (secretary-review, SR-7): the row lock of the
 //     guarded UPDATE lets one secretary decide a pending request; the others
 //     get `conflict` and leave one decision row and one audit row. This needs
-//     migration `0008_secretary_review` applied to the branch.
+//     migration `0008_secretary_review` applied to the branch;
+//   - concurrent remission dispatch (teacher-remission, TR-6): the guarded
+//     claim lets one of several parallel dispatches of one remission reach
+//     the mail port, so there is one `send` call and one `EnviadaEn`. This
+//     needs migration `0009_teacher_remission` applied to the branch.
 // Blob I/O goes through the in-memory `DocumentStore` fake: no Vercel Blob call.
 //
 // HOW TO RUN (never part of `npm test`):
@@ -112,6 +126,7 @@ describe.skipIf(gate.mode !== "run")(
         now: new Date(),
         ...DETAILS,
         grupoIds: [group],
+        consentimientoVersion: CONSENT_VERSION,
       };
       const outcomes = await Promise.all(
         Array.from({ length: CONCURRENCY }, () => submitDraft(input)),
@@ -123,10 +138,19 @@ describe.skipIf(gate.mode !== "run")(
       }
 
       const [row] = await db
-        .select({ estado: solicitud.estado, cif: solicitud.estudianteCif })
+        .select({
+          estado: solicitud.estado,
+          cif: solicitud.estudianteCif,
+          presentadaEn: solicitud.presentadaEn,
+          consentimientoEn: solicitud.consentimientoEn,
+          consentimientoVersion: solicitud.consentimientoVersion,
+        })
         .from(solicitud)
         .where(eq(solicitud.id, draftId));
-      expect(row).toEqual({ estado: "pendiente", cif: student.cif });
+      expect(row).toMatchObject({ estado: "pendiente", cif: student.cif });
+      // Consent is stored with the presentation, at the same instant (RC-6).
+      expect(row.consentimientoVersion).toBe(CONSENT_VERSION);
+      expect(row.consentimientoEn).toEqual(row.presentadaEn);
 
       const [audit] = await db
         .select({ n: count() })
@@ -163,6 +187,7 @@ describe.skipIf(gate.mode !== "run")(
           now: new Date(),
           ...DETAILS,
           grupoIds: [group],
+          consentimientoVersion: CONSENT_VERSION,
         });
         expect(submitted).toEqual({ ok: true });
         return draftId;
@@ -241,6 +266,91 @@ describe.skipIf(gate.mode !== "run")(
               actorId: decisions[0].secretariaId,
             },
           ]);
+        },
+      );
+    });
+
+    describe("concurrent dispatch of one remission (TR-6, RNF-07)", () => {
+      it.each([2, CONCURRENCY])(
+        "sends once when %i dispatches race on the same remission",
+        async (dispatchers) => {
+          const student = await fixtures.addStudent();
+          const secretaria = await fixtures.addSecretaria();
+          const group = await fixtures.addGroup({
+            correo: `it-docente-${fixtures.run}-${dispatchers}@integration.invalid`,
+          });
+          const draftId = await fixtures.addDraft(student.id);
+          await fixtures.fillDraft(draftId, DETAILS, group);
+          const pathname = await fixtures.addValidDocument(draftId);
+          const submitted = await submitDraft({
+            userId: student.id,
+            solicitudId: draftId,
+            now: new Date(),
+            ...DETAILS,
+            grupoIds: [group],
+            consentimientoVersion: CONSENT_VERSION,
+          });
+          expect(submitted).toEqual({ ok: true });
+
+          const scope = await resolveRequestScope(secretaria.id, "secretaria");
+          const decided = await decideRequest({
+            actorId: secretaria.id,
+            scope,
+            solicitudId: draftId,
+            decision: {
+              tipo: "aprobada",
+              plantilla: "aprobacion.general",
+              texto: null,
+            },
+            now: new Date(),
+          });
+          if (!decided.ok) throw new Error("approval failed");
+          expect(decided.remisionIds).toHaveLength(1);
+          const [remisionId] = decided.remisionIds;
+
+          const store = createFakeDocumentStore();
+          store.seed(pathname, PDF_BYTES);
+          const mail = createFakeMailSender();
+          const deps = { store, mail };
+
+          const results = await Promise.all(
+            Array.from({ length: dispatchers }, () =>
+              dispatchRemission(
+                remisionId,
+                { trigger: "reenvio_manual", actorId: secretaria.id },
+                deps,
+              ),
+            ),
+          );
+
+          expect(mail.calls).toHaveLength(1);
+          expect(results.filter((r) => r.outcome === "sent")).toHaveLength(1);
+          expect(results.filter((r) => r.outcome === "skipped")).toHaveLength(
+            dispatchers - 1,
+          );
+
+          const [row] = await db
+            .select({
+              estado: remision.estado,
+              enviadaEn: remision.enviadaEn,
+              intentos: remision.intentos,
+            })
+            .from(remision)
+            .where(eq(remision.id, remisionId));
+          expect(row.estado).toBe("enviada");
+          expect(row.enviadaEn).not.toBeNull();
+          expect(row.intentos).toBe(1);
+
+          const sent = await db
+            .select({ n: count() })
+            .from(eventoAuditoria)
+            .where(
+              and(
+                eq(eventoAuditoria.accion, "remision.enviada"),
+                eq(eventoAuditoria.entidadId, remisionId),
+              ),
+            );
+          expect(sent[0].n).toBe(1);
         },
       );
     });
