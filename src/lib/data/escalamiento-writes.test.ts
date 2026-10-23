@@ -34,6 +34,8 @@ const ALLOWED: Record<string, readonly Verb[]> = {
   "lib/data/escalamiento.ts": ["update"],
   "lib/data/escalation-answer.ts": ["update"],
   "lib/data/solicitud-escalation.ts": ["insert"],
+  // The real-Postgres fixtures remove the rows of a run, children first.
+  "lib/data/integration/fixtures.ts": ["delete"],
 };
 
 /** The outbox columns, as the drizzle property names. */

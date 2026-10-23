@@ -7,9 +7,11 @@ import {
   asignatura,
   carrera,
   documentoRespaldo,
+  escalamiento,
   facultad,
   grupo,
   remision,
+  reporteInasistencia,
   rol,
   solicitud,
   solicitudAsignatura,
@@ -62,6 +64,8 @@ export type Student = { id: number; cif: string };
 
 export type Secretaria = { id: number; facultadId: number };
 
+export type Coordinator = { id: number; carreraId: number };
+
 export function createFixtures() {
   const run = randomUUID().replaceAll("-", "").slice(0, 12);
   let counter = 0;
@@ -75,6 +79,7 @@ export function createFixtures() {
   const grupoIds: number[] = [];
   const docenteIds: number[] = [];
   const secretariaIds: number[] = [];
+  const coordinatorIds: number[] = [];
 
   let careerId: number | null = null;
   let careerFacultadId: number | null = null;
@@ -138,6 +143,46 @@ export function createFixtures() {
         .returning({ id: usuario.id });
       secretariaIds.push(row.id);
       return { id: row.id, facultadId };
+    },
+
+    /**
+     * An active `coordinacion` account of the career every student of this run
+     * belongs to: the recipient an escalation needs (escalation, E17).
+     */
+    async addCoordinator(
+      options: { correo?: string } = {},
+    ): Promise<Coordinator> {
+      const carreraId = await ensureCareer();
+      const tag = next();
+      const [row] = await db
+        .insert(usuario)
+        .values({
+          login: `it-coord-${tag}`,
+          hashClave: "integration-not-a-real-hash",
+          rolId: await ensureRole("coordinacion", "Coordinacion"),
+          nombreCompleto: `IT Coordinacion ${tag}`,
+          carreraId,
+          ...(options.correo ? { correo: options.correo } : {}),
+        })
+        .returning({ id: usuario.id });
+      coordinatorIds.push(row.id);
+      return { id: row.id, carreraId };
+    },
+
+    /** A teacher account, for rows that name one (an absence report). */
+    async addTeacher(): Promise<number> {
+      const tag = next();
+      const [row] = await db
+        .insert(usuario)
+        .values({
+          login: `it-teacher-${tag}`,
+          hashClave: "integration-not-a-real-hash",
+          rolId: await ensureRole("docente", "Docente"),
+          nombreCompleto: `IT Docente ${tag}`,
+        })
+        .returning({ id: usuario.id });
+      docenteIds.push(row.id);
+      return row.id;
     },
 
     /**
@@ -228,6 +273,13 @@ export function createFixtures() {
           .where(inArray(solicitud.estudianteId, owners));
         const requestIds = requests.map((r) => r.id);
         if (requestIds.length > 0) {
+          // Escalations reference their report, so they go first (escalation).
+          await db
+            .delete(escalamiento)
+            .where(inArray(escalamiento.solicitudId, requestIds));
+          await db
+            .delete(reporteInasistencia)
+            .where(inArray(reporteInasistencia.solicitudId, requestIds));
           await db
             .delete(remision)
             .where(inArray(remision.solicitudId, requestIds));
@@ -259,7 +311,7 @@ export function createFixtures() {
           db.delete(usuario).where(inArray(usuario.id, docenteIds)),
         );
       }
-      for (const id of [...studentIds, ...secretariaIds]) {
+      for (const id of [...studentIds, ...secretariaIds, ...coordinatorIds]) {
         await ignoringPinnedRows(() =>
           db.delete(usuario).where(eq(usuario.id, id)),
         );
