@@ -6,6 +6,7 @@ import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
 vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
   escalateRequestAction: vi.fn(),
   recordExcessReportAction: vi.fn(),
+  resendEscalationNoticeAction: vi.fn(),
 }));
 
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
@@ -20,6 +21,7 @@ const TEACHERS = [
 function report(overrides: Partial<DetailReport> = {}): DetailReport {
   return {
     id: 71,
+    escalamientoId: 81,
     docenteNombre: "Luis Mora",
     comunicadoEl: "2026-10-09",
     nota: "Supera el limite de faltas.",
@@ -141,6 +143,75 @@ describe("AbsenceReportsSection list (RF-15, RF-10 b)", () => {
   });
 });
 
+describe("AbsenceReportsSection notice resend (RF-10 b)", () => {
+  const resendName = (teacher: string, date: string) =>
+    `${messages.en.review.escalation.resend.actionNamed.replace("{name}", `${teacher}, ${date}`)}`;
+
+  it.each([
+    ["pendiente", null, null],
+    ["pendiente", "error_envio", null],
+    ["bloqueada", "sin_destinatarios", null],
+  ] as const)(
+    "offers a resend named after the report for a %s (%s) notice",
+    (notificacionEstado, notificacionMotivo, enviadaEn) => {
+      show({
+        canReport: false,
+        reports: [
+          report({ notificacionEstado, notificacionMotivo, enviadaEn }),
+        ],
+      });
+
+      expect(
+        screen.getByRole("button", {
+          name: resendName("Luis Mora", "Oct 9, 2026"),
+        }),
+      ).toHaveTextContent(messages.en.review.escalation.resend.action);
+    },
+  );
+
+  it("offers no resend for a sent notice", () => {
+    show({
+      canReport: false,
+      reports: [
+        report({
+          notificacionEstado: "enviada",
+          enviadaEn: new Date("2026-10-10T16:01:00Z"),
+        }),
+      ],
+    });
+
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("offers one resend per unsent notice, each named after its own report", () => {
+    show({
+      canReport: false,
+      reports: [
+        report({ id: 71, escalamientoId: 81 }),
+        report({
+          id: 72,
+          escalamientoId: 82,
+          docenteNombre: "Pedro Ruiz",
+          comunicadoEl: "2026-10-12",
+        }),
+        report({
+          id: 73,
+          escalamientoId: 83,
+          notificacionEstado: "enviada",
+          enviadaEn: new Date("2026-10-10T16:01:00Z"),
+        }),
+      ],
+    });
+
+    expect(
+      screen.getAllByRole("button").map((b) => b.getAttribute("aria-label")),
+    ).toEqual([
+      resendName("Luis Mora", "Oct 9, 2026"),
+      resendName("Pedro Ruiz", "Oct 12, 2026"),
+    ]);
+  });
+});
+
 describe("AbsenceReportsSection action (RF-15)", () => {
   it("offers the report action while the request is approved", () => {
     show();
@@ -159,10 +230,12 @@ describe("AbsenceReportsSection action (RF-15)", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers no action when the request is not approved, but still lists old reports", () => {
+  it("offers no report action when the request is not approved, but still lists old reports", () => {
     show({ canReport: false });
 
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: en.dialog.trigger }),
+    ).toBeNull();
     expect(screen.getByText("Supera el limite de faltas.")).toBeInTheDocument();
   });
 

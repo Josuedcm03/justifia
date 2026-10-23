@@ -15,6 +15,7 @@ import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
 vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
   escalateRequestAction: vi.fn(),
   recordExcessReportAction: vi.fn(),
+  resendEscalationNoticeAction: vi.fn(),
 }));
 
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
@@ -95,6 +96,7 @@ const ESCALATION = {
 
 const REPORT = {
   id: 71,
+  escalamientoId: 81,
   docenteNombre: "Luis Mora",
   comunicadoEl: "2026-10-09",
   nota: LONG_NOTE,

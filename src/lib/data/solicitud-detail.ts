@@ -93,6 +93,8 @@ export type DetailEscalation = NoticeDelivery & {
  */
 export type DetailReport = NoticeDelivery & {
   id: number;
+  /** The report's notice: the record the resend control acts on. */
+  escalamientoId: number;
   docenteNombre: string;
   /** Managua `YYYY-MM-DD`: the day the teacher communicated it. */
   comunicadoEl: string;
@@ -256,6 +258,7 @@ export async function getRequestDetail(
       db
         .select({
           id: reporteInasistencia.id,
+          escalamientoId: escalamiento.id,
           docenteNombre: reporteInasistencia.docenteNombre,
           comunicadoEl: reporteInasistencia.comunicadoEl,
           nota: reporteInasistencia.nota,

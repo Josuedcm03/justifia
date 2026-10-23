@@ -1,6 +1,6 @@
 import { useFormatter, useTranslations } from "next-intl";
 
-import { NoticeStatusPill } from "@/app/(dashboard)/review/[id]/escalation-section";
+import { NoticeDelivery } from "@/app/(dashboard)/review/[id]/escalation-section";
 import {
   ReportDialog,
   type ReportTeacher,
@@ -13,7 +13,7 @@ import type { DetailReport } from "@/lib/data/solicitud-detail";
 // has no edit or delete control; the only action is to record another report,
 // offered while the request is approved. Each entry shows the delivery of its
 // notice to coordination as text (RNF-07). There is no percentage or absence
-// count anywhere (RF-15 a).
+// count anywhere (RF-15 a). A notice that is not sent offers its resend.
 
 const BUSINESS_TIME_ZONE = "America/Managua";
 
@@ -86,7 +86,9 @@ export function AbsenceReportsSection({
                 <span className="text-label text-muted-foreground">
                   {tEscalation("section.fields.notice")}
                 </span>
-                <NoticeStatusPill
+                <NoticeDelivery
+                  escalamientoId={report.escalamientoId}
+                  label={`${report.docenteNombre}, ${day(report.comunicadoEl)}`}
                   estado={report.notificacionEstado}
                   motivo={report.notificacionMotivo}
                   enviadaEn={report.enviadaEn}

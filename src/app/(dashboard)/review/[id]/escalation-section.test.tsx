@@ -1,5 +1,9 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
+  resendEscalationNoticeAction: vi.fn(),
+}));
 
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
@@ -41,8 +45,10 @@ describe("EscalationSection history (RF-10, RN-16)", () => {
     expect(region).toHaveTextContent("Rosa Lopez, Oct 8, 2026");
   });
 
-  it("says an open escalation is waiting for the coordination and offers no control", () => {
-    show([escalation()]);
+  it("says an open escalation is waiting for the coordination and offers no decision control", () => {
+    show([
+      escalation({ notificacionEstado: "enviada", enviadaEn: new Date() }),
+    ]);
 
     expect(screen.getByText(en.section.waiting)).toBeInTheDocument();
     expect(screen.queryAllByRole("button")).toEqual([]);
@@ -122,6 +128,78 @@ describe("EscalationSection notification status (RNF-07): text, never colour alo
 
     expect(screen.getAllByText(en.notification.pendiente)).toHaveLength(1);
     expect(screen.getAllByText(en.notification.bloqueada)).toHaveLength(1);
+  });
+});
+
+describe("EscalationSection notice resend (RF-10 b)", () => {
+  const resend = messages.en.review.escalation.resend;
+  const named = (date: string) =>
+    resend.actionNamed.replace(
+      "{name}",
+      `${en.reasons.sospecha_documento}, ${date}`,
+    );
+
+  it.each([
+    ["pendiente", null],
+    ["pendiente", "error_envio"],
+    ["bloqueada", "sin_destinatarios"],
+  ] as const)(
+    "offers a resend named after the escalation for a %s (%s) notice",
+    (notificacionEstado, notificacionMotivo) => {
+      show([escalation({ notificacionEstado, notificacionMotivo })]);
+
+      expect(
+        screen.getByRole("button", { name: named("Oct 8, 2026") }),
+      ).toHaveTextContent(resend.action);
+    },
+  );
+
+  it("offers no resend for a sent notice", () => {
+    show([
+      escalation({
+        notificacionEstado: "enviada",
+        enviadaEn: new Date("2026-10-08T15:05:00Z"),
+      }),
+    ]);
+
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("offers one resend per unsent notice and none beside a sent one", () => {
+    show([
+      escalation({
+        id: 61,
+        notificacionEstado: "enviada",
+        enviadaEn: new Date("2026-10-08T15:05:00Z"),
+        respuesta: "Autentico.",
+        respondidaPorNombre: "Marta Gomez",
+        respondidaEn: new Date("2026-10-09T21:00:00Z"),
+      }),
+      escalation({
+        id: 62,
+        creadoEn: new Date("2026-10-12T15:00:00Z"),
+        notificacionEstado: "bloqueada",
+        notificacionMotivo: "sin_destinatarios",
+      }),
+    ]);
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAccessibleName(named("Oct 12, 2026"));
+  });
+
+  it("reads in Spanish", () => {
+    show([escalation()], "es");
+
+    const es = messages.es.review.escalation;
+    expect(
+      screen.getByRole("button", {
+        name: es.resend.actionNamed.replace(
+          "{name}",
+          `${es.reasons.sospecha_documento}, 8 oct 2026`,
+        ),
+      }),
+    ).toHaveTextContent(es.resend.action);
   });
 });
 

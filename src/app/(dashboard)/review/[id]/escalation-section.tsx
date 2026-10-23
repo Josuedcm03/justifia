@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Fact, Section } from "@/app/(dashboard)/review/[id]/request-sections";
+import { ResendEscalationButton } from "@/app/(dashboard)/review/[id]/resend-escalation-button";
 import {
   noticeStatusKey,
   type NoticeStatusKey,
@@ -16,9 +17,10 @@ import type {
 // suspicion escalation its reason, note, author and time, the coordination
 // answer when there is one, and the delivery of the notice to coordination.
 // Staff only; the student detail never receives this data (ES-14). It offers no
-// control: while a request is in coordination there is nothing to decide, and
-// the resend control belongs to the notification unit. Sync component, like the
-// other sections: text and dates resolve on the server in the business zone.
+// decision control: while a request is in coordination there is nothing to
+// decide. The only control is the resend of a notice that is not `enviada`
+// (RF-10 b). Sync component, like the other sections: text and dates resolve on
+// the server in the business zone.
 
 const BUSINESS_TIME_ZONE = "America/Managua";
 
@@ -62,6 +64,34 @@ export function NoticeStatusPill({
   );
 }
 
+/**
+ * The delivery of one notice to coordination: its status as text and, unless it
+ * was sent, the control to resend it (RF-10 b). `label` names the notice for
+ * assistive technology when a request has several.
+ */
+export function NoticeDelivery({
+  escalamientoId,
+  label,
+  estado,
+  motivo,
+  enviadaEn,
+}: {
+  escalamientoId: number;
+  label: string;
+  estado: EscalationNoticeState;
+  motivo: EscalationNoticeReason | null;
+  enviadaEn: Date | null;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <NoticeStatusPill estado={estado} motivo={motivo} enviadaEn={enviadaEn} />
+      {estado === "enviada" ? null : (
+        <ResendEscalationButton escalamientoId={escalamientoId} label={label} />
+      )}
+    </div>
+  );
+}
+
 export function EscalationSection({
   escalations,
 }: {
@@ -97,7 +127,9 @@ export function EscalationSection({
                 })}
               </Fact>
               <Fact label={t("section.fields.notice")}>
-                <NoticeStatusPill
+                <NoticeDelivery
+                  escalamientoId={e.id}
+                  label={`${t(`reasons.${e.motivo}`)}, ${when(e.creadoEn)}`}
                   estado={e.notificacionEstado}
                   motivo={e.notificacionMotivo}
                   enviadaEn={e.enviadaEn}

@@ -984,6 +984,20 @@
         "not_found": "Esta solicitud ya no está disponible para usted.",
         "unexpected": "No se pudo escalar la solicitud. Inténtelo de nuevo.",
         "sin_coordinacion": "{carrera} no tiene coordinación registrada; solicite al administrador que cree la cuenta."
+      },
+      "resend": {
+        "action": "Reenviar",
+        "actionNamed": "Reenviar el aviso a coordinación: {name}",
+        "pending": "Reenviando...",
+        "result": {
+          "enviada": "El aviso se envió a coordinación.",
+          "pendiente": "No se pudo enviar. Queda pendiente y se reintentará.",
+          "bloqueada": "El aviso sigue bloqueado: la carrera no tiene un destinatario de coordinación con correo. Recargue la página para ver el estado."
+        },
+        "errors": {
+          "not_found": "Este aviso ya no está disponible para usted.",
+          "unexpected": "No se pudo reenviar. Inténtelo de nuevo."
+        }
       }
     },
     "report": {
