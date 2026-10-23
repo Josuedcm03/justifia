@@ -120,6 +120,20 @@ export function DecisionSection({
   );
 }
 
+/**
+ * The one thing a student learns of an escalation (ES-14, E13): the request is
+ * with the coordination of their career. No reason, note, answer or person.
+ */
+export function CoordinationCallout() {
+  const t = useTranslations("requests.detail");
+
+  return (
+    <p className="border-border bg-muted text-foreground rounded-lg border px-3 py-2 text-sm">
+      {t("coordination")}
+    </p>
+  );
+}
+
 export function SubjectsSection({
   classes,
 }: {

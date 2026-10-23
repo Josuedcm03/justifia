@@ -868,7 +868,8 @@
         "fecha_alterada": "The date on the document is altered",
         "documento_ilegible": "The document is not legible"
       },
-      "corrected": "Your correction was sent. The secretary will review it again."
+      "corrected": "Your correction was sent. The secretary will review it again.",
+      "coordination": "The coordination of your career is reviewing this request. You do not need to do anything for now."
     },
     "notFound": {
       "title": "Request not found",

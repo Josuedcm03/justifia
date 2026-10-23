@@ -868,7 +868,8 @@
         "fecha_alterada": "La fecha del documento está alterada",
         "documento_ilegible": "El documento no es legible"
       },
-      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo."
+      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo.",
+      "coordination": "La coordinación de tu carrera está revisando esta solicitud. No necesitas hacer nada por ahora."
     },
     "notFound": {
       "title": "Solicitud no encontrada",
