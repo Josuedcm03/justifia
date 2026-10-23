@@ -23,6 +23,10 @@ import {
   documentRemovedEvent,
   documentoFormatoEspecialEvent,
   documentoRetiradoEvent,
+  escalamientoNotificacionBloqueadaEvent,
+  escalamientoNotificacionEnviadaEvent,
+  escalamientoNotificacionFallidaEvent,
+  escalamientoNotificacionReenviadaEvent,
   grupoActiveChangedEvent,
   grupoCreatedEvent,
   grupoUpdatedEvent,
@@ -1435,5 +1439,143 @@ describe("escalation event builders (RF-10, RF-15, RNF-06, RN-02)", () => {
         estado: "pendiente",
       }).datos,
     ).toEqual({ solicitudId: 41, estado: "pendiente" });
+  });
+});
+
+describe("escalation notice event builders (RF-10 b, RNF-06, RNF-02)", () => {
+  type Case = {
+    name: string;
+    event: AuditEvent;
+    accion: string;
+    datos: Record<string, unknown>;
+  };
+
+  const cases: Case[] = [
+    {
+      name: "notice sent",
+      event: escalamientoNotificacionEnviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        destinatarios: 2,
+      }),
+      accion: "escalamiento.notificacion_enviada",
+      datos: {
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        destinatarios: 2,
+      },
+    },
+    {
+      name: "notice failed",
+      event: escalamientoNotificacionFallidaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "reintento_automatico",
+        intentos: 3,
+        codigo: "unavailable",
+      }),
+      accion: "escalamiento.notificacion_fallida",
+      datos: {
+        solicitudId: 41,
+        origen: "reintento_automatico",
+        intentos: 3,
+        codigo: "unavailable",
+      },
+    },
+    {
+      name: "notice blocked",
+      event: escalamientoNotificacionBloqueadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "reenvio_manual",
+        motivo: "sin_destinatarios",
+      }),
+      accion: "escalamiento.notificacion_bloqueada",
+      datos: {
+        solicitudId: 41,
+        origen: "reenvio_manual",
+        motivo: "sin_destinatarios",
+      },
+    },
+    {
+      name: "notice resend",
+      event: escalamientoNotificacionReenviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        estadoPrevio: "bloqueada",
+      }),
+      accion: "escalamiento.notificacion_reenviada",
+      datos: { solicitudId: 41, estadoPrevio: "bloqueada" },
+    },
+  ];
+
+  it.each(cases)(
+    "$name maps to $accion on the Escalamiento 7",
+    ({ event, accion, datos }) => {
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe("Escalamiento");
+      expect(event.entidadId).toBe(7);
+      expect(event.datos).toEqual(datos);
+      expect(AUDIT_ACTIONS).toContain(accion);
+    },
+  );
+
+  it("payloads hold ids, counts and closed codes only", () => {
+    for (const { event } of cases) {
+      const datos = event.datos as Record<string, unknown>;
+      expect(Object.keys(datos).length).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(datos)) {
+        expect(key).not.toMatch(
+          /nota|texto|respuesta|nombre|cif|correo|email|fecha|causa|carrera|mensaje|error/i,
+        );
+        expect(["number", "string"]).toContain(typeof value);
+        if (typeof value === "string") expect(value).toMatch(/^[a-z_]+$/);
+      }
+    }
+  });
+
+  it("drops a provider error text, an email or a recipient list smuggled into the call", () => {
+    const smuggled = {
+      error: "550 mailbox ana@uam.edu.ni unavailable",
+      mensaje: "Asunto: Justifia",
+      correos: ["ana@uam.edu.ni"],
+    };
+    const events = [
+      escalamientoNotificacionEnviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        destinatarios: 1,
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionEnviadaEvent>[0]),
+      escalamientoNotificacionFallidaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        codigo: "rejected",
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionFallidaEvent>[0]),
+      escalamientoNotificacionBloqueadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        motivo: "sin_destinatarios",
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionBloqueadaEvent>[0]),
+      escalamientoNotificacionReenviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        estadoPrevio: "pendiente",
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionReenviadaEvent>[0]),
+    ];
+    for (const event of events) {
+      expect(JSON.stringify(event)).not.toMatch(/550|mailbox|Asunto|@/);
+    }
   });
 });

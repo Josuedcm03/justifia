@@ -4,6 +4,7 @@ import {
   CAUSE_PHRASES,
   formatDateRange,
 } from "@/lib/intake/decision-templates";
+import { oneLine } from "@/lib/mail/one-line";
 
 // Pure Spanish message of one remission (RF-09 a, RN-18, TR-10). The wording is
 // institutional and independent of the reviewer's UI locale (as SR-8). Plain
@@ -40,11 +41,6 @@ export type RemissionDraft = {
   subject: string;
   text: string;
 };
-
-/** One line of plain text: control characters and runs of spaces collapse. */
-function oneLine(value: string): string {
-  return value.replace(/[\u0000-\u001f\u007f\s]+/g, " ").trim();
-}
 
 function classLine(clase: RevisionClase): string {
   return `- ${oneLine(clase.codigo)} ${oneLine(clase.nombre)}, grupo ${oneLine(clase.numeroGrupo)}`;

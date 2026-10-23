@@ -11,7 +11,11 @@ import type {
   GrupoWriteResult,
 } from "@/lib/catalog/types";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
-import type { EscalationKind } from "@/lib/intake/escalation";
+import type {
+  EscalationKind,
+  EscalationNoticeState,
+  EscalationNoticeTrigger,
+} from "@/lib/intake/escalation";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type {
@@ -35,6 +39,7 @@ import type {
   AuditOrigin,
   DocumentMode,
   DocumentRejectionReason,
+  MailFailureCode,
   RemissionFailureCode,
 } from "./types";
 
@@ -315,6 +320,85 @@ export function solicitudReporteInasistenciasEvent(args: {
       reporteId: args.reporteId,
       escalamientoId: args.escalamientoId,
       docenteId: args.docenteId,
+    },
+  };
+}
+
+/** The coordination notice was accepted by the mail provider. */
+export function escalamientoNotificacionEnviadaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  intentos: number;
+  destinatarios: number;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_enviada",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      intentos: args.intentos,
+      destinatarios: args.destinatarios,
+    },
+  };
+}
+
+/** `codigo` is a closed code: the provider's own error text, which can hold an
+ *  address, never reaches the audit log (RNF-06). */
+export function escalamientoNotificacionFallidaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  intentos: number;
+  codigo: MailFailureCode;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_fallida",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      intentos: args.intentos,
+      codigo: args.codigo,
+    },
+  };
+}
+
+/** No recipient could be resolved for the career when a send was attempted. */
+export function escalamientoNotificacionBloqueadaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  motivo: "sin_destinatarios";
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_bloqueada",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      motivo: args.motivo,
+    },
+  };
+}
+
+/** A secretary asked to resend a notice (state before the attempt). */
+export function escalamientoNotificacionReenviadaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  estadoPrevio: EscalationNoticeState;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_reenviada",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      estadoPrevio: args.estadoPrevio,
     },
   };
 }
