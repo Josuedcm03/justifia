@@ -34,6 +34,8 @@
 | S4a / S4b (fallback) | `feat/escalation-s4a-scope-access`, `feat/escalation-s4b-pages-answer` | Unit 7 / unit 8 | ~450 / ~450 | tracker / S4a branch until it merges |
 | S5 Student, consent v2, proof suite | `feat/escalation-s5-student-consent` | Unit 9 student callout, consent v2, privacy; unit 10 real-Postgres suite | ~600 | tracker |
 
+**Actuals and budget rule change (2026-10-23).** Measured: S1 2570 (S1a 921, S1b 1657) and S2 5081 before the simplify pass; tests were about 57% of S2. The owner accepted `size:exception` for S1b, S2a and S2b. From S3 onward the 1000-line budget counts production code only (non-test `src/` files plus `i18n/`); tests are reviewed but not counted. A behavior-preserving simplify pass on S2 (`2b183cf` on S2a, `4dd9616` on S2b) left production at a net 1694 lines (S2a 728, S2b 966) with the same coverage (5519 tests; the per-file prefetch guard now covers 2 shared files instead of 7). Because the S1 PRs wait on task 0.1, slices are stacked: S2 branches from S1b, and each next slice branches from the previous slice head.
+
 Decision needed before apply: No
 Chained PRs recommended: Yes
 Chain strategy: feature-branch-chain
