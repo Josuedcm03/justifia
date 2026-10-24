@@ -6,16 +6,17 @@ After a student submits a request or a correction, the system extracts, from
 each eligible supporting document, the student name, issuer, issue date and
 rest period, using a model server it deploys and operates. The data helps staff
 review; it never decides anything. Covers RF-11 (a, b), RN-02, RNF-01, RNF-02,
-RNF-03 (criterion of 2026-10-22), RNF-04. FA-04 applies: no document or text is
-ever sent to a third-party OCR or inference service. Showing the data to staff
-lives in `request-review`; the re-enqueue step of the daily sweep lives in
-`justification-intake`. Signals, manual entry (RF-14, RN-24) and the
+RNF-03 (criterion of 2026-10-22), RNF-04. FA-04 applies: no document or its
+content is ever sent to a third-party OCR or inference service. Showing the
+data to staff lives in `request-review`; the re-enqueue step of the daily sweep
+lives in `justification-intake`. Signals, manual entry (RF-14, RN-24) and the
 name-match flag belong to `validation-signals`.
 
 Terms: "reference date" = Managua calendar date of `COALESCE(ReenviadaEn,
 PresentadaEn)` of the document's request; "row" = the one extraction record of
-a document; "eligible" = defined in "Eligibility and registration"; "no
-reconocido" = the field has no value and is shown as "no reconocido".
+a document; "open row" = a row in `pendiente` or `procesando`; "eligible" =
+defined in "Eligibility and registration"; "no reconocido" = the field has no
+value and is shown as "no reconocido".
 
 ## Requirements
 
@@ -26,10 +27,10 @@ request at most one row. A document MUST get a `pendiente` row only when it is
 finalized (`valido`), not retired, uploaded by the student (not a staff-uploaded
 special format) and has no row. A retired document without a row MUST get a
 `no_aplica` row. A retired document MUST never be claimed or processed, and an
-existing `pendiente` row of a document retired meanwhile MUST become
-`no_aplica` at the next registration. A document whose row exists in any state
-(including `completada` and `fallida`) MUST NOT be re-registered or
-re-extracted.
+open row of a document retired meanwhile MUST become `no_aplica` at the next
+registration. A document whose row exists in any state (including `completada`
+and `fallida`) MUST NOT be re-registered or re-extracted, and a final row of a
+retired document stays as it is.
 
 #### Scenario: Eligible document registered once
 
@@ -47,17 +48,19 @@ re-extracted.
 
 - GIVEN a returned request whose document D1 is `completada`, D2 was replaced by D3
 - WHEN the student resubmits
-- THEN D3 gets a `pendiente` row, D2 becomes or is `no_aplica`, and D1 is untouched
+- THEN D3 gets a `pendiente` row and D1 is untouched
+- AND an open row of D2 becomes `no_aplica`, while a final row of D2 stays as it is
 
 ### Requirement: Triggers after submit and correction (RF-11)
 
 After the transaction of a successful submit and of a successful correction
 resubmit has committed, the system MUST register the request's documents and
-process the rows that are `pendiente`, one document at a time. Extraction MUST
+process the rows that can be claimed, one document at a time. Extraction MUST
 NOT run inside those transactions, MUST NOT delay their response beyond the
 post-commit hand-off, and MUST NOT change their outcome: an extraction or
-queueing failure of any kind never rolls back, blocks or reports an error on
-the submission or correction. A blocked or failed submit MUST register nothing.
+queueing failure of any kind (including a composition root that cannot be
+built) never rolls back, blocks or reports an error on the submission or
+correction. A blocked or failed submit MUST register nothing.
 
 #### Scenario: Model outage does not block submit
 
@@ -83,12 +86,15 @@ the submission or correction. A blocked or failed submit MUST register nothing.
 A row MUST be in exactly one state: `pendiente`, `procesando`, `completada`,
 `fallida` or `no_aplica`. Processing MUST begin with an atomic claim that moves
 `pendiente` to `procesando`, records a claim identifier and claim time, and
-counts one attempt; of concurrent claims on one row exactly one MUST win.
-Completion and failure MUST be written only by the holder of the current claim;
-a late writer whose claim was replaced MUST change nothing. A `procesando` row
-whose lease has expired (longer than the maximum time one extraction may run)
-MUST be reclaimable; if it already used its last attempt it MUST become
-`fallida` instead. `completada`, `fallida` and `no_aplica` are final.
+counts one attempt; of concurrent claims on one row exactly one MUST win. The
+claim MUST be refused for a retired document, for a request that was never
+presented and for a row that used its last attempt. Completion and failure MUST
+be written only by the holder of the current claim; a late writer whose claim
+was replaced MUST change nothing. A `procesando` row whose lease has expired
+(longer than the maximum time one extraction may run) MUST be reclaimable; if
+it already used its last attempt it MUST become `fallida` instead, whatever the
+state of its request, because that lease can never complete. `completada`,
+`fallida` and `no_aplica` are final.
 
 #### Scenario: Concurrent claim
 
@@ -117,20 +123,34 @@ MUST be reclaimable; if it already used its last attempt it MUST become
 ### Requirement: Attempts, retries and not-configured (RF-11)
 
 A failed attempt MUST return the row to `pendiente` with an error code from a
-closed set; after the third failed attempt the row MUST become `fallida`. An
-error code MUST NOT carry free text from the model, the network or an exception.
-When extraction is not configured (see "Engine contract"), the claim MUST be
-handed back: the row returns to `pendiente` and the attempt MUST NOT be
-counted. A model answer that parses but holds no recognized value is a
-successful extraction (`completada`), not a failure. The system MUST NOT retry a
-`fallida` row automatically. Per row, the system MUST record state, attempts,
-error code, engine identifier and processing time.
+closed set; after the third failed attempt the row MUST become `fallida`. A
+failure that retrying the same file cannot fix (an unreadable or unsupported
+document) MUST make the row `fallida` at the first attempt. An error code MUST
+NOT carry free text from the model, the network or an exception. When
+extraction is not configured (see "Engine contract"), the claim MUST be handed
+back: the row returns to `pendiente` and the attempt MUST NOT be counted. A
+model answer that parses but holds no recognized value is a successful
+extraction (`completada`), not a failure. The system MUST NOT retry a `fallida`
+row automatically. Per row, the system MUST record state, attempts, error code,
+engine identifier and processing time.
+
+Within one attempt, a connection failure or an HTTP 502, 503 or 504 answer from
+the model server (a cold start) MAY be retried once after a short wait, only
+when the time budget of that call still leaves room for a full document after
+the wait. The retry MUST NOT count as another attempt. Any other failure, in
+particular HTTP 500, 401, 403 or 429, MUST NOT be retried.
 
 #### Scenario: Third failure is final
 
 - GIVEN a row with two failed attempts
 - WHEN a third attempt fails
 - THEN the row is `fallida` with a closed-set error code and is not retried
+
+#### Scenario: Unreadable document is final
+
+- GIVEN a stored file that cannot be read as an image or a PDF
+- WHEN the first attempt fails
+- THEN the row is `fallida` with an `unreadable_document` code and is not retried
 
 #### Scenario: Not configured keeps the attempt
 
@@ -144,14 +164,23 @@ error code, engine identifier and processing time.
 - WHEN the attempt ends
 - THEN the row is `completada` with all fields without value
 
+#### Scenario: Cold start retried once
+
+- GIVEN the model server answers 503 to the first request and a valid answer to the second
+- WHEN a document is extracted with enough time budget
+- THEN the answer is used and only one attempt is counted
+- AND an answer of 500 is not retried
+
 ### Requirement: Execution budget (RF-11)
 
 Entry points that run extraction (the new-request page, the correction page
 and the sweep route) MUST declare a maximum duration of 300 seconds, and a test
 MUST pin each value. Processing MUST work under a wall-clock deadline inside
-that budget; each model call MUST have a timeout, and a document MUST NOT be
-started when its timeout would exceed the remaining budget. Documents not
-started stay `pendiente` for the sweep.
+that budget, measured from the start of the invocation. A document MUST NOT be
+started when less than 20 seconds remain. Each model call MUST have a timeout,
+which is the lesser of 120 seconds and the remaining budget minus 10 seconds,
+and a timeout of zero MUST fail the call as a timeout without any network
+request. Documents not started stay `pendiente` for the sweep.
 
 #### Scenario: Deadline reached
 
@@ -171,11 +200,12 @@ The model server MUST be reached only through one configured address and an
 optional bearer key. The system MUST use the NuExtract3 4B model with reasoning
 off and temperature 0.2, over an OpenAI-compatible chat API, asking for exactly:
 student name, issuer, issue date, rest-from, rest-to and rest-days. The bearer
-header MUST be sent only when a key is configured. Extraction is "not
-configured" when the address is absent or is a non-HTTPS address whose host is
-not loopback (`localhost`, `127.0.0.1`, `::1`); then no request is made and no
-document content leaves the system. Neither address nor key may appear in
-logs, errors or the UI.
+header MUST be sent only when a key is configured, and a redirect from the
+model server MUST NOT be followed. Extraction is "not configured" when the
+address is absent, is not a valid address, embeds credentials, or is a
+non-HTTPS address whose host is not loopback (`localhost`, any `127.0.0.0/8`
+address, `::1`); then no request is made and no document content leaves the
+system. Neither address nor key may appear in logs, errors or the UI.
 
 #### Scenario: Bearer only with a key
 
@@ -198,11 +228,19 @@ logs, errors or the UI.
 ### Requirement: Document preparation (RF-11)
 
 The system MUST prepare each document by kind. Image documents MUST be
-orientated by their EXIF data and reduced to a maximum width of 1600 px (never
-enlarged) and sent as images. A PDF whose every page has a text layer above a
-minimum density MUST be sent as its text. Any other PDF (scanned or mixed) MUST
-be rendered page by page, in order, to at most 5 pages and sent as images. An
-unreadable or unsupported document MUST fail the attempt with a closed-set code.
+orientated by their EXIF data, laid on white if they are transparent, reduced to
+a maximum width of 1600 px (never enlarged) and sent as images. Every PDF,
+whether or not it has a text layer, MUST be rendered page by page, in order, to
+at most 5 pages and sent as images; the system MUST NOT send the text of a PDF
+to the model (reading text-layer PDFs as text failed the accuracy gate on
+2026-10-23, see design DE-14). Before drawing any page, the system MUST refuse
+the whole document when a page it would send is so tall at the rendering width
+that drawing it would need more than 16 million pixels (a height over 10,000 px
+at width 1600), or when its size is not a positive finite number, so that no
+oversized canvas is allocated and nothing partial is sent. An unreadable or
+unsupported document MUST fail the attempt with a closed-set code; when the
+component that draws PDF pages cannot be loaded the code MUST be one that is
+retried, not the final one.
 
 #### Scenario: Large rotated photo
 
@@ -216,40 +254,34 @@ unreadable or unsupported document MUST fail the attempt with a closed-set code.
 - WHEN it is prepared
 - THEN all pages are rendered and sent as images, not as text
 
+#### Scenario: Text-layer PDF
+
+- GIVEN a PDF whose every page has a text layer
+- WHEN it is prepared
+- THEN every page is rendered and sent as an image, never as text
+
 #### Scenario: Page cap
 
 - GIVEN a scanned PDF of 8 pages
 - WHEN it is prepared
 - THEN only the first 5 pages are sent
 
-### Requirement: Values from text must appear in the text (RF-11 b)
+#### Scenario: Extreme page refused
 
-When a PDF is read as text, each returned name, issuer and date MUST be
-supported by that text (comparison insensitive to case, accents and spacing; a
-date may be written in any common format but its day, month and year must all
-be present). A value not supported by the text MUST become no reconocido.
-
-#### Scenario: Invented issuer discarded
-
-- GIVEN text-layer PDF text without the returned issuer
-- WHEN the answer is validated
-- THEN the issuer is no reconocido and the other supported fields are kept
-
-#### Scenario: Date in another format
-
-- GIVEN the text reads "20/07/2026" and the model returns 2026-07-20
-- WHEN the answer is validated
-- THEN the issue date is kept
+- GIVEN a PDF whose third page is 1 pt wide and 14400 pt tall
+- WHEN it is prepared
+- THEN the whole document is refused as unreadable and no page is drawn
+- AND a 400 mm long receipt page is still rendered
 
 ### Requirement: Code-side validation of fields (RF-11 b)
 
-Validation MUST run in code on every answer, whatever the source. A rest
-period MUST be recognized only in one of two forms: (a) both rest-from and
-rest-to present with from not after to, or (b) a positive whole number of days
-(at most 366) and no dates. Any other combination, including a lone date, MUST
-make the whole rest period no reconocido. In form (a) the days MUST be
-computed in code, inclusive of both ends, ignoring the model's value. Dates
-MUST be real calendar dates. Each field MUST be independently recognized or not.
+Validation MUST run in code on every answer. A rest period MUST be recognized
+only in one of two forms: (a) both rest-from and rest-to present with from not
+after to, or (b) a positive whole number of days (at most 366) and no dates.
+Any other combination, including a lone date, MUST make the whole rest period no
+reconocido. In form (a) the days MUST be computed in code, inclusive of both
+ends, ignoring the model's value. Dates MUST be real calendar dates. Each field
+MUST be independently recognized or not.
 
 #### Scenario: Days computed inclusive
 
@@ -321,19 +353,21 @@ and is not affected by the window.
 
 A row MUST store only: the validated name, issuer, issue date, rest-from,
 rest-to, rest-days, and the control data of "Attempts" (no confidence value and
-no name-match value). The system MUST NOT store the document text, the model's
-raw answer or any prepared image. It MUST NOT write extracted values, document
-text, the address or the key to any log; logs MAY carry row or document ids,
-states, error codes and counts. Extraction MUST write no audit row (D14: no
-human actor). The extracted name MUST be stored apart from, and never replace,
-the request's student snapshot (RN-02). Deleting a document MUST delete its
-row, so extracted data never outlives its document (RNF-04).
+no name-match value). The system MUST NOT store the model's raw answer, any
+text read from a document or any prepared image. It MUST NOT write extracted
+values, document content, the address or the key to any log; logs MAY carry
+request or document ids, states, error codes, error names and counts.
+Extraction MUST write no audit row (D14: no human actor). The extracted name
+MUST be stored apart from, and never replace, the request's student snapshot
+(RN-02): extraction MUST change no table other than its own. Deleting a
+document MUST delete its row, so extracted data never outlives its document
+(RNF-04).
 
 #### Scenario: No raw content kept
 
-- GIVEN a completed extraction of a text-layer PDF
+- GIVEN a completed extraction of a PDF
 - WHEN the row and the logs are inspected
-- THEN no document text, raw answer or extracted value appears in either
+- THEN no document content, raw answer or extracted value appears in either
 
 #### Scenario: Snapshot untouched
 
@@ -350,10 +384,10 @@ row, so extracted data never outlives its document (RNF-04).
 ### Requirement: Local-execution boundary (RNF-03, FA-04)
 
 Across 10 extractions through the real model adapter, with outbound network
-calls intercepted, the only requests that contain a document or its text MUST
-go to the host of the configured address; none MUST go to any other host. The
-codebase MUST NOT depend on a third-party OCR or inference service SDK, and a
-test MUST fail if such a dependency is added.
+calls intercepted, the only requests that contain a document or its content
+MUST go to the host of the configured address; none MUST go to any other host.
+The codebase MUST NOT depend on a third-party OCR or inference service SDK, and
+a test MUST fail if such a dependency is added.
 
 #### Scenario: Ten extractions, one host
 

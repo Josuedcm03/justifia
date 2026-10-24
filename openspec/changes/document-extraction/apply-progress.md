@@ -1051,3 +1051,216 @@ runtime steps: preview proof, backup, migration 0011, owner walk) and phase 10
 - Estimated review budget impact: 1,096 authored lines, 2.5x its forecast.
   Merge gate for the single PR: migration 0011 applied to Neon first (task 9.4,
   owner-only)
+
+## Batch 8 (2026-10-24): integration check and spec/design reconciliation (8.1, 8.2)
+
+Status: 8.1 and 8.2 done. Strict TDD stays active. No database was touched and no
+production code changed: the reconciliation went the documentation way in every
+case (see "Reconciliation decisions"), and the scenario audit found scenarios
+without a direct test, closed with test additions (tests only). Committed as one
+unit (`size:exception`). `proposal.md` and `openspec/specs/**` are untouched
+(main specs sync at archive, task 10.2).
+
+### Completed tasks
+
+- [x] 8.1 Gates on the final tree (all slices are commits of this one branch)
+- [x] 8.2 Scenario audit: all 61 scenarios of the three delta specs mapped
+      (tables below); gaps closed in this batch, none left open
+
+### 8.1 Gates (2026-10-24, `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`, dummy `AUTH_SECRET` for the build)
+
+| Gate | Result |
+|---|---|
+| `npm test` on HEAD `732d299` before any change | 258 files, 5,660 tests passed, exit 0, 108 s |
+| `npm test` on the final tree | 258 files, **5,663 tests passed** (+3), exit 0, 117 s |
+| `npm run typecheck` | clean, exit 0 |
+| `npx eslint src` | 93,991 findings, **every one** the CRLF `Delete ␍` noise of the Windows working tree (`core.autocrlf=true`, the index is LF); 0 other findings, 0 warnings (checked line by line with the filter) |
+| `npx prettier --check --end-of-line auto src next.config.ts package.json` | "All matched files use Prettier code style!", exit 0 |
+| `npm run build` | passes, exit 0 ("Compiled successfully"); `.next/server/functions-config-manifest.json` lists `/requests/new`, `/requests/[id]/correct` and `/api/cron/intake-sweep` with `maxDuration: 300` |
+| `npm run format:check` (`prettier --check .`) | **fails, exit 2, as known**: it warns on 525 files, but 401 of them differ only by line ending (they pass with `--end-of-line auto`: the working tree is CRLF, the index LF) and the other 124 are pre-existing (109 under `openspec/`, 13 under `docs/`, plus `.engram/` and `.vitest/`); none is under `src` or a config file; `openspec/config.yaml` also fails to parse (pre-existing). Nothing was reformatted |
+
+"All slices merged on the tracker" maps to this branch head under `size:exception`
+(task 0.1): there are no slice PRs.
+
+### 8.2 Scenario audit
+
+Evidence key: paths are under `src/`; tests are named by their title (or by the
+`describe` for tables). "9.5" is the owner walk (task 9.5), "9.2" the preview
+proof. "opt-in integration" is
+`lib/data/integration/extraction-claim.integration.test.ts` (task 2.17: written,
+not run; it runs only on a disposable branch at 9.5, which lists it as optional).
+
+#### `document-extraction` (39 scenarios)
+
+| # | Scenario | Evidence |
+|---|---|---|
+| 1 | Eligible document registered once | `lib/data/extraction.test.ts` "registers each eligible document as pendiente and returns the claimable ids", "never overwrites a row that already exists, whatever its state" (`ON CONFLICT DO NOTHING`), "runs all four statements in one transaction"; a real double run on Postgres: 9.5(c) |
+| 2 | Retired and staff documents | same file "reads only finalized student documents of the request", "gives a retired document without a row no_aplica instead of pendiente" |
+| 3 | Correction extracts only new documents | same file "turns only the open rows of retired documents into no_aplica and frees their claim", "never overwrites a row that already exists, whatever its state"; `app/(dashboard)/requests/[id]/correct/actions.test.ts` "hands the resubmitted request to extraction with the action's clock, before the redirect"; 9.5(d) |
+| 4 | Model outage does not block submit | `app/(dashboard)/requests/new/actions.test.ts` "a throwing hand-off is logged by name and the student still reaches the confirmation"; `lib/extraction/run.test.ts` "model errors" (timeout, model_error, invalid_response); recovery by the sweep: intake #5 and #6; 9.5(c) |
+| 5 | Hand-off failure is swallowed | `requests/[id]/correct/actions.test.ts` "a throwing hand-off is logged by name and the correction is still stored without an error to the student"; `lib/extraction/adapters/after-queue.test.ts` "logs a failing schedule by error name and does not rethrow"; `requests/new/schedule-extraction.test.ts` "a store that cannot be built is swallowed too" |
+| 6 | Blocked submit registers nothing | `requests/new/actions.test.ts` "enqueues nothing for %s" (blocked, refused and failing submits), "enqueues nothing when the consent is missing: nothing was stored"; `requests/[id]/correct/actions.test.ts` "enqueues nothing for %s" |
+| 7 | Concurrent claim | `lib/data/extraction.test.ts` "matches a pending row, or a processing row whose lease expired, under the cap", "stamps a fresh uuid, the time and one more attempt"; `lib/data/extraction-sql.test.ts` "claims with one UPDATE ... FROM ... JOIN ... RETURNING, the attempt bumped in SQL"; the race itself: opt-in integration "lets exactly one of several simultaneous claims win, and counts one attempt" (9.5, optional) |
+| 8 | Expired lease recovered | `extraction.test.ts` "matches a pending row, or a processing row whose lease expired, under the cap", "returns pending and expired-lease rows of live documents under the attempt cap, by id" |
+| 9 | Stale holder cannot complete | `extraction.test.ts` completeExtraction "changes nothing for a holder whose claim was replaced", "matches the row only by its document, its claim and the processing state"; failExtraction "changes nothing for a holder whose claim was replaced"; `run.test.ts` "reports a lost lease when the guarded completion matches nothing" |
+| 10 | Lease expires on the last attempt | `extraction.test.ts` "turns expired leases on the last attempt into fallida with a timeout code", "matches only processing rows with an expired lease and no attempt left"; `run.test.ts` "closes the expired last-attempt leases first, then selects a bounded batch" |
+| 11 | Third failure is final | `lib/extraction/states.test.ts` `failureOutcome` tables; `extraction.test.ts` "%s on attempt %i leaves the row %s with the code and no claim" (third attempt -> fallida) |
+| 12 | Unreadable document is final | `states.test.ts` "treats an unreadable document as final on the first attempt"; `extraction.test.ts` the same table, row `unreadable_document` / 1 / `fallida`; `lib/extraction/adapters/sharp-unpdf-preparer.test.ts` "fails bytes that are not a PDF as unreadable_document" |
+| 13 | Not configured keeps the attempt | `run.test.ts` "hands the claim back before reading the store or calling the network", "registers the rows but claims nothing and burns no attempt"; `extraction.test.ts` "hands a not_configured claim back as pendiente and returns the attempt (attempt %i)" |
+| 14 | Empty answer completes | `lib/extraction/validate.test.ts` "an empty answer"; `run.test.ts` "completes on an empty answer", "still completes when validation discards every value"; `extraction.test.ts` "completes an answer with no recognized value" |
+| 15 | Cold start retried once | `lib/extraction/adapters/nuextract-http-extractor.test.ts` "cold start retry": "retries once after 5 s on a connection error, then returns the answer", "retries once on HTTP %i" (502/503/504), "does not retry on HTTP %i" (500/401/403/429), "counts the time the first attempt already used against the retry budget"; the retry sits inside one `extract` call, so `Intentos` (bumped only by the claim) cannot move |
+| 16 | Deadline reached | `run.test.ts` "with five rows and a budget for two, processes two and leaves three untouched", "gives each model call min(120 s, remaining - 10 s)", the 19,999 / 20,000 ms table |
+| 17 | Duration pinned | `lib/extraction/max-duration.test.ts` "maxDuration pins" (three files, detector tested) |
+| 18 | Bearer only with a key | `nuextract-http-extractor.test.ts` "sends no authorization header without a key", "sends the bearer when a key is set, on the same address" |
+| 19 | Plain HTTP to a remote host | `lib/extraction/config.test.ts` "rejected addresses"; `lib/extraction/rnf03.test.ts` "makes no request when the address is plain http to a remote host" |
+| 20 | Loopback over HTTP allowed | `config.test.ts` "accepted addresses" (`http://localhost:8080`, `127.x`, `[::1]`); `rnf03.test.ts` "sends 10 extractions (7 images, 3 PDFs) to the configured host and nowhere else" (the configured host is the loopback `http://127.0.0.1:8080`) |
+| 21 | Large rotated photo | `sharp-unpdf-preparer.test.ts` "turns a large photo with EXIF orientation 6 upright at width 1600" |
+| 22 | Mixed PDF | same file "renders every page of a mixed PDF as an image, text page included" |
+| 23 | Text-layer PDF | same file "renders a PDF whose every page has a text layer as images too, never as text (scenario: Text-layer PDF)" (**added in this batch**) |
+| 24 | Page cap | same file "sends only the first 5 pages of an 8-page scan, in order" |
+| 25 | Extreme page refused | same file "page-size guard": "refuses a 1 x 14400 pt page without rendering it", "refuses the whole document when only page 3 is extreme, rendering nothing", "renders a long receipt (227 x 1134 pt, ratio 5) at the width cap"; `lib/extraction/limits.test.ts` `fitsRenderCap` tables |
+| 26 | Days computed inclusive | `validate.test.ts` "computes the days inclusive in code and ignores the model's value (scenario: Days computed inclusive)" |
+| 27 | Invented rest discarded | `validate.test.ts` "rest period, any other combination is not recognized": "drops a lone rest_from equal to the issue date" |
+| 28 | Duration only | `validate.test.ts` "recognizes a duration with no dates (scenario: Duration only)" |
+| 29 | Window boundaries | `validate.test.ts` "issue date (DE-10, scenario: Window boundaries)" table (the four rows of the spec and the 29 Feb reference) |
+| 30 | Completed year | `validate.test.ts` "drops a completed handwritten year (scenario: Completed year)" |
+| 31 | Rest still running at submission | `validate.test.ts` "keeps a rest that is still running at submission (scenario: Rest still running)" |
+| 32 | Rest end outside the window | `validate.test.ts` "rest end one day past the 30-day lookahead is dropped" (2026-11-22) and its kept twin at +30 days |
+| 33 | Rest start after submission | `validate.test.ts` "drops the whole period when the start is after submission (scenario: Rest start after submission)" |
+| 34 | No raw content kept | `run.test.ts` "write nothing on the success path and nothing from the document"; `db/migration-document-extraction.test.ts` "stores no confidence, name-match flag, text or raw answer"; `extraction.test.ts` "logs one event, by id and code only, never a pathname, name or value" |
+| 35 | Snapshot untouched | `extraction.test.ts` "changes no table but ExtraccionDocumento, so the request snapshot is never touched (scenario: Snapshot untouched)" (**added in this batch**); read side: `app/(dashboard)/review/[id]/page.test.tsx` "shows the snapshot name in the student section and the document name in this one" |
+| 36 | Cascade and no audit | `migration-document-extraction.test.ts` "cascades the row away with its document"; `extraction.test.ts` "imports nothing from the audit modules and writes no audit row"; `lib/data/intake-sweep.test.ts` "deletes and modifies nothing on behalf of the step, and writes no audit row"; the real cascade: opt-in integration "deletes the extraction row with its document" (9.5, optional) |
+| 37 | Ten extractions, one host | `rnf03.test.ts` "sends 10 extractions (7 images, 3 PDFs) to the configured host and nowhere else", "keeps to the configured host when it is a remote https host"; one real extraction against the local container: 9.5(b) |
+| 38 | Third-party SDK added | `rnf03.test.ts` "detects an import of a hosted OCR or inference SDK", "finds no such SDK in package.json", "finds no such SDK imported anywhere under src" |
+| 39 | Not configured sends nothing | `rnf03.test.ts` "makes no request at all when no address is configured"; `nuextract-http-extractor.test.ts` configuration table (unusable addresses -> not configured); 9.5(a) |
+
+#### `justification-intake` (10 scenarios)
+
+| # | Scenario | Evidence |
+|---|---|---|
+| 1 | Unauthorized sweep call | `app/api/cron/intake-sweep/route.test.ts` "rejects %s and deletes nothing" (seven credential shapes; `runIntakeSweep` is never called, and the extraction step exists only as its argument), "fails closed when the secret is not configured" |
+| 2 | One failure does not stop the sweep | `lib/data/intake-sweep.test.ts` "one failing blob deletion does not stop the sweep (spec: One failure)" |
+| 3 | Pending requests untouched | `intake-sweep.test.ts` "leaves a pendiente request older than 30 days and its documents alone", "never selects a returned request: the draft sweep is borrador only" |
+| 4 | Extraction failure does not stop cleanup | `intake-sweep.test.ts` "a throwing step still leaves the cleanup done and counts one failure (spec: Extraction failure does not stop cleanup)"; `route.test.ts` "a failing step is the sweep's to count: the call still answers 200 with the counts", "builds the extraction wiring only when the step runs, so cleanup never depends on it" |
+| 5 | Missing row recovered | `extraction.test.ts` "picks up a pending row, an expired lease under the cap, or a document with no row"; `extraction-sql.test.ts` "selects candidates with two correlated EXISTS, a bounded ordered batch"; `run.test.ts` "processes each candidate request through the use case and sums the documents", "registers first, then processes the ids it got back one at a time"; 9.5(c) |
+| 6 | Expired lease recovered | `extraction.test.ts` the same "picks up..." test; claim "matches a pending row, or a processing row whose lease expired, under the cap" |
+| 7 | Only pending requests | `extraction.test.ts` "considers only requests still pending"; `extraction-sql.test.ts` (the emitted candidate statement) |
+| 8 | Backfill is bounded | `extraction.test.ts` "returns the request ids, oldest clock start first, at most the limit", "passes the limit it is given"; `run.test.ts` "closes the expired last-attempt leases first, then selects a bounded batch" |
+| 9 | Deadline stops the step | `run.test.ts` "stops taking up requests once the deadline leaves no room for a document"; `intake-sweep.test.ts` "runs once with the sweep clock and the invocation deadline" |
+| 10 | Not configured | `run.test.ts` "skips the candidates when not configured but still closes the leases", "registers the rows but claims nothing and burns no attempt"; 9.5(a) |
+
+#### `request-review` (12 scenarios)
+
+| # | Scenario | Evidence |
+|---|---|---|
+| 1 | Full data shown | `app/(dashboard)/review/[id]/extraction-section.test.tsx` "shows the four fields with the rest range and its days (Full data shown)"; `lib/extraction/display.test.ts` "returns every field with its value and a rest range with days (scenario: Full data shown)"; 9.5(b) |
+| 2 | Unrecognized field | `extraction-section.test.tsx` "marks a field without value as muted 'not recognized' with no value (Unrecognized field)"; `display.test.ts` "marks a field without value as not recognized (scenario: Unrecognized field)" |
+| 3 | Days only | `extraction-section.test.tsx` "shows only the days when the document gave no dates (Days only)"; `display.test.ts` "returns days alone, with no dates, when the document gave none (scenario: Days only)" |
+| 4 | Snapshot name wins | `extraction-section.test.tsx` "labels the name as read from the document and says it is not compared"; `review/[id]/page.test.tsx` "shows the snapshot name in the student section and the document name in this one" |
+| 5 | Not for students or other roles | `lib/auth/permissions.test.ts` "canReviewRequests (RN-15: only secretaria reviews)" (`rolesRevisores` is `secretaria` only); `review/[id]/page.test.tsx` "keeps the access gate unchanged: one requireRole over rolesRevisores, no role check of its own", "gives the student detail no extraction read, section or type" |
+| 6 | Extracting | `extraction-section.test.tsx` "reads 'extracting' for %s, with no action and no values" (processing, pending, missing row); `display.test.ts` "states without data" |
+| 7 | Permanently failed | `extraction-section.test.tsx` "reads 'unavailable, review the document' for a failed row, with no control"; `display.test.ts` "a fallida row reads unavailable (scenario: Permanently failed)" |
+| 8 | Not configured | `extraction-section.test.tsx` "shows the configuration message once for several waiting documents, without the variable name", "words the configuration message in Spanish"; `i18n/review-messages.test.ts` "%s never names the variable, the address or the key in any extraction text"; 9.5(a) |
+| 9 | Decided request never extracting | `extraction-section.test.tsx` the `aprobada` / `devuelta` table; `display.test.ts` "a request that is no longer pending never shows extracting"; `review/[id]/page.test.tsx` "passes the request state: a decided request never reads 'extracting'" |
+| 10 | Read failure | `extraction-section.test.tsx` "replaces every entry with the degraded notice, with no partial values"; `page.test.tsx` "renders the rest of the detail with the degraded notice when the read throws"; `extraction.test.ts` "returns an empty degraded result, with no partial data, when the query throws" |
+| 11 | One audit row | `page.test.tsx` "writes exactly one audit row, with the same arguments as before", "loads the extractions for the opened request, before the audited read"; 9.5(f) |
+| 12 | Translation keys present | `i18n/review-messages.test.ts` "es.json and en.json hold exactly the same review keys", "%s names the section and every extraction text" |
+
+Gaps found by the audit and closed in this batch (tests only, no production change):
+
+| Scenario | Gap | Closed by |
+|---|---|---|
+| #23 Text-layer PDF (new, from the DE-14 consequence) | No test used a PDF whose every page has a text layer; the mixed-PDF test had one blank page | `adapters/sharp-unpdf-preparer.test.ts` "renders a PDF whose every page has a text layer as images too, never as text" |
+| #35 Snapshot untouched | Only the read side was pinned; nothing proved the data module writes no other table | `lib/data/extraction.test.ts` "lists the table of every ORM write call, not only this one" (detector) and "changes no table but ExtraccionDocumento..." |
+| intake #1 Unauthorized sweep call | Evidence is indirect: the extraction step runs only inside `runIntakeSweep`, which the test asserts is not called | Kept as is: assertions on mocks that cannot be reached would be vacuous (strict-tdd assertion rules) |
+
+Residual coverage that depends on the owner (phase 9, not gaps): the real race of
+#7 and the real cascade of #36 are proven only by the opt-in integration test
+(task 2.17), which 9.5 lists as optional; the owner should run it. The native
+addons in the deployed function and the 360 px walk stay 9.2 and 9.5(e).
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 8.2 gap #23 | `src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` | Unit (real unpdf, canvas and sharp, hand-built PDF) | 24/24 in the file before the change | Characterization: the behavior exists (DE-14 consequence), so it passes at once; it pins the absence of a text branch (kind `images`, 2 pages, ink on both) | 25/25 | Complements the mixed-PDF test (a text page plus a blank page) with a PDF that is text on every page | None needed |
+| 8.2 gap #35 | `src/lib/data/extraction.test.ts` | Unit (file scan of the module) | 43/43 before the change | Detector test and module test written; the module test passes at once (the module does write only its own table). Mutation check: appending `db.update(solicitud).set({})` to `extraction.ts` failed it (6 write calls, expected 5); file restored with `git checkout` | 45/45 | The detector is fed three write shapes on three tables and a read; the module check also scans every `sql` template fragment for a write verb | None needed |
+
+Focused run after the additions: `npx vitest run src/lib/data/extraction.test.ts src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts`: 2 files, 69 tests, all passing.
+
+### Work Unit Evidence (batch 8)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | the command above: 2 files, 69 tests passed; full suite 258 files, 5,663 tests passed |
+| Runtime harness | `npm run build` (dummy `DATABASE_URL` and `AUTH_SECRET`) passes and writes `maxDuration: 300` for the three entry points; the preparer test renders real PDFs through real unpdf, canvas and sharp |
+| Rollback boundary | Revert this commit: `design.md` and the three delta specs, the two test additions, and the artifacts of this batch (`tasks.md`, `apply-progress.md`). No production file changes |
+
+### Reconciliation decisions
+
+Rule applied to every item: the code is the reference when it satisfies the
+intent of the requirement and the spec or design text is merely older; the code
+is changed (with tests) only when it contradicts an intended requirement. **No
+code needed to change**; every item was resolved by editing the spec or the
+design.
+
+| # | Item | Chosen | Why |
+|---|---|---|---|
+| 1 | Text path (DE-9 text row, DE-10 text rule, DE-14 as a first task, DE-6 `sourceText`, DE-8 `<text>` content, `Motor` text value, RNF-03 "3 text PDFs", the spec requirement "Values from text must appear in the text" with its two scenarios, "text-layer" in "No raw content kept") | Removed or rewritten; DE-14 now records the measurement and the decision with a pointer to `docs/investigacion/spike-ocr-resultados.md`; new scenario "Text-layer PDF" | Measured FAIL (issuer 3/6): every PDF takes the image path; there is no text or rules extractor |
+| 2 | S2-1 registration is four statements (no `INSERT ... SELECT`) | Design DE-5 | drizzle needs the select to project every column; behavior and transaction are the same |
+| 3 | S2-2 claim also needs `PresentadaEn IS NOT NULL` | Spec "State machine" and DE-6 | A draft has no clock start; strictly safer |
+| 4 | S2-3 registration also returns `procesando` rows with an expired lease | Design DE-5 | Needed so "Expired lease recovered" selects work it can then claim |
+| 5 | S2-4 candidates ordered by `COALESCE(ReenviadaEn, PresentadaEn)` | Design DE-11 (the spec already said "clock start") | Matches the queue index and the spec |
+| 6 | S2-5 `fallida` rows of a retired document are left alone | Design DE-3 diagram (`fallida` dropped from the retire arrow) and spec "Eligibility" ("open row", final rows stay) | The spec already made `fallida` final; the diagram contradicted it; the staff read omits retired documents |
+| 7 | S2-6, S2-7, S2-8 (`not_configured` code stored, read-model shape, `db-double`) | No change; DE-4 already keeps the code for diagnostics | Internal shapes |
+| 8 | S3: ports return closed unions; `enqueue` is `void`; `runDocumentExtraction` never throws and returns an outcome; `processRequestExtractions` options `{ startedAt } \| { deadline }` and result `{ processed, errored }`; sweep result `{ run, abandoned, failures }`; model timeout taken after preparation (0 under 10 s, immediate `timeout`); the sweep checks `canStartDocument` per request; `ExtractionDeps` / `ExtractionWiring` | Design DE-1, DE-5, DE-6, DE-11; spec "Execution budget" (zero timeout, 20 s rule, timeout formula) | Behavior matches the intent; the text was less precise |
+| 9 | S4a: the sharp step also flattens transparency; every PDF rendered at width 1600; a failing page or unreadable PDF is `unreadable_document`; only a failing canvas import is `render_unavailable` | Spec "Document preparation" and design DE-9 | Black PNG backgrounds would be a defect; the codes follow DE-3 and DE-4 |
+| 10 | 4.11 page-size guard | Spec "Document preparation" (new sentence) and scenario "Extreme page refused"; DE-9 already carried it | The guard postdated the spec |
+| 11 | S4b: the retry budget is the call's own `timeoutMs`; `timeoutMs <= 0` is an immediate `timeout`; a `redirect: "error"` failure looks like a connection error; not configured answers `model_error`; 64 KiB body semantics | Design DE-7 and DE-8; spec "Attempts" gains the cold-start paragraph and the scenarios "Cold start retried once" and "Unreadable document is final" | The deviation only makes the retry rarer; it never exceeds the deadline |
+| 12 | S4b: `configured.ts` and `env: () => ExtractionEnv` | Design DE-1 | Already listed in batch 5; confirmed |
+| 13 | S5a: `restSingleDay`, the configuration notice once at the top (waiting entries not listed), no section when the request has no student document, page-level catch of a throwing read, warning-tinted banner, `useDates` exported | Spec "Extracted data section", "Extraction states", "fail-soft"; design DE-13 (now a precedence table) | Matches the intent of every scenario; the old DE-13 table contradicted the precedence of the spec |
+| 14 | S5b: shared guarded `scheduleExtraction` in `step-actions.ts`, on-demand import of `deps.ts`, `runIntakeSweep` computes the deadline itself, request id in after-queue logs | Design DE-5, DE-11, DE-12; spec "Triggers" (a composition root that cannot be built is swallowed) and "Stored data and logs" (request ids may be logged) | Failure containment is exactly the spec's "queueing failure of any kind" |
+| 15 | The sweep processes inline instead of "handing documents to the queue"; the batch of 10 is requests, not documents; the report counts documents processed and leases closed, not "re-enqueued" | Intake spec rewritten ("takes up", "at most 10 requests", counts) | The design (DE-11) always described it so; only the spec used queue wording |
+| 16 | `abandonExpiredExtractions` closes expired last-attempt leases whatever the request state | Spec (state machine and intake): stated as the one exception to "only `pendiente` requests"; code kept | Intent preserved: it touches no request or document, and an orphan `procesando` row on a decided request would otherwise never end |
+| 17 | Loopback is `127.0.0.0/8`, not only `127.0.0.1`; an address with credentials, or one that does not parse, is not configured | Spec "Engine contract" | Stricter than the old text, tested in `config.test.ts` |
+| 18 | Review-workload note: authored total about 8,840 lines vs about 3,400 forecast | Design "Review Workload Forecast" (one line) | Honest record for the PR description |
+
+Not edited on purpose: `proposal.md` (its text-path bullet already says the image
+path is the fallback if the measurement fails) and the task text of earlier phases.
+
+### Files changed
+
+| File | Action |
+|---|---|
+| `openspec/changes/document-extraction/design.md` | Modified: reconciled with the build (DE-1..DE-14, file changes, testing strategy, forecast note) |
+| `openspec/changes/document-extraction/specs/document-extraction/spec.md` | Modified: text path removed; preparation, guard, attempts and retry, budget, engine contract, logs |
+| `openspec/changes/document-extraction/specs/justification-intake/spec.md` | Modified: sweep wording (inline processing, request batch, counts, deadline) |
+| `openspec/changes/document-extraction/specs/request-review/spec.md` | Modified: omitted section, precedence, notice once at the top, page-level fail-soft |
+| `src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` | Modified: +1 test |
+| `src/lib/data/extraction.test.ts` | Modified: +2 tests |
+| `openspec/changes/document-extraction/{tasks,apply-progress}.md` | Modified (8.1 and 8.2 marked; this section) |
+
+### Issues found
+
+- `npm run format:check` cannot be a clean gate on this Windows checkout: 401
+  files fail on line endings alone and 124 are pre-existing document warnings
+  (see 8.1). The gate used is `prettier --check --end-of-line auto` on `src`,
+  `next.config.ts` and `package.json`.
+- Batch 4 reported one unexplained failure in a first full run; the baseline run
+  of this batch on HEAD and the final run were both fully green.
+- The owner-only integration test (2.17) is the only proof of the claim race and
+  of the real cascade; 9.5 lists it as optional.
+- The migration `0011` number collision with the unmerged `escalation` change is
+  unchanged (see batch 2, 2.2).
+
+### Remaining tasks
+
+Phase 9 (owner-run, 9.1-9.6) and phase 10 (10.1 verify, 10.2 spec sync, 10.3
+roadmap, 10.4 archive, 10.5 merge). Next SDD phase: `sdd-verify`.
+
+### Workload / PR boundary
+
+- Mode: `size:exception`, single PR from `feat/document-extraction`
+- Current work unit: `phase8-integration+spec-reconcile`, committed as one unit
+- Estimated review budget impact: three small tests (about 55 lines) plus
+  documentation rewrites; the authored-line total of the branch stays about 8,900

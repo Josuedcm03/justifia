@@ -12,8 +12,9 @@ MUST continue past a single failing item, and MUST report counts. Its cleanup
 steps (expired drafts, unfinished documents, orphan files) MUST NOT touch
 requests in any state other than `borrador`. Its extraction step (see "Sweep
 re-enqueues document extraction") MUST NOT delete or modify any request or
-document; it only hands documents of `pendiente` requests to the extraction
-queue. A failure of any step MUST NOT stop the others.
+document; it only registers and processes extraction rows of documents of
+`pendiente` requests, and closes expired last-attempt leases. A failure of any
+step MUST NOT stop the others.
 (Previously: the sweep had no extraction step and MUST NOT touch requests in any state other than `borrador`.)
 
 #### Scenario: Unauthorized sweep call
@@ -44,16 +45,23 @@ queue. A failure of any step MUST NOT stop the others.
 
 ### Requirement: Sweep re-enqueues document extraction (RF-11)
 
-After the cleanup steps, the sweep MUST run a re-enqueue step that hands to the
-extraction queue: rows in `pendiente`, rows in `procesando` whose lease
-expired, and eligible documents (see `document-extraction`) that have no row.
-It MUST consider only documents of requests in `pendiente`; `completada`,
-`fallida` and `no_aplica` rows and documents of requests in any other state
-MUST be left alone. Each run MUST be bounded to a fixed maximum number of
-documents, oldest request first by clock start, so that requests already
-`pendiente` when this change ships are extracted over successive runs. The
-step MUST be idempotent, MUST write no audit row, and the sweep report MUST
-include the number of documents re-enqueued, never document data.
+After the cleanup steps, the sweep MUST run an extraction step. It first closes
+the rows whose lease expired on their last attempt (see `document-extraction`;
+this applies whatever the state of their request). Then, only when extraction
+is configured, it takes up requests in `pendiente` that have a `pendiente` row,
+a `procesando` row with an expired lease under the attempt cap, or an eligible
+document (see `document-extraction`) that has no row; it registers the missing
+rows and processes the documents one at a time, until the deadline of the
+invocation (the cleanup time counts). Apart from closing expired last-attempt
+leases, it MUST consider only documents of requests in `pendiente`;
+`completada`, `fallida` and `no_aplica` rows and documents of requests in any
+other state MUST be left alone. Each run MUST take up at most a fixed number of
+requests (10), oldest request first by clock start, so that requests already
+`pendiente` when this change ships are extracted over successive runs. The step
+MUST be idempotent and MUST write no audit row. The sweep report MUST include
+the number of documents processed and the number of leases closed, and its
+failure count MUST include the requests and documents of the step that failed;
+it never carries document data.
 
 #### Scenario: Missing row recovered
 
@@ -65,19 +73,25 @@ include the number of documents re-enqueued, never document data.
 
 - GIVEN a `procesando` row with an expired lease on a `pendiente` request
 - WHEN the sweep runs
-- THEN the document is handed to the queue again
+- THEN the document is processed again
 
 #### Scenario: Only pending requests
 
 - GIVEN `pendiente` rows on a request now `aprobada` and on a request in `devuelta`
 - WHEN the sweep runs
-- THEN neither row is handed to the queue
+- THEN neither request is taken up
 
 #### Scenario: Backfill is bounded
 
-- GIVEN more eligible documents of `pendiente` requests than the batch limit
+- GIVEN more `pendiente` requests with work left than the batch limit
 - WHEN the sweep runs on consecutive days
-- THEN each run hands over at most the limit, oldest request first, until none remain
+- THEN each run takes up at most the limit, oldest request first, until none remain
+
+#### Scenario: Deadline stops the step
+
+- GIVEN the deadline of the invocation leaves no room for another document
+- WHEN the step reaches the next request
+- THEN it takes up no more requests and their rows stay `pendiente` for the next run
 
 #### Scenario: Not configured
 

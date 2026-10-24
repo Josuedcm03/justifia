@@ -238,6 +238,23 @@ describe("sharp-unpdf preparer, PDF render path (DE-9)", () => {
     expect(blankPage.min).toBeGreaterThan(250);
   });
 
+  it("renders a PDF whose every page has a text layer as images too, never as text (scenario: Text-layer PDF)", async () => {
+    // Text mode measured FAIL (DE-14): a text-layer PDF takes the image path.
+    const pdf = buildPdf([
+      { text: "Constancia medica" },
+      { text: "Reposo relativo" },
+    ]);
+
+    const result = await preparer.prepare(pdf, "pdf");
+    const images = imagesOf(result);
+
+    expect(result.ok && result.prepared.kind).toBe("images");
+    expect(images).toHaveLength(2);
+    for (const image of images) {
+      expect((await lumaOf(image)).min).toBeLessThan(100);
+    }
+  });
+
   it("sends only the first 5 pages of an 8-page scan, in order", async () => {
     // Page n is a flat gray of level n/10: the mean tells which page it was.
     const pdf = buildPdf(

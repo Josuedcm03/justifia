@@ -716,6 +716,34 @@ describe("extraction write surface", () => {
 
   const source = readFileSync(join(SRC, MODULE), "utf8");
 
+  /** Identifier handed to each ORM write call: the table the call changes. */
+  function tablesWritten(code: string): string[] {
+    return [...code.matchAll(/\.(?:insert|update|delete)\(\s*(\w+)/g)].map(
+      (m) => m[1],
+    );
+  }
+
+  it("lists the table of every ORM write call, not only this one", () => {
+    expect(
+      tablesWritten(
+        "tx.insert(extraccionDocumento).values(r); db.update( solicitud ).set(x); db.delete(documentoRespaldo)",
+      ),
+    ).toEqual(["extraccionDocumento", "solicitud", "documentoRespaldo"]);
+    expect(tablesWritten("db.select().from(solicitud)")).toEqual([]);
+  });
+
+  it("changes no table but ExtraccionDocumento, so the request snapshot is never touched (scenario: Snapshot untouched)", () => {
+    const tables = tablesWritten(source);
+
+    expect(tables).toHaveLength(5);
+    expect(new Set(tables)).toEqual(new Set(["extraccionDocumento"]));
+    const rawSql = [...source.matchAll(/sql`([^`]*)`/g)].map((m) => m[1]);
+    expect(rawSql.length).toBeGreaterThan(0);
+    for (const fragment of rawSql) {
+      expect(fragment).not.toMatch(/\b(insert|update|delete)\b/i);
+    }
+  });
+
   it("detects the write shapes it guards against", () => {
     expect(writesOf("tx.insert(extraccionDocumento).values(r)")).toEqual([
       "insert",
