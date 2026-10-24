@@ -609,3 +609,134 @@ Authored diff: **217 lines** (214 added, 3 removed across 6 source files;
 - Page 6 and later are not measured: they are never rendered.
 - A page whose viewport cannot be read (`getPage` throws) is refused as
   `unreadable_document` like any other failing page.
+
+Commit: `8333dce`.
+
+### Unit B: S4b extractor, env, composition root, RNF-03 (tasks 5.1-5.10)
+
+Status: 5.1-5.10 done (5.1 N/A). Committed as one unit (`size:exception`):
+`feat(extraction): add the NuExtract HTTP extractor and the composition root`.
+No database was touched; no container was started; every model call is a stubbed
+`fetch`.
+
+#### Completed tasks
+
+- [x] 5.1 N/A (`size:exception`, stay on `feat/document-extraction`)
+- [x] 5.2 RED/GREEN `src/env.test.ts` + `src/env.ts` (`EXTRACTION_API_URL`, `EXTRACTION_API_KEY`)
+- [x] 5.3-5.6 RED/GREEN `nuextract-http-extractor` (request, responses, failures, cold start)
+- [x] 5.7 RED/GREEN `configured.ts` (light `isExtractionConfigured`) and `deps.ts`
+- [x] 5.8, 5.9 `rnf03.test.ts` (no production change needed)
+- [x] 5.10 gates and diff measurement (PR part N/A)
+
+#### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 5.2 | `src/env.test.ts` | Unit (`vi.resetModules` + stubbed env) | 6/6 | Written; 4 of 10 failed (variables not in the schema). The "unset or empty" test passes before the change by nature | 10/10 | set / unset / empty, URL without a key, key of 5 chars rejected, key of exactly 16 accepted | None needed |
+| 5.3-5.6 + `limits` | `adapters/nuextract-http-extractor.test.ts`, `limits.test.ts` | Unit (injected `fetch`, fake timers, spied `AbortSignal.timeout`) | `limits` 34/34 pre-change | Written; run failed: `./nuextract-http-extractor` unresolved; the limits pin test failed on the two new constants | 60/60 + limits 34/34 (the pin test now covers the two new constants) | request: URL with path/trailing slash, bearer with and without key, `redirect: "error"`, abort after `timeoutMs`, `timeoutMs` 0/-1/-5000 -> `timeout` with no fetch; configuration: 2 usable and 4 unusable addresses, env read at use; responses: plain, 3 fence shapes, extra/missing keys, all-null, 10 invalid shapes, exactly 64 KiB passes, over 64 KiB cancels the stream, broken stream; failures: 6 HTTP statuses without retry, abort -> `timeout`, network message and key never leak, no console output; retry: connection error, 502/503/504, no retry on 500/401/403/429, second failure, abort in the retry, budget boundary 25,000 / 24,999 / 20,000 / 120,000 ms, elapsed time counted | Retry decision split into `isColdStart` and `interpret`; mutation checks (10): dropping `redirect`, the key condition, the `timeoutMs <= 0` guard, the 64 KiB cap, a status in the retry set, the `>=` edge, the elapsed-time term, the abort mapping, fence stripping and schema parsing each failed at least one test |
+| 5.7 | `configured.test.ts`, `deps.test.ts` | Unit (`vi.mock` of `server-only`, `@/env`, adapters; heavy modules mocked with load recorders) | N/A (new) | Written; run failed: modules unresolved | 9/9 + 6/6 | 3 configured and 3 unconfigured shapes, env read each time, only the two variables exposed, no sharp/unpdf/canvas load; wiring, single store build, no queue entry, extractor env read at use, unset server does not throw, store failure propagates. Mutation checks: importing the preparer into `configured.ts`, and exposing `DATABASE_URL`, each failed a test | None needed |
+| 5.8/5.9 | `rnf03.test.ts` | Integration (real preparer + real HTTP adapter, stubbed global `fetch`, generated documents) | N/A (new) | Characterization: passes at once because 5.6 and S4a already exist (no production change needed); mutation checks prove it can fail: sending to another host failed 2 tests, dropping the config check failed 1, adding an `openai` import failed the scan | 8/8 | 7 images + 3 PDFs on the configured host (10 requests, 1+1+1+1+1+1+1+1+2+5 image parts), a remote https host, unset address, plain http to a remote host; guard detector positive/negative, `package.json`, scan of every `src` file | None needed |
+
+#### Test summary
+
+- Total tests written: 88 (env 5, extractor 60, configured 9, deps 6, rnf03 8);
+  limits pin test extended (2 constants)
+- Total passing: 88; full suite `npm test`: 254 files, 5550 tests, all passing
+  (was 5462)
+- Layers: Unit (80), integration over stubbed network (8)
+- Approval tests: none (no refactoring task)
+- Pure functions created: none new (`unfence`, `parseAnswer`, `readBounded` are
+  module-private helpers)
+
+#### Work Unit Evidence (S4b)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run src/lib/extraction src/env.test.ts`: 15 files, 351 tests, all passing |
+| Runtime harness | `rnf03.test.ts` runs the real sharp/unpdf/canvas preparer and the real HTTP adapter with the global `fetch` replaced; `npm run build` (dummy `DATABASE_URL`/`AUTH_SECRET`) passes. One real extraction against the local container stays task 9.5 (owner), the container was not started here |
+| Rollback boundary | Delete `src/lib/extraction/{configured,deps}.ts`, `src/lib/extraction/rnf03.test.ts`, `src/lib/extraction/{configured,deps}.test.ts` and `src/lib/extraction/adapters/nuextract-http-extractor{,.test}.ts`; revert the two variables in `src/env.ts` (and their tests), the two constants in `limits.ts` (and the pin test), and the `configured.ts` row in `design.md`. No caller exists yet |
+
+#### Gates (2026-10-23, dummy `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`)
+
+- `npm test`: 254 files, 5550 tests passed
+- `npm run typecheck`: clean
+- ESLint on `src`: only the CRLF `Delete ␍` noise
+- `prettier --check --end-of-line auto src next.config.ts package.json`: clean
+- `npm run build` (dummy `DATABASE_URL` and `AUTH_SECRET`, no Neon): passes. No
+  Next API was touched, so `node_modules/next/dist/docs/` was not needed
+
+#### Files changed
+
+| File | Action | Authored lines |
+|---|---|---:|
+| `src/lib/extraction/adapters/nuextract-http-extractor.ts` | Created | 204 |
+| `src/lib/extraction/adapters/nuextract-http-extractor.test.ts` | Created | 533 |
+| `src/lib/extraction/configured.ts` / `.test.ts` | Created | 23 / 102 |
+| `src/lib/extraction/deps.ts` / `.test.ts` | Created | 23 / 90 |
+| `src/lib/extraction/rnf03.test.ts` | Created | 306 |
+| `src/env.ts` / `src/env.test.ts` | Modified | 5 / 52 |
+| `src/lib/extraction/limits.ts` / `.test.ts` | Modified: two constants | 6 / 4 |
+| `openspec/changes/document-extraction/{tasks,design,apply-progress}.md` | Modified (excluded) | n/a |
+
+Authored diff: **1,348 lines** (prod 261 + tests 1,087), against a ~420
+forecast (3.2x). Committed as one unit (`size:exception`).
+
+#### Deviations from design
+
+1. **The "remaining budget" of the cold-start retry is the call's own
+   `timeoutMs`.** The `FieldExtractor` port hands over only `timeoutMs`, so one
+   `AbortSignal.timeout(timeoutMs)` bounds both attempts and the retry runs only
+   when `timeoutMs - elapsed - 5 s >= 20 s`. A `timeoutMs` that S3 capped at
+   120 s (plenty of budget left in reality) is therefore judged by 120 s, never
+   by more, which can only make the retry rarer, never exceed the deadline.
+2. **`timeoutMs <= 0` is an immediate `timeout` with no fetch** (from S3).
+3. **A call to `extract` while not configured answers `model_error` and sends
+   nothing** (the closed `ExtractFailure` set has no `not_configured`; the use
+   case checks `isConfigured()` first, so this is a safety net).
+4. **The adapter takes `env: () => ExtractionEnv` instead of importing
+   `@/env`**; `configured.ts` (`extractionEnv()`) supplies it. Keeps the adapter
+   free of the env-parsing side effect and testable without environment setup.
+5. **`configured.ts` is a new module** (design DE-1 lists none; task 5.7 allowed
+   it): the light export for the review page.
+6. **A `redirect` failure is indistinguishable from a connection error** in
+   fetch (`TypeError`), so it may be retried once. Harmless (same host, same
+   budget).
+7. **The key condition and constants:** `COLD_START_RETRY_DELAY_MS` and
+   `MAX_MODEL_RESPONSE_BYTES` live in `limits.ts` (DE-7, DE-8) beside the other
+   numeric constants; the limits pin test covers them.
+8. **The SDK denylist** adds a few more names than the task's examples
+   (`@google-cloud/documentai`, `@aws-sdk/client-rekognition`,
+   `@google/generative-ai`, `@google/genai`, `@mistralai/mistralai`,
+   `@huggingface/inference`, `replicate`, `groq-sdk`, ...).
+9. Spec and design drift on the dropped text path (batch 1, deviation 4) is
+   unchanged and still to resolve at verify/archive.
+
+#### Issues found
+
+- Authored diff 1,348 lines vs ~420 forecast; tests are 1,087 (the response,
+  failure and retry tables). Aggregate so far: S1 1,484 + S2 1,890 + S3 1,316 +
+  S4a 584 + guard 217 + S4b 1,348.
+- `.env.example` was not updated with the two new variables: the file is outside
+  the permissions of this session. The owner may add `EXTRACTION_API_URL=` and
+  `EXTRACTION_API_KEY=` (both optional) there.
+- Windows tooling: running vitest with `--reporter=json` rewrites the tracked
+  `.vitest/json/output.json`; it was restored with `git checkout`. Do not use
+  that reporter.
+- Real `AbortSignal.timeout` is not driven by vitest fake timers, so abort
+  behavior is tested with a controllable signal (spied `AbortSignal.timeout`)
+  and the retry wait with fake timers.
+- A body read stalled with no abort would hang with a stubbed `fetch`; with the
+  real `fetch` the signal also aborts the body stream, so the shared deadline
+  applies. Not testable without a real server.
+
+### Batch 5 status
+
+Tasks 4.11 and 5.1-5.10 done. Remaining: phases 6-10 (S5a staff UI, S5b
+producers/sweep/pins, integration check, owner DB steps, closeout).
+
+### Workload / PR boundary
+
+- Mode: `size:exception`, single PR from `feat/document-extraction`
+- Current work units: guard (`8333dce`) and S4b, each committed as one unit
+- Estimated review budget impact: guard 217 lines; S4b 1,348 lines (3.2x its
+  forecast); S5a/S5b should keep the 2.5-3x factor

@@ -26,6 +26,12 @@ export const MIN_DOCUMENT_BUDGET_MS = 20_000;
 /** DE-7: ceiling of one model call; covers a serverless GPU cold start. */
 export const FETCH_TIMEOUT_MS = 120_000;
 
+/** DE-7: wait before the single cold-start retry of a model call. */
+export const COLD_START_RETRY_DELAY_MS = 5_000;
+
+/** DE-8: most bytes read from a model response; more is `invalid_response`. */
+export const MAX_MODEL_RESPONSE_BYTES = 64 * 1024;
+
 /** DE-7: margin kept between a model call's timeout and the deadline. */
 const MODEL_TIMEOUT_MARGIN_MS = 10_000;
 

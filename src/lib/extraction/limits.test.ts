@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   CLAIM_LEASE_MS,
+  COLD_START_RETRY_DELAY_MS,
   DEADLINE_SAFETY_MS,
   EXTRACTION_MAX_DURATION_S,
   FETCH_TIMEOUT_MS,
   IMAGE_MAX_WIDTH,
   MAX_ATTEMPTS,
+  MAX_MODEL_RESPONSE_BYTES,
   MAX_PDF_PAGES,
   MAX_RENDERED_PAGE_HEIGHT,
   MIN_DOCUMENT_BUDGET_MS,
@@ -28,6 +30,8 @@ describe("extraction limits (DE-3, DE-7, DE-9, DE-11)", () => {
     expect(MAX_PDF_PAGES).toBe(5);
     expect(IMAGE_MAX_WIDTH).toBe(1600);
     expect(MAX_RENDERED_PAGE_HEIGHT).toBe(10_000);
+    expect(COLD_START_RETRY_DELAY_MS).toBe(5_000);
+    expect(MAX_MODEL_RESPONSE_BYTES).toBe(64 * 1024);
     expect(SWEEP_BATCH_SIZE).toBe(10);
   });
 

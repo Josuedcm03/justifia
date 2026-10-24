@@ -54,6 +54,7 @@ results in a fail-soft "Extracted data" section. Pure code in
 | `ports.ts` | `DocumentPreparer`, `FieldExtractor`, `ExtractionQueue` |
 | `run.ts` | `runDocumentExtraction`, `processRequestExtractions` (use case) |
 | `deps.ts` | `getExtractionDeps()` composition root (`server-only`); reuses `getIntakeDeps().store` |
+| `configured.ts` | `extractionEnv()` and `isExtractionConfigured()` (`server-only`, light: imports neither sharp, unpdf nor the HTTP adapter); `deps.ts` reuses `extractionEnv` (added in S4b) |
 | `fakes.ts` | Fake preparer, scripted extractor, recording queue |
 | `adapters/sharp-unpdf-preparer.ts` | DE-9 |
 | `adapters/nuextract-http-extractor.ts` | DE-8 |

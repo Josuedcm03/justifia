@@ -23,6 +23,11 @@ const envSchema = z.object({
   // a missing value leaves the remission `pendiente`.
   RESEND_API_KEY: optionalSecret(1),
   MAIL_FROM: optionalSecret(1),
+  // Document extraction (document-extraction DE-12). Optional so builds and
+  // tests need no model server; `resolveExtractionConfig` judges the address at
+  // use, and an unset one means "not configured", never a boot failure.
+  EXTRACTION_API_URL: optionalSecret(1),
+  EXTRACTION_API_KEY: optionalSecret(16),
 });
 
 export const env = envSchema.parse(process.env);
