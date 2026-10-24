@@ -91,6 +91,17 @@ describe("listEligibleGroups (RF-04, RN-21, RN-22, D15)", () => {
     expect(query.params).toContain(STUDENT);
   });
 
+  it("requires an active asignatura: the group of an inactive one is not offered (D12)", async () => {
+    const double = use([{ kind: "select", rows: [group(1, 10, "A")] }]);
+
+    await listEligibleGroups(STUDENT, null, scheduleOf([]));
+
+    const where = double.log[0].where as Parameters<PgDialect["sqlToQuery"]>[0];
+    const query = new PgDialect().sqlToQuery(where);
+    expect(query.sql).toContain('"Asignatura"."Activo"');
+    expect(query.params.filter((p) => p === true)).toHaveLength(3);
+  });
+
   it("skips the schedule port when no valid range is known yet", async () => {
     use([{ kind: "select", rows: [group(1, 10, "A")] }]);
     const schedule = scheduleOf([]);
