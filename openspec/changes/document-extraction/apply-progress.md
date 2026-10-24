@@ -740,3 +740,135 @@ producers/sweep/pins, integration check, owner DB steps, closeout).
 - Current work units: guard (`8333dce`) and S4b, each committed as one unit
 - Estimated review budget impact: guard 217 lines; S4b 1,348 lines (3.2x its
   forecast); S5a/S5b should keep the 2.5-3x factor
+
+## Batch 6 (2026-10-24): S5a staff UI (tasks 6.1-6.8)
+
+Status: 6.1-6.8 done (the branch in 6.1 and the S5a PR in 6.7 are N/A under
+`size:exception`). Committed as one unit:
+`feat(extraction): show the extracted data on the staff request detail`. No
+database was touched; the section only reads through `listExtractions`.
+
+### Completed tasks
+
+- [x] 6.1 N/A branch (`size:exception`, stay on `feat/document-extraction`);
+      [READ-ONLY] Next.js docs read (see "Next.js docs read")
+- [x] 6.2 RED/GREEN i18n: `review.detail.sections.extraction` and `review.extraction.*`
+- [x] 6.3/6.4 RED/GREEN `extraction-section.tsx` (server component, no polling)
+- [x] 6.5/6.6 RED/GREEN page wiring (`page.tsx`)
+- [x] 6.7 gates and diff measurement (S5a PR part N/A)
+- [x] 6.8 commit unit 6
+
+### Next.js docs read (6.1)
+
+`node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md`
+and `06-fetching-data.md`: pages and layouts are Server Components by default and
+may query the database directly. The section needs no client code, so it is a
+plain component that uses `useTranslations` like the sibling sections of
+`request-sections.tsx` (sync, no `"use client"`), and the page stays the only
+async data loader. No API changed in this batch.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 6.2 | `src/i18n/review-messages.test.ts` | Unit (real catalogs, `createTranslator`) | `(dashboard)/review` + `src/i18n`: 19 files, 621/621 | Written; 11 of 31 failed (keys absent) | 31/31; `src/i18n` 6 files, 294 tests | every key non-empty in both locales; exact es and en configuration message; no `EXTRACTION_API`, url, key or clave in any value; usted register (no tuteo, `Revise`/`Vuelva` present); ICU plural 1 vs 5 in both locales; rest placeholders | None needed |
+| 6.3/6.4 | `[id]/extraction-section.test.tsx` | Component (Testing Library + axe-core, real catalogs) | N/A (new) | Written; run failed: `./extraction-section` unresolved | 24/24 (one test pattern fixed: `min-w-0` is a shrink aid, not a fixed width) | full data, unrecognized field, days only, one-day rest, no time-zone shift (2026-01-01), Spanish, order of entries; extracting for 3 row shapes, failed, decided request (2 states) never extracting, config message once for 3 waiting docs, es message, completed data still shown unconfigured, failed stays unavailable unconfigured, degraded replaces entries, empty list renders nothing; card/dl/no fixed width/`break-all`; axe clean for data, failed and degraded | Typing of the axe `it.each` fixed after `tsc` |
+| 6.5/6.6 | `[id]/page.test.tsx` | Component (page with mocked data layer) | 71/71 (all tests of the file before the change) | Written; 8 of 79 failed (3 pins passed by nature: access gate, student view, one audit row) | 79/79 | after `DocumentsSection`; read once with `12` and before `recordRequestRead`; snapshot name vs document name; decided request and unconfigured flag passed through; degraded read; throwing read; one audit row; Spanish; non-reviewer roles never reach the read; no role check in the page; student detail files reference no extraction code | `loadExtractions` helper extracted |
+
+Mutation checks (9, each failed at least one test, files restored): swapped
+extracting/unavailable (8), dropped one-day branch (1), no configuration notice
+(4), notice per entry (4), "not recognized" without text (1), page hardcodes
+`pendiente` (1), page hardcodes `configured` (1), page without the catch (1),
+extraction read moved after the audited read (1).
+
+### Test summary
+
+- Total tests written: 46 (i18n 11, section 24, page 11)
+- Total passing: full suite 255 files, 5,596 tests (was 254 files, 5,550)
+- Layers: Unit (11), component (35). Approval tests: none
+- Pure functions created: none new (the display rules are S1 `toExtractionDisplay`)
+
+### Work Unit Evidence (S5a)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run "src/app/(dashboard)/review" src/i18n`: 20 files, 667 tests, all passing |
+| Runtime harness | `npm run build` (dummy `DATABASE_URL` and `AUTH_SECRET`) passes with the section in the page. Component and page tests use the real catalogs, `axe-core` and the real `Section`/`DegradedAlert`. The owner walk at 360 px in `es` and `en` stays task 9.5 (needs a database) |
+| Rollback boundary | Delete `[id]/extraction-section.tsx` and its test; revert `[id]/page.tsx` (imports, `loadExtractions`, the section), the `export` of `useDates` in `request-sections.tsx`, the `extraction` keys in `i18n/{es,en}.json`, and the added tests in `[id]/page.test.tsx` and `src/i18n/review-messages.test.ts` |
+
+### Gates (2026-10-24, dummy `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`)
+
+- `npm test`: 255 files, 5,596 tests passed (run before a type-only fix in the
+  new test; the focused run above was repeated after it: 667 passed)
+- `npm run typecheck`: clean (after fixing the readonly literal in the axe table)
+- `npx eslint src`: 0 findings besides the CRLF `Delete ␍` noise (checked from
+  the JSON report: 545 files, 0 non-CRLF messages)
+- `prettier --check --end-of-line auto src next.config.ts package.json i18n`: clean
+- `npm run build`: passes
+
+### Files changed
+
+| File | Action | Authored lines |
+|---|---|---:|
+| `src/app/(dashboard)/review/[id]/extraction-section.tsx` | Created | 164 |
+| `src/app/(dashboard)/review/[id]/extraction-section.test.tsx` | Created | 357 |
+| `src/app/(dashboard)/review/[id]/page.tsx` | Modified: `loadExtractions`, section after `DocumentsSection` | 29 |
+| `src/app/(dashboard)/review/[id]/page.test.tsx` | Modified: mocks, 11 tests | 202 |
+| `src/app/(dashboard)/review/[id]/request-sections.tsx` | Modified: `export` of `useDates` | 2 |
+| `src/i18n/review-messages.test.ts` | Modified: 11 tests | 111 |
+| `i18n/es.json`, `i18n/en.json` | Modified: 20 lines each | 40 |
+| `openspec/changes/document-extraction/{tasks,apply-progress}.md` | Modified (excluded) | n/a |
+
+Authored diff: **905 lines** (prod and catalogs 235 + tests 670), against a ~300
+forecast (3x). Over the 800 threshold; committed as one unit per the owner's
+pattern (`size:exception`).
+
+### Deviations from design
+
+1. **Extra key `review.extraction.restSingleDay`** ("{date} ({days})"): a
+   one-day rest (from = to, 1 day) would otherwise read "Jul 20 to Jul 20 (1
+   day)". Parity is still enforced for every key.
+2. **The configuration message is shown once at the top of the section** and the
+   entries waiting for setup are not listed (an entry with only a name and no
+   body would be empty). Documents with data or `fallida` rows are still listed.
+3. **A request with no current student documents and a successful read renders
+   no section** (a heading and a note with nothing under them is noise). A
+   degraded read always renders the section with the notice.
+4. **The page also catches a throwing `listExtractions`** (`loadExtractions`),
+   although the data module is already fail-soft: it makes the "Read failure"
+   scenario hold at page level for any throw. It logs only the error name.
+5. **The configuration notice is a warning-tinted status banner** (the alert
+   pattern of the design system with the `warning` family), not the destructive
+   `DegradedAlert`: it is a setup condition, not a failed read. The degraded
+   notice reuses the shared `DegradedAlert`.
+6. **`useDates` is exported from `request-sections.tsx`** to reuse the Managua
+   and UTC date formatting instead of duplicating it.
+7. **`isExtractionConfigured()` is called in the page body** (light module, loads
+   neither sharp nor unpdf).
+8. No `test-support.tsx` or `design-system.test.tsx` change was needed: the
+   existing token scan picks up the new file and passes.
+
+### Issues found
+
+- Authored diff 905 lines vs ~300 forecast (3x); the tests are 670. Aggregate so
+  far: S1 1,484 + S2 1,890 + S3 1,316 + S4a 584 + guard 217 + S4b 1,348 + S5a 905.
+- Windows tooling: working-tree files are a mix of CRLF and LF (index LF); the
+  new files are LF and git normalizes them on commit. Appends to CRLF files were
+  converted to CRLF. The first full `npm test` chain exceeded the 120 s tool
+  timeout and ran in the background; results were read from its output.
+- `git add -N` (intent to add) was used on the new files to measure the diff.
+- ESLint's `unix` formatter is not available in this ESLint version; the JSON
+  report was used to filter the CRLF noise.
+
+### Remaining tasks
+
+Phase 7 (S5b producers, queue adapter, `maxDuration` pins, sweep step 4), phase 8
+(integration check), phase 9 (owner database and runtime steps) and phase 10
+(closeout).
+
+### Workload / PR boundary
+
+- Mode: `size:exception`, single PR from `feat/document-extraction`
+- Current work unit: S5a (staff UI), committed as one unit
+- Estimated review budget impact: 905 authored lines, 3x its forecast; S5b should
+  keep the 2.5-3x factor

@@ -1074,6 +1074,7 @@
         "student": "Estudiante",
         "subjects": "Asignaturas",
         "documents": "Documentos de respaldo",
+        "extraction": "Datos extraídos",
         "history": "Historial",
         "decision": "Decisión"
       },
@@ -1123,6 +1124,25 @@
       "decisionPanel": {
         "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Cada decisión le pide confirmarla."
       }
+    },
+    "extraction": {
+      "note": "Datos leídos automáticamente de cada documento. Verifíquelos con el documento antes de decidir. El nombre se muestra tal como aparece en el documento y no se compara con el del estudiante.",
+      "fields": {
+        "studentName": "Nombre leído en el documento",
+        "issuer": "Emisor",
+        "issueDate": "Fecha de emisión",
+        "restPeriod": "Período de reposo"
+      },
+      "notRecognized": "No reconocido",
+      "restDays": "{count, plural, one {# día} other {# días}}",
+      "restRange": "{from} al {to} ({days})",
+      "restSingleDay": "{date} ({days})",
+      "states": {
+        "extracting": "Extrayendo datos. Vuelva a cargar esta página más tarde.",
+        "unavailable": "Datos no disponibles. Revise el documento directamente.",
+        "notConfigured": "Hace falta configurar el servicio de extracción. Contacte al administrador del sistema."
+      },
+      "degraded": "No se pudieron cargar los datos extraídos. El resto de la solicitud se muestra completo."
     },
     "remission": {
       "title": "Aviso a los docentes",

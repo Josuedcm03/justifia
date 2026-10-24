@@ -1074,6 +1074,7 @@
         "student": "Student",
         "subjects": "Subjects",
         "documents": "Supporting documents",
+        "extraction": "Extracted data",
         "history": "History",
         "decision": "Decision"
       },
@@ -1123,6 +1124,25 @@
       "decisionPanel": {
         "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
       }
+    },
+    "extraction": {
+      "note": "Data read automatically from each document. Check it against the document before deciding. The name is shown as it appears in the document and is not compared with the student's name.",
+      "fields": {
+        "studentName": "Name read from the document",
+        "issuer": "Issuer",
+        "issueDate": "Issue date",
+        "restPeriod": "Rest period"
+      },
+      "notRecognized": "Not recognized",
+      "restDays": "{count, plural, one {# day} other {# days}}",
+      "restRange": "{from} to {to} ({days})",
+      "restSingleDay": "{date} ({days})",
+      "states": {
+        "extracting": "Extracting data. Reload this page later.",
+        "unavailable": "Data unavailable. Review the document yourself.",
+        "notConfigured": "The extraction service needs to be configured. Contact the system administrator."
+      },
+      "degraded": "The extracted data could not be loaded. The rest of the request is shown in full."
     },
     "remission": {
       "title": "Notice to teachers",
