@@ -28,8 +28,11 @@ Branch chain (tracker is the current worktree branch; only the tracker merges to
 |-------|--------|--------------|---------|
 | Tracker + planning docs | `feat/student-enrollment` | `main` | `main` (draft, no-merge until WU3 is in) |
 | WU1 data | `feat/student-enrollment-1-data` | tracker | tracker |
-| WU2 route and UI | `feat/student-enrollment-2-ui` | WU1 branch | WU1 branch; retarget to tracker after WU1 merges |
-| WU3 intake, shell, docs | `feat/student-enrollment-3-intake` | WU2 branch | WU2 branch; retarget to tracker after WU2 merges |
+| WU2a actions | `feat/student-enrollment-2a-actions` | `-1b-picker` | `-1b-picker`; retarget as earlier slices merge |
+| WU2b list and drop | `feat/student-enrollment-2b-list` | 2a | 2a |
+| WU2c page | `feat/student-enrollment-2c-page` | 2b | 2b |
+| WU2d picker and replace | `feat/student-enrollment-2d-picker` | 2c | 2c |
+| WU3 intake, shell, docs | `feat/student-enrollment-3-intake` | 2d | 2d; retarget to tracker after WU2 merges |
 
 If GitHub shows a previous slice in a child diff, retarget or rebase until the diff is clean.
 
@@ -132,7 +135,8 @@ Forecast vs the 800 budget (stop rule: measure the authored diff before opening 
 
 - [x] 8.1 Gates WU2 (same five, dummy `DATABASE_URL`); `npx vitest run "src/app/(dashboard)/enrollment" src/lib src/i18n`; record results **Results (2026-10-24):** `npm test` 246 files / 5303 tests pass; `npm run typecheck` clean (after `npx next typegen`); `npm run lint` clean only with `prettier/prettier` `endOfLine: auto` (raw run: 92,591 CRLF errors, noise on every file); `npx prettier --check --end-of-line auto src i18n` clean (raw `npm run format:check` fails on CRLF, docs, openspec, .vitest, .engram as on the tracker); `npm run build` passes with dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, `/enrollment` listed as a dynamic route.
 - [x] 8.2 Measure the authored diff against the WU1 head (target ~850). If over 800, split per the pre-agreed cut (2a list, drop, actions, page / 2b picker and replace) and report **Measured against `-1b-picker` (`openspec/` and `.engram/` excluded): 2,398 authored lines (2,389 added + 9 deleted), about 3x the 800 budget (tests 1,646, production code 634, locale messages 118). Per commit: actions 308 / list and drop 803 / page 341 / combobox and empty-state handlers 100 / picker and replace 856. The pre-agreed 2a (actions, list, drop, page = 1,452) / 2b (shared handlers, picker, replace = 956) cut does not bring either half under 800. STOP: do not open the WU2 PR as is; the owner decides the cut (see the apply report).**
-- [ ] 8.3 Open the WU2 PR (base: WU1 branch; retarget to the tracker after WU1 merges) with the chain diagram marking WU2; note "page reachable by URL only until WU3 adds the nav item"
+- [x] 8.2b WU2 split into four chained slices (owner-approved 2026-10-24, feature-branch-chain, 800-line budget each): `feat/student-enrollment-2a-actions` (base `-1b-picker`) <- `-2b-list` <- `-2c-page` <- `-2d-picker`. **Measured (`git diff --shortstat <base>...<branch> -- . ':!openspec' ':!.engram'`): 2a 308 / 2b 803 (owner accepts the 3-line overage) / 2c 441 / 2d 797 after the `test(enrollment): consolidate the group picker tests` commit (was 856: table-driven subject-list, direct-enroll and notice cases, shared fixture and button helpers, 360 px picker checks in one render; same scenarios, production code untouched). Each slice passes on its own, in order: `npx next typegen && npm run typecheck`; `npx vitest run "src/app/(dashboard)/enrollment" src/lib src/components src/i18n` (2a 140 files / 3022 tests, 2b 144 / 3051, 2c 145 / 3080, 2d 146 / 3111); `eslint` with `prettier/prettier` `endOfLine: auto`; `prettier --check --end-of-line auto src i18n`. On 2d also `npm test` 246 files / 5299 tests and `npm run build` (`/enrollment` dynamic). The 8.1 total of 5303 tests became 5299 because four picker tests were merged into table cases, not dropped.**
+- [ ] 8.3 Open the four WU2 PRs, each against the previous slice (2a against `-1b-picker`; retarget to the tracker as the earlier slices merge), with the chain diagram marking the slice; note "page reachable by URL only until WU3 adds the nav item"
 
 ## Phase 9: WU3 / unit 5 - Navigation and dashboard shortcut (BS-NAV-3, BS-HOME-1) [P: independent of Phase 10]
 
