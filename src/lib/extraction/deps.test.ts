@@ -7,10 +7,14 @@ const mocks = vi.hoisted(() => ({
   intakeDeps: vi.fn(),
   createPreparer: vi.fn(),
   createExtractor: vi.fn(),
+  createQueue: vi.fn(),
   envValues: {} as Record<string, string | undefined>,
 }));
 
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: mocks.intakeDeps }));
+vi.mock("./adapters/after-queue", () => ({
+  createAfterQueue: mocks.createQueue,
+}));
 vi.mock("./adapters/sharp-unpdf-preparer", () => ({
   createSharpUnpdfPreparer: mocks.createPreparer,
 }));
@@ -25,6 +29,7 @@ describe("getExtractionDeps (composition root, DE-1)", () => {
   const store = { tag: "blob-store" };
   const preparer = { tag: "preparer" };
   const extractor = { tag: "extractor" };
+  const queue = { tag: "queue" };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -34,6 +39,7 @@ describe("getExtractionDeps (composition root, DE-1)", () => {
     mocks.intakeDeps.mockReturnValue({ store, schedule: {}, mail: {} });
     mocks.createPreparer.mockReturnValue(preparer);
     mocks.createExtractor.mockReturnValue(extractor);
+    mocks.createQueue.mockReturnValue(queue);
   });
 
   it("wires the intake document store, the preparer and the extractor", () => {
@@ -50,12 +56,30 @@ describe("getExtractionDeps (composition root, DE-1)", () => {
     expect(mocks.intakeDeps).toHaveBeenCalledTimes(1);
   });
 
-  it("does not wire a queue yet (it joins in S5b, once after-queue exists)", () => {
-    expect(Object.keys(getExtractionDeps()).sort()).toEqual([
+  it("wires the after() queue beside the three ports (S5b)", () => {
+    const deps = getExtractionDeps();
+
+    expect(deps.queue).toBe(queue);
+    expect(Object.keys(deps).sort()).toEqual([
       "extractor",
       "preparer",
+      "queue",
       "store",
     ]);
+  });
+
+  it("the queue runs the same store, preparer and extractor, without a queue of its own", () => {
+    getExtractionDeps();
+
+    expect(mocks.createQueue).toHaveBeenCalledTimes(1);
+    const handed = mocks.createQueue.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(handed.store).toBe(store);
+    expect(handed.preparer).toBe(preparer);
+    expect(handed.extractor).toBe(extractor);
+    expect("queue" in handed).toBe(false);
   });
 
   it("hands the extractor the extraction variables, read when it asks", () => {

@@ -872,3 +872,182 @@ Phase 7 (S5b producers, queue adapter, `maxDuration` pins, sweep step 4), phase 
 - Current work unit: S5a (staff UI), committed as one unit
 - Estimated review budget impact: 905 authored lines, 3x its forecast; S5b should
   keep the 2.5-3x factor
+
+## Batch 7 (2026-10-24): S5b producers, queue adapter, sweep and pins (tasks 7.1-7.13)
+
+Status: 7.1-7.13 done (the branch in 7.1 and the S5b PR in 7.12 are N/A under
+`size:exception`). Committed as one unit:
+`feat(extraction): extract documents after submit and correction and from the daily sweep`.
+No database was touched; every data call in the tests is mocked. **This is the
+slice that activates extraction.** Note for the eventual single PR body:
+"activates extraction; merge gate: migration 0011 applied to Neon (task 9.4,
+owner-only) before this reaches `main`". Until the table exists, the `after()`
+callback fails and is logged by name, the staff list is `degraded`, and the
+submission itself is unaffected (DE-5).
+
+### Completed tasks
+
+- [x] 7.1 N/A branch (`size:exception`, stay on `feat/document-extraction`);
+      [READ-ONLY] `after.md` and `maxDuration.md` re-read (see "Next.js docs read")
+- [x] 7.2/7.3 RED/GREEN `adapters/after-queue.ts`
+- [x] 7.4/7.5/7.6 RED/GREEN both producers and the `queue` entry of `deps.ts`
+- [x] 7.7/7.8 RED/GREEN `max-duration.test.ts` and the three `maxDuration = 300`
+- [x] 7.9/7.10 RED/GREEN `runIntakeSweep(now, store, extraction?)`
+- [x] 7.11 RED/GREEN the cron route (step wiring and `maxDuration`)
+- [x] 7.12 Gates and diff measurement (S5b PR part N/A)
+- [x] 7.13 Commit unit 7
+
+### Next.js docs read (7.1)
+
+`node_modules/next/dist/docs/01-app/03-api-reference/04-functions/after.md` and
+`.../03-file-conventions/02-route-segment-config/maxDuration.md`: N1 `after`
+runs even when `redirect()` is called (so the hand-off may sit just before the
+redirect), N2 it runs within the route's default or configured `maxDuration`,
+N3 a Server Action takes its duration from the `maxDuration` of the page that
+uses it. All three match the design. Runtime proof: `next build` writes
+`/requests/new`, `/requests/[id]/correct` and `/api/cron/intake-sweep` with
+`maxDuration: 300` into `.next/server/functions-config-manifest.json`.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 7.2/7.3 | `adapters/after-queue.test.ts` | Unit (`vi.mock` of `next/server` `after` and of `../run`) | N/A (new); the 24 files / 466 tests of the S5b surface green before any change | Written; run failed: `./after-queue` unresolved | 9/9 | one vs two hand-offs; callback args; clock and id kept per hand-off (callbacks run out of order); schedule throwing an `Error` subclass and a non-error (`unknown`); callback rejecting; no log on success or on a working schedule; the secret in the message never reaches a log. Mutation checks (5): dropping the clock, rethrowing on schedule, rethrowing on run, logging the message, running inline instead of in `after` each failed 1-8 tests | None needed |
+| 7.6 (deps) | `deps.test.ts` | Unit (adapters mocked) | green in the 466 | 2 of 7 failed (no `queue` key; no queue handed the ports) | 7/7 | queue key present beside the three ports; the queue gets the same store, preparer and extractor and no `queue` of its own. Mutations (2): no queue, queue with its own wiring each failed | `ExtractionWiring` type keeps the use case unaware of the queue |
+| 7.4/7.6 | `requests/new/actions.test.ts` | Unit (`vi.hoisted` pattern of the file; `getExtractionDeps` mocked) | 58/58 | 4 of 69 failed (the negative cases pass by nature: no draft, invalid draft, conflict, incomplete profile, failing transaction, missing consent, draft steps) | 69/69 | hand-off with the action's clock and before the redirect; after `submitDraft` (consent write stays inside it); throwing `enqueue` (`RangeError`, secret not logged); composition root that cannot be built. Mutations (5): enqueue after redirect, before the transaction, on conflict, wrong clock, no catch each failed 1-6 tests | Guard lifted into `scheduleExtraction` (shared with the correction) |
+| 7.5/7.6 | `requests/[id]/correct/actions.test.ts` | Unit | 22/22 | 4 of 31 failed | 31/31 | hand-off only when `outcome.ok`, before the redirect, after the resubmission, with the very instant the resubmission got; invalid / conflict / not_found / refused id / failing transaction enqueue nothing; throwing hand-off and failing root swallowed; other correction steps never touch extraction. Mutations (3): outside `ok`, second clock, after redirect each failed 1-4 tests | None needed |
+| 7.6 (harness) | `requests/new/schedule-extraction.test.ts` | Integration (real helper + real `deps.ts` + real `after-queue`; only `next/server`, `run`, the store and the native adapters replaced) | N/A (new) | Characterization: passes at once because the pieces exist; it adds proof of the composition, not behavior | 6/6 | one callback and nothing run before the response; the callback gets the wired ports and the clock; a second hand-off is separate; `after` outside a request scope; store that cannot be built; failing run | None needed |
+| 7.7/7.8 | `max-duration.test.ts` | Unit (file scan) | N/A (new) | Written; 3 of 13 failed (the three entry points had no export) | 13/13 | detector: 2 literal forms, 8 rejected forms (imported constant, expression, re-export, other name, string, non-exported, commented, none); 3 real files equal `EXTRACTION_MAX_DURATION_S`. Mutations (2): 200, `60 * 5` each failed | None needed |
+| 7.9/7.10 | `data/intake-sweep.test.ts` | Unit (db double) | 19/19 | 9 of 28 failed (two existing whole-shape assertions that now carry the two counts, seven new) | 28/28 | step runs once with `(now, now + 275 s)`; after the three cleanup steps (order proof); counts and failures summed; cleanup failures kept beside the step's; a throwing step leaves the cleanup done and counts one; no step -> zeros; no delete, update, insert or audit row on behalf of the step; a 40-day-old pendiente request and its file untouched; structural: only `limits` imported from the extraction slice. Mutations (5): extraction first, step throw escapes, step failures dropped, counts swapped, wrong deadline each failed 1-5 tests | `sweepExtractions` extracted |
+| 7.11 | `api/cron/intake-sweep/route.test.ts` | Unit (mocked `runIntakeSweep`, `run`, `deps`) | 13/13 | 2 of 19 failed | 19/19 | the step calls `runExtractionSweep(now, deadline, wiring)`; the wiring is built only when the step runs and its failure rejects only the step; 401 builds and enqueues nothing; the JSON keys are exactly the six counts. Mutations (4): no step, wrong deadline, eager wiring at request time (a first attempt at this mutation was invalid: module-level code ran before the mocks were reset) each failed 1-2 tests | None needed |
+
+### Test summary
+
+- Total tests written: 65 (after-queue 9, deps 2 replacing 1, new actions 11,
+  correction actions 9, harness 6, max-duration 13, sweep 9, route 6) -> net 64
+- Total passing: full suite `npm test`: 258 files, 5,660 tests, all passing (was 255 files, 5,596)
+- Layers: Unit (59), integration over mocked edges (6). Approval tests: none
+  (the changed whole-shape assertions of the sweep test are updates, not
+  refactoring tasks)
+- Pure functions created: `literalMaxDuration` (test helper only); production
+  code is wiring (`createAfterQueue`, `scheduleExtraction`, `sweepExtractions`)
+- Mutation checks: 26 in total (25 killed at once; one invalid mutation, module-level
+  code that ran before the mocks reset, was redone at request time and killed).
+  Files restored each time
+
+### Work Unit Evidence (S5b)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run "src/app/(dashboard)/requests" src/lib/data/intake-sweep.test.ts src/app/api/cron src/lib/extraction`: 40 files, 865 tests, all passing |
+| Runtime harness | `schedule-extraction.test.ts` runs the real helper, composition root and `after` queue together; `npm run build` (dummy `DATABASE_URL` and `AUTH_SECRET`) passes and writes `maxDuration: 300` for the three entry points to `functions-config-manifest.json`. A real submit with a real `after()` on a preview, the cron call and the local container stay tasks 9.2/9.5 (owner, need a database and migration 0011) |
+| Rollback boundary | Delete `adapters/after-queue.ts`, `max-duration.test.ts`, `requests/new/schedule-extraction.test.ts` and their tests; revert `deps.ts` (queue entry and `ExtractionWiring`), `step-actions.ts` (`scheduleExtraction`), the two `actions.ts` (import and one call each), the three `maxDuration` exports, `intake-sweep.ts` (injected step, two counts, `deadlineFor` import) and `route.ts` (step and export), plus the added tests. Or, with no code revert: unset `EXTRACTION_API_URL` (rows register, nothing is sent) |
+
+### Gates (2026-10-24, dummy `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`)
+
+- `npm test` (final tree, run after the last code edit; only markdown changed
+  afterwards): 258 files, **5,660 tests passed** (was 255 files, 5,596; +3 files,
+  +64 tests), exit 0, 117 s
+- `npm run typecheck`: clean
+- `npx eslint src`: 549 files, 0 findings besides the CRLF `Delete ␍` noise
+  (checked from the JSON report)
+- `npx prettier --check --end-of-line auto src next.config.ts package.json`:
+  clean. `npm run format:check` (`prettier --check .`) still warns on 124 files
+  under `docs/`, `openspec/`, `.engram/`, `.vitest/` that pre-date this batch;
+  none is under `src` or a config file
+- `npm run build` (dummy `DATABASE_URL` and `AUTH_SECRET`, no Neon): passes, all
+  routes build; `.next/server/functions-config-manifest.json` lists
+  `/requests/new`, `/requests/[id]/correct` and `/api/cron/intake-sweep` with
+  `maxDuration: 300`
+
+### Files changed
+
+| File | Action | Authored lines |
+|---|---|---:|
+| `src/lib/extraction/adapters/after-queue.ts` | Created: `createAfterQueue(deps)` | 40 |
+| `src/lib/extraction/adapters/after-queue.test.ts` | Created | 142 |
+| `src/lib/extraction/deps.ts` / `.test.ts` | Modified: `queue` entry, `ExtractionWiring` | 12 / 28 |
+| `src/app/(dashboard)/requests/new/step-actions.ts` | Modified: `scheduleExtraction` | 25 |
+| `src/app/(dashboard)/requests/new/actions.ts` / `.test.ts` | Modified: one call; 11 tests | 5 / 128 |
+| `src/app/(dashboard)/requests/[id]/correct/actions.ts` / `.test.ts` | Modified: one call, one shared `now`; 9 tests | 12 / 122 |
+| `src/app/(dashboard)/requests/new/schedule-extraction.test.ts` | Created: runtime harness | 125 |
+| `src/app/(dashboard)/requests/new/page.tsx`, `.../[id]/correct/page.tsx` | Modified: `maxDuration = 300` and a note | 6 / 6 |
+| `src/lib/extraction/max-duration.test.ts` | Created | 68 |
+| `src/lib/data/intake-sweep.ts` / `.test.ts` | Modified: injected step, two counts; 9 tests | 48 / 184 |
+| `src/app/api/cron/intake-sweep/route.ts` / `.test.ts` | Modified: lazy step, `maxDuration`; 6 tests | 37 / 108 |
+| `openspec/changes/document-extraction/{tasks,design,apply-progress}.md` | Modified (excluded) | n/a |
+
+Authored diff: **1,096 lines** (1,078 added, 18 deleted; prod 191 + tests 905),
+against a ~440 forecast (2.5x). Over the 800 threshold; committed as one unit per
+the owner's pattern (`size:exception`).
+
+### Deviations from design
+
+1. **The guarded hand-off is one shared helper, `scheduleExtraction`, in
+   `requests/new/step-actions.ts`**, called by both actions; the tasks say each
+   `actions.ts` calls `getExtractionDeps().queue.enqueue(...)` in a guarded
+   block. The module is the existing shared, non-"use server" one, so the helper
+   is not a public endpoint, and the guard and its log exist once.
+2. **The composition root is imported on demand** (`await import(...)`) in the
+   helper and in the cron route. `deps.ts` loads sharp and the PDF libraries at
+   import time; a static import would make a native-addon load failure break every
+   student action (and the whole cron route, cleanup included). Now it costs the
+   hand-off (logged `extraction_not_scheduled`) or the extraction step (one
+   counted failure) and nothing else. Task 9.2 (preview proof) still verifies the
+   addons load.
+3. **`getExtractionDeps()` returns `ExtractionWiring`** (`ExtractionDeps &
+   { queue }`) and `createAfterQueue` receives the three ports, not the wiring;
+   the use case keeps its `ExtractionDeps` without a queue (batch 3 deviation 7
+   planned the entry; the type split avoids a circular shape).
+4. **`runIntakeSweep` computes the extraction deadline itself**
+   (`deadlineFor(now)`, imported from the pure `limits.ts`) instead of the route:
+   `now` is the invocation start, so the cleanup time counts. The structural test
+   allows that single import from the extraction slice (no adapter, no `run`, no
+   `deps`, no data module).
+5. **`SweepCounts` always carries `extractionsRun` and `extractionsAbandoned`**
+   (zero without a step). Two existing whole-shape `toEqual` assertions in
+   `intake-sweep.test.ts` gained the two zero counts, and the route test's
+   "only answers GET" now ignores the new `maxDuration` export; no other
+   existing assertion changed.
+6. **The `after-queue` logs also carry the request id** (non-sensitive, like the
+   document id in `run.ts`); the task asked for the error name.
+7. **`maxDuration` notes name `max-duration.test.ts`** as the pin; the cron
+   route's pin is in the same file (the test lives with the extraction slice).
+8. Spec and design drift on the dropped text path (batch 1, deviation 4) is
+   unchanged and still to resolve at verify/archive.
+
+### Issues found
+
+- Authored diff 1,096 lines vs ~440 forecast (2.5x); tests are 905. Aggregate so
+  far: S1 1,484 + S2 1,890 + S3 1,316 + S4a 584 + guard 217 + S4b 1,348 + S5a 905
+  + S5b 1,096.
+- **A `git stash -u` I ran to compare `format:check` against a baseline did not
+  complete** (it printed `failed to remove` for empty untracked directories under
+  `openspec/changes/archive/` and the pop was refused). The working tree was
+  verified byte-identical to the stash (tracked diff empty, the four untracked
+  files equal), the stash was dropped, and `git status` lists only this batch's
+  files. Do not use stash for baselines on this Windows tree.
+- `npm run format:check` (`prettier --check .`) fails on the whole repo for
+  documents that pre-date this batch (`docs/`, `openspec/`, `.engram/`,
+  `.vitest/`); nothing under `src` or the config files warns. The gate used is
+  `prettier --check --end-of-line auto src next.config.ts package.json`.
+- The test file `intake-sweep.test.ts` defines a local `path()` helper, so the
+  Node `path` import is aliased `nodePath` there.
+- Windows tooling: all touched files are CRLF in the working tree (index LF,
+  `core.autocrlf=true`); edits went through a small script that preserves the
+  endings (`git diff` shows only the intended lines).
+
+### Remaining tasks
+
+Phase 8 (integration check on the final tree), phase 9 (owner-run database and
+runtime steps: preview proof, backup, migration 0011, owner walk) and phase 10
+(closeout).
+
+### Workload / PR boundary
+
+- Mode: `size:exception`, single PR from `feat/document-extraction`
+- Current work unit: S5b (producers, queue adapter, sweep, pins), committed as
+  one unit
+- Estimated review budget impact: 1,096 authored lines, 2.5x its forecast.
+  Merge gate for the single PR: migration 0011 applied to Neon first (task 9.4,
+  owner-only)

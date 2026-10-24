@@ -135,7 +135,7 @@ extractor reports `isConfigured() === false`.
 
 | Step | Rule |
 |---|---|
-| Producers | `submitRequestAction`: after `submitDraft` ok, `getExtractionDeps().queue.enqueue(draft.id, now)` then `redirect`. `resubmitCorrectionAction`: same inside `if (outcome.ok)`. The transactions and their tests are untouched |
+| Producers | `submitRequestAction`: after `submitDraft` ok, `scheduleExtraction(draft.id, now)` then `redirect`. `resubmitCorrectionAction`: same inside `if (outcome.ok)`. `scheduleExtraction` (shared, `requests/new/step-actions.ts`) imports the composition root on demand, calls `getExtractionDeps().queue.enqueue(id, now)` and logs `extraction_not_scheduled` by error name on any failure, so a native addon that cannot load never breaks a student action. The transactions and their tests are untouched |
 | Adapter | `after(() => processRequestExtractions(id, deps, { startedAt }))` in try/catch; a scheduling or callback failure logs `extraction_not_scheduled` / `extraction_run_failed` by error name only |
 | Registration | `registerPendingExtractions(solicitudId, now)`, one tx: `INSERT ... SELECT` documents with `Estado = 'valido'`, `RetiradoEn IS NULL`, `SubidoPorId IS NULL`, `FormatoEspecial = false`, `ON CONFLICT DO NOTHING`; retired documents without a row -> `no_aplica`; open rows of retired documents -> `no_aplica`. Returns the request's claimable document ids ordered by id |
 | Processing | Sequential `runDocumentExtraction(id)` while the remaining budget is at least `MIN_DOCUMENT_BUDGET_MS`; leftovers stay `pendiente` for the cron |
@@ -236,7 +236,9 @@ with `Estado = 'pendiente'` that have a `pendiente` row, an expired
 `procesando` lease under the cap, or an eligible document without a row
 (anti-join), oldest `PresentadaEn` first; then `processRequestExtractions`
 sequentially until the deadline. `SweepCounts` gains `extractionsRun` and
-`extractionsAbandoned`; failures count into `failures`. The bounded batch plus
+`extractionsAbandoned`; failures count into `failures`. The deadline is `deadlineFor(now)` of the
+invocation start. The route builds the step lazily (the wiring and `runExtractionSweep` load only when
+it runs), so a wiring failure is one counted failure and the cleanup is unaffected. The bounded batch plus
 the deadline is the backfill of decision 5.
 
 ### DE-12. Environment, dependencies, config

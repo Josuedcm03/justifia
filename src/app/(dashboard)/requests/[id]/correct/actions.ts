@@ -9,6 +9,7 @@ import {
   remove,
   saveDetails,
   saveSubjects,
+  scheduleExtraction,
   submissionErrors,
 } from "@/app/(dashboard)/requests/new/step-actions";
 import { requireRole } from "@/lib/auth/dal";
@@ -22,7 +23,8 @@ import { requestIdSchema } from "@/lib/validations/solicitud";
 // the student from the session only and edits only that student's own returned
 // request. The request id is the one thing the client names; the data layer
 // guards every write by owner and `devuelta`, so a foreign or already
-// resubmitted id changes nothing.
+// resubmitted id changes nothing. A resubmission is handed to document
+// extraction once it committed (DE-5); the hand-off never fails it.
 
 const notCorrectable = () => fail("form", "not_correctable");
 
@@ -82,13 +84,17 @@ export async function resubmitCorrectionAction(
   const edit = await correctionOf(solicitudId);
   if (!edit) return notCorrectable();
 
+  const now = new Date();
   const outcome = await resubmitCorrection({
     userId: edit.userId,
     solicitudId: edit.target.solicitudId,
-    now: new Date(),
+    now,
     schedule: getIntakeDeps().schedule,
   });
-  if (outcome.ok) redirect(`/requests/${edit.target.solicitudId}?corrected=1`);
+  if (outcome.ok) {
+    await scheduleExtraction(edit.target.solicitudId, now);
+    redirect(`/requests/${edit.target.solicitudId}?corrected=1`);
+  }
   if (outcome.reason === "invalid") {
     return { ok: false, errors: submissionErrors(outcome.errors) };
   }
