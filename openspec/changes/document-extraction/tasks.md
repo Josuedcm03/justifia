@@ -127,16 +127,16 @@ Chain: each child PR targets the previous slice branch while open (clean diff) a
 
 ## Phase 4: S4a - Dependencies and preparer (work unit 4)
 
-- [ ] 4.1 Branch `feat/document-extraction-s4a-preparer` from the S3 branch (or from S1 if built in parallel; PR base stays linear). Apply `[TEXT PATH]` tasks only per the 0.3 result
-- [ ] 4.2 [LOCAL] `npm install sharp unpdf @napi-rs/canvas` as direct dependencies (versions as confirmed in 0.4); review the `package.json` and lock diff; no other dependency. Lock noise is excluded from the line count
-- [ ] 4.3 RED: `src/next-config.test.ts` (file scan): `next.config.ts` lists `@napi-rs/canvas` in `serverExternalPackages` and does not list `sharp` (Next auto-externalizes it). GREEN: `next.config.ts` (DE-12)
-- [ ] 4.4 RED: `src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` (`// @vitest-environment node`, generated fixtures, no real documents) image path: 3200 px JPEG with EXIF orientation 6 -> upright, width 1600; 800 px image is not enlarged; PNG -> JPEG q85; output is one image; unparseable bytes -> `unreadable_document` (scenario "Large rotated photo")
-- [ ] 4.5 GREEN: `src/lib/extraction/adapters/sharp-unpdf-preparer.ts` image branch
+- [x] 4.1 **N/A (`size:exception`, stay on `feat/document-extraction`)** Branch `feat/document-extraction-s4a-preparer` from the S3 branch (or from S1 if built in parallel; PR base stays linear). Apply `[TEXT PATH]` tasks only per the 0.3 result
+- [x] 4.2 [LOCAL] `npm install sharp unpdf @napi-rs/canvas` as direct dependencies (versions as confirmed in 0.4); review the `package.json` and lock diff; no other dependency. Lock noise is excluded from the line count. **Done 2026-10-23:** `sharp ^0.35.5`, `unpdf ^1.9.1`, `@napi-rs/canvas ^1.0.13`; the lock gains `@napi-rs/canvas` plus 11 platform packages and `unpdf`, and moves `sharp`/`@img/*` 0.35.4 -> 0.35.5 (Next's optional sharp is now the direct one)
+- [x] 4.3 RED: `src/next-config.test.ts` (file scan): `next.config.ts` lists `@napi-rs/canvas` in `serverExternalPackages` and does not list `sharp` (Next auto-externalizes it). GREEN: `next.config.ts` (DE-12). **The test imports the config object (as `src/lib/import/next-config.test.ts` does) instead of scanning the file text**
+- [x] 4.4 RED: `src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` (`// @vitest-environment node`, generated fixtures, no real documents) image path: 3200 px JPEG with EXIF orientation 6 -> upright, width 1600; 800 px image is not enlarged; PNG -> JPEG q85; output is one image; unparseable bytes -> `unreadable_document` (scenario "Large rotated photo")
+- [x] 4.5 GREEN: `src/lib/extraction/adapters/sharp-unpdf-preparer.ts` image branch
 - [x] 4.6 **N/A (0.3 FAIL, dropped)** [TEXT PATH] RED: `sharp-unpdf-preparer.test.ts` text PDF: every page >= 80 non-whitespace chars and <= 5 pages -> `text` kind with page markers, truncated to 6000 chars, engine `nuextract3-4b/text`; generated minimal PDFs
 - [x] 4.7 **N/A (0.3 FAIL, dropped)** [TEXT PATH] GREEN: preparer text branch (unpdf per-page text)
-- [ ] 4.8 RED: `sharp-unpdf-preparer.test.ts` render path: mixed PDF (text page + blank page) -> all pages rendered as images, not text; 8-page scanned PDF -> first 5 pages in order; without `[TEXT PATH]` every PDF takes this path; injected `canvasImport` that rejects -> `render_unavailable`; each rendered page passes the sharp step (width <= 1600) (scenarios "Mixed PDF", "Page cap")
-- [ ] 4.9 GREEN: preparer render branch (`renderPageAsImage` + lazy `canvasImport: () => import("@napi-rs/canvas")`, per the confirmed 0.4 signature)
-- [ ] 4.10 Gates S4a; measure the diff (target ~400); open the S4a PR. Do not merge before the preview proof (task 9.2) passes
+- [x] 4.8 RED: `sharp-unpdf-preparer.test.ts` render path: mixed PDF (text page + blank page) -> all pages rendered as images, not text; 8-page scanned PDF -> first 5 pages in order; without `[TEXT PATH]` every PDF takes this path; injected `canvasImport` that rejects -> `render_unavailable`; each rendered page passes the sharp step (width <= 1600) (scenarios "Mixed PDF", "Page cap")
+- [x] 4.9 GREEN: preparer render branch (`renderPageAsImage` + lazy `canvasImport: () => import("@napi-rs/canvas")`, per the confirmed 0.4 signature)
+- [x] 4.10 Gates S4a; measure the diff (target ~400); open the S4a PR. Do not merge before the preview proof (task 9.2) passes. **Gates and measurement done (584 authored lines, lockfile excluded); the PR part is N/A (`size:exception`, one PR at the end); the preview proof stays task 9.2. Committed as one unit: `feat(extraction): add the sharp and unpdf document preparer`**
 
 ## Phase 5: S4b - Extractor, env, composition root, RNF-03 (work unit 5)
 

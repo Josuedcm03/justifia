@@ -415,3 +415,137 @@ producers/sweep/pins, integration check, owner DB steps, closeout).
 - Current work unit: S3 (ports, fakes, use case), committed as one unit
 - Estimated review budget impact: S3 alone is ~2.5x its forecast; S4a-S5b
   should be re-forecast with a similar factor
+
+## Batch 4 (2026-10-23): S4a dependencies and preparer (tasks 4.1-4.10)
+
+Status: 4.1-4.10 done (4.6 and 4.7 were already N/A). Committed as one unit
+(`size:exception`): `feat(extraction): add the sharp and unpdf document
+preparer`. No database was touched.
+
+### Completed tasks
+
+- [x] 4.1 N/A (`size:exception`, stay on `feat/document-extraction`)
+- [x] 4.2 `npm install sharp unpdf @napi-rs/canvas`: `sharp 0.35.5`, `unpdf 1.9.1`,
+      `@napi-rs/canvas 1.0.13` (direct dependencies, caret ranges)
+- [x] 4.3 RED/GREEN `src/next-config.test.ts`, `serverExternalPackages` in `next.config.ts`
+- [x] 4.4/4.5 RED/GREEN image path
+- [x] 4.6, 4.7 N/A (0.3 FAIL, dropped)
+- [x] 4.8/4.9 RED/GREEN render path
+- [x] 4.10 gates and diff measurement (PR part N/A)
+
+### Dependency review (4.2)
+
+- `package.json`: three lines added. No other dependency was requested.
+- `package-lock.json` (+450 / -121): adds `@napi-rs/canvas`, its 11 platform
+  packages (android, darwin, linux gnu/musl/riscv/arm, win32) and `unpdf`.
+  `sharp` and the `@img/*` packages move 0.35.4 -> 0.35.5 (and `sharp-libvips-*`
+  1.3.3 -> 1.3.4): `next` already carried sharp as an optional dependency, and making
+  it direct resolved the latest 0.35.x. Only sharp's own tree changed.
+- `npm install` warns about 24 audit findings and 6 packages with unapproved
+  install scripts (`esbuild`, `@parcel/watcher`, `@swc/core`, `unrs-resolver`);
+  all pre-existing, none from the new packages. Not touched.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.3 | `src/next-config.test.ts` | Unit (imports the config) | `src/lib/import/next-config.test.ts` 2/2 | Written; 3 of 3 failed (`serverExternalPackages` undefined) | 3/3 + safety net 2/2 | lists canvas, omits sharp, exact list | None needed |
+| 4.4/4.5 | `src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` | Unit (real sharp, generated fixtures) | N/A (new) | Written; run failed: `./sharp-unpdf-preparer` unresolved | 8/8 | EXIF 6 upright (red half on top, 1600 x 2560), no tag stays landscape (1600 x 1000), 800 px not enlarged, PNG -> JPEG bytes equal to a q85 reference, transparent PNG on white, garbage jpeg/png, truncated JPEG. Mutation check: dropping `.rotate()`, `.flatten()`, `quality 85` or `withoutEnlargement` each failed exactly one test | `flatten` added after thinking through alpha (JPEG has none) |
+| 4.8/4.9 | same + `sharp-unpdf-preparer.unavailable.test.ts` | Unit (real unpdf + canvas, hand-built PDFs) | 8/8 | 7 of 15 failed (PDF branch stubbed as `unreadable_document`) | 20/20 (16 + 4) | mixed PDF (text page has ink, blank page is white), 8 pages -> first 5 in order (gray levels), 3 pages -> 3, widths <= 1600 incl. 3000x1000 and 100x100 pt, same bytes prepared twice, garbage / truncated / zero-page PDF, canvas import rejecting and throwing, images still work without canvas. Mutation checks: removing the page cap, the byte copy, the `canvasFailed` branch, the render width or the empty guard each failed a test | `destroy` fixed to `loadingTask.destroy()`; PDF builder moved to `adapters/test-support/pdf.ts` |
+
+### Test summary
+
+- Total tests written: 23 (config 3, image path 8, render path 8, unavailable 4)
+- Total passing: 23; full suite `npm test`: 250 files, 5435 tests, all passing
+  (was 5412)
+- Layers: Unit (23). Approval tests: none (no refactoring task)
+- Pure functions created: none (adapter over native libraries)
+
+### Work Unit Evidence (S4a)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run src/lib/extraction/adapters src/next-config.test.ts`: 3 files, 23 tests, all passing |
+| Runtime harness | Real sharp 0.35.5, unpdf 1.9.1 and `@napi-rs/canvas` 1.0.13 run in the tests (PDF rendering is real, not mocked); `npm run build` with a dummy `DATABASE_URL`/`AUTH_SECRET` passes with `serverExternalPackages` set. The Vercel preview proof (native addons in the deployed function) stays task 9.2 |
+| Rollback boundary | Revert `package.json` (3 lines), `package-lock.json`, `next.config.ts` (3 lines); delete `src/next-config.test.ts` and `src/lib/extraction/adapters/` (no caller exists yet) |
+
+### Gates (2026-10-23, dummy `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`)
+
+- `npm test`: 250 files, 5435 tests passed. The very first full run showed one
+  failure that I could not capture; four later full runs were all green and the
+  new tests take under 1.1 s each, so it looks like a load-related timeout in an
+  unrelated jsdom test, unconfirmed
+- `npm run typecheck`: clean
+- ESLint on `src/lib/extraction`, `src/next-config.test.ts`, `next.config.ts`:
+  new files clean; `next.config.ts` shows only the CRLF `Delete ␍` noise of its
+  CRLF working-tree copy (index is LF)
+- `prettier --check --end-of-line auto src next.config.ts package.json`: clean
+- `npm run build` (dummy `DATABASE_URL` and `AUTH_SECRET`, no Neon): passes, all
+  routes build
+
+### Files changed
+
+| File | Action | Authored lines |
+|---|---|---:|
+| `src/lib/extraction/adapters/sharp-unpdf-preparer.ts` | Created: `createSharpUnpdfPreparer({ canvasImport? })` | 119 |
+| `src/lib/extraction/adapters/sharp-unpdf-preparer.test.ts` | Created | 307 |
+| `src/lib/extraction/adapters/sharp-unpdf-preparer.unavailable.test.ts` | Created | 72 |
+| `src/lib/extraction/adapters/test-support/pdf.ts` | Created: hand-built PDF fixtures | 59 |
+| `src/next-config.test.ts` | Created | 21 |
+| `next.config.ts` | Modified: `serverExternalPackages` | 3 |
+| `package.json` | Modified: three dependencies | 3 |
+| `package-lock.json` | Modified (excluded) | n/a |
+| `openspec/changes/document-extraction/{tasks,apply-progress}.md` | Modified (excluded) | n/a |
+
+Authored diff: **584 lines** (prod 125 + tests and fixtures 459), against a ~400
+forecast (1.5x), under the 800 threshold. Committed as one unit.
+
+### Deviations from design
+
+1. **`next-config.test.ts` imports the config object** rather than scanning the
+   file text (task 4.3 says "file scan"); it matches the existing
+   `src/lib/import/next-config.test.ts` and cannot be fooled by a comment.
+2. **The `render_unavailable` test lives in its own file**
+   (`sharp-unpdf-preparer.unavailable.test.ts`) instead of the single file named
+   in 4.8: unpdf caches a successful canvas import at module level and vitest
+   does not reset externalized dependencies with `vi.resetModules`, so file
+   isolation is the reliable guard.
+3. **The sharp step also flattens transparency onto white** (`flatten`), which
+   DE-9 does not list: a transparent PNG would otherwise become black.
+4. **The factory takes `{ canvasImport? }`**; the default is the lazy
+   `() => import("@napi-rs/canvas")` of DE-9.
+5. **PDF pages are rendered with `width: 1600`** (0.4 note), so a small PDF page
+   is drawn at 1600 px wide, not at its natural size; the sharp step still caps
+   at 1600 and never enlarges images.
+6. **Every PDF takes the render path** (DE-14 failed), so there is no text
+   threshold, `extractText` is unused, and one `getDocumentProxy` counts the
+   pages (cap 5) and is reused for every page render.
+7. **A page that fails to render, or an unreadable PDF, is
+   `unreadable_document` (permanent)**; only a failing canvas import is
+   `render_unavailable` (the code that keeps the attempt, DE-4/DE-9).
+
+### Issues found
+
+- Authored diff 584 lines vs ~400 forecast; the tests are 379 of them.
+- Open risk, not addressed (out of task scope): a PDF page with an extreme aspect
+  ratio (for example 1 x 14400 pt) would be rendered at width 1600, so its
+  canvas height could be millions of pixels. The render would throw and map to
+  `unreadable_document`, but it can use a lot of memory first. A page-size guard
+  (reject when the rendered height exceeds a cap) belongs in a follow-up; the
+  upload size caps of the intake pipeline bound the file but not the page box.
+- Windows tooling: `sd` is not installed here, so mutation checks used a small
+  Node script in the scratchpad; the working tree of `next.config.ts` is CRLF
+  while the index is LF (Edit tool preserved it; `git diff` shows only the
+  three added lines).
+
+### Remaining tasks
+
+Phases 5-10 (S4b extractor/env/deps/RNF-03, S5a staff UI, S5b producers/sweep/
+pins, integration check, owner DB steps, closeout).
+
+### Workload / PR boundary
+
+- Mode: `size:exception`, single PR from `feat/document-extraction`
+- Current work unit: S4a (dependencies and preparer), committed as one unit
+- Estimated review budget impact: 584 authored lines, 1.5x the forecast; S4b
+  onward keep the 2-3x correction factor seen so far
