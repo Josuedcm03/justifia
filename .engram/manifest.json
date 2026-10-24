@@ -392,6 +392,14 @@
       "sessions": 0,
       "memories": 26,
       "prompts": 0
+    },
+    {
+      "id": "efc46a03",
+      "created_by": "jdkno",
+      "created_at": "2026-10-24T23:28:48Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }

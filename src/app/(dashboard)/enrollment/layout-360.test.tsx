@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderIntl } from "@/app/(dashboard)/requests/new/test-support";
@@ -21,10 +22,7 @@ vi.mock("next/navigation", () => ({
 
 import { GroupPicker } from "@/app/(dashboard)/enrollment/group-picker";
 import { MyEnrollments } from "@/app/(dashboard)/enrollment/my-enrollments";
-import type {
-  EnrollableGroup,
-  MyEnrollment,
-} from "@/lib/data/enrollment-picker";
+import type { MyEnrollment } from "@/lib/data/enrollment-picker";
 
 const VIEWPORT = 360;
 const REM = 16;
@@ -112,16 +110,7 @@ describe("the drop dialog at 360 px", () => {
   });
 });
 
-const GROUPS: EnrollableGroup[] = [
-  {
-    grupoId: 2,
-    numeroGrupo: "02",
-    docenteNombre: LONG.docenteNombre,
-    dias: ["lunes", "martes", "miercoles", "jueves", "viernes"],
-  },
-];
-
-const PICKER = {
+const PICKER: ComponentProps<typeof GroupPicker> = {
   periodo: "2026-S2",
   asignaturas: [
     {
@@ -134,23 +123,25 @@ const PICKER = {
   ],
   truncated: false,
   selectedId: 10,
-  groups: GROUPS,
+  groups: [
+    {
+      grupoId: 2,
+      numeroGrupo: "02",
+      docenteNombre: LONG.docenteNombre,
+      dias: ["lunes", "martes", "miercoles", "jueves", "viernes"],
+    },
+  ],
   enrollments: [LONG],
 };
 
 describe("the picker at 360 px", () => {
-  it("sets no width above the viewport and stacks the enroll control on the row", () => {
+  it("sets no width above the viewport, stacks the enroll control and wraps a long docente name", () => {
     renderIntl(<GroupPicker {...PICKER} />);
 
     expect(tooWide(document.body)).toEqual([]);
     expect(
       screen.getByRole("button", { name: "Inscribirme en Grupo 02" }),
     ).toHaveClass("w-full");
-  });
-
-  it("wraps a long docente name instead of widening the row", () => {
-    renderIntl(<GroupPicker {...PICKER} />);
-
     const meta = screen.getByText(/Ana María/);
     expect(meta).toHaveClass("break-words");
     expect(meta.parentElement).toHaveClass("min-w-0");

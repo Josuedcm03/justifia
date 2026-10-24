@@ -21,27 +21,17 @@ import type {
 
 import es from "../../../../i18n/es.json";
 
-const OWN_A: EnrollableAsignatura = {
-  id: 1,
-  codigo: "MAT-101",
-  nombre: "Álgebra",
-  carreraNombre: "Ingeniería",
-  ownCarrera: true,
-};
-const OWN_B: EnrollableAsignatura = {
-  id: 2,
-  codigo: "MAT-102",
-  nombre: "Geometría",
-  carreraNombre: "Ingeniería",
-  ownCarrera: true,
-};
-const OTHER: EnrollableAsignatura = {
-  id: 3,
-  codigo: "ECO-201",
-  nombre: "Cálculo mercantil",
-  carreraNombre: "Administración",
-  ownCarrera: false,
-};
+const asig = (
+  id: number,
+  codigo: string,
+  nombre: string,
+  carreraNombre: string,
+  ownCarrera = true,
+): EnrollableAsignatura => ({ id, codigo, nombre, carreraNombre, ownCarrera });
+
+const OWN_A = asig(1, "MAT-101", "Álgebra", "Ingeniería");
+const OWN_B = asig(2, "MAT-102", "Geometría", "Ingeniería");
+const OTHER = asig(3, "ECO-201", "Cálculo mercantil", "Administración", false);
 
 const G1: EnrollableGroup = {
   grupoId: 11,
@@ -94,24 +84,43 @@ async function closePopup(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
 }
 
+const press = (name: string) =>
+  userEvent.click(screen.getByRole("button", { name }));
+const enrollG2 = () => press("Inscribirme en Grupo 02");
+
 beforeEach(() => {
   enrollAction.mockReset();
   replace.mockReset();
 });
 
 describe("GroupPicker subjects (RF-16, RN-21)", () => {
-  it("lists the student's own carrera first, whatever order it receives", async () => {
+  it.each([
+    [
+      "lists the student's own carrera first, whatever order it receives",
+      [OTHER, OWN_A, OWN_B],
+      [
+        "MAT-101 · Álgebra",
+        "MAT-102 · Geometría",
+        "ECO-201 · Cálculo mercantil (Administración)",
+      ],
+    ],
+    [
+      "offers every subject in one searchable list to a student without carrera",
+      [{ ...OWN_A, ownCarrera: false }, { ...OWN_B, ownCarrera: false }, OTHER],
+      [
+        "MAT-101 · Álgebra (Ingeniería)",
+        "MAT-102 · Geometría (Ingeniería)",
+        "ECO-201 · Cálculo mercantil (Administración)",
+      ],
+    ],
+  ])("%s", async (_l, asignaturas, labels) => {
     const user = userEvent.setup();
-    show({ asignaturas: [OTHER, OWN_A, OWN_B] });
+    show({ asignaturas });
 
     await user.click(search());
 
     const options = await screen.findAllByRole("option");
-    expect(options.map((o) => o.textContent)).toEqual([
-      "MAT-101 · Álgebra",
-      "MAT-102 · Geometría",
-      "ECO-201 · Cálculo mercantil (Administración)",
-    ]);
+    expect(options.map((o) => o.textContent)).toEqual(labels);
     await closePopup(user);
   });
 
@@ -129,6 +138,7 @@ describe("GroupPicker subjects (RF-16, RN-21)", () => {
     expect(options.map((o) => o.textContent)).toEqual([
       "ECO-201 · Cálculo mercantil (Administración)",
     ]);
+    expect(screen.queryByText(/Sin resultados/)).toBeNull();
     await closePopup(user);
   });
 
@@ -147,35 +157,6 @@ describe("GroupPicker subjects (RF-16, RN-21)", () => {
 
     expect(screen.queryByText(/Sin resultados/)).toBeNull();
     expect(search()).toHaveValue("");
-  });
-
-  it("does not show the no-results state while the term matches", async () => {
-    const user = userEvent.setup();
-    show();
-
-    await user.type(search(), "alg");
-
-    await screen.findAllByRole("option");
-    expect(screen.queryByText(/Sin resultados/)).toBeNull();
-    await closePopup(user);
-  });
-
-  it("offers every subject in one searchable list to a student without carrera", async () => {
-    const user = userEvent.setup();
-    show({
-      asignaturas: [
-        { ...OWN_A, ownCarrera: false },
-        { ...OWN_B, ownCarrera: false },
-        OTHER,
-      ],
-    });
-
-    await user.click(search());
-
-    const options = await screen.findAllByRole("option");
-    expect(options).toHaveLength(3);
-    expect(options[0]).toHaveTextContent("MAT-101 · Álgebra (Ingeniería)");
-    await closePopup(user);
   });
 
   it("puts the chosen asignatura in the URL", async () => {
@@ -197,22 +178,21 @@ describe("GroupPicker subjects (RF-16, RN-21)", () => {
     expect(search()).toHaveValue("MAT-102 · Geometría");
   });
 
-  it("says when the subject list was cut", () => {
-    show({ truncated: true });
+  it.each([true, false])(
+    "shows the cut notice only if truncated is %s",
+    (truncated) => {
+      show({ truncated });
 
-    expect(screen.getByText(es.enrollment.picker.truncated)).toBeVisible();
-  });
-
-  it("does not say it when the list is complete", () => {
-    show({ truncated: false });
-
-    expect(screen.queryByText(es.enrollment.picker.truncated)).toBeNull();
-  });
+      expect(
+        screen.queryAllByText(es.enrollment.picker.truncated),
+      ).toHaveLength(Number(truncated));
+    },
+  );
 });
 
 describe("GroupPicker groups (RF-16)", () => {
-  it("lists the groups of the chosen subject with docente and days", () => {
-    show({ selectedId: 1, groups: [G1, G2] });
+  it("lists the groups with docente and days and marks the one the student is in", () => {
+    show({ selectedId: 1, groups: [G1, G2], enrollments: [enrolled()] });
 
     const items = within(
       screen.getByRole("list", { name: es.enrollment.picker.groupsCaption }),
@@ -224,6 +204,11 @@ describe("GroupPicker groups (RF-16)", () => {
     expect(items[1]).toHaveTextContent("Grupo 02");
     expect(items[1]).toHaveTextContent(es.enrollment.list.noTeacher);
     expect(items[1]).toHaveTextContent("Días: Días sin definir");
+    expect(items[0]).toHaveTextContent(es.enrollment.picker.enrolled);
+    expect(within(items[0]).queryByRole("button")).toBeNull();
+    expect(
+      within(items[1]).getByRole("button", { name: "Inscribirme en Grupo 02" }),
+    ).toHaveClass("h-11");
   });
 
   it("shows no group list without a chosen subject or without groups", () => {
@@ -235,37 +220,11 @@ describe("GroupPicker groups (RF-16)", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
-  it("marks the group the student is already in and offers no enroll on it", () => {
-    show({ selectedId: 1, groups: [G1, G2], enrollments: [enrolled()] });
-
-    const [mine, other] = screen.getAllByRole("listitem");
-    expect(mine).toHaveTextContent(es.enrollment.picker.enrolled);
-    expect(within(mine).queryByRole("button")).toBeNull();
-    expect(
-      within(other).getByRole("button", { name: "Inscribirme en Grupo 02" }),
-    ).toHaveClass("h-11");
-  });
-
-  it("enrolls directly when the student has no group of that subject", async () => {
-    enrollAction.mockResolvedValue({ ok: true });
-    show({ selectedId: 1, groups: [G1, G2] });
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Inscribirme en Grupo 02" }),
-    );
-
-    await waitFor(() => expect(enrollAction).toHaveBeenCalledTimes(1));
-    expect(enrollAction).toHaveBeenCalledWith({ grupoId: 12 });
-    expect(screen.queryByRole("alertdialog")).toBeNull();
-  });
-
   it("shows the error of a refused enrollment", async () => {
     enrollAction.mockResolvedValue({ ok: false, error: "not_eligible" });
     show({ selectedId: 1, groups: [G1, G2] });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Inscribirme en Grupo 02" }),
-    );
+    await enrollG2();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       es.enrollment.errors.not_eligible,
@@ -289,9 +248,7 @@ describe("GroupPicker replace (RF-16, RNF-12, D5)", () => {
   const props = { selectedId: 1, groups: [G1, G2], enrollments: [enrolled()] };
 
   async function pickG2() {
-    await userEvent.click(
-      screen.getByRole("button", { name: "Inscribirme en Grupo 02" }),
-    );
+    await enrollG2();
     return screen.findByRole("alertdialog");
   }
 
@@ -306,6 +263,7 @@ describe("GroupPicker replace (RF-16, RNF-12, D5)", () => {
     expect(dialog).toHaveAccessibleDescription(
       /MAT-101 · Álgebra, Grupo 01.*Grupo 02/,
     );
+    expect(screen.queryByText(es.enrollment.dialog.warning)).toBeNull();
     expect(enrollAction).not.toHaveBeenCalled();
   });
 
@@ -313,9 +271,7 @@ describe("GroupPicker replace (RF-16, RNF-12, D5)", () => {
     show(props);
     await pickG2();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: es.enrollment.dialog.cancel }),
-    );
+    await press(es.enrollment.dialog.cancel);
 
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(enrollAction).not.toHaveBeenCalled();
@@ -326,11 +282,7 @@ describe("GroupPicker replace (RF-16, RNF-12, D5)", () => {
     show(props);
     await pickG2();
 
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: es.enrollment.dialog.replace.confirm,
-      }),
-    );
+    await press(es.enrollment.dialog.replace.confirm);
 
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(enrollAction).toHaveBeenCalledTimes(1);
@@ -345,28 +297,26 @@ describe("GroupPicker replace (RF-16, RNF-12, D5)", () => {
     expect(screen.getByText(es.enrollment.dialog.warning)).toBeInTheDocument();
   });
 
-  it("does not warn without a dependent request", async () => {
-    show(props);
-
-    await pickG2();
-
-    expect(screen.queryByText(es.enrollment.dialog.warning)).toBeNull();
-  });
-
   it.each([
-    ["another asignatura", { asignaturaId: 2 }],
-    ["another period", { periodo: "2026-S1" }],
-  ])("enrolls directly when the other group is of %s", async (_l, other) => {
+    ["no group of that subject", []],
+    [
+      "a group of another asignatura",
+      [enrolled({ grupoId: 99, asignaturaId: 2 })],
+    ],
+    [
+      "a group of another period",
+      [enrolled({ grupoId: 99, periodo: "2026-S1" })],
+    ],
+  ])("enrolls directly when the student has %s", async (_l, enrollments) => {
     enrollAction.mockResolvedValue({ ok: true });
-    show({ ...props, enrollments: [enrolled({ grupoId: 99, ...other })] });
+    show({ ...props, enrollments });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Inscribirme en Grupo 02" }),
-    );
+    await enrollG2();
 
     await waitFor(() =>
       expect(enrollAction).toHaveBeenCalledWith({ grupoId: 12 }),
     );
+    expect(enrollAction).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });
