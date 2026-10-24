@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { getDocumentProxy, renderPageAsImage } from "unpdf";
 
-import { IMAGE_MAX_WIDTH, MAX_PDF_PAGES } from "../limits";
+import { IMAGE_MAX_WIDTH, MAX_PDF_PAGES, fitsRenderCap } from "../limits";
 import type { DocumentKind, DocumentPreparer, PrepareResult } from "../ports";
 
 // Document preparer (DE-9): turns stored bytes into the JPEG pages the model
@@ -60,6 +60,26 @@ async function prepareImage(bytes: Uint8Array): Promise<PrepareResult> {
   }
 }
 
+type PdfDocument = Awaited<ReturnType<typeof getDocumentProxy>>;
+
+/**
+ * Reads each page's box as a viewer shows it (rotation applied) at scale 1 and
+ * checks that drawing it at the image width stays under the height cap. Reading
+ * a viewport allocates no canvas.
+ */
+async function pagesFitRenderCap(
+  document: PdfDocument,
+  pages: number,
+): Promise<boolean> {
+  for (let number = 1; number <= pages; number++) {
+    const { width, height } = (await document.getPage(number)).getViewport({
+      scale: 1,
+    });
+    if (!fitsRenderCap(width, height)) return false;
+  }
+  return true;
+}
+
 async function preparePdf(
   bytes: Uint8Array,
   canvasImport: CanvasImport,
@@ -67,7 +87,7 @@ async function preparePdf(
   // pdf.js detaches the buffer it is given. `new Uint8Array(bytes)` always
   // copies (`Buffer#slice` would only return a view), so the caller's bytes
   // survive and the same document can be prepared again.
-  let document: Awaited<ReturnType<typeof getDocumentProxy>>;
+  let document: PdfDocument;
   try {
     document = await getDocumentProxy(new Uint8Array(bytes));
   } catch {
@@ -88,6 +108,9 @@ async function preparePdf(
   try {
     const images: Uint8Array[] = [];
     const pages = Math.min(document.numPages, MAX_PDF_PAGES);
+    // Every page that would be drawn is measured first, so an oversized one
+    // refuses the whole document before any canvas is allocated.
+    if (!(await pagesFitRenderCap(document, pages))) return UNREADABLE;
     for (let page = 1; page <= pages; page++) {
       const png = await renderPageAsImage(document, page, {
         canvasImport: guardedImport,

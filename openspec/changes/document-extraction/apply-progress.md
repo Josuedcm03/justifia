@@ -549,3 +549,63 @@ pins, integration check, owner DB steps, closeout).
 - Current work unit: S4a (dependencies and preparer), committed as one unit
 - Estimated review budget impact: 584 authored lines, 1.5x the forecast; S4b
   onward keep the 2-3x correction factor seen so far
+
+## Batch 5 (2026-10-23): unit A page-size guard (task 4.11) and S4b (tasks 5.1-5.10)
+
+### Unit A: PDF page-size guard (task 4.11, owner-requested)
+
+Status: 4.11 done, committed as `fix(extraction): guard the PDF render against
+extreme page sizes`. Closes the open risk noted in batch 4 ("Issues found").
+
+#### What was built
+
+- `limits.ts`: `MAX_RENDERED_PAGE_HEIGHT = 10_000` and the pure
+  `fitsRenderCap(width, height)` (false for zero, negative, NaN, infinite sizes
+  and for `height * 1600 / width > 10,000`).
+- Preparer: `pagesFitRenderCap(document, pages)` reads
+  `(await document.getPage(n)).getViewport({ scale: 1 })` of each page that would
+  be sent (the first 5; rotation is applied by the viewport) through the proxy
+  the render already uses, before the first `renderPageAsImage`. One page over
+  the cap returns `unreadable_document` for the whole document.
+- `test-support/pdf.ts`: optional `rotate` on a page (`/Rotate`).
+
+#### Why this cap
+
+The canvas is `1600 x height` RGBA. At 10,000 px that is 16 MP, about 64 MB, and
+a ratio of 6.25. Legal is 1.65, A4 1.41, a 400 mm thermal receipt (227 x 1134 pt)
+is 5.0 and renders at 1600 x 7992; those all pass. A 600 mm roll (7.5) and a
+1 x 14400 pt strip (23 M pixels, 92 MB per page, five pages = 460 MB) are
+refused. JPEG's own limit is 65,535 px, so the cap also keeps well clear of it.
+The cap is on height only because the width is always forced to 1600 (a very
+wide, short page renders tiny and is not a memory risk).
+
+#### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.11 limits | `src/lib/extraction/limits.test.ts` | Unit | 14/14 | Written; 20 of 34 failed (`fitsRenderCap` not a function; constant undefined) | 34/34 | 10 sizes (4 standard pages, boundary 100 x 625 pass / 100 x 626 fail, 600 mm roll, 1 x 14400, 14400 x 1) and 8 degenerate sizes | None needed |
+| 4.11 preparer | `sharp-unpdf-preparer.test.ts` (+ `.unavailable.test.ts`) | Unit (real unpdf + canvas, hand-built PDFs, `renderPageAsImage` spied through a pass-through `vi.mock`) | 20/20 | Written; 6 of 28 failed (the guard cases; A4, receipt and page-6 cases passed against the unguarded code, as expected) | 62/62 on `adapters` + limits | A4 + legal; 227 x 1134 receipt; 1 x 14400; only page 3 extreme with 4 pages (zero renders, not even pages 1-2); page 5 extreme; page 6 extreme ignored; rotated 1000 x 100 refused vs unrotated passes; canvas addon missing + extreme page -> `unreadable_document`, addon never imported. Mutation check: removing the guard call failed 5 tests | `PdfDocument` type alias shared by the helper and `preparePdf` |
+
+#### Work Unit Evidence (unit A)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run src/lib/extraction/adapters src/lib/extraction/limits.test.ts`: 3 files, 62 tests, all passing |
+| Runtime harness | Real unpdf 1.9.1 and `@napi-rs/canvas` 1.0.13 in the tests; the spy proves no render call for refused documents |
+| Rollback boundary | Revert the guard call and helper in `sharp-unpdf-preparer.ts`, the two additions in `limits.ts`, the `rotate` option of `test-support/pdf.ts`, and the added tests |
+
+#### Gates (dummy `DATABASE_URL`)
+
+- `npm test`: 5462 tests passed (was 5435 + 27 new)
+- `npm run typecheck`: clean
+- ESLint on `src/lib/extraction`: only the CRLF `Delete ␍` noise
+- `prettier --check --end-of-line auto src`: clean
+
+Authored diff: **217 lines** (214 added, 3 removed across 6 source files;
+`openspec/` excluded), well under 800.
+
+#### Deviations
+
+- Page 6 and later are not measured: they are never rendered.
+- A page whose viewport cannot be read (`getPage` throws) is refused as
+  `unreadable_document` like any other failing page.

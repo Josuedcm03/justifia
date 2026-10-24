@@ -57,6 +57,24 @@ describe("sharp-unpdf preparer, canvas addon unavailable (DE-9)", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("refuses an extreme page as unreadable_document before the canvas addon is needed", async () => {
+    let imports = 0;
+    const preparer = createSharpUnpdfPreparer({
+      canvasImport: () => {
+        imports++;
+        return Promise.reject(new Error("addon not installed"));
+      },
+    });
+
+    const result = await preparer.prepare(
+      buildPdf([{ width: 1, height: 14_400 }]),
+      "pdf",
+    );
+
+    expect(result).toEqual({ ok: false, code: "unreadable_document" });
+    expect(imports).toBe(0);
+  });
+
   it("keeps a bad PDF unreadable even when the canvas addon is also missing", async () => {
     const preparer = createSharpUnpdfPreparer({
       canvasImport: () => Promise.reject(new Error("addon not installed")),

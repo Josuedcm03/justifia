@@ -1,9 +1,23 @@
 // @vitest-environment node
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { renderPageAsImage } from "unpdf";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createSharpUnpdfPreparer } from "./sharp-unpdf-preparer";
 import { buildPdf } from "./test-support/pdf";
+
+// The real render function, wrapped in a spy: the page-size guard tests assert
+// it is never reached for a page that is too tall.
+vi.mock("unpdf", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("unpdf")>();
+  return { ...actual, renderPageAsImage: vi.fn(actual.renderPageAsImage) };
+});
+
+const renderSpy = vi.mocked(renderPageAsImage);
+
+beforeEach(() => {
+  renderSpy.mockClear();
+});
 
 // Every fixture is generated here: no real document is read (RNF-04).
 
@@ -303,5 +317,102 @@ describe("sharp-unpdf preparer, PDF render path (DE-9)", () => {
     const result = await preparer.prepare(pdf.slice(0, 40), "pdf");
 
     expect(result).toEqual({ ok: false, code: "unreadable_document" });
+  });
+});
+
+// A page is checked before it is drawn: a page box of 1 x 14400 pt at width
+// 1600 would be a canvas of 23 million pixels, and memory is spent before the
+// draw fails. The whole document is refused, with no partial result.
+describe("sharp-unpdf preparer, page-size guard (DE-9)", () => {
+  const preparer = createSharpUnpdfPreparer();
+  const UNREADABLE = { ok: false, code: "unreadable_document" };
+
+  it("renders ordinary pages: A4 and legal pass through the guard", async () => {
+    const pdf = buildPdf([
+      { width: 595, height: 842, gray: 0.5 },
+      { width: 612, height: 1008, gray: 0.5 },
+    ]);
+
+    const images = imagesOf(await preparer.prepare(pdf, "pdf"));
+
+    expect(images).toHaveLength(2);
+    expect(renderSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders a long receipt (227 x 1134 pt, ratio 5) at the width cap", async () => {
+    const pdf = buildPdf([{ width: 227, height: 1134, gray: 0.5 }]);
+
+    const images = imagesOf(await preparer.prepare(pdf, "pdf"));
+
+    expect(images).toHaveLength(1);
+    const meta = await sharp(images[0]).metadata();
+    expect([meta.width, meta.height]).toEqual([1600, 7992]);
+  });
+
+  it("refuses a 1 x 14400 pt page without rendering it", async () => {
+    const pdf = buildPdf([{ width: 1, height: 14_400, gray: 0.5 }]);
+
+    const result = await preparer.prepare(pdf, "pdf");
+
+    expect(result).toEqual(UNREADABLE);
+    expect(renderSpy).not.toHaveBeenCalled();
+  });
+
+  it("refuses the whole document when only page 3 is extreme, rendering nothing", async () => {
+    const pdf = buildPdf([
+      { gray: 0.2 },
+      { gray: 0.4 },
+      { width: 1, height: 14_400, gray: 0.6 },
+      { gray: 0.8 },
+    ]);
+
+    const result = await preparer.prepare(pdf, "pdf");
+
+    // Pages 1 and 2 are fine, yet nothing was drawn and nothing is returned.
+    expect(result).toEqual(UNREADABLE);
+    expect(renderSpy).not.toHaveBeenCalled();
+  });
+
+  it("refuses an extreme page that is the last one sent (page 5)", async () => {
+    const pdf = buildPdf([
+      { gray: 0.2 },
+      { gray: 0.2 },
+      { gray: 0.2 },
+      { gray: 0.2 },
+      { width: 100, height: 700, gray: 0.6 },
+    ]);
+
+    const result = await preparer.prepare(pdf, "pdf");
+
+    expect(result).toEqual(UNREADABLE);
+    expect(renderSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not look at pages past the page cap: an extreme page 6 is never sent", async () => {
+    const pdf = buildPdf([
+      { gray: 0.2 },
+      { gray: 0.2 },
+      { gray: 0.2 },
+      { gray: 0.2 },
+      { gray: 0.2 },
+      { width: 1, height: 14_400, gray: 0.6 },
+    ]);
+
+    const images = imagesOf(await preparer.prepare(pdf, "pdf"));
+
+    expect(images).toHaveLength(5);
+    expect(renderSpy).toHaveBeenCalledTimes(5);
+  });
+
+  it("judges the page as a viewer shows it: a rotated wide page is tall", async () => {
+    const tall = buildPdf([{ width: 1000, height: 100, rotate: 90 }]);
+    const wide = buildPdf([{ width: 1000, height: 100, gray: 0.5 }]);
+
+    expect(await preparer.prepare(tall, "pdf")).toEqual(UNREADABLE);
+    expect(renderSpy).not.toHaveBeenCalled();
+
+    const images = imagesOf(await preparer.prepare(wide, "pdf"));
+    expect(images).toHaveLength(1);
+    expect(renderSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -203,6 +203,18 @@ otherwise `invalid_response`. `fetch` injected for tests.
 | any other `pdf` (scanned or mixed) | Render the first 5 pages with unpdf `renderPageAsImage` + `canvasImport: () => import("@napi-rs/canvas")`, then the sharp step; failed dynamic import -> `render_unavailable` |
 | unparseable bytes | `unreadable_document` (permanent) |
 
+Page-size guard (added 2026-10-23, task 4.11). Rendering at a fixed width makes
+the canvas height proportional to the page's aspect ratio, so a page box such
+as 1 x 14400 pt would allocate millions of pixels before the draw fails. Before
+any page is drawn, the preparer reads each page it would send (the first
+`MAX_PDF_PAGES`) through the same pdf.js proxy at scale 1, rotation applied.
+`fitsRenderCap(width, height)` (`limits.ts`, pure) is false when
+`height * IMAGE_MAX_WIDTH / width > MAX_RENDERED_PAGE_HEIGHT` (10,000 px = 16 MP
+at width 1600, ratio 6.25) or the size is zero, negative or not finite. One page
+over the cap refuses the whole document as `unreadable_document` (permanent: the
+file will not change), with no canvas allocated and no partial result. Letter,
+A4, legal and a 400 mm receipt (ratio 5) pass.
+
 ### DE-10. Validation (`validate.ts`, pure)
 
 | Rule | Behaviour |

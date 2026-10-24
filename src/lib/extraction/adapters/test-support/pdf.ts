@@ -5,6 +5,8 @@ export interface PdfPage {
   /** Page size in points; defaults to US Letter. */
   width?: number;
   height?: number;
+  /** `/Rotate` entry: a viewer shows the page turned this many degrees. */
+  rotate?: 90 | 180 | 270;
   /** Fills the whole page with this gray (0 black .. 1 white); default white. */
   gray?: number;
   /** Printed in black Helvetica near the top of the page (ASCII, no parens). */
@@ -36,6 +38,7 @@ export function buildPdf(pages: readonly PdfPage[]): Uint8Array {
     const pageId = pageIds[i];
     objects[pageId] =
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] ` +
+      (page.rotate ? `/Rotate ${page.rotate} ` : "") +
       `/Resources << /Font << /F1 ${FONT_ID} 0 R >> >> /Contents ${pageId + 1} 0 R >>`;
     objects[pageId + 1] =
       `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;

@@ -35,8 +35,27 @@ export const MAX_PDF_PAGES = 5;
 /** DE-9: widest image sent to the model, in pixels (never enlarged). */
 export const IMAGE_MAX_WIDTH = 1600;
 
+/**
+ * DE-9: tallest page, in pixels, the preparer draws at `IMAGE_MAX_WIDTH`. With
+ * a 1600 px width that is a 16 MP canvas (about 64 MB of RGBA), at ratio 6.25.
+ * Letter, A4, legal and a 400 mm receipt are far below it; a 1 x 14400 pt strip
+ * would be 23 million pixels high.
+ */
+export const MAX_RENDERED_PAGE_HEIGHT = 10_000;
+
 /** DE-11: requests one sweep run takes up (the backfill bound). */
 export const SWEEP_BATCH_SIZE = 10;
+
+/**
+ * DE-9: true when a page of this size (points, as the viewer shows it) can be
+ * drawn at `IMAGE_MAX_WIDTH` without exceeding `MAX_RENDERED_PAGE_HEIGHT`. A
+ * degenerate size (zero, negative, not finite) never fits.
+ */
+export function fitsRenderCap(width: number, height: number): boolean {
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return false;
+  if (width <= 0 || height <= 0) return false;
+  return (height * IMAGE_MAX_WIDTH) / width <= MAX_RENDERED_PAGE_HEIGHT;
+}
 
 /** DE-7: the instant after which no further document is started. */
 export function deadlineFor(startedAt: Date): Date {
