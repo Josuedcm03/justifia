@@ -898,6 +898,12 @@
         "description": "You will no longer be enrolled in this group. You can enroll again whenever you want.",
         "confirm": "Yes, drop",
         "pending": "Dropping…"
+      },
+      "replace": {
+        "title": "Replace {group}?",
+        "description": "You will switch from {group} to {next}. Your enrollments in other subjects and other periods do not change.",
+        "confirm": "Yes, replace",
+        "pending": "Replacing…"
       }
     },
     "errors": {
@@ -907,6 +913,24 @@
       "not_enrolled": "You are not enrolled in that group.",
       "invalid": "We could not read the request. Refresh the page and try again.",
       "unexpected": "We could not save the change and nothing was modified. Please try again."
+    },
+    "picker": {
+      "title": "Enroll in a group",
+      "description": "Groups offered in period {periodo}. You see your own career's subjects first; search by code, name or career to find the others.",
+      "subjectLabel": "Subject",
+      "placeholder": "Search by code, name or career",
+      "popupEmpty": "No subject matches",
+      "truncated": "Only the first subjects are shown. Type in the search box to find others.",
+      "noResults": {
+        "title": "No results for “{term}”",
+        "hint": "Check the spelling or try another code, name or career.",
+        "clear": "Clear search"
+      },
+      "groupsCaption": "Groups of the chosen subject",
+      "days": "Days",
+      "enroll": "Enroll",
+      "enrollLabel": "Enroll in {group}",
+      "enrolled": "You are already enrolled in this group"
     }
   },
   "review": {

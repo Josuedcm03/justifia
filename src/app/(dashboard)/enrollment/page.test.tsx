@@ -225,6 +225,98 @@ describe("EnrollmentPage content (RF-16)", () => {
   });
 });
 
+const ASIGNATURA = {
+  id: 1,
+  codigo: "MAT-101",
+  nombre: "Cálculo",
+  carreraNombre: "Ingeniería",
+  ownCarrera: true,
+};
+const GROUP = {
+  grupoId: 21,
+  numeroGrupo: "02",
+  docenteNombre: "Luis Mora",
+  dias: ["martes"],
+};
+
+describe("EnrollmentPage picker (RF-16)", () => {
+  it("offers the picker, with the list, when groups are offered", async () => {
+    loadMock.mockResolvedValue(pageData({ asignaturas: [ASIGNATURA] }));
+
+    await renderPage();
+
+    expect(
+      screen.getByRole("combobox", { name: es.picker.subjectLabel }),
+    ).toBeVisible();
+    expect(screen.getByRole("list", { name: es.list.caption })).toBeVisible();
+  });
+
+  it("keeps the picker available when the student has no enrollment", async () => {
+    loadMock.mockResolvedValue(
+      pageData({ asignaturas: [ASIGNATURA], enrollments: [] }),
+    );
+
+    await renderPage();
+
+    expect(screen.getByText(es.list.empty)).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: es.picker.subjectLabel }),
+    ).toBeVisible();
+  });
+
+  it("shows no picker when nothing is offered", async () => {
+    loadMock.mockResolvedValue(pageData({ periodo: null }));
+
+    await renderPage();
+
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  it("lists the groups of the chosen asignatura", async () => {
+    loadMock.mockResolvedValue(
+      pageData({ asignaturas: [ASIGNATURA], groups: [GROUP] }),
+    );
+
+    await renderPage({ asignatura: "1" });
+
+    const groups = screen.getByRole("list", {
+      name: es.picker.groupsCaption,
+    });
+    expect(within(groups).getByRole("listitem")).toHaveTextContent("Grupo 02");
+    expect(
+      within(groups).getByRole("button", { name: "Inscribirme en Grupo 02" }),
+    ).toBeEnabled();
+  });
+
+  it.each(["abc", "0", "-3"])(
+    "shows no group list for the invalid asignatura %s",
+    async (raw) => {
+      loadMock.mockResolvedValue(
+        pageData({ asignaturas: [ASIGNATURA], groups: [] }),
+      );
+
+      await renderPage({ asignatura: raw });
+
+      expect(
+        screen.queryByRole("list", { name: es.picker.groupsCaption }),
+      ).toBeNull();
+    },
+  );
+
+  it("shows no group list for an ineligible asignatura, which reads no groups", async () => {
+    loadMock.mockResolvedValue(
+      pageData({ asignaturas: [ASIGNATURA], groups: [] }),
+    );
+
+    await renderPage({ asignatura: "999" });
+
+    expect(loadMock).toHaveBeenCalledWith(7, 999);
+    expect(
+      screen.queryByRole("list", { name: es.picker.groupsCaption }),
+    ).toBeNull();
+  });
+});
+
 describe("EnrollmentPage degraded read (RF-16)", () => {
   beforeEach(() => {
     loadMock.mockResolvedValue({
@@ -246,6 +338,7 @@ describe("EnrollmentPage degraded read (RF-16)", () => {
     await renderPage();
 
     expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 });
@@ -257,14 +350,18 @@ describe("EnrollmentPage never carries docente contact data (RNF-01, RNF-02)", (
         enrollments: [
           enrollment({ docenteEmail: EMAIL, email: EMAIL, telefono: PHONE }),
         ],
+        asignaturas: [ASIGNATURA],
+        groups: [{ ...GROUP, email: EMAIL, telefono: PHONE }],
       }),
     );
 
-    const ui = await build();
-    const { container } = await renderPage();
+    const ui = await build({ asignatura: "1" });
+    const { container } = await renderPage({ asignatura: "1" });
 
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("Ana Pérez");
+    expect(serialized).toContain("Luis Mora");
+    expect(container.innerHTML).toContain("Luis Mora");
     for (const secret of [EMAIL, PHONE]) {
       expect(serialized).not.toContain(secret);
       expect(container.innerHTML).not.toContain(secret);

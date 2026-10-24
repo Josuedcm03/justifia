@@ -19,13 +19,18 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
 }));
 
+import { GroupPicker } from "@/app/(dashboard)/enrollment/group-picker";
 import { MyEnrollments } from "@/app/(dashboard)/enrollment/my-enrollments";
+import type {
+  EnrollableGroup,
+  MyEnrollment,
+} from "@/lib/data/enrollment-picker";
 
 const VIEWPORT = 360;
 const REM = 16;
 const SPACING_PX = 4;
 
-const LONG = {
+const LONG: MyEnrollment = {
   grupoId: 1,
   asignaturaId: 10,
   asignaturaCodigo: "MAT-101",
@@ -104,5 +109,65 @@ describe("the drop dialog at 360 px", () => {
     expect(confirm).toBeVisible();
     expect(confirm.parentElement).toHaveClass("flex-col-reverse");
     expect(screen.getByRole("button", { name: "Cancelar" })).toBeVisible();
+  });
+});
+
+const GROUPS: EnrollableGroup[] = [
+  {
+    grupoId: 2,
+    numeroGrupo: "02",
+    docenteNombre: LONG.docenteNombre,
+    dias: ["lunes", "martes", "miercoles", "jueves", "viernes"],
+  },
+];
+
+const PICKER = {
+  periodo: "2026-S2",
+  asignaturas: [
+    {
+      id: 10,
+      codigo: "MAT-101",
+      nombre: LONG.asignaturaNombre,
+      carreraNombre: "Ingeniería",
+      ownCarrera: true,
+    },
+  ],
+  truncated: false,
+  selectedId: 10,
+  groups: GROUPS,
+  enrollments: [LONG],
+};
+
+describe("the picker at 360 px", () => {
+  it("sets no width above the viewport and stacks the enroll control on the row", () => {
+    renderIntl(<GroupPicker {...PICKER} />);
+
+    expect(tooWide(document.body)).toEqual([]);
+    expect(
+      screen.getByRole("button", { name: "Inscribirme en Grupo 02" }),
+    ).toHaveClass("w-full");
+  });
+
+  it("wraps a long docente name instead of widening the row", () => {
+    renderIntl(<GroupPicker {...PICKER} />);
+
+    const meta = screen.getByText(/Ana María/);
+    expect(meta).toHaveClass("break-words");
+    expect(meta.parentElement).toHaveClass("min-w-0");
+  });
+
+  it("opens the replace dialog within the viewport with stacked, reachable actions", async () => {
+    renderIntl(<GroupPicker {...PICKER} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Inscribirme en Grupo 02" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(tooWide(document.body)).toEqual([]);
+    expect(dialog).toHaveClass("w-[calc(100%-2rem)]");
+    expect(screen.getByText(/¿Reemplazar MAT-101/)).toHaveClass("break-words");
+    const confirm = screen.getByRole("button", { name: "Sí, reemplazar" });
+    expect(confirm).toBeVisible();
+    expect(confirm.parentElement).toHaveClass("flex-col-reverse");
   });
 });

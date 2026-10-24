@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
+import { GroupPicker } from "@/app/(dashboard)/enrollment/group-picker";
 import { MyEnrollments } from "@/app/(dashboard)/enrollment/my-enrollments";
 import { DegradedAlert } from "@/components/degraded-alert";
 import { EmptyState } from "@/components/empty-state";
@@ -34,9 +35,10 @@ export default async function EnrollmentPage({
   const session = await requireRole(...rolesSolicitantes);
   const t = await getTranslations("enrollment");
   const query = await searchParams;
+  const asignaturaId = parseAsignaturaId(query.asignatura);
   const { data, degraded } = await loadEnrollmentPage(
     Number(session.sub),
-    parseAsignaturaId(query.asignatura),
+    asignaturaId,
   );
 
   const enrollments = data.enrollments.map((e) => ({
@@ -50,6 +52,20 @@ export default async function EnrollmentPage({
     inOpenRequest: e.inOpenRequest,
   }));
 
+  const asignaturas = data.asignaturas.map((a) => ({
+    id: a.id,
+    codigo: a.codigo,
+    nombre: a.nombre,
+    carreraNombre: a.carreraNombre,
+    ownCarrera: a.ownCarrera,
+  }));
+  const groups = data.groups.map((g) => ({
+    grupoId: g.grupoId,
+    numeroGrupo: g.numeroGrupo,
+    docenteNombre: g.docenteNombre,
+    dias: g.dias,
+  }));
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={t("title")} description={t("description")} />
@@ -60,7 +76,16 @@ export default async function EnrollmentPage({
           <MyEnrollments enrollments={enrollments} />
           {data.periodo === null ? (
             <EmptyState variant="empty" message={t("noOffering")} />
-          ) : null}
+          ) : (
+            <GroupPicker
+              periodo={data.periodo}
+              asignaturas={asignaturas}
+              truncated={data.truncated}
+              selectedId={asignaturaId}
+              groups={groups}
+              enrollments={enrollments}
+            />
+          )}
         </>
       )}
     </div>

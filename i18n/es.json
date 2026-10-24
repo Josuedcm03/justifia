@@ -898,6 +898,12 @@
         "description": "Dejarás de estar inscrito en este grupo. Podrás inscribirte de nuevo cuando quieras.",
         "confirm": "Sí, dar de baja",
         "pending": "Dando de baja…"
+      },
+      "replace": {
+        "title": "¿Reemplazar {group}?",
+        "description": "Cambiarás {group} por {next}. Tus inscripciones en otras asignaturas y en otros periodos no cambian.",
+        "confirm": "Sí, reemplazar",
+        "pending": "Reemplazando…"
       }
     },
     "errors": {
@@ -907,6 +913,24 @@
       "not_enrolled": "No estás inscrito en ese grupo.",
       "invalid": "No pudimos leer la petición. Actualiza la página e inténtalo de nuevo.",
       "unexpected": "No pudimos guardar el cambio y no se modificó nada. Inténtalo de nuevo."
+    },
+    "picker": {
+      "title": "Inscribirme en un grupo",
+      "description": "Grupos que se ofrecen en el periodo {periodo}. Primero ves las asignaturas de tu carrera; busca por código, nombre o carrera para encontrar las demás.",
+      "subjectLabel": "Asignatura",
+      "placeholder": "Busca por código, nombre o carrera",
+      "popupEmpty": "Ninguna asignatura coincide",
+      "truncated": "Solo se muestran las primeras asignaturas. Escribe en el buscador para encontrar otras.",
+      "noResults": {
+        "title": "Sin resultados para «{term}»",
+        "hint": "Revisa la ortografía o prueba con otro código, nombre o carrera.",
+        "clear": "Borrar búsqueda"
+      },
+      "groupsCaption": "Grupos de la asignatura elegida",
+      "days": "Días",
+      "enroll": "Inscribirme",
+      "enrollLabel": "Inscribirme en {group}",
+      "enrolled": "Ya estás inscrito en este grupo"
     }
   },
   "review": {
