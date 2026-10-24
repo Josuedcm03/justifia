@@ -295,3 +295,123 @@ Authored diff: **1,890 lines** (prod 552 + tests 1,338), against a ~620 forecast
   structural pins and the rest of `extraction-sql.test.ts` (about 790)
 - Estimated review budget impact: S2 alone is ~3x its forecast; the remaining
   slices S3-S5b should be re-forecast with a similar factor
+
+## Batch 3 (2026-10-23): S3 ports, fakes and use case (tasks 3.1-3.11)
+
+Status: 3.1-3.11 done. S2 was committed by the owner as one unit
+(`94ce89f`, 2.19); S3 is committed as one unit too (`size:exception`, the
+owner's pattern), so 3.11 is done in this batch. No database was touched.
+
+### Completed tasks
+
+- [x] 3.1 N/A (`size:exception`, stay on `feat/document-extraction`)
+- [x] 3.2/3.3 fakes RED/GREEN, `ports.ts` and `fakes.ts`
+- [x] 3.4/3.5 `runDocumentExtraction` RED/GREEN (image path only, no `sourceText`)
+- [x] 3.6/3.7 `processRequestExtractions` RED/GREEN
+- [x] 3.8/3.9 `runExtractionSweep` RED/GREEN
+- [x] 3.10 Gates and diff measurement (PR part N/A)
+- [x] 3.11 Commit unit 3: `feat(extraction): add the extraction ports, fakes and use case`
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.2/3.3 | `src/lib/extraction/fakes.test.ts` | Unit | N/A (new) | Written; run failed: `./fakes` unresolved | 10/10 | ok and error answers, re-scripting, default single page; three queued results in order, calls recorded with the timeout, empty queue throws; configured default, switch, constructor option, check counter | None needed |
+| 3.4/3.5 | `src/lib/extraction/run.test.ts` | Unit (fakes + `vi.mock` of the data module) | N/A (new) | Written; run failed: `./run` unresolved | 24/24 | claim null; not configured (no store read, no network); store missing / throwing / breaking mid-body; both preparer codes; the three extractor codes; model timeout table (275, 100, 40, 5 s left -> 120, 90, 30, 0 s); success; Managua vs UTC date; discarded values still complete; lost lease on complete and on fail; unexpected throw (no secret in the log); claim and completion throwing; no log on the success path | Split into `runClaimed`, `loadBytes`, `readAll` while writing GREEN; no later change |
+| 3.6/3.7 | same | Unit | 24/24 | 12 of 36 failed (`processRequestExtractions` undefined) | 36/36 | registration order and strict claim/complete interleaving; not configured (registers, claims nothing) and the same rows once configured; five rows with budget for two; timeouts 120 s then 65 s; 19,999 vs 20,000 ms boundary; time since `startedAt`; explicit deadline; unclaimed doc not counted; errored doc does not stop the rest; registration failure propagates | None needed |
+| 3.8/3.9 | same | Unit | 36/36 | 7 of 43 failed (`runExtractionSweep` undefined) | 43/43 | abandon before select and bounded batch; not configured; three requests summed; deadline stops taking up requests; request throwing; errored documents; lease-step failure propagates | None needed |
+
+### Test summary
+
+- Total tests written: 53 (fakes 10, use case 43)
+- Total passing: 53; `npx vitest run src/lib/extraction`: 8 files, 211 tests;
+  full suite `npm test`: 5412 tests, all passing (was 5359)
+- Layers: Unit (53). Approval tests: none (no refactoring task)
+- Pure functions created: none new (the use case orchestrates, the rules stay in S1)
+
+### Work Unit Evidence (S3)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run src/lib/extraction/run.test.ts src/lib/extraction/fakes.test.ts`: 2 files, 53 tests, all passing |
+| Runtime harness | N/A: use case over fakes and a mocked data module; no runtime boundary (the real adapters arrive in S4a/S4b, the real SQL is covered by S2) |
+| Rollback boundary | Delete `src/lib/extraction/{ports,fakes,run}.ts` and `src/lib/extraction/{fakes,run}.test.ts` (nothing else in the repo is touched, and no caller exists yet) |
+
+### Gates (2026-10-23, dummy `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`)
+
+- `npm test`: 5412 tests passed
+- `npm run typecheck`: clean
+- ESLint on `src/lib/extraction`, `src/lib/data`, `src/db`: 0 findings besides
+  the CRLF `Delete ␍` noise; the five new files are clean
+- `prettier --check --end-of-line auto src`: clean
+- `npm run build`: not run (no caller yet; run at the next gate)
+
+### Files changed
+
+| File | Action | Authored lines |
+|---|---|---:|
+| `src/lib/extraction/ports.ts` | Created: `DocumentPreparer`, `FieldExtractor`, `ExtractionQueue`, closed result unions | 61 |
+| `src/lib/extraction/fakes.ts` | Created: fake preparer, scripted extractor, recording queue | 98 |
+| `src/lib/extraction/run.ts` | Created: `runDocumentExtraction`, `processRequestExtractions`, `runExtractionSweep` | 235 |
+| `src/lib/extraction/fakes.test.ts` | Created | 132 |
+| `src/lib/extraction/run.test.ts` | Created | 790 |
+| `openspec/changes/document-extraction/{tasks,apply-progress}.md` | Modified (excluded) | n/a |
+
+Authored diff: **1,316 lines** (prod 394 + tests 922), against a ~520 forecast
+(2.5x). Committed as one unit (`size:exception`).
+
+### Deviations from design
+
+1. **Ports return closed unions, not thrown errors:** `PrepareResult` is
+   `{ ok: true, prepared } | { ok: false, code }` (code limited to
+   `unreadable_document | render_unavailable`) and `ExtractResult` is
+   `{ ok: true, raw } | { ok: false, code }` (code limited to `timeout |
+   model_error | invalid_response`), so no free text can cross a port.
+2. **`ExtractionQueue.enqueue` returns `void`** (the `after()` adapter is fire
+   and forget and swallows its own failure, DE-5).
+3. **`runDocumentExtraction` never throws:** it returns `skipped | completed |
+   failed | lost | errored`. An unexpected throw (including a failing claim or
+   completion) is logged as `extraction_document_failed` with the id and the
+   error name, `failExtraction` is not called and the lease is kept (DE-5).
+4. **`processRequestExtractions` options are `{ startedAt } | { deadline }`**
+   and it returns `{ processed, errored }`; the sweep passes its own deadline.
+   `runExtractionSweep` returns `{ run, abandoned, failures }`, where
+   `failures` adds the errored documents to the requests that threw (the
+   design only says "failures count"). A failure of `abandonExpiredExtractions`
+   or `selectExtractionCandidates` is not caught: S5b's `runIntakeSweep`
+   counts the whole step as failed.
+5. **The model timeout is computed after preparation** (remaining budget at the
+   moment of the call), not at claim time; rendering a PDF eats into it. When
+   less than 10 s remain it is `0`: the S4b extractor must treat a zero timeout
+   as an immediate `timeout` (`AbortSignal.timeout(0)` does), which counts the
+   attempt.
+6. **`readAll` is duplicated** privately in `run.ts` (it is private in
+   `remission-dispatch.ts`); extracting a shared helper would touch an
+   unrelated module, left for a cleanup.
+7. `ExtractionDeps` is `{ store, preparer, extractor, now? }`; the `queue`
+   entry joins `getExtractionDeps()` in S5b (task 7.6), as planned.
+8. The sweep checks `canStartDocument` before taking up each request, so an
+   exhausted deadline does not register rows for requests it cannot process.
+9. Spec and design drift on the dropped text path (batch 1, deviation 4) is
+   unchanged and still to resolve at verify/archive.
+
+### Issues found
+
+- Authored diff 1,316 lines vs ~520 forecast; tests are 922 (the deadline,
+  budget and failure-path tables). The aggregate forecast stays understated:
+  S1 1,484 + S2 1,890 + S3 1,316 so far against ~1,840 forecast for the three.
+- Windows tooling: a Python text-mode rewrite of a test file silently turned
+  its line endings to CRLF while the repo's working tree is LF; fixed by
+  rewriting the bytes. Use the Edit/Write tools, or binary mode.
+
+### Remaining tasks
+
+Phases 4-10 (S4a preparer, S4b extractor/env/deps/RNF-03, S5a staff UI, S5b
+producers/sweep/pins, integration check, owner DB steps, closeout).
+
+### Workload / PR boundary
+
+- Mode: `size:exception`, single PR from `feat/document-extraction`
+- Current work unit: S3 (ports, fakes, use case), committed as one unit
+- Estimated review budget impact: S3 alone is ~2.5x its forecast; S4a-S5b
+  should be re-forecast with a similar factor
