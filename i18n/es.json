@@ -15,6 +15,7 @@
     "dashboard": "Panel",
     "myRequests": "Mis solicitudes",
     "newRequest": "Nueva solicitud",
+    "enrollment": "Inscripción",
     "review": "Revisión de solicitudes",
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
@@ -54,6 +55,7 @@
     "shortcuts": {
       "myRequests": "Consulta el estado de tus solicitudes de justificación.",
       "newRequest": "Presenta una nueva solicitud de justificación.",
+      "enrollment": "Declara los grupos en los que estás inscrito.",
       "review": "Revisa las solicitudes de justificación de tu facultad.",
       "catalogAsignaturas": "Consulta y administra las asignaturas y sus grupos.",
       "catalogDocentes": "Consulta los docentes registrados.",

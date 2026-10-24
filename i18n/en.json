@@ -15,6 +15,7 @@
     "dashboard": "Dashboard",
     "myRequests": "My requests",
     "newRequest": "New request",
+    "enrollment": "Enrollment",
     "review": "Review requests",
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
@@ -54,6 +55,7 @@
     "shortcuts": {
       "myRequests": "Check the status of your justification requests.",
       "newRequest": "Submit a new justification request.",
+      "enrollment": "Declare the groups you are enrolled in.",
       "review": "Review the justification requests of your faculty.",
       "catalogAsignaturas": "Browse and manage subjects and their groups.",
       "catalogDocentes": "Browse the registered teachers.",

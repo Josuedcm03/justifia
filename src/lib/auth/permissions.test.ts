@@ -163,6 +163,22 @@ describe("canFileRequests (justification-intake: only students file requests)", 
   });
 });
 
+describe("canManageOwnEnrollment (student-enrollment: derived from the requesting roles)", () => {
+  it.each([...rolesUsuario, undefined] as const)(
+    "matches canFileRequests for %s",
+    (rol) => {
+      expect(perms.canManageOwnEnrollment(rol)).toBe(
+        perms.canFileRequests(rol),
+      );
+    },
+  );
+
+  it("allows only estudiante", () => {
+    expect(perms.canManageOwnEnrollment("estudiante")).toBe(true);
+    expect(perms.canManageOwnEnrollment(undefined)).toBe(false);
+  });
+});
+
 describe("canReviewRequests (RN-15: only secretaria reviews)", () => {
   it("lists exactly secretaria as the reviewing role", () => {
     expect([...perms.rolesRevisores]).toEqual(["secretaria"]);
