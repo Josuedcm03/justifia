@@ -874,6 +874,41 @@
       "back": "Back to my requests"
     }
   },
+  "enrollment": {
+    "title": "My enrollment",
+    "description": "Declare the groups you are enrolled in. Your requests can only name these groups.",
+    "degraded": "We could not load your enrollments. Please try again in a few minutes.",
+    "noOffering": "No group is offered yet, so you cannot enroll in any.",
+    "list": {
+      "title": "Groups you are enrolled in",
+      "caption": "Your enrollments",
+      "empty": "You have no enrollments yet. Choose your groups in the picker.",
+      "period": "Period {periodo}",
+      "group": "Group {number}",
+      "teacher": "Teacher: {name}",
+      "noTeacher": "No teacher assigned",
+      "drop": "Drop",
+      "dropLabel": "Drop {subject}, {group}"
+    },
+    "dialog": {
+      "cancel": "Cancel",
+      "warning": "A draft or returned request of yours uses this group. If you continue, you will not be able to submit it with this group unless you enroll again.",
+      "drop": {
+        "title": "Drop {group}?",
+        "description": "You will no longer be enrolled in this group. You can enroll again whenever you want.",
+        "confirm": "Yes, drop",
+        "pending": "Dropping…"
+      }
+    },
+    "errors": {
+      "not_student": "Only a student account can manage enrollments.",
+      "not_eligible": "That group is no longer offered. Refresh the page and try again.",
+      "already_enrolled": "You are already enrolled in that group.",
+      "not_enrolled": "You are not enrolled in that group.",
+      "invalid": "We could not read the request. Refresh the page and try again.",
+      "unexpected": "We could not save the change and nothing was modified. Please try again."
+    }
+  },
   "review": {
     "queue": {
       "title": "Review queue",

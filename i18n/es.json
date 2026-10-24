@@ -874,6 +874,41 @@
       "back": "Volver a mis solicitudes"
     }
   },
+  "enrollment": {
+    "title": "Mis inscripciones",
+    "description": "Declara los grupos en los que estás inscrito. Tus solicitudes solo pueden nombrar estos grupos.",
+    "degraded": "No pudimos cargar tus inscripciones. Inténtalo de nuevo en unos minutos.",
+    "noOffering": "Aún no se ofrece ningún grupo, así que no puedes inscribirte en ninguno.",
+    "list": {
+      "title": "Grupos en los que estás inscrito",
+      "caption": "Tus inscripciones",
+      "empty": "Aún no tienes inscripciones. Elige tus grupos en el selector.",
+      "period": "Periodo {periodo}",
+      "group": "Grupo {number}",
+      "teacher": "Docente: {name}",
+      "noTeacher": "Sin docente asignado",
+      "drop": "Dar de baja",
+      "dropLabel": "Dar de baja {subject}, {group}"
+    },
+    "dialog": {
+      "cancel": "Cancelar",
+      "warning": "Una solicitud tuya en borrador o devuelta usa este grupo. Si continúas, no podrás presentarla con este grupo salvo que te inscribas de nuevo.",
+      "drop": {
+        "title": "¿Dar de baja {group}?",
+        "description": "Dejarás de estar inscrito en este grupo. Podrás inscribirte de nuevo cuando quieras.",
+        "confirm": "Sí, dar de baja",
+        "pending": "Dando de baja…"
+      }
+    },
+    "errors": {
+      "not_student": "Solo una cuenta de estudiante puede gestionar inscripciones.",
+      "not_eligible": "Ese grupo ya no se ofrece. Actualiza la página e inténtalo de nuevo.",
+      "already_enrolled": "Ya estás inscrito en ese grupo.",
+      "not_enrolled": "No estás inscrito en ese grupo.",
+      "invalid": "No pudimos leer la petición. Actualiza la página e inténtalo de nuevo.",
+      "unexpected": "No pudimos guardar el cambio y no se modificó nada. Inténtalo de nuevo."
+    }
+  },
   "review": {
     "queue": {
       "title": "Cola de revisión",
