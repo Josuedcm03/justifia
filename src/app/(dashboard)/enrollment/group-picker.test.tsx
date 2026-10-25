@@ -183,9 +183,10 @@ describe("GroupPicker subjects (RF-16, RN-21)", () => {
     (truncated) => {
       show({ truncated });
 
-      expect(
-        screen.queryAllByText(es.enrollment.picker.truncated),
-      ).toHaveLength(Number(truncated));
+      const notice = screen.queryByText(es.enrollment.picker.truncated);
+
+      if (truncated) expect(notice).toBeVisible();
+      else expect(notice).not.toBeInTheDocument();
     },
   );
 });
