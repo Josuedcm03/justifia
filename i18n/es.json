@@ -15,6 +15,7 @@
     "dashboard": "Panel",
     "myRequests": "Mis solicitudes",
     "newRequest": "Nueva solicitud",
+    "enrollment": "Inscripción",
     "review": "Revisión de solicitudes",
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
@@ -54,6 +55,7 @@
     "shortcuts": {
       "myRequests": "Consulta el estado de tus solicitudes de justificación.",
       "newRequest": "Presenta una nueva solicitud de justificación.",
+      "enrollment": "Declara los grupos en los que estás inscrito.",
       "review": "Revisa las solicitudes de justificación de tu facultad.",
       "catalogAsignaturas": "Consulta y administra las asignaturas y sus grupos.",
       "catalogDocentes": "Consulta los docentes registrados.",
@@ -685,13 +687,19 @@
       "startLabel": "Fecha de inicio",
       "endLabel": "Fecha de fin"
     },
+    "enrollmentNotice": {
+      "text": "Las asignaturas de tu solicitud salen de tus inscripciones y todavía no tienes ninguna.",
+      "link": "Declarar mis inscripciones"
+    },
     "subjects": {
       "title": "Asignaturas afectadas",
       "description": "Marca las asignaturas en las que faltaste. Mostramos tu grupo y docente.",
       "datesRequired": "Indica primero las fechas de la ausencia para ver tus asignaturas.",
       "goToDates": "Ir a causa y fechas",
       "degraded": "No pudimos cargar tus asignaturas. Inténtalo de nuevo en unos minutos.",
-      "empty": "No tienes asignaturas activas en las que estés inscrito.",
+      "empty": "Ninguno de tus grupos tiene clase en estas fechas. Revisa las fechas de la ausencia.",
+      "noEnrollment": "Aún no tienes inscripciones, así que no hay asignaturas que elegir. Declara tus grupos primero.",
+      "goToEnrollment": "Ir a mis inscripciones",
       "group": "Grupo {number}",
       "teacher": "Docente: {name}",
       "noTeacher": "Sin docente asignado",
@@ -804,6 +812,7 @@
       "caption": "Tus solicitudes",
       "empty": "Todavía no has presentado ninguna solicitud.",
       "newRequest": "Nueva solicitud",
+      "enrollment": "Ir a mis inscripciones",
       "number": "Solicitud {id}",
       "presented": "Presentada el {date}",
       "view": "Ver solicitud",

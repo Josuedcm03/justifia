@@ -115,20 +115,42 @@ describe("enrollInGroup outcomes (RF-16, RN-21)", () => {
   });
 
   it.each([
-    "not the latest period",
-    "grupo inactive",
-    "asignatura inactive",
-    "unknown group id",
-  ])("refuses a group that is not offered (%s): nothing stored", async () => {
-    // The offered-group predicate is pinned below; every case reads no row.
-    const double = use([STUDENT, { kind: "select", rows: [] }]);
+    { label: "not the latest period", fragment: '"Grupo"."Periodo"' },
+    { label: "grupo inactive", fragment: '"Grupo"."Activo"' },
+    { label: "asignatura inactive", fragment: '"Asignatura"."Activo"' },
+    { label: "unknown group id", fragment: '"Grupo"."Id"' },
+  ])(
+    "refuses a group that is not offered ($label): nothing stored",
+    async ({ fragment }) => {
+      // The double returns no row; the predicate is what excludes each case.
+      const double = use([STUDENT, { kind: "select", rows: [] }]);
 
-    expect(await enrollInGroup(S, G)).toEqual({
-      ok: false,
-      reason: "not_eligible",
-    });
-    expect(kinds(double)).toEqual(["select", "select"]);
-    expect(double.exhausted).toBe(true);
+      expect(await enrollInGroup(S, G)).toEqual({
+        ok: false,
+        reason: "not_eligible",
+      });
+      expect(kinds(double)).toEqual(["select", "select"]);
+      expect(double.exhausted).toBe(true);
+      expect(render(double.log[1].where).sql).toContain(fragment);
+    },
+  );
+
+  it("reactivates only a row that is still inactive (SE-2 step 5)", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      { kind: "select", rows: [{ activo: false }] },
+      { kind: "update", rows: [] },
+      { kind: "update" },
+      AUDIT,
+    ]);
+    await enrollInGroup(S, G);
+
+    const reactivation = double.log[4];
+    expect(reactivation.set).toEqual({ activo: true });
+    const query = render(reactivation.where);
+    expect(query.sql).toContain('"Inscripcion"."Activo"');
+    expect(query.params).toEqual(expect.arrayContaining([S, G, false]));
   });
 
   it("issues no count statement, so a twelfth enrollment is accepted", async () => {
@@ -159,22 +181,26 @@ describe("enrollInGroup outcomes (RF-16, RN-21)", () => {
 
 describe("role integrity (RNF-01, academic-catalog role table)", () => {
   it.each([
-    "docente",
-    "secretaria",
-    "coordinacion",
-    "administrador",
-    "estudiante inactive",
-    "unknown id",
-  ])("refuses %s with no further statement and no audit row", async () => {
-    const double = use([{ kind: "select", rows: [] }]);
+    {
+      label: "docente, secretaria, coordinacion or administrador",
+      fragment: '"Rol"."Codigo"',
+    },
+    { label: "estudiante inactive", fragment: '"Usuario"."Activo"' },
+    { label: "unknown id", fragment: '"Usuario"."Id"' },
+  ])(
+    "refuses $label with no further statement and no audit row",
+    async ({ fragment }) => {
+      const double = use([{ kind: "select", rows: [] }]);
 
-    expect(await enrollInGroup(S, G)).toEqual({
-      ok: false,
-      reason: "not_student",
-    });
-    expect(kinds(double)).toEqual(["select"]);
-    expect(double.exhausted).toBe(true);
-  });
+      expect(await enrollInGroup(S, G)).toEqual({
+        ok: false,
+        reason: "not_student",
+      });
+      expect(kinds(double)).toEqual(["select"]);
+      expect(double.exhausted).toBe(true);
+      expect(render(double.log[0].where).sql).toContain(fragment);
+    },
+  );
 
   it("locks the student's own active estudiante row first, only that row", async () => {
     const double = use([STUDENT, { kind: "select", rows: [] }]);
@@ -321,19 +347,29 @@ describe("dropGroup (RF-16, RNF-12, D7)", () => {
   });
 
   it.each([
-    "another student's inscripcion",
-    "unknown group id",
-    "inscripcion already inactive",
-  ])("refuses %s: nothing changes and no audit row", async () => {
-    const double = use([STUDENT, { kind: "update", rows: [] }]);
+    {
+      label: "another student's inscripcion",
+      fragment: '"Inscripcion"."EstudianteId"',
+    },
+    { label: "unknown group id", fragment: '"Inscripcion"."GrupoId"' },
+    {
+      label: "inscripcion already inactive",
+      fragment: '"Inscripcion"."Activo"',
+    },
+  ])(
+    "refuses $label: nothing changes and no audit row",
+    async ({ fragment }) => {
+      const double = use([STUDENT, { kind: "update", rows: [] }]);
 
-    expect(await dropGroup(S, G)).toEqual({
-      ok: false,
-      reason: "not_enrolled",
-    });
-    expect(kinds(double)).toEqual(["select", "update"]);
-    expect(double.exhausted).toBe(true);
-  });
+      expect(await dropGroup(S, G)).toEqual({
+        ok: false,
+        reason: "not_enrolled",
+      });
+      expect(kinds(double)).toEqual(["select", "update"]);
+      expect(double.exhausted).toBe(true);
+      expect(render(double.log[1].where).sql).toContain(fragment);
+    },
+  );
 
   it("refuses a user who is not an estudiante before touching Inscripcion", async () => {
     const double = use([{ kind: "select", rows: [] }]);

@@ -1,4 +1,5 @@
 import {
+  BookMarked,
   BookOpen,
   Briefcase,
   ClipboardCheck,
@@ -17,6 +18,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canManageOwnEnrollment,
   canReviewRequests,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
@@ -59,6 +61,12 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
         href: "/requests/new",
         icon: FilePlus,
         visibleTo: canFileRequests,
+      },
+      {
+        key: "enrollment",
+        href: "/enrollment",
+        icon: BookMarked,
+        visibleTo: canManageOwnEnrollment,
       },
       {
         key: "review",
@@ -169,6 +177,7 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
     ["settings", ALL_ROLES],
     ["myRequests", ["estudiante"]],
     ["newRequest", ["estudiante"]],
+    ["enrollment", ["estudiante"]],
     ["review", ["secretaria"]],
     ["catalogAsignaturas", STAFF],
     ["catalogDocentes", STAFF],
@@ -250,6 +259,7 @@ describe("trailFor (BS-CTX-1)", () => {
       { key: "newRequest", href: "/requests/new", exact: true },
     ],
     ["/requests/42", { key: "myRequests", href: "/requests", exact: false }],
+    ["/enrollment", { key: "enrollment", href: "/enrollment", exact: true }],
     ["/review", { key: "review", href: "/review", exact: true }],
     ["/review/42", { key: "review", href: "/review", exact: false }],
     ["/profile", { key: "profile", href: "/profile", exact: true }],
@@ -279,7 +289,7 @@ describe("trailFor (BS-CTX-1)", () => {
 
 describe("shortcutsFor (BS-HOME-1 inputs)", () => {
   it.each([
-    ["estudiante", ["/requests", "/requests/new"]],
+    ["estudiante", ["/requests", "/requests/new", "/enrollment"]],
     ["docente", []],
     ["administrador", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
     ["coordinacion", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
