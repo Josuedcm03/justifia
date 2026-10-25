@@ -36,7 +36,7 @@ Branch chain (tracker is the current worktree branch; only the tracker merges to
 
 If GitHub shows a previous slice in a child diff, retarget or rebase until the diff is clean.
 
-Chain now (owner-approved 2026-10-24, after the WU1 measurement): tracker <- `-1-data` <- `-1b-picker` (the WU1 picker, Phase 3, split out) <- `-2-ui` (WU2) <- `-3-intake` (WU3). WU2 branches from `-1b-picker`, not from `-1-data`.
+Chain now (owner-approved 2026-10-24, after the WU1 measurement): tracker <- `-1-data` <- `-1b-picker` (the WU1 picker, Phase 3, split out) <- `-2a-actions` <- `-2b-list` <- `-2c-page` <- `-2d-picker` (WU2, four slices) <- `-3-intake` (WU3). WU2 branches from `-1b-picker`, not from `-1-data`.
 
 Forecast vs the 800 budget (stop rule: measure the authored diff before opening each PR; if over 800, stop and report; do not open an oversized PR):
 
@@ -105,12 +105,12 @@ Forecast vs the 800 budget (stop rule: measure the authored diff before opening 
 ## Phase 5: WU1 - Gates and PR
 
 - [x] 5.1 Gates WU1: `npx vitest run src/lib`, `npm test`, `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build` (dummy `DATABASE_URL`); record exact results **Results (2026-10-24):** `npx vitest run src/lib` 105 files / 2259 tests pass; `npm test` 238 files / 5162 tests pass; `npm run typecheck` clean (after `npx next typegen`); `npm run lint` clean only with `prettier/prettier` `endOfLine: auto` (raw run reports CRLF noise on every file, also on untouched ones); `npm run format:check` fails on pre-existing markdown/json under `docs/`, `openspec/` and generated `.vitest/`, `.engram/` (the tracker already fails), and `npx prettier --check --end-of-line auto src i18n` is clean; `npm run build` passes with dummy `DATABASE_URL` plus a dummy 32-char `AUTH_SECRET` (the build needs both).
-- [ ] 5.2 Measure the authored diff against the tracker (target ~830, `openspec/` excluded). If over 800, apply the pre-agreed cut (picker to `feat/student-enrollment-1b-picker`) and report **Measured: 1,295 authored lines (1,276 added + 19 deleted, `openspec/` excluded), over the 800 budget. STOP: pre-agreed cut proposed. Without the picker commit (496 lines) WU1 is 799.**
+- [x] 5.2 Measure the authored diff against the tracker (target ~830, `openspec/` excluded). If over 800, apply the pre-agreed cut (picker to `feat/student-enrollment-1b-picker`) and report **Measured: 1,295 authored lines (1,276 added + 19 deleted, `openspec/` excluded), over the 800 budget. STOP: pre-agreed cut proposed. Without the picker commit (496 lines) WU1 is 799.**
 - [ ] 5.3 Open the WU1 PR (base: tracker) with the chain diagram marking WU1, forecast, gates, measured size and "no migration; writer unused until WU2"; merge into the tracker with a merge commit after review
 
 ## Phase 6: WU2 / unit 3 - Validation and actions (SE-10)
 
-- [x] 6.1 Branch `feat/student-enrollment-2-ui` from the WU1 branch; PR base is the WU1 branch until it merges, then retarget to the tracker **Done from `feat/student-enrollment-1b-picker` (the chain note above); PR base is `-1b-picker`.**
+- [x] 6.1 Branch `feat/student-enrollment-2a-actions` (the first of the four WU2 slices 2a-2d) from the WU1 branch; PR base is the WU1 branch until it merges, then retarget to the tracker **Done from `feat/student-enrollment-1b-picker` (the chain note above); PR base is `-1b-picker`.**
 - [x] 6.2 `[READ-ONLY]` read the Next 16 guides in `node_modules/next/dist/docs/` for server components, server actions, `revalidatePath` and `searchParams` before coding (`AGENTS.md`)
 - [x] 6.3 RED `src/lib/validations/inscripcion.test.ts`: `enrollmentInputSchema` accepts a positive integer `grupoId`; rejects `0`, negatives, decimals, `NaN`, strings, `null`, missing; an extra `estudianteId` key is dropped, not carried
 - [x] 6.4 GREEN `src/lib/validations/inscripcion.ts`
@@ -170,7 +170,8 @@ Forecast vs the 800 budget (stop rule: measure the authored diff before opening 
 ## Phase 12: WU3 - Gates and PR
 
 - [x] 12.1 Gates WU3 (same five, dummy `DATABASE_URL`); record results **Results (2026-10-24, dummy `DATABASE_URL` and 32-char `AUTH_SECRET`): `npx next typegen && npm run typecheck` clean; `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]" src` clean (exit 0); `npx prettier --check --end-of-line auto src i18n` clean; `npm test` 246 files / 5344 tests pass; `npm run build` passes, `/enrollment` dynamic.**
-- [ ] 12.2 Measure the authored diff against the WU2 head (target ~520); open the WU3 PR (base: WU2 branch, retarget to the tracker after WU2 merges) with the chain diagram marking WU3 **Measured against `feat/student-enrollment-2d-picker` (`openspec/` and `.engram/` excluded): 616 authored lines (559 added + 57 deleted), inside the 800 budget (nav 121 / data split 208 / intake and nudges 274 / docs 13). No push and no PR were requested, so the PR is not opened.**
+- [x] 12.2 Measure the authored diff against the WU2 head (target ~520) **Measured against `feat/student-enrollment-2d-picker` (`openspec/` and `.engram/` excluded): 616 authored lines (559 added + 57 deleted), inside the 800 budget (nav 121 / data split 208 / intake and nudges 274 / docs 13).**
+- [ ] 12.2b Open the WU3 PR (base: WU2 branch, retarget to the tracker after WU2 merges) with the chain diagram marking WU3 **Not opened: no push and no PR were requested.**
 - [ ] 12.3 After WU1, WU2 and WU3 are in the tracker, re-run `npm test`, typecheck, lint, `npm run build` on the tracker head
 
 ## Phase 13: Owner manual walk (after WU3 is on the tracker; the app writes to the database, so every DB step is ASK OWNER)
