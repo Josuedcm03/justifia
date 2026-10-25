@@ -287,6 +287,15 @@ recorded (mask `0`) MUST count as having class, so a subject is never hidden for
 lack of data. Hours, period dates and holidays do not exist in the catalog and
 are out of scope for RN-22.
 
+Empty state of step 2: when the step has valid dates and the read did not
+degrade but lists no subject, it MUST say why. If the student has no effective
+enrollment at all (judged without the date range), the message MUST say that
+the student has no enrollment yet and MUST link to `/enrollment`. If the
+student has effective enrollments but none has class in the dates, the message
+MUST say there is no class in these dates, MUST NOT tell the student to enroll,
+and MUST offer the way back to the dates step. The two messages MUST differ.
+(Previously: one generic message covered both cases and linked nowhere.)
+
 #### Scenario: Group and teacher shown
 
 - GIVEN the student is enrolled in one active group of subject S
@@ -302,6 +311,12 @@ are out of scope for RN-22.
 #### Scenario: Inactive subject or group not offered
 
 - GIVEN an enrolled subject whose only group is inactive
+- WHEN step 2 lists subjects
+- THEN that subject is not offered
+
+#### Scenario: Subject of an inactive asignatura not offered
+
+- GIVEN an active inscripcion in an active grupo whose asignatura is inactive
 - WHEN step 2 lists subjects
 - THEN that subject is not offered
 
@@ -340,6 +355,30 @@ are out of scope for RN-22.
 - GIVEN an active group with no teacher assigned
 - WHEN the subject is selected
 - THEN the group is shown with a "no teacher assigned" label and submit is not blocked (D15)
+
+#### Scenario: No enrollment at all
+
+- GIVEN a student with no effective enrollment and valid dates
+- WHEN step 2 renders
+- THEN the empty state says the student has no enrollment yet and links to `/enrollment`
+
+#### Scenario: Enrolled but no class in these dates
+
+- GIVEN a student with an effective enrollment whose group has no class in the dates
+- WHEN step 2 renders
+- THEN the empty state says there is no class in these dates, offers the dates step, and has no link to `/enrollment`
+
+#### Scenario: The two empty states differ
+
+- GIVEN the two situations above
+- WHEN the rendered texts are compared
+- THEN they are different messages
+
+#### Scenario: Degraded read is not an empty state
+
+- GIVEN a failing enrollment read
+- WHEN step 2 renders
+- THEN the degraded notice is shown and neither empty message is
 
 ### Requirement: Group choice when enrollment is ambiguous (RF-04 c)
 
@@ -701,6 +740,34 @@ double submit MUST leave no consent data.
 - GIVEN requests presented before this change
 - WHEN the change is applied
 - THEN their consent version and timestamp remain empty
+
+### Requirement: Entry nudge when the student has no enrollment (RF-04, RN-21, RNF-11)
+
+When a student opens the new-request flow (`/requests/new`) and has no
+effective enrollment, the page MUST show a notice that subjects come from their
+enrollment, with a link to `/enrollment`. The notice MUST NOT block the flow:
+the student can still reach every step and the draft is still created or
+resumed. When the student has an effective enrollment, or the enrollment read
+degrades, the notice MUST NOT appear. The notice MUST be usable at 360 px and
+exist in `es` and `en`.
+
+#### Scenario: Notice for a student without enrollment
+
+- GIVEN a student with no effective enrollment
+- WHEN they open `/requests/new`
+- THEN the notice with the link to `/enrollment` is shown and step 1 is usable
+
+#### Scenario: No notice with enrollment
+
+- GIVEN a student with an effective enrollment
+- WHEN they open `/requests/new`
+- THEN no enrollment notice is shown
+
+#### Scenario: No notice when the read degrades
+
+- GIVEN a failing enrollment read
+- WHEN the student opens `/requests/new`
+- THEN the enrollment notice is not shown and the flow stays usable
 
 ## Decisions applied
 
