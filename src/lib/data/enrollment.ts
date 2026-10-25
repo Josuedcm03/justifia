@@ -53,6 +53,7 @@ export async function listEligibleGroups(
         eq(inscripcion.estudianteId, estudianteId),
         eq(inscripcion.activo, true),
         eq(grupo.activo, true),
+        eq(asignatura.activo, true),
       ),
     )
     .orderBy(asc(asignatura.nombre), asc(grupo.numeroGrupo));

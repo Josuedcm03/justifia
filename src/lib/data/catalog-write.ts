@@ -49,7 +49,7 @@ function stringCode(value: unknown): string | undefined {
 }
 
 /** SQLSTATE of a driver error: own `code`, else `cause.code` (R6). */
-function sqlStateOf(error: unknown): string | undefined {
+export function sqlStateOf(error: unknown): string | undefined {
   return (
     stringCode(error) ??
     stringCode((error as { cause?: unknown } | null | undefined)?.cause)
