@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
+import { EnrollmentNotice } from "@/app/(dashboard)/requests/new/enrollment-notice";
 import { FlowSteps } from "@/app/(dashboard)/requests/new/flow-steps";
 import {
   defaultStep,
@@ -10,7 +11,10 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
-import { listEnrollmentFailSoft } from "@/lib/data/enrollment";
+import {
+  hasActiveEnrollmentFailSoft,
+  listEnrollmentFailSoft,
+} from "@/lib/data/enrollment";
 import { type Draft, openDraft } from "@/lib/data/solicitudes";
 import { getIntakeDeps } from "@/lib/intake/deps";
 
@@ -67,11 +71,19 @@ export default async function NewRequestPage({
   const enrollment =
     (step === 2 || step === 4) && range
       ? await listEnrollmentFailSoft(userId, range, getIntakeDeps().schedule)
-      : { data: [], degraded: false };
+      : { data: [], degraded: false, enrolled: true };
+  // Only an answered "no enrollment" nudges: a failed read says nothing.
+  const hasEnrollment = await hasActiveEnrollmentFailSoft(userId);
 
   return (
     <div className="flex flex-col gap-8">
       {header}
+      {hasEnrollment === false ? (
+        <EnrollmentNotice
+          message={t("enrollmentNotice.text")}
+          linkLabel={t("enrollmentNotice.link")}
+        />
+      ) : null}
       <FlowSteps
         step={step}
         draft={draft}
