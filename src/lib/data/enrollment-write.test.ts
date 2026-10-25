@@ -131,6 +131,24 @@ describe("enrollInGroup outcomes (RF-16, RN-21)", () => {
     expect(double.exhausted).toBe(true);
   });
 
+  it("reactivates only a row that is still inactive (SE-2 step 5)", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      { kind: "select", rows: [{ activo: false }] },
+      { kind: "update", rows: [] },
+      { kind: "update" },
+      AUDIT,
+    ]);
+    await enrollInGroup(S, G);
+
+    const reactivation = double.log[4];
+    expect(reactivation.set).toEqual({ activo: true });
+    const query = render(reactivation.where);
+    expect(query.sql).toContain('"Inscripcion"."Activo"');
+    expect(query.params).toEqual(expect.arrayContaining([S, G, false]));
+  });
+
   it("issues no count statement, so a twelfth enrollment is accepted", async () => {
     const double = use([
       STUDENT,

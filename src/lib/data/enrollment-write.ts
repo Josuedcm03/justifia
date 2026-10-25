@@ -123,7 +123,10 @@ export function enrollInGroup(
       .returning({ grupoId: inscripcion.grupoId });
 
     if (existing) {
-      await tx.update(inscripcion).set({ activo: true }).where(pair);
+      await tx
+        .update(inscripcion)
+        .set({ activo: true })
+        .where(and(pair, eq(inscripcion.activo, false)));
     } else {
       await tx
         .insert(inscripcion)
