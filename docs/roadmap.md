@@ -20,7 +20,7 @@ remiten a ese archivo.
 | 11  | `backoffice-ui-refresh` | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué | No | archivado |
 | 12  | `printable-forms`      | Formato especial prellenado e impresión (RN-19); requiere RF nuevo | Por asignar | No | pendiente |
 | 13  | `flow-experience`      | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md` | Por asignar | No | pendiente |
-| 14  | `student-enrollment`   | RF-16, RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12 | Josué | No | pendiente |
+| 14  | `student-enrollment`   | RF-16, RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12 | Josué | No | archivado |
 
 **Notas:**
 
@@ -30,6 +30,8 @@ remiten a ese archivo.
   secretaría (RN-15). Quedan fuera de alcance la vista del personal sobre las
   inscripciones y la columna `Origen`. Pendiente: sincronizar RF-16, RF-12 (c) y
   RN-21 con la matriz de la tesis.
+  Archivado el 2026-10-25; el recorrido del propietario (fase 13) quedó
+  parcial, según `openspec/changes/archive/2026-10-25-student-enrollment/tasks.md`.
 - RF-12 y RNF-13 (mantenimiento e importación de catálogos) los cubren los
   changes en curso de Josué: `catalog-excel-import` y `catalog-management`.
 - RNF-04, RNF-08, RNF-09 y RNF-10 se verifican en el piloto o en la operación,

@@ -171,21 +171,27 @@ Forecast vs the 800 budget (stop rule: measure the authored diff before opening 
 
 - [x] 12.1 Gates WU3 (same five, dummy `DATABASE_URL`); record results **Results (2026-10-24, dummy `DATABASE_URL` and 32-char `AUTH_SECRET`): `npx next typegen && npm run typecheck` clean; `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]" src` clean (exit 0); `npx prettier --check --end-of-line auto src i18n` clean; `npm test` 246 files / 5344 tests pass; `npm run build` passes, `/enrollment` dynamic.**
 - [x] 12.2 Measure the authored diff against the WU2 head (target ~520) **Measured against `feat/student-enrollment-2d-picker` (`openspec/` and `.engram/` excluded): 616 authored lines (559 added + 57 deleted), inside the 800 budget (nav 121 / data split 208 / intake and nudges 274 / docs 13).**
-- [ ] 12.2b Open the WU3 PR (base: WU2 branch, retarget to the tracker after WU2 merges) with the chain diagram marking WU3 **Not opened: no push and no PR were requested.**
-- [ ] 12.3 After WU1, WU2 and WU3 are in the tracker, re-run `npm test`, typecheck, lint, `npm run build` on the tracker head
+- [x] 12.2b Open the WU3 PR (base: WU2 branch, retarget to the tracker after WU2 merges) with the chain diagram marking WU3 **Not opened: no push and no PR were requested.** **Closed at archive (2026-10-25): the chain was opened as PRs #44 to #51 and #52; #52 landed #46 to #51 on `main` (merge commit 4abd752; #44 had merged first, as 5e9c40a).**
+- [ ] 12.3 After WU1, WU2 and WU3 are in the tracker, re-run `npm test`, typecheck, lint, `npm run build` on the tracker head **Not re-run at archive (2026-10-25): no gate run on the tracker head is recorded after the remediation commits. The last recorded runs are 12.1 and the verify-report remediation section (246 files / 5342 tests). Open; recorded as an intentional warning in `archive-report.md`.**
 
 ## Phase 13: Owner manual walk (after WU3 is on the tracker; the app writes to the database, so every DB step is ASK OWNER)
 
-- [ ] 13.1 ASK OWNER, explicit yes per command: create a disposable Neon branch from production and point the local dev server at it (never production)
-- [ ] 13.2 ASK OWNER, explicit yes per command: practice accounts (student, secretaria); no seeding without the yes
-- [ ] 13.3 Walk at 360 px and desktop, `es` and `en`: enroll, replace (dialog names the group), cancel, drop (dialog; draft warning when a draft uses it), search another carrera, no-offering state, sidebar and dashboard shortcut as estudiante and as another role, `/requests/new` notice and both step 2 empty states, `/requests` empty-state link, keyboard only
-- [ ] 13.4 ASK OWNER, explicit yes per command: `[READ-ONLY]` query on the walk branch: one `inscripcion.*` audit row per change, none for refused or cancelled operations, payloads hold ids only; codes and counts only
-- [ ] 13.5 ASK OWNER, explicit yes per command: delete the walk branch; record every result and date here
+- [x] 13.1 ASK OWNER, explicit yes per command: create a disposable Neon branch from production and point the local dev server at it (never production) **Done: disposable Neon branch `walk-student-enrollment` created by the owner.**
+- [ ] 13.2 ASK OWNER, explicit yes per command: practice accounts (student, secretaria); no seeding without the yes **Partial: student practice account `jdlevi` used; no secretaria walk recorded.**
+- [ ] 13.3 Walk at 360 px and desktop, `es` and `en`: enroll, replace (dialog names the group), cancel, drop (dialog; draft warning when a draft uses it), search another carrera, no-offering state, sidebar and dashboard shortcut as estudiante and as another role, `/requests/new` notice and both step 2 empty states, `/requests` empty-state link, keyboard only **Partial: enroll and full request passed (student `jdlevi`). Not done: replace, drop with draft warning and reactivation, empty states and nudges, other roles' nav, cross-carrera search, 360 px, es/en, keyboard.**
+- [ ] 13.4 ASK OWNER, explicit yes per command: `[READ-ONLY]` query on the walk branch: one `inscripcion.*` audit row per change, none for refused or cancelled operations, payloads hold ids only; codes and counts only **Partial: audit row `inscripcion.creada` checked: entity id equals the student id, datos `{grupoId}`, ids only. The remaining checks are not recorded.**
+- [ ] 13.5 ASK OWNER, explicit yes per command: delete the walk branch; record every result and date here **Not done: the walk branch `walk-student-enrollment` is not deleted; pending the owner's explicit yes.**
+
+
+**Phase 13 record (owner decision, 2026-10-25): the walk is PARTIAL.** The owner chose to close with the partial walk recorded here. Steps 13.3 to 13.5 are not complete.
+
+- Incident: the local app ran against production. The worktree `.env` held the production `DATABASE_URL`, so the walk writes landed in production: `Inscripcion` (4,3), request #1 presented, audit rows #10 to #13. The owner decided to keep them. No further walk writes are recorded.
+- Delivery: PRs #44 to #51 (feature-branch chain) and #52 (landed #46 to #51 on `main`, because #44 merged before its children). Merge-order lesson: merge child into parent, and the tracker last.
 
 ## Phase 14: Closeout (after phase 13)
 
-- [ ] 14.1 Verify (`sdd-verify`): every spec scenario against a test or the walk record
-- [ ] 14.2 Spec sync: merge the deltas into `openspec/specs/{academic-catalog,audit-log,justification-intake,student-requests,backoffice-shell}/spec.md` (supersede the "no code writes Inscripcion" bullet of the academic-catalog assumptions) and create `openspec/specs/student-enrollment/spec.md`; readback with `diff`
-- [ ] 14.3 `docs/roadmap.md` row 14 state `archivado`; Notas: self-declared and unverified (RN-15 gate remains), staff view and `Origen` column out of scope (D9, D10), thesis matrix sync pending
-- [ ] 14.4 Archive to `openspec/changes/archive/<date>-student-enrollment/` with `git mv` and an `archive-report.md`
-- [ ] 14.5 Owner: merge the tracker PR into `main` with a merge commit after all three slices are in it; keep the tracker branch; delete merged slice branches
+- [x] 14.1 Verify (`sdd-verify`): every spec scenario against a test or the walk record **Done: `verify-report.md` (pass_with_warnings, 0 critical, 24/24 requirements, 92/92 scenarios: 83 compliant, 9 partial pending the walk). Final numbers are in `archive-report.md`.**
+- [x] 14.2 Spec sync: merge the deltas into `openspec/specs/{academic-catalog,audit-log,justification-intake,student-requests,backoffice-shell}/spec.md` (supersede the "no code writes Inscripcion" bullet of the academic-catalog assumptions) and create `openspec/specs/student-enrollment/spec.md`; readback with `diff` **Done at archive: five deltas merged into `openspec/specs/`, new `openspec/specs/student-enrollment/spec.md`; readback in `archive-report.md`.**
+- [x] 14.3 `docs/roadmap.md` row 14 state `archivado`; Notas: self-declared and unverified (RN-15 gate remains), staff view and `Origen` column out of scope (D9, D10), thesis matrix sync pending **Done: row 14 set to `archivado`; the Notas bullet records the archive date and the partial walk.**
+- [x] 14.4 Archive to `openspec/changes/archive/<date>-student-enrollment/` with `git mv` and an `archive-report.md` **Done: `git mv` to `openspec/changes/archive/2026-10-25-student-enrollment/`; `archive-report.md` written.**
+- [x] 14.5 Owner: merge the tracker PR into `main` with a merge commit after all three slices are in it; keep the tracker branch; delete merged slice branches **Done: tracker PR #44 merged into `main` (5e9c40a); children #46 to #51 landed through #52 (4abd752). Deletion of merged slice branches not verified.**
