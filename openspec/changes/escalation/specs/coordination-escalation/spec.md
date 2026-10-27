@@ -372,8 +372,15 @@ route, bounded per run and by a maximum number of automatic attempts, in the
 same run that drains teacher remissions; a failure in one outbox MUST NOT stop
 the other. The notification is `enviada` only when every recipient's message
 was accepted by the mail provider; recipients already served SHOULD NOT be
-served again on retry. An unconfigured or unavailable mail service MUST leave
-the notification `pendiente` and visible. An in-scope `secretaria` MUST be
+served again on retry. An unavailable mail service MUST leave the notification
+`pendiente` and visible, as a failed send. A mail service that is not
+configured (no base URL or no sender key) means nothing was attempted: it MUST
+leave the notification `pendiente`, MUST NOT count an automatic attempt, MUST
+NOT write `escalamiento.notificacion_fallida` and MUST NOT show "last attempt
+failed". A notification whose escalation was already answered by the
+coordinator MUST NOT be sent by the scheduled job or by a resend, because its
+link leads to a record the coordination view no longer shows; a notification
+sent before the answer stays `enviada`. An in-scope `secretaria` MUST be
 able to resend a notification that is not `enviada`; other roles, out-of-scope
 or unknown ids MUST yield the same denial, and resending an `enviada`
 notification MUST send nothing.
@@ -389,6 +396,27 @@ notification MUST send nothing.
 - GIVEN the mail service is unavailable or not configured
 - WHEN the secretary escalates
 - THEN the request is `en_revision_coordinacion` and the notification is `pendiente`
+
+#### Scenario: Mail not configured is not a failed attempt
+
+- GIVEN a `pendiente` notification with recipients and a mail service without its base URL or sender key
+- WHEN the scheduled job runs, or a secretary resends
+- THEN nothing is sent, the notification is `pendiente` with the attempts it had and no failure reason it did not already have
+- AND no `escalamiento.notificacion_fallida` row and no `escalamiento.notificacion_reenviada` row is written
+- AND once the mail service is configured the next run sends it
+
+#### Scenario: Answered before it was sent
+
+- GIVEN a `sospecha_documento` notification still `pendiente` (or retrying) and an escalation the coordinator then answers
+- WHEN the scheduled job runs, or a secretary resends
+- THEN no message is sent and the notification is unchanged
+- AND the staff detail shows that it will not be sent and offers no resend
+
+#### Scenario: Resend whose claim is lost
+
+- GIVEN a `pendiente` notification whose send is held by another attempt
+- WHEN a secretary resends
+- THEN nothing is sent, the secretary is told a send is in progress, and no `escalamiento.notificacion_reenviada` row exists
 
 #### Scenario: Failed send
 
