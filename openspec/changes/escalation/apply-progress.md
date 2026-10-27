@@ -454,7 +454,7 @@ Test summary: extended `requests/[id]/page`, `solicitud-correction`, `consent`, 
 
 - `CONSENT_VERSION`: `2026-10-22` (placeholder, owner to confirm; v1 stays `2026-10-20`).
 - es label (raw message, tags included): `06c97e4bf2433ff57986ee20701d0febb5f574c5c8fff36c95361c6bafb35a85`.
-- es `privacy` subtree (sorted-key JSON): `dbf381725384553e142fd05e84c08d99da51921e155f0eaca6078a00fc40be69`.
+- es `privacy` subtree (sorted-key JSON): `0653e8db7f63eb33f1ac01ddca5b69cb036952519f9a19fa2af9df8645c02349` (re-pinned in 7d6a157 after the recipients sentence moved to "de tu carrera"; v2 was never deployed, so no new version).
 - v1 pins, unchanged: label `34017ff7d7a760ae5828451eafb8c2415e0f4ec93f91eb43c0450384eea2fd90`, notice `d98acff47bc848672db35ef731f94764351ca599852f4c4fa92a828a94f1965a`.
 
 ### Measured authored lines vs the S4b head 415927a
