@@ -473,7 +473,7 @@ describe("resendEscalationNoticeAction authorisation (RNF-01)", () => {
 
     await expect(resendEscalationNoticeAction(5)).resolves.toEqual(NOT_FOUND);
 
-    expect(authorizeResendMock).toHaveBeenCalledWith(SCOPE, 5, 7);
+    expect(authorizeResendMock).toHaveBeenCalledWith(SCOPE, 5);
     expect(dispatchOneMock).not.toHaveBeenCalled();
   });
 });

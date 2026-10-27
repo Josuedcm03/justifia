@@ -183,7 +183,8 @@ async function hasCoordinationAccount(solicitudId: number): Promise<boolean> {
 /**
  * Resend of a notice that is not `enviada` (RF-10 b). An unknown id and an
  * out-of-scope id get the same answer; a sent notice sends nothing and writes
- * no audit row. The outcome is returned as text for the control: the page is
+ * no audit row, and the resend's own audit row is written only by an attempt
+ * that wins the claim (`attemptEvents`). The outcome is returned as text for the control: the page is
  * not revalidated (SR-11).
  */
 export async function resendEscalationNoticeAction(
@@ -195,7 +196,7 @@ export async function resendEscalationNoticeAction(
   const scope = await resolveRequestScope(actorId, user.rol);
   if (scope.kind === "none" || !isId(escalamientoId)) return NOT_FOUND;
 
-  const target = await authorizeNoticeResend(scope, escalamientoId, actorId);
+  const target = await authorizeNoticeResend(scope, escalamientoId);
   if (!target) return NOT_FOUND;
   // A sent notice is never sent twice: report it as it is.
   if (target.estado === "enviada") {
