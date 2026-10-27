@@ -498,3 +498,48 @@ Excluding `openspec/`, `.engram/` and `package-lock.json`. The 1000 budget count
 ### Status
 
 Phase 12 (12 of 12) and 13.1 complete; 13.2 waits on the earlier PRs. Cumulative: 27 of 30 S1 tasks + 22 of 23 S2 tasks + 18 of 19 S3 tasks + 22 of 23 S4 tasks + 13 of 14 S5 tasks. Ready for sdd-verify of the S5 code, then the owner phases 14 to 16.
+
+
+## Batch S6: Phase 13b, verify fixes (2026-10-27)
+
+Branch `feat/escalation-s6-verify-fixes` (pushed), stacked on `feat/escalation-s5-student-consent` at `e41b038`; head `04728d7`. Mode: Strict TDD (vitest). No schema change, no migration, no database command.
+
+### Completed tasks
+
+- 13b.1 (W3), 13b.2 (S4), 13b.3 (S5), 13b.4 (spec deltas), 13b.5 (gates). S6 of the verify-report (fresh-checkout gate notes) is a note for task 16.1, not code.
+
+### TDD cycle evidence
+
+| Task | Test file | RED | GREEN | Triangulate |
+|------|-----------|-----|-------|-------------|
+| 13b.1 | `escalamiento.test.ts` | 4 failed (no row ahead of the outcome, authorize still audited) | 32 passed | sent / failed / blocked with a resend; lost claim; non-resend origins; authorize writes nothing and opens no transaction |
+| 13b.2 | `escalation-dispatch.test.ts`, `escalamiento.test.ts`, `escalation-actions.test.ts` | 8 failed | 161 passed | plan `not_configured` and the provider's `not_configured`; lost release; batch counts `skipped`; reason kept or cleared; resend text |
+| 13b.3 | `escalamiento.test.ts`, `escalation-actions.test.ts`, `notice-status.test.ts`, `escalation-section.test.tsx`, `escalamiento-writes.test.ts` | 8 failed | 3579 passed in `src/lib/data`, `src/app/(dashboard)`, cron, i18n | claim and retry SQL contain `RespondidaEn is null`; resend short-circuit; pill key; no button; sent-before-answer stays sent |
+
+### Decisions
+
+1. W3: the audit row belongs to a resend that wins the claim and reaches a recorded outcome (sent, failed or blocked), not only to a sent message. A blocked resend did resolve its recipients (the spec calls that a send attempt) and writes the two rows. `not_configured` and a lost or skipped claim write none. The delta in `audit-log` says so.
+2. S4: no schema. The notice stays `pendiente`; the stored reason is left as it was, except that a `bloqueada` notice released as unconfigured goes to `pendiente` with no reason (its recipients exist now). Skipping the dispatch before the claim was rejected: the zero-recipient check must still win over the mail configuration.
+3. S5: excluded from the claim and from the retry selection instead of settling it. No existing state or motive says "no longer needed" (`enviada` would be false, `bloqueada` requires `sin_destinatarios`), and a new value needs a CHECK change. The exclusion needs no migration. `exceso_inasistencias` notices are never answered (`CK_Escalamiento_SinRespuesta`), so they are not affected.
+4. Because an answered, unsent notice keeps its stored state, the staff UI derives a fifth status text ("will not be sent: the coordination already answered") and hides the resend control. This extends the four texts of request-review "Status texts"; the delta is written.
+
+### Teacher-remission
+
+Behavior unchanged. `remision.ts` and `remission-dispatch.ts` are untouched; `outbox.ts` only widened `completeHeld` to accept a list of events (one event still works as before) and the remission suites pass. The same rule would apply to the remission, which still writes a failure row and counts the attempt as given back when the mail provider answers `not_configured`; that is reported, not changed.
+
+### Gates (S6 head `04728d7`, dummy `DATABASE_URL`)
+
+- `npx vitest run`: 270 files, 6007 passed.
+- `npm run typecheck`: clean.
+- `npx eslint src`: 107935 problems, all the CRLF `Delete ␍` noise, 0 others.
+- `npx prettier --check --end-of-line auto` on the 14 changed files: clean.
+- `npm run build`: ok (dummy `AUTH_SECRET`).
+
+### Measured vs `e41b038`
+
+Production (non-test `src/` plus `i18n/`): 204 added, 76 deleted, 280 total. Tests: 379 changed lines. `git diff --shortstat e41b038..HEAD`: 14 files changed, 533 insertions, 126 deletions.
+
+### Remaining
+
+- A race remains by design: a notice claimed before the answer is still sent; the claim guard cannot cancel a send already in flight.
+- The opt-in real-Postgres suite has no case for the new `RespondidaEn IS NULL` guard; add one at phase 14 if the owner wants SQL-level proof.
