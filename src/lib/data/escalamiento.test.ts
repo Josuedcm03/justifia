@@ -29,6 +29,7 @@ import {
   claimEscalationNotice,
   completeNoticeBlocked,
   completeNoticeFailed,
+  completeNoticeNotConfigured,
   completeNoticeSent,
   listCoordinationRecipients,
   loadNoticeContext,
@@ -370,21 +371,55 @@ describe("guarded completion by claim id", () => {
     });
   });
 
-  it("gives the attempt back when the mail service is not configured yet", async () => {
+  it("releases a notice the unconfigured mail could not send: attempt given back, pendiente, no audit row", async () => {
     const double = use([{ kind: "update", rows: [{ id: 7 }] }]);
 
-    await completeNoticeFailed(claim, {
-      now: NOW,
-      actorId: ACTOR,
-      origen: "reintento_automatico",
-      codigo: "not_configured",
-    });
+    const done = await completeNoticeNotConfigured(claim, { now: NOW });
 
+    expect(done).toBe(true);
     const set = double.log[0].set as Record<string, unknown>;
     expect(render(set.intentos).sql).toBe(
       'greatest("Escalamiento"."Intentos" - 1, 0)',
     );
-    expect(set.notificacionMotivo).toBe("error_envio");
+    expect(set).toMatchObject({
+      notificacionEstado: "pendiente",
+      notificacionMotivo: null,
+      reclamoId: null,
+      reclamadaEn: null,
+      actualizadaEn: NOW,
+    });
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the reason of a real earlier failure, and clears a blocked reason the new recipients outdate", async () => {
+    let double = use([{ kind: "update", rows: [{ id: 7 }] }]);
+    await completeNoticeNotConfigured(
+      { ...claim, motivo: "error_envio" },
+      { now: NOW },
+    );
+    expect(double.log[0].set).toMatchObject({
+      notificacionEstado: "pendiente",
+      notificacionMotivo: "error_envio",
+    });
+
+    double = use([{ kind: "update", rows: [{ id: 7 }] }]);
+    await completeNoticeNotConfigured(
+      { ...claim, estado: "bloqueada", motivo: "sin_destinatarios" },
+      { now: NOW },
+    );
+    expect(double.log[0].set).toMatchObject({
+      notificacionEstado: "pendiente",
+      notificacionMotivo: null,
+    });
+  });
+
+  it("matches the row by id and claim id, so a stale release writes nothing", async () => {
+    const double = use([{ kind: "update", rows: [] }]);
+
+    await expect(
+      completeNoticeNotConfigured(claim, { now: NOW }),
+    ).resolves.toBe(false);
+    expect(render(double.log[0].where).params).toEqual([7, claim.reclamoId]);
   });
 
   it("stores a notice without recipients as bloqueada with sin_destinatarios", async () => {

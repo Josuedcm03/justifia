@@ -5,9 +5,11 @@ import {
   claimEscalationNotice,
   completeNoticeBlocked,
   completeNoticeFailed,
+  completeNoticeNotConfigured,
   completeNoticeSent,
   listCoordinationRecipients,
   loadNoticeContext,
+  type EscalationNoticeClaim,
 } from "@/lib/data/escalamiento";
 import { dispatchEach, type DispatchSummary } from "@/lib/data/dispatch-batch";
 import { planEscalationNotice } from "@/lib/escalation/plan";
@@ -36,13 +38,28 @@ export type EscalationDispatchDeps = {
 };
 
 export type EscalationDispatchResult =
-  /** The claim matched no row: sent already, or another attempt holds it. */
-  | { outcome: "skipped" }
+  /**
+   * Nothing was attempted. Without a reason the claim matched no row (sent
+   * already, or another attempt holds it); `not_configured` means the mail
+   * service has no keys yet: the notice stays `pendiente` with no failure, no
+   * audit row and no attempt counted.
+   */
+  | { outcome: "skipped"; reason?: "not_configured" }
   | { outcome: "sent" }
   | { outcome: "failed"; codigo: MailFailureCode }
   | { outcome: "blocked"; motivo: "sin_destinatarios" }
   /** The lease was taken over meanwhile; the completion wrote nothing. */
   | { outcome: "lost" };
+
+async function releaseUnconfigured(
+  claim: EscalationNoticeClaim,
+  now: Date,
+): Promise<EscalationDispatchResult> {
+  const stored = await completeNoticeNotConfigured(claim, { now });
+  return stored
+    ? { outcome: "skipped", reason: "not_configured" }
+    : { outcome: "lost" };
+}
 
 export async function dispatchEscalationNotice(
   id: number,
@@ -80,9 +97,7 @@ export async function dispatchEscalationNotice(
   }
 
   if (plan.kind === "not_configured") {
-    const codigo = "not_configured";
-    const stored = await completeNoticeFailed(claim, { ...completion, codigo });
-    return stored ? { outcome: "failed", codigo } : { outcome: "lost" };
+    return releaseUnconfigured(claim, completion.now);
   }
 
   const result = await deps.mail.send({
@@ -93,6 +108,11 @@ export async function dispatchEscalationNotice(
     attachments: [],
     idempotencyKey: plan.idempotencyKey,
   });
+
+  // The provider's own "no key yet" is the same: it never saw the message.
+  if (!result.ok && result.code === "not_configured") {
+    return releaseUnconfigured(claim, completion.now);
+  }
 
   if (!result.ok) {
     const stored = await completeNoticeFailed(claim, {

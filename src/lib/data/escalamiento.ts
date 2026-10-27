@@ -193,6 +193,31 @@ export function completeNoticeFailed(
   );
 }
 
+/**
+ * The mail service is not configured, so nothing was attempted (coordination-
+ * escalation, "Notification outbox"): the attempt is given back, the claim is
+ * released and the notice stays `pendiente`, with no failure audit row. The
+ * reason of a real earlier failure is kept; a `sin_destinatarios` reason is
+ * cleared because the recipients that stopped it being sent now exist.
+ */
+export function completeNoticeNotConfigured(
+  claim: EscalationNoticeClaim,
+  args: { now: Date },
+): Promise<boolean> {
+  return completeHeld(
+    escalamiento,
+    claim,
+    claim.secretariaId,
+    {
+      notificacionEstado: "pendiente",
+      notificacionMotivo: claim.estado === "bloqueada" ? null : claim.motivo,
+      ...attemptGivenBack(escalamiento, "not_configured"),
+      ...claimRelease(args.now),
+    },
+    [],
+  );
+}
+
 /** No recipient was found: nothing is sent, the reason is shown. */
 export function completeNoticeBlocked(
   claim: EscalationNoticeClaim,

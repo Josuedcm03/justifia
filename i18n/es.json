@@ -1084,7 +1084,8 @@
           "pendiente": "No se pudo enviar. Queda pendiente y se reintentará.",
           "bloqueada": "El aviso sigue bloqueado: la carrera no tiene un destinatario de coordinación con correo. Recargue la página para ver el estado.",
           "en_curso": "Ya hay un envío en curso; actualice la página en unos segundos.",
-          "sin_correo": "La cuenta de coordinación de la carrera no tiene correo registrado; solicite al administrador que lo agregue."
+          "sin_correo": "La cuenta de coordinación de la carrera no tiene correo registrado; solicite al administrador que lo agregue.",
+          "sin_configurar": "El envío de correo aún no está configurado. El aviso queda pendiente y se enviará cuando lo esté."
         },
         "errors": {
           "not_found": "Este aviso ya no está disponible para usted.",

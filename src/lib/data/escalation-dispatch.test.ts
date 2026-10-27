@@ -9,6 +9,7 @@ const escalamientoMock = vi.hoisted(() => ({
   claimEscalationNotice: vi.fn(),
   completeNoticeBlocked: vi.fn(),
   completeNoticeFailed: vi.fn(),
+  completeNoticeNotConfigured: vi.fn(),
   completeNoticeSent: vi.fn(),
   listCoordinationRecipients: vi.fn(),
   loadNoticeContext: vi.fn(),
@@ -79,6 +80,7 @@ beforeEach(() => {
   escalamientoMock.completeNoticeSent.mockResolvedValue(true);
   escalamientoMock.completeNoticeFailed.mockResolvedValue(true);
   escalamientoMock.completeNoticeBlocked.mockResolvedValue(true);
+  escalamientoMock.completeNoticeNotConfigured.mockResolvedValue(true);
 });
 
 describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
@@ -179,7 +181,7 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
       ).not.toContain("@");
     });
 
-    it.each(["rejected", "unavailable", "not_configured"] as const)(
+    it.each(["rejected", "unavailable"] as const)(
       "carries the %s code from the mail port",
       async (code) => {
         const { deps, mail } = setup();
@@ -238,23 +240,54 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
     });
   });
 
-  describe("mail not configured", () => {
-    it("leaves the notice pendiente (not_configured) when APP_BASE_URL is unset, sending nothing", async () => {
+  describe("mail not configured (nothing was attempted)", () => {
+    it("leaves the notice pendiente without a failure when APP_BASE_URL is unset, sending nothing", async () => {
       const { deps, mail } = setup(null);
 
       const result = await dispatchEscalationNotice(7, creation, deps);
 
-      expect(result).toEqual({ outcome: "failed", codigo: "not_configured" });
+      expect(result).toEqual({ outcome: "skipped", reason: "not_configured" });
       expect(mail.calls).toHaveLength(0);
-      expect(escalamientoMock.completeNoticeFailed).toHaveBeenCalledWith(
+      expect(escalamientoMock.completeNoticeNotConfigured).toHaveBeenCalledWith(
         claim(),
-        {
-          now: NOW,
-          actorId: ACTOR,
-          origen: "escalamiento",
-          codigo: "not_configured",
-        },
+        { now: NOW },
       );
+      expect(escalamientoMock.completeNoticeFailed).not.toHaveBeenCalled();
+    });
+
+    it("treats the mail port's not_configured the same: no failure, no attempt counted", async () => {
+      const { deps, mail } = setup();
+      mail.failWith("not_configured");
+
+      const result = await dispatchEscalationNotice(7, creation, deps);
+
+      expect(result).toEqual({ outcome: "skipped", reason: "not_configured" });
+      expect(escalamientoMock.completeNoticeNotConfigured).toHaveBeenCalledWith(
+        claim(),
+        { now: NOW },
+      );
+      expect(escalamientoMock.completeNoticeFailed).not.toHaveBeenCalled();
+    });
+
+    it("reports a lost claim when the release matched no row", async () => {
+      const { deps } = setup(null);
+      escalamientoMock.completeNoticeNotConfigured.mockResolvedValue(false);
+
+      await expect(
+        dispatchEscalationNotice(7, creation, deps),
+      ).resolves.toEqual({ outcome: "lost" });
+    });
+
+    it("counts the notice as skipped in a batch", async () => {
+      const { deps } = setup(null);
+
+      await expect(
+        dispatchEscalationNotices(
+          [7],
+          { trigger: "reintento_automatico" },
+          deps,
+        ),
+      ).resolves.toMatchObject({ skipped: 1, failed: 0 });
     });
   });
 

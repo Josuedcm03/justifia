@@ -161,9 +161,10 @@ export type ResendNoticeResult =
       /**
        * A more precise text for the control: `en_curso` when another attempt
        * holds the send, `sin_correo` when the career's coordination accounts
-       * exist but none has an email.
+       * exist but none has an email, `sin_configurar` when the mail service
+       * has no keys yet (nothing was attempted).
        */
-      aviso?: "en_curso" | "sin_correo";
+      aviso?: "en_curso" | "sin_correo" | "sin_configurar";
     }
   | { ok: false; reason: "not_found" | "unexpected" };
 
@@ -224,6 +225,18 @@ export async function resendEscalationNoticeAction(
             }
           : { ok: true, estado: "bloqueada", motivo: result.motivo };
       default:
+        if (
+          result.outcome === "skipped" &&
+          result.reason === "not_configured"
+        ) {
+          // Released as pendiente without a failure; any earlier reason is moot.
+          return {
+            ok: true,
+            estado: "pendiente",
+            motivo: null,
+            aviso: "sin_configurar",
+          };
+        }
         // Another attempt holds it, or took the lease over: a send is running.
         return {
           ok: true,

@@ -1084,7 +1084,8 @@
           "pendiente": "It could not be sent. It stays pending and will be retried.",
           "bloqueada": "The notice is still blocked: the career has no coordination recipient with an email. Reload the page to see the status.",
           "en_curso": "A send is already in progress; reload the page in a few seconds.",
-          "sin_correo": "The career's coordination account has no email on record; ask the administrator to add it."
+          "sin_correo": "The career's coordination account has no email on record; ask the administrator to add it.",
+          "sin_configurar": "Email sending is not configured yet. The notice stays pending and will be sent once it is."
         },
         "errors": {
           "not_found": "This notice is no longer available to you.",

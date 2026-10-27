@@ -551,6 +551,25 @@ describe("resendEscalationNoticeAction (RF-10 b)", () => {
     },
   );
 
+  it("tells the secretary the mail is not configured and that the notice stays pending, with no failure state", async () => {
+    authorizeResendMock.mockResolvedValue({
+      id: 5,
+      solicitudId: 12,
+      estado: "bloqueada",
+    });
+    dispatchOneMock.mockResolvedValue({
+      outcome: "skipped",
+      reason: "not_configured",
+    });
+
+    await expect(resendEscalationNoticeAction(5)).resolves.toEqual({
+      ok: true,
+      estado: "pendiente",
+      motivo: null,
+      aviso: "sin_configurar",
+    });
+  });
+
   it("says the coordination account lacks an email when the career has one but nobody to send to", async () => {
     dispatchOneMock.mockResolvedValue({
       outcome: "blocked",
