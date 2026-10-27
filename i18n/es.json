@@ -1350,7 +1350,7 @@
     },
     "recipients": {
       "title": "Destinatarios",
-      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud. Si la solicitud se escala, la coordinación de la carrera del estudiante recibe un aviso mínimo por correo electrónico y consulta la solicitud y sus documentos dentro del sistema."
+      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud. Si la solicitud se escala, la coordinación de tu carrera recibe un aviso mínimo por correo electrónico y consulta la solicitud y sus documentos dentro del sistema."
     },
     "data": {
       "title": "Datos que se tratan",

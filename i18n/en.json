@@ -1350,7 +1350,7 @@
     },
     "recipients": {
       "title": "Recipients",
-      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names. If the request is escalated, the coordination of the student's career receives a minimal notification by email and consults the request and its documents inside the system."
+      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names. If the request is escalated, the coordination of your career receives a minimal notification by email and consults the request and its documents inside the system."
     },
     "data": {
       "title": "Data we process",

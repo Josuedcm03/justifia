@@ -27,7 +27,7 @@ const PINNED_NOTICE: Record<string, string> = {
   "2026-10-20":
     "d98acff47bc848672db35ef731f94764351ca599852f4c4fa92a828a94f1965a",
   "2026-10-22":
-    "dbf381725384553e142fd05e84c08d99da51921e155f0eaca6078a00fc40be69",
+    "0653e8db7f63eb33f1ac01ddca5b69cb036952519f9a19fa2af9df8645c02349",
 };
 
 // The v2 texts of the escalation change (E6): the career coordination may

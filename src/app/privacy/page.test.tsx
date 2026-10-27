@@ -134,8 +134,8 @@ describe.each(["es", "en"] as const)("privacy notice (%s)", (l) => {
     expect(text).toContain(recipients);
     expect(recipients).toMatch(
       l === "es"
-        ? /coordinación de la carrera del estudiante/
-        : /coordination of the student's career/,
+        ? /coordinación de tu carrera/
+        : /coordination of your career/,
     );
     expect(recipients).toMatch(
       l === "es" ? /aviso mínimo por correo/ : /minimal notification by email/,
