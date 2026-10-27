@@ -154,6 +154,35 @@ describe("EscalationSection notice resend (RF-10 b)", () => {
     },
   );
 
+  it("offers no resend and says it will not be sent when the escalation was answered first", () => {
+    show([
+      escalation({
+        respuesta: "El documento es autentico.",
+        respondidaPorNombre: "Marta Gomez",
+        respondidaEn: new Date("2026-10-09T21:00:00Z"),
+      }),
+    ]);
+
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText(en.notification.respondida)).toBeInTheDocument();
+    expect(screen.queryByText(en.notification.pendiente)).toBeNull();
+  });
+
+  it("keeps a notice sent before the answer as sent", () => {
+    show([
+      escalation({
+        notificacionEstado: "enviada",
+        enviadaEn: new Date("2026-10-08T15:05:00Z"),
+        respuesta: "Autentico.",
+        respondidaPorNombre: "Marta Gomez",
+        respondidaEn: new Date("2026-10-09T21:00:00Z"),
+      }),
+    ]);
+
+    expect(screen.getByText("Sent on Oct 8, 2026")).toBeInTheDocument();
+    expect(screen.queryByText(en.notification.respondida)).toBeNull();
+  });
+
   it("offers no resend for a sent notice", () => {
     show([
       escalation({

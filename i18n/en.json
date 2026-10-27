@@ -1039,7 +1039,8 @@
         "pendiente": "Pending send",
         "pendienteFallido": "Pending send: the last attempt failed",
         "enviada": "Sent on {date}",
-        "bloqueada": "No coordination recipient for the career"
+        "bloqueada": "No coordination recipient for the career",
+        "respondida": "Will not be sent: the coordination already answered"
       },
       "section": {
         "title": "Escalations to coordination",
@@ -1085,7 +1086,8 @@
           "bloqueada": "The notice is still blocked: the career has no coordination recipient with an email. Reload the page to see the status.",
           "en_curso": "A send is already in progress; reload the page in a few seconds.",
           "sin_correo": "The career's coordination account has no email on record; ask the administrator to add it.",
-          "sin_configurar": "Email sending is not configured yet. The notice stays pending and will be sent once it is."
+          "sin_configurar": "Email sending is not configured yet. The notice stays pending and will be sent once it is.",
+          "respondida": "The coordination already answered this escalation; the notice will not be sent."
         },
         "errors": {
           "not_found": "This notice is no longer available to you.",

@@ -162,9 +162,10 @@ export type ResendNoticeResult =
        * A more precise text for the control: `en_curso` when another attempt
        * holds the send, `sin_correo` when the career's coordination accounts
        * exist but none has an email, `sin_configurar` when the mail service
-       * has no keys yet (nothing was attempted).
+       * has no keys yet (nothing was attempted), `respondida` when the
+       * coordinator answered first and the notice is no longer sent.
        */
-      aviso?: "en_curso" | "sin_correo" | "sin_configurar";
+      aviso?: "en_curso" | "sin_correo" | "sin_configurar" | "respondida";
     }
   | { ok: false; reason: "not_found" | "unexpected" };
 
@@ -202,6 +203,16 @@ export async function resendEscalationNoticeAction(
   // A sent notice is never sent twice: report it as it is.
   if (target.estado === "enviada") {
     return { ok: true, estado: "enviada", motivo: null };
+  }
+  // The coordinator answered first: the notice would only link to a record
+  // the coordination view no longer shows, so it is not sent.
+  if (target.respondida) {
+    return {
+      ok: true,
+      estado: target.estado,
+      motivo: null,
+      aviso: "respondida",
+    };
   }
 
   try {

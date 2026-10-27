@@ -29,6 +29,7 @@ const STATUS_TONES: Record<NoticeStatusKey, string> = {
   pendienteFallido: "bg-warning/10 text-warning-ink",
   enviada: "bg-success/10 text-success-ink",
   bloqueada: "bg-destructive/10 text-destructive-ink",
+  respondida: "bg-muted text-muted-foreground",
 };
 
 /** The notification status as a pill; the state is always the text (§7). */
@@ -36,14 +37,17 @@ export function NoticeStatusPill({
   estado,
   motivo,
   enviadaEn,
+  answered = false,
 }: {
   estado: EscalationNoticeState;
   motivo: EscalationNoticeReason | null;
   enviadaEn: Date | null;
+  /** The escalation was answered: an unsent notice will not be sent. */
+  answered?: boolean;
 }) {
   const t = useTranslations("review.escalation.notification");
   const format = useFormatter();
-  const key = noticeStatusKey(estado, motivo);
+  const key = noticeStatusKey(estado, motivo, answered);
 
   return (
     <span
@@ -66,7 +70,7 @@ export function NoticeStatusPill({
 
 /**
  * The delivery of one notice to coordination: its status as text and, unless it
- * was sent, the control to resend it (RF-10 b). `label` names the notice for
+ * was sent or its escalation was answered, the control to resend it (RF-10 b). `label` names the notice for
  * assistive technology when a request has several.
  */
 export function NoticeDelivery({
@@ -75,17 +79,24 @@ export function NoticeDelivery({
   estado,
   motivo,
   enviadaEn,
+  answered = false,
 }: {
   escalamientoId: number;
   label: string;
   estado: EscalationNoticeState;
   motivo: EscalationNoticeReason | null;
   enviadaEn: Date | null;
+  answered?: boolean;
 }) {
   return (
     <div className="flex flex-col items-start gap-2">
-      <NoticeStatusPill estado={estado} motivo={motivo} enviadaEn={enviadaEn} />
-      {estado === "enviada" ? null : (
+      <NoticeStatusPill
+        estado={estado}
+        motivo={motivo}
+        enviadaEn={enviadaEn}
+        answered={answered}
+      />
+      {estado === "enviada" || answered ? null : (
         <ResendEscalationButton escalamientoId={escalamientoId} label={label} />
       )}
     </div>
@@ -133,6 +144,7 @@ export function EscalationSection({
                   estado={e.notificacionEstado}
                   motivo={e.notificacionMotivo}
                   enviadaEn={e.enviadaEn}
+                  answered={e.respondidaEn !== null}
                 />
               </Fact>
             </dl>

@@ -252,6 +252,16 @@ describe("claimEscalationNotice (RNF-07, concurrent attempts)", () => {
     expect(query.params).not.toContain("enviada");
   });
 
+  it("never claims the notice of an answered escalation", async () => {
+    const double = use([{ kind: "update", rows: [] }]);
+
+    await claimEscalationNotice(7, "reenvio_manual", NOW);
+
+    expect(render(double.log[0].where).sql).toContain(
+      '"Escalamiento"."RespondidaEn" is null',
+    );
+  });
+
   it("takes over only a missing or expired lease", async () => {
     const double = use([{ kind: "update", rows: [claimedRow] }]);
 
@@ -513,6 +523,16 @@ describe("selectEscalationRetryCandidates (RNF-07, scheduled job)", () => {
     expect(double.log[0].orderBy).toHaveLength(2);
   });
 
+  it("leaves out the notices of answered escalations", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+
+    await selectEscalationRetryCandidates(NOW);
+
+    expect(render(double.log[0].where).sql).toContain(
+      '"Escalamiento"."RespondidaEn" is null',
+    );
+  });
+
   it("returns an empty list when nothing is due", async () => {
     use([{ kind: "select", rows: [] }]);
 
@@ -527,13 +547,25 @@ describe("authorizeNoticeResend (RF-10 b, RNF-01)", () => {
     const double = use([
       {
         kind: "select",
-        rows: [{ id: 7, solicitudId: 42, estado: "bloqueada" }],
+        rows: [
+          {
+            id: 7,
+            solicitudId: 42,
+            estado: "bloqueada",
+            respondida: false,
+          },
+        ],
       },
     ]);
 
     const target = await authorizeNoticeResend(SCOPE, 7);
 
-    expect(target).toEqual({ id: 7, solicitudId: 42, estado: "bloqueada" });
+    expect(target).toEqual({
+      id: 7,
+      solicitudId: 42,
+      estado: "bloqueada",
+      respondida: false,
+    });
     expect(double.transactions).toBe(0);
     expect(render(double.log[0].where).params).toEqual([7, 4]);
     expect(insertAuditMock).not.toHaveBeenCalled();
@@ -560,6 +592,27 @@ describe("authorizeNoticeResend (RF-10 b, RNF-01)", () => {
       estado: "enviada",
     });
     expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("tells whether the escalation of the notice was already answered", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          {
+            id: 7,
+            solicitudId: 42,
+            estado: "pendiente",
+            respondida: true,
+          },
+        ],
+      },
+    ]);
+
+    await expect(authorizeNoticeResend(SCOPE, 7)).resolves.toMatchObject({
+      estado: "pendiente",
+      respondida: true,
+    });
   });
 
   it("returns null when the id is unknown or out of scope", async () => {

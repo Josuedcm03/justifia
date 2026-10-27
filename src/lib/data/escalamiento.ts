@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -74,7 +74,10 @@ function claimableStates(
 
 /**
  * Guarded claim of one notice: `UPDATE ... WHERE ... RETURNING`. Null means
- * another attempt holds it or it is already sent: skip silently.
+ * another attempt holds it, it is already sent, or its escalation was answered
+ * meanwhile (the coordinator no longer needs the notice and its link would lead
+ * to a record that is not there): skip silently. Only a suspicion is ever
+ * answered, so the report notices are never excluded.
  */
 export async function claimEscalationNotice(
   id: number,
@@ -88,6 +91,7 @@ export async function claimEscalationNotice(
       and(
         eq(escalamiento.id, id),
         inArray(escalamiento.notificacionEstado, [...claimableStates(trigger)]),
+        isNull(escalamiento.respondidaEn),
         leaseFree(escalamiento.reclamadaEn, now),
       ),
     )
@@ -247,8 +251,9 @@ export function completeNoticeBlocked(
 
 /**
  * The notices the scheduled job may dispatch: pending, free or expired claim,
- * under the automatic-attempt cap, oldest first, one bounded batch. A
- * `bloqueada` or `enviada` notice is never selected.
+ * under the automatic-attempt cap, of an escalation not yet answered, oldest
+ * first, one bounded batch. A `bloqueada` or `enviada` notice is never
+ * selected.
  */
 export async function selectEscalationRetryCandidates(
   now: Date = new Date(),
@@ -259,6 +264,7 @@ export async function selectEscalationRetryCandidates(
     .where(
       and(
         eq(escalamiento.notificacionEstado, "pendiente"),
+        isNull(escalamiento.respondidaEn),
         leaseFree(escalamiento.reclamadaEn, now),
         lt(escalamiento.intentos, MAX_AUTO_ATTEMPTS),
       ),
@@ -271,7 +277,8 @@ export async function selectEscalationRetryCandidates(
 /**
  * A secretary's resend of a notice (RF-10 b, RNF-01): proves the notice's
  * request is in her scope (an unknown and an out-of-scope id are the same
- * `null`) and reports its state. It writes nothing: the
+ * `null`) and reports its state and whether its escalation was answered. It
+ * writes nothing: the
  * `notificacion_reenviada` audit row is written with the outcome of the
  * attempt that follows (`attemptEvents`), so a resend that sends nothing, as
  * of a sent notice or of a lost claim, leaves no row.
@@ -283,12 +290,15 @@ export async function authorizeNoticeResend(
   id: number;
   solicitudId: number;
   estado: EscalationNoticeState;
+  /** The coordinator already answered: the notice is no longer sent. */
+  respondida: boolean;
 } | null> {
   const [target] = await db
     .select({
       id: escalamiento.id,
       solicitudId: escalamiento.solicitudId,
       estado: escalamiento.notificacionEstado,
+      respondida: sql<boolean>`${escalamiento.respondidaEn} is not null`,
     })
     .from(escalamiento)
     .innerJoin(solicitud, eq(solicitud.id, escalamiento.solicitudId))

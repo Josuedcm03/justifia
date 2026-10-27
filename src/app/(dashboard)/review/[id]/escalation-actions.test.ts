@@ -551,6 +551,24 @@ describe("resendEscalationNoticeAction (RF-10 b)", () => {
     },
   );
 
+  it("sends nothing for the notice of an answered escalation and says it is no longer needed", async () => {
+    authorizeResendMock.mockResolvedValue({
+      id: 5,
+      solicitudId: 12,
+      estado: "pendiente",
+      respondida: true,
+    });
+
+    await expect(resendEscalationNoticeAction(5)).resolves.toEqual({
+      ok: true,
+      estado: "pendiente",
+      motivo: null,
+      aviso: "respondida",
+    });
+
+    expect(dispatchOneMock).not.toHaveBeenCalled();
+  });
+
   it("tells the secretary the mail is not configured and that the notice stays pending, with no failure state", async () => {
     authorizeResendMock.mockResolvedValue({
       id: 5,

@@ -1039,7 +1039,8 @@
         "pendiente": "Envío pendiente",
         "pendienteFallido": "Envío pendiente: el último intento falló",
         "enviada": "Enviado el {date}",
-        "bloqueada": "Sin destinatario de coordinación para la carrera"
+        "bloqueada": "Sin destinatario de coordinación para la carrera",
+        "respondida": "No se enviará: la coordinación ya respondió"
       },
       "section": {
         "title": "Escalamientos a coordinación",
@@ -1085,7 +1086,8 @@
           "bloqueada": "El aviso sigue bloqueado: la carrera no tiene un destinatario de coordinación con correo. Recargue la página para ver el estado.",
           "en_curso": "Ya hay un envío en curso; actualice la página en unos segundos.",
           "sin_correo": "La cuenta de coordinación de la carrera no tiene correo registrado; solicite al administrador que lo agregue.",
-          "sin_configurar": "El envío de correo aún no está configurado. El aviso queda pendiente y se enviará cuando lo esté."
+          "sin_configurar": "El envío de correo aún no está configurado. El aviso queda pendiente y se enviará cuando lo esté.",
+          "respondida": "La coordinación ya respondió esta escalación; el aviso no se enviará."
         },
         "errors": {
           "not_found": "Este aviso ya no está disponible para usted.",
