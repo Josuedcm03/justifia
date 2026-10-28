@@ -13,7 +13,6 @@ const {
   escalateMock,
   reportMock,
   revalidatePathMock,
-  refreshMock,
   afterMock,
   authorizeResendMock,
   dispatchOneMock,
@@ -29,7 +28,6 @@ const {
   escalateMock: vi.fn(),
   reportMock: vi.fn(),
   revalidatePathMock: vi.fn(),
-  refreshMock: vi.fn(),
   afterMock: vi.fn(),
   authorizeResendMock: vi.fn(),
   dispatchOneMock: vi.fn(),
@@ -39,10 +37,7 @@ const {
 }));
 
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
-vi.mock("next/cache", () => ({
-  revalidatePath: revalidatePathMock,
-  refresh: refreshMock,
-}));
+vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/server", () => ({ after: afterMock }));
 // The REAL dal runs on a mocked session source (RNF-01: the action re-checks).
 vi.mock("@/lib/auth/cookies", () => ({ getSession: getSessionMock }));
@@ -83,7 +78,6 @@ const REPORT = {
 beforeEach(() => {
   redirectMock.mockClear();
   revalidatePathMock.mockClear();
-  refreshMock.mockClear();
   getSessionMock.mockReset();
   getSessionMock.mockResolvedValue(sessionFor("secretaria"));
   scopeMock.mockReset();
@@ -108,21 +102,6 @@ beforeEach(() => {
   accountsMock.mockReset();
   accountsMock.mockResolvedValue({ carreraNombre: "Medicina", cuentas: 0 });
 });
-
-/**
- * A successful escalation redirects (the throw is the redirect); a successful
- * report resolves with `{ ok: true }` so its dialog can close itself. Both are
- * a completed write for the tests that only care about what follows.
- */
-async function completes(result: Promise<unknown>) {
-  try {
-    await result;
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.startsWith("REDIRECT:")) {
-      throw error;
-    }
-  }
-}
 
 const actions = [
   ["escalateRequestAction", escalateRequestAction, ESCALATE, escalateMock],
@@ -188,8 +167,8 @@ describe.each(actions)(
       },
     );
 
-    it("never revalidates the page (the audited read runs once)", async () => {
-      await completes(action(input));
+    it("never revalidates or refreshes the page (the audited read runs once)", async () => {
+      await expect(action(input)).rejects.toThrow("REDIRECT:");
 
       expect(revalidatePathMock).not.toHaveBeenCalled();
     });
@@ -248,7 +227,6 @@ describe("escalateRequestAction (RF-10 a, RN-20, E17)", () => {
     await expect(escalateRequestAction(ESCALATE)).rejects.toThrow(
       "REDIRECT:/review?resultado=escalada",
     );
-    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("hands the raw note to the data layer, which validates it before any write", async () => {
@@ -294,7 +272,9 @@ describe("escalateRequestAction (RF-10 a, RN-20, E17)", () => {
 
 describe("recordExcessReportAction (RF-15, RF-10 b)", () => {
   it("takes the actor from the session and the scope from the database", async () => {
-    await recordExcessReportAction({ ...REPORT, actorId: 99, porcentaje: 40 });
+    await expect(
+      recordExcessReportAction({ ...REPORT, actorId: 99, porcentaje: 40 }),
+    ).rejects.toThrow("REDIRECT:");
 
     expect(reportMock).toHaveBeenCalledWith({
       actorId: 7,
@@ -307,30 +287,10 @@ describe("recordExcessReportAction (RF-15, RF-10 b)", () => {
     });
   });
 
-  it("answers ok without redirecting, so the open dialog can close itself", async () => {
-    await expect(recordExcessReportAction(REPORT)).resolves.toEqual({
-      ok: true,
-    });
-
-    expect(redirectMock).not.toHaveBeenCalled();
-  });
-
-  it("refreshes the client router once, since the redirect to the same route would keep the dialog open", async () => {
-    await recordExcessReportAction(REPORT);
-
-    expect(refreshMock).toHaveBeenCalledTimes(1);
-    expect(revalidatePathMock).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["a refusal", { ok: false, reason: "conflict" }],
-    ["invalid input", { ok: false, reason: "invalid", errors: [] }],
-  ])("does not refresh after %s", async (_label, outcome) => {
-    reportMock.mockResolvedValue(outcome);
-
-    await recordExcessReportAction(REPORT);
-
-    expect(refreshMock).not.toHaveBeenCalled();
+  it("stays on the request detail on success", async () => {
+    await expect(recordExcessReportAction(REPORT)).rejects.toThrow(
+      "REDIRECT:/review/12",
+    );
   });
 
   it.each([0, -1, 2.5, "31", null, undefined])(
@@ -392,14 +352,14 @@ describe.each([
   "%s notice dispatch after commit (ES-11)",
   (_n, action, input, noticeId) => {
     it("schedules the notice dispatch once, before redirecting, and does not run it inline", async () => {
-      await completes(action(input));
+      await expect(action(input)).rejects.toThrow("REDIRECT:");
 
       expect(afterMock).toHaveBeenCalledTimes(1);
       expect(dispatchManyMock).not.toHaveBeenCalled();
     });
 
     it("dispatches the new notice after the response, as a creation attempt by the session user", async () => {
-      await completes(action(input));
+      await expect(action(input)).rejects.toThrow("REDIRECT:");
       await afterMock.mock.calls[0][0]();
 
       expect(dispatchManyMock).toHaveBeenCalledWith(
@@ -462,7 +422,7 @@ describe.each([
       });
       const log = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      await completes(action(input));
+      await expect(action(input)).rejects.toThrow("REDIRECT:");
 
       expect(log).toHaveBeenCalledTimes(1);
       expect(JSON.stringify(log.mock.calls)).not.toContain("outside");
@@ -473,7 +433,7 @@ describe.each([
       const log = vi.spyOn(console, "error").mockImplementation(() => {});
       dispatchManyMock.mockRejectedValue(new Error("coord1@uam.edu.ni leaked"));
 
-      await completes(action(input));
+      await expect(action(input)).rejects.toThrow("REDIRECT:");
       await afterMock.mock.calls[0][0]();
 
       expect(log).toHaveBeenCalledTimes(1);

@@ -1,6 +1,5 @@
 "use server";
 
-import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { afterResponse } from "@/app/(dashboard)/review/[id]/after-response";
@@ -33,21 +32,18 @@ import {
 // data layer, so a client-sent reason is ignored; the note, the date and the
 // teacher are validated there too, before any write. Success schedules the
 // notice to coordination after the response (`after()`, only once the write has
-// committed, so a mail outage can never undo it), then leaves the screen: an
-// escalation redirects to the queue; a report happens on the detail itself, and
-// a redirect to the same route would keep the open dialog and its draft, so it
-// answers `{ ok: true }` (the dialog closes and resets itself) and refreshes the
-// client router once. Neither revalidates the page, so the audited detail read
-// cannot run twice (SR-11); only refusals come back to the dialog. A secretary
-// may resend a notice that is not `enviada`.
+// committed, so a mail outage can never undo it), then redirects (the queue for
+// an escalation, the detail for a report) and never revalidates or refreshes the
+// page, so the audited detail read cannot run twice (SR-11); only refusals come
+// back to the dialog. A report redirects to the route it was made on, which
+// keeps client state, so the report dialog is keyed on the recorded reports and
+// remounts closed and empty. A secretary may resend a notice that is not
+// `enviada`.
 
 export type EscalationActionFailure =
   | { ok: false; reason: "not_found" | "conflict" | "unexpected" }
   | { ok: false; reason: "invalid"; errors: EscalationError[] }
   | { ok: false; reason: "sin_coordinacion"; carreraNombre: string };
-
-/** The report was recorded; the dialog closes and the page was refreshed. */
-export type ReportActionResult = { ok: true } | EscalationActionFailure;
 
 const QUEUE_PATH = "/review";
 const NOT_FOUND = { ok: false, reason: "not_found" } as const;
@@ -130,7 +126,7 @@ export async function escalateRequestAction(
 
 export async function recordExcessReportAction(
   input: unknown,
-): Promise<ReportActionResult> {
+): Promise<EscalationActionFailure> {
   const guard = await authorize(input);
   if (!guard) return NOT_FOUND;
   const { actorId, scope, payload, solicitudId } = guard;
@@ -166,8 +162,7 @@ export async function recordExcessReportAction(
   }
   if (!outcome.ok) return outcome;
   scheduleNotice(outcome.escalamientoId, actorId);
-  refresh();
-  return { ok: true };
+  redirect(`${QUEUE_PATH}/${solicitudId}`);
 }
 
 export type ResendNoticeResult =

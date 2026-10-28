@@ -42,8 +42,7 @@ function EscalateForm({ solicitudId }: { solicitudId: number }) {
   const t = useTranslations("review.escalation");
   const ids = useId();
   const [nota, setNota] = useState("");
-  const { open, setOpen, failure, setFailure, pending, run } =
-    useEscalationAction();
+  const { failure, setFailure, pending, run } = useEscalationAction();
 
   const noteMessages =
     failure?.reason === "invalid"
@@ -66,8 +65,6 @@ function EscalateForm({ solicitudId }: { solicitudId: number }) {
   return (
     <EscalationFormDialog
       copy={t}
-      open={open}
-      setOpen={setOpen}
       failure={failure}
       banner={banner}
       pending={pending}

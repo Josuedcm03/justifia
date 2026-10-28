@@ -69,57 +69,43 @@ export type DialogCopy = (
 ) => string;
 
 /**
- * The open state, the refusal of the last confirm and the running state. An
- * action that leaves the screen redirects and never resolves here. One that
- * stays on the page resolves `{ ok: true }`: the dialog closes and `onSuccess`
- * resets the draft. A second confirm while one runs is ignored. Generic in the
- * failure type, so the secretary and the coordinator actions share it.
+ * The refusal of the last confirm and the running state. A success never
+ * resolves here: the action redirects. A second confirm while one runs is
+ * ignored. Generic in the failure type, so the secretary and the coordinator
+ * actions share it.
  */
 export function useEscalationAction<
   F extends { reason: string } = EscalationActionFailure,
 >() {
-  const [open, setOpen] = useState(false);
   const [failure, setFailure] = useState<F | null>(null);
   const [pending, startTransition] = useTransition();
   const running = useRef(false);
 
-  function run(
-    action: () => Promise<F | { ok: true }>,
-    onSuccess?: () => void,
-  ) {
+  function run(action: () => Promise<F>) {
     if (running.current) return;
     running.current = true;
     setFailure(null);
     startTransition(async () => {
       try {
         const result = await action();
-        if (!result) return;
-        if ("reason" in result) {
-          setFailure(result);
-        } else {
-          setOpen(false);
-          onSuccess?.();
-        }
+        if (result) setFailure(result);
       } finally {
         running.current = false;
       }
     });
   }
 
-  return { open, setOpen, failure, setFailure, pending, run };
+  return { failure, setFailure, pending, run };
 }
 
 /**
  * An escalation-style confirmation dialog: outline trigger, the refusal banner
  * (with the way back to the list `backHref` when the request moved or
  * vanished), the fields, then cancel and confirm. It stays open while the
- * action runs, and closing it discards the draft through `onDiscard`. Its open
- * state is the hook's, so a success can close it.
+ * action runs, and closing it discards the draft through `onDiscard`.
  */
 export function EscalationFormDialog({
   copy,
-  open,
-  setOpen,
   failure,
   banner,
   pending,
@@ -129,8 +115,6 @@ export function EscalationFormDialog({
   children,
 }: {
   copy: DialogCopy;
-  open: boolean;
-  setOpen: (open: boolean) => void;
   failure: { reason: string } | null;
   banner: string | null;
   pending: boolean;
@@ -139,6 +123,7 @@ export function EscalationFormDialog({
   backHref?: string;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   const backToQueue =
     failure?.reason === "conflict" || failure?.reason === "not_found";
 

@@ -100,6 +100,10 @@ export function AbsenceReportsSection({
       )}
       {canReport ? (
         <ReportDialog
+          // A report redirects to this same route, so client state survives the
+          // new render: the key (reports are append-only) remounts the dialog
+          // closed and with an empty draft, so it cannot confirm twice.
+          key={reports.length}
           solicitudId={solicitudId}
           teachers={teachers}
           maxDate={maxDate}

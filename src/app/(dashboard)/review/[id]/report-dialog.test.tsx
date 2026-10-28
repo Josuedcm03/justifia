@@ -181,40 +181,6 @@ describe("ReportDialog confirmation (RNF-12)", () => {
     expect(within(dialog).getByRole("alert")).toHaveTextContent(text);
   });
 
-  it("closes the dialog and clears the draft once the report is recorded", async () => {
-    actionMock.mockResolvedValue({ ok: true });
-    show();
-    let dialog = await open();
-    await userEvent.selectOptions(
-      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
-      "32",
-    );
-    await userEvent.type(
-      within(dialog).getByLabelText(en.dialog.dateLabel),
-      "2026-10-13",
-    );
-    await userEvent.type(
-      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
-      "Supera el limite",
-    );
-
-    await userEvent.click(
-      within(dialog).getByRole("button", { name: en.dialog.confirm }),
-    );
-
-    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
-    expect(actionMock).toHaveBeenCalledTimes(1);
-    // Opening it again offers a blank form, not the report just recorded.
-    dialog = await open();
-    expect(
-      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
-    ).toHaveValue("");
-    expect(within(dialog).getByLabelText(en.dialog.dateLabel)).toHaveValue("");
-    expect(
-      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
-    ).toHaveValue("");
-  });
-
   it("sends nothing twice while the first confirm is still running", async () => {
     actionMock.mockReturnValue(new Promise(() => {}));
     show();

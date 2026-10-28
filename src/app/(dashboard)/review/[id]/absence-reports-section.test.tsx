@@ -1,4 +1,6 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
@@ -51,6 +53,50 @@ function show(
     locale,
   );
 }
+
+describe("AbsenceReportsSection after a report is recorded", () => {
+  it("remounts the report dialog closed and empty when the page comes back with a new report", async () => {
+    const section = (reports: DetailReport[]) => (
+      <NextIntlClientProvider
+        locale="en"
+        messages={messages.en}
+        timeZone="America/Managua"
+      >
+        <AbsenceReportsSection
+          solicitudId={12}
+          reports={reports}
+          canReport
+          teachers={TEACHERS}
+          maxDate="2026-10-14"
+        />
+      </NextIntlClientProvider>
+    );
+    const view = show();
+    await userEvent.click(
+      screen.getByRole("button", { name: en.dialog.trigger }),
+    );
+    await userEvent.type(
+      within(await screen.findByRole("alertdialog")).getByRole("textbox", {
+        name: en.dialog.noteLabel,
+      }),
+      "Borrador",
+    );
+
+    // The action redirects to this same route: the section is rendered again
+    // with the new report while its client state would otherwise survive.
+    view.rerender(section([report(), report({ id: 72, escalamientoId: 82 })]));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    await userEvent.click(
+      screen.getByRole("button", { name: en.dialog.trigger }),
+    );
+    expect(
+      within(await screen.findByRole("alertdialog")).getByRole("textbox", {
+        name: en.dialog.noteLabel,
+      }),
+    ).toHaveValue("");
+  });
+});
 
 describe("AbsenceReportsSection list (RF-15, RF-10 b)", () => {
   it("lists each report with teacher, communicated date, note, author and time", () => {
