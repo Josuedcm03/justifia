@@ -78,6 +78,13 @@
       "when": 1792599892113,
       "tag": "0010_request_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792695105915,
+      "tag": "0011_escalation",
+      "breakpoints": true
     }
   ]
 }
