@@ -41,6 +41,20 @@ export const ESCALATION_NOTICE_REASONS = [
 
 export type EscalationNoticeReason = (typeof ESCALATION_NOTICE_REASONS)[number];
 
+/**
+ * What starts a send of a coordination notice: the post-commit dispatch of the
+ * write, a secretary's resend, or the scheduled retry. Only a resend may pick up
+ * a `bloqueada` notice (a coordinator account may exist by then).
+ */
+export const ESCALATION_NOTICE_TRIGGERS = [
+  "escalamiento",
+  "reenvio_manual",
+  "reintento_automatico",
+] as const;
+
+export type EscalationNoticeTrigger =
+  (typeof ESCALATION_NOTICE_TRIGGERS)[number];
+
 /** Bound of an escalation note, a coordinator answer and a report note. */
 export const ESCALATION_NOTE_MAX = 1000;
 

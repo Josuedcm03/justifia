@@ -2,11 +2,10 @@ import { z } from "zod";
 
 // An unset variable and an empty one (`KEY=` in a dotenv file) both mean
 // "not configured".
+const unsetWhenEmpty = (value: unknown) => (value === "" ? undefined : value);
+
 const optionalSecret = (minLength: number) =>
-  z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().min(minLength).optional(),
-  );
+  z.preprocess(unsetWhenEmpty, z.string().min(minLength).optional());
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -23,6 +22,10 @@ const envSchema = z.object({
   // a missing value leaves the remission `pendiente`.
   RESEND_API_KEY: optionalSecret(1),
   MAIL_FROM: optionalSecret(1),
+  // Absolute origin of the app for the link in the coordination notice
+  // (escalation ES-10). No platform-URL fallback: a preview host would be the
+  // wrong one. Unset leaves the notice `pendiente` (`not_configured`).
+  APP_BASE_URL: z.preprocess(unsetWhenEmpty, z.string().url().optional()),
 });
 
 export const env = envSchema.parse(process.env);

@@ -71,3 +71,28 @@ describe("env mail settings (teacher-remission TR-9)", () => {
     expect(env.MAIL_FROM).toBeUndefined();
   });
 });
+
+describe("env APP_BASE_URL (escalation ES-10)", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("exposes the absolute base URL of the app when set", async () => {
+    const env = await loadEnv({ APP_BASE_URL: "https://justifia.example.edu" });
+    expect(env.APP_BASE_URL).toBe("https://justifia.example.edu");
+  });
+
+  it("is optional, and an empty value means not configured", async () => {
+    const env = await loadEnv({ APP_BASE_URL: undefined });
+    expect(env.APP_BASE_URL).toBeUndefined();
+  });
+
+  it("rejects a value that is not an absolute URL", async () => {
+    await expect(
+      loadEnv({ APP_BASE_URL: "justifia.example.edu" }),
+    ).rejects.toThrow();
+  });
+});

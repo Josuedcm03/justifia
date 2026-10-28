@@ -1,7 +1,6 @@
-import { createHash } from "node:crypto";
-
 import type { RevisionClase } from "@/db/schema";
 import type { Causa } from "@/lib/intake/causes";
+import { mailIdempotencyKey } from "@/lib/mail/idempotency-key";
 
 import { exceedsAttachmentLimit } from "./limits";
 import { buildRemissionMessage, type RemissionDraft } from "./message";
@@ -64,26 +63,17 @@ function selectDocuments(input: PlanInput): PlanDocument[] {
   return [...chosen].sort((a, b) => a.id - b.id);
 }
 
-/**
- * Provider idempotency key (TR-6): stable for an equal payload, new when the
- * recipient, the copy or the attachments change.
- */
+/** New when the recipient, the copy or the attachments change. */
 function idempotencyKey(
   remisionId: number,
   draft: RemissionDraft,
   documents: readonly PlanDocument[],
 ): string {
-  const digest = createHash("sha256")
-    .update(
-      JSON.stringify({
-        to: draft.to,
-        cc: draft.cc,
-        attachments: documents.map((d) => [d.id, d.tamanoBytes]),
-      }),
-    )
-    .digest("hex")
-    .slice(0, 16);
-  return `remision-${remisionId}-${digest}`;
+  return mailIdempotencyKey("remision", remisionId, {
+    to: draft.to,
+    cc: draft.cc,
+    attachments: documents.map((d) => [d.id, d.tamanoBytes]),
+  });
 }
 
 export function planRemission(input: PlanInput): RemissionPlan {
