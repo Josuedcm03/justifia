@@ -29,7 +29,9 @@ export type ReportTeacher = {
  * input's `max`; the server validates it again) and the note is optional.
  * There is no percentage or count of absences to enter. Nothing is recorded
  * until the secretary confirms; cancelling or Escape discards the draft. A
- * success redirects to the detail, so this component only receives refusals.
+ * success happens on this same page, so the dialog closes and the draft resets
+ * (the action refreshes the page data); a second report needs the dialog opened
+ * again.
  */
 export function ReportDialog({
   solicitudId,
@@ -46,7 +48,8 @@ export function ReportDialog({
   const [remisionId, setRemisionId] = useState("");
   const [fecha, setFecha] = useState("");
   const [nota, setNota] = useState("");
-  const { failure, setFailure, pending, run } = useEscalationAction();
+  const { open, setOpen, failure, setFailure, pending, run } =
+    useEscalationAction();
 
   if (teachers.length === 0) {
     return (
@@ -56,6 +59,12 @@ export function ReportDialog({
     );
   }
 
+  const discard = () => {
+    setRemisionId("");
+    setFecha("");
+    setNota("");
+    setFailure(null);
+  };
   const messagesFor = (field: EscalationError["field"]) =>
     failure?.reason === "invalid"
       ? failure.errors
@@ -74,25 +83,24 @@ export function ReportDialog({
   return (
     <EscalationFormDialog
       copy={t}
+      open={open}
+      setOpen={setOpen}
       failure={failure}
       banner={banner}
       pending={pending}
       onConfirm={() =>
-        run(() =>
-          recordExcessReportAction({
-            solicitudId,
-            remisionId: remisionId === "" ? null : Number(remisionId),
-            comunicadoEl: fecha,
-            nota,
-          }),
+        run(
+          () =>
+            recordExcessReportAction({
+              solicitudId,
+              remisionId: remisionId === "" ? null : Number(remisionId),
+              comunicadoEl: fecha,
+              nota,
+            }),
+          discard,
         )
       }
-      onDiscard={() => {
-        setRemisionId("");
-        setFecha("");
-        setNota("");
-        setFailure(null);
-      }}
+      onDiscard={discard}
     >
       <div className="flex flex-col gap-2">
         <Label htmlFor={`${ids}-teacher`}>{t("dialog.teacherLabel")}</Label>

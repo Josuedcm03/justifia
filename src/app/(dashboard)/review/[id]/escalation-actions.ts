@@ -1,5 +1,6 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { afterResponse } from "@/app/(dashboard)/review/[id]/after-response";
@@ -17,10 +18,11 @@ import {
   recordExcessReport,
 } from "@/lib/data/solicitud-escalation";
 import { getEscalationDeps } from "@/lib/escalation/deps";
-import type {
-  EscalationError,
-  EscalationNoticeReason,
-  EscalationNoticeState,
+import {
+  validateReportDraft,
+  type EscalationError,
+  type EscalationNoticeReason,
+  type EscalationNoticeState,
 } from "@/lib/intake/escalation";
 
 // The secretary's escalation and absence-report actions (RF-10, RF-15, RN-20,
@@ -31,15 +33,21 @@ import type {
 // data layer, so a client-sent reason is ignored; the note, the date and the
 // teacher are validated there too, before any write. Success schedules the
 // notice to coordination after the response (`after()`, only once the write has
-// committed, so a mail outage can never undo it), then redirects (the queue for
-// an escalation, the detail for a report) and never revalidates the page, so the
-// audited detail read cannot run twice (SR-11); only refusals come back to the
-// dialog. A secretary may resend a notice that is not `enviada`.
+// committed, so a mail outage can never undo it), then leaves the screen: an
+// escalation redirects to the queue; a report happens on the detail itself, and
+// a redirect to the same route would keep the open dialog and its draft, so it
+// answers `{ ok: true }` (the dialog closes and resets itself) and refreshes the
+// client router once. Neither revalidates the page, so the audited detail read
+// cannot run twice (SR-11); only refusals come back to the dialog. A secretary
+// may resend a notice that is not `enviada`.
 
 export type EscalationActionFailure =
   | { ok: false; reason: "not_found" | "conflict" | "unexpected" }
   | { ok: false; reason: "invalid"; errors: EscalationError[] }
   | { ok: false; reason: "sin_coordinacion"; carreraNombre: string };
+
+/** The report was recorded; the dialog closes and the page was refreshed. */
+export type ReportActionResult = { ok: true } | EscalationActionFailure;
 
 const QUEUE_PATH = "/review";
 const NOT_FOUND = { ok: false, reason: "not_found" } as const;
@@ -122,15 +130,23 @@ export async function escalateRequestAction(
 
 export async function recordExcessReportAction(
   input: unknown,
-): Promise<EscalationActionFailure> {
+): Promise<ReportActionResult> {
   const guard = await authorize(input);
   if (!guard) return NOT_FOUND;
   const { actorId, scope, payload, solicitudId } = guard;
   if (!isId(payload.remisionId)) {
+    // The date and the note are checked too, so one answer names every error.
+    const draft = validateReportDraft(
+      { comunicadoEl: payload.comunicadoEl, nota: payload.nota },
+      new Date(),
+    );
     return {
       ok: false,
       reason: "invalid",
-      errors: [{ field: "docente", code: "docente_invalid" }],
+      errors: [
+        { field: "docente", code: "docente_invalid" },
+        ...(draft.ok ? [] : draft.errors),
+      ],
     };
   }
 
@@ -150,7 +166,8 @@ export async function recordExcessReportAction(
   }
   if (!outcome.ok) return outcome;
   scheduleNotice(outcome.escalamientoId, actorId);
-  redirect(`${QUEUE_PATH}/${solicitudId}`);
+  refresh();
+  return { ok: true };
 }
 
 export type ResendNoticeResult =

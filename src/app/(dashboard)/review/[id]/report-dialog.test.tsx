@@ -181,6 +181,78 @@ describe("ReportDialog confirmation (RNF-12)", () => {
     expect(within(dialog).getByRole("alert")).toHaveTextContent(text);
   });
 
+  it("closes the dialog and clears the draft once the report is recorded", async () => {
+    actionMock.mockResolvedValue({ ok: true });
+    show();
+    let dialog = await open();
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
+      "32",
+    );
+    await userEvent.type(
+      within(dialog).getByLabelText(en.dialog.dateLabel),
+      "2026-10-13",
+    );
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+      "Supera el limite",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(actionMock).toHaveBeenCalledTimes(1);
+    // Opening it again offers a blank form, not the report just recorded.
+    dialog = await open();
+    expect(
+      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
+    ).toHaveValue("");
+    expect(within(dialog).getByLabelText(en.dialog.dateLabel)).toHaveValue("");
+    expect(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+    ).toHaveValue("");
+  });
+
+  it("sends nothing twice while the first confirm is still running", async () => {
+    actionMock.mockReturnValue(new Promise(() => {}));
+    show();
+    const dialog = await open();
+    const confirm = within(dialog).getByRole("button", {
+      name: en.dialog.confirm,
+    });
+
+    await userEvent.click(confirm);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.pending }),
+    );
+
+    expect(actionMock).toHaveBeenCalledTimes(1);
+    expect(
+      within(dialog).getByRole("button", { name: en.dialog.pending }),
+    ).toBeDisabled();
+  });
+
+  it("keeps the dialog open and the draft after a refusal", async () => {
+    actionMock.mockResolvedValue({ ok: false, reason: "conflict" });
+    show();
+    const dialog = await open();
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+      "Borrador",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+
+    expect(await within(dialog).findByText(en.errors.conflict)).toBeVisible();
+    expect(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+    ).toHaveValue("Borrador");
+  });
+
   it("changes nothing when cancelled and discards the draft", async () => {
     show();
     let dialog = await open();

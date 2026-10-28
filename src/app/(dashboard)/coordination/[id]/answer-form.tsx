@@ -25,7 +25,7 @@ export function AnswerForm({ escalamientoId }: { escalamientoId: number }) {
   const t = useTranslations("coordination.answer");
   const ids = useId();
   const [texto, setTexto] = useState("");
-  const { failure, setFailure, pending, run } =
+  const { open, setOpen, failure, setFailure, pending, run } =
     useEscalationAction<AnswerActionFailure>();
 
   const messages =
@@ -47,6 +47,8 @@ export function AnswerForm({ escalamientoId }: { escalamientoId: number }) {
   return (
     <EscalationFormDialog
       copy={t}
+      open={open}
+      setOpen={setOpen}
       failure={failure}
       banner={banner}
       pending={pending}

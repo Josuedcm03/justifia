@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 
 import type { EscalationActionFailure } from "@/app/(dashboard)/review/[id]/escalation-actions";
 import {
@@ -69,35 +69,57 @@ export type DialogCopy = (
 ) => string;
 
 /**
- * The refusal of the last confirm and the running state. A success never
- * resolves here: the action redirects. Generic in the failure type, so the
- * secretary and the coordinator actions share it.
+ * The open state, the refusal of the last confirm and the running state. An
+ * action that leaves the screen redirects and never resolves here. One that
+ * stays on the page resolves `{ ok: true }`: the dialog closes and `onSuccess`
+ * resets the draft. A second confirm while one runs is ignored. Generic in the
+ * failure type, so the secretary and the coordinator actions share it.
  */
 export function useEscalationAction<
   F extends { reason: string } = EscalationActionFailure,
 >() {
+  const [open, setOpen] = useState(false);
   const [failure, setFailure] = useState<F | null>(null);
   const [pending, startTransition] = useTransition();
+  const running = useRef(false);
 
-  function run(action: () => Promise<F>) {
+  function run(
+    action: () => Promise<F | { ok: true }>,
+    onSuccess?: () => void,
+  ) {
+    if (running.current) return;
+    running.current = true;
     setFailure(null);
     startTransition(async () => {
-      const result = await action();
-      if (result) setFailure(result);
+      try {
+        const result = await action();
+        if (!result) return;
+        if ("reason" in result) {
+          setFailure(result);
+        } else {
+          setOpen(false);
+          onSuccess?.();
+        }
+      } finally {
+        running.current = false;
+      }
     });
   }
 
-  return { failure, setFailure, pending, run };
+  return { open, setOpen, failure, setFailure, pending, run };
 }
 
 /**
  * An escalation-style confirmation dialog: outline trigger, the refusal banner
  * (with the way back to the list `backHref` when the request moved or
  * vanished), the fields, then cancel and confirm. It stays open while the
- * action runs, and closing it discards the draft through `onDiscard`.
+ * action runs, and closing it discards the draft through `onDiscard`. Its open
+ * state is the hook's, so a success can close it.
  */
 export function EscalationFormDialog({
   copy,
+  open,
+  setOpen,
   failure,
   banner,
   pending,
@@ -107,6 +129,8 @@ export function EscalationFormDialog({
   children,
 }: {
   copy: DialogCopy;
+  open: boolean;
+  setOpen: (open: boolean) => void;
   failure: { reason: string } | null;
   banner: string | null;
   pending: boolean;
@@ -115,7 +139,6 @@ export function EscalationFormDialog({
   backHref?: string;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
   const backToQueue =
     failure?.reason === "conflict" || failure?.reason === "not_found";
 
@@ -195,6 +218,8 @@ export function NoteField({
   onChange: (value: string) => void;
   messages: readonly string[];
 }) {
+  // The server limit applies to the trimmed text, so the counter does too.
+  const length = value.trim().length;
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{copy("dialog.noteLabel")}</Label>
@@ -212,12 +237,12 @@ export function NoteField({
         </p>
         <p
           className={
-            value.length > ESCALATION_NOTE_MAX
+            length > ESCALATION_NOTE_MAX
               ? "text-destructive-ink text-xs tabular-nums"
               : "text-muted-foreground text-xs tabular-nums"
           }
         >
-          {copy("dialog.counter", { count: value.length })}
+          {copy("dialog.counter", { count: length })}
         </p>
       </div>
       <FieldMessages id={`${id}-error`} messages={messages} />
