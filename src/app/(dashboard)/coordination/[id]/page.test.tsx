@@ -262,7 +262,9 @@ describe("CoordinationDetailPage: an open escalation (E1, E3, RNF-02)", () => {
         "La firma del medico no coincide con el sello.",
       ),
     ).toBeInTheDocument();
-    expect(within(escalated).getByText(/Oct 14, 2026/)).toBeInTheDocument();
+    expect(
+      within(escalated).getByText(/Oct 14, 2026, 9:00 AM/),
+    ).toBeInTheDocument();
   });
 
   it("shows the subjects with group and teacher", async () => {

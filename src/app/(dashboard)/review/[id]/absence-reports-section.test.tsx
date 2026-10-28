@@ -108,7 +108,9 @@ describe("AbsenceReportsSection list (RF-15, RF-10 b)", () => {
       "Communicated by the teacher on Oct 9, 2026",
     );
     expect(region).toHaveTextContent("Supera el limite de faltas.");
-    expect(region).toHaveTextContent("Recorded by Rosa Lopez, Oct 10, 2026");
+    expect(region).toHaveTextContent(
+      "Recorded by Rosa Lopez, Oct 10, 2026, 10:00 AM",
+    );
   });
 
   it("lists several reports for one teacher as separate entries, in the order given", () => {
@@ -146,7 +148,12 @@ describe("AbsenceReportsSection list (RF-15, RF-10 b)", () => {
       null,
       messages.en.review.escalation.notification.pendienteFallido,
     ],
-    ["enviada", null, new Date("2026-10-10T16:01:00Z"), "Sent on Oct 10, 2026"],
+    [
+      "enviada",
+      null,
+      new Date("2026-10-10T16:01:00Z"),
+      "Sent on Oct 10, 2026, 10:01 AM",
+    ],
     [
       "bloqueada",
       "sin_destinatarios",

@@ -726,7 +726,7 @@ describe("design system: escalation and report screens (§2.5, §5 Badge, Dialog
       new Date("2026-10-08T15:05:00Z"),
       "bg-success/10",
       "text-success-ink",
-      "Sent on Oct 8, 2026",
+      "Sent on Oct 8, 2026, 9:05 AM",
     ],
     [
       "bloqueada",

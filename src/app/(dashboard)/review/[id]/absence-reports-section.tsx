@@ -6,6 +6,7 @@ import {
   type ReportTeacher,
 } from "@/app/(dashboard)/review/[id]/report-dialog";
 import { Section } from "@/app/(dashboard)/review/[id]/request-sections";
+import { BUSINESS_TIME_ZONE } from "@/app/(dashboard)/review/queue-parts";
 import type { DetailReport } from "@/lib/data/solicitud-detail";
 
 // The RF-15 absence reports of the staff detail, apart from the remission
@@ -14,8 +15,6 @@ import type { DetailReport } from "@/lib/data/solicitud-detail";
 // offered while the request is approved. Each entry shows the delivery of its
 // notice to coordination as text (RNF-07). There is no percentage or absence
 // count anywhere (RF-15 a). A notice that is not sent offers its resend.
-
-const BUSINESS_TIME_ZONE = "America/Managua";
 
 export function AbsenceReportsSection({
   solicitudId,
@@ -46,6 +45,7 @@ export function AbsenceReportsSection({
   const when = (date: Date) =>
     format.dateTime(date, {
       dateStyle: "medium",
+      timeStyle: "short",
       timeZone: BUSINESS_TIME_ZONE,
     });
 

@@ -7,6 +7,7 @@ import {
   noticeStatusKey,
   type NoticeStatusKey,
 } from "@/app/(dashboard)/review/notice-status";
+import { BUSINESS_TIME_ZONE } from "@/app/(dashboard)/review/queue-parts";
 import type { DetailEscalation } from "@/lib/data/solicitud-detail";
 import type {
   EscalationNoticeReason,
@@ -19,10 +20,8 @@ import type {
 // Staff only; the student detail never receives this data (ES-14). It offers no
 // decision control: while a request is in coordination there is nothing to
 // decide. The only control is the resend of a notice that is not `enviada`
-// (RF-10 b). Sync component, like the other sections: text and dates resolve on
-// the server in the business zone.
-
-const BUSINESS_TIME_ZONE = "America/Managua";
+// (RF-10 b). Sync component, like the other sections: text, dates and times
+// resolve on the server in the business zone.
 
 const STATUS_TONES: Record<NoticeStatusKey, string> = {
   pendiente: "bg-warning/10 text-warning-ink",
@@ -60,6 +59,7 @@ export function NoticeStatusPill({
         date: enviadaEn
           ? format.dateTime(enviadaEn, {
               dateStyle: "medium",
+              timeStyle: "short",
               timeZone: BUSINESS_TIME_ZONE,
             })
           : "",
@@ -116,6 +116,7 @@ export function EscalationSection({
   const when = (date: Date) =>
     format.dateTime(date, {
       dateStyle: "medium",
+      timeStyle: "short",
       timeZone: BUSINESS_TIME_ZONE,
     });
 

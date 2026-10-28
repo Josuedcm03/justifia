@@ -42,7 +42,7 @@ describe("EscalationSection history (RF-10, RN-16)", () => {
     const region = screen.getByRole("region", { name: en.section.title });
     expect(region).toHaveTextContent(en.reasons.sospecha_documento);
     expect(region).toHaveTextContent("El sello parece alterado.");
-    expect(region).toHaveTextContent("Rosa Lopez, Oct 8, 2026");
+    expect(region).toHaveTextContent("Rosa Lopez, Oct 8, 2026, 9:00 AM");
   });
 
   it("says an open escalation is waiting for the coordination and offers no decision control", () => {
@@ -67,7 +67,7 @@ describe("EscalationSection history (RF-10, RN-16)", () => {
     const region = screen.getByRole("region", { name: en.section.title });
     expect(region).toHaveTextContent(en.section.fields.answer);
     expect(region).toHaveTextContent("El documento es autentico.");
-    expect(region).toHaveTextContent("Marta Gomez, Oct 9, 2026");
+    expect(region).toHaveTextContent("Marta Gomez, Oct 9, 2026, 3:00 PM");
     expect(screen.queryByText(en.section.waiting)).toBeNull();
   });
 
@@ -104,7 +104,12 @@ describe("EscalationSection notification status (RNF-07): text, never colour alo
   it.each([
     ["pendiente", null, null, en.notification.pendiente],
     ["pendiente", "error_envio", null, en.notification.pendienteFallido],
-    ["enviada", null, new Date("2026-10-08T15:05:00Z"), "Sent on Oct 8, 2026"],
+    [
+      "enviada",
+      null,
+      new Date("2026-10-08T15:05:00Z"),
+      "Sent on Oct 8, 2026, 9:05 AM",
+    ],
     ["bloqueada", "sin_destinatarios", null, en.notification.bloqueada],
   ] as const)(
     "shows the %s notification with reason %s as the text %s",
@@ -149,7 +154,7 @@ describe("EscalationSection notice resend (RF-10 b)", () => {
       show([escalation({ notificacionEstado, notificacionMotivo })]);
 
       expect(
-        screen.getByRole("button", { name: named("Oct 8, 2026") }),
+        screen.getByRole("button", { name: named("Oct 8, 2026, 9:00 AM") }),
       ).toHaveTextContent(resend.action);
     },
   );
@@ -179,7 +184,9 @@ describe("EscalationSection notice resend (RF-10 b)", () => {
       }),
     ]);
 
-    expect(screen.getByText("Sent on Oct 8, 2026")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sent on Oct 8, 2026, 9:05 AM"),
+    ).toBeInTheDocument();
     expect(screen.queryByText(en.notification.respondida)).toBeNull();
   });
 
@@ -214,7 +221,7 @@ describe("EscalationSection notice resend (RF-10 b)", () => {
 
     const buttons = screen.getAllByRole("button");
     expect(buttons).toHaveLength(1);
-    expect(buttons[0]).toHaveAccessibleName(named("Oct 12, 2026"));
+    expect(buttons[0]).toHaveAccessibleName(named("Oct 12, 2026, 9:00 AM"));
   });
 
   it("reads in Spanish", () => {
@@ -225,7 +232,7 @@ describe("EscalationSection notice resend (RF-10 b)", () => {
       screen.getByRole("button", {
         name: es.resend.actionNamed.replace(
           "{name}",
-          `${es.reasons.sospecha_documento}, 8 oct 2026`,
+          `${es.reasons.sospecha_documento}, 8 oct 2026, 9:00`,
         ),
       }),
     ).toHaveTextContent(es.resend.action);

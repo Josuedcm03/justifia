@@ -19,6 +19,7 @@ function useDays() {
     instant: (date: Date) =>
       format.dateTime(date, {
         dateStyle: "medium",
+        timeStyle: "short",
         timeZone: BUSINESS_TIME_ZONE,
       }),
     day: (iso: string) =>

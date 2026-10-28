@@ -40,6 +40,12 @@ export function CoordinationTab({
       dateStyle: "medium",
       timeZone: BUSINESS_TIME_ZONE,
     });
+  const sentAt = (date: Date) =>
+    format.dateTime(date, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: BUSINESS_TIME_ZONE,
+    });
 
   const tableRows: CoordinationQueueTableRow[] = rows.map((row) => {
     const name = row.estudianteNombre ?? t("unnamed");
@@ -53,7 +59,7 @@ export function CoordinationTab({
       pausedLabel: t("deadline.paused"),
       noticeText: tEscalation(
         `notification.${noticeStatusKey(row.notificacionEstado, row.notificacionMotivo)}`,
-        { date: row.enviadaEn ? day(row.enviadaEn) : "" },
+        { date: row.enviadaEn ? sentAt(row.enviadaEn) : "" },
       ),
       reviewLabel: t("review"),
       reviewAriaLabel: t("reviewNamed", { name }),
