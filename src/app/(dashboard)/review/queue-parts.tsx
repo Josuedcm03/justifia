@@ -39,19 +39,24 @@ export function QueueStudent({
   );
 }
 
-/** The link to the detail; never prefetched, the detail is an audited read. */
+/**
+ * The link to the detail; never prefetched, the detail is an audited read. The
+ * coordinator list reuses it with its own `base`.
+ */
 export function QueueReviewLink({
   id,
   label,
   ariaLabel,
+  base = BASE,
 }: {
   id: number;
   label: string;
   ariaLabel: string;
+  base?: string;
 }) {
   return (
     <Link
-      href={`${BASE}/${id}`}
+      href={`${base}/${id}`}
       prefetch={false}
       aria-label={ariaLabel}
       className={`${buttonVariants({ variant: "outline", size: "lg" })} w-full sm:w-auto`}

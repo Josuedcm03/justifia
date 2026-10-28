@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, three escalation and four escalation notice ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, three escalation, four escalation notice and one coordinator read ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -74,6 +74,7 @@ describe("AUDIT_ACTIONS", () => {
         "escalamiento.notificacion_fallida",
         "escalamiento.notificacion_bloqueada",
         "escalamiento.notificacion_reenviada",
+        "escalamiento.cola.consultada",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([

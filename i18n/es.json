@@ -885,6 +885,93 @@
       "back": "Volver a mis solicitudes"
     }
   },
+  "coordination": {
+    "notFound": {
+      "title": "Solicitud no encontrada",
+      "message": "Esta solicitud no existe o no está disponible para usted.",
+      "back": "Volver a la lista"
+    },
+    "list": {
+      "title": "Solicitudes escaladas",
+      "description": "Solicitudes que la secretaría escaló a la coordinación de su carrera y avisos informativos de la secretaría.",
+      "unnamed": "Estudiante sin nombre",
+      "noCareer": {
+        "title": "Su cuenta no tiene una carrera asignada",
+        "message": "Solicite al administrador que asigne una carrera a su cuenta antes de atender solicitudes."
+      },
+      "result": {
+        "respondida": "La respuesta quedó registrada y la solicitud volvió a la secretaría."
+      },
+      "open": {
+        "title": "Pendientes de respuesta",
+        "empty": "No hay solicitudes escaladas pendientes de respuesta en su carrera.",
+        "caption": "Solicitudes escaladas pendientes de respuesta",
+        "escalated": "Escalada el {date}",
+        "attend": "Atender",
+        "attendNamed": "Atender la solicitud de {name}"
+      },
+      "notices": {
+        "title": "Avisos informativos",
+        "empty": "No hay avisos para su carrera.",
+        "caption": "Avisos informativos de la secretaría",
+        "teacher": "Docente: {name}",
+        "communicated": "Comunicado el {date}",
+        "view": "Ver aviso",
+        "viewNamed": "Ver el aviso de {name}"
+      }
+    },
+    "detail": {
+      "title": "Solicitud de {name}",
+      "description": "Revise los documentos y responda a la secretaría. La decisión sobre la solicitud la toma la secretaría.",
+      "noticeDescription": "Aviso informativo de la secretaría. No requiere respuesta.",
+      "back": "Volver a la lista",
+      "unnamed": "Estudiante sin nombre",
+      "notSet": "Sin dato",
+      "noNote": "Sin nota",
+      "period": "{start} al {end}",
+      "sections": {
+        "student": "Estudiante",
+        "request": "Solicitud",
+        "escalation": "Escalamiento",
+        "notice": "Aviso",
+        "answer": "Respuesta a la secretaría"
+      },
+      "fields": {
+        "name": "Nombre",
+        "cif": "CIF",
+        "career": "Carrera",
+        "cause": "Causa",
+        "period": "Fechas de la inasistencia",
+        "reason": "Motivo",
+        "note": "Nota de la secretaría",
+        "escalated": "Escalada",
+        "teacher": "Docente",
+        "communicated": "Fecha comunicada por el docente",
+        "reportNote": "Nota del aviso"
+      }
+    },
+    "answer": {
+      "dialog": {
+        "trigger": "Responder a la secretaría",
+        "title": "¿Enviar esta respuesta a la secretaría?",
+        "description": "La solicitud vuelve a la secretaría, que decidirá sobre ella. La respuesta no se puede modificar después.",
+        "noteLabel": "Respuesta para la secretaría",
+        "noteHint": "Indique su valoración de los documentos. Solo la ven la secretaría y la coordinación de la carrera.",
+        "counter": "{count} de 1000",
+        "confirm": "Enviar respuesta",
+        "pending": "Enviando...",
+        "cancel": "Cancelar",
+        "backToQueue": "Volver a la lista"
+      },
+      "errors": {
+        "texto_required": "Escriba la respuesta para la secretaría.",
+        "texto_too_long": "La respuesta no puede superar los 1000 caracteres.",
+        "conflict": "Esta solicitud ya fue respondida. Vuelva a la lista para ver las pendientes.",
+        "not_found": "Esta solicitud ya no está disponible para usted.",
+        "unexpected": "No se pudo enviar la respuesta. Inténtelo de nuevo."
+      }
+    }
+  },
   "enrollment": {
     "title": "Mis inscripciones",
     "description": "Declara los grupos en los que estás inscrito. Tus solicitudes solo pueden nombrar estos grupos.",

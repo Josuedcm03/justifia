@@ -9,8 +9,7 @@ import { describe, expect, it } from "vitest";
  * (escalate and report, inside their transactions), the outbox columns (state,
  * attempts, claim, send time, provider id) are updated only by
  * `escalamiento.ts`, and the answer columns only by the coordinator's answer
- * module, which joins the allowed list with its unit. Dispatch writes through
- * `escalamiento.ts`.
+ * module, `escalation-answer.ts`. Dispatch writes through `escalamiento.ts`.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -33,6 +32,7 @@ function escalamientoWrites(source: string): Verb[] {
 /** Module (relative to src, forward slashes) -> verbs it may use. */
 const ALLOWED: Record<string, readonly Verb[]> = {
   "lib/data/escalamiento.ts": ["update"],
+  "lib/data/escalation-answer.ts": ["update"],
   "lib/data/solicitud-escalation.ts": ["insert"],
 };
 
@@ -103,10 +103,18 @@ describe("Escalamiento write surface", () => {
     expect(read("lib/data/escalamiento.ts")).toMatch(OUTBOX_COLUMNS);
   });
 
-  it("keeps the answer columns out of the notification writer", () => {
+  it("keeps the answer columns out of the notification writer and the creation", () => {
     expect(read("lib/data/escalamiento.ts")).not.toMatch(ANSWER_COLUMNS);
     expect(read("lib/data/solicitud-escalation.ts")).not.toMatch(
       ANSWER_COLUMNS,
     );
+  });
+
+  it("keeps the answer module on the answer columns: it touches no outbox column", () => {
+    const answer = read("lib/data/escalation-answer.ts");
+
+    expect(answer).toMatch(ANSWER_COLUMNS);
+    expect(answer).not.toMatch(OUTBOX_COLUMNS);
+    expect(answer).not.toContain("notificacionEstado");
   });
 });

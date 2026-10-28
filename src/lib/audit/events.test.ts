@@ -25,6 +25,7 @@ import {
   documentoFormatoEspecialEvent,
   documentoRetiradoEvent,
   enrollmentWriteEvents,
+  escalamientoColaConsultadaEvent,
   escalamientoNotificacionBloqueadaEvent,
   escalamientoNotificacionEnviadaEvent,
   escalamientoNotificacionFallidaEvent,
@@ -1676,5 +1677,37 @@ describe("escalation notice event builders (RF-10 b, RNF-06, RNF-02)", () => {
     for (const event of events) {
       expect(JSON.stringify(event)).not.toMatch(/550|mailbox|Asunto|@/);
     }
+  });
+});
+
+describe("coordinator queue read event (RF-10, RNF-06, E1)", () => {
+  it("maps to escalamiento.cola.consultada on the career of the caller", () => {
+    const event = escalamientoColaConsultadaEvent({ carreraId: 9, total: 4 });
+
+    expect(event.accion).toBe("escalamiento.cola.consultada");
+    expect(event.entidadTipo).toBe("Carrera");
+    expect(event.entidadId).toBe(9);
+    expect(AUDIT_ACTIONS).toContain("escalamiento.cola.consultada");
+  });
+
+  it("carries the count only, whatever the career or total", () => {
+    expect(
+      escalamientoColaConsultadaEvent({ carreraId: 9, total: 4 }).datos,
+    ).toEqual({ total: 4 });
+    expect(
+      escalamientoColaConsultadaEvent({ carreraId: 2, total: 0 }).datos,
+    ).toEqual({ total: 0 });
+  });
+
+  it("drops a request id list, a name or a note smuggled into the call", () => {
+    const event = escalamientoColaConsultadaEvent({
+      carreraId: 9,
+      total: 2,
+      solicitudIds: [41, 42],
+      nombre: "Ana Perez",
+      nota: "Diagnostico: depresion severa",
+    } as Parameters<typeof escalamientoColaConsultadaEvent>[0]);
+
+    expect(JSON.stringify(event)).not.toMatch(/41|42|Perez|Diagnostico/);
   });
 });

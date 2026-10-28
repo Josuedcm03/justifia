@@ -20,8 +20,8 @@ import { Label } from "@/components/ui/label";
 import { ESCALATION_NOTE_MAX } from "@/lib/intake/escalation";
 
 // Pieces the staff dialogs share (docs/design-system.md §5 Form, Alert,
-// Dialog), so the decision, escalation and absence-report dialogs look and
-// behave alike (RNF-12).
+// Dialog), so the decision, escalation, absence-report and coordinator answer
+// dialogs look and behave alike (RNF-12).
 
 /** The catalog alert banner of a refusal that names no field. */
 export const DIALOG_ALERT =
@@ -70,13 +70,16 @@ export type DialogCopy = (
 
 /**
  * The refusal of the last confirm and the running state. A success never
- * resolves here: the action redirects.
+ * resolves here: the action redirects. Generic in the failure type, so the
+ * secretary and the coordinator actions share it.
  */
-export function useEscalationAction() {
-  const [failure, setFailure] = useState<EscalationActionFailure | null>(null);
+export function useEscalationAction<
+  F extends { reason: string } = EscalationActionFailure,
+>() {
+  const [failure, setFailure] = useState<F | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function run(action: () => Promise<EscalationActionFailure>) {
+  function run(action: () => Promise<F>) {
     setFailure(null);
     startTransition(async () => {
       const result = await action();
@@ -89,9 +92,9 @@ export function useEscalationAction() {
 
 /**
  * An escalation-style confirmation dialog: outline trigger, the refusal banner
- * (with the way back to the queue when the request moved or vanished), the
- * fields, then cancel and confirm. It stays open while the action runs, and
- * closing it discards the draft through `onDiscard`.
+ * (with the way back to the list `backHref` when the request moved or
+ * vanished), the fields, then cancel and confirm. It stays open while the
+ * action runs, and closing it discards the draft through `onDiscard`.
  */
 export function EscalationFormDialog({
   copy,
@@ -100,14 +103,16 @@ export function EscalationFormDialog({
   pending,
   onConfirm,
   onDiscard,
+  backHref = "/review",
   children,
 }: {
   copy: DialogCopy;
-  failure: EscalationActionFailure | null;
+  failure: { reason: string } | null;
   banner: string | null;
   pending: boolean;
   onConfirm: () => void;
   onDiscard: () => void;
+  backHref?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -148,7 +153,7 @@ export function EscalationFormDialog({
             <p>{banner}</p>
             {backToQueue ? (
               <Link
-                href="/review"
+                href={backHref}
                 prefetch={false}
                 className="text-primary w-fit font-medium underline underline-offset-4"
               >
