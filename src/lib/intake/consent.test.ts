@@ -31,7 +31,8 @@ const PINNED_NOTICE: Record<string, string> = {
 };
 
 // The v2 texts of the escalation change (E6): the career coordination may
-// consult the request when it is escalated. Proposal pending UAM legal review.
+// consult the request when it is escalated. The owner adopted it as the final
+// v2 text on 2026-10-27 and the team owns it; changing it needs a new version.
 const APPROVED_ES =
   "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, que se envíen a los docentes de las asignaturas afectadas y que, si la solicitud se escala, la coordinación de mi carrera pueda consultarlos. Ver aviso de privacidad";
 const APPROVED_EN =
