@@ -150,6 +150,32 @@ describe("OwnRequestsPage list (RF-07 c)", () => {
     }
   });
 
+  it.each([
+    ["en", "Go to my enrollment"],
+    ["es", "Ir a mis inscripciones"],
+  ] as const)(
+    "links the empty state to /enrollment in %s",
+    async (locale, name) => {
+      state.locale = locale;
+      listMock.mockResolvedValue([]);
+
+      await renderPage();
+
+      expect(screen.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        "/enrollment",
+      );
+    },
+  );
+
+  it("shows no enrollment link when the list is shown", async () => {
+    await renderPage();
+
+    expect(
+      screen.queryByRole("link", { name: "Go to my enrollment" }),
+    ).toBeNull();
+  });
+
   it("lists each request with its state, cause, dates and presentation date", async () => {
     await renderPage();
 

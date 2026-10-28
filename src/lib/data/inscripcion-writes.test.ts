@@ -1,17 +1,21 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Structural check behind the academic-catalog scenario "No code path in this
- * change writes Inscripcion". The Inscripciones sheet was cut from the import
- * (scope reduction), so nothing may insert, update or delete `Inscripcion`
- * rows; the role-integrity rule of `EstudianteId` is deferred to the future
- * writer. This is a characterization pin: it passes today and fails the moment
- * a writer appears without the rule being specified and tested.
+ * Structural check behind the academic-catalog scenario "Only the allowlisted
+ * writer writes Inscripcion" (student-enrollment SE-12, D7). The import never
+ * writes `Inscripcion`; the student enrollment writer is the one module that
+ * may, and it never deletes. A second writer appears only by being added to
+ * the allowlist together with the role-integrity rule it must honour.
  */
 
 const SRC = join(process.cwd(), "src");
+
+/** Paths relative to `src`, normalized to `/` so the list is Windows-safe. */
+const ALLOWED_WRITERS = ["lib/data/enrollment-write.ts"];
+
+const relativePath = (file: string) => relative(SRC, file).split(sep).join("/");
 
 /** Drizzle writes (`insert(inscripcion)`) and raw SQL writes on the table. */
 const WRITE_PATTERNS = [
@@ -53,16 +57,30 @@ describe("Inscripcion write surface", () => {
     expect(findInscripcionWrites("db.select().from(inscripcion)")).toEqual([]);
   });
 
-  it("has no module under src that inserts, updates or deletes Inscripcion", () => {
+  it("has no module outside the allowlist that inserts, updates or deletes Inscripcion", () => {
     const files = productionSources(SRC);
     expect(files.length).toBeGreaterThan(0);
 
-    const offenders = files.flatMap((file) =>
-      findInscripcionWrites(readFileSync(file, "utf8")).map(
-        (hit) => `${relative(SRC, file)}: ${hit}`,
-      ),
-    );
+    const offenders = files
+      .filter((file) => !ALLOWED_WRITERS.includes(relativePath(file)))
+      .flatMap((file) =>
+        findInscripcionWrites(readFileSync(file, "utf8")).map(
+          (hit) => `${relativePath(file)}: ${hit}`,
+        ),
+      );
 
     expect(offenders).toEqual([]);
   });
+
+  it.each(ALLOWED_WRITERS)(
+    "%s really writes Inscripcion (the allowlist cannot rot) and never deletes",
+    (writer) => {
+      const hits = findInscripcionWrites(
+        readFileSync(join(SRC, writer), "utf8"),
+      );
+
+      expect(hits).not.toEqual([]);
+      expect(hits.filter((hit) => /delete/i.test(hit))).toEqual([]);
+    },
+  );
 });

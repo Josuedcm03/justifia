@@ -155,7 +155,7 @@ describe("listCoordinationEscalations (E1, E10, RNF-01)", () => {
     for (const statement of double.log) {
       expect(render(statement.where).sql).not.toContain("NotificacionEstado");
     }
-    expect(Object.keys(double.log[0].fields as object)).not.toContain(
+    expect(Object.keys(double.log[0].selection as object)).not.toContain(
       "notificacionEstado",
     );
   });
@@ -185,7 +185,7 @@ describe("listCoordinationEscalations (E1, E10, RNF-01)", () => {
     await listCoordinationEscalations(SCOPE);
 
     for (const statement of double.log) {
-      const keys = Object.keys(statement.fields as object).join(" ");
+      const keys = Object.keys(statement.selection as object).join(" ");
       expect(keys).not.toMatch(
         /causa|fechaInicio|fechaFin|correo|consentimiento|nota|respuesta/i,
       );
@@ -321,7 +321,7 @@ describe("getCoordinationDetail (E1, E10, RNF-01)", () => {
 
       const detail = await getCoordinationDetail(SCOPE, 9);
 
-      const selected = Object.keys(double.log[0].fields as object).join(" ");
+      const selected = Object.keys(double.log[0].selection as object).join(" ");
       expect(selected).not.toMatch(
         /correo|email|consentimiento|decision|respuesta|secretaria/i,
       );
@@ -378,7 +378,7 @@ describe("getCoordinationDetail (E1, E10, RNF-01)", () => {
 
       await getCoordinationDetail(SCOPE, 12);
 
-      const fields = double.log[0].fields as Record<string, unknown>;
+      const fields = double.log[0].selection as Record<string, unknown>;
       expect(Object.keys(fields)).toEqual(
         expect.arrayContaining([
           "docenteNombre",
