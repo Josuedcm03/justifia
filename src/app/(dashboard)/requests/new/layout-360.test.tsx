@@ -27,6 +27,7 @@ vi.mock("next/navigation", () => ({
 import { submitRequestAction } from "@/app/(dashboard)/requests/new/actions";
 import { CauseDatesStep } from "@/app/(dashboard)/requests/new/cause-dates-step";
 import { DocumentsStep } from "@/app/(dashboard)/requests/new/documents-step";
+import { EnrollmentNotice } from "@/app/(dashboard)/requests/new/enrollment-notice";
 import { IntakeStepper } from "@/app/(dashboard)/requests/new/intake-stepper";
 import { ReviewStep } from "@/app/(dashboard)/requests/new/review-step";
 import { SubjectsStep } from "@/app/(dashboard)/requests/new/subjects-step";
@@ -150,6 +151,15 @@ describe.each([
     for (const action of actions) {
       expect(fillsTheRow(action), action.textContent ?? "").toBe(true);
     }
+  });
+});
+
+describe("enrollment notice at 360 px", () => {
+  it("sets no width above the viewport and gives the link the full row", () => {
+    renderIntl(<EnrollmentNotice message="Sin inscripciones" linkLabel="Ir" />);
+
+    expect(tooWide(document.body)).toEqual([]);
+    expect(screen.getByRole("link", { name: "Ir" })).toHaveClass("w-full");
   });
 });
 

@@ -42,6 +42,9 @@ export const AUDIT_ACTIONS = [
   "grupo.actualizado",
   "grupo.desactivado",
   "grupo.reactivado",
+  "inscripcion.creada",
+  "inscripcion.reactivada",
+  "inscripcion.desactivada",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -54,7 +57,8 @@ export type AuditEntityType =
   | "Facultad"
   | "Asignatura"
   | "Grupo"
-  | "Remision";
+  | "Remision"
+  | "Inscripcion";
 
 /** Closed list. A field not named here can never be reported as changed.
  *  `login` and `hashClave` are ABSENT on purpose: `hashClave` is a
@@ -239,6 +243,15 @@ type CatalogRecordPayload<F extends string> = {
   campos: readonly F[];
 } & AuditOrigin;
 
+/** Enrollment events (student-enrollment, SE-8). Ids and a closed reason code
+ *  only: no period, group number, asignatura, docente or student data
+ *  (RNF-05). */
+type InscripcionPayload = {
+  grupoId: number;
+  /** Present only on a deactivation: a drop or a replace. */
+  motivo?: "baja" | "reemplazo";
+};
+
 /** Closed discriminated union. Built ONLY by `src/lib/audit/events.ts`.
  *  `actorId` and `ocurridoEn` are NOT on this type: the actor is supplied by
  *  the writer from the session, and the timestamp is the column default, so
@@ -374,4 +387,14 @@ export type AuditEvent =
       entidadTipo: "Grupo";
       entidadId: number;
       datos: CatalogRecordPayload<AuditableGrupoField>;
+    }
+  | {
+      // The entity is the student: history per student hits the entity index.
+      accion:
+        | "inscripcion.creada"
+        | "inscripcion.reactivada"
+        | "inscripcion.desactivada";
+      entidadTipo: "Inscripcion";
+      entidadId: number;
+      datos: InscripcionPayload;
     };

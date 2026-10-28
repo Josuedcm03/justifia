@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import * as React from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -133,6 +134,43 @@ describe("Combobox", () => {
     await waitFor(() =>
       expect(screen.queryAllByRole("option")).toHaveLength(0),
     );
+  });
+
+  it("reports the text typed in the search box through onInputValueChange", async () => {
+    const user = userEvent.setup();
+    const onInputValueChange = vi.fn();
+    render(<Harness onInputValueChange={onInputValueChange} />);
+
+    await user.type(input(), "cal");
+
+    await waitFor(() =>
+      expect(onInputValueChange).toHaveBeenLastCalledWith(
+        "cal",
+        "input-change",
+      ),
+    );
+    await closePopup(user);
+  });
+
+  it("lets a caller that owns the text keep it when the popup closes", async () => {
+    const user = userEvent.setup();
+    function Owned() {
+      const [text, setText] = React.useState("");
+      return (
+        <Harness
+          inputValue={text}
+          onInputValueChange={(value, reason) => {
+            if (reason !== "input-clear") setText(value);
+          }}
+        />
+      );
+    }
+    render(<Owned />);
+
+    await user.type(input(), "zzz");
+    await closePopup(user);
+
+    expect(input()).toHaveValue("zzz");
   });
 
   it("blocks a form submission while required and nothing is chosen", async () => {
