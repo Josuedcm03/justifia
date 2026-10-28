@@ -136,6 +136,29 @@ describe("intake messages", () => {
     expect(newTab).toMatch(hint);
   });
 
+  // student-enrollment: the two step 2 empty states differ, and the entry
+  // notice has its text and link in both locales.
+  it.each([
+    ["es", es],
+    ["en", en],
+  ] as const)(
+    "%s words the step 2 empty states and the entry notice",
+    (_l, m) => {
+      const { subjects, enrollmentNotice } = m.intake;
+
+      for (const text of [
+        subjects.noEnrollment,
+        subjects.goToEnrollment,
+        subjects.empty,
+        enrollmentNotice.text,
+        enrollmentNotice.link,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      expect(subjects.noEnrollment).not.toBe(subjects.empty);
+    },
+  );
+
   it("has the sidebar entry in both locales", () => {
     expect(es.nav.newRequest).toEqual(expect.any(String));
     expect(en.nav.newRequest).toEqual(expect.any(String));

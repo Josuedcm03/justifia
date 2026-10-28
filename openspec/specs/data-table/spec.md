@@ -318,8 +318,10 @@ submitted (Enter or the submit control); typing alone MUST NOT change the URL or
 the results (D5). The search input MUST have a visible label. The existing
 search semantics (case-insensitive partial match, trimmed, literal `%` and `_`,
 hostile input without error, capped length) MUST NOT change. The result count
-MUST be in a polite live region that does not move focus when it changes. The
-status filter MUST mark the selected option for assistive technology.
+MUST be in a polite live region that does not move focus when it changes, and
+it MUST be the only place the total appears (the footer does not repeat it,
+DT-PAG-1). The status filter MUST mark the selected option for assistive
+technology.
 
 #### Scenario: Search is submit-only
 
@@ -343,16 +345,18 @@ status filter MUST mark the selected option for assistive technology.
 
 ### Requirement: DT-PAG-1 Footer: page status, page size, first/previous/next/last
 
-The table footer MUST show the page status (current page of total pages) and
-the total count; a page-size selector offering exactly 10, 25 and 50 (default
-10, the same on all server-driven lists); and first, previous, next and last
-controls. At the first page first and previous, and at the last page next and
-last, MUST be unavailable: not operable and exposed to assistive technology as
-disabled. The current page MUST be marked as current for assistive technology.
-The selector MUST have an accessible name. All controls MUST be operable by
-keyboard, show visible focus and have a 44px-tall touch target. The footer MUST
-be omitted when the total of the current view fits in the smallest page size
-(10 rows or fewer), including when there are no results.
+The table footer MUST show the page status only (the current page of the total
+pages, for example "Page 2 of 3"), without the total result count, which is
+shown once, in the toolbar (DT-TOOL-1); a page-size selector offering exactly
+10, 25 and 50 (default 10, the same on all server-driven lists); and first,
+previous, next and last controls, which MAY be icon controls provided each has
+an accessible name. At the first page first and previous, and at the last page
+next and last, MUST be unavailable: not operable and exposed to assistive
+technology as disabled. The current page MUST be marked as current for
+assistive technology. The selector MUST have an accessible name. All controls
+MUST be operable by keyboard, show visible focus and have a 44px-tall touch
+target. The footer MUST be omitted when the total of the current view fits in
+the smallest page size (10 rows or fewer), including when there are no results.
 
 #### Scenario: Bounds (table-driven)
 
@@ -365,7 +369,9 @@ be omitted when the total of the current view fits in the smallest page size
 - GIVEN 25 rows and page size 10
 - WHEN the page from the row is shown
 - THEN the controls are as in the row
-- AND the footer shows the current page, 3 pages and 25 results
+- AND the footer shows the page status "Page <n> of 3" and does not show the
+  total count
+- AND the toolbar shows "25 results" once
 
 #### Scenario: First and last navigation
 
@@ -391,40 +397,50 @@ be omitted when the total of the current view fits in the smallest page size
 - GIVEN 20 results and `size=25`
 - WHEN the list renders
 - THEN the footer is shown with all four paging controls unavailable and the page
-  status "1 of 1"
+  status "Page 1 of 1"
 
 ### Requirement: DT-PEND-1 Pending feedback on same-route changes
 
 While a URL change of a server-driven list is in flight (search, filter, sort,
-page size or page), the table card MUST indicate that an update is in progress:
-a busy state for assistive technology, a visible dimming of the rows, and the
-result-count region reading a localized "updating" text until the new count
-replaces it. The text and the busy state are the static cue; dimming is never the
-only channel and MUST change opacity only. Previous rows MUST remain visible until
-the new results arrive, the empty or no-results state MUST NOT flash in their
-place, and controls MUST stay enabled (navigation is interruptible). This
-feedback MUST NOT depend on the route-level skeleton, whose behaviour on a
-query-only navigation is unverified (see open points).
+page size or page), the route-level loading skeleton (BS-LOAD-1) MUST replace
+the page content, the table region included, until the new results arrive. The
+previous rows are not kept visible and no dimmed or half-updated table is shown;
+the empty or no-results state MUST NOT flash in the skeleton's place. The
+skeleton MUST be announced to assistive technology as busy, with a localized
+loading label, and MUST be static under reduced motion. Because the list
+remounts when the new results arrive, keyboard focus on a sortable header MUST
+return to the same header control (DT-SORT-2).
+(Owner decision, 2026-10-18: the skeleton replaces the rows on a same-route
+change; keeping the previous rows visible is not required.)
 
 #### Scenario: Update in progress
 
 - GIVEN a list and a pending navigation caused by a sort change
 - WHEN the update has not yet completed
-- THEN the table card exposes a busy state, the rows are dimmed and the count
-  region reads the updating text
-- AND the previous rows are still shown and the controls are enabled
+- THEN the page content, including the table region, is replaced by the loading
+  skeleton with the shell still in place
+- AND the skeleton is exposed as busy with its loading label and the previous
+  rows are not shown
 
 #### Scenario: Pending ends
 
 - GIVEN the same pending update
 - WHEN the new results arrive
-- THEN the busy state and dimming are removed and the new count replaces the text
+- THEN the skeleton is replaced by the new list and the toolbar count shows the
+  new count
 
 #### Scenario: Reduced motion
 
 - GIVEN `prefers-reduced-motion: reduce`
-- WHEN a pending update is shown
-- THEN the busy state and the updating text are still shown and nothing moves
+- WHEN the skeleton is shown for a pending update
+- THEN the busy state and the loading label are still exposed and nothing moves
+
+#### Scenario: Focus returns to the sort header after the remount
+
+- GIVEN a keyboard user who activated a sortable header and the skeleton replaced
+  the list
+- WHEN the new list is shown
+- THEN focus is on the same sortable header control
 
 ### Requirement: DT-STATE-1 Empty, no-results and degraded states
 
@@ -591,10 +607,11 @@ and `en`; counts and pages MUST be interpolated, not concatenated
 
 ## Open points
 
-- Unverified (design gate V1): whether the route-level skeleton shows again on
-  a query-only navigation. If it does, keyboard focus on a header could be
-  lost, so the focus rule of DT-SORT-2 must still hold; DT-PEND-1 does not
-  depend on the outcome.
+- Resolved (design gate V1): the route-level skeleton does show again on a
+  query-only navigation (observed by the owner). DT-PEND-1 describes that
+  behaviour and the owner accepted it on 2026-10-18; the focus rule of
+  DT-SORT-2 holds through the remount. Restoring focus for the other list
+  controls (status filter, paging, search) is not required.
 - Dependency (design gate S1): the Spanish-aware ordering of DT-SORT-1 depends
   on the database offering that collation. If it does not, the fallback is
   case-insensitive ordering under the database default, and accent-aware

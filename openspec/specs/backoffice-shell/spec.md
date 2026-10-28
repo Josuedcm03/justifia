@@ -26,8 +26,9 @@ Traceability (checked against `docs/requirements.md`):
 
 Role vocabulary: staff roles are `administrador`, `coordinacion`, `secretaria`.
 `estudiante` and `docente` are the other roles. Entry visibility uses the same
-predicates as the sidebar: `canFileRequests` (new request), `canManageCatalog`
-(Asignaturas, Docentes), `canImportCatalog` (import), `canCreateUsers` (Users).
+predicates as the sidebar: `canFileRequests` (My requests, New request),
+`canReviewRequests` (Review requests), `canManageCatalog` (Asignaturas,
+Docentes), `canImportCatalog` (import), `canCreateUsers` (Users).
 
 ## Requirements
 
@@ -42,9 +43,10 @@ contain a record name, code or any data read from the page. Below the `md`
 breakpoint only the entry MUST show. The trail is context, not a heading: the
 page keeps exactly one `h1`, in the page header. The trail MUST come from the
 same configuration that drives the sidebar, so a renamed or added entry cannot
-leave them disagreeing; a route with no menu entry MAY be covered by an explicit
-context-only entry (the profile page), and a route with no match MUST render no
-trail. When the page is the entry itself, the entry MUST be text with
+leave them disagreeing; when several entries match a path the most specific one
+owns it (`/requests/new` is New request, not a page below My requests); a route
+with no menu entry MAY be covered by an explicit context-only entry (the profile
+page), and a route with no match MUST render no trail. When the page is the entry itself, the entry MUST be text with
 `aria-current="page"`; when the page is below the entry (a create or edit form)
 the entry MUST be a link back to it and MUST NOT carry `aria-current`. The trail
 is not role-filtered, and it is not a second "you are here" marker: it takes
@@ -62,7 +64,11 @@ satisfying their own scenarios.
 | `/catalog/asignaturas/3/edit` | Administration / Asignaturas entry | link to the list, no `aria-current` |
 | `/catalog/asignaturas/3/grupos/5/edit` | Administration / Asignaturas entry | link to the list, no `aria-current` |
 | `/catalog/docentes` | Administration / Docentes entry | text, `aria-current` |
+| `/requests` | My requests | text, `aria-current` |
+| `/requests/42` | My requests | link to the list, no `aria-current` |
 | `/requests/new` | New request | text, `aria-current` |
+| `/review` | Review requests | text, `aria-current` |
+| `/review/42` | Review requests | link to the list, no `aria-current` |
 | a route with no entry and no context-only entry | no trail | n/a |
 
 - GIVEN a viewer allowed on the path from the row
@@ -88,20 +94,23 @@ satisfying their own scenarios.
 ### Requirement: BS-NAV-1 Sidebar entries are unchanged
 
 The sidebar body MUST show the same entries, in the same order, with the same
-group and the same visibility predicates as before this change, and the same
-active marker (the 4px bar paired with `aria-current`). The `/settings` entry
-MUST stay exactly as it is (D7), including its target. The "Administration"
-group MUST still render only when at least one child is visible.
+group and the same visibility predicates as before the backoffice refresh, and
+the same active marker (the 4px bar paired with `aria-current`), with one
+addition: the Enrollment entry for `estudiante` (BS-NAV-3). The `/settings`
+entry MUST stay exactly as it is (D7), including its target. The
+"Administration" group MUST still render only when at least one child is
+visible.
+(Previously: no entry was added; the student saw My requests and New request only.)
 
 #### Scenario: Entries per role (table-driven)
 
 | Role | Entries shown |
 |---|---|
-| `estudiante` | Dashboard, New request, Settings |
+| `estudiante` | Dashboard, My requests, New request, Enrollment, Settings |
 | `docente` | Dashboard, Settings |
 | `administrador` | Dashboard, Administration (Asignaturas, Docentes, Users), Settings |
 | `coordinacion` | Dashboard, Administration (Asignaturas, Docentes, Users), Settings |
-| `secretaria` | Dashboard, Administration (Asignaturas, Docentes, Import, Users), Settings |
+| `secretaria` | Dashboard, Review requests, Administration (Asignaturas, Docentes, Import, Users), Settings |
 
 - GIVEN a signed-in user with the role from the row
 - WHEN the sidebar renders
@@ -192,20 +201,28 @@ footer region; the footer is omitted when the list fits in 10 rows
 
 A client-side navigation between dashboard pages MUST show a loading skeleton in
 the content area while the page loads, instead of nothing. The skeleton draws the
-page frame (a title, one context line and a table card with rows), MUST keep the
-shell (top bar and sidebar) in place, MUST be announced as loading to assistive
-technology (a busy state with a text label from the catalogs), and MUST not
-rely on motion: under reduced motion it MUST be static. The first document load
-is not covered: the shell itself waits for the session, and no skeleton is
-required there. Feedback for changes
-that stay on the same route is specified in DT-PEND-1 and does not depend on
-this requirement.
+page frame (a title, one context line and a table card with rows; the home draws
+its count and shortcut cards instead), MUST keep the shell (top bar and sidebar)
+in place, MUST be announced as loading to assistive technology (a busy state
+with a text label from the catalogs), and MUST not rely on motion: under reduced
+motion it MUST be static. The first document load is not covered: the shell
+itself waits for the session, and no skeleton is required there. The same
+skeleton is what a changed list view shows while it loads when the change stays
+on the same route (sort, filter, search, page size or page; DT-PEND-1).
 
 #### Scenario: Skeleton on navigation
 
 - GIVEN a signed-in user on the dashboard
 - WHEN they navigate to `/users` and the page has not yet resolved
 - THEN the content area shows the skeleton and the shell stays visible
+
+#### Scenario: Skeleton on a same-route list change
+
+- GIVEN a signed-in user on `/users`
+- WHEN they change the sort, filter, search, page size or page and the new
+  results have not yet resolved
+- THEN the content area shows the skeleton in place of the list and the shell
+  stays visible
 
 #### Scenario: Skeleton is announced and static under reduced motion
 
@@ -302,7 +319,8 @@ by an empty-results message.
 
 The dashboard home MUST show a shortcut card for every menu destination the
 viewer's role can see, derived from the same navigation configuration and
-predicates as the sidebar (New request, Asignaturas, Docentes, Import, Users);
+predicates as the sidebar, in the sidebar's order (My requests, New request,
+Enrollment, Review requests, Asignaturas, Docentes, Import, Users);
 the Dashboard entry and the Settings entry are not offered as shortcuts (the
 settings route does not exist; D7 freezes the sidebar entry, not a second dead
 link). User-count cards (total and active users) MUST show only to roles that
@@ -310,16 +328,17 @@ may open `/users`, and MUST use the existing stats read without a new data
 query (D9); that read MUST NOT be performed for a role that does not show the
 cards. No shortcut MUST lead to a destination the role cannot open. A role with no shortcut and no counts MUST see the page header and
 a short localized message instead of an empty area.
+(Previously: the student shortcuts were My requests and New request.)
 
 #### Scenario: Home per role (table-driven)
 
 | Role | Shortcut cards | User-count cards |
 |---|---|---|
-| `estudiante` | New request | no |
+| `estudiante` | My requests, New request, Enrollment | no |
 | `docente` | none (message shown) | no |
 | `administrador` | Asignaturas, Docentes, Users | yes |
 | `coordinacion` | Asignaturas, Docentes, Users | yes |
-| `secretaria` | Asignaturas, Docentes, Import, Users | yes |
+| `secretaria` | Review requests, Asignaturas, Docentes, Import, Users | yes |
 
 - GIVEN a signed-in user with the role from the row
 - WHEN the dashboard home renders
@@ -381,16 +400,16 @@ the properties they change and MUST NOT use `all`; the existing `transition-all`
 in the top bar and theme toggle MUST be replaced. Hover-only styling MUST apply
 only on hover-capable pointers. A state change MUST leave a static cue (text,
 icon or shape) when its animation does not run. Table row hover, sorting, paging
-and filtering MUST NOT animate; a table waiting for rows MAY dim by opacity only
-(DT-PEND-1). Buttons MUST NOT scale on press (Q7 decided: no press-scale
-feedback). The skeleton pulse is the only movement the shell adds, and it stops
-under reduced motion.
+and filtering MUST NOT animate; a list waiting for rows shows the skeleton
+instead of dimming (DT-PEND-1). Buttons MUST NOT scale on press (Q7 decided:
+no press-scale feedback). The skeleton pulse is the only movement the shell
+adds, and it stops under reduced motion.
 
 #### Scenario: Reduced motion
 
 - GIVEN `prefers-reduced-motion: reduce`
-- WHEN the skeleton, the pending table state, the theme toggle and the sidebar
-  render
+- WHEN the skeleton (including the one shown for a pending list change), the
+  theme toggle and the sidebar render
 - THEN no movement, scale or blur runs and every state is still distinguishable
 
 #### Scenario: No `all` transitions
@@ -456,6 +475,41 @@ size or spacing step absent from that document MUST be introduced
 - WHEN `docs/design-system.md` is read
 - THEN each has a documented description
 
+### Requirement: BS-NAV-3 Enrollment destination for students
+
+The navigation configuration MUST contain one Enrollment entry targeting
+`/enrollment`, placed after New request, visible only to the roles that may
+open that page (`estudiante`), through the same predicate the page enforces. It
+MUST get its sidebar entry, its dashboard shortcut and its top-bar trail from
+that one entry (BS-CTX-1, BS-HOME-1), with a label in both `es` and `en`. No role other than `estudiante` MUST see it.
+
+#### Scenario: Entry and active marker
+
+- GIVEN a signed-in `estudiante` on `/enrollment`
+- WHEN the sidebar renders
+- THEN the Enrollment entry is present, active and carries `aria-current`
+- AND on `/requests/new` it is not active
+
+#### Scenario: Trail
+
+- GIVEN a signed-in `estudiante` on `/enrollment`
+- WHEN the top bar renders in `es` and in `en`
+- THEN the trail shows the Enrollment label as text with `aria-current`, the page
+  has exactly one `h1`, and no record name appears
+
+#### Scenario: Hidden from other roles (table-driven)
+
+| Role |
+|---|
+| `docente` |
+| `secretaria` |
+| `coordinacion` |
+| `administrador` |
+
+- GIVEN a signed-in user with the role from the row
+- WHEN the sidebar and the home render
+- THEN no Enrollment entry and no Enrollment shortcut is shown
+
 ## Assumptions and open points
 
 Decided in design and stated above: Q5 (section trail, never record names),
@@ -474,5 +528,6 @@ Needs owner confirmation (consistent with the design's home section):
   `docente`) sees totals that include other roles. D9 forbids a new query, so
   the counts stay as they are; the owner must confirm this is acceptable.
 
-Open (design gate V1): whether the skeleton shows again on a query-only
-navigation. BS-LOAD-1 and DT-PEND-1 do not depend on the outcome.
+Resolved (design gate V1): the skeleton does show again on a query-only
+navigation. BS-LOAD-1 and DT-PEND-1 describe that behaviour, which the owner
+accepted on 2026-10-18.
