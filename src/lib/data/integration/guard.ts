@@ -12,6 +12,30 @@ type Env = Readonly<Record<string, string | undefined>>;
 const PRODUCTION_LOOKING = /prod/i;
 
 /**
+ * Neon endpoint id of the production database. A host that contains it (the
+ * direct and the `-pooler` form alike) is production whatever the database or
+ * the user is called, so no suite may ever connect to it.
+ */
+const PRODUCTION_ENDPOINT_IDS = ["ep-orange-math"] as const;
+
+/**
+ * True when the host of `url` contains a production endpoint id. A value that
+ * does not parse is judged on its whole text, so a malformed URL that still
+ * names the endpoint is refused too. Unset is not production.
+ */
+export function isProductionEndpoint(url: string | undefined): boolean {
+  if (!url) return false;
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    host = url;
+  }
+  const lowered = host.toLowerCase();
+  return PRODUCTION_ENDPOINT_IDS.some((id) => lowered.includes(id));
+}
+
+/**
  * - `skip`: `INTEGRATION_DATABASE_URL` is unset; the suites are not collected.
  * - `refuse`: it is set but unsafe; the suites fail loudly instead of skipping.
  * - `run`: a disposable database was named and writes were allowed explicitly.
@@ -22,6 +46,15 @@ const PRODUCTION_LOOKING = /prod/i;
 export function resolveIntegrationGate(env: Env): IntegrationGate {
   const url = env.INTEGRATION_DATABASE_URL;
   if (!url) return { mode: "skip" };
+
+  // Checked first, so nothing else (the opt-in included) can make it pass.
+  if (isProductionEndpoint(url)) {
+    return {
+      mode: "refuse",
+      reason:
+        "INTEGRATION_DATABASE_URL points at the production Neon endpoint. Use a disposable Neon branch.",
+    };
+  }
 
   if (env.INTEGRATION_ALLOW_WRITES !== "1") {
     return {
