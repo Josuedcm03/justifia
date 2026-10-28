@@ -15,6 +15,7 @@
     "dashboard": "Panel",
     "myRequests": "Mis solicitudes",
     "newRequest": "Nueva solicitud",
+    "enrollment": "Inscripción",
     "review": "Revisión de solicitudes",
     "coordination": "Solicitudes escaladas",
     "administration": "Administración",
@@ -55,6 +56,7 @@
     "shortcuts": {
       "myRequests": "Consulta el estado de tus solicitudes de justificación.",
       "newRequest": "Presenta una nueva solicitud de justificación.",
+      "enrollment": "Declara los grupos en los que estás inscrito.",
       "review": "Revisa las solicitudes de justificación de tu facultad.",
       "coordination": "Atiende las solicitudes escaladas a la coordinación de tu carrera.",
       "catalogAsignaturas": "Consulta y administra las asignaturas y sus grupos.",
@@ -687,13 +689,19 @@
       "startLabel": "Fecha de inicio",
       "endLabel": "Fecha de fin"
     },
+    "enrollmentNotice": {
+      "text": "Las asignaturas de tu solicitud salen de tus inscripciones y todavía no tienes ninguna.",
+      "link": "Declarar mis inscripciones"
+    },
     "subjects": {
       "title": "Asignaturas afectadas",
       "description": "Marca las asignaturas en las que faltaste. Mostramos tu grupo y docente.",
       "datesRequired": "Indica primero las fechas de la ausencia para ver tus asignaturas.",
       "goToDates": "Ir a causa y fechas",
       "degraded": "No pudimos cargar tus asignaturas. Inténtalo de nuevo en unos minutos.",
-      "empty": "No tienes asignaturas activas en las que estés inscrito.",
+      "empty": "Ninguno de tus grupos tiene clase en estas fechas. Revisa las fechas de la ausencia.",
+      "noEnrollment": "Aún no tienes inscripciones, así que no hay asignaturas que elegir. Declara tus grupos primero.",
+      "goToEnrollment": "Ir a mis inscripciones",
       "group": "Grupo {number}",
       "teacher": "Docente: {name}",
       "noTeacher": "Sin docente asignado",
@@ -806,6 +814,7 @@
       "caption": "Tus solicitudes",
       "empty": "Todavía no has presentado ninguna solicitud.",
       "newRequest": "Nueva solicitud",
+      "enrollment": "Ir a mis inscripciones",
       "number": "Solicitud {id}",
       "presented": "Presentada el {date}",
       "view": "Ver solicitud",
@@ -874,6 +883,65 @@
       "title": "Solicitud no encontrada",
       "message": "No encontramos esa solicitud entre las tuyas.",
       "back": "Volver a mis solicitudes"
+    }
+  },
+  "enrollment": {
+    "title": "Mis inscripciones",
+    "description": "Declara los grupos en los que estás inscrito. Tus solicitudes solo pueden nombrar estos grupos.",
+    "degraded": "No pudimos cargar tus inscripciones. Inténtalo de nuevo en unos minutos.",
+    "noOffering": "Aún no se ofrece ningún grupo, así que no puedes inscribirte en ninguno.",
+    "list": {
+      "title": "Grupos en los que estás inscrito",
+      "caption": "Tus inscripciones",
+      "empty": "Aún no tienes inscripciones. Elige tus grupos en el selector.",
+      "period": "Periodo {periodo}",
+      "group": "Grupo {number}",
+      "teacher": "Docente: {name}",
+      "noTeacher": "Sin docente asignado",
+      "drop": "Dar de baja",
+      "dropLabel": "Dar de baja {subject}, {group}"
+    },
+    "dialog": {
+      "cancel": "Cancelar",
+      "warning": "Una solicitud tuya en borrador o devuelta usa este grupo. Si continúas, no podrás presentarla con este grupo salvo que te inscribas de nuevo.",
+      "drop": {
+        "title": "¿Dar de baja {group}?",
+        "description": "Dejarás de estar inscrito en este grupo. Podrás inscribirte de nuevo cuando quieras.",
+        "confirm": "Sí, dar de baja",
+        "pending": "Dando de baja…"
+      },
+      "replace": {
+        "title": "¿Reemplazar {group}?",
+        "description": "Cambiarás {group} por {next}. Tus inscripciones en otras asignaturas y en otros periodos no cambian.",
+        "confirm": "Sí, reemplazar",
+        "pending": "Reemplazando…"
+      }
+    },
+    "errors": {
+      "not_student": "Solo una cuenta de estudiante puede gestionar inscripciones.",
+      "not_eligible": "Ese grupo ya no se ofrece. Actualiza la página e inténtalo de nuevo.",
+      "already_enrolled": "Ya estás inscrito en ese grupo.",
+      "not_enrolled": "No estás inscrito en ese grupo.",
+      "invalid": "No pudimos leer la petición. Actualiza la página e inténtalo de nuevo.",
+      "unexpected": "No pudimos guardar el cambio y no se modificó nada. Inténtalo de nuevo."
+    },
+    "picker": {
+      "title": "Inscribirme en un grupo",
+      "description": "Grupos que se ofrecen en el periodo {periodo}. Primero ves las asignaturas de tu carrera; busca por código, nombre o carrera para encontrar las demás.",
+      "subjectLabel": "Asignatura",
+      "placeholder": "Busca por código, nombre o carrera",
+      "popupEmpty": "Ninguna asignatura coincide",
+      "truncated": "Solo se muestran las primeras asignaturas. Escribe en el buscador para encontrar otras.",
+      "noResults": {
+        "title": "Sin resultados para «{term}»",
+        "hint": "Revisa la ortografía o prueba con otro código, nombre o carrera.",
+        "clear": "Borrar búsqueda"
+      },
+      "groupsCaption": "Grupos de la asignatura elegida",
+      "days": "Días",
+      "enroll": "Inscribirme",
+      "enrollLabel": "Inscribirme en {group}",
+      "enrolled": "Ya estás inscrito en este grupo"
     }
   },
   "review": {

@@ -15,6 +15,7 @@
     "dashboard": "Dashboard",
     "myRequests": "My requests",
     "newRequest": "New request",
+    "enrollment": "Enrollment",
     "review": "Review requests",
     "coordination": "Escalated requests",
     "administration": "Administration",
@@ -55,6 +56,7 @@
     "shortcuts": {
       "myRequests": "Check the status of your justification requests.",
       "newRequest": "Submit a new justification request.",
+      "enrollment": "Declare the groups you are enrolled in.",
       "review": "Review the justification requests of your faculty.",
       "coordination": "Handle the requests escalated to the coordination of your career.",
       "catalogAsignaturas": "Browse and manage subjects and their groups.",
@@ -687,13 +689,19 @@
       "startLabel": "Start date",
       "endLabel": "End date"
     },
+    "enrollmentNotice": {
+      "text": "The subjects of your request come from your enrollment, and you have none yet.",
+      "link": "Declare my enrollment"
+    },
     "subjects": {
       "title": "Affected subjects",
       "description": "Tick the subjects you missed. We show your group and teacher.",
       "datesRequired": "Enter the absence dates first to see your subjects.",
       "goToDates": "Go to cause and dates",
       "degraded": "We could not load your subjects. Please try again in a few minutes.",
-      "empty": "You have no active subjects you are enrolled in.",
+      "empty": "None of your groups has class in these dates. Check the absence dates.",
+      "noEnrollment": "You have no enrollments yet, so there are no subjects to choose. Declare your groups first.",
+      "goToEnrollment": "Go to my enrollment",
       "group": "Group {number}",
       "teacher": "Teacher: {name}",
       "noTeacher": "No teacher assigned",
@@ -806,6 +814,7 @@
       "caption": "Your requests",
       "empty": "You have not presented any request yet.",
       "newRequest": "New request",
+      "enrollment": "Go to my enrollment",
       "number": "Request {id}",
       "presented": "Presented {date}",
       "view": "View request",
@@ -874,6 +883,65 @@
       "title": "Request not found",
       "message": "We could not find that request among yours.",
       "back": "Back to my requests"
+    }
+  },
+  "enrollment": {
+    "title": "My enrollment",
+    "description": "Declare the groups you are enrolled in. Your requests can only name these groups.",
+    "degraded": "We could not load your enrollments. Please try again in a few minutes.",
+    "noOffering": "No group is offered yet, so you cannot enroll in any.",
+    "list": {
+      "title": "Groups you are enrolled in",
+      "caption": "Your enrollments",
+      "empty": "You have no enrollments yet. Choose your groups in the picker.",
+      "period": "Period {periodo}",
+      "group": "Group {number}",
+      "teacher": "Teacher: {name}",
+      "noTeacher": "No teacher assigned",
+      "drop": "Drop",
+      "dropLabel": "Drop {subject}, {group}"
+    },
+    "dialog": {
+      "cancel": "Cancel",
+      "warning": "A draft or returned request of yours uses this group. If you continue, you will not be able to submit it with this group unless you enroll again.",
+      "drop": {
+        "title": "Drop {group}?",
+        "description": "You will no longer be enrolled in this group. You can enroll again whenever you want.",
+        "confirm": "Yes, drop",
+        "pending": "Dropping…"
+      },
+      "replace": {
+        "title": "Replace {group}?",
+        "description": "You will switch from {group} to {next}. Your enrollments in other subjects and other periods do not change.",
+        "confirm": "Yes, replace",
+        "pending": "Replacing…"
+      }
+    },
+    "errors": {
+      "not_student": "Only a student account can manage enrollments.",
+      "not_eligible": "That group is no longer offered. Refresh the page and try again.",
+      "already_enrolled": "You are already enrolled in that group.",
+      "not_enrolled": "You are not enrolled in that group.",
+      "invalid": "We could not read the request. Refresh the page and try again.",
+      "unexpected": "We could not save the change and nothing was modified. Please try again."
+    },
+    "picker": {
+      "title": "Enroll in a group",
+      "description": "Groups offered in period {periodo}. You see your own career's subjects first; search by code, name or career to find the others.",
+      "subjectLabel": "Subject",
+      "placeholder": "Search by code, name or career",
+      "popupEmpty": "No subject matches",
+      "truncated": "Only the first subjects are shown. Type in the search box to find others.",
+      "noResults": {
+        "title": "No results for “{term}”",
+        "hint": "Check the spelling or try another code, name or career.",
+        "clear": "Clear search"
+      },
+      "groupsCaption": "Groups of the chosen subject",
+      "days": "Days",
+      "enroll": "Enroll",
+      "enrollLabel": "Enroll in {group}",
+      "enrolled": "You are already enrolled in this group"
     }
   },
   "review": {

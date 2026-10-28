@@ -58,6 +58,7 @@ export function SubjectsStep({
   selected,
   hasDates,
   degraded,
+  enrolled = true,
   fromReview = false,
   flow = NEW_FLOW,
 }: {
@@ -65,6 +66,8 @@ export function SubjectsStep({
   selected: readonly { asignaturaId: number; grupoId: number }[];
   hasDates: boolean;
   degraded: boolean;
+  /** Any effective enrollment, judged without the dates (SE-11). */
+  enrolled?: boolean;
   fromReview?: boolean;
   flow?: StepFlow<"saveSubjects">;
 }) {
@@ -84,10 +87,12 @@ export function SubjectsStep({
     : degraded
       ? t("subjects.degraded")
       : groups.length === 0
-        ? t("subjects.empty")
+        ? t(enrolled ? "subjects.empty" : "subjects.noEnrollment")
         : null;
 
   if (notice) {
+    // The empty state is reached only with dates and a healthy read.
+    const isEmpty = hasDates && !degraded;
     return (
       <StepShell
         title={t("subjects.title")}
@@ -104,14 +109,19 @@ export function SubjectsStep({
         >
           {notice}
         </p>
-        {hasDates ? null : (
+        {!hasDates || (isEmpty && enrolled) ? (
           <Link
             href={stepHref(1, flow.basePath)}
             className="text-primary text-sm underline"
           >
             {t("subjects.goToDates")}
           </Link>
-        )}
+        ) : null}
+        {isEmpty && !enrolled ? (
+          <Link href="/enrollment" className="text-primary text-sm underline">
+            {t("subjects.goToEnrollment")}
+          </Link>
+        ) : null}
       </StepShell>
     );
   }
