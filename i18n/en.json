@@ -1052,6 +1052,22 @@
         "not_found": "This request is no longer available to you.",
         "unexpected": "The request could not be escalated. Try again.",
         "sin_coordinacion": "{carrera} has no registered coordination; ask the administrator to create the account."
+      },
+      "resend": {
+        "action": "Resend",
+        "actionNamed": "Resend the notice to the coordination: {name}",
+        "pending": "Resending...",
+        "result": {
+          "enviada": "The notice was sent to the coordination.",
+          "pendiente": "It could not be sent. It stays pending and will be retried.",
+          "bloqueada": "The notice is still blocked: the career has no coordination recipient with an email. Reload the page to see the status.",
+          "en_curso": "A send is already in progress; reload the page in a few seconds.",
+          "sin_correo": "The career's coordination account has no email on record; ask the administrator to add it."
+        },
+        "errors": {
+          "not_found": "This notice is no longer available to you.",
+          "unexpected": "It could not be resent. Try again."
+        }
       }
     },
     "report": {

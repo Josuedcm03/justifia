@@ -112,6 +112,7 @@ const escalationRow = {
 
 const reportRow = {
   id: 71,
+  escalamientoId: 81,
   docenteNombre: "Luis Mora",
   comunicadoEl: "2026-10-09",
   nota: "Supera el limite de faltas.",

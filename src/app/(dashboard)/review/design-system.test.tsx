@@ -18,6 +18,7 @@ vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
 vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
   escalateRequestAction: vi.fn(),
   recordExcessReportAction: vi.fn(),
+  resendEscalationNoticeAction: vi.fn(),
 }));
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),

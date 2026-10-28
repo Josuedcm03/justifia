@@ -59,6 +59,7 @@ vi.mock("@/lib/data/solicitud-escalation", () => ({
 vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
   escalateRequestAction: vi.fn(),
   recordExcessReportAction: vi.fn(),
+  resendEscalationNoticeAction: vi.fn(),
 }));
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),
@@ -1142,7 +1143,7 @@ describe("ReviewDetailPage escalate action (RF-10 a, E17)", () => {
 });
 
 describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
-  it("shows the open escalation, its note and the notification status in coordination, with no control", async () => {
+  it("shows the open escalation, its note and the notification status in coordination, with no decision control", async () => {
     detailMock.mockResolvedValue(
       detail({
         estado: "en_revision_coordinacion",
@@ -1156,6 +1157,28 @@ describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
     expect(region).toHaveTextContent("El sello parece alterado.");
     expect(region).toHaveTextContent(esc.notification.pendiente);
     expect(region).toHaveTextContent(esc.section.waiting);
+    // Approve, reject, return and escalate are gone; the only control left is
+    // the resend of the notice that is still pending (RF-10 b).
+    expect(
+      screen.queryAllByRole("button").map((button) => button.textContent),
+    ).toEqual([esc.resend.action]);
+  });
+
+  it("offers no control at all once the notice to coordination was sent", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "en_revision_coordinacion",
+        escalamientos: [
+          escalationRecord({
+            notificacionEstado: "enviada",
+            enviadaEn: new Date("2026-10-08T15:05:00Z"),
+          }),
+        ],
+      }),
+    );
+
+    await renderPage();
+
     expect(screen.queryAllByRole("button")).toEqual([]);
   });
 

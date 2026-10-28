@@ -363,6 +363,51 @@ describe("review messages", () => {
     );
   });
 
+  it.each(catalogs)(
+    "%s has the resend texts of the coordination notice",
+    (_l, m) => {
+      const resend = m.review.escalation.resend;
+
+      expect(resend.action).toBeTruthy();
+      expect(resend.actionNamed).toContain("{name}");
+      expect(resend.pending).toBeTruthy();
+      for (const state of ["enviada", "pendiente", "bloqueada"] as const) {
+        expect(resend.result[state], state).toBeTruthy();
+      }
+      for (const code of ["not_found", "unexpected"] as const) {
+        expect(resend.errors[code], code).toBeTruthy();
+      }
+    },
+  );
+
+  it("words the in-progress and missing-email resend outcomes neutrally", () => {
+    expect(es.review.escalation.resend.result.en_curso).toBe(
+      "Ya hay un envío en curso; actualice la página en unos segundos.",
+    );
+    expect(es.review.escalation.resend.result.sin_correo).toBe(
+      "La cuenta de coordinación de la carrera no tiene correo registrado; solicite al administrador que lo agregue.",
+    );
+    expect(en.review.escalation.resend.result.en_curso).toBe(
+      "A send is already in progress; reload the page in a few seconds.",
+    );
+    expect(en.review.escalation.resend.result.sin_correo).toBe(
+      "The career's coordination account has no email on record; ask the administrator to add it.",
+    );
+  });
+
+  it("words the notice resend texts neutrally, without voseo or a teacher", () => {
+    expect(es.review.escalation.resend.result.enviada).toBe(
+      "El aviso se envió a coordinación.",
+    );
+    expect(en.review.escalation.resend.result.enviada).toBe(
+      "The notice was sent to the coordination.",
+    );
+    expect(JSON.stringify(es.review.escalation.resend)).not.toMatch(
+      /\b(?:reenviá|tenés|podés|intentá|recargá|vos)\b/i,
+    );
+    expect(JSON.stringify(es.review.escalation.resend)).not.toMatch(/docente/i);
+  });
+
   it("never words the student-facing or staff texts with the legacy voseo", () => {
     const spanish = JSON.stringify([es.review.escalation, es.review.report]);
 
