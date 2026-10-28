@@ -9,6 +9,7 @@ import {
   completeNoticeSent,
   listCoordinationRecipients,
   loadNoticeContext,
+  releaseNoticeClaim,
   type EscalationNoticeClaim,
 } from "@/lib/data/escalamiento";
 import { dispatchEach, type DispatchSummary } from "@/lib/data/dispatch-batch";
@@ -81,7 +82,12 @@ export async function dispatchEscalationNotice(
     loadNoticeContext(id),
     listCoordinationRecipients(claim.solicitudId),
   ]);
-  if (!context) throw new Error("escalation_notice_context_missing");
+  if (!context) {
+    // A data defect, not a send failure: free the claim so the lease does not
+    // hold off the resend, and still surface the error to the caller's log.
+    await releaseNoticeClaim(claim, { now }).catch(() => false);
+    throw new Error("escalation_notice_context_missing");
+  }
 
   const plan = planEscalationNotice({
     ...context,

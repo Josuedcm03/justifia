@@ -222,6 +222,30 @@ export function completeNoticeNotConfigured(
   );
 }
 
+/**
+ * The attempt cannot proceed (the notice lacks data the message needs): the
+ * claim is released and the notice keeps its state and reason, so a resend or
+ * the next scheduled run is not held off by the lease. The attempt stays
+ * counted, so the automatic-attempt cap still ends a permanent defect; no audit
+ * row is written because nothing was sent or decided.
+ */
+export function releaseNoticeClaim(
+  claim: EscalationNoticeClaim,
+  args: { now: Date },
+): Promise<boolean> {
+  return completeHeld(
+    escalamiento,
+    claim,
+    claim.secretariaId,
+    {
+      notificacionEstado: claim.estado,
+      notificacionMotivo: claim.motivo,
+      ...claimRelease(args.now),
+    },
+    [],
+  );
+}
+
 /** No recipient was found: nothing is sent, the reason is shown. */
 export function completeNoticeBlocked(
   claim: EscalationNoticeClaim,

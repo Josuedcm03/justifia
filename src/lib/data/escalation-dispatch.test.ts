@@ -13,6 +13,7 @@ const escalamientoMock = vi.hoisted(() => ({
   completeNoticeSent: vi.fn(),
   listCoordinationRecipients: vi.fn(),
   loadNoticeContext: vi.fn(),
+  releaseNoticeClaim: vi.fn(),
 }));
 vi.mock("@/lib/data/escalamiento", () => escalamientoMock);
 
@@ -81,6 +82,7 @@ beforeEach(() => {
   escalamientoMock.completeNoticeFailed.mockResolvedValue(true);
   escalamientoMock.completeNoticeBlocked.mockResolvedValue(true);
   escalamientoMock.completeNoticeNotConfigured.mockResolvedValue(true);
+  escalamientoMock.releaseNoticeClaim.mockResolvedValue(true);
 });
 
 describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
@@ -370,7 +372,7 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
       ).resolves.toEqual({ outcome: "lost" });
     });
 
-    it("throws, leaving the claim to expire, when the notice context is missing", async () => {
+    it("releases the claim before throwing when the notice context is missing", async () => {
       const { deps, mail } = setup();
       escalamientoMock.loadNoticeContext.mockResolvedValue(null);
 
@@ -378,6 +380,23 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
         "escalation_notice_context_missing",
       );
       expect(mail.calls).toHaveLength(0);
+      // The resend and the next scheduled run are not held off by a lease.
+      expect(escalamientoMock.releaseNoticeClaim).toHaveBeenCalledWith(
+        claim(),
+        { now: NOW },
+      );
+      expect(escalamientoMock.completeNoticeSent).not.toHaveBeenCalled();
+      expect(escalamientoMock.completeNoticeFailed).not.toHaveBeenCalled();
+    });
+
+    it("still surfaces the missing context when the release itself fails", async () => {
+      const { deps } = setup();
+      escalamientoMock.loadNoticeContext.mockResolvedValue(null);
+      escalamientoMock.releaseNoticeClaim.mockRejectedValue(new Error("db"));
+
+      await expect(dispatchEscalationNotice(7, creation, deps)).rejects.toThrow(
+        "escalation_notice_context_missing",
+      );
     });
   });
 });
