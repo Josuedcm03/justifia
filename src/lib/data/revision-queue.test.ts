@@ -31,6 +31,7 @@ import {
   listApprovedRequests,
   listCoordinationQueue,
   listReviewQueue,
+  reviewQueueQuery,
 } from "@/lib/data/revision-queue";
 
 const SCOPE: RequestScope = { kind: "facultad", facultadId: 3 };
@@ -92,6 +93,17 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
     expect(query.sql).toContain('"Solicitud"."Estado" = $1');
     expect(query.sql).toContain('"c"."FacultadId" = $');
     expect(query.params).toEqual(["pendiente", 3]);
+  });
+
+  it("runs the exported query builder, the one the real-Postgres index proof plans", async () => {
+    const listed = use([{ kind: "select", rows: [] }]);
+    await listReviewQueue(SCOPE, NOW, CALENDAR);
+    const shared = use([{ kind: "select", rows: [] }]);
+    await reviewQueueQuery(SCOPE);
+
+    expect(render(shared.log[0].where)).toEqual(render(listed.log[0].where));
+    expect(renderedOrder(shared.log[0])).toEqual(renderedOrder(listed.log[0]));
+    expect(shared.log[0].selection).toEqual(listed.log[0].selection);
   });
 
   it("matches nothing for the none scope", async () => {
