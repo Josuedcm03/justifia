@@ -39,7 +39,18 @@ export default async function OwnRequestsPage() {
       {requests.length === 0 ? (
         <div className="border-border bg-card flex flex-col items-center gap-4 rounded-xl border px-6 py-12 text-center">
           <p className="text-muted-foreground max-w-prose">{t("empty")}</p>
-          {newRequest}
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            {newRequest}
+            <Link
+              href="/enrollment"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "lg" }),
+                "w-full sm:w-auto",
+              )}
+            >
+              {t("enrollment")}
+            </Link>
+          </div>
         </div>
       ) : (
         <ul aria-label={t("caption")} className="flex flex-col gap-4">

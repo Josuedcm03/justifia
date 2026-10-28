@@ -74,3 +74,99 @@ equipo), `resuelta` (cubierta por un change).
 - **Esperado:** un panel de estado que nombre el estado actual y las acciones
   disponibles, o que diga que no queda ninguna.
 - **Requisitos:** RF-07 (a), RN-16; spec `request-review`.
+
+### UX-06. Aviso suave por una fecha de reporte anterior a la aprobación
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S1), 2026-10-23.
+- **Pantalla:** diálogo de reporte de exceso de inasistencias en el detalle de
+  la solicitud aprobada (`/review/[id]`).
+- **Hoy:** la fecha en que el docente comunicó el exceso solo rechaza un día
+  futuro. Una fecha anterior a la aprobación se guarda sin aviso, aunque sea un
+  error de tipeo (por ejemplo, el año).
+- **Esperado:** un aviso que no bloquee, del tipo «La fecha es anterior a la
+  aprobación de la solicitud. ¿Es correcta?», y que la secretaría pueda
+  confirmar igual. El registro del reporte no cambia (RF-15).
+- **Requisitos:** RF-15 (a); spec `coordination-escalation`.
+
+### UX-07. Estado de la remisión en el selector de docentes del reporte
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S2), 2026-10-23.
+- **Pantalla:** diálogo de reporte de exceso de inasistencias en el detalle de
+  la solicitud aprobada (`/review/[id]`).
+- **Hoy:** el selector lista los docentes a los que se remitió la solicitud,
+  sin indicar si el correo de remisión ya se envió o sigue pendiente.
+- **Esperado:** junto a cada nombre, el estado de su remisión (enviada,
+  pendiente o bloqueada), para que la secretaría sepa si el docente recibió la
+  justificación antes de registrar su reporte.
+- **Requisitos:** RF-09 (c), RF-15; specs `teacher-remission` y
+  `coordination-escalation`.
+
+### UX-08. Mostrar que se agotaron los reintentos automáticos de un aviso
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S3), 2026-10-23.
+- **Pantalla:** estado del aviso a la coordinación en el detalle de la
+  solicitud (`/review/[id]`).
+- **Hoy:** tras los 8 intentos automáticos, la etiqueta sigue diciendo
+  «pendiente, último intento fallido», igual que antes de agotarlos.
+- **Esperado:** que la etiqueta indique que el sistema ya no reintentará solo
+  y que queda el reenvío manual.
+- **Requisitos:** RF-10 (b), RNF-07; spec `coordination-escalation`.
+
+### UX-09. Reenviar el aviso desde la pestaña «En coordinación»
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S3), 2026-10-23.
+- **Pantalla:** pestaña «En coordinación» de la bandeja de la secretaría
+  (`/review`).
+- **Hoy:** la pestaña muestra el estado del aviso de cada solicitud, pero el
+  reenvío solo está en el detalle; hay que abrir la solicitud para reenviar.
+- **Esperado:** el control de reenvío en la misma fila cuando el aviso no se
+  envió.
+- **Requisitos:** RF-10 (b); specs `request-review` y
+  `coordination-escalation`.
+
+### UX-10. Avisos leídos en la lista de la coordinación
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S4), 2026-10-23.
+- **Pantalla:** lista de la coordinación (`/coordination`).
+- **Hoy:** los avisos informativos de exceso de inasistencias no indican si
+  ya se abrieron, la lista no tiene tope y cada apertura queda en la
+  auditoría.
+- **Esperado:** distinguir los avisos ya vistos de los nuevos y limitar la
+  lista (por ejemplo, los más recientes), sin perder el registro de lectura.
+- **Requisitos:** RF-10 (b), RF-15; specs `coordination-escalation` y
+  `audit-log`.
+
+### UX-11. Tiempo de espera en el detalle de la coordinación
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S4), 2026-10-23.
+- **Pantalla:** detalle de un escalamiento para la coordinación
+  (`/coordination/[id]`).
+- **Hoy:** el detalle muestra cuándo se escaló la solicitud, pero no cuánto
+  tiempo lleva esperando la respuesta. El plazo de RN-08 está pausado, así que
+  no hay ningún indicador de demora.
+- **Esperado:** un indicador del tiempo transcurrido desde el escalamiento
+  (por ejemplo, en días hábiles), para que la coordinación priorice.
+- **Requisitos:** RF-10, RN-08; spec `coordination-escalation`.
+
+### UX-12. Qué esperar mientras la coordinación revisa la solicitud
+
+- **Estado:** abierta.
+- **Origen:** implementación de `escalation` (S5), 2026-10-23.
+- **Pantalla:** detalle de la solicitud para el estudiante (`/requests/[id]`).
+- **Hoy:** en `en_revision_coordinacion` el estudiante ve una etiqueta neutra
+  («La coordinación de tu carrera está revisando esta solicitud. No necesitas
+  hacer nada por ahora.»). No sabe cuánto puede tardar ni cómo se enterará del
+  resultado; cuando la coordinación responde, la solicitud vuelve a
+  `pendiente` sin otro aviso.
+- **Esperado:** una indicación de qué sigue: que la solicitud vuelve a la
+  secretaría tras la respuesta y que el resultado se verá en esta pantalla (o
+  por correo, si se decide notificar). Sin revelar el motivo del escalamiento
+  (E13).
+- **Requisitos:** RF-10, RN-16; specs `student-requests` y
+  `coordination-escalation`.

@@ -10,6 +10,7 @@ import type {
   GrupoActiveResult,
   GrupoWriteResult,
 } from "@/lib/catalog/types";
+import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
 import type { EscalationKind } from "@/lib/intake/escalation";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
@@ -628,4 +629,58 @@ export function grupoWriteEvents(
       return unreachable;
     }
   }
+}
+
+type InscripcionEventArgs = { estudianteId: number; grupoId: number } & (
+  | { kind: "creada" | "reactivada" }
+  | { kind: "desactivada"; motivo: "baja" | "reemplazo" }
+);
+
+/** The entity is the student (`estudianteId`), so the entity index serves "a
+ *  student's enrollment history". Ids and the closed reason only (RNF-05). */
+export function inscripcionEvent(args: InscripcionEventArgs): AuditEvent {
+  return {
+    accion: `inscripcion.${args.kind}`,
+    entidadTipo: "Inscripcion",
+    entidadId: args.estudianteId,
+    datos:
+      args.kind === "desactivada"
+        ? { grupoId: args.grupoId, motivo: args.motivo }
+        : { grupoId: args.grupoId },
+  };
+}
+
+/** Result -> events for a student enrollment write: the deactivated siblings
+ *  first, then the creation or reactivation; a drop gives one deactivation.
+ *  Every refusal and no-op gives `[]`, so it can never leave a row (AL-ONE). */
+export function enrollmentWriteEvents(
+  estudianteId: number,
+  result: EnrollResult | DropResult,
+): AuditEvent[] {
+  if (!result.ok) return [];
+  if (!("kind" in result)) {
+    return [
+      inscripcionEvent({
+        kind: "desactivada",
+        estudianteId,
+        grupoId: result.grupoId,
+        motivo: "baja",
+      }),
+    ];
+  }
+  return [
+    ...result.replaced.map((grupoId) =>
+      inscripcionEvent({
+        kind: "desactivada",
+        estudianteId,
+        grupoId,
+        motivo: "reemplazo",
+      }),
+    ),
+    inscripcionEvent({
+      kind: result.kind === "created" ? "creada" : "reactivada",
+      estudianteId,
+      grupoId: result.grupoId,
+    }),
+  ];
 }

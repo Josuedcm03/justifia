@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission and three escalation ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion and three escalation ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -64,6 +64,9 @@ describe("AUDIT_ACTIONS", () => {
         "remision.bloqueada",
         "remision.reenviada",
         "documento.formato_especial",
+        "inscripcion.creada",
+        "inscripcion.reactivada",
+        "inscripcion.desactivada",
         "solicitud.escalada",
         "solicitud.escalamiento_resuelto",
         "solicitud.reporte_inasistencias",
@@ -96,6 +99,11 @@ describe("AuditEntityType", () => {
   it("includes Facultad for the queue read event", () => {
     const facultad: AuditEntityType = "Facultad";
     expect(facultad).toBe("Facultad");
+  });
+
+  it("includes Inscripcion for the enrollment events", () => {
+    const inscripcion: AuditEntityType = "Inscripcion";
+    expect(inscripcion).toBe("Inscripcion");
   });
 });
 

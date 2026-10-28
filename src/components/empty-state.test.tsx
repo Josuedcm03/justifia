@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { EmptyState } from "@/components/empty-state";
@@ -75,6 +76,24 @@ describe("EmptyState (BS-STATE-1)", () => {
       );
 
       expect(screen.getAllByRole("link")).toHaveLength(1);
+    });
+
+    it("offers a client-side clear control instead of a link when given a handler", async () => {
+      const onClick = vi.fn();
+      render(
+        <EmptyState
+          variant="no-results"
+          title="No results for “zzz”"
+          hint="Try another term."
+          clear={{ label: "Clear search", onClick }}
+        />,
+      );
+
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Clear search" }),
+      );
+      expect(onClick).toHaveBeenCalledTimes(1);
     });
 
     it("rejects a missing clear link at compile time and at runtime", () => {
