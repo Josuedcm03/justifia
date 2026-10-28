@@ -995,7 +995,11 @@ describe("review event builders (RF-07, RF-08, RNF-06, RN-02)", () => {
     },
     {
       name: "queue read",
-      event: solicitudColaConsultadaEvent({ facultadId: 3, total: 12 }),
+      event: solicitudColaConsultadaEvent({
+        facultadId: 3,
+        total: 12,
+        estado: "pendiente",
+      }),
       accion: "solicitud.cola.consultada",
       entidadTipo: "Facultad",
       entidadId: 3,
@@ -1046,13 +1050,18 @@ describe("review event builders (RF-07, RF-08, RNF-06, RN-02)", () => {
       documentosRetirados: 1,
     });
     expect(cases[4].event.datos).toEqual({ estado: "pendiente" });
-    expect(cases[5].event.datos).toEqual({ total: 12 });
+    expect(cases[5].event.datos).toEqual({ total: 12, estado: "pendiente" });
     expect(cases[6].event.datos).toEqual({ solicitudId: 46 });
   });
 
-  it("the queue payload carries the count and no request id list", () => {
-    const { datos } = solicitudColaConsultadaEvent({ facultadId: 3, total: 3 });
-    expect(Object.keys(datos)).toEqual(["total"]);
+  it("the queue payload carries the count, the tab code and no request id list", () => {
+    const { datos } = solicitudColaConsultadaEvent({
+      facultadId: 3,
+      total: 3,
+      estado: "en_revision_coordinacion",
+    });
+    expect(Object.keys(datos)).toEqual(["total", "estado"]);
+    expect(datos).toEqual({ total: 3, estado: "en_revision_coordinacion" });
   });
 
   it("no payload leaks text, names, CIF, email, dates, file names or id lists", () => {
@@ -1509,8 +1518,12 @@ describe("escalation event builders (RF-10, RF-15, RNF-06, RN-02)", () => {
 
   it("leaves the existing review and remission payloads unchanged", () => {
     expect(
-      solicitudColaConsultadaEvent({ facultadId: 3, total: 4 }).datos,
-    ).toEqual({ total: 4 });
+      solicitudColaConsultadaEvent({
+        facultadId: 3,
+        total: 4,
+        estado: "aprobada",
+      }).datos,
+    ).toEqual({ total: 4, estado: "aprobada" });
     expect(
       solicitudConsultadaEvent({ solicitudId: 5, estado: "aprobada" }).datos,
     ).toEqual({ estado: "aprobada" });

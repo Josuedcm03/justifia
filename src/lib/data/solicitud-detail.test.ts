@@ -35,6 +35,7 @@ const requestRow = {
   fechaFin: "2026-10-03",
   presentadaEn: new Date("2026-10-05T16:00:00.000Z"),
   reenviadaEn: null,
+  plazoInicioEn: null,
   estudianteNombre: "Ana Perez",
   estudianteCif: "2020-001",
   estudianteCarrera: "Ingenieria",
@@ -235,6 +236,35 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
         version: "2026-10-20",
         en: new Date("2026-10-05T15:59:30.000Z"),
       });
+    });
+  });
+
+  describe("stored clock start (RN-08, ES-5)", () => {
+    function withRequestRow(row: unknown): Step[] {
+      const [, ...rest] = loaded();
+      return [{ kind: "select", rows: [row] }, ...rest];
+    }
+
+    it("returns the start a coordination answer stored, so the deadline can resume from it", async () => {
+      use(
+        withRequestRow({
+          ...requestRow,
+          estado: "pendiente",
+          plazoInicioEn: new Date("2026-10-15T06:00:00.000Z"),
+        }),
+      );
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.plazoInicioEn).toEqual(
+        new Date("2026-10-15T06:00:00.000Z"),
+      );
+    });
+
+    it("returns null for a request that never spent time in coordination", async () => {
+      use(loaded());
+
+      expect((await getRequestDetail(SCOPE, ID))?.plazoInicioEn).toBeNull();
     });
   });
 

@@ -78,6 +78,7 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
     fechaFin: "2026-10-07",
     presentadaEn: new Date("2026-10-08T15:00:00Z"),
     reenviadaEn: null,
+    plazoInicioEn: null,
     estudiante: {
       nombre: "Ana Lopez",
       cif: "2021-0042",
@@ -338,6 +339,39 @@ describe("ReviewDetailPage content (RF-06, RF-08 b)", () => {
     expect(request).toHaveTextContent(
       /On time|Due within 1 business day|Overdue/,
     );
+  });
+
+  it("starts the deadline at the start a coordination answer stored (RN-08)", async () => {
+    // Wednesday 14 October 2026, 09:00 in Managua.
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-14T15:00:00Z"),
+    });
+    try {
+      // Presented Monday 12th: the base deadline is Wednesday 14th, due today.
+      detailMock.mockResolvedValue(
+        detail({ presentadaEn: new Date("2026-10-12T16:00:00Z") }),
+      );
+      const { unmount } = await renderPage();
+      expect(
+        screen.getByRole("region", { name: en.sections.request }),
+      ).toHaveTextContent("Due Oct 14, 2026");
+      unmount();
+
+      // The answer stored Thursday 15th: the deadline moves to Monday 19th.
+      detailMock.mockResolvedValue(
+        detail({
+          presentadaEn: new Date("2026-10-12T16:00:00Z"),
+          plazoInicioEn: new Date("2026-10-15T06:00:00Z"),
+        }),
+      );
+      await renderPage();
+      expect(
+        screen.getByRole("region", { name: en.sections.request }),
+      ).toHaveTextContent("Due Oct 19, 2026");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("marks a resubmitted request with its resubmission date", async () => {

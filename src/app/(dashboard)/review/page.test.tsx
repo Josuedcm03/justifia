@@ -17,6 +17,8 @@ const {
   getSessionMock,
   scopeMock,
   queueMock,
+  coordinationMock,
+  approvedMock,
   queueReadMock,
   state,
 } = vi.hoisted(() => ({
@@ -26,6 +28,8 @@ const {
   getSessionMock: vi.fn(),
   scopeMock: vi.fn(),
   queueMock: vi.fn(),
+  coordinationMock: vi.fn(),
+  approvedMock: vi.fn(),
   queueReadMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
@@ -38,7 +42,11 @@ vi.mock("next/link", async () =>
 // production one.
 vi.mock("@/lib/auth/cookies", () => ({ getSession: getSessionMock }));
 vi.mock("@/lib/data/request-scope", () => ({ resolveRequestScope: scopeMock }));
-vi.mock("@/lib/data/revision-queue", () => ({ listReviewQueue: queueMock }));
+vi.mock("@/lib/data/revision-queue", () => ({
+  listReviewQueue: queueMock,
+  listCoordinationQueue: coordinationMock,
+  listApprovedRequests: approvedMock,
+}));
 vi.mock("@/lib/data/request-reads", () => ({
   recordQueueRead: queueReadMock,
 }));
@@ -98,6 +106,10 @@ beforeEach(() => {
   scopeMock.mockResolvedValue({ kind: "facultad", facultadId: 4 });
   queueMock.mockReset();
   queueMock.mockResolvedValue({ rows: [row()], calendarLoaded: true });
+  coordinationMock.mockReset();
+  coordinationMock.mockResolvedValue({ rows: [] });
+  approvedMock.mockReset();
+  approvedMock.mockResolvedValue({ rows: [] });
   queueReadMock.mockReset();
   queueReadMock.mockResolvedValue(undefined);
 });
@@ -171,7 +183,7 @@ describe("ReviewQueuePage list (RF-06)", () => {
 
     expect(screen.getByText(en.empty)).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();
-    expect(queueReadMock).toHaveBeenCalledWith(7, 4, 0);
+    expect(queueReadMock).toHaveBeenCalledWith(7, 4, 0, "pendiente");
   });
 
   it("lists start date, student, CIF, career and subject count per row", async () => {
@@ -335,7 +347,7 @@ describe("ReviewQueuePage audited read (SR-11)", () => {
     await renderPage();
 
     expect(queueReadMock).toHaveBeenCalledTimes(1);
-    expect(queueReadMock).toHaveBeenCalledWith(7, 4, 2);
+    expect(queueReadMock).toHaveBeenCalledWith(7, 4, 2, "pendiente");
   });
 
   it("writes no row when the data load fails", async () => {
@@ -378,5 +390,307 @@ describe("ReviewQueuePage decision result banner", () => {
     await renderPage({ resultado: "<b>x</b>" });
 
     expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
+function coordinationRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 21,
+    estudianteNombre: "Luis Mora",
+    estudianteCif: "2022-0100",
+    estudianteCarrera: "Ingenieria Civil",
+    asignaturas: 2,
+    motivo: "sospecha_documento",
+    escaladaEn: new Date("2026-10-13T15:00:00Z"),
+    notificacionEstado: "pendiente",
+    notificacionMotivo: null,
+    enviadaEn: null,
+    ...overrides,
+  };
+}
+
+function approvedRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 31,
+    estudianteNombre: "Rosa Mena",
+    estudianteCif: "2020-0007",
+    estudianteCarrera: "Arquitectura",
+    aprobadaEn: new Date("2026-10-12T15:00:00Z"),
+    reportes: 2,
+    ...overrides,
+  };
+}
+
+describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
+  it("defaults to Pendientes and marks it as the current tab", async () => {
+    await renderPage();
+
+    const nav = screen.getByRole("navigation", { name: en.tabs.label });
+    expect(
+      within(nav).getByRole("link", { name: en.tabs.pendiente }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      within(nav).getByRole("link", { name: en.tabs.aprobada }),
+    ).not.toHaveAttribute("aria-current");
+    expect(queueMock).toHaveBeenCalledTimes(1);
+    expect(coordinationMock).not.toHaveBeenCalled();
+    expect(approvedMock).not.toHaveBeenCalled();
+  });
+
+  it("offers three bookmarkable tab links that opt out of prefetch", async () => {
+    await renderPage();
+
+    const nav = screen.getByRole("navigation", { name: en.tabs.label });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((l) => l.getAttribute("href"))).toEqual([
+      "/review?estado=pendiente",
+      "/review?estado=en_revision_coordinacion",
+      "/review?estado=aprobada",
+    ]);
+    expect(links.map((l) => l.textContent)).toEqual([
+      en.tabs.pendiente,
+      en.tabs.en_revision_coordinacion,
+      en.tabs.aprobada,
+    ]);
+    for (const link of links) {
+      expect(link).toHaveAttribute("data-prefetch", "false");
+    }
+  });
+
+  it.each(["rechazada", "borrador", "x", ""])(
+    "falls back to Pendientes for the invalid value %j",
+    async (estado) => {
+      await renderPage({ estado });
+
+      expect(queueMock).toHaveBeenCalledTimes(1);
+      expect(coordinationMock).not.toHaveBeenCalled();
+      expect(approvedMock).not.toHaveBeenCalled();
+      expect(queueReadMock).toHaveBeenCalledWith(7, 4, 1, "pendiente");
+    },
+  );
+
+  describe("En coordinacion", () => {
+    beforeEach(() => {
+      coordinationMock.mockResolvedValue({
+        rows: [
+          coordinationRow(),
+          coordinationRow({
+            id: 22,
+            estudianteNombre: "Ana Lopez",
+            notificacionEstado: "bloqueada",
+            notificacionMotivo: "sin_destinatarios",
+          }),
+          coordinationRow({
+            id: 23,
+            estudianteNombre: "Pedro Ruiz",
+            notificacionEstado: "enviada",
+            notificacionMotivo: null,
+            enviadaEn: new Date("2026-10-14T15:05:00Z"),
+          }),
+          coordinationRow({
+            id: 24,
+            estudianteNombre: "Marta Gomez",
+            notificacionMotivo: "error_envio",
+          }),
+        ],
+      });
+    });
+
+    it("lists only that tab, in scope, and writes one audit row with the tab code", async () => {
+      await renderPage({ estado: "en_revision_coordinacion" });
+
+      expect(coordinationMock).toHaveBeenCalledWith({
+        kind: "facultad",
+        facultadId: 4,
+      });
+      expect(queueMock).not.toHaveBeenCalled();
+      expect(approvedMock).not.toHaveBeenCalled();
+      expect(queueReadMock).toHaveBeenCalledTimes(1);
+      expect(queueReadMock).toHaveBeenCalledWith(
+        7,
+        4,
+        4,
+        "en_revision_coordinacion",
+      );
+      expect(
+        screen.getByRole("navigation", { name: en.tabs.label }),
+      ).toBeInTheDocument();
+      expect(
+        within(
+          screen.getByRole("navigation", { name: en.tabs.label }),
+        ).getByRole("link", { name: en.tabs.en_revision_coordinacion }),
+      ).toHaveAttribute("aria-current", "page");
+    });
+
+    it("shows the reason, the escalation date, the paused deadline and the notification as text", async () => {
+      await renderPage({ estado: "en_revision_coordinacion" });
+
+      const table = screen.getByRole("table");
+      expect(
+        within(table)
+          .getAllByRole("columnheader")
+          .map((h) => h.textContent),
+      ).toEqual([
+        en.coordination.columns.escalated,
+        en.columns.student,
+        en.columns.career,
+        en.coordination.columns.reason,
+        en.coordination.columns.status,
+        en.coordination.columns.notice,
+        en.columns.action,
+      ]);
+      const rows = within(table).getAllByRole("row").slice(1);
+      expect(rows).toHaveLength(4);
+      expect(rows[0]).toHaveTextContent("Oct 13, 2026");
+      expect(rows[0]).toHaveTextContent("Luis Mora");
+      expect(rows[0]).toHaveTextContent(
+        messages.en.review.escalation.reasons.sospecha_documento,
+      );
+      expect(rows[0]).toHaveTextContent(en.deadline.paused);
+      const notice = messages.en.review.escalation.notification;
+      expect(rows[0]).toHaveTextContent(notice.pendiente);
+      expect(rows[1]).toHaveTextContent(notice.bloqueada);
+      expect(rows[2]).toHaveTextContent("Sent on Oct 14, 2026");
+      expect(rows[3]).toHaveTextContent(notice.pendienteFallido);
+    });
+
+    it("marks no alert or overdue state and links each row to its detail without prefetch", async () => {
+      await renderPage({ estado: "en_revision_coordinacion" });
+
+      for (const text of [
+        en.deadline.onTime,
+        en.deadline.dueSoon,
+        en.deadline.overdue,
+      ]) {
+        expect(screen.queryByText(text)).toBeNull();
+      }
+      expect(screen.queryByText(/^Due /)).toBeNull();
+      const card = within(
+        screen.getByRole("list", { name: en.coordination.caption }),
+      ).getAllByRole("listitem")[0];
+      expect(
+        within(card).getByRole("link", {
+          name: "Review request from Luis Mora",
+        }),
+      ).toHaveAttribute("href", "/review/21");
+      for (const link of screen.getAllByRole("link")) {
+        expect(link).toHaveAttribute("data-prefetch", "false");
+      }
+    });
+
+    it("shows the empty state of the tab and still audits the open with a zero count", async () => {
+      coordinationMock.mockResolvedValue({ rows: [] });
+
+      await renderPage({ estado: "en_revision_coordinacion" });
+
+      expect(screen.getByText(en.coordination.empty)).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+      expect(queueReadMock).toHaveBeenCalledWith(
+        7,
+        4,
+        0,
+        "en_revision_coordinacion",
+      );
+    });
+  });
+
+  describe("Aprobadas", () => {
+    beforeEach(() => {
+      approvedMock.mockResolvedValue({
+        rows: [approvedRow(), approvedRow({ id: 32, reportes: 0 })],
+      });
+    });
+
+    it("lists only that tab and writes one audit row with the tab code", async () => {
+      await renderPage({ estado: "aprobada" });
+
+      expect(approvedMock).toHaveBeenCalledWith({
+        kind: "facultad",
+        facultadId: 4,
+      });
+      expect(queueMock).not.toHaveBeenCalled();
+      expect(coordinationMock).not.toHaveBeenCalled();
+      expect(queueReadMock).toHaveBeenCalledTimes(1);
+      expect(queueReadMock).toHaveBeenCalledWith(7, 4, 2, "aprobada");
+    });
+
+    it("shows the approval date and the number of recorded reports, and the latest-50 note", async () => {
+      await renderPage({ estado: "aprobada" });
+
+      expect(screen.getByText(en.approved.latest)).toBeInTheDocument();
+      const table = screen.getByRole("table");
+      expect(
+        within(table)
+          .getAllByRole("columnheader")
+          .map((h) => h.textContent),
+      ).toEqual([
+        en.approved.columns.approved,
+        en.columns.student,
+        en.columns.career,
+        en.approved.columns.reports,
+        en.columns.action,
+      ]);
+      const rows = within(table).getAllByRole("row").slice(1);
+      expect(rows[0]).toHaveTextContent("Oct 12, 2026");
+      expect(rows[0]).toHaveTextContent("Rosa Mena");
+      expect(rows[0]).toHaveTextContent("2 reports");
+      expect(rows[1]).toHaveTextContent("No reports");
+    });
+
+    it("marks no deadline state on approved requests", async () => {
+      await renderPage({ estado: "aprobada" });
+
+      expect(screen.queryByText(en.deadline.overdue)).toBeNull();
+      expect(screen.queryByText(en.deadline.dueSoon)).toBeNull();
+      expect(screen.queryByText(/^Due /)).toBeNull();
+    });
+
+    it("renders the tab in Spanish", async () => {
+      state.locale = "es";
+
+      await renderPage({ estado: "aprobada" });
+
+      expect(
+        screen.getByText(messages.es.review.queue.approved.latest),
+      ).toBeInTheDocument();
+      expect(screen.getAllByText("2 reportes").length).toBeGreaterThan(0);
+    });
+  });
+
+  it.each(["en_revision_coordinacion", "aprobada"])(
+    "denies a coordinacion caller the %s tab with no scope read, no rows and no audit row",
+    async (estado) => {
+      getSessionMock.mockResolvedValue(sessionFor("coordinacion"));
+
+      await expect(renderPage({ estado })).rejects.toThrow(
+        `REDIRECT:${ACCESS_DENIED_PATH}`,
+      );
+
+      expect(scopeMock).not.toHaveBeenCalled();
+      expect(coordinationMock).not.toHaveBeenCalled();
+      expect(approvedMock).not.toHaveBeenCalled();
+      expect(queueReadMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["en_revision_coordinacion", "aprobada"])(
+    "shows the no-faculty alert and queries nothing on the %s tab without a faculty",
+    async (estado) => {
+      scopeMock.mockResolvedValue({ kind: "none" });
+
+      await renderPage({ estado });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(en.noFaculty.title);
+      expect(coordinationMock).not.toHaveBeenCalled();
+      expect(approvedMock).not.toHaveBeenCalled();
+      expect(queueReadMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("writes no audit row and shows no data when a tab load fails", async () => {
+    approvedMock.mockRejectedValue(new Error("db down"));
+
+    await expect(renderPage({ estado: "aprobada" })).rejects.toThrow("db down");
+    expect(queueReadMock).not.toHaveBeenCalled();
   });
 });

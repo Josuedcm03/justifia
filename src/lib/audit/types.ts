@@ -163,8 +163,8 @@ type RequestCorrectedPayload = {
 
 type RequestReadPayload = { estado: EstadoSolicitud };
 
-/** Count only: never the list of request ids. */
-type QueueReadPayload = { total: number };
+/** Count and tab code only: never the list of request ids. */
+type QueueReadPayload = { total: number; estado: EstadoSolicitud };
 
 type DocumentRetiredPayload = { solicitudId: number };
 

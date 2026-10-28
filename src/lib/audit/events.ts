@@ -231,16 +231,20 @@ export function solicitudConsultadaEvent(args: {
   };
 }
 
-/** A staff open of the queue: the entity is the faculty, the payload a count. */
+/**
+ * A staff open of one review tab: the entity is the faculty, the payload the
+ * count and the tab code (the request state the tab lists), never request ids.
+ */
 export function solicitudColaConsultadaEvent(args: {
   facultadId: number;
   total: number;
+  estado: EstadoSolicitud;
 }): AuditEvent {
   return {
     accion: "solicitud.cola.consultada",
     entidadTipo: "Facultad",
     entidadId: args.facultadId,
-    datos: { total: args.total },
+    datos: { total: args.total, estado: args.estado },
   };
 }
 

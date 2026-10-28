@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { templateKey } from "@/app/(dashboard)/review/template-key";
 import { DECISION_TEMPLATES } from "@/lib/intake/decision-templates";
+import { ESCALATION_KINDS } from "@/lib/intake/escalation";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { REMISSION_REASONS, REMISSION_STATES } from "@/lib/remission/states";
 
@@ -204,6 +205,76 @@ describe("review messages", () => {
     expect(en.review.detail.consent.notRecorded).toBe(
       "Not recorded (presented before consent existed)",
     );
+  });
+
+  // Scenario "Translation keys present" (request-review): the state tabs, the
+  // paused-deadline badge and the texts of the two new tabs.
+  it.each(catalogs)(
+    "%s words the review state tabs and the paused badge",
+    (_l, m) => {
+      const q = m.review.queue;
+
+      for (const text of [
+        q.tabs.label,
+        q.tabs.pendiente,
+        q.tabs.en_revision_coordinacion,
+        q.tabs.aprobada,
+        q.deadline.paused,
+        q.coordination.description,
+        q.coordination.caption,
+        q.coordination.empty,
+        q.coordination.columns.escalated,
+        q.coordination.columns.reason,
+        q.coordination.columns.status,
+        q.coordination.columns.notice,
+        q.approved.description,
+        q.approved.caption,
+        q.approved.empty,
+        q.approved.latest,
+        q.approved.columns.approved,
+        q.approved.columns.reports,
+        q.approved.reportsCount,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      expect(q.tabs.pendiente).not.toBe(q.tabs.aprobada);
+    },
+  );
+
+  it.each(catalogs)(
+    "%s words the escalation reasons and the four notification statuses",
+    (_l, m) => {
+      const e = m.review.escalation;
+
+      for (const kind of ESCALATION_KINDS) {
+        expect((e.reasons as Record<string, string>)[kind], kind).toBeTruthy();
+      }
+      for (const text of [
+        e.notification.pendiente,
+        e.notification.pendienteFallido,
+        e.notification.enviada,
+        e.notification.bloqueada,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      expect(e.notification.enviada).toContain("{date}");
+      expect(e.notification.pendiente).not.toBe(
+        e.notification.pendienteFallido,
+      );
+    },
+  );
+
+  it("words the tabs neutrally in Spanish and in English", () => {
+    expect(es.review.queue.tabs).toMatchObject({
+      pendiente: "Pendientes",
+      en_revision_coordinacion: "En coordinación",
+      aprobada: "Aprobadas",
+    });
+    expect(en.review.queue.tabs).toMatchObject({
+      pendiente: "Pending",
+      en_revision_coordinacion: "In coordination",
+      aprobada: "Approved",
+    });
   });
 
   it.each(catalogs)("%s words the RN-19 special-format mark", (_l, m) => {

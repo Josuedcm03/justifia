@@ -117,6 +117,8 @@ describe("design system: status pills (§2.5, §5 Badge, §7)", () => {
     ["en_plazo", "bg-muted", "text-muted-foreground"],
     ["por_vencer", "bg-warning/10", "text-warning-ink"],
     ["vencida", "bg-destructive/10", "text-destructive-ink"],
+    // The display status of a request in coordination: muted, never an alarm.
+    ["en_pausa", "bg-muted", "text-muted-foreground"],
   ] as const)(
     "draws %s as a pill with a tint and its ink, and always with text",
     (status, tint, ink) => {
