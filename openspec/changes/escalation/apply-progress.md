@@ -543,3 +543,77 @@ Production (non-test `src/` plus `i18n/`): 204 added, 76 deleted, 280 total. Tes
 
 - A race remains by design: a notice claimed before the answer is still sent; the claim guard cannot cancel a send already in flight.
 - The opt-in real-Postgres suite has no case for the new `RespondidaEn IS NULL` guard; add one at phase 14 if the owner wants SQL-level proof.
+
+## Batch S7: Phase 13c, review fixes (2026-10-27)
+
+Branch `feat/escalation-s7-review-fixes` (pushed), stacked on `feat/escalation-s6-verify-fixes` (`23f8c41`), head `c6eb843`. Fixes the findings of the code review of PRs #54 to #63. No schema change, no migration, no database command run; the integration suite was edited and compiled but not run.
+
+### Completed tasks
+
+13c.1 to 13c.12 (13c.13, the PR, is open).
+
+| Task | Commit(s) |
+|---|---|
+| 13c.1 to 13c.3 report dialog, merged errors, trimmed counter | `645c934`, `3d68222` |
+| 13c.4 release the claim when the notice context is missing | `8842ae9` |
+| 13c.5 document route timing oracle | `ffeb1b2` |
+| 13c.6 stored reason after an unconfigured-mail resend | `a62f4c8` |
+| 13c.7 times next to dates | `fddfd41` |
+| 13c.8 integration suite: catalog test, real queue statement, guard | `13449db`, `94c6db0`, `788801a` |
+| 13c.9 consent comments | `58905df` |
+| 13c.10 env, recipient dedupe, `ClockRow`, test title, neutral texts | `c279746`, `f795d9c`, `94c8c2c`, `c6eb843` |
+| 13c.11 spec deltas on the tracker | `ae1ee77` |
+
+### TDD cycle evidence
+
+| Task | Test file | RED | GREEN | Notes |
+|------|-----------|-----|-------|-------|
+| 13c.1 | `report-dialog.test.tsx`, `absence-reports-section.test.tsx`, `escalation-actions.test.ts` | first attempt: 3 action tests and the dialog close/reset test failed; final design: the remount test failed (5520 ms timeout) | `src/app` green | the first design (`{ ok: true }` plus `refresh()`) was rejected by the existing guard `review/structure.test.ts` (found by running the whole review folder, not only `[id]`); reverted to the redirect and keyed the dialog. The double-submit test passed at once (the button is disabled while pending): characterization |
+| 13c.2 | `escalation-actions.test.ts` | 1 failed (teacher error only) | passed | |
+| 13c.3 | `escalate-dialog.test.tsx` | 1 failed (untrimmed count) | passed | |
+| 13c.4 | `escalation-dispatch.test.ts`, `escalamiento.test.ts` | 2 failed (`releaseNoticeClaim` absent) | `src/lib/data` 1048 passed | a failing release must not hide the original error: covered |
+| 13c.5 | `documents/[id]/route.test.ts` | 3 failed (student, secretaria, coordinacion) | 66 passed | order of mock invocations plus equal read counts for an unknown and a foreign document |
+| 13c.6 | `escalation.test.ts`, `escalation-dispatch.test.ts`, `escalation-actions.test.ts` | 7 failed | `src/lib`, review app green | |
+| 13c.7 | the section, tab, page and design-system tests | 15 failed once the expected strings carried the time | `src/app` 2592 passed | |
+| 13c.8 | `revision-queue.test.ts`, `guard.test.ts` | exported builder absent; 5 guard tests failed | 28 and 21 passed | integration cases written, not run; `escalation-constraints` and `queue-index` compile |
+| 13c.10 env | `env.test.ts` | 8 failed | 19 passed | |
+| 13c.10 dedupe | `escalamiento.test.ts` | 1 failed | 39 passed | |
+| 13c.10 `ClockRow` | `deadline-clock.test.ts` | `tsc`: unused `@ts-expect-error` (type-level RED) | `tsc` clean | no call site changed |
+| 13c.10 texts | `coordination/page.test.tsx`, `coordination-messages.test.ts`, `review-messages.test.ts` | 3 and 1 failed | 463 and 327 passed | conflict RED re-checked by restoring the old en text |
+
+### Work unit evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | per task in the table above; `npx vitest run src/lib src/app` 5276 passed after the final design of 13c.1 |
+| Runtime harness | N/A: scripted db doubles and jsdom; the real-Postgres cases are written (13c.8) and run at phase 14 |
+| Rollback boundary | each fix is its own commit except 13c.1 to 13c.3 (`645c934` then `3d68222`); reverting a commit leaves the others working |
+
+### Decisions
+
+1. 13c.1: keep the redirect and key the dialog, because the review module forbids `refresh()` and `revalidate*` (SR-11: each render of the detail is an audited read). The redirect to the same route renders the detail once, as before; the key only changes what the client keeps.
+2. 13c.4: release with the state, the reason and the counted attempt unchanged; no state is added because the spec has none for a notice whose data is missing. Not giving the attempt back keeps the automatic cap effective against a permanent defect.
+3. 13c.8 b: the proof uses the facultad scope, so its `EXISTS` subquery enters the plan. On a nearly empty branch the planner may still choose another shape; a failure at phase 14 is a reason to read the plan, not by itself a production problem.
+4. 13c.10: `coordination.list.noCareer` became `noAccess` because the scope cannot tell a missing career from an inactive account. The escalate `conflict` text lost "or was already escalated" for the same reason (a lost race and a wrong state share the outcome).
+
+### Gates (S7 head `c6eb843`, dummy `DATABASE_URL`)
+
+- `npx vitest run`: 280 files, 6273 passed.
+- `npm run typecheck`: clean.
+- `npx eslint src`: 112628 problems, all the CRLF `Delete ␍` noise, 0 others.
+- `npx prettier --check --end-of-line auto` on the 44 changed files: clean.
+- `npm run build`: ok (dummy `AUTH_SECRET`).
+
+### Measured vs `23f8c41`
+
+`git diff --shortstat 23f8c41..HEAD`: 44 files changed, 863 insertions, 132 deletions. Production (non-test `src/` plus `i18n/`, the integration guard included): 238 added, 71 deleted, 309 total. Tests (including the integration suite and `vitest.integration.setup.ts`): 625 added, 61 deleted.
+
+### New copy
+
+- es `coordination.list.noAccess.title`: "No puede atender solicitudes con esta cuenta"; `message`: "Su cuenta no tiene una carrera asignada o no está activa. Solicite al administrador que la revise." (en parity).
+- es `review.escalation.errors.conflict`: "Esta solicitud ya no está pendiente. Vuelva a la cola para ver su estado." (en parity).
+
+### Remaining
+
+- Phase 14 must run the integration suite, now with the catalog test and the real-statement plan.
+- 13b.8 and 13b.9 are still open follow-ups.
