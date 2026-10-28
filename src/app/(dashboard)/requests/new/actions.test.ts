@@ -488,6 +488,18 @@ describe("intake actions", () => {
       consentimientoVersion: CONSENT_VERSION,
     };
 
+    it("stores the v2 consent version, so solicitud.presentada carries it (E6)", async () => {
+      h.submitDraft.mockResolvedValue({ ok: true });
+
+      await expect(
+        submitRequestAction({ consentVersion: "2026-10-22" }),
+      ).rejects.toThrow("REDIRECT:/requests/new/confirmation");
+
+      expect(h.submitDraft.mock.calls[0][0].consentimientoVersion).toBe(
+        "2026-10-22",
+      );
+    });
+
     it("submits the stored draft with the server clock and redirects to the confirmation", async () => {
       h.submitDraft.mockResolvedValue({ ok: true });
 
@@ -561,7 +573,7 @@ describe("intake actions", () => {
         },
       );
 
-      it.each(["2025-01-01", "x"])(
+      it.each(["2026-10-20", "2025-01-01", "x"])(
         "answers consent_outdated for version %s and stores nothing",
         async (consentVersion) => {
           const result = await submitRequestAction({ consentVersion });

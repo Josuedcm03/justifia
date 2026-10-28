@@ -772,7 +772,7 @@
         "pending": "Presentando…"
       },
       "consent": {
-        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. <link>Ver aviso de privacidad</link>",
+        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, que se envíen a los docentes de las asignaturas afectadas y que, si la solicitud se escala, la coordinación de mi carrera pueda consultarlos. <link>Ver aviso de privacidad</link>",
         "newTab": "(se abre en una pestaña nueva)"
       },
       "discard": {
@@ -877,7 +877,8 @@
         "fecha_alterada": "La fecha del documento está alterada",
         "documento_ilegible": "El documento no es legible"
       },
-      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo."
+      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo.",
+      "coordination": "La coordinación de tu carrera está revisando esta solicitud. No necesitas hacer nada por ahora."
     },
     "notFound": {
       "title": "Solicitud no encontrada",
@@ -1417,7 +1418,7 @@
     },
     "recipients": {
       "title": "Destinatarios",
-      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud."
+      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud. Si la solicitud se escala, la coordinación de tu carrera recibe un aviso mínimo por correo electrónico y consulta la solicitud y sus documentos dentro del sistema."
     },
     "data": {
       "title": "Datos que se tratan",

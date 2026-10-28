@@ -393,6 +393,25 @@ describe("resubmitCorrection: who and when (RN-16)", () => {
     expect(insertAuditMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a request in coordination: the load guard holds devuelta alone (ES-14)", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+
+    expect(await resubmitCorrection(input)).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+    const [load] = double.log;
+    expect(params(load)).toContain("devuelta");
+    expect(params(load)).not.toContain("en_revision_coordinacion");
+    expect(
+      TRANSITIONS.filter(
+        (t) =>
+          t.from === "en_revision_coordinacion" && t.actor === "estudiante",
+      ),
+    ).toHaveLength(0);
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
   it("the loser of a concurrent resubmit changes nothing and adds no audit row", async () => {
     const double = use([...loaded(), { kind: "update", rows: [] }]);
 
