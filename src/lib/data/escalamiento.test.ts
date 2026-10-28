@@ -113,6 +113,25 @@ describe("listCoordinationRecipients (RF-10 b, E4, ES-3)", () => {
     await expect(listCoordinationRecipients(42)).resolves.toEqual([]);
   });
 
+  it("lists a shared address once, whatever its case, keeping the first by id", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          { correo: "Coord@uam.edu.ni" },
+          { correo: "otro@uam.edu.ni" },
+          { correo: "coord@UAM.edu.ni" },
+          { correo: " COORD@uam.edu.ni " },
+        ],
+      },
+    ]);
+
+    await expect(listCoordinationRecipients(42)).resolves.toEqual([
+      "Coord@uam.edu.ni",
+      "otro@uam.edu.ni",
+    ]);
+  });
+
   it("drops a null or blank address the query let through", async () => {
     use([
       {

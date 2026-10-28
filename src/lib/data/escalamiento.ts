@@ -357,7 +357,15 @@ export async function listCoordinationRecipients(
       ),
     )
     .orderBy(asc(usuario.id));
-  return rows.flatMap((r) => (r.correo?.trim() ? [r.correo] : []));
+  // Two accounts may share an address: it is written once, in any letter case,
+  // and the first account by id keeps its spelling.
+  const seen = new Set<string>();
+  return rows.flatMap((r) => {
+    const key = r.correo?.trim().toLowerCase();
+    if (!r.correo || !key || seen.has(key)) return [];
+    seen.add(key);
+    return [r.correo];
+  });
 }
 
 /** What the message needs about the notice, at the time of the send. */
