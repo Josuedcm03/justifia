@@ -46,5 +46,7 @@ next-env.d.ts
 .atl
 .neon
 docs/otros
+# sample documents with personal data (OCR spike)
+docs/utils
 # local
 .vercel

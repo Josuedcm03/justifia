@@ -575,7 +575,7 @@ describe("documentos data layer", () => {
 
       await getDocumentForDownload(11);
 
-      const fields = double.log[0].fields as Record<string, never>;
+      const fields = double.log[0].selection as Record<string, never>;
       const query = new PgDialect().sqlToQuery(fields.tieneEscalamientoAbierto);
       expect(query.sql).toContain('from "Escalamiento"');
       expect(query.sql).toContain(
@@ -591,7 +591,7 @@ describe("documentos data layer", () => {
 
       await getDocumentForDownload(11);
 
-      const fields = double.log[0].fields as Record<string, unknown>;
+      const fields = double.log[0].selection as Record<string, unknown>;
       expect(fields.estudianteCarreraId).toBe(usuario.carreraId);
       expect(fields.estudianteFacultadId).toBe(carrera.facultadId);
     });

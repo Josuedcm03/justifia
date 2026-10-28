@@ -18,7 +18,11 @@ equal to their own. A `coordinacion` without `CarreraId` MUST be denied every
 escalation surface (fail closed). The secretary surfaces of escalation (tabs,
 escalate, report, resend) MUST be reachable only by a `secretaria` in scope.
 Every route, page and action MUST re-check authentication, role and career
-server-side, and a denied call MUST return no data. The menu MUST show the
+server-side, and a denied call MUST return no data. A role denial follows
+`permission-denied-screen` (a signed-in user of another role sees the denied
+screen, an anonymous caller goes to login); only a `coordinacion` asking for a
+request outside its career, or for an unknown id, gets the nonexistent-id
+outcome, so the response never reveals whether such a request exists. The menu MUST show the
 coordinator entry only to `coordinacion` and the review entry only to
 `secretaria`.
 
