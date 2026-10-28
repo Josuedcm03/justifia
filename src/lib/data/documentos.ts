@@ -1,11 +1,13 @@
 import "server-only";
 
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, exists, isNull, sql } from "drizzle-orm";
+import { QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import {
   carrera,
   documentoRespaldo,
+  escalamiento,
   solicitud,
   solicitudRevision,
   usuario,
@@ -18,6 +20,7 @@ import {
   documentoRetiradoEvent,
 } from "@/lib/audit/events";
 import type { DocumentMode, DocumentRejectionReason } from "@/lib/audit/types";
+import type { ViewableDocument } from "@/lib/auth/permissions";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import {
   DRAFT_TARGET,
@@ -25,6 +28,7 @@ import {
   ownedWhere,
   type EditTarget,
 } from "@/lib/data/solicitudes";
+import { ESCALATION_REASON } from "@/lib/intake/escalation";
 import {
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS_PER_DRAFT,
@@ -39,6 +43,8 @@ import {
 
 // Persistence of supporting documents (supporting-documents, D3, D12, D13).
 // Security-critical and mutating: every function fails loud, none is fail-soft.
+
+const qb = new QueryBuilder();
 
 const MAX_NAME_LENGTH = 255;
 const FALLBACK_NAME = "documento";
@@ -56,15 +62,9 @@ export type FinalizeResult =
 
 export type UploadContext = { solicitudId: number; documentCount: number };
 
-export type DownloadableDocument = {
+export type DownloadableDocument = ViewableDocument & {
   id: number;
   solicitudId: number;
-  estudianteId: number;
-  /** `Carrera.FacultadId` of the student's current career; null without one. */
-  estudianteFacultadId: number | null;
-  solicitudEstado: string;
-  /** Set when a correction retired the document (still `valido`). */
-  retiradoEn: Date | null;
   pathname: string;
   tipo: TipoDetectado;
   nombreOriginal: string;
@@ -402,10 +402,12 @@ export async function removeDocument(
 }
 
 /**
- * A `valido` document with its owner, the owner's facultad (via the student's
- * current career), the request state and any retirement, or null. Retired
- * documents stay `valido`, so they are returned. Authorization is the caller's
- * job (`canViewDocument`): this only answers "what is this document".
+ * A `valido` document with its owner, the owner's current career and its
+ * facultad, the request state, any retirement and whether a suspicion
+ * escalation of the request is open (the coordinator's reader rule, ES-9), or
+ * null. Retired documents stay `valido`, so they are returned. Authorization is
+ * the caller's job (`canViewDocument`): this only answers "what is this
+ * document".
  */
 export async function getDocumentForDownload(
   documentId: number,
@@ -416,11 +418,24 @@ export async function getDocumentForDownload(
       solicitudId: documentoRespaldo.solicitudId,
       estudianteId: solicitud.estudianteId,
       estudianteFacultadId: carrera.facultadId,
+      estudianteCarreraId: usuario.carreraId,
       solicitudEstado: solicitud.estado,
       pathname: documentoRespaldo.pathname,
       tipoDetectado: documentoRespaldo.tipoDetectado,
       nombreOriginal: documentoRespaldo.nombreOriginal,
       retiradoEn: documentoRespaldo.retiradoEn,
+      tieneEscalamientoAbierto: sql<boolean>`${exists(
+        qb
+          .select({ one: sql`1` })
+          .from(escalamiento)
+          .where(
+            and(
+              eq(escalamiento.solicitudId, documentoRespaldo.solicitudId),
+              eq(escalamiento.tipo, ESCALATION_REASON),
+              isNull(escalamiento.respondidaEn),
+            ),
+          ),
+      )}`,
     })
     .from(documentoRespaldo)
     .innerJoin(solicitud, eq(solicitud.id, documentoRespaldo.solicitudId))
@@ -439,8 +454,10 @@ export async function getDocumentForDownload(
     solicitudId: row.solicitudId,
     estudianteId: row.estudianteId,
     estudianteFacultadId: row.estudianteFacultadId,
+    estudianteCarreraId: row.estudianteCarreraId,
     solicitudEstado: row.solicitudEstado,
     retiradoEn: row.retiradoEn,
+    tieneEscalamientoAbierto: row.tieneEscalamientoAbierto,
     pathname: row.pathname,
     tipo: row.tipoDetectado as TipoDetectado,
     nombreOriginal: row.nombreOriginal,

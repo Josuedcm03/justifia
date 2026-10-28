@@ -104,7 +104,7 @@ const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
   ],
   [
     "coordinacion",
-    ["/catalog/asignaturas", "/catalog/docentes", "/users"],
+    ["/coordination", "/catalog/asignaturas", "/catalog/docentes", "/users"],
     true,
   ],
   [
@@ -344,6 +344,7 @@ describe("DashboardPage copy", () => {
         "newRequest",
         "enrollment",
         "review",
+        "coordination",
         "catalogAsignaturas",
         "catalogDocentes",
         "catalogImport",
