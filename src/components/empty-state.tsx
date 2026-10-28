@@ -1,8 +1,10 @@
 import Link from "next/link";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 type StateLink = { href: string; label: string };
+/** A clear control for a client component whose search term lives in state. */
+type StateAction = { label: string; onClick: () => void };
 
 type EmptyStateProps =
   | {
@@ -16,7 +18,7 @@ type EmptyStateProps =
       variant: "no-results";
       title: string;
       hint: string;
-      clear: StateLink;
+      clear: StateLink | StateAction;
     };
 
 /**
@@ -42,7 +44,8 @@ export function EmptyState(props: EmptyStateProps) {
 
   // The type already forbids a missing clear link; this keeps a JavaScript
   // caller or a bad cast from shipping a dead end.
-  if (!props.clear?.href) {
+  const { clear } = props;
+  if (!clear || !("onClick" in clear || clear.href)) {
     throw new Error("EmptyState no-results requires a clear link");
   }
 
@@ -50,12 +53,23 @@ export function EmptyState(props: EmptyStateProps) {
     <div className="border-border bg-card flex flex-col items-start gap-4 rounded-xl border px-6 py-12 text-center sm:items-center">
       <p className="text-foreground max-w-prose font-medium">{props.title}</p>
       <p className="text-muted-foreground max-w-prose">{props.hint}</p>
-      <Link
-        href={props.clear.href}
-        className={buttonVariants({ variant: "outline" })}
-      >
-        {props.clear.label}
-      </Link>
+      {"onClick" in clear ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={clear.onClick}
+        >
+          {clear.label}
+        </Button>
+      ) : (
+        <Link
+          href={clear.href}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          {clear.label}
+        </Link>
+      )}
     </div>
   );
 }

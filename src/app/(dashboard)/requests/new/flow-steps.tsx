@@ -25,7 +25,11 @@ export function FlowSteps({
 }: {
   step: StepNumber;
   draft: Draft;
-  enrollment: { data: EnrollmentGroup[]; degraded: boolean };
+  enrollment: {
+    data: EnrollmentGroup[];
+    degraded: boolean;
+    enrolled: boolean;
+  };
   fromReview: boolean;
   flow?: Flow;
 }) {
@@ -52,6 +56,7 @@ export function FlowSteps({
           selected={draft.subjects}
           hasDates={draftRange(draft) !== null}
           degraded={enrollment.degraded}
+          enrolled={enrollment.enrolled}
           fromReview={fromReview}
           flow={flow}
         />

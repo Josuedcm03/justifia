@@ -1,4 +1,5 @@
 import {
+  BookMarked,
   BookOpen,
   Briefcase,
   ClipboardCheck,
@@ -19,6 +20,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canManageOwnEnrollment,
   canReviewRequests,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
@@ -63,6 +65,12 @@ export const NAV_ITEMS = [
     href: "/requests/new",
     icon: FilePlus,
     visibleTo: canFileRequests,
+  },
+  {
+    key: "enrollment",
+    href: "/enrollment",
+    icon: BookMarked,
+    visibleTo: canManageOwnEnrollment,
   },
   {
     key: "review",

@@ -9,11 +9,13 @@ import {
 import type { Draft } from "@/lib/data/solicitudes";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
 
-const { requireRole, openDraft, listEnrollmentFailSoft } = vi.hoisted(() => ({
-  requireRole: vi.fn(),
-  openDraft: vi.fn(),
-  listEnrollmentFailSoft: vi.fn(),
-}));
+const { requireRole, openDraft, listEnrollmentFailSoft, hasActive } =
+  vi.hoisted(() => ({
+    requireRole: vi.fn(),
+    openDraft: vi.fn(),
+    listEnrollmentFailSoft: vi.fn(),
+    hasActive: vi.fn(),
+  }));
 const deps = vi.hoisted(() => ({
   store: { id: "store" },
   schedule: { id: "schedule" },
@@ -21,7 +23,10 @@ const deps = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/dal", () => ({ requireRole }));
 vi.mock("@/lib/data/solicitudes", () => ({ openDraft }));
-vi.mock("@/lib/data/enrollment", () => ({ listEnrollmentFailSoft }));
+vi.mock("@/lib/data/enrollment", () => ({
+  listEnrollmentFailSoft,
+  hasActiveEnrollmentFailSoft: hasActive,
+}));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => deps }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) =>
@@ -86,7 +91,8 @@ beforeEach(() => {
   openDraft.mockReset().mockResolvedValue(EMPTY);
   listEnrollmentFailSoft
     .mockReset()
-    .mockResolvedValue({ data: [GROUP], degraded: false });
+    .mockResolvedValue({ data: [GROUP], degraded: false, enrolled: true });
+  hasActive.mockReset().mockResolvedValue(true);
 });
 
 describe("NewRequestPage guard (RNF-01)", () => {
@@ -301,6 +307,49 @@ describe("NewRequestPage step from the URL (A7)", () => {
       openDraft.mockResolvedValue(WITH_DETAILS);
       await renderPage(params);
       expect(screen.getByText("Paso 2 de 4")).toBeInTheDocument();
+    },
+  );
+});
+
+describe("NewRequestPage enrollment nudge (RF-04, RN-21)", () => {
+  const nudge = () =>
+    screen.queryByRole("link", { name: "Declarar mis inscripciones" });
+
+  it("points a student without enrollment to /enrollment and keeps step 1 usable", async () => {
+    hasActive.mockResolvedValue(false);
+    await renderPage();
+
+    expect(nudge()).toHaveAttribute("href", "/enrollment");
+    expect(heading("Causa y fechas")).toBeInTheDocument();
+    expect(hasActive).toHaveBeenCalledWith(7);
+  });
+
+  it.each([[true], [null]])(
+    "shows no notice when the answer is %s (enrolled, or the read degraded)",
+    async (answer) => {
+      hasActive.mockResolvedValue(answer);
+      await renderPage();
+
+      expect(nudge()).toBeNull();
+      expect(heading("Causa y fechas")).toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    [false, /Aún no tienes inscripciones/],
+    [true, /ninguno de tus grupos tiene clase/i],
+  ])(
+    "gives step 2 the right empty state when enrolled is %s",
+    async (enrolled, text) => {
+      openDraft.mockResolvedValue(WITH_DETAILS);
+      listEnrollmentFailSoft.mockResolvedValue({
+        data: [],
+        degraded: false,
+        enrolled,
+      });
+      await renderPage({ step: "2" });
+
+      expect(screen.getByText(text)).toBeInTheDocument();
     },
   );
 });
