@@ -41,7 +41,10 @@ import {
   solicitudConsultadaEvent,
   solicitudCorregidaEvent,
   solicitudDecididaEvent,
+  solicitudEscaladaEvent,
+  solicitudEscalamientoResueltoEvent,
   solicitudPresentadaEvent,
+  solicitudReporteInasistenciasEvent,
   type TouchedAccount,
 } from "./events";
 import {
@@ -1380,5 +1383,143 @@ describe("enrollment event builders (student-enrollment SE-8, RNF-06)", () => {
         /periodo|numeroGrupo|asignatura|docente|nombre|cif|correo|email|telefono|@|password|hash|bcrypt|clave/i,
       );
     }
+  });
+});
+
+describe("escalation event builders (RF-10, RF-15, RNF-06, RN-02)", () => {
+  type Case = {
+    name: string;
+    event: AuditEvent;
+    accion: string;
+    entidadId: number;
+    datos: Record<string, unknown>;
+  };
+
+  const cases: Case[] = [
+    {
+      name: "escalation of a pending request",
+      event: solicitudEscaladaEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        motivo: "sospecha_documento",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      }),
+      accion: "solicitud.escalada",
+      entidadId: 41,
+      datos: {
+        escalamientoId: 7,
+        motivo: "sospecha_documento",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      },
+    },
+    {
+      name: "coordination answer",
+      event: solicitudEscalamientoResueltoEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        estadoPrevio: "en_revision_coordinacion",
+        estadoNuevo: "pendiente",
+      }),
+      accion: "solicitud.escalamiento_resuelto",
+      entidadId: 41,
+      datos: {
+        escalamientoId: 7,
+        estadoPrevio: "en_revision_coordinacion",
+        estadoNuevo: "pendiente",
+      },
+    },
+    {
+      name: "absence report on an approved request",
+      event: solicitudReporteInasistenciasEvent({
+        solicitudId: 41,
+        reporteId: 3,
+        escalamientoId: 8,
+        docenteId: 55,
+      }),
+      accion: "solicitud.reporte_inasistencias",
+      entidadId: 41,
+      datos: { reporteId: 3, escalamientoId: 8, docenteId: 55 },
+    },
+  ];
+
+  it.each(cases)(
+    "$name maps to $accion on the Solicitud $entidadId",
+    ({ event, accion, entidadId, datos }) => {
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe("Solicitud");
+      expect(event.entidadId).toBe(entidadId);
+      expect(event.datos).toEqual(datos);
+      expect(AUDIT_ACTIONS).toContain(accion);
+    },
+  );
+
+  it("payloads hold ids and closed codes only", () => {
+    for (const { event } of cases) {
+      const datos = event.datos as Record<string, unknown>;
+      expect(Object.keys(datos).length).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(datos)) {
+        expect(key).not.toMatch(
+          /nota|texto|respuesta|nombre|cif|correo|email|fecha|causa|carrera/i,
+        );
+        expect(["number", "string"]).toContain(typeof value);
+        if (typeof value === "string") expect(value).toMatch(/^[a-z_]+$/);
+      }
+    }
+  });
+
+  it("drops a note, an answer, a teacher name or an email smuggled into the call", () => {
+    const smuggled = {
+      nota: "Diagnostico: depresion severa",
+      respuesta: "El documento es falso",
+      docenteNombre: "Ana Perez",
+      correo: "ana@uam.edu.ni",
+    };
+    const events = [
+      solicitudEscaladaEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        motivo: "sospecha_documento",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+        ...smuggled,
+      } as Parameters<typeof solicitudEscaladaEvent>[0]),
+      solicitudEscalamientoResueltoEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        estadoPrevio: "en_revision_coordinacion",
+        estadoNuevo: "pendiente",
+        ...smuggled,
+      } as Parameters<typeof solicitudEscalamientoResueltoEvent>[0]),
+      solicitudReporteInasistenciasEvent({
+        solicitudId: 41,
+        reporteId: 3,
+        escalamientoId: 8,
+        docenteId: 55,
+        ...smuggled,
+      } as Parameters<typeof solicitudReporteInasistenciasEvent>[0]),
+    ];
+    for (const event of events) {
+      expect(JSON.stringify(event)).not.toMatch(
+        /Diagnostico|depresion|falso|Perez|@/,
+      );
+    }
+  });
+
+  it("leaves the existing review and remission payloads unchanged", () => {
+    expect(
+      solicitudColaConsultadaEvent({ facultadId: 3, total: 4 }).datos,
+    ).toEqual({ total: 4 });
+    expect(
+      solicitudConsultadaEvent({ solicitudId: 5, estado: "aprobada" }).datos,
+    ).toEqual({ estado: "aprobada" });
+    expect(
+      remisionCreadaEvent({
+        remisionId: 11,
+        solicitudId: 41,
+        estado: "pendiente",
+      }).datos,
+    ).toEqual({ solicitudId: 41, estado: "pendiente" });
   });
 });
