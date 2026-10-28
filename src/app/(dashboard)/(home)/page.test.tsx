@@ -95,7 +95,7 @@ function shortcutHrefs() {
 
 // BS-HOME-1 "Home per role" table.
 const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
-  ["estudiante", ["/requests", "/requests/new"], false],
+  ["estudiante", ["/requests", "/requests/new", "/enrollment"], false],
   ["docente", [], false],
   [
     "administrador",
@@ -342,6 +342,7 @@ describe("DashboardPage copy", () => {
       for (const key of [
         "myRequests",
         "newRequest",
+        "enrollment",
         "review",
         "catalogAsignaturas",
         "catalogDocentes",
