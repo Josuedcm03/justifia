@@ -13,6 +13,7 @@ const escalamientoMock = vi.hoisted(() => ({
   completeNoticeSent: vi.fn(),
   listCoordinationRecipients: vi.fn(),
   loadNoticeContext: vi.fn(),
+  releaseNoticeClaim: vi.fn(),
 }));
 vi.mock("@/lib/data/escalamiento", () => escalamientoMock);
 
@@ -81,6 +82,7 @@ beforeEach(() => {
   escalamientoMock.completeNoticeFailed.mockResolvedValue(true);
   escalamientoMock.completeNoticeBlocked.mockResolvedValue(true);
   escalamientoMock.completeNoticeNotConfigured.mockResolvedValue(true);
+  escalamientoMock.releaseNoticeClaim.mockResolvedValue(true);
 });
 
 describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
@@ -246,7 +248,11 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
 
       const result = await dispatchEscalationNotice(7, creation, deps);
 
-      expect(result).toEqual({ outcome: "skipped", reason: "not_configured" });
+      expect(result).toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: null,
+      });
       expect(mail.calls).toHaveLength(0);
       expect(escalamientoMock.completeNoticeNotConfigured).toHaveBeenCalledWith(
         claim(),
@@ -261,12 +267,42 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
 
       const result = await dispatchEscalationNotice(7, creation, deps);
 
-      expect(result).toEqual({ outcome: "skipped", reason: "not_configured" });
+      expect(result).toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: null,
+      });
       expect(escalamientoMock.completeNoticeNotConfigured).toHaveBeenCalledWith(
         claim(),
         { now: NOW },
       );
       expect(escalamientoMock.completeNoticeFailed).not.toHaveBeenCalled();
+    });
+
+    it("reports the reason the notice keeps: an earlier send failure stays, a blocked reason is cleared", async () => {
+      const failed = setup(null);
+      escalamientoMock.claimEscalationNotice.mockResolvedValue(
+        claim({ motivo: "error_envio" }),
+      );
+      await expect(
+        dispatchEscalationNotice(7, creation, failed.deps),
+      ).resolves.toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: "error_envio",
+      });
+
+      const blocked = setup(null);
+      escalamientoMock.claimEscalationNotice.mockResolvedValue(
+        claim({ estado: "bloqueada", motivo: "sin_destinatarios" }),
+      );
+      await expect(
+        dispatchEscalationNotice(7, creation, blocked.deps),
+      ).resolves.toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: null,
+      });
     });
 
     it("reports a lost claim when the release matched no row", async () => {
@@ -370,7 +406,7 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
       ).resolves.toEqual({ outcome: "lost" });
     });
 
-    it("throws, leaving the claim to expire, when the notice context is missing", async () => {
+    it("releases the claim before throwing when the notice context is missing", async () => {
       const { deps, mail } = setup();
       escalamientoMock.loadNoticeContext.mockResolvedValue(null);
 
@@ -378,6 +414,23 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
         "escalation_notice_context_missing",
       );
       expect(mail.calls).toHaveLength(0);
+      // The resend and the next scheduled run are not held off by a lease.
+      expect(escalamientoMock.releaseNoticeClaim).toHaveBeenCalledWith(
+        claim(),
+        { now: NOW },
+      );
+      expect(escalamientoMock.completeNoticeSent).not.toHaveBeenCalled();
+      expect(escalamientoMock.completeNoticeFailed).not.toHaveBeenCalled();
+    });
+
+    it("still surfaces the missing context when the release itself fails", async () => {
+      const { deps } = setup();
+      escalamientoMock.loadNoticeContext.mockResolvedValue(null);
+      escalamientoMock.releaseNoticeClaim.mockRejectedValue(new Error("db"));
+
+      await expect(dispatchEscalationNotice(7, creation, deps)).rejects.toThrow(
+        "escalation_notice_context_missing",
+      );
     });
   });
 });

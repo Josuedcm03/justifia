@@ -8,9 +8,13 @@ import type { NonWorkingDaysProvider } from "./ports";
 // coordinator answer stores the shifted start in `PlazoInicioEn`; every reader
 // then feeds the unchanged `deadlineOf` with the Managua date of that start.
 
-/** The three columns the effective start is read from. */
+/**
+ * The three columns the effective start is read from. `plazoInicioEn` is
+ * required, not optional: a reader that forgot to select it would ignore the
+ * time a request spent in coordination and show a wrong deadline.
+ */
 export interface ClockRow {
-  plazoInicioEn?: Date | null;
+  plazoInicioEn: Date | null;
   reenviadaEn: Date | null;
   presentadaEn: Date | null;
 }

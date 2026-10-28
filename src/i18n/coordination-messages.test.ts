@@ -98,8 +98,8 @@ describe("coordination messages", () => {
         list.open.empty,
         list.notices.title,
         list.notices.empty,
-        list.noCareer.title,
-        list.noCareer.message,
+        list.noAccess.title,
+        list.noAccess.message,
         list.result.respondida,
       ]) {
         expect(text.trim().length).toBeGreaterThan(0);

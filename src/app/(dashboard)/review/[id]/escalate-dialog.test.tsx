@@ -77,6 +77,24 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
     expect(actionMock).not.toHaveBeenCalled();
   });
 
+  it("counts the trimmed note, as the server limit does", async () => {
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+    const dialog = await open();
+    const note = within(dialog).getByRole("textbox", {
+      name: en.dialog.noteLabel,
+    });
+
+    await userEvent.click(note);
+    await userEvent.paste(`  Sello  `);
+    expect(within(dialog).getByText("5 of 1000")).toBeInTheDocument();
+
+    // 1000 characters plus trailing spaces is within the limit once trimmed.
+    await userEvent.clear(note);
+    await userEvent.paste(`${"a".repeat(1000)}   `);
+    const counter = within(dialog).getByText("1000 of 1000");
+    expect(counter).not.toHaveClass("text-destructive-ink");
+  });
+
   it("sends only the request id and the typed note when confirmed", async () => {
     renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
     const dialog = await open();

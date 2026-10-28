@@ -565,7 +565,7 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
       const notice = messages.en.review.escalation.notification;
       expect(rows[0]).toHaveTextContent(notice.pendiente);
       expect(rows[1]).toHaveTextContent(notice.bloqueada);
-      expect(rows[2]).toHaveTextContent("Sent on Oct 14, 2026");
+      expect(rows[2]).toHaveTextContent("Sent on Oct 14, 2026, 9:05 AM");
       expect(rows[3]).toHaveTextContent(notice.pendienteFallido);
     });
 

@@ -210,7 +210,7 @@ describe("answerEscalation (ES-8, E1, E3)", () => {
       });
     });
 
-    it("writes no PlazoInicioEn when no business day was paused (answered the day after)", async () => {
+    it("writes no PlazoInicioEn when no business day was paused (answered the same day it was escalated)", async () => {
       const double = use(success({ escalatedOn: TUE, answeredOn: TUE }));
 
       await answerEscalation(input({ now: noon(TUE) }));

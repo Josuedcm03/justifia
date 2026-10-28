@@ -303,6 +303,51 @@ describe("GET /api/intake/documents/[id]", () => {
     );
   });
 
+  describe("an unknown id does the same work as a document out of scope", () => {
+    it.each([
+      ["a student", () => getCurrentUserMock.mockResolvedValue(session())],
+      ["a secretaria", asSecretaria],
+      [
+        "a coordinacion",
+        () =>
+          getCurrentUserMock.mockResolvedValue(
+            session("coordinacion", String(COORDINADOR)),
+          ),
+      ],
+    ])(
+      "resolves the scope of %s before looking the document up, found or not",
+      async (_label, sessionAs) => {
+        sessionAs();
+        const runs = async (row: ReturnType<typeof doc> | null) => {
+          resolveScopeMock.mockClear();
+          resolveCoordinationMock.mockClear();
+          getDocumentMock.mockReset();
+          getDocumentMock.mockResolvedValue(row);
+          await call("11");
+          return {
+            scope: resolveScopeMock.mock.calls.length,
+            coordination: resolveCoordinationMock.mock.calls.length,
+            // Every scope read finished before the document query started.
+            scopeFirst:
+              resolveScopeMock.mock.invocationCallOrder[0] <
+                getDocumentMock.mock.invocationCallOrder[0] &&
+              (resolveCoordinationMock.mock.calls.length === 0 ||
+                resolveCoordinationMock.mock.invocationCallOrder[0] <
+                  getDocumentMock.mock.invocationCallOrder[0]),
+          };
+        };
+
+        const unknown = await runs(null);
+        const foreign = await runs(
+          doc({ estudianteId: 99, estudianteFacultadId: 99 }),
+        );
+
+        expect(unknown.scopeFirst).toBe(true);
+        expect(unknown).toEqual(foreign);
+      },
+    );
+  });
+
   describe("repeated mode parameters", () => {
     it("answers 404 when the mode is given twice, even with equal values", async () => {
       expect((await call("11", "?modo=ver&modo=ver")).status).toBe(404);

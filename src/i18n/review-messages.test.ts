@@ -353,6 +353,19 @@ describe("review messages", () => {
     },
   );
 
+  it("words the escalate conflict for a lost race and for a wrong state alike", () => {
+    // `conflict` is returned both when another action got there first and when
+    // the request is approved, rejected or returned, so it names no cause.
+    expect(es.review.escalation.errors.conflict).toBe(
+      "Esta solicitud ya no está pendiente. Vuelva a la cola para ver su estado.",
+    );
+    expect(en.review.escalation.errors.conflict).toBe(
+      "This request is no longer pending. Go back to the queue to see its status.",
+    );
+    expect(es.review.escalation.errors.conflict).not.toMatch(/escalada/);
+    expect(en.review.escalation.errors.conflict).not.toMatch(/escalated/);
+  });
+
   it("words the unavailable-escalation refusal with the career, neutral and without voseo", () => {
     expect(es.review.escalation.errors.sin_coordinacion).toBe(
       "{carrera} no tiene coordinación registrada; solicite al administrador que cree la cuenta.",

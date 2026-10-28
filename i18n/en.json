@@ -896,9 +896,9 @@
       "title": "Escalated requests",
       "description": "Requests the secretary escalated to the coordination of your career, and informational notices from the secretary.",
       "unnamed": "Unnamed student",
-      "noCareer": {
-        "title": "Your account has no career assigned",
-        "message": "Ask the administrator to assign a career to your account before handling requests."
+      "noAccess": {
+        "title": "You cannot handle requests with this account",
+        "message": "Your account has no career assigned or is not active. Ask the administrator to review it."
       },
       "result": {
         "respondida": "Your answer was recorded and the request went back to the secretary."
@@ -1139,7 +1139,7 @@
         "nota_required": "Write the note for coordination.",
         "nota_too_long": "The note cannot be longer than 1000 characters.",
         "motivo_invalid": "The escalation reason is not valid.",
-        "conflict": "This request is no longer pending or was already escalated. Go back to the queue to see its status.",
+        "conflict": "This request is no longer pending. Go back to the queue to see its status.",
         "not_found": "This request is no longer available to you.",
         "unexpected": "The request could not be escalated. Try again.",
         "sin_coordinacion": "{carrera} has no registered coordination; ask the administrator to create the account."

@@ -1199,7 +1199,7 @@ describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
 
     const region = screen.getByRole("region", { name: esc.section.title });
     expect(region).toHaveTextContent("El documento es autentico.");
-    expect(region).toHaveTextContent("Marta Gomez, Oct 9, 2026");
+    expect(region).toHaveTextContent("Marta Gomez, Oct 9, 2026, 3:00 PM");
     // The decision panel is offered again.
     expect(
       screen.getByRole("region", { name: en.sections.decision }),

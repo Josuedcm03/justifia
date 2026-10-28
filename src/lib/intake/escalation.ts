@@ -42,6 +42,20 @@ export const ESCALATION_NOTICE_REASONS = [
 export type EscalationNoticeReason = (typeof ESCALATION_NOTICE_REASONS)[number];
 
 /**
+ * The reason a notice keeps when an attempt finds the mail service not
+ * configured and gives the claim back: nothing was attempted, so the reason of
+ * a real earlier failure stays, while `sin_destinatarios` is cleared because
+ * the recipients that now exist outdate it. One rule for the stored row and for
+ * what the resend control reports.
+ */
+export function reasonAfterUnconfiguredRelease(claim: {
+  estado: EscalationNoticeState;
+  motivo: EscalationNoticeReason | null;
+}): EscalationNoticeReason | null {
+  return claim.estado === "bloqueada" ? null : claim.motivo;
+}
+
+/**
  * What starts a send of a coordination notice: the post-commit dispatch of the
  * write, a secretary's resend, or the scheduled retry. Only a resend may pick up
  * a `bloqueada` notice (a coordinator account may exist by then).

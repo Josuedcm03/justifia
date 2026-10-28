@@ -181,6 +181,44 @@ describe("ReportDialog confirmation (RNF-12)", () => {
     expect(within(dialog).getByRole("alert")).toHaveTextContent(text);
   });
 
+  it("sends nothing twice while the first confirm is still running", async () => {
+    actionMock.mockReturnValue(new Promise(() => {}));
+    show();
+    const dialog = await open();
+    const confirm = within(dialog).getByRole("button", {
+      name: en.dialog.confirm,
+    });
+
+    await userEvent.click(confirm);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.pending }),
+    );
+
+    expect(actionMock).toHaveBeenCalledTimes(1);
+    expect(
+      within(dialog).getByRole("button", { name: en.dialog.pending }),
+    ).toBeDisabled();
+  });
+
+  it("keeps the dialog open and the draft after a refusal", async () => {
+    actionMock.mockResolvedValue({ ok: false, reason: "conflict" });
+    show();
+    const dialog = await open();
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+      "Borrador",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+
+    expect(await within(dialog).findByText(en.errors.conflict)).toBeVisible();
+    expect(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+    ).toHaveValue("Borrador");
+  });
+
   it("changes nothing when cancelled and discards the draft", async () => {
     show();
     let dialog = await open();

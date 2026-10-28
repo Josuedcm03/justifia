@@ -16,11 +16,11 @@ import { contentTypeFor } from "@/lib/intake/signature";
 
 // Authenticated view or download of a supporting document (RNF-01, RNF-02,
 // RNF-06, D13, D15, SR-12). The proxy never sees `/api`, so this handler
-// authenticates itself. Order: session, mode, lookup, owner or facultad-scope
-// check (or, for a coordinator, the career check while an escalation is open),
-// open the stored file, write the `documento.descargado` audit row (with the
-// mode), only then send bytes. Any failure before the response leaves no
-// audit row and sends no bytes.
+// authenticates itself. Order: session, mode, the caller's scope, lookup, owner
+// or facultad-scope check (or, for a coordinator, the career check while an
+// escalation is open), open the stored file, write the `documento.descargado`
+// audit row (with the mode), only then send bytes. Any failure before the
+// response leaves no audit row and sends no bytes.
 
 const NO_STORE = { "Cache-Control": "private, no-store" } as const;
 
@@ -63,8 +63,9 @@ export async function GET(
   const modo = modeOf(request);
   if (modo === null) return notFound();
 
-  const doc = await getDocumentForDownload(Number(id));
-  if (!doc) return notFound();
+  // The caller's scope is resolved before the document is looked up, so an
+  // unknown id and a document of another career or facultad do the same reads
+  // and cannot be told apart by response time.
   const viewer = { id: Number(user.sub), rol: user.rol };
   const scope = await resolveRequestScope(viewer.id, viewer.rol);
   // Only a coordinator has a coordination scope (ES-9); every other role skips
@@ -72,6 +73,8 @@ export async function GET(
   const coordination = canCoordinate(viewer.rol)
     ? await resolveCoordinationScope(viewer.id, viewer.rol)
     : undefined;
+  const doc = await getDocumentForDownload(Number(id));
+  if (!doc) return notFound();
   if (!canViewDocument(viewer, doc, scope, coordination)) return notFound();
 
   let stream: ReadableStream<Uint8Array> | null;

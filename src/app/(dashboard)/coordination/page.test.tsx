@@ -152,13 +152,16 @@ describe("CoordinationListPage access (RNF-01, ES-9)", () => {
     expect(listMock).not.toHaveBeenCalled();
   });
 
-  it("denies a coordinacion without a career: an alert, no rows, no data read, no audit row", async () => {
+  it("denies a coordinacion without a career, or an inactive one: a neutral alert, no rows, no data read, no audit row", async () => {
+    // The scope is `none` for both, so the text must be true for both.
     scopeMock.mockResolvedValue({ kind: "none" });
 
     await renderPage();
 
-    expect(screen.getByRole("alert")).toHaveTextContent(en.noCareer.title);
-    expect(screen.getByRole("alert")).toHaveTextContent(en.noCareer.message);
+    expect(screen.getByRole("alert")).toHaveTextContent(en.noAccess.title);
+    expect(screen.getByRole("alert")).toHaveTextContent(en.noAccess.message);
+    expect(en.noAccess.message).toMatch(/not active/);
+    expect(en.noAccess.message).toMatch(/no career/);
     expect(listMock).not.toHaveBeenCalled();
     expect(readMock).not.toHaveBeenCalled();
     expect(screen.queryByText("Ana Lopez")).toBeNull();

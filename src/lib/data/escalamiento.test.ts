@@ -33,6 +33,7 @@ import {
   completeNoticeSent,
   listCoordinationRecipients,
   loadNoticeContext,
+  releaseNoticeClaim,
   selectEscalationRetryCandidates,
   type EscalationNoticeClaim,
 } from "@/lib/data/escalamiento";
@@ -110,6 +111,25 @@ describe("listCoordinationRecipients (RF-10 b, E4, ES-3)", () => {
     use([{ kind: "select", rows: [] }]);
 
     await expect(listCoordinationRecipients(42)).resolves.toEqual([]);
+  });
+
+  it("lists a shared address once, whatever its case, keeping the first by id", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          { correo: "Coord@uam.edu.ni" },
+          { correo: "otro@uam.edu.ni" },
+          { correo: "coord@UAM.edu.ni" },
+          { correo: " COORD@uam.edu.ni " },
+        ],
+      },
+    ]);
+
+    await expect(listCoordinationRecipients(42)).resolves.toEqual([
+      "Coord@uam.edu.ni",
+      "otro@uam.edu.ni",
+    ]);
   });
 
   it("drops a null or blank address the query let through", async () => {
@@ -421,6 +441,26 @@ describe("guarded completion by claim id", () => {
       notificacionEstado: "pendiente",
       notificacionMotivo: null,
     });
+  });
+
+  it("releases a claim that could not be worked on, keeping the state, the reason and the attempt counted", async () => {
+    const double = use([{ kind: "update", rows: [{ id: 7 }] }]);
+
+    const done = await releaseNoticeClaim(
+      { ...claim, estado: "bloqueada", motivo: "sin_destinatarios" },
+      { now: NOW },
+    );
+
+    expect(done).toBe(true);
+    expect(double.log[0].set).toEqual({
+      notificacionEstado: "bloqueada",
+      notificacionMotivo: "sin_destinatarios",
+      reclamoId: null,
+      reclamadaEn: null,
+      actualizadaEn: NOW,
+    });
+    expect(render(double.log[0].where).params).toEqual([7, claim.reclamoId]);
+    expect(insertAuditMock).not.toHaveBeenCalled();
   });
 
   it("matches the row by id and claim id, so a stale release writes nothing", async () => {

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
@@ -13,7 +13,13 @@ import { createFixtures } from "@/lib/data/integration/fixtures";
 // Real-Postgres proof of the escalation schema rules (escalation, task 12.9).
 // The unit tests read the generated SQL; this suite makes the database itself
 // accept and reject rows, so a CHECK that is written wrong, or dropped by a
-// migration, fails here.
+// migration, fails here. Two CHECKs cannot be proven by a row: Postgres reports
+// the alphabetically first violated CHECK, so `CK_Escalamiento_Kind` hides
+// `CK_Escalamiento_Tipo` and `CK_Escalamiento_MotivoEstado` hides
+// `CK_Escalamiento_NotificacionMotivo` (every row one rejects breaks the other
+// too). The catalog test below closes that gap: every expected CHECK must exist
+// in `pg_constraint` with the fragments of its definition, so dropping any of
+// them fails, shadowed or not.
 //
 // Every case runs in its own transaction that is always rolled back, so the
 // only rows left behind are the fixtures (removed by `cleanup()`). A rejected
@@ -485,6 +491,110 @@ describe.skipIf(gate.mode !== "run")(
         rejectedBy: ["CK_Escalamiento_Intentos"],
       },
     ];
+
+    // Expected CHECKs: table, then fragments of the definition. Postgres
+    // rewrites a CHECK when it stores it (casts, parentheses, `ANY (ARRAY[...])`
+    // for `IN`), so the fragments are the column names and literals, which it
+    // keeps verbatim, never the whole text.
+    const EXPECTED_CHECKS: Record<
+      string,
+      [table: string, ...fragments: string[]]
+    > = {
+      CK_Escalamiento_Tipo: [
+        "Escalamiento",
+        '"Tipo"',
+        "sospecha_documento",
+        "exceso_inasistencias",
+      ],
+      CK_Escalamiento_Kind: [
+        "Escalamiento",
+        '"EstadoPrevio"',
+        '"ReporteId"',
+        "aprobada",
+        "btrim",
+      ],
+      CK_Escalamiento_Respuesta: [
+        "Escalamiento",
+        '"RespondidaPorId"',
+        '"RespondidaEn"',
+        '"CreadoEn"',
+      ],
+      CK_Escalamiento_SinRespuesta: [
+        "Escalamiento",
+        "sospecha_documento",
+        '"RespondidaEn"',
+      ],
+      CK_Escalamiento_NotificacionEstado: [
+        "Escalamiento",
+        '"NotificacionEstado"',
+        "pendiente",
+        "enviada",
+        "bloqueada",
+      ],
+      CK_Escalamiento_NotificacionMotivo: [
+        "Escalamiento",
+        '"NotificacionMotivo"',
+        "sin_destinatarios",
+        "error_envio",
+      ],
+      CK_Escalamiento_Enviada: [
+        "Escalamiento",
+        '"NotificacionEstado"',
+        '"EnviadaEn"',
+      ],
+      CK_Escalamiento_MotivoEstado: [
+        "Escalamiento",
+        '"NotificacionEstado"',
+        '"NotificacionMotivo"',
+        "bloqueada",
+        "sin_destinatarios",
+      ],
+      CK_Escalamiento_Reclamo: ["Escalamiento", '"ReclamoId"', '"ReclamadaEn"'],
+      CK_Escalamiento_Intentos: ["Escalamiento", '"Intentos"', ">= 0"],
+      CK_ReporteInasistencia_Nota: ["ReporteInasistencia", '"Nota"', "btrim"],
+      CK_Solicitud_PlazoInicio: [
+        "Solicitud",
+        '"PlazoInicioEn"',
+        '"ReenviadaEn"',
+        '"PresentadaEn"',
+      ],
+    };
+
+    describe("CHECK constraints exist in the catalog", () => {
+      it("has every expected CHECK on its table, with its definition", async () => {
+        const names = Object.keys(EXPECTED_CHECKS);
+        const rows = (await db.execute(sql`
+          SELECT c.conname AS name,
+                 c.conrelid::regclass::text AS tabla,
+                 pg_get_constraintdef(c.oid) AS def
+          FROM pg_constraint c
+          WHERE c.contype = 'c'
+            AND c.conname IN (${sql.join(
+              names.map((name) => sql`${name}`),
+              sql`, `,
+            )})
+        `)) as unknown as Array<{ name: string; tabla: string; def: string }>;
+
+        const found = new Map(rows.map((row) => [row.name, row]));
+        // One expectation, so a dropped CHECK is named in the failure.
+        expect(names.filter((name) => !found.has(name))).toEqual([]);
+
+        for (const [name, [table, ...fragments]] of Object.entries(
+          EXPECTED_CHECKS,
+        )) {
+          const row = found.get(name)!;
+          // `regclass` quotes mixed-case names and may carry the schema.
+          expect(row.tabla.replaceAll('"', "").split(".").pop(), name).toBe(
+            table,
+          );
+          for (const fragment of fragments) {
+            expect(row.def, `${name} should contain ${fragment}`).toContain(
+              fragment,
+            );
+          }
+        }
+      });
+    });
 
     describe("Escalamiento CHECK constraints", () => {
       it.each(CASES)("$name", async ({ row, rejectedBy }) => {

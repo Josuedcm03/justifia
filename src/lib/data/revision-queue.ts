@@ -62,15 +62,12 @@ export type ReviewQueue = {
   calendarLoaded: boolean;
 };
 
-export async function listReviewQueue(
-  scope: RequestScope,
-  now: Date,
-  calendar: NonWorkingDaysProvider,
-): Promise<ReviewQueue> {
-  const today = managuaToday(now);
-  const calendarLoaded = calendar.coversYear(Number(today.slice(0, 4)));
-
-  const rows = await db
+/**
+ * The Pendientes select. Exported so the real-Postgres proof of
+ * `IX_Solicitud_Cola` plans this very statement and not a copy of it.
+ */
+export function reviewQueueQuery(scope: RequestScope) {
+  return db
     .select({
       id: solicitud.id,
       presentadaEn: solicitud.presentadaEn,
@@ -81,6 +78,17 @@ export async function listReviewQueue(
     .from(solicitud)
     .where(and(eq(solicitud.estado, "pendiente"), requestInScope(scope)))
     .orderBy(asc(effectiveClockStart(solicitud)), asc(solicitud.id));
+}
+
+export async function listReviewQueue(
+  scope: RequestScope,
+  now: Date,
+  calendar: NonWorkingDaysProvider,
+): Promise<ReviewQueue> {
+  const today = managuaToday(now);
+  const calendarLoaded = calendar.coversYear(Number(today.slice(0, 4)));
+
+  const rows = await reviewQueueQuery(scope);
 
   const classes = await listRequestClasses(
     db,

@@ -896,9 +896,9 @@
       "title": "Solicitudes escaladas",
       "description": "Solicitudes que la secretaría escaló a la coordinación de su carrera y avisos informativos de la secretaría.",
       "unnamed": "Estudiante sin nombre",
-      "noCareer": {
-        "title": "Su cuenta no tiene una carrera asignada",
-        "message": "Solicite al administrador que asigne una carrera a su cuenta antes de atender solicitudes."
+      "noAccess": {
+        "title": "No puede atender solicitudes con esta cuenta",
+        "message": "Su cuenta no tiene una carrera asignada o no está activa. Solicite al administrador que la revise."
       },
       "result": {
         "respondida": "La respuesta quedó registrada y la solicitud volvió a la secretaría."
@@ -1139,7 +1139,7 @@
         "nota_required": "Escriba la nota para coordinación.",
         "nota_too_long": "La nota no puede superar los 1000 caracteres.",
         "motivo_invalid": "El motivo del escalamiento no es válido.",
-        "conflict": "Esta solicitud ya no está pendiente o ya fue escalada. Vuelva a la cola para ver su estado.",
+        "conflict": "Esta solicitud ya no está pendiente. Vuelva a la cola para ver su estado.",
         "not_found": "Esta solicitud ya no está disponible para usted.",
         "unexpected": "No se pudo escalar la solicitud. Inténtelo de nuevo.",
         "sin_coordinacion": "{carrera} no tiene coordinación registrada; solicite al administrador que cree la cuenta."

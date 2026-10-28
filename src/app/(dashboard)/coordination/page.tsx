@@ -20,8 +20,9 @@ const RESULT_CODES = ["respondida"] as const;
  * RNF-01). The audited read happens here, in the page body, after
  * authorisation and after the data loaded (SR-11): never in a layout or a
  * loading file, and every link to this route opts out of prefetch. A
- * coordinator without a career is denied everything and nothing is read or
- * audited. The cause is health data and is never listed (RNF-06).
+ * coordinator without a career, or an inactive one, is denied everything and
+ * nothing is read or audited; the scope cannot tell the two apart, so the text
+ * names both. The cause is health data and is never listed (RNF-06).
  */
 export default async function CoordinationListPage({
   searchParams,
@@ -43,8 +44,8 @@ export default async function CoordinationListPage({
       <div className="flex flex-col gap-8">
         {header}
         <div role="alert" className={`${ALERT} flex flex-col gap-1`}>
-          <p className="font-medium">{t("noCareer.title")}</p>
-          <p>{t("noCareer.message")}</p>
+          <p className="font-medium">{t("noAccess.title")}</p>
+          <p>{t("noAccess.message")}</p>
         </div>
       </div>
     );

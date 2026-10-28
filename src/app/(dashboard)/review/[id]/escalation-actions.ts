@@ -17,10 +17,11 @@ import {
   recordExcessReport,
 } from "@/lib/data/solicitud-escalation";
 import { getEscalationDeps } from "@/lib/escalation/deps";
-import type {
-  EscalationError,
-  EscalationNoticeReason,
-  EscalationNoticeState,
+import {
+  validateReportDraft,
+  type EscalationError,
+  type EscalationNoticeReason,
+  type EscalationNoticeState,
 } from "@/lib/intake/escalation";
 
 // The secretary's escalation and absence-report actions (RF-10, RF-15, RN-20,
@@ -32,9 +33,12 @@ import type {
 // teacher are validated there too, before any write. Success schedules the
 // notice to coordination after the response (`after()`, only once the write has
 // committed, so a mail outage can never undo it), then redirects (the queue for
-// an escalation, the detail for a report) and never revalidates the page, so the
-// audited detail read cannot run twice (SR-11); only refusals come back to the
-// dialog. A secretary may resend a notice that is not `enviada`.
+// an escalation, the detail for a report) and never revalidates or refreshes the
+// page, so the audited detail read cannot run twice (SR-11); only refusals come
+// back to the dialog. A report redirects to the route it was made on, which
+// keeps client state, so the report dialog is keyed on the recorded reports and
+// remounts closed and empty. A secretary may resend a notice that is not
+// `enviada`.
 
 export type EscalationActionFailure =
   | { ok: false; reason: "not_found" | "conflict" | "unexpected" }
@@ -127,10 +131,18 @@ export async function recordExcessReportAction(
   if (!guard) return NOT_FOUND;
   const { actorId, scope, payload, solicitudId } = guard;
   if (!isId(payload.remisionId)) {
+    // The date and the note are checked too, so one answer names every error.
+    const draft = validateReportDraft(
+      { comunicadoEl: payload.comunicadoEl, nota: payload.nota },
+      new Date(),
+    );
     return {
       ok: false,
       reason: "invalid",
-      errors: [{ field: "docente", code: "docente_invalid" }],
+      errors: [
+        { field: "docente", code: "docente_invalid" },
+        ...(draft.ok ? [] : draft.errors),
+      ],
     };
   }
 
@@ -240,11 +252,13 @@ export async function resendEscalationNoticeAction(
           result.outcome === "skipped" &&
           result.reason === "not_configured"
         ) {
-          // Released as pendiente without a failure; any earlier reason is moot.
+          // Released as pendiente with no new failure; the reason the row keeps
+          // (an earlier send failure stays) is returned, so the control and the
+          // status pill after a reload agree.
           return {
             ok: true,
             estado: "pendiente",
-            motivo: null,
+            motivo: result.motivo ?? null,
             aviso: "sin_configurar",
           };
         }

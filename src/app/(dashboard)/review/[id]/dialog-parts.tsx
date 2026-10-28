@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 
 import type { EscalationActionFailure } from "@/app/(dashboard)/review/[id]/escalation-actions";
 import {
@@ -70,20 +70,28 @@ export type DialogCopy = (
 
 /**
  * The refusal of the last confirm and the running state. A success never
- * resolves here: the action redirects. Generic in the failure type, so the
- * secretary and the coordinator actions share it.
+ * resolves here: the action redirects. A second confirm while one runs is
+ * ignored. Generic in the failure type, so the secretary and the coordinator
+ * actions share it.
  */
 export function useEscalationAction<
   F extends { reason: string } = EscalationActionFailure,
 >() {
   const [failure, setFailure] = useState<F | null>(null);
   const [pending, startTransition] = useTransition();
+  const running = useRef(false);
 
   function run(action: () => Promise<F>) {
+    if (running.current) return;
+    running.current = true;
     setFailure(null);
     startTransition(async () => {
-      const result = await action();
-      if (result) setFailure(result);
+      try {
+        const result = await action();
+        if (result) setFailure(result);
+      } finally {
+        running.current = false;
+      }
     });
   }
 
@@ -195,6 +203,8 @@ export function NoteField({
   onChange: (value: string) => void;
   messages: readonly string[];
 }) {
+  // The server limit applies to the trimmed text, so the counter does too.
+  const length = value.trim().length;
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{copy("dialog.noteLabel")}</Label>
@@ -212,12 +222,12 @@ export function NoteField({
         </p>
         <p
           className={
-            value.length > ESCALATION_NOTE_MAX
+            length > ESCALATION_NOTE_MAX
               ? "text-destructive-ink text-xs tabular-nums"
               : "text-muted-foreground text-xs tabular-nums"
           }
         >
-          {copy("dialog.counter", { count: value.length })}
+          {copy("dialog.counter", { count: length })}
         </p>
       </div>
       <FieldMessages id={`${id}-error`} messages={messages} />

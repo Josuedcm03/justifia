@@ -6,9 +6,11 @@
  * the owner's approval. A change to the es text or to the notice needs a new
  * version and a new pin in `consent.test.ts`.
  *
- * v2 (escalation, E6): the career coordination becomes a recipient. The date is
- * a placeholder until the owner confirms it. Requests presented under v1
- * (`2026-10-20`) keep their stored version and are not backfilled.
+ * v2 (escalation, E6): the career coordination becomes a recipient. The owner
+ * adopted `2026-10-22` as the final version and the team owns the text; any
+ * later wording or date change needs a new version and a new pin. Requests
+ * presented under v1 (`2026-10-20`) keep their stored version and are not
+ * backfilled.
  */
 export const CONSENT_VERSION = "2026-10-22";
 

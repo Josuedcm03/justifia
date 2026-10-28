@@ -28,11 +28,12 @@ import {
   sentStamp,
 } from "@/lib/data/outbox";
 import { requestInScope } from "@/lib/data/request-scope-sql";
-import type {
-  EscalationKind,
-  EscalationNoticeReason,
-  EscalationNoticeState,
-  EscalationNoticeTrigger,
+import {
+  reasonAfterUnconfiguredRelease,
+  type EscalationKind,
+  type EscalationNoticeReason,
+  type EscalationNoticeState,
+  type EscalationNoticeTrigger,
 } from "@/lib/intake/escalation";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { MAX_AUTO_ATTEMPTS, RETRY_BATCH_SIZE } from "@/lib/remission/limits";
@@ -214,8 +215,32 @@ export function completeNoticeNotConfigured(
     claim.secretariaId,
     {
       notificacionEstado: "pendiente",
-      notificacionMotivo: claim.estado === "bloqueada" ? null : claim.motivo,
+      notificacionMotivo: reasonAfterUnconfiguredRelease(claim),
       ...attemptGivenBack(escalamiento, "not_configured"),
+      ...claimRelease(args.now),
+    },
+    [],
+  );
+}
+
+/**
+ * The attempt cannot proceed (the notice lacks data the message needs): the
+ * claim is released and the notice keeps its state and reason, so a resend or
+ * the next scheduled run is not held off by the lease. The attempt stays
+ * counted, so the automatic-attempt cap still ends a permanent defect; no audit
+ * row is written because nothing was sent or decided.
+ */
+export function releaseNoticeClaim(
+  claim: EscalationNoticeClaim,
+  args: { now: Date },
+): Promise<boolean> {
+  return completeHeld(
+    escalamiento,
+    claim,
+    claim.secretariaId,
+    {
+      notificacionEstado: claim.estado,
+      notificacionMotivo: claim.motivo,
       ...claimRelease(args.now),
     },
     [],
@@ -332,7 +357,15 @@ export async function listCoordinationRecipients(
       ),
     )
     .orderBy(asc(usuario.id));
-  return rows.flatMap((r) => (r.correo?.trim() ? [r.correo] : []));
+  // Two accounts may share an address: it is written once, in any letter case,
+  // and the first account by id keeps its spelling.
+  const seen = new Set<string>();
+  return rows.flatMap((r) => {
+    const key = r.correo?.trim().toLowerCase();
+    if (!r.correo || !key || seen.has(key)) return [];
+    seen.add(key);
+    return [r.correo];
+  });
 }
 
 /** What the message needs about the notice, at the time of the send. */

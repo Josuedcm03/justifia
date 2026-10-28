@@ -63,10 +63,13 @@ describe("clockStartOf (ES-5)", () => {
     ).toBe(presented);
   });
 
-  it("treats a missing pause start like null", () => {
-    expect(clockStartOf({ reenviadaEn: null, presentadaEn: presented })).toBe(
-      presented,
-    );
+  it("requires the pause start from every caller: a row that omits it does not compile", () => {
+    // Forgetting to select the column would silently ignore a coordination
+    // pause, so the type makes the caller pass `null` explicitly.
+    // @ts-expect-error plazoInicioEn is required (Date | null)
+    const omitted: ClockRow = { reenviadaEn: null, presentadaEn: presented };
+
+    expect(omitted.presentadaEn).toBe(presented);
   });
 
   it("throws when the request was never presented", () => {

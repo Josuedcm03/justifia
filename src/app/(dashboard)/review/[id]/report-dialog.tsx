@@ -29,7 +29,9 @@ export type ReportTeacher = {
  * input's `max`; the server validates it again) and the note is optional.
  * There is no percentage or count of absences to enter. Nothing is recorded
  * until the secretary confirms; cancelling or Escape discards the draft. A
- * success redirects to the detail, so this component only receives refusals.
+ * success redirects to this same route, so this component only receives
+ * refusals; the section keys it on the recorded reports, which remounts it
+ * closed and empty once the new report is shown.
  */
 export function ReportDialog({
   solicitudId,

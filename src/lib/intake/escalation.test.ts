@@ -4,6 +4,7 @@ import {
   ESCALATION_KINDS,
   ESCALATION_NOTE_MAX,
   EXCESS_REPORT_STATE,
+  reasonAfterUnconfiguredRelease,
   validateAnswerText,
   validateEscalationDraft,
   validateReportDraft,
@@ -14,6 +15,32 @@ const NOW = new Date("2026-10-14T15:00:00Z");
 const TODAY = "2026-10-14";
 const YESTERDAY = "2026-10-13";
 const TOMORROW = "2026-10-15";
+
+describe("reasonAfterUnconfiguredRelease", () => {
+  it("keeps the reason of a real earlier failure", () => {
+    expect(
+      reasonAfterUnconfiguredRelease({
+        estado: "pendiente",
+        motivo: "error_envio",
+      }),
+    ).toBe("error_envio");
+  });
+
+  it("has none for a notice that was never attempted", () => {
+    expect(
+      reasonAfterUnconfiguredRelease({ estado: "pendiente", motivo: null }),
+    ).toBeNull();
+  });
+
+  it("drops a blocked reason, which the recipients that now exist outdate", () => {
+    expect(
+      reasonAfterUnconfiguredRelease({
+        estado: "bloqueada",
+        motivo: "sin_destinatarios",
+      }),
+    ).toBeNull();
+  });
+});
 
 describe("escalation constants (RN-20, ES-4)", () => {
   it("knows exactly the two kinds", () => {
