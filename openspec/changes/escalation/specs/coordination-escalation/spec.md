@@ -95,9 +95,15 @@ escalation (see "Zero recipients is a visible blocked state").
 
 #### Scenario: Denied callers
 
-- GIVEN a student, a `coordinacion`, a `secretaria` of another facultad, a `secretaria` without `FacultadId`, an unauthenticated call, or an unknown id
+- GIVEN a signed-in student, `coordinacion`, `docente` or `administrador`, or an unauthenticated call
 - WHEN they call the escalation action
-- THEN the outcome is the same denial as for a nonexistent id and nothing changes
+- THEN a signed-in caller of another role gets the denied screen, an anonymous caller goes to login (as in `user-roles` and `permission-denied-screen`), and nothing changes
+
+#### Scenario: Out-of-scope callers and unknown ids
+
+- GIVEN a `secretaria` of another facultad, a `secretaria` without `FacultadId`, or an unknown id
+- WHEN they call the escalation action
+- THEN the outcome is the nonexistent-id outcome and nothing changes
 
 #### Scenario: Legacy consent does not block
 
@@ -199,9 +205,15 @@ the RN-08 clock (see `request-review`). An escalation can be answered once.
 
 #### Scenario: Denied callers
 
-- GIVEN a coordinator of another career, a `coordinacion` without `CarreraId`, a `secretaria`, a student, or an unauthenticated call
+- GIVEN a signed-in `secretaria`, student, `docente` or `administrador`, or an unauthenticated call
 - WHEN they call the answer action
-- THEN the outcome equals that for a nonexistent id and nothing changes
+- THEN a signed-in caller of another role gets the denied screen, an anonymous caller goes to login (as in `user-roles` and `permission-denied-screen`), and nothing changes
+
+#### Scenario: Out-of-career callers and unknown ids
+
+- GIVEN a coordinator of another career, a `coordinacion` without `CarreraId`, or an unknown escalation id
+- WHEN they call the answer action
+- THEN the outcome is the nonexistent-id outcome, a denial returns no data, and nothing changes
 
 #### Scenario: Failure rolls back
 
@@ -278,9 +290,15 @@ email); its notification then becomes `bloqueada` with `sin_destinatarios`
 
 #### Scenario: Denied callers
 
-- GIVEN a student, a `coordinacion`, a `secretaria` of another facultad, or an unauthenticated call
+- GIVEN a signed-in student, `coordinacion`, `docente` or `administrador`, or an unauthenticated call
 - WHEN they call the report action
-- THEN the outcome equals that for a nonexistent id and nothing changes
+- THEN a signed-in caller of another role gets the denied screen, an anonymous caller goes to login (as in `user-roles` and `permission-denied-screen`), and nothing changes
+
+#### Scenario: Out-of-scope callers and unknown ids
+
+- GIVEN a `secretaria` of another facultad, a `secretaria` without `FacultadId`, or an unknown request id
+- WHEN they call the report action
+- THEN the outcome is the nonexistent-id outcome and nothing changes
 
 #### Scenario: Failure rolls back
 
@@ -453,6 +471,13 @@ notification MUST send nothing.
 - GIVEN a notification `bloqueada` with `sin_destinatarios` and a coordinator account now existing
 - WHEN the in-scope secretary resends
 - THEN it is sent, becomes `enviada`, and one `escalamiento.notificacion_reenviada` row exists
+
+#### Scenario: Resend after the fix finds the mail unconfigured
+
+- GIVEN a notification `bloqueada` with `sin_destinatarios` and a coordinator account with an email now existing, and a mail service that is not configured
+- WHEN the in-scope secretary resends
+- THEN the recipients are found, so the notification moves from `bloqueada` to `pendiente` with no reason, and nothing is sent
+- AND the attempt is not counted, no `escalamiento.notificacion_fallida` and no `escalamiento.notificacion_reenviada` row is written, and once the mail service is configured the next run sends it
 
 #### Scenario: Resend out of scope
 
