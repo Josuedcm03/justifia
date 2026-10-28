@@ -162,7 +162,13 @@ describe("AppSidebar", () => {
       ).not.toBeInTheDocument();
       expect(topLevelLabels()).toEqual(
         rol === "estudiante"
-          ? ["Panel", "Mis solicitudes", "Nueva solicitud", "Configuración"]
+          ? [
+              "Panel",
+              "Mis solicitudes",
+              "Nueva solicitud",
+              "Inscripción",
+              "Configuración",
+            ]
           : ["Panel", "Configuración"],
       );
     },
@@ -214,7 +220,10 @@ describe("AppSidebar", () => {
       ],
     ],
     ["docente", ["/", "/settings"]],
-    ["estudiante", ["/", "/requests", "/requests/new", "/settings"]],
+    [
+      "estudiante",
+      ["/", "/requests", "/requests/new", "/enrollment", "/settings"],
+    ],
   ] as const)("offers exactly the permitted links to %s", (rol, hrefs) => {
     renderSidebar(rol);
 
@@ -266,6 +275,48 @@ describe("AppSidebar new request item (justification-intake, canFileRequests)", 
       "aria-current",
       "page",
     );
+  });
+});
+
+describe("AppSidebar enrollment item (BS-NAV-3)", () => {
+  it.each([
+    ["es", "Inscripción"],
+    ["en", "Enrollment"],
+  ] as const)(
+    "offers estudiante the %s link to /enrollment",
+    (locale, name) => {
+      env.locale = locale;
+      renderSidebar("estudiante");
+
+      expect(screen.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        "/enrollment",
+      );
+    },
+  );
+
+  it.each(["docente", "coordinacion", "secretaria", "administrador"] as const)(
+    "hides it from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        screen.queryByRole("link", { name: "Inscripción" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ["/enrollment", "Inscripción"],
+    ["/requests/new", "Nueva solicitud"],
+  ] as const)("marks only the matching entry on %s", (pathname, label) => {
+    env.pathname = pathname;
+    renderSidebar("estudiante");
+
+    const marked = document.querySelectorAll("[aria-current]");
+
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveTextContent(label);
   });
 });
 
@@ -744,7 +795,13 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
   it.each([
     [
       "estudiante",
-      ["Panel", "Mis solicitudes", "Nueva solicitud", "Configuración"],
+      [
+        "Panel",
+        "Mis solicitudes",
+        "Nueva solicitud",
+        "Inscripción",
+        "Configuración",
+      ],
       [],
     ],
     ["docente", ["Panel", "Configuración"], []],

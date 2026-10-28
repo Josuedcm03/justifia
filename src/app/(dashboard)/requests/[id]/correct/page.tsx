@@ -101,7 +101,7 @@ export default async function CorrectRequestPage({
   const enrollment =
     (step === 2 || step === 4) && range
       ? await listEnrollmentFailSoft(userId, range, getIntakeDeps().schedule)
-      : { data: [], degraded: false };
+      : { data: [], degraded: false, enrolled: true };
 
   const flow: Flow = {
     basePath: `/requests/${id}/correct`,

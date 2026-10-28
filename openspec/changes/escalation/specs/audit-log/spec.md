@@ -44,11 +44,17 @@ each inside the same transaction as its state or data change. A send MUST
 write `escalamiento.notificacion_enviada` when it succeeds,
 `escalamiento.notificacion_fallida` when it fails,
 `escalamiento.notificacion_bloqueada` when no recipient exists, and
-`escalamiento.notificacion_reenviada` when a secretary triggers a resend that
-attempts a send. A refused, unauthorized, out-of-scope, lost-race,
-validation-failed, rolled-back operation, a resend of an `enviada`
-notification, or a scheduled run that finds nothing to send MUST write no row.
-The actor MUST be the session user, never request input.
+`escalamiento.notificacion_reenviada` when a secretary triggers a resend whose
+attempt wins the claim and ends in a recorded outcome (sent, failed or no
+recipient); that row MUST be written in the same transaction as the outcome
+row, never when the resend is merely authorized. A refused, unauthorized,
+out-of-scope, lost-race, validation-failed, rolled-back operation, a resend of
+an `enviada` notification, a resend whose claim is lost or skipped because
+another attempt holds the send, a resend of the notification of an answered
+escalation, an attempt that finds the mail service not configured (nothing was
+attempted, so it is not a failed send), or a scheduled run that finds nothing
+to send MUST write no row. The actor MUST be the session user, never request
+input.
 
 #### Scenario: Successful operations (table-driven)
 
@@ -77,6 +83,9 @@ The actor MUST be the session user, never request input.
 | report on a non-aprobada request |
 | lost race on escalation or answer |
 | resend of an `enviada` notification |
+| resend whose claim is lost or skipped (another attempt holds the send) |
+| resend of the notification of an answered escalation |
+| send attempt while the mail service is not configured |
 | the audit insert fails |
 
 - GIVEN the case from the row

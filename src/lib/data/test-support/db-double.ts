@@ -18,6 +18,10 @@ export type LoggedStatement = {
   where?: unknown;
   orderBy?: unknown[];
   limit?: number;
+  /** The argument of `select(...)`: the column set a read asks for. */
+  selection?: unknown;
+  /** The arguments of `.for(...)`: row-lock strength and its config. */
+  lock?: { strength: unknown; config?: unknown };
   inTransaction: boolean;
 };
 
@@ -68,6 +72,12 @@ function builder(
           return proxy;
         };
       }
+      if (prop === "for") {
+        return (strength: unknown, config?: unknown) => {
+          record({ lock: { strength, config } });
+          return proxy;
+        };
+      }
       if (prop === "orderBy") {
         return (...orderBy: unknown[]) => {
           record({ orderBy });
@@ -86,7 +96,11 @@ export function createDbDouble(script: readonly Step[]) {
   let transactions = 0;
   let inTransaction = false;
 
-  function statement(kind: StatementKind, table?: unknown) {
+  function statement(
+    kind: StatementKind,
+    table?: unknown,
+    selection?: unknown,
+  ) {
     const step = script[cursor++];
     if (!step) throw new Error(`Unscripted ${kind} statement #${cursor}`);
     if (step.kind !== kind) {
@@ -94,7 +108,7 @@ export function createDbDouble(script: readonly Step[]) {
         `Statement #${cursor}: expected ${step.kind}, got ${kind}`,
       );
     }
-    const entry: LoggedStatement = { kind, table, inTransaction };
+    const entry: LoggedStatement = { kind, table, selection, inTransaction };
     log.push(entry);
     return builder(
       step.rows ?? [],
@@ -104,7 +118,7 @@ export function createDbDouble(script: readonly Step[]) {
   }
 
   const handle = {
-    select: () => statement("select"),
+    select: (selection?: unknown) => statement("select", undefined, selection),
     insert: (table: unknown) => statement("insert", table),
     update: (table: unknown) => statement("update", table),
     delete: (table: unknown) => statement("delete", table),

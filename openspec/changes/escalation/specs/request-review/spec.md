@@ -135,10 +135,11 @@ report MUST NOT alter the remission section.
 | `pendiente` with `error_envio` | pending send, last attempt failed |
 | `enviada` | sent, with time |
 | `bloqueada` with `sin_destinatarios` | no coordination recipient for the career |
+| not `enviada`, and its escalation is answered | will not be sent, the coordination already answered |
 
 - GIVEN a notice or escalation with the notification in the row
 - WHEN the secretary opens the detail
-- THEN the text shown is as in the row and a resend control is offered unless `enviada`
+- THEN the text shown is as in the row and a resend control is offered unless `enviada` or its escalation is answered
 
 #### Scenario: Remissions unchanged by a report
 
