@@ -106,7 +106,15 @@ describe("Escalamiento write surface", () => {
   });
 
   it("keeps the answer columns out of the notification writer and the creation", () => {
-    expect(read("lib/data/escalamiento.ts")).not.toMatch(ANSWER_COLUMNS);
+    // The notification writer may only READ the answer time, as the column
+    // `escalamiento.respondidaEn`: to skip the notice of an answered escalation
+    // (the guard of the claim and of the retry selection) and to report it. It
+    // never sets an answer column.
+    const writer = read("lib/data/escalamiento.ts").replaceAll(
+      "escalamiento.respondidaEn",
+      "",
+    );
+    expect(writer).not.toMatch(ANSWER_COLUMNS);
     expect(read("lib/data/solicitud-escalation.ts")).not.toMatch(
       ANSWER_COLUMNS,
     );

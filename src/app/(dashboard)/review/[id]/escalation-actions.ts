@@ -161,9 +161,11 @@ export type ResendNoticeResult =
       /**
        * A more precise text for the control: `en_curso` when another attempt
        * holds the send, `sin_correo` when the career's coordination accounts
-       * exist but none has an email.
+       * exist but none has an email, `sin_configurar` when the mail service
+       * has no keys yet (nothing was attempted), `respondida` when the
+       * coordinator answered first and the notice is no longer sent.
        */
-      aviso?: "en_curso" | "sin_correo";
+      aviso?: "en_curso" | "sin_correo" | "sin_configurar" | "respondida";
     }
   | { ok: false; reason: "not_found" | "unexpected" };
 
@@ -183,7 +185,8 @@ async function hasCoordinationAccount(solicitudId: number): Promise<boolean> {
 /**
  * Resend of a notice that is not `enviada` (RF-10 b). An unknown id and an
  * out-of-scope id get the same answer; a sent notice sends nothing and writes
- * no audit row. The outcome is returned as text for the control: the page is
+ * no audit row, and the resend's own audit row is written only by an attempt
+ * that wins the claim (`attemptEvents`). The outcome is returned as text for the control: the page is
  * not revalidated (SR-11).
  */
 export async function resendEscalationNoticeAction(
@@ -195,11 +198,21 @@ export async function resendEscalationNoticeAction(
   const scope = await resolveRequestScope(actorId, user.rol);
   if (scope.kind === "none" || !isId(escalamientoId)) return NOT_FOUND;
 
-  const target = await authorizeNoticeResend(scope, escalamientoId, actorId);
+  const target = await authorizeNoticeResend(scope, escalamientoId);
   if (!target) return NOT_FOUND;
   // A sent notice is never sent twice: report it as it is.
   if (target.estado === "enviada") {
     return { ok: true, estado: "enviada", motivo: null };
+  }
+  // The coordinator answered first: the notice would only link to a record
+  // the coordination view no longer shows, so it is not sent.
+  if (target.respondida) {
+    return {
+      ok: true,
+      estado: target.estado,
+      motivo: null,
+      aviso: "respondida",
+    };
   }
 
   try {
@@ -223,6 +236,18 @@ export async function resendEscalationNoticeAction(
             }
           : { ok: true, estado: "bloqueada", motivo: result.motivo };
       default:
+        if (
+          result.outcome === "skipped" &&
+          result.reason === "not_configured"
+        ) {
+          // Released as pendiente without a failure; any earlier reason is moot.
+          return {
+            ok: true,
+            estado: "pendiente",
+            motivo: null,
+            aviso: "sin_configurar",
+          };
+        }
         // Another attempt holds it, or took the lease over: a send is running.
         return {
           ok: true,

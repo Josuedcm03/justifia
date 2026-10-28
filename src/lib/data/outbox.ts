@@ -83,17 +83,18 @@ export function heldBy(table: OutboxTable, claim: HeldClaim) {
 }
 
 /**
- * Applies one guarded completion and its audit row in a single transaction. A
- * worker whose lease was taken over matches no row, writes nothing and reports
- * `false`.
+ * Applies one guarded completion and its audit rows (one event, or several
+ * written in order; none writes none) in a single transaction. A worker whose
+ * lease was taken over matches no row, writes nothing and reports `false`.
  */
 export function completeHeld<T extends OutboxTable>(
   table: T,
   claim: HeldClaim,
   actorId: number,
   set: PgUpdateSetSource<T>,
-  event: AuditEvent,
+  events: AuditEvent | readonly AuditEvent[],
 ): Promise<boolean> {
+  const rows = Array.isArray(events) ? events : [events];
   return db.transaction(async (tx) => {
     const updated = await tx
       .update(table)
@@ -101,7 +102,7 @@ export function completeHeld<T extends OutboxTable>(
       .where(heldBy(table, claim))
       .returning({ id: table.id });
     if (updated.length === 0) return false;
-    await insertAuditEvents(tx, actorId, [event]);
+    if (rows.length > 0) await insertAuditEvents(tx, actorId, rows);
     return true;
   });
 }

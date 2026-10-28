@@ -9,13 +9,19 @@ import type {
 // tells the secretary that a retry is waiting.
 
 export type NoticeStatusKey =
-  "pendiente" | "pendienteFallido" | "enviada" | "bloqueada";
+  "pendiente" | "pendienteFallido" | "enviada" | "bloqueada" | "respondida";
 
+/**
+ * `answered` is true when the escalation was answered: a notice not sent by
+ * then is never sent (the dispatch skips it), whatever its stored state.
+ */
 export function noticeStatusKey(
   estado: EscalationNoticeState,
   motivo: EscalationNoticeReason | null,
+  answered = false,
 ): NoticeStatusKey {
   if (estado === "enviada") return "enviada";
+  if (answered) return "respondida";
   if (estado === "bloqueada") return "bloqueada";
   return motivo === "error_envio" ? "pendienteFallido" : "pendiente";
 }

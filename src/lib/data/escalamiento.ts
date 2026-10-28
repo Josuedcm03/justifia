@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -18,8 +18,7 @@ import {
   escalamientoNotificacionFallidaEvent,
   escalamientoNotificacionReenviadaEvent,
 } from "@/lib/audit/events";
-import type { MailFailureCode } from "@/lib/audit/types";
-import { insertAuditEvents } from "@/lib/data/audit";
+import type { AuditEvent, MailFailureCode } from "@/lib/audit/types";
 import {
   attemptGivenBack,
   claimRelease,
@@ -75,7 +74,10 @@ function claimableStates(
 
 /**
  * Guarded claim of one notice: `UPDATE ... WHERE ... RETURNING`. Null means
- * another attempt holds it or it is already sent: skip silently.
+ * another attempt holds it, it is already sent, or its escalation was answered
+ * meanwhile (the coordinator no longer needs the notice and its link would lead
+ * to a record that is not there): skip silently. Only a suspicion is ever
+ * answered, so the report notices are never excluded.
  */
 export async function claimEscalationNotice(
   id: number,
@@ -89,6 +91,7 @@ export async function claimEscalationNotice(
       and(
         eq(escalamiento.id, id),
         inArray(escalamiento.notificacionEstado, [...claimableStates(trigger)]),
+        isNull(escalamiento.respondidaEn),
         leaseFree(escalamiento.reclamadaEn, now),
       ),
     )
@@ -112,6 +115,30 @@ type Completion = {
   origen: EscalationNoticeTrigger;
 };
 
+/**
+ * The audit rows of a completed attempt. A secretary's resend that reaches a
+ * recorded outcome also writes `notificacion_reenviada` with the state it
+ * started from, ahead of the outcome row and in the same transaction (audit-log,
+ * "One audit row per escalation operation"): the row exists only when the
+ * attempt did, so a resend whose claim was lost or skipped leaves none.
+ */
+function attemptEvents(
+  claim: EscalationNoticeClaim,
+  origen: EscalationNoticeTrigger,
+  outcome: AuditEvent,
+): AuditEvent[] {
+  return origen === "reenvio_manual"
+    ? [
+        escalamientoNotificacionReenviadaEvent({
+          escalamientoId: claim.id,
+          solicitudId: claim.solicitudId,
+          estadoPrevio: claim.estado,
+        }),
+        outcome,
+      ]
+    : [outcome];
+}
+
 /** The provider accepted the message. */
 export function completeNoticeSent(
   claim: EscalationNoticeClaim,
@@ -127,13 +154,17 @@ export function completeNoticeSent(
       ...sentStamp(args.providerId, args.now),
       ...claimRelease(args.now),
     },
-    escalamientoNotificacionEnviadaEvent({
-      escalamientoId: claim.id,
-      solicitudId: claim.solicitudId,
-      origen: args.origen,
-      intentos: claim.intentos,
-      destinatarios: args.destinatarios,
-    }),
+    attemptEvents(
+      claim,
+      args.origen,
+      escalamientoNotificacionEnviadaEvent({
+        escalamientoId: claim.id,
+        solicitudId: claim.solicitudId,
+        origen: args.origen,
+        intentos: claim.intentos,
+        destinatarios: args.destinatarios,
+      }),
+    ),
   );
 }
 
@@ -152,13 +183,42 @@ export function completeNoticeFailed(
       ...attemptGivenBack(escalamiento, args.codigo),
       ...claimRelease(args.now),
     },
-    escalamientoNotificacionFallidaEvent({
-      escalamientoId: claim.id,
-      solicitudId: claim.solicitudId,
-      origen: args.origen,
-      intentos: claim.intentos,
-      codigo: args.codigo,
-    }),
+    attemptEvents(
+      claim,
+      args.origen,
+      escalamientoNotificacionFallidaEvent({
+        escalamientoId: claim.id,
+        solicitudId: claim.solicitudId,
+        origen: args.origen,
+        intentos: claim.intentos,
+        codigo: args.codigo,
+      }),
+    ),
+  );
+}
+
+/**
+ * The mail service is not configured, so nothing was attempted (coordination-
+ * escalation, "Notification outbox"): the attempt is given back, the claim is
+ * released and the notice stays `pendiente`, with no failure audit row. The
+ * reason of a real earlier failure is kept; a `sin_destinatarios` reason is
+ * cleared because the recipients that stopped it being sent now exist.
+ */
+export function completeNoticeNotConfigured(
+  claim: EscalationNoticeClaim,
+  args: { now: Date },
+): Promise<boolean> {
+  return completeHeld(
+    escalamiento,
+    claim,
+    claim.secretariaId,
+    {
+      notificacionEstado: "pendiente",
+      notificacionMotivo: claim.estado === "bloqueada" ? null : claim.motivo,
+      ...attemptGivenBack(escalamiento, "not_configured"),
+      ...claimRelease(args.now),
+    },
+    [],
   );
 }
 
@@ -176,19 +236,24 @@ export function completeNoticeBlocked(
       notificacionMotivo: "sin_destinatarios",
       ...claimRelease(args.now),
     },
-    escalamientoNotificacionBloqueadaEvent({
-      escalamientoId: claim.id,
-      solicitudId: claim.solicitudId,
-      origen: args.origen,
-      motivo: "sin_destinatarios",
-    }),
+    attemptEvents(
+      claim,
+      args.origen,
+      escalamientoNotificacionBloqueadaEvent({
+        escalamientoId: claim.id,
+        solicitudId: claim.solicitudId,
+        origen: args.origen,
+        motivo: "sin_destinatarios",
+      }),
+    ),
   );
 }
 
 /**
  * The notices the scheduled job may dispatch: pending, free or expired claim,
- * under the automatic-attempt cap, oldest first, one bounded batch. A
- * `bloqueada` or `enviada` notice is never selected.
+ * under the automatic-attempt cap, of an escalation not yet answered, oldest
+ * first, one bounded batch. A `bloqueada` or `enviada` notice is never
+ * selected.
  */
 export async function selectEscalationRetryCandidates(
   now: Date = new Date(),
@@ -199,6 +264,7 @@ export async function selectEscalationRetryCandidates(
     .where(
       and(
         eq(escalamiento.notificacionEstado, "pendiente"),
+        isNull(escalamiento.respondidaEn),
         leaseFree(escalamiento.reclamadaEn, now),
         lt(escalamiento.intentos, MAX_AUTO_ATTEMPTS),
       ),
@@ -211,42 +277,34 @@ export async function selectEscalationRetryCandidates(
 /**
  * A secretary's resend of a notice (RF-10 b, RNF-01): proves the notice's
  * request is in her scope (an unknown and an out-of-scope id are the same
- * `null`) and, when the notice is not `enviada`, writes the
- * `notificacion_reenviada` audit row with the state it started from. A sent
- * notice sends nothing and writes nothing.
+ * `null`) and reports its state and whether its escalation was answered. It
+ * writes nothing: the
+ * `notificacion_reenviada` audit row is written with the outcome of the
+ * attempt that follows (`attemptEvents`), so a resend that sends nothing, as
+ * of a sent notice or of a lost claim, leaves no row.
  */
 export async function authorizeNoticeResend(
   scope: RequestScope,
   escalamientoId: number,
-  actorId: number,
 ): Promise<{
   id: number;
   solicitudId: number;
   estado: EscalationNoticeState;
+  /** The coordinator already answered: the notice is no longer sent. */
+  respondida: boolean;
 } | null> {
-  return db.transaction(async (tx) => {
-    const [target] = await tx
-      .select({
-        id: escalamiento.id,
-        solicitudId: escalamiento.solicitudId,
-        estado: escalamiento.notificacionEstado,
-      })
-      .from(escalamiento)
-      .innerJoin(solicitud, eq(solicitud.id, escalamiento.solicitudId))
-      .where(and(eq(escalamiento.id, escalamientoId), requestInScope(scope)))
-      .limit(1);
-    if (!target) return null;
-    if (target.estado !== "enviada") {
-      await insertAuditEvents(tx, actorId, [
-        escalamientoNotificacionReenviadaEvent({
-          escalamientoId: target.id,
-          solicitudId: target.solicitudId,
-          estadoPrevio: target.estado,
-        }),
-      ]);
-    }
-    return target;
-  });
+  const [target] = await db
+    .select({
+      id: escalamiento.id,
+      solicitudId: escalamiento.solicitudId,
+      estado: escalamiento.notificacionEstado,
+      respondida: sql<boolean>`${escalamiento.respondidaEn} is not null`,
+    })
+    .from(escalamiento)
+    .innerJoin(solicitud, eq(solicitud.id, escalamiento.solicitudId))
+    .where(and(eq(escalamiento.id, escalamientoId), requestInScope(scope)))
+    .limit(1);
+  return target ?? null;
 }
 
 /**

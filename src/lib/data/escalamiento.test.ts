@@ -29,6 +29,7 @@ import {
   claimEscalationNotice,
   completeNoticeBlocked,
   completeNoticeFailed,
+  completeNoticeNotConfigured,
   completeNoticeSent,
   listCoordinationRecipients,
   loadNoticeContext,
@@ -251,6 +252,16 @@ describe("claimEscalationNotice (RNF-07, concurrent attempts)", () => {
     expect(query.params).not.toContain("enviada");
   });
 
+  it("never claims the notice of an answered escalation", async () => {
+    const double = use([{ kind: "update", rows: [] }]);
+
+    await claimEscalationNotice(7, "reenvio_manual", NOW);
+
+    expect(render(double.log[0].where).sql).toContain(
+      '"Escalamiento"."RespondidaEn" is null',
+    );
+  });
+
   it("takes over only a missing or expired lease", async () => {
     const double = use([{ kind: "update", rows: [claimedRow] }]);
 
@@ -370,21 +381,55 @@ describe("guarded completion by claim id", () => {
     });
   });
 
-  it("gives the attempt back when the mail service is not configured yet", async () => {
+  it("releases a notice the unconfigured mail could not send: attempt given back, pendiente, no audit row", async () => {
     const double = use([{ kind: "update", rows: [{ id: 7 }] }]);
 
-    await completeNoticeFailed(claim, {
-      now: NOW,
-      actorId: ACTOR,
-      origen: "reintento_automatico",
-      codigo: "not_configured",
-    });
+    const done = await completeNoticeNotConfigured(claim, { now: NOW });
 
+    expect(done).toBe(true);
     const set = double.log[0].set as Record<string, unknown>;
     expect(render(set.intentos).sql).toBe(
       'greatest("Escalamiento"."Intentos" - 1, 0)',
     );
-    expect(set.notificacionMotivo).toBe("error_envio");
+    expect(set).toMatchObject({
+      notificacionEstado: "pendiente",
+      notificacionMotivo: null,
+      reclamoId: null,
+      reclamadaEn: null,
+      actualizadaEn: NOW,
+    });
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the reason of a real earlier failure, and clears a blocked reason the new recipients outdate", async () => {
+    let double = use([{ kind: "update", rows: [{ id: 7 }] }]);
+    await completeNoticeNotConfigured(
+      { ...claim, motivo: "error_envio" },
+      { now: NOW },
+    );
+    expect(double.log[0].set).toMatchObject({
+      notificacionEstado: "pendiente",
+      notificacionMotivo: "error_envio",
+    });
+
+    double = use([{ kind: "update", rows: [{ id: 7 }] }]);
+    await completeNoticeNotConfigured(
+      { ...claim, estado: "bloqueada", motivo: "sin_destinatarios" },
+      { now: NOW },
+    );
+    expect(double.log[0].set).toMatchObject({
+      notificacionEstado: "pendiente",
+      notificacionMotivo: null,
+    });
+  });
+
+  it("matches the row by id and claim id, so a stale release writes nothing", async () => {
+    const double = use([{ kind: "update", rows: [] }]);
+
+    await expect(
+      completeNoticeNotConfigured(claim, { now: NOW }),
+    ).resolves.toBe(false);
+    expect(render(double.log[0].where).params).toEqual([7, claim.reclamoId]);
   });
 
   it("stores a notice without recipients as bloqueada with sin_destinatarios", async () => {
@@ -404,7 +449,7 @@ describe("guarded completion by claim id", () => {
       reclamadaEn: null,
       actualizadaEn: NOW,
     });
-    expect(insertAuditMock.mock.calls[0][2][0]).toEqual({
+    expect(insertAuditMock.mock.calls[0][2].at(-1)).toEqual({
       accion: "escalamiento.notificacion_bloqueada",
       entidadTipo: "Escalamiento",
       entidadId: 7,
@@ -478,6 +523,16 @@ describe("selectEscalationRetryCandidates (RNF-07, scheduled job)", () => {
     expect(double.log[0].orderBy).toHaveLength(2);
   });
 
+  it("leaves out the notices of answered escalations", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+
+    await selectEscalationRetryCandidates(NOW);
+
+    expect(render(double.log[0].where).sql).toContain(
+      '"Escalamiento"."RespondidaEn" is null',
+    );
+  });
+
   it("returns an empty list when nothing is due", async () => {
     use([{ kind: "select", rows: [] }]);
 
@@ -488,65 +543,168 @@ describe("selectEscalationRetryCandidates (RNF-07, scheduled job)", () => {
 describe("authorizeNoticeResend (RF-10 b, RNF-01)", () => {
   const SCOPE = { kind: "facultad", facultadId: 4 } as const;
 
-  it("returns the target and audits the resend with the state before it", async () => {
+  it("returns the target in scope and writes no audit row: the row belongs to the attempt", async () => {
     const double = use([
       {
         kind: "select",
-        rows: [{ id: 7, solicitudId: 42, estado: "bloqueada" }],
+        rows: [
+          {
+            id: 7,
+            solicitudId: 42,
+            estado: "bloqueada",
+            respondida: false,
+          },
+        ],
       },
     ]);
 
-    const target = await authorizeNoticeResend(SCOPE, 7, ACTOR);
+    const target = await authorizeNoticeResend(SCOPE, 7);
 
-    expect(target).toEqual({ id: 7, solicitudId: 42, estado: "bloqueada" });
-    expect(double.transactions).toBe(1);
+    expect(target).toEqual({
+      id: 7,
+      solicitudId: 42,
+      estado: "bloqueada",
+      respondida: false,
+    });
+    expect(double.transactions).toBe(0);
     expect(render(double.log[0].where).params).toEqual([7, 4]);
-    expect(insertAuditMock).toHaveBeenCalledWith(expect.anything(), ACTOR, [
-      {
-        accion: "escalamiento.notificacion_reenviada",
-        entidadTipo: "Escalamiento",
-        entidadId: 7,
-        datos: { solicitudId: 42, estadoPrevio: "bloqueada" },
-      },
-    ]);
+    expect(insertAuditMock).not.toHaveBeenCalled();
   });
 
-  it("audits a pending notice too", async () => {
+  it("returns a pending and a sent notice alike, without an audit row", async () => {
     use([
       {
         kind: "select",
         rows: [{ id: 7, solicitudId: 42, estado: "pendiente" }],
       },
     ]);
-
-    await authorizeNoticeResend(SCOPE, 7, ACTOR);
-
-    expect(insertAuditMock.mock.calls[0][2][0].datos).toEqual({
-      solicitudId: 42,
-      estadoPrevio: "pendiente",
+    await expect(authorizeNoticeResend(SCOPE, 7)).resolves.toMatchObject({
+      estado: "pendiente",
     });
-  });
 
-  it("returns a sent notice without an audit row", async () => {
     use([
       {
         kind: "select",
         rows: [{ id: 7, solicitudId: 42, estado: "enviada" }],
       },
     ]);
-
-    await expect(authorizeNoticeResend(SCOPE, 7, ACTOR)).resolves.toEqual({
-      id: 7,
-      solicitudId: 42,
+    await expect(authorizeNoticeResend(SCOPE, 7)).resolves.toMatchObject({
       estado: "enviada",
     });
     expect(insertAuditMock).not.toHaveBeenCalled();
   });
 
-  it("returns null without an audit row when the id is unknown or out of scope", async () => {
+  it("tells whether the escalation of the notice was already answered", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          {
+            id: 7,
+            solicitudId: 42,
+            estado: "pendiente",
+            respondida: true,
+          },
+        ],
+      },
+    ]);
+
+    await expect(authorizeNoticeResend(SCOPE, 7)).resolves.toMatchObject({
+      estado: "pendiente",
+      respondida: true,
+    });
+  });
+
+  it("returns null when the id is unknown or out of scope", async () => {
     use([{ kind: "select", rows: [] }]);
 
-    await expect(authorizeNoticeResend(SCOPE, 99, ACTOR)).resolves.toBeNull();
+    await expect(authorizeNoticeResend(SCOPE, 99)).resolves.toBeNull();
     expect(insertAuditMock).not.toHaveBeenCalled();
   });
+});
+
+describe("the resend audit row belongs to the attempt (audit-log: one row per operation)", () => {
+  const reenviada = (estadoPrevio: string) => ({
+    accion: "escalamiento.notificacion_reenviada",
+    entidadTipo: "Escalamiento",
+    entidadId: 7,
+    datos: { solicitudId: 42, estadoPrevio },
+  });
+  const manual = {
+    now: NOW,
+    actorId: ACTOR,
+    origen: "reenvio_manual",
+  } as const;
+
+  it("adds the resend row before the outcome row of a resend that sends, in the same transaction", async () => {
+    const double = use([{ kind: "update", rows: [{ id: 7 }] }]);
+
+    await completeNoticeSent(
+      { ...claim, estado: "bloqueada", motivo: "sin_destinatarios" },
+      { ...manual, providerId: "p", destinatarios: 1 },
+    );
+
+    expect(double.transactions).toBe(1);
+    expect(insertAuditMock).toHaveBeenCalledTimes(1);
+    const rows = insertAuditMock.mock.calls[0][2];
+    expect(rows.map((r: { accion: string }) => r.accion)).toEqual([
+      "escalamiento.notificacion_reenviada",
+      "escalamiento.notificacion_enviada",
+    ]);
+    expect(rows[0]).toEqual(reenviada("bloqueada"));
+    expect(insertAuditMock.mock.calls[0][1]).toBe(ACTOR);
+  });
+
+  it("adds it to a resend that fails and to a resend that finds no recipient", async () => {
+    use([{ kind: "update", rows: [{ id: 7 }] }]);
+    await completeNoticeFailed(claim, { ...manual, codigo: "rejected" });
+    use([{ kind: "update", rows: [{ id: 7 }] }]);
+    await completeNoticeBlocked(claim, manual);
+
+    expect(
+      insertAuditMock.mock.calls.map((call) =>
+        call[2].map((r: { accion: string }) => r.accion),
+      ),
+    ).toEqual([
+      [
+        "escalamiento.notificacion_reenviada",
+        "escalamiento.notificacion_fallida",
+      ],
+      [
+        "escalamiento.notificacion_reenviada",
+        "escalamiento.notificacion_bloqueada",
+      ],
+    ]);
+    expect(insertAuditMock.mock.calls[0][2][0]).toEqual(reenviada("pendiente"));
+  });
+
+  it("writes no resend row when the claim was lost: the completion matches no row", async () => {
+    use([{ kind: "update", rows: [] }]);
+
+    await expect(
+      completeNoticeSent(claim, {
+        ...manual,
+        providerId: "p",
+        destinatarios: 1,
+      }),
+    ).resolves.toBe(false);
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["escalamiento", "reintento_automatico"] as const)(
+    "writes no resend row for a %s attempt",
+    async (origen) => {
+      use([{ kind: "update", rows: [{ id: 7 }] }]);
+
+      await completeNoticeSent(claim, {
+        now: NOW,
+        actorId: ACTOR,
+        origen,
+        providerId: "p",
+        destinatarios: 1,
+      });
+
+      expect(insertAuditMock.mock.calls[0][2]).toHaveLength(1);
+    },
+  );
 });

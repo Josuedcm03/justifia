@@ -15,6 +15,20 @@ describe("noticeStatusKey (RF-10 b, RNF-07)", () => {
     expect(noticeStatusKey(estado, motivo)).toBe(key);
   });
 
+  it("says an unsent notice of an answered escalation will not be sent", () => {
+    expect(noticeStatusKey("pendiente", null, true)).toBe("respondida");
+    expect(noticeStatusKey("pendiente", "error_envio", true)).toBe(
+      "respondida",
+    );
+    expect(noticeStatusKey("bloqueada", "sin_destinatarios", true)).toBe(
+      "respondida",
+    );
+  });
+
+  it("keeps a notice that was sent before the answer as sent", () => {
+    expect(noticeStatusKey("enviada", null, true)).toBe("enviada");
+  });
+
   it("does not let a stray reason change a sent or blocked notification", () => {
     expect(noticeStatusKey("enviada", "error_envio")).toBe("enviada");
     expect(noticeStatusKey("bloqueada", "error_envio")).toBe("bloqueada");
