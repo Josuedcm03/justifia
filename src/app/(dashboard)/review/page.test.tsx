@@ -386,6 +386,21 @@ describe("ReviewQueuePage decision result banner", () => {
     },
   );
 
+  it("confirms an escalation to coordination in a status banner", async () => {
+    await renderPage({ resultado: "escalada" });
+
+    expect(screen.getByRole("status")).toHaveTextContent(en.result.escalada);
+  });
+
+  it("shows the banner above the tabs on a coordination tab too", async () => {
+    await renderPage({
+      resultado: "escalada",
+      estado: "en_revision_coordinacion",
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(en.result.escalada);
+  });
+
   it("ignores an unknown result value", async () => {
     await renderPage({ resultado: "<b>x</b>" });
 

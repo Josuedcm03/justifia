@@ -38,6 +38,8 @@ import type { RequestScope } from "@/lib/intake/request-scope";
 const BASE = "/review";
 const ALERT =
   "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
+/** The outcomes a redirect back to the queue can confirm. */
+const RESULT_CODES = [...DECISION_KINDS, "escalada"] as const;
 const NOTICE =
   "border-success/30 border-l-success bg-success/8 text-success-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
 
@@ -116,7 +118,7 @@ export default async function ReviewQueuePage({
     tab,
   );
 
-  const decided = DECISION_KINDS.find((kind) => kind === resultado);
+  const decided = RESULT_CODES.find((code) => code === resultado);
   const banner = decided ? (
     <p role="status" className={NOTICE}>
       {t(`result.${decided}`)}

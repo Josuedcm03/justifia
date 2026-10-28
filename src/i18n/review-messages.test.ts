@@ -264,6 +264,118 @@ describe("review messages", () => {
     },
   );
 
+  // Scenarios "Translation keys present" and "Refusal message names the
+  // career" (request-review, coordination-escalation).
+  it.each(catalogs)(
+    "%s words the escalation section, dialog and every error it can show",
+    (_l, m) => {
+      const e = m.review.escalation;
+
+      for (const text of [
+        e.section.title,
+        e.section.fields.reason,
+        e.section.fields.note,
+        e.section.fields.escalated,
+        e.section.fields.answer,
+        e.section.fields.notice,
+        e.section.escalatedBy,
+        e.section.answeredBy,
+        e.section.waiting,
+        e.dialog.trigger,
+        e.dialog.title,
+        e.dialog.description,
+        e.dialog.noteLabel,
+        e.dialog.noteHint,
+        e.dialog.counter,
+        e.dialog.confirm,
+        e.dialog.pending,
+        e.dialog.cancel,
+        e.dialog.backToQueue,
+        m.review.queue.result.escalada,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      for (const code of [
+        "nota_required",
+        "nota_too_long",
+        "motivo_invalid",
+        "conflict",
+        "not_found",
+        "unexpected",
+        "sin_coordinacion",
+      ]) {
+        expect((e.errors as Record<string, string>)[code], code).toBeTruthy();
+      }
+      expect(e.dialog.counter).toContain("{count}");
+    },
+  );
+
+  it.each(catalogs)(
+    "%s words the report section, dialog and every error it can show",
+    (_l, m) => {
+      const r = m.review.report;
+
+      for (const text of [
+        r.section.title,
+        r.section.empty,
+        r.section.noTeachers,
+        r.entry.communicated,
+        r.entry.recordedBy,
+        r.entry.note,
+        r.dialog.trigger,
+        r.dialog.title,
+        r.dialog.description,
+        r.dialog.teacherLabel,
+        r.dialog.teacherPlaceholder,
+        r.dialog.dateLabel,
+        r.dialog.noteLabel,
+        r.dialog.noteHint,
+        r.dialog.counter,
+        r.dialog.confirm,
+        r.dialog.pending,
+        r.dialog.cancel,
+        r.dialog.backToQueue,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      for (const code of [
+        "date_invalid",
+        "date_future",
+        "docente_invalid",
+        "nota_blank",
+        "nota_too_long",
+        "conflict",
+        "not_found",
+        "unexpected",
+      ]) {
+        expect((r.errors as Record<string, string>)[code], code).toBeTruthy();
+      }
+    },
+  );
+
+  it("words the unavailable-escalation refusal with the career, neutral and without voseo", () => {
+    expect(es.review.escalation.errors.sin_coordinacion).toBe(
+      "{carrera} no tiene coordinación registrada; solicite al administrador que cree la cuenta.",
+    );
+    expect(en.review.escalation.errors.sin_coordinacion).toContain("{carrera}");
+    expect(en.review.escalation.errors.sin_coordinacion).toContain(
+      "administrator",
+    );
+  });
+
+  it("never words the student-facing or staff texts with the legacy voseo", () => {
+    const spanish = JSON.stringify([es.review.escalation, es.review.report]);
+
+    expect(spanish).not.toMatch(
+      /\b(?:escribí|elegí|seleccioná|registrá|escalá|confirmá|tenés|podés|vos)\b/i,
+    );
+  });
+
+  it("words no percentage or absence count anywhere in the report texts (RF-15 a)", () => {
+    expect(JSON.stringify(es.review.report)).not.toMatch(/porcentaje/i);
+    expect(JSON.stringify(en.review.report)).not.toMatch(/percent/i);
+  });
+
   it("words the tabs neutrally in Spanish and in English", () => {
     expect(es.review.queue.tabs).toMatchObject({
       pendiente: "Pendientes",

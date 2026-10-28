@@ -33,6 +33,7 @@ vi.mock("@/db", () => ({
 vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
 import {
+  coordinationAccountsOf,
   countCoordinationAccounts,
   escalateRequest,
   recordExcessReport,
@@ -74,6 +75,21 @@ describe("countCoordinationAccounts (ES-3, E17)", () => {
 
     expect(result).toEqual({ carreraNombre: "Ingenieria Civil", cuentas: 2 });
     expect(double.log).toHaveLength(2);
+  });
+
+  it("reads the same count on the shared handle for the staff detail page", async () => {
+    const double = use([
+      { kind: "select", rows: [careerRow] },
+      { kind: "select", rows: [{ n: 0 }] },
+    ]);
+
+    // The detail page proves the request is in scope first, then asks this.
+    expect(await coordinationAccountsOf(ID)).toEqual({
+      carreraNombre: "Ingenieria Civil",
+      cuentas: 0,
+    });
+    expect(double.log).toHaveLength(2);
+    expect(double.log.every((s) => !s.inTransaction)).toBe(true);
   });
 
   it("reads the career of the request's student, then counts that career only", async () => {

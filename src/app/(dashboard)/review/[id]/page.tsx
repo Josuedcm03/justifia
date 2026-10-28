@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
+import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
+import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
 import {
   ChangesSection,
@@ -20,6 +23,7 @@ import { rolesRevisores } from "@/lib/auth/permissions";
 import { listRemissions } from "@/lib/data/remision";
 import { recordRequestRead } from "@/lib/data/request-reads";
 import { resolveRequestScope } from "@/lib/data/request-scope";
+import { coordinationAccountsOf } from "@/lib/data/solicitud-escalation";
 import {
   getRequestDetail,
   type DetailRevision,
@@ -131,6 +135,17 @@ export default async function ReviewDetailPage({
   // loaded with the rest, before the single audited read below.
   const remissions =
     detail.estado === "aprobada" ? await listRemissions(detail.id) : null;
+  // E17: a career without an active coordination account cannot be escalated
+  // to. The email is not required here; a notice without recipient is blocked
+  // later. The student's live career is read, never the snapshot name.
+  const accounts = pending ? await coordinationAccountsOf(detail.id) : null;
+  const unavailableCareer = !pending
+    ? null
+    : accounts && accounts.cuentas > 0
+      ? null
+      : (accounts?.carreraNombre ??
+        detail.estudiante.carrera ??
+        t("detail.notSet"));
 
   await recordRequestRead(actorId, detail.id, detail.estado);
 
@@ -195,6 +210,7 @@ export default async function ReviewDetailPage({
               : null
           }
         />
+        <EscalationSection escalations={detail.escalamientos} />
         <StudentSection
           student={detail.estudiante}
           consent={detail.consentimiento}
@@ -218,6 +234,16 @@ export default async function ReviewDetailPage({
             }
           />
         ) : null}
+        <AbsenceReportsSection
+          solicitudId={detail.id}
+          reports={detail.reportes}
+          canReport={detail.estado === "aprobada"}
+          teachers={(remissions ?? []).map((r) => ({
+            remisionId: r.id,
+            nombre: r.docenteNombre,
+          }))}
+          maxDate={managuaToday(now)}
+        />
         <HistorySection
           decisions={detail.decisiones}
           revisions={detail.revisiones}
@@ -238,6 +264,10 @@ export default async function ReviewDetailPage({
                   templates={templatesFor(kind)}
                 />
               ))}
+              <EscalateDialog
+                solicitudId={detail.id}
+                unavailableCareer={unavailableCareer}
+              />
             </div>
           </Section>
         ) : null}

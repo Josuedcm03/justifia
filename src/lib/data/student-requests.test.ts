@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { escalamiento, reporteInasistencia } from "@/db/schema";
 import { VISIBLE_STATES } from "@/lib/intake/states";
 
 import { createDbDouble, type Step } from "./test-support/db-double";
@@ -194,6 +195,36 @@ describe("getOwnRequestDetail (RF-07 c, RF-08 b, RNF-01)", () => {
     expect(detail?.revisiones).toEqual([revisionRow]);
     expect(detail?.decision).toEqual(decision());
     expect(detail?.historial).toEqual([]);
+  });
+
+  // Scenario "Student never sees them" (request-review): characterization pin.
+  // The own-request payload stays as it was before the escalation change.
+  it("exposes no escalation, note, answer or report and never reads those tables (ES-14)", async () => {
+    const double = use(loaded());
+
+    const detail = await getOwnRequestDetail(USER, ID);
+
+    expect(Object.keys(detail ?? {}).sort()).toEqual([
+      "causa",
+      "clases",
+      "decision",
+      "documentos",
+      "estado",
+      "fechaFin",
+      "fechaInicio",
+      "historial",
+      "id",
+      "presentadaEn",
+      "reenviadaEn",
+      "revisiones",
+    ]);
+    expect(double.log).toHaveLength(5);
+    expect(double.log.map((statement) => statement.table)).not.toContain(
+      escalamiento,
+    );
+    expect(double.log.map((statement) => statement.table)).not.toContain(
+      reporteInasistencia,
+    );
   });
 
   it("lists only the student's own documents, never a staff upload (RN-19)", async () => {
