@@ -252,11 +252,13 @@ export async function resendEscalationNoticeAction(
           result.outcome === "skipped" &&
           result.reason === "not_configured"
         ) {
-          // Released as pendiente without a failure; any earlier reason is moot.
+          // Released as pendiente with no new failure; the reason the row keeps
+          // (an earlier send failure stays) is returned, so the control and the
+          // status pill after a reload agree.
           return {
             ok: true,
             estado: "pendiente",
-            motivo: null,
+            motivo: result.motivo ?? null,
             aviso: "sin_configurar",
           };
         }

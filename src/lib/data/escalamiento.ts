@@ -28,11 +28,12 @@ import {
   sentStamp,
 } from "@/lib/data/outbox";
 import { requestInScope } from "@/lib/data/request-scope-sql";
-import type {
-  EscalationKind,
-  EscalationNoticeReason,
-  EscalationNoticeState,
-  EscalationNoticeTrigger,
+import {
+  reasonAfterUnconfiguredRelease,
+  type EscalationKind,
+  type EscalationNoticeReason,
+  type EscalationNoticeState,
+  type EscalationNoticeTrigger,
 } from "@/lib/intake/escalation";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { MAX_AUTO_ATTEMPTS, RETRY_BATCH_SIZE } from "@/lib/remission/limits";
@@ -214,7 +215,7 @@ export function completeNoticeNotConfigured(
     claim.secretariaId,
     {
       notificacionEstado: "pendiente",
-      notificacionMotivo: claim.estado === "bloqueada" ? null : claim.motivo,
+      notificacionMotivo: reasonAfterUnconfiguredRelease(claim),
       ...attemptGivenBack(escalamiento, "not_configured"),
       ...claimRelease(args.now),
     },

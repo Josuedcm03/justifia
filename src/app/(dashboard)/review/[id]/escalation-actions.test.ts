@@ -598,12 +598,28 @@ describe("resendEscalationNoticeAction (RF-10 b)", () => {
     dispatchOneMock.mockResolvedValue({
       outcome: "skipped",
       reason: "not_configured",
+      motivo: null,
     });
 
     await expect(resendEscalationNoticeAction(5)).resolves.toEqual({
       ok: true,
       estado: "pendiente",
       motivo: null,
+      aviso: "sin_configurar",
+    });
+  });
+
+  it("returns the stored reason when the mail is not configured, so the control and the status pill agree", async () => {
+    dispatchOneMock.mockResolvedValue({
+      outcome: "skipped",
+      reason: "not_configured",
+      motivo: "error_envio",
+    });
+
+    await expect(resendEscalationNoticeAction(5)).resolves.toEqual({
+      ok: true,
+      estado: "pendiente",
+      motivo: "error_envio",
       aviso: "sin_configurar",
     });
   });

@@ -248,7 +248,11 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
 
       const result = await dispatchEscalationNotice(7, creation, deps);
 
-      expect(result).toEqual({ outcome: "skipped", reason: "not_configured" });
+      expect(result).toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: null,
+      });
       expect(mail.calls).toHaveLength(0);
       expect(escalamientoMock.completeNoticeNotConfigured).toHaveBeenCalledWith(
         claim(),
@@ -263,12 +267,42 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
 
       const result = await dispatchEscalationNotice(7, creation, deps);
 
-      expect(result).toEqual({ outcome: "skipped", reason: "not_configured" });
+      expect(result).toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: null,
+      });
       expect(escalamientoMock.completeNoticeNotConfigured).toHaveBeenCalledWith(
         claim(),
         { now: NOW },
       );
       expect(escalamientoMock.completeNoticeFailed).not.toHaveBeenCalled();
+    });
+
+    it("reports the reason the notice keeps: an earlier send failure stays, a blocked reason is cleared", async () => {
+      const failed = setup(null);
+      escalamientoMock.claimEscalationNotice.mockResolvedValue(
+        claim({ motivo: "error_envio" }),
+      );
+      await expect(
+        dispatchEscalationNotice(7, creation, failed.deps),
+      ).resolves.toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: "error_envio",
+      });
+
+      const blocked = setup(null);
+      escalamientoMock.claimEscalationNotice.mockResolvedValue(
+        claim({ estado: "bloqueada", motivo: "sin_destinatarios" }),
+      );
+      await expect(
+        dispatchEscalationNotice(7, creation, blocked.deps),
+      ).resolves.toEqual({
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: null,
+      });
     });
 
     it("reports a lost claim when the release matched no row", async () => {

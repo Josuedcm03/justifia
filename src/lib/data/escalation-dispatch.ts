@@ -14,7 +14,11 @@ import {
 } from "@/lib/data/escalamiento";
 import { dispatchEach, type DispatchSummary } from "@/lib/data/dispatch-batch";
 import { planEscalationNotice } from "@/lib/escalation/plan";
-import type { EscalationNoticeTrigger } from "@/lib/intake/escalation";
+import {
+  reasonAfterUnconfiguredRelease,
+  type EscalationNoticeReason,
+  type EscalationNoticeTrigger,
+} from "@/lib/intake/escalation";
 import type { MailSender } from "@/lib/intake/ports";
 
 // Post-commit dispatch of the coordination notices (escalation, ES-11): claim
@@ -43,9 +47,14 @@ export type EscalationDispatchResult =
    * Nothing was attempted. Without a reason the claim matched no row (sent
    * already, or another attempt holds it); `not_configured` means the mail
    * service has no keys yet: the notice stays `pendiente` with no failure, no
-   * audit row and no attempt counted.
+   * audit row and no attempt counted. `motivo` is the reason the notice keeps
+   * (an earlier send failure stays), so the caller reports what is stored.
    */
-  | { outcome: "skipped"; reason?: "not_configured" }
+  | {
+      outcome: "skipped";
+      reason?: "not_configured";
+      motivo?: EscalationNoticeReason | null;
+    }
   | { outcome: "sent" }
   | { outcome: "failed"; codigo: MailFailureCode }
   | { outcome: "blocked"; motivo: "sin_destinatarios" }
@@ -58,7 +67,11 @@ async function releaseUnconfigured(
 ): Promise<EscalationDispatchResult> {
   const stored = await completeNoticeNotConfigured(claim, { now });
   return stored
-    ? { outcome: "skipped", reason: "not_configured" }
+    ? {
+        outcome: "skipped",
+        reason: "not_configured",
+        motivo: reasonAfterUnconfiguredRelease(claim),
+      }
     : { outcome: "lost" };
 }
 
