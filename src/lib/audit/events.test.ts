@@ -8,6 +8,7 @@ import type {
 } from "../catalog/types";
 import { encodeDias } from "../catalog/dias";
 import type { EntityCounts, ImportSummary } from "../import/types";
+import type { DropResult, EnrollResult } from "../enrollment/types";
 import { changedFields } from "./diff";
 import {
   accountCreatedEvent,
@@ -23,6 +24,7 @@ import {
   documentRemovedEvent,
   documentoFormatoEspecialEvent,
   documentoRetiradoEvent,
+  enrollmentWriteEvents,
   escalamientoNotificacionBloqueadaEvent,
   escalamientoNotificacionEnviadaEvent,
   escalamientoNotificacionFallidaEvent,
@@ -32,6 +34,7 @@ import {
   grupoUpdatedEvent,
   grupoWriteEvents,
   importAppliedEvent,
+  inscripcionEvent,
   MANUAL_ORIGIN,
   remisionBloqueadaEvent,
   remisionCreadaEvent,
@@ -1297,6 +1300,102 @@ describe("remission event builders (RF-09 c, RNF-06, RNF-07)", () => {
     expect(
       solicitudConsultadaEvent({ solicitudId: 5, estado: "aprobada" }).datos,
     ).toEqual({ estado: "aprobada" });
+  });
+});
+
+describe("enrollment event builders (student-enrollment SE-8, RNF-06)", () => {
+  it.each([
+    ["creada", undefined, { grupoId: 9 }],
+    ["reactivada", undefined, { grupoId: 9 }],
+    ["desactivada", "baja", { grupoId: 9, motivo: "baja" }],
+    ["desactivada", "reemplazo", { grupoId: 9, motivo: "reemplazo" }],
+  ] as const)(
+    "inscripcionEvent %s %s: entity is the student, payload is ids only",
+    (kind, motivo, datos) => {
+      const event =
+        kind === "desactivada"
+          ? inscripcionEvent({ kind, estudianteId: 7, grupoId: 9, motivo })
+          : inscripcionEvent({ kind, estudianteId: 7, grupoId: 9 });
+      expect(event).toEqual({
+        accion: `inscripcion.${kind}`,
+        entidadTipo: "Inscripcion",
+        entidadId: 7,
+        datos,
+      });
+    },
+  );
+
+  it("maps a success to its events and every refusal or no-op to none (AL-ONE)", () => {
+    const created: EnrollResult = {
+      ok: true,
+      kind: "created",
+      grupoId: 9,
+      replaced: [],
+    };
+    const reactivated: EnrollResult = { ...created, kind: "reactivated" };
+    const replaced: EnrollResult = { ...created, replaced: [3, 4] };
+    const dropped: DropResult = { ok: true, grupoId: 9 };
+
+    expect(enrollmentWriteEvents(7, created).map((e) => e.accion)).toEqual([
+      "inscripcion.creada",
+    ]);
+    expect(enrollmentWriteEvents(7, reactivated).map((e) => e.accion)).toEqual([
+      "inscripcion.reactivada",
+    ]);
+    expect(enrollmentWriteEvents(7, replaced)).toEqual([
+      inscripcionEvent({
+        kind: "desactivada",
+        estudianteId: 7,
+        grupoId: 3,
+        motivo: "reemplazo",
+      }),
+      inscripcionEvent({
+        kind: "desactivada",
+        estudianteId: 7,
+        grupoId: 4,
+        motivo: "reemplazo",
+      }),
+      inscripcionEvent({ kind: "creada", estudianteId: 7, grupoId: 9 }),
+    ]);
+    expect(enrollmentWriteEvents(7, dropped)).toEqual([
+      inscripcionEvent({
+        kind: "desactivada",
+        estudianteId: 7,
+        grupoId: 9,
+        motivo: "baja",
+      }),
+    ]);
+
+    const refusals: (EnrollResult | DropResult)[] = [
+      { ok: false, reason: "not_student" },
+      { ok: false, reason: "not_eligible" },
+      { ok: false, reason: "already_enrolled" },
+      { ok: false, reason: "not_enrolled" },
+    ];
+    for (const refusal of refusals) {
+      expect(enrollmentWriteEvents(7, refusal)).toEqual([]);
+    }
+  });
+
+  it("no payload carries a period, group number, name, contact or credential", () => {
+    const events = enrollmentWriteEvents(7, {
+      ok: true,
+      kind: "reactivated",
+      grupoId: 9,
+      replaced: [3],
+    });
+    expect(events).toHaveLength(2);
+    for (const event of events) {
+      expect(Object.keys(event.datos).sort()).toEqual(
+        event.accion === "inscripcion.desactivada"
+          ? ["grupoId", "motivo"]
+          : ["grupoId"],
+      );
+      const json = JSON.stringify(event);
+      expect(json).not.toMatch(
+        /periodo|numeroGrupo|asignatura|docente|nombre|cif|correo|email|telefono|@|password|hash|bcrypt|clave/i,
+      );
+    }
   });
 });
 

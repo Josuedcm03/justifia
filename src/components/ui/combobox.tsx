@@ -20,6 +20,11 @@ export type ComboboxProps = {
   /** `value` of the option chosen on first render. */
   defaultValue?: string | null;
   onValueChange?: (value: string | null) => void;
+  /** Text of the search box. Given, the caller owns it: Base UI only proposes
+   *  changes through `onInputValueChange` (e.g. clearing it when the popup
+   *  closes, reason `input-clear`) and the caller decides which ones apply. */
+  inputValue?: string;
+  onInputValueChange?: (value: string, reason: string) => void;
   required?: boolean;
   disabled?: boolean;
   className?: string;
@@ -45,6 +50,8 @@ function Combobox({
   placeholder,
   defaultValue,
   onValueChange,
+  inputValue,
+  onInputValueChange,
   required,
   disabled,
   className,
@@ -77,6 +84,10 @@ function Combobox({
         defaultValue={initial}
         isItemEqualToValue={(item, value) => item.value === value.value}
         onValueChange={(next) => onValueChange?.(next?.value ?? null)}
+        inputValue={inputValue}
+        onInputValueChange={(text, details) =>
+          onInputValueChange?.(text, details.reason)
+        }
         required={required}
         disabled={disabled}
       >
