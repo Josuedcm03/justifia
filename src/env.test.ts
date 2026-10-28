@@ -95,4 +95,34 @@ describe("env APP_BASE_URL (escalation ES-10)", () => {
       loadEnv({ APP_BASE_URL: "justifia.example.edu" }),
     ).rejects.toThrow();
   });
+
+  it.each([
+    "http://localhost:3000",
+    "https://justifia.example.edu/",
+    "https://justifia.example.edu/app",
+  ])("accepts the http(s) origin %s", async (value) => {
+    const env = await loadEnv({ APP_BASE_URL: value });
+    expect(env.APP_BASE_URL).toBe(value);
+  });
+
+  it.each([
+    "ftp://justifia.example.edu",
+    "file:///srv/justifia",
+    "javascript:alert(1)",
+    "mailto:coordinacion@uam.edu.ni",
+  ])(
+    "rejects the scheme of %s: the link must be http or https",
+    async (value) => {
+      await expect(loadEnv({ APP_BASE_URL: value })).rejects.toThrow();
+    },
+  );
+
+  it.each([
+    "https://justifia.example.edu?next=/x",
+    "https://justifia.example.edu/?",
+    "https://justifia.example.edu/#top",
+    "https://justifia.example.edu/app#",
+  ])("rejects %s: no query and no fragment", async (value) => {
+    await expect(loadEnv({ APP_BASE_URL: value })).rejects.toThrow();
+  });
 });
