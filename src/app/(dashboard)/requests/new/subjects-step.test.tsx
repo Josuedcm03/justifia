@@ -175,12 +175,48 @@ describe("SubjectsStep: the states without a list", () => {
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 
-  it("says so when there is nothing to offer, in English", () => {
-    renderIntl(ui({ groups: [] }), "en");
+  it("tells a student with no enrollment to enroll, linking to /enrollment", () => {
+    renderIntl(ui({ groups: [], enrolled: false }));
+    expect(screen.getByText(/Aún no tienes inscripciones/)).toBeInTheDocument();
     expect(
-      screen.getByText("You have no active subjects you are enrolled in."),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "Ir a mis inscripciones" }),
+    ).toHaveAttribute("href", "/enrollment");
+    expect(
+      screen.queryByRole("link", { name: "Ir a causa y fechas" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Continuar" })).toBeNull();
+  });
+
+  it("tells an enrolled student there is no class in these dates, with the way back to the dates", () => {
+    renderIntl(ui({ groups: [], enrolled: true }), "en");
+    expect(screen.getByText(/has class in these dates/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Go to cause and dates" }),
+    ).toHaveAttribute("href", "/requests/new?step=1");
+    expect(screen.queryByRole("link", { name: /enrollment/i })).toBeNull();
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+  });
+
+  it("words the two empty states differently", () => {
+    const text = (enrolled: boolean) => {
+      const { container, unmount } = renderIntl(ui({ groups: [], enrolled }));
+      const content = container.textContent;
+      unmount();
+      return content;
+    };
+
+    expect(text(false)).not.toBe(text(true));
+  });
+
+  it("shows only the degraded notice when the read failed, even if not enrolled", () => {
+    renderIntl(ui({ groups: [], degraded: true, enrolled: false }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No pudimos cargar tus asignaturas.",
+    );
+    expect(screen.queryByText(/Aún no tienes inscripciones/)).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Ir a mis inscripciones" }),
+    ).toBeNull();
   });
 });
 

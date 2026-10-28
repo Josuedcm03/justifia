@@ -220,6 +220,14 @@ describe("CorrectRequestPage steps (RF-08 a)", () => {
     expect(screen.getByRole("checkbox", { name: /MAT-101/ })).toBeChecked();
   });
 
+  it("never nudges toward enrollment on a correction", async () => {
+    await renderPage("31", { step: "3" });
+
+    expect(
+      screen.queryByRole("link", { name: "Declarar mis inscripciones" }),
+    ).toBeNull();
+  });
+
   it("step 3 lists only finalized documents and skips enrollment", async () => {
     await renderPage("31", { step: "3" });
 

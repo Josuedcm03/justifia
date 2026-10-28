@@ -36,6 +36,7 @@ const GUARDED_SECTIONS = [
   // sidebar's `nav.*` labels and adds its landmark label and the profile page;
   // `roles` labels the sidebar identity block.
   "nav.profile",
+  "nav.enrollment",
   "nav.trailLabel",
   "roles",
   // Backoffice shell, slice 1b: route error screen and the role-aware home.
@@ -198,11 +199,12 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
     ),
   ].sort();
 
-  it("offers shortcuts for the seven destinations the roles reach", () => {
+  it("offers shortcuts for the eight destinations the roles reach", () => {
     expect(SHORTCUT_KEYS).toEqual([
       "catalogAsignaturas",
       "catalogDocentes",
       "catalogImport",
+      "enrollment",
       "myRequests",
       "newRequest",
       "review",

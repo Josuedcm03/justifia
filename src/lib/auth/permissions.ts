@@ -114,6 +114,14 @@ export function canFileRequests(rol: RolUsuario | undefined): boolean {
 }
 
 /**
+ * Who may declare their own enrollment (student-enrollment, RF-16): the
+ * requesting roles, so the page and its menu entry share one list.
+ */
+export function canManageOwnEnrollment(rol: RolUsuario | undefined): boolean {
+  return canFileRequests(rol);
+}
+
+/**
  * Roles that review and decide requests (secretary-review, RN-15). Typed
  * against `RolUsuario` so a renamed role is a compile error.
  */

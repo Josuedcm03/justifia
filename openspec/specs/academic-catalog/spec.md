@@ -146,25 +146,24 @@ The `Inscripcion` table MUST have the composite key (`EstudianteId`,
 `GrupoId` to `Grupo`, and an `Activo` column. Any writer of `Inscripcion` MUST
 ensure that `EstudianteId` references a `Usuario` whose role is `estudiante`,
 and MUST NOT store a duplicate (`EstudianteId`, `GrupoId`) pair; this role
-integrity MUST be enforced by the application, because the role lives on a
-separate lookup table. This change ships no writer of `Inscripcion`: the
-Inscripciones sheet was removed from the import by the product owner's scope
-reduction to three sheets, so the rule is specified here for the future writer
-and is not enforced by any code in this change.
+integrity MUST be enforced by the application, in the data layer and not only
+by a page or action guard, because the role lives on a separate lookup table.
+The only writer of `Inscripcion` is the student-enrollment writer (see
+`student-enrollment`); the Excel import writes none (the Inscripciones sheet
+was removed by the product owner's scope reduction). No code MUST delete an
+`Inscripcion` row: an enrollment ends by setting `Activo` false.
+(Previously: the change shipped no writer, so the rule bound a future writer and
+the one scenario was the structural check that nothing writes the table.)
 
-#### Scenario: No code path in this change writes Inscripcion
+#### Scenario: Only the allowlisted writer writes Inscripcion
 
 - GIVEN every production module under `src`
 - WHEN it is checked structurally for an insert, update or delete against the
   `inscripcion` table
-- THEN none is found; the table is only read
+- THEN only the student-enrollment writer module contains one
+- AND no module deletes from the table and the import writes none
 
-**Deferred behaviour (not a scenario of this change): a future writer enforces
-the estudiante role.** Not demonstrable here because no writer exists; it is
-written as a note rather than under a scenario heading so that this change's
-scenario count holds only what this change can prove. The change that
-introduces a writer of `Inscripcion` MUST turn the table below into scenarios
-with tests.
+#### Scenario: Role of the referenced user (table-driven)
 
 | Role of referenced user | Expected result |
 |---|---|
@@ -174,10 +173,28 @@ with tests.
 | `coordinacion` | refused |
 | `administrador` | refused |
 
-- GIVEN a `Usuario` with the role from the row and an existing grupo
-- WHEN a future writer stores an inscripcion referencing it as `EstudianteId`
-- THEN the result is the one in the row, and storing the same
-  (`EstudianteId`, `GrupoId`) pair twice is refused with exactly one row kept
+- GIVEN a `Usuario` with the role from the row and an existing offered grupo
+- WHEN the writer stores an inscripcion referencing it as `EstudianteId`
+- THEN the result is the one in the row
+- AND a refusal stores nothing and writes no audit row
+
+#### Scenario: Duplicate pair keeps one row
+
+- GIVEN an active inscripcion of estudiante E in grupo G
+- WHEN the writer stores the same (`EstudianteId`, `GrupoId`) pair again
+- THEN exactly one row exists for the pair, unchanged, and no audit row is written
+
+#### Scenario: Inactive pair is reactivated, not duplicated
+
+- GIVEN an inactive inscripcion of E in G
+- WHEN the writer stores the pair
+- THEN exactly one row exists for the pair and it is active
+
+#### Scenario: Unknown estudiante or grupo is refused
+
+- GIVEN an `EstudianteId` that matches no `Usuario`, or a `GrupoId` that matches no `Grupo`
+- WHEN the writer stores the pair
+- THEN the write is refused and nothing is stored
 
 ### Requirement: Active-only reads for downstream consumers
 
@@ -187,7 +204,12 @@ RF-31 enrollment verification) MUST return only rows where `Activo` is true,
 and MUST NOT treat an inactive row as evidence of a current group or
 enrollment. A `Grupo` whose `Asignatura` is inactive MUST be treated as not
 offered by those readers, even if the `Grupo` itself is active. Inactive rows
-MUST remain stored.
+MUST remain stored. The eligible-groups reader that offers subjects to a
+request (`justification-intake`) is such a consumer: it MUST return a group only
+when its `Inscripcion`, its `Grupo` and its `Asignatura` are all active, and so
+MUST the student-enrollment readers of effective enrollments.
+(Previously: the eligible-groups reader checked `Inscripcion` and `Grupo` but
+not `Asignatura`, which this requirement already demanded.)
 
 (Assumption flagged: the Asignatura condition changes an existing reader. See
 `catalog-management` assumption A-RDR-6. The original text covered `Grupo` and
@@ -231,6 +253,11 @@ MUST remain stored.
 - WHEN the asignatura is set active
 - THEN the grupo is returned again
 
+#### Scenario: Eligible groups require an active asignatura
+
+- GIVEN an active inscripcion of E in an active grupo whose asignatura is inactive
+- WHEN the eligible groups of E are listed for a request
+- THEN that group is absent, and it returns once the asignatura is set active
 ### Requirement: Additive schema and existing-data safety
 
 The schema change MUST be additive: it adds the three entities, a UNIQUE
@@ -443,8 +470,10 @@ representation is a design decision.
   and not asserted here.
 - Assumption: role integrity is checked at the application layer because the
   role lives on a separate lookup table; the database MAY add further guards.
-- Assumption (scope reduction): no code in this change writes `Inscripcion`, so
-  "Estudiante role integrity of Inscripcion.EstudianteId" binds the future
-  writer only. The one demonstrable scenario is the structural check that no
-  module under `src` inserts, updates or deletes the table; the role and
-  duplicate scenarios are deferred until that writer exists.
+- Superseded (`student-enrollment`, archived 2026-10-25): the scope reduction
+  "no code in this change writes `Inscripcion`" no longer holds. `student-enrollment`
+  is the only writer of `Inscripcion`; its writer is allowlisted, and the role and
+  duplicate scenarios of "Estudiante role integrity of Inscripcion.EstudianteId" now
+  bind that writer.
+  (Previously: no code in this change wrote `Inscripcion`, so the role and duplicate
+  scenarios were deferred until a writer existed.)
