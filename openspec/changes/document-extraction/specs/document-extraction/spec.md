@@ -233,11 +233,18 @@ a maximum width of 1600 px (never enlarged) and sent as images. Every PDF,
 whether or not it has a text layer, MUST be rendered page by page, in order, to
 at most 5 pages and sent as images; the system MUST NOT send the text of a PDF
 to the model (reading text-layer PDFs as text failed the accuracy gate on
-2026-10-23, see design DE-14). Before drawing any page, the system MUST refuse
-the whole document when a page it would send is so tall at the rendering width
-that drawing it would need more than 16 million pixels (a height over 10,000 px
-at width 1600), or when its size is not a positive finite number, so that no
-oversized canvas is allocated and nothing partial is sent. An unreadable or
+2026-10-23, see design DE-14). All the images of one document MUST together
+cost no more than 6144 image tokens of the model server (one token per started
+32 x 32 px block), so that every request fits the server context with room for
+the prompt and the answer. An image that would still exceed that budget at
+1600 px MUST be narrowed further (never enlarged). The pages of a PDF that are
+sent MUST share that budget evenly, each page drawn at the widest width, up to
+1600 px, that fits its share. Before drawing any page, the system MUST refuse
+the whole document when a page it would send is so tall at the maximum image
+width (1600 px) that drawing it there would need more than 16 million pixels (a
+rendered height over 10,000 px at 1600 px wide), or when its size is not a
+positive finite number, so that no oversized canvas is allocated and nothing
+partial is sent. An unreadable or
 unsupported document MUST fail the attempt with a closed-set code; when the
 component that draws PDF pages cannot be loaded the code MUST be one that is
 retried, not the final one.
@@ -271,7 +278,25 @@ retried, not the final one.
 - GIVEN a PDF whose third page is 1 pt wide and 14400 pt tall
 - WHEN it is prepared
 - THEN the whole document is refused as unreadable and no page is drawn
-- AND a 400 mm long receipt page is still rendered
+- AND a 400 mm long receipt page is still rendered, at a width that fits the token budget
+
+#### Scenario: Multi-page PDF within the model context
+
+- GIVEN a 3-page US Letter PDF
+- WHEN it is prepared
+- THEN the images together cost at most 6144 image tokens and each page is narrower than 1600 px
+
+#### Scenario: Single page keeps the full budget
+
+- GIVEN a one-page US Letter PDF and an image of 929 x 606 px
+- WHEN they are prepared
+- THEN the PDF page is drawn at 1600 px and the image stays at its own size
+
+#### Scenario: Tall image narrowed
+
+- GIVEN a 1600 x 9000 px image, or a photo stored 9000 x 1600 px with EXIF orientation 6
+- WHEN it is prepared
+- THEN it is narrowed by its upright size until its image costs at most 6144 image tokens
 
 ### Requirement: Code-side validation of fields (RF-11 b)
 

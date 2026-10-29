@@ -10,7 +10,7 @@
 > describes what was built. Two things changed against the first draft: the
 > text path was dropped after the DE-14 measurement failed (every PDF is
 > rendered to images), and the details listed in `apply-progress.md` ("Batch 8")
-> were aligned with the code. Spec IDs are unchanged.
+> were aligned with the code. Batch 9 (2026-10-28) added the model context budget (DE-9). Spec IDs are unchanged.
 
 > **DB-touching.** This document plans commands and runs none. Database steps
 > are tagged `[LOCAL]`, `[READ-ONLY]` or `[CONFIRM]`; a `[CONFIRM]` step needs
@@ -53,7 +53,7 @@ results in a fail-soft "Extracted data" section. Pure code in
 | Path | Content |
 |---|---|
 | `src/lib/extraction/states.ts` | `EXTRACTION_STATES`, `EXTRACTION_ERRORS`, `PERMANENT_ERRORS`, guards, `failureOutcome(error, attempts)` |
-| `limits.ts` | All numeric constants (DE-7, DE-9) and the pure budget helpers (`deadlineFor`, `canStartDocument`, `modelTimeoutMs`, `fitsRenderCap`) |
+| `limits.ts` | All numeric constants (DE-7, DE-9) and the pure budget helpers (`deadlineFor`, `canStartDocument`, `modelTimeoutMs`, `fitsRenderCap`, `imageTokenCost`, `widthWithinImageTokens`) |
 | `template.ts` | `NUEXTRACT_TEMPLATE`, `ENGINE_ID` (`nuextract3-4b/image`), `PreparedDocument` (`{ kind: "images" }` only), `buildChatRequest(prepared)` (pure) |
 | `validate.ts` | `validateFields(raw, { submittedOn })` (pure, DE-10) |
 | `config.ts` | `resolveExtractionConfig(env)` -> `{ ok, baseUrl, apiKey? } \| { ok: false }`; HTTPS rule, credentials rejected, base URL normalised (DE-12) |
@@ -190,7 +190,10 @@ Never throws; returns `skipped | completed | failed(code) | lost | errored`.
 | Cold-start retry | 1 retry after `COLD_START_RETRY_DELAY_MS` (5 s) on connection error or HTTP 502/503/504, only when `timeoutMs - elapsed - 5 s >= MIN_DOCUMENT_BUDGET_MS`; same attempt, `Intentos` unchanged | Spike: 2-5 s warm; first request after scale-to-zero fails or stalls. The `FieldExtractor` port hands over only `timeoutMs`, so the "remaining budget" of the rule is the call's own `timeoutMs`; one `AbortSignal.timeout(timeoutMs)` covers both attempts. This can only make the retry rarer, never exceed the deadline. A `redirect: "error"` failure looks like a connection error and may be retried once (same host, same budget) |
 
 Abort -> `timeout`; other non-2xx (incl. 401/403/500/429) or network ->
-`model_error`.
+`model_error`. A context-overflow answer (HTTP 400) is also `model_error`: the
+call is not retried, but `failureOutcome` keeps the row `pendiente` until its
+third attempt, so a deterministic overflow burns all three attempts (see Open
+Questions).
 
 ### DE-8. NuExtract3 request contract
 
@@ -224,8 +227,8 @@ this is a safety net).
 
 | Input | Path |
 |---|---|
-| `png`/`jpeg` | sharp `.rotate()` (EXIF) -> `.flatten()` onto white (JPEG has no alpha) -> `resize({ width: 1600, withoutEnlargement: true })` -> JPEG q85 -> one image |
-| any `pdf` (text layer or scanned or mixed) | Page-size guard (below), then render the first `MAX_PDF_PAGES` (5) pages with unpdf `renderPageAsImage(proxy, n, { canvasImport: () => import("@napi-rs/canvas"), width: 1600 })` through one `getDocumentProxy` (it also counts the pages), each page through the sharp step. A failed dynamic import -> `render_unavailable` (not permanent); a page that fails to render, an unreadable or zero-page PDF -> `unreadable_document` |
+| `png`/`jpeg` | sharp `.rotate()` (EXIF) -> `.flatten()` onto white (JPEG has no alpha) -> `resize({ width: widthWithinImageTokens(uprightWidth, uprightHeight, MAX_IMAGE_TOKENS, { enlarge: false }), withoutEnlargement: true })` (upright size from `metadata().autoOrient`; at most 1600 px, narrower for tall images) -> JPEG q85 -> one image |
+| any `pdf` (text layer or scanned or mixed) | Page-size guard (below), then render the first `MAX_PDF_PAGES` (5) pages with unpdf `renderPageAsImage(proxy, n, { canvasImport: () => import("@napi-rs/canvas"), width: widthWithinImageTokens(pageWidth, pageHeight, floor(MAX_IMAGE_TOKENS / pagesSent)) })` through one `getDocumentProxy` (it also counts the pages), each page through the sharp step at that same width. A failed dynamic import -> `render_unavailable` (not permanent); a page that fails to render, an unreadable or zero-page PDF -> `unreadable_document` |
 | unparseable bytes | `unreadable_document` (permanent) |
 
 There is no text path (DE-14): `extractText`, a text-density threshold and
@@ -243,7 +246,27 @@ at width 1600, ratio 6.25) or the size is zero, negative or not finite. One page
 over the cap refuses the whole document as `unreadable_document` (permanent: the
 file will not change), with no canvas allocated, the canvas addon not even
 imported, and no partial result. A page whose viewport cannot be read is refused
-the same way. Letter, A4, legal and a 400 mm receipt (ratio 5) pass.
+the same way. Letter, A4, legal and a 400 mm receipt (ratio 5) pass. A page that passes is
+then drawn at the width its token share allows, never wider than 1600 px (see
+"Model context budget").
+
+Model context budget (added 2026-10-28, batch 9, commit `2fd7a38`). The model
+server runs with an 8192-token context (`-c 8192`, `nuextract3-instalacion.md`)
+and bills one image token per started 32 x 32 px block (`imageTokenCost`).
+Three pages of ratio about 1.41 drawn at 1600 px cost 3 x 3,550 = 10,650
+tokens; the owner walk 9.5 hit this overflow, and its documents 1 and 2 ended
+`fallida` with `model_error` (verify report, W5). `MAX_IMAGE_TOKENS = 6144` is
+the total for one document, leaving about 2k for the prompt and the 512-token
+answer. A raster image spends the whole budget on its EXIF-upright size
+(`widthWithinImageTokens(..., { enlarge: false })`), never wider than the image,
+so a tall image narrows below 1600 px (a 1600 x 9000 px image draws at 1056 px).
+A PDF splits the budget evenly over the pages it sends (at most 5): each page is
+drawn at `widthWithinImageTokens(pageWidth, pageHeight, floor(MAX_IMAGE_TOKENS /
+pagesSent))`, at most 1600 px. A one-page US Letter PDF keeps the whole budget
+(1600 px, 3,250 tokens); three letter pages draw at 1261 px and five at 964 px.
+The page-size guard (`fitsRenderCap`) still runs first, at 1600 px, and is
+unchanged. The 9.5 re-walk rendered the 3-page PDF at 1200 x 1695 px per page
+and completed (document 7, `completada`).
 
 ### DE-10. Validation (`validate.ts`, pure)
 
@@ -384,10 +407,10 @@ staff:  /review/[id] -> listExtractions (fail-soft) -> ExtractionSection
 
 | Layer | What | Approach |
 |---|---|---|
-| Pure | Transitions and permanent errors; template/request shape; every DE-10 rule incl. spike failures (lone `rest_from`, 20-24 July = 5 days, year outside window); HTTPS/loopback config; display mapping and precedence; render-cap helper | Vitest, no I/O |
+| Pure | Transitions and permanent errors; template/request shape; every DE-10 rule incl. spike failures (lone `rest_from`, 20-24 July = 5 days, year outside window); HTTPS/loopback config; display mapping and precedence; render-cap and token-cost helpers | Vitest, no I/O |
 | Use case | Claim null skip; not configured hands back; deadline stops before a doc; each error code path; unexpected throw keeps the lease; sweep bounds | Fakes + `vi.mock("@/lib/data/extraction")` |
 | Data | Registration eligibility (staff upload, special format, retired -> `no_aplica`, idempotent); claim guards (cap, lease); heldBy completion; fail to `fallida` at 3; abandon; candidate scope (`pendiente` only, batch bound); fail-soft list; the module changes no other table | Mocked db as existing data tests; emitted SQL pinned with a driver-less `drizzle.mock`; opt-in real Postgres concurrency suite: simultaneous claims -> one winner |
-| Adapters | sharp rotate/resize; every PDF (text layer or not) rendered to images; page cap and page-size guard; canvas import failure -> `render_unavailable`; HTTP headers, bearer only with key, `redirect: "error"`, retry on 503 once, abort -> `timeout`, malformed -> `invalid_response` | `// @vitest-environment node`, generated fixtures (no real documents), injected `fetch` |
+| Adapters | sharp rotate/resize; every PDF (text layer or not) rendered to images; page cap and page-size guard; image token budget (3- and 5-page PDFs, one page keeps the whole budget, tall and EXIF-rotated images narrowed, small image untouched); canvas import failure -> `render_unavailable`; HTTP headers, bearer only with key, `redirect: "error"`, retry on 503 once, abort -> `timeout`, malformed -> `invalid_response` | `// @vitest-environment node`, generated fixtures (no real documents), injected `fetch` |
 | RNF-03 | 10 extractions (7 images, 3 PDFs) through the real preparer and HTTP extractor with stubbed `globalThis.fetch`: exactly 10 model calls, every outbound URL host equals the configured host; static guard: no third-party OCR/inference SDK in `package.json` or `src` imports | node env, fake store and data |
 | Producers / cron / config | Actions enqueue only on success and before redirect; sweep step counts; `maxDuration` literal pins; schema CHECK lists equal constants; only `extraction.ts` writes the table | Existing `vi.hoisted` patterns, file scans |
 | UI | Each display state, "No reconocido", degraded notice, config message without variable name, es/en keys, 360 px | Testing Library |
@@ -442,3 +465,11 @@ roughly 2.6x the forecast, mostly tests; per-slice figures are in
 - [x] Copy: neutral «Contacte» (decided 2026-10-22; spec updated).
 - [ ] Vercel Hobby with Fluid compute (300 s) and its non-commercial terms;
   `@napi-rs/canvas` packaging must be proven on a preview (task 9.2).
+- [ ] `MAX_IMAGE_TOKENS = 6144` assumes the model server runs with `-c 8192`.
+  The code cannot read that setting: a smaller context repeats the overflow
+  silently, and a larger one wastes accuracy. Decide whether the context becomes
+  a setting or stays a documented operating constraint (rollout note for
+  `EXTRACTION_API_URL`; verify report, W5).
+- [ ] A context overflow (HTTP 400) is retried as `model_error` and burns all
+  three attempts (DE-7). Decide whether an overflow gets its own closed-set
+  code, which would be permanent.

@@ -199,7 +199,7 @@ Chain: each child PR targets the previous slice branch while open (clean diff) a
 ## Phase 10: Closeout
 
 - [ ] 10.1 Verify (`sdd-verify`) on the tracker head; fix warnings
-- [ ] 10.2 Spec sync: create `openspec/specs/document-extraction/spec.md`; merge the deltas into `openspec/specs/{justification-intake,request-review}/spec.md`; readback with `diff -r`
+- [x] 10.2 Spec sync: create `openspec/specs/document-extraction/spec.md`; merge the deltas into `openspec/specs/{justification-intake,request-review}/spec.md`; readback with `diff -r` **Done 2026-10-28** (new capability created from its delta; `justification-intake` MODIFIED replaced in place and ADDED placed before "Decisions applied"; `request-review` ADDED appended; readback diffs empty; W1 wording applied to the delta spec and design)
 - [ ] 10.3 `docs/roadmap.md` row 4 `Estado` = `archivado`; Notas: `EXTRACTION_API_URL` rollout order (migrate, deploy unset, set when the model server is deployed), serverless GPU deployment out of scope, `validation-signals` adds manual entry for `fallida` documents
 - [ ] 10.4 Archive to `openspec/changes/archive/<date>-document-extraction/` with `git mv` and an `archive-report.md` (`diff -r` readback)
 - [ ] 10.5 Owner: merge the tracker PR into `main` with a merge commit only after S5b is merged, M1 is applied and 9.5 passed; keep the tracker branch; delete merged slice branches
