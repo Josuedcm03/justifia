@@ -1264,3 +1264,52 @@ roadmap, 10.4 archive, 10.5 merge). Next SDD phase: `sdd-verify`.
 - Current work unit: `phase8-integration+spec-reconcile`, committed as one unit
 - Estimated review budget impact: three small tests (about 55 lines) plus
   documentation rewrites; the authored-line total of the branch stays about 8,900
+
+## Batch 9 (2026-10-28): owner walk 9.5 and the PDF token-budget fix
+
+### Walk result
+
+The owner walked 9.5 against production (`br-restless-hat-ayjwtjqw`) with local
+`npm run dev` and the `nuextract3` container; checks used read-only queries on
+`ExtraccionDocumento` and `EventoAuditoria`. Steps (a), (c), (d), (e) and (f)
+passed on the first run. Step (b) passed for images and failed for every PDF;
+details per step are in `tasks.md` 9.5.
+
+### Defect
+
+PDF documents 1, 2 and 4 ended in `model_error` on every attempt. The container
+log showed `request (10750 tokens) exceeds the available context size (8192
+tokens)`. The preparer rendered up to `MAX_PDF_PAGES` (5) pages at
+`IMAGE_MAX_WIDTH` (1600 px). The model server bills one image token per started
+32 x 32 block, so a 3-page letter PDF cost 3 x (50 x 71) = 10,650 image tokens
+plus the prompt, over the `-c 8192` context.
+
+### Fix
+
+- `limits.ts`: `IMAGE_TOKEN_BLOCK_PX` (32), `MAX_IMAGE_TOKENS` (6144, about 2k
+  left for the prompt and the JSON output), `imageTokenCost(width, height)` and
+  `widthWithinImageTokens(width, height, budget, { enlarge })`: the widest width
+  up to 1600 px whose image fits the budget, with the height rounded up.
+- `sharp-unpdf-preparer.ts`: a PDF splits `MAX_IMAGE_TOKENS` evenly across the
+  pages it sends and renders each page at its own width; a raster image uses the
+  whole budget on its upright (EXIF-oriented) size and is never enlarged. The
+  page-size guard (4.11) is unchanged and still runs before any canvas.
+- Tests: `limits.test.ts` and `sharp-unpdf-preparer.test.ts`.
+  `npx vitest run src/lib/extraction` 16 files / 387 tests pass; typecheck
+  clean; prettier `--end-of-line auto` clean; ESLint only the CRLF noise.
+
+### Re-walk
+
+A 3-page PDF renders at 1200 x 1695 per page. After restarting the server and
+calling the cron, the model log shows `6142 tokens` and document 7 (PDF) is
+`completada` (name and issuer read, dates "no reconocido"). Step (b) passes.
+
+### Issues found
+
+- Documents 1 and 2 used their 3 attempts on the old build and stay `fallida`;
+  manual entry for `fallida` documents belongs to `validation-signals`.
+- Walk data (requests and extraction rows) remains in production; task 9.6.
+
+### Remaining tasks
+
+9.6 (owner: backup branch and walk data) and phase 10.
