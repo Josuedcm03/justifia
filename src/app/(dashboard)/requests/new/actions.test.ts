@@ -21,6 +21,8 @@ const h = vi.hoisted(() => ({
   finalizeDocument: vi.fn(),
   removeDocument: vi.fn(),
   getIntakeDeps: vi.fn(),
+  getExtractionDeps: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: h.redirect }));
@@ -40,6 +42,9 @@ vi.mock("@/lib/data/documentos", () => ({
   removeDocument: h.removeDocument,
 }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: h.getIntakeDeps }));
+vi.mock("@/lib/extraction/deps", () => ({
+  getExtractionDeps: h.getExtractionDeps,
+}));
 
 import {
   discardDraftAction,
@@ -122,6 +127,7 @@ describe("intake actions", () => {
     });
     deps = createFakeIntakeDeps();
     h.getIntakeDeps.mockReturnValue(deps);
+    h.getExtractionDeps.mockReturnValue({ queue: { enqueue: h.enqueue } });
     h.getLiveDraft.mockResolvedValue(draft());
     h.listEligibleGroups.mockResolvedValue([G1, G2A, G2B]);
   });
@@ -756,6 +762,128 @@ describe("intake actions", () => {
         "audit down",
       );
       expect(h.redirect).not.toHaveBeenCalled();
+    });
+
+    describe("document extraction hand-off (DE-5, RF-11)", () => {
+      let logged: ReturnType<typeof vi.spyOn>;
+
+      beforeEach(() => {
+        logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      });
+
+      afterEach(() => {
+        logged.mockRestore();
+      });
+
+      it("hands the submitted request to extraction with the action's clock, before the redirect", async () => {
+        h.submitDraft.mockResolvedValue({ ok: true });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+          "REDIRECT:/requests/new/confirmation",
+        );
+
+        expect(h.enqueue).toHaveBeenCalledTimes(1);
+        expect(h.enqueue).toHaveBeenCalledWith(DRAFT, NOW);
+        expect(h.enqueue.mock.invocationCallOrder[0]).toBeLessThan(
+          h.redirect.mock.invocationCallOrder[0],
+        );
+      });
+
+      it("enqueues only after the submit transaction, which keeps the consent write", async () => {
+        h.submitDraft.mockResolvedValue({ ok: true });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow();
+
+        expect(h.submitDraft).toHaveBeenCalledWith(expectedInput);
+        expect(h.submitDraft.mock.invocationCallOrder[0]).toBeLessThan(
+          h.enqueue.mock.invocationCallOrder[0],
+        );
+      });
+
+      it.each([
+        ["no draft", () => h.getLiveDraft.mockResolvedValue(null)],
+        [
+          "an invalid draft",
+          () => h.getLiveDraft.mockResolvedValue(draft({ documents: [] })),
+        ],
+        [
+          "a double submit (conflict)",
+          () =>
+            h.submitDraft.mockResolvedValue({ ok: false, reason: "conflict" }),
+        ],
+        [
+          "an incomplete profile",
+          () =>
+            h.submitDraft.mockResolvedValue({
+              ok: false,
+              reason: "snapshot_incomplete",
+            }),
+        ],
+        [
+          "a failing transaction",
+          () => h.submitDraft.mockRejectedValue(new Error("audit down")),
+        ],
+      ])("enqueues nothing for %s", async (_name, arrange) => {
+        arrange();
+
+        await submitRequestAction(CONSENTED).catch(() => undefined);
+
+        expect(h.enqueue).not.toHaveBeenCalled();
+        expect(h.getExtractionDeps).not.toHaveBeenCalled();
+      });
+
+      it("enqueues nothing when the consent is missing: nothing was stored", async () => {
+        h.submitDraft.mockResolvedValue({ ok: true });
+
+        await submitRequestAction({ consentVersion: null });
+
+        expect(h.submitDraft).not.toHaveBeenCalled();
+        expect(h.enqueue).not.toHaveBeenCalled();
+      });
+
+      it("a throwing hand-off is logged by name and the student still reaches the confirmation", async () => {
+        h.submitDraft.mockResolvedValue({ ok: true });
+        h.enqueue.mockImplementation(() => {
+          throw new RangeError("secret detail: postgres://u:p@host/db");
+        });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+          "REDIRECT:/requests/new/confirmation",
+        );
+
+        expect(logged).toHaveBeenCalledTimes(1);
+        expect(logged).toHaveBeenCalledWith("extraction_not_scheduled", {
+          solicitudId: DRAFT,
+          code: "RangeError",
+        });
+        expect(JSON.stringify(logged.mock.calls)).not.toContain("secret");
+      });
+
+      it("a composition root that cannot be built does not block the submission either", async () => {
+        h.submitDraft.mockResolvedValue({ ok: true });
+        h.getExtractionDeps.mockImplementation(() => {
+          throw new Error("BLOB_READ_WRITE_TOKEN is not configured.");
+        });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+          "REDIRECT:/requests/new/confirmation",
+        );
+
+        expect(h.enqueue).not.toHaveBeenCalled();
+        expect(logged).toHaveBeenCalledWith("extraction_not_scheduled", {
+          solicitudId: DRAFT,
+          code: "Error",
+        });
+        expect(JSON.stringify(logged.mock.calls)).not.toContain("BLOB");
+      });
+
+      it("the draft steps never hand anything to extraction", async () => {
+        h.finalizeDocument.mockResolvedValue({ ok: true, documentId: 12 });
+
+        await finalizeDocumentAction({ pathname: "a", nombreOriginal: "a" });
+
+        expect(h.getExtractionDeps).not.toHaveBeenCalled();
+      });
     });
   });
 });

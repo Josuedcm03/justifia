@@ -19,6 +19,8 @@ const h = vi.hoisted(() => ({
   removeDocument: vi.fn(),
   resubmitCorrection: vi.fn(),
   getIntakeDeps: vi.fn(),
+  getExtractionDeps: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: h.redirect }));
@@ -39,6 +41,9 @@ vi.mock("@/lib/data/solicitud-correction", () => ({
   resubmitCorrection: h.resubmitCorrection,
 }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: h.getIntakeDeps }));
+vi.mock("@/lib/extraction/deps", () => ({
+  getExtractionDeps: h.getExtractionDeps,
+}));
 
 import {
   finalizeCorrectionDocumentAction,
@@ -84,6 +89,7 @@ beforeEach(() => {
   });
   deps = createFakeIntakeDeps();
   h.getIntakeDeps.mockReturnValue(deps);
+  h.getExtractionDeps.mockReturnValue({ queue: { enqueue: h.enqueue } });
   h.getLiveDraft.mockResolvedValue({
     id: REQUEST,
     causa: "medica",
@@ -331,5 +337,121 @@ describe("resubmitCorrectionAction (step 4)", () => {
       errors: [{ field: "form", key: `intake.errors.${code}` }],
     });
     expect(h.redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe("resubmitCorrectionAction: document extraction hand-off (DE-5, RF-11)", () => {
+  let logged: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    logged.mockRestore();
+  });
+
+  it("hands the resubmitted request to extraction with the action's clock, before the redirect", async () => {
+    h.resubmitCorrection.mockResolvedValue({ ok: true });
+
+    await expect(resubmitCorrectionAction(REQUEST)).rejects.toThrow(
+      `REDIRECT:/requests/${REQUEST}?corrected=1`,
+    );
+
+    expect(h.enqueue).toHaveBeenCalledTimes(1);
+    expect(h.enqueue).toHaveBeenCalledWith(REQUEST, NOW);
+    expect(h.enqueue.mock.invocationCallOrder[0]).toBeLessThan(
+      h.redirect.mock.invocationCallOrder[0],
+    );
+    expect(h.resubmitCorrection.mock.invocationCallOrder[0]).toBeLessThan(
+      h.enqueue.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("uses the same instant for the resubmission and the hand-off", async () => {
+    h.resubmitCorrection.mockResolvedValue({ ok: true });
+
+    await expect(resubmitCorrectionAction(REQUEST)).rejects.toThrow();
+
+    const [sent] = h.resubmitCorrection.mock.calls[0];
+    expect(h.enqueue.mock.calls[0][1]).toBe(sent.now);
+  });
+
+  it.each([
+    [
+      "invalid fields",
+      {
+        ok: false,
+        reason: "invalid",
+        errors: [{ field: "fechaFin", code: "end_before_start" }],
+      },
+    ],
+    ["a conflict", { ok: false, reason: "conflict" }],
+    ["a request that is not correctable", { ok: false, reason: "not_found" }],
+  ])("enqueues nothing for %s", async (_name, outcome) => {
+    h.resubmitCorrection.mockResolvedValue(outcome);
+
+    await resubmitCorrectionAction(REQUEST);
+
+    expect(h.enqueue).not.toHaveBeenCalled();
+    expect(h.getExtractionDeps).not.toHaveBeenCalled();
+  });
+
+  it("enqueues nothing for a refused request id or a failing transaction", async () => {
+    await resubmitCorrectionAction("abc");
+    h.resubmitCorrection.mockRejectedValue(new Error("audit down"));
+    await resubmitCorrectionAction(REQUEST).catch(() => undefined);
+
+    expect(h.enqueue).not.toHaveBeenCalled();
+    expect(h.getExtractionDeps).not.toHaveBeenCalled();
+  });
+
+  it("a throwing hand-off is logged by name and the correction is still stored without an error to the student", async () => {
+    h.resubmitCorrection.mockResolvedValue({ ok: true });
+    h.enqueue.mockImplementation(() => {
+      throw new RangeError("secret detail: postgres://u:p@host/db");
+    });
+
+    await expect(resubmitCorrectionAction(REQUEST)).rejects.toThrow(
+      `REDIRECT:/requests/${REQUEST}?corrected=1`,
+    );
+
+    expect(h.resubmitCorrection).toHaveBeenCalledTimes(1);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(logged).toHaveBeenCalledWith("extraction_not_scheduled", {
+      solicitudId: REQUEST,
+      code: "RangeError",
+    });
+    expect(JSON.stringify(logged.mock.calls)).not.toContain("secret");
+  });
+
+  it("a composition root that cannot be built does not block the correction either", async () => {
+    h.resubmitCorrection.mockResolvedValue({ ok: true });
+    h.getExtractionDeps.mockImplementation(() => {
+      throw new Error("BLOB_READ_WRITE_TOKEN is not configured.");
+    });
+
+    await expect(resubmitCorrectionAction(REQUEST)).rejects.toThrow(
+      `REDIRECT:/requests/${REQUEST}?corrected=1`,
+    );
+
+    expect(logged).toHaveBeenCalledWith("extraction_not_scheduled", {
+      solicitudId: REQUEST,
+      code: "Error",
+    });
+    expect(JSON.stringify(logged.mock.calls)).not.toContain("BLOB");
+  });
+
+  it("the other correction steps never hand anything to extraction", async () => {
+    h.finalizeDocument.mockResolvedValue({ ok: true, documentId: 12 });
+    h.removeDocument.mockResolvedValue({ ok: true });
+
+    await finalizeCorrectionDocumentAction(REQUEST, {
+      pathname: "intake/31/x.png",
+      nombreOriginal: "foto.png",
+    });
+    await removeCorrectionDocumentAction(REQUEST, 11);
+
+    expect(h.getExtractionDeps).not.toHaveBeenCalled();
   });
 });

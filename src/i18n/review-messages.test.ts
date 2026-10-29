@@ -1,3 +1,4 @@
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import { templateKey } from "@/app/(dashboard)/review/template-key";
@@ -211,5 +212,115 @@ describe("review messages", () => {
 
     expect(mark.label).toBeTruthy();
     expect(mark.hint).toBeTruthy();
+  });
+});
+
+// Scenario "Translation keys present" (request-review) and decision 3: the
+// extracted-data section of the staff detail. The keys are listed on purpose:
+// the generic parity test above proves both catalogs match, this one proves the
+// section's own texts exist at all.
+const EXTRACTION_KEYS = [
+  "note",
+  "fields.studentName",
+  "fields.issuer",
+  "fields.issueDate",
+  "fields.restPeriod",
+  "notRecognized",
+  "restDays",
+  "restRange",
+  "restSingleDay",
+  "states.extracting",
+  "states.unavailable",
+  "states.notConfigured",
+  "degraded",
+];
+
+function at(tree: unknown, path: string): unknown {
+  return path
+    .split(".")
+    .reduce<unknown>(
+      (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+      tree,
+    );
+}
+
+describe("extraction section messages (RF-11)", () => {
+  it.each(catalogs)(
+    "%s names the section and every extraction text",
+    (_l, m) => {
+      expect(m.review.detail.sections.extraction.trim().length).toBeGreaterThan(
+        0,
+      );
+      for (const key of EXTRACTION_KEYS) {
+        const text = at(m.review.extraction, key);
+        expect(typeof text, key).toBe("string");
+        expect((text as string).trim().length, key).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  it("titles the section in each language", () => {
+    expect(es.review.detail.sections.extraction).toBe("Datos extraídos");
+    expect(en.review.detail.sections.extraction).toBe("Extracted data");
+  });
+
+  it("words the configuration message for staff, in the usted register", () => {
+    expect(es.review.extraction.states.notConfigured).toBe(
+      "Hace falta configurar el servicio de extracción. Contacte al administrador del sistema.",
+    );
+    expect(en.review.extraction.states.notConfigured).toBe(
+      "The extraction service needs to be configured. Contact the system administrator.",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s never names the variable, the address or the key in any extraction text",
+    (_l, m) => {
+      const texts = leaves(m.review.extraction, "review.extraction");
+
+      expect(texts.length).toBeGreaterThan(10);
+      for (const [key, text] of texts) {
+        expect(text as string, key).not.toMatch(/EXTRACTION_API/);
+        expect(text as string, key).not.toMatch(/url|https?:|\bkey\b|clave/i);
+      }
+    },
+  );
+
+  it("addresses staff as usted in Spanish, never as tú", () => {
+    for (const [key, text] of leaves(
+      es.review.extraction,
+      "review.extraction",
+    )) {
+      expect(text as string, key).not.toMatch(
+        /\b(revisa|contacta|recarga|vuelve|verifica|comprueba)\b/i,
+      );
+    }
+    expect(es.review.extraction.states.unavailable).toMatch(/\bRevise\b/);
+    expect(es.review.extraction.states.extracting).toMatch(/\bVuelva\b/);
+  });
+
+  it.each([
+    ["es", es, { one: "1 día", other: "5 días" }],
+    ["en", en, { one: "1 day", other: "5 days" }],
+  ] as const)("%s pluralizes the rest days", (locale, m, expected) => {
+    const t = createTranslator({
+      locale,
+      messages: m,
+      namespace: "review.extraction",
+    });
+
+    expect(t("restDays", { count: 1 })).toBe(expected.one);
+    expect(t("restDays", { count: 5 })).toBe(expected.other);
+  });
+
+  it.each(catalogs)("%s keeps the rest placeholders", (_l, m) => {
+    const x = m.review.extraction;
+
+    for (const name of ["from", "to", "days"]) {
+      expect(x.restRange).toContain(`{${name}}`);
+    }
+    for (const name of ["date", "days"]) {
+      expect(x.restSingleDay).toContain(`{${name}}`);
+    }
   });
 });

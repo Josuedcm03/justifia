@@ -22,7 +22,7 @@ import type { RevisionDiff, SectionMark } from "@/lib/intake/revision-diff";
 
 const BUSINESS_TIME_ZONE = "America/Managua";
 
-function useDates() {
+export function useDates() {
   const format = useFormatter();
   const t = useTranslations("review.detail");
   const day = (iso: string) =>

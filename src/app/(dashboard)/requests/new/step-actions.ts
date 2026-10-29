@@ -39,6 +39,31 @@ export function fail(
   return { ok: false, errors: [{ field, key: errorKey(code) }] };
 }
 
+/**
+ * Hands a submitted or resubmitted request to document extraction (DE-5). Call
+ * it only after the transaction committed and before `redirect()`: the queue
+ * runs after the response, even when the action ends in a redirect. The
+ * submission is already stored, so nothing here may reach the student: a
+ * failure is logged by error name and the daily sweep recovers the request.
+ * The composition root is imported on demand because sharp and the PDF
+ * libraries are native addons; a deployment where they cannot load must not
+ * take the student's actions down with it.
+ */
+export async function scheduleExtraction(
+  solicitudId: number,
+  startedAt: Date,
+): Promise<void> {
+  try {
+    const { getExtractionDeps } = await import("@/lib/extraction/deps");
+    getExtractionDeps().queue.enqueue(solicitudId, startedAt);
+  } catch (error) {
+    console.error("extraction_not_scheduled", {
+      solicitudId,
+      code: error instanceof Error ? error.name : "unknown",
+    });
+  }
+}
+
 /** Field errors for the codes a submit validation reports. */
 export function submissionErrors(
   errors: readonly { field: string; code: string; asignaturaId?: number }[],

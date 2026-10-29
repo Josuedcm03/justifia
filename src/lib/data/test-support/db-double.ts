@@ -21,6 +21,9 @@ export type LoggedStatement = {
   selection?: unknown;
   /** The arguments of `.for(...)`: row-lock strength and its config. */
   lock?: { strength: unknown; config?: unknown };
+  limit?: number;
+  /** Other builder methods called, in order (for example `onConflictDoNothing`). */
+  calls?: string[];
   inTransaction: boolean;
 };
 
@@ -29,6 +32,7 @@ function builder(
   record: (patch: Partial<LoggedStatement>) => void,
   error?: unknown,
 ) {
+  const calls: string[] = [];
   const proxy: unknown = new Proxy(function () {}, {
     get(_target, prop) {
       if (prop === "then") {
@@ -71,13 +75,23 @@ function builder(
           return proxy;
         };
       }
+      if (prop === "limit") {
+        return (limit: number) => {
+          record({ limit });
+          return proxy;
+        };
+      }
       if (prop === "orderBy") {
         return (...orderBy: unknown[]) => {
           record({ orderBy });
           return proxy;
         };
       }
-      return () => proxy;
+      return () => {
+        calls.push(String(prop));
+        record({ calls });
+        return proxy;
+      };
     },
   });
   return proxy;
