@@ -7,7 +7,9 @@ import {
   EXTRACTION_MAX_DURATION_S,
   FETCH_TIMEOUT_MS,
   IMAGE_MAX_WIDTH,
+  IMAGE_TOKEN_BLOCK_PX,
   MAX_ATTEMPTS,
+  MAX_IMAGE_TOKENS,
   MAX_MODEL_RESPONSE_BYTES,
   MAX_PDF_PAGES,
   MAX_RENDERED_PAGE_HEIGHT,
@@ -16,7 +18,9 @@ import {
   canStartDocument,
   deadlineFor,
   fitsRenderCap,
+  imageTokenCost,
   modelTimeoutMs,
+  widthWithinImageTokens,
 } from "./limits";
 
 describe("extraction limits (DE-3, DE-7, DE-9, DE-11)", () => {
@@ -71,6 +75,89 @@ describe("fitsRenderCap (page size at the image width, in points)", () => {
     ["infinite width", Number.POSITIVE_INFINITY, 792],
   ])("rejects a degenerate size: %s", (_label, width, height) => {
     expect(fitsRenderCap(width, height)).toBe(false);
+  });
+});
+
+describe("image token budget (DE-9)", () => {
+  it("pins the budget and the block size", () => {
+    expect(MAX_IMAGE_TOKENS).toBe(6144);
+    expect(IMAGE_TOKEN_BLOCK_PX).toBe(32);
+  });
+
+  it("leaves room in an 8192-token context for the prompt and the output", () => {
+    expect(8192 - MAX_IMAGE_TOKENS).toBeGreaterThanOrEqual(2048);
+  });
+
+  it("costs one token per started 32 x 32 block", () => {
+    expect(imageTokenCost(32, 32)).toBe(1);
+    expect(imageTokenCost(33, 32)).toBe(2);
+    expect(imageTokenCost(1600, 2260)).toBe(3550);
+  });
+});
+
+describe("widthWithinImageTokens (largest width under a token budget)", () => {
+  /** Height the width yields, rounded up as the helper bounds it. */
+  const scaled = (w: number, width: number, height: number) =>
+    Math.ceil((height * w) / width);
+
+  it("keeps a one-page US Letter at the width cap: it fits the whole budget", () => {
+    expect(widthWithinImageTokens(612, 792, MAX_IMAGE_TOKENS)).toBe(
+      IMAGE_MAX_WIDTH,
+    );
+  });
+
+  it.each([
+    ["US Letter, a third of the budget", 612, 792, 2048],
+    ["US Letter, a fifth of the budget", 612, 792, 1228],
+    ["A4, half of the budget", 595, 842, 3072],
+    ["80 mm x 400 mm receipt, whole budget", 227, 1134, MAX_IMAGE_TOKENS],
+    ["1600 x 9000 photo, whole budget", 1600, 9000, MAX_IMAGE_TOKENS],
+  ])("%s: the largest width that fits", (_label, width, height, budget) => {
+    const w = widthWithinImageTokens(width, height, budget);
+
+    expect(w).toBeLessThan(IMAGE_MAX_WIDTH);
+    expect(imageTokenCost(w, scaled(w, width, height))).toBeLessThanOrEqual(
+      budget,
+    );
+    // One pixel wider no longer fits.
+    expect(imageTokenCost(w + 1, scaled(w + 1, width, height))).toBeGreaterThan(
+      budget,
+    );
+  });
+
+  it("never goes past the width cap, even for a page in points", () => {
+    expect(widthWithinImageTokens(100, 100, MAX_IMAGE_TOKENS)).toBe(
+      IMAGE_MAX_WIDTH,
+    );
+    expect(widthWithinImageTokens(3000, 1000, MAX_IMAGE_TOKENS)).toBe(
+      IMAGE_MAX_WIDTH,
+    );
+  });
+
+  it("never enlarges a raster image past its own width", () => {
+    expect(
+      widthWithinImageTokens(929, 606, MAX_IMAGE_TOKENS, { enlarge: false }),
+    ).toBe(929);
+  });
+
+  it("still shrinks a raster image that is over the budget", () => {
+    const w = widthWithinImageTokens(1600, 9000, MAX_IMAGE_TOKENS, {
+      enlarge: false,
+    });
+
+    expect(w).toBeLessThan(1600);
+    expect(imageTokenCost(w, scaled(w, 1600, 9000))).toBeLessThanOrEqual(
+      MAX_IMAGE_TOKENS,
+    );
+  });
+
+  it.each([
+    ["zero width", 0, 792],
+    ["zero height", 612, 0],
+    ["NaN width", Number.NaN, 792],
+    ["infinite height", 612, Number.POSITIVE_INFINITY],
+  ])("returns 0 for a degenerate size: %s", (_label, width, height) => {
+    expect(widthWithinImageTokens(width, height, MAX_IMAGE_TOKENS)).toBe(0);
   });
 });
 

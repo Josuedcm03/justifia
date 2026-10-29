@@ -1,7 +1,12 @@
 import sharp from "sharp";
 import { getDocumentProxy, renderPageAsImage } from "unpdf";
 
-import { IMAGE_MAX_WIDTH, MAX_PDF_PAGES, fitsRenderCap } from "../limits";
+import {
+  MAX_IMAGE_TOKENS,
+  MAX_PDF_PAGES,
+  fitsRenderCap,
+  widthWithinImageTokens,
+} from "../limits";
 import type { DocumentKind, DocumentPreparer, PrepareResult } from "../ports";
 
 // Document preparer (DE-9): turns stored bytes into the JPEG pages the model
@@ -10,6 +15,9 @@ import type { DocumentKind, DocumentPreparer, PrepareResult } from "../ports";
 //
 // Every PDF takes the render path, text layer or not: the text-mode
 // measurement failed its gate (DE-14), so there is no text variant.
+//
+// All the images of one document share `MAX_IMAGE_TOKENS`: the model server
+// refuses a request over its context, so each image is narrowed to fit.
 
 const JPEG_QUALITY = 85;
 const BACKGROUND = "#ffffff";
@@ -38,11 +46,14 @@ const importCanvas: CanvasImport = () => import("@napi-rs/canvas");
  * pixels, flatten transparency onto white (JPEG has no alpha, and dark ink on
  * a black background is unreadable), cap the width without enlarging, encode.
  */
-async function toModelJpeg(bytes: Uint8Array): Promise<Uint8Array> {
+async function toModelJpeg(
+  bytes: Uint8Array,
+  width: number,
+): Promise<Uint8Array> {
   const jpeg = await sharp(bytes)
     .rotate()
     .flatten({ background: BACKGROUND })
-    .resize({ width: IMAGE_MAX_WIDTH, withoutEnlargement: true })
+    .resize({ width, withoutEnlargement: true })
     .jpeg({ quality: JPEG_QUALITY })
     .toBuffer();
   return new Uint8Array(jpeg);
@@ -54,7 +65,13 @@ function prepared(images: readonly Uint8Array[]): PrepareResult {
 
 async function prepareImage(bytes: Uint8Array): Promise<PrepareResult> {
   try {
-    return prepared([await toModelJpeg(bytes)]);
+    // The upright size (EXIF orientation applied) is what the model sees.
+    const { width, height } = (await sharp(bytes).metadata()).autoOrient;
+    const target = widthWithinImageTokens(width, height, MAX_IMAGE_TOKENS, {
+      enlarge: false,
+    });
+    if (target === 0) return UNREADABLE;
+    return prepared([await toModelJpeg(bytes, target)]);
   } catch {
     return UNREADABLE;
   }
@@ -65,19 +82,23 @@ type PdfDocument = Awaited<ReturnType<typeof getDocumentProxy>>;
 /**
  * Reads each page's box as a viewer shows it (rotation applied) at scale 1 and
  * checks that drawing it at the image width stays under the height cap. Reading
- * a viewport allocates no canvas.
+ * a viewport allocates no canvas. Returns the width each page is drawn at, its
+ * even share of the token budget, or null when a page is over the cap.
  */
-async function pagesFitRenderCap(
+async function renderWidths(
   document: PdfDocument,
   pages: number,
-): Promise<boolean> {
+): Promise<number[] | null> {
+  const share = Math.floor(MAX_IMAGE_TOKENS / pages);
+  const widths: number[] = [];
   for (let number = 1; number <= pages; number++) {
     const { width, height } = (await document.getPage(number)).getViewport({
       scale: 1,
     });
-    if (!fitsRenderCap(width, height)) return false;
+    if (!fitsRenderCap(width, height)) return null;
+    widths.push(widthWithinImageTokens(width, height, share));
   }
-  return true;
+  return widths;
 }
 
 async function preparePdf(
@@ -110,13 +131,15 @@ async function preparePdf(
     const pages = Math.min(document.numPages, MAX_PDF_PAGES);
     // Every page that would be drawn is measured first, so an oversized one
     // refuses the whole document before any canvas is allocated.
-    if (!(await pagesFitRenderCap(document, pages))) return UNREADABLE;
+    const widths = pages > 0 ? await renderWidths(document, pages) : [];
+    if (widths === null) return UNREADABLE;
     for (let page = 1; page <= pages; page++) {
+      const width = widths[page - 1];
       const png = await renderPageAsImage(document, page, {
         canvasImport: guardedImport,
-        width: IMAGE_MAX_WIDTH,
+        width,
       });
-      images.push(await toModelJpeg(new Uint8Array(png)));
+      images.push(await toModelJpeg(new Uint8Array(png), width));
     }
     return images.length > 0 ? prepared(images) : UNREADABLE;
   } catch {

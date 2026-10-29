@@ -3,6 +3,13 @@ import sharp from "sharp";
 import { renderPageAsImage } from "unpdf";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  IMAGE_MAX_WIDTH,
+  MAX_IMAGE_TOKENS,
+  MAX_PDF_PAGES,
+  imageTokenCost,
+  widthWithinImageTokens,
+} from "../limits";
 import { createSharpUnpdfPreparer } from "./sharp-unpdf-preparer";
 import { buildPdf } from "./test-support/pdf";
 
@@ -281,7 +288,7 @@ describe("sharp-unpdf preparer, PDF render path (DE-9)", () => {
     expect(images).toHaveLength(3);
   });
 
-  it("passes each rendered page through the sharp step: JPEG, width <= 1600", async () => {
+  it("passes each rendered page through the sharp step: JPEG, width <= 1600, within its token share", async () => {
     const pdf = buildPdf([
       {},
       { width: 3000, height: 1000, gray: 0.5 },
@@ -296,9 +303,19 @@ describe("sharp-unpdf preparer, PDF render path (DE-9)", () => {
       expect(meta.format).toBe("jpeg");
       expect(meta.width).toBeLessThanOrEqual(1600);
     }
-    // A letter page is rendered at the cap directly.
-    expect((await lumaOf(images[0])).width).toBe(1600);
-    expect((await sharp(images[1]).metadata()).height).toBe(533);
+    // Each of the 3 pages gets a third of the budget: a letter page is drawn
+    // at the width that share allows, not at the cap. The canvas truncates a
+    // fractional viewport (612 * (1261 / 612) is 1260.99...), so the drawn
+    // width may be one pixel under the computed one.
+    const share = Math.floor(MAX_IMAGE_TOKENS / 3);
+    const letter = widthWithinImageTokens(612, 792, share);
+    expect(letter).toBeLessThan(IMAGE_MAX_WIDTH);
+    const drawn = (await lumaOf(images[0])).width;
+    expect(drawn).toBeLessThanOrEqual(letter);
+    expect(drawn).toBeGreaterThanOrEqual(letter - 1);
+    const wide = await sharp(images[1]).metadata();
+    expect(wide.width).toBe(widthWithinImageTokens(3000, 1000, share));
+    expect(wide.height).toBe(Math.floor((wide.width * 1000) / 3000));
   });
 
   it("leaves the caller's bytes intact, so the same bytes can be prepared again", async () => {
@@ -356,14 +373,19 @@ describe("sharp-unpdf preparer, page-size guard (DE-9)", () => {
     expect(renderSpy).toHaveBeenCalledTimes(2);
   });
 
-  it("renders a long receipt (227 x 1134 pt, ratio 5) at the width cap", async () => {
+  it("renders a long receipt (227 x 1134 pt, ratio 5) narrowed to the token budget", async () => {
     const pdf = buildPdf([{ width: 227, height: 1134, gray: 0.5 }]);
 
     const images = imagesOf(await preparer.prepare(pdf, "pdf"));
 
     expect(images).toHaveLength(1);
     const meta = await sharp(images[0]).metadata();
-    expect([meta.width, meta.height]).toEqual([1600, 7992]);
+    const width = widthWithinImageTokens(227, 1134, MAX_IMAGE_TOKENS);
+    expect(width).toBeLessThan(IMAGE_MAX_WIDTH);
+    expect([meta.width, meta.height]).toEqual([
+      width,
+      Math.floor((1134 * width) / 227),
+    ]);
   });
 
   it("refuses a 1 x 14400 pt page without rendering it", async () => {
@@ -431,5 +453,98 @@ describe("sharp-unpdf preparer, page-size guard (DE-9)", () => {
     const images = imagesOf(await preparer.prepare(wide, "pdf"));
     expect(images).toHaveLength(1);
     expect(renderSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// The model server counts one token per started 32 x 32 block and has an
+// 8192-token context: the images of one document must stay under
+// `MAX_IMAGE_TOKENS` together, or every request is refused.
+describe("sharp-unpdf preparer, image token budget (DE-9)", () => {
+  const preparer = createSharpUnpdfPreparer();
+
+  async function sizesOf(
+    images: readonly Uint8Array[],
+  ): Promise<Array<[number, number]>> {
+    return Promise.all(
+      images.map(async (image) => {
+        const meta = await sharp(image).metadata();
+        return [meta.width, meta.height] as [number, number];
+      }),
+    );
+  }
+
+  function tokensOf(sizes: ReadonlyArray<[number, number]>): number {
+    return sizes.reduce((sum, [w, h]) => sum + imageTokenCost(w, h), 0);
+  }
+
+  it("keeps a 3-page letter PDF under the budget", async () => {
+    const pdf = buildPdf([{ text: "Carta" }, { gray: 0.5 }, { gray: 0.8 }]);
+
+    const sizes = await sizesOf(imagesOf(await preparer.prepare(pdf, "pdf")));
+
+    expect(sizes).toHaveLength(3);
+    expect(tokensOf(sizes)).toBeLessThanOrEqual(MAX_IMAGE_TOKENS);
+  });
+
+  it("keeps a 5-page PDF under the budget", async () => {
+    const pdf = buildPdf(
+      Array.from({ length: MAX_PDF_PAGES }, () => ({ gray: 0.5 })),
+    );
+
+    const sizes = await sizesOf(imagesOf(await preparer.prepare(pdf, "pdf")));
+
+    expect(sizes).toHaveLength(5);
+    expect(tokensOf(sizes)).toBeLessThanOrEqual(MAX_IMAGE_TOKENS);
+  });
+
+  it("gives a one-page PDF the whole budget, not a page share", async () => {
+    const pdf = buildPdf([{ gray: 0.5 }]);
+
+    const sizes = await sizesOf(imagesOf(await preparer.prepare(pdf, "pdf")));
+
+    expect(sizes).toHaveLength(1);
+    expect(sizes[0][0]).toBe(
+      widthWithinImageTokens(612, 792, MAX_IMAGE_TOKENS),
+    );
+    expect(tokensOf(sizes)).toBeLessThanOrEqual(MAX_IMAGE_TOKENS);
+  });
+
+  it("narrows a very tall image (1600 x 9000) to the budget", async () => {
+    const stored = await twoToneJpeg(1600, 9000);
+
+    const sizes = await sizesOf([
+      await onlyImage(await preparer.prepare(stored, "jpeg")),
+    ]);
+
+    expect(sizes[0][0]).toBeLessThan(1600);
+    expect(tokensOf(sizes)).toBeLessThanOrEqual(MAX_IMAGE_TOKENS);
+  });
+
+  it("narrows a tall photo by its upright size, EXIF orientation applied", async () => {
+    // Stored 9000 x 1600 (fits as stored); upright it is 1600 x 9000.
+    const stored = await twoToneJpeg(9000, 1600, 6);
+
+    const sizes = await sizesOf([
+      await onlyImage(await preparer.prepare(stored, "jpeg")),
+    ]);
+
+    expect(sizes[0][1]).toBeGreaterThan(sizes[0][0]);
+    expect(tokensOf(sizes)).toBeLessThanOrEqual(MAX_IMAGE_TOKENS);
+  });
+
+  it("leaves a small image (929 x 606) at its own size", async () => {
+    const stored = new Uint8Array(
+      await sharp({
+        create: { width: 929, height: 606, channels: 3, background: BLUE },
+      })
+        .png()
+        .toBuffer(),
+    );
+
+    const sizes = await sizesOf([
+      await onlyImage(await preparer.prepare(stored, "png")),
+    ]);
+
+    expect(sizes).toEqual([[929, 606]]);
   });
 });

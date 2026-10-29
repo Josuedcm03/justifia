@@ -49,6 +49,55 @@ export const IMAGE_MAX_WIDTH = 1600;
  */
 export const MAX_RENDERED_PAGE_HEIGHT = 10_000;
 
+/**
+ * DE-9: side, in pixels, of the block the model server bills as one image
+ * token (NuExtract3, Qwen3-VL family): an image costs one token per started
+ * 32 x 32 block.
+ */
+export const IMAGE_TOKEN_BLOCK_PX = 32;
+
+/**
+ * DE-9: image tokens all the images of one document may cost together. The
+ * server runs with an 8192-token context; this leaves about 2k for the prompt
+ * and the JSON output. A 3-page letter at `IMAGE_MAX_WIDTH` costs 10,650.
+ */
+export const MAX_IMAGE_TOKENS = 6144;
+
+/** DE-9: tokens the model server bills for an image of this size, in pixels. */
+export function imageTokenCost(width: number, height: number): number {
+  return (
+    Math.ceil(width / IMAGE_TOKEN_BLOCK_PX) *
+    Math.ceil(height / IMAGE_TOKEN_BLOCK_PX)
+  );
+}
+
+/**
+ * DE-9: widest render width, at most `IMAGE_MAX_WIDTH`, whose image costs no
+ * more than `tokenBudget`. The height scales with the width and is rounded up,
+ * so the bound holds however the renderer rounds. A PDF page (size in points)
+ * may be enlarged; a raster image passes `enlarge: false` and never grows past
+ * its own width. A degenerate size yields 0; nothing narrower than 1 px.
+ */
+export function widthWithinImageTokens(
+  width: number,
+  height: number,
+  tokenBudget: number,
+  { enlarge = true }: { enlarge?: boolean } = {},
+): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return 0;
+  if (width <= 0 || height <= 0) return 0;
+  let w = Math.floor(
+    enlarge ? IMAGE_MAX_WIDTH : Math.min(IMAGE_MAX_WIDTH, width),
+  );
+  while (
+    w > 1 &&
+    imageTokenCost(w, Math.ceil((height * w) / width)) > tokenBudget
+  ) {
+    w--;
+  }
+  return Math.max(1, w);
+}
+
 /** DE-11: requests one sweep run takes up (the backfill bound). */
 export const SWEEP_BATCH_SIZE = 10;
 
