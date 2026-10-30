@@ -22,6 +22,8 @@ const {
   readMock,
   remissionsMock,
   accountsMock,
+  extractionsMock,
+  configuredMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -36,6 +38,8 @@ const {
   readMock: vi.fn(),
   remissionsMock: vi.fn(),
   accountsMock: vi.fn(),
+  extractionsMock: vi.fn(),
+  configuredMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -60,6 +64,10 @@ vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
   escalateRequestAction: vi.fn(),
   recordExcessReportAction: vi.fn(),
   resendEscalationNoticeAction: vi.fn(),
+}));
+vi.mock("@/lib/data/extraction", () => ({ listExtractions: extractionsMock }));
+vi.mock("@/lib/extraction/configured", () => ({
+  isExtractionConfigured: configuredMock,
 }));
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),
@@ -175,6 +183,10 @@ beforeEach(() => {
     carreraNombre: "Ingenieria de Sistemas",
     cuentas: 1,
   });
+  extractionsMock.mockReset();
+  extractionsMock.mockResolvedValue({ data: [], degraded: false });
+  configuredMock.mockReset();
+  configuredMock.mockReturnValue(true);
 });
 
 describe("ReviewDetailPage access (RNF-01)", () => {
@@ -190,6 +202,7 @@ describe("ReviewDetailPage access (RNF-01)", () => {
       expect(scopeMock).not.toHaveBeenCalled();
       expect(detailMock).not.toHaveBeenCalled();
       expect(readMock).not.toHaveBeenCalled();
+      expect(extractionsMock).not.toHaveBeenCalled();
     },
   );
 
@@ -1327,4 +1340,193 @@ describe("ReviewDetailPage absence reports (RF-15)", () => {
       ).toBeNull();
     },
   );
+});
+
+const COMPLETED_ROW = {
+  state: "completada",
+  studentName: "Maria Perez",
+  issuer: "Clinica Central",
+  issueDate: "2026-10-02",
+  restFrom: "2026-10-05",
+  restTo: "2026-10-07",
+  restDays: 3,
+};
+
+function extractions(
+  ...rows: (typeof COMPLETED_ROW | { state: string } | null)[]
+) {
+  return {
+    degraded: false,
+    data: rows.map((row, i) => ({
+      documentoId: 31 + i,
+      nombreOriginal: i === 0 ? "constancia.pdf" : `otro-${i}.pdf`,
+      row,
+    })),
+  };
+}
+
+const extractionRegion = () =>
+  screen.getByRole("region", { name: en.sections.extraction });
+
+describe("ReviewDetailPage extracted data (RF-11, RN-02, RNF-06)", () => {
+  it("renders the section after the documents section", async () => {
+    extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+    await renderPage();
+
+    const documents = screen.getByRole("region", {
+      name: en.sections.documents,
+    });
+    const section = extractionRegion();
+    expect(
+      documents.compareDocumentPosition(section) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(section).toHaveTextContent("Clinica Central");
+    expect(section).toHaveTextContent("Oct 5, 2026 to Oct 7, 2026 (3 days)");
+  });
+
+  it("loads the extractions for the opened request, before the audited read", async () => {
+    extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+    await renderPage();
+
+    expect(extractionsMock).toHaveBeenCalledTimes(1);
+    expect(extractionsMock).toHaveBeenCalledWith(12);
+    expect(extractionsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      readMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("shows the snapshot name in the student section and the document name in this one", async () => {
+    extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+    await renderPage();
+
+    const student = screen.getByRole("region", { name: en.sections.student });
+    expect(student).toHaveTextContent("Ana Lopez");
+    expect(student).not.toHaveTextContent("Maria Perez");
+    expect(extractionRegion()).toHaveTextContent("Maria Perez");
+    expect(extractionRegion()).not.toHaveTextContent("Ana Lopez");
+  });
+
+  it("passes the request state: a decided request never reads 'extracting'", async () => {
+    detailMock.mockResolvedValue(detail({ estado: "aprobada" }));
+    extractionsMock.mockResolvedValue(
+      extractions({ state: "pendiente" }, null),
+    );
+
+    await renderPage();
+
+    const text = messages.en.review.extraction.states;
+    expect(extractionRegion()).not.toHaveTextContent(text.extracting);
+    expect(
+      within(extractionRegion()).getAllByText(text.unavailable),
+    ).toHaveLength(2);
+  });
+
+  it("passes the configuration flag: one message, no extracting state", async () => {
+    configuredMock.mockReturnValue(false);
+    extractionsMock.mockResolvedValue(
+      extractions(null, { state: "pendiente" }),
+    );
+
+    await renderPage();
+
+    const text = messages.en.review.extraction.states;
+    expect(
+      within(extractionRegion()).getAllByText(text.notConfigured),
+    ).toHaveLength(1);
+    expect(extractionRegion()).not.toHaveTextContent(text.extracting);
+  });
+
+  it("renders the rest of the detail with the degraded notice when the read is degraded", async () => {
+    extractionsMock.mockResolvedValue({ data: [], degraded: true });
+
+    await renderPage();
+
+    expect(
+      within(extractionRegion()).getByText(
+        messages.en.review.extraction.degraded,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: en.sections.student }),
+    ).toHaveTextContent("Ana Lopez");
+    expect(
+      screen.getByRole("region", { name: en.sections.documents }),
+    ).toHaveTextContent("constancia.pdf");
+    expect(readMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the rest of the detail with the degraded notice when the read throws", async () => {
+    extractionsMock.mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await renderPage();
+
+    expect(
+      within(extractionRegion()).getByText(
+        messages.en.review.extraction.degraded,
+      ),
+    ).toBeInTheDocument();
+    expect(extractionRegion()).not.toHaveTextContent("connection lost");
+    expect(
+      screen.getByRole("region", { name: en.sections.student }),
+    ).toHaveTextContent("Ana Lopez");
+    expect(readMock).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+  });
+
+  it("writes exactly one audit row, with the same arguments as before", async () => {
+    extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 12, "pendiente");
+  });
+
+  it("renders in Spanish", async () => {
+    state.locale = "es";
+    extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+    await renderPage();
+
+    const region = screen.getByRole("region", {
+      name: messages.es.review.detail.sections.extraction,
+    });
+    expect(region).toHaveTextContent("Clinica Central");
+    expect(region).toHaveTextContent("3 días");
+  });
+});
+
+describe("extracted data access (RNF-01)", () => {
+  async function source(path: string) {
+    const { readFileSync } = await import("node:fs");
+    return readFileSync(path, "utf8");
+  }
+
+  it("keeps the access gate unchanged: one requireRole over rolesRevisores, no role check of its own", async () => {
+    const text = await source("src/app/(dashboard)/review/[id]/page.tsx");
+
+    expect(text.match(/requireRole\(/g)).toHaveLength(1);
+    expect(text).toContain("requireRole(...rolesRevisores)");
+    expect(text).not.toMatch(/\.rol\s*[!=]==?|rolesUsuario|isCoordinacion/);
+  });
+
+  it("gives the student detail no extraction read, section or type", async () => {
+    const { readdirSync } = await import("node:fs");
+    const dir = "src/app/(dashboard)/requests/[id]";
+    const files = readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isFile() && /\.(ts|tsx)$/.test(e.name))
+      .map((e) => `${dir}/${e.name}`);
+
+    expect(files.length).toBeGreaterThan(1);
+    for (const file of files) {
+      expect(await source(file), file).not.toMatch(
+        /listExtractions|extraction-section|lib\/data\/extraction|lib\/extraction/,
+      );
+    }
+  });
 });

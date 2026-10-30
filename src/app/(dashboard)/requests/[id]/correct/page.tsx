@@ -30,6 +30,12 @@ import { isReturnReason } from "@/lib/intake/return-reasons";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 
+// Applies to every Server Action used on this page. The resubmission hands the
+// request to document extraction, which keeps running after the response (DE-5,
+// N2, N3). Next reads segment config statically, so this must be a literal, not
+// an import; `max-duration.test.ts` pins it to EXTRACTION_MAX_DURATION_S.
+export const maxDuration = 300;
+
 /**
  * Correction of the student's own returned request (RF-08 a, RNF-01), reusing
  * the four intake steps in place. The owner comes from the session; another

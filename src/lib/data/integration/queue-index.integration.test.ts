@@ -22,7 +22,7 @@ import { reviewQueueQuery } from "@/lib/data/revision-queue";
 // HOW TO RUN (never part of `npm test`; owner-run, phase 14):
 //   INTEGRATION_DATABASE_URL=<disposable branch url> \
 //   INTEGRATION_ALLOW_WRITES=1 npm run test:integration
-// The branch needs migration `0011_escalation` applied.
+// The branch needs migration `0012_escalation` applied.
 
 // Decided by vitest.integration.setup.ts before it replaced DATABASE_URL.
 const gate = { mode: process.env.INTEGRATION_GATE_MODE ?? "skip" };

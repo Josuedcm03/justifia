@@ -7,6 +7,9 @@ import { SERVER_ACTION_BODY_LIMIT } from "./src/lib/import/limits";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // The PDF renderer of the document-extraction preparer loads this native
+  // addon at runtime (DE-12). `sharp` is not listed: Next externalizes it.
+  serverExternalPackages: ["@napi-rs/canvas"],
   experimental: {
     // Raised only as far as the import's upload cap needs (5 MiB + multipart
     // framing); every other Server Action keeps the default.

@@ -1,5 +1,5 @@
 {
-  "id": "bedd1747-e142-494f-ae17-39fb591802ba",
+  "id": "64438107-9024-40cc-b789-b3a4540dd6df",
   "prevId": "9617ba17-fd85-4aa2-ba54-9eda3394433f",
   "version": "7",
   "dialect": "postgresql",
@@ -340,100 +340,22 @@
       },
       "isRLSEnabled": false
     },
-    "public.Escalamiento": {
-      "name": "Escalamiento",
+    "public.ExtraccionDocumento": {
+      "name": "ExtraccionDocumento",
       "schema": "",
       "columns": {
-        "Id": {
-          "name": "Id",
+        "DocumentoId": {
+          "name": "DocumentoId",
           "type": "bigint",
           "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "Escalamiento_Id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "9223372036854775807",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "SolicitudId": {
-          "name": "SolicitudId",
-          "type": "bigint",
-          "primaryKey": false,
           "notNull": true
         },
-        "Tipo": {
-          "name": "Tipo",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "EstadoPrevio": {
-          "name": "EstadoPrevio",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "Nota": {
-          "name": "Nota",
-          "type": "varchar(1000)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ReporteId": {
-          "name": "ReporteId",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "SecretariaId": {
-          "name": "SecretariaId",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "CreadoEn": {
-          "name": "CreadoEn",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "Respuesta": {
-          "name": "Respuesta",
-          "type": "varchar(1000)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "RespondidaPorId": {
-          "name": "RespondidaPorId",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "RespondidaEn": {
-          "name": "RespondidaEn",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "NotificacionEstado": {
-          "name": "NotificacionEstado",
-          "type": "varchar(20)",
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": true,
           "default": "'pendiente'"
-        },
-        "NotificacionMotivo": {
-          "name": "NotificacionMotivo",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": false
         },
         "Intentos": {
           "name": "Intentos",
@@ -441,6 +363,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "ErrorCodigo": {
+          "name": "ErrorCodigo",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
         },
         "ReclamoId": {
           "name": "ReclamoId",
@@ -454,17 +382,60 @@
           "primaryKey": false,
           "notNull": false
         },
-        "EnviadaEn": {
-          "name": "EnviadaEn",
+        "NombreEstudiante": {
+          "name": "NombreEstudiante",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Emisor": {
+          "name": "Emisor",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FechaEmision": {
+          "name": "FechaEmision",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ReposoDesde": {
+          "name": "ReposoDesde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ReposoHasta": {
+          "name": "ReposoHasta",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ReposoDias": {
+          "name": "ReposoDias",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Motor": {
+          "name": "Motor",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ProcesadoEn": {
+          "name": "ProcesadoEn",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "ProveedorMensajeId": {
-          "name": "ProveedorMensajeId",
-          "type": "varchar(100)",
+        "CreadaEn": {
+          "name": "CreadaEn",
+          "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "now()"
         },
         "ActualizadaEn": {
           "name": "ActualizadaEn",
@@ -475,117 +446,35 @@
         }
       },
       "indexes": {
-        "UX_Escalamiento_Abierto": {
-          "name": "UX_Escalamiento_Abierto",
+        "IX_Extraccion_Abierta": {
+          "name": "IX_Extraccion_Abierta",
           "columns": [
             {
-              "expression": "SolicitudId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"Escalamiento\".\"Tipo\" = 'sospecha_documento' AND \"Escalamiento\".\"RespondidaEn\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "IX_Escalamiento_Pendiente": {
-          "name": "IX_Escalamiento_Pendiente",
-          "columns": [
-            {
-              "expression": "CreadoEn",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "Id",
+              "expression": "CreadaEn",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "where": "\"Escalamiento\".\"NotificacionEstado\" = 'pendiente'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "IX_Escalamiento_Solicitud": {
-          "name": "IX_Escalamiento_Solicitud",
-          "columns": [
-            {
-              "expression": "SolicitudId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "CreadoEn",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
+          "where": "\"ExtraccionDocumento\".\"Estado\" IN ('pendiente', 'procesando')",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "Escalamiento_SolicitudId_Solicitud_Id_fk": {
-          "name": "Escalamiento_SolicitudId_Solicitud_Id_fk",
-          "tableFrom": "Escalamiento",
-          "tableTo": "Solicitud",
+        "ExtraccionDocumento_DocumentoId_DocumentoRespaldo_Id_fk": {
+          "name": "ExtraccionDocumento_DocumentoId_DocumentoRespaldo_Id_fk",
+          "tableFrom": "ExtraccionDocumento",
+          "tableTo": "DocumentoRespaldo",
           "columnsFrom": [
-            "SolicitudId"
+            "DocumentoId"
           ],
           "columnsTo": [
             "Id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "Escalamiento_ReporteId_ReporteInasistencia_Id_fk": {
-          "name": "Escalamiento_ReporteId_ReporteInasistencia_Id_fk",
-          "tableFrom": "Escalamiento",
-          "tableTo": "ReporteInasistencia",
-          "columnsFrom": [
-            "ReporteId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "Escalamiento_SecretariaId_Usuario_Id_fk": {
-          "name": "Escalamiento_SecretariaId_Usuario_Id_fk",
-          "tableFrom": "Escalamiento",
-          "tableTo": "Usuario",
-          "columnsFrom": [
-            "SecretariaId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "Escalamiento_RespondidaPorId_Usuario_Id_fk": {
-          "name": "Escalamiento_RespondidaPorId_Usuario_Id_fk",
-          "tableFrom": "Escalamiento",
-          "tableTo": "Usuario",
-          "columnsFrom": [
-            "RespondidaPorId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -593,45 +482,41 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "CK_Escalamiento_Tipo": {
-          "name": "CK_Escalamiento_Tipo",
-          "value": "\"Escalamiento\".\"Tipo\" IN ('sospecha_documento', 'exceso_inasistencias')"
+        "CK_Extraccion_Estado": {
+          "name": "CK_Extraccion_Estado",
+          "value": "\"ExtraccionDocumento\".\"Estado\" IN ('pendiente', 'procesando', 'completada', 'fallida', 'no_aplica')"
         },
-        "CK_Escalamiento_Kind": {
-          "name": "CK_Escalamiento_Kind",
-          "value": "(\"Escalamiento\".\"Tipo\" = 'sospecha_documento' AND \"Escalamiento\".\"EstadoPrevio\" = 'pendiente' AND \"Escalamiento\".\"ReporteId\" IS NULL AND \"Escalamiento\".\"Nota\" IS NOT NULL AND length(btrim(\"Escalamiento\".\"Nota\")) > 0) OR (\"Escalamiento\".\"Tipo\" = 'exceso_inasistencias' AND \"Escalamiento\".\"EstadoPrevio\" = 'aprobada' AND \"Escalamiento\".\"ReporteId\" IS NOT NULL AND \"Escalamiento\".\"Nota\" IS NULL)"
+        "CK_Extraccion_Error": {
+          "name": "CK_Extraccion_Error",
+          "value": "\"ExtraccionDocumento\".\"ErrorCodigo\" IS NULL OR \"ExtraccionDocumento\".\"ErrorCodigo\" IN ('not_configured', 'document_unavailable', 'unreadable_document', 'render_unavailable', 'timeout', 'model_error', 'invalid_response')"
         },
-        "CK_Escalamiento_Respuesta": {
-          "name": "CK_Escalamiento_Respuesta",
-          "value": "(\"Escalamiento\".\"Respuesta\" IS NULL) = (\"Escalamiento\".\"RespondidaPorId\" IS NULL) AND (\"Escalamiento\".\"Respuesta\" IS NULL) = (\"Escalamiento\".\"RespondidaEn\" IS NULL) AND (\"Escalamiento\".\"Respuesta\" IS NULL OR (length(btrim(\"Escalamiento\".\"Respuesta\")) > 0 AND \"Escalamiento\".\"RespondidaEn\" >= \"Escalamiento\".\"CreadoEn\"))"
+        "CK_Extraccion_Reclamo": {
+          "name": "CK_Extraccion_Reclamo",
+          "value": "(\"ExtraccionDocumento\".\"ReclamoId\" IS NULL) = (\"ExtraccionDocumento\".\"ReclamadaEn\" IS NULL)"
         },
-        "CK_Escalamiento_SinRespuesta": {
-          "name": "CK_Escalamiento_SinRespuesta",
-          "value": "\"Escalamiento\".\"Tipo\" = 'sospecha_documento' OR \"Escalamiento\".\"RespondidaEn\" IS NULL"
+        "CK_Extraccion_Procesando": {
+          "name": "CK_Extraccion_Procesando",
+          "value": "(\"ExtraccionDocumento\".\"Estado\" = 'procesando') = (\"ExtraccionDocumento\".\"ReclamoId\" IS NOT NULL)"
         },
-        "CK_Escalamiento_NotificacionEstado": {
-          "name": "CK_Escalamiento_NotificacionEstado",
-          "value": "\"Escalamiento\".\"NotificacionEstado\" IN ('pendiente', 'enviada', 'bloqueada')"
+        "CK_Extraccion_Fallida": {
+          "name": "CK_Extraccion_Fallida",
+          "value": "\"ExtraccionDocumento\".\"Estado\" <> 'fallida' OR \"ExtraccionDocumento\".\"ErrorCodigo\" IS NOT NULL"
         },
-        "CK_Escalamiento_NotificacionMotivo": {
-          "name": "CK_Escalamiento_NotificacionMotivo",
-          "value": "\"Escalamiento\".\"NotificacionMotivo\" IS NULL OR \"Escalamiento\".\"NotificacionMotivo\" IN ('sin_destinatarios', 'error_envio')"
+        "CK_Extraccion_Completada": {
+          "name": "CK_Extraccion_Completada",
+          "value": "\"ExtraccionDocumento\".\"Estado\" <> 'completada' OR (\"ExtraccionDocumento\".\"ErrorCodigo\" IS NULL AND \"ExtraccionDocumento\".\"ProcesadoEn\" IS NOT NULL AND \"ExtraccionDocumento\".\"Motor\" IS NOT NULL)"
         },
-        "CK_Escalamiento_Enviada": {
-          "name": "CK_Escalamiento_Enviada",
-          "value": "(\"Escalamiento\".\"NotificacionEstado\" = 'enviada') = (\"Escalamiento\".\"EnviadaEn\" IS NOT NULL)"
+        "CK_Extraccion_Datos": {
+          "name": "CK_Extraccion_Datos",
+          "value": "\"ExtraccionDocumento\".\"Estado\" = 'completada' OR (\"ExtraccionDocumento\".\"NombreEstudiante\" IS NULL AND \"ExtraccionDocumento\".\"Emisor\" IS NULL AND \"ExtraccionDocumento\".\"FechaEmision\" IS NULL AND \"ExtraccionDocumento\".\"ReposoDesde\" IS NULL AND \"ExtraccionDocumento\".\"ReposoHasta\" IS NULL AND \"ExtraccionDocumento\".\"ReposoDias\" IS NULL)"
         },
-        "CK_Escalamiento_MotivoEstado": {
-          "name": "CK_Escalamiento_MotivoEstado",
-          "value": "(\"Escalamiento\".\"NotificacionEstado\" <> 'enviada' OR \"Escalamiento\".\"NotificacionMotivo\" IS NULL) AND (\"Escalamiento\".\"NotificacionEstado\" <> 'bloqueada' OR (\"Escalamiento\".\"NotificacionMotivo\" IS NOT NULL AND \"Escalamiento\".\"NotificacionMotivo\" = 'sin_destinatarios')) AND (\"Escalamiento\".\"NotificacionEstado\" <> 'pendiente' OR \"Escalamiento\".\"NotificacionMotivo\" IS NULL OR \"Escalamiento\".\"NotificacionMotivo\" = 'error_envio')"
+        "CK_Extraccion_Reposo": {
+          "name": "CK_Extraccion_Reposo",
+          "value": "(\"ExtraccionDocumento\".\"ReposoDias\" IS NULL OR \"ExtraccionDocumento\".\"ReposoDias\" > 0) AND (\"ExtraccionDocumento\".\"ReposoHasta\" IS NULL OR \"ExtraccionDocumento\".\"ReposoDesde\" IS NULL OR \"ExtraccionDocumento\".\"ReposoHasta\" >= \"ExtraccionDocumento\".\"ReposoDesde\")"
         },
-        "CK_Escalamiento_Reclamo": {
-          "name": "CK_Escalamiento_Reclamo",
-          "value": "(\"Escalamiento\".\"ReclamoId\" IS NULL) = (\"Escalamiento\".\"ReclamadaEn\" IS NULL)"
-        },
-        "CK_Escalamiento_Intentos": {
-          "name": "CK_Escalamiento_Intentos",
-          "value": "\"Escalamiento\".\"Intentos\" >= 0"
+        "CK_Extraccion_Intentos": {
+          "name": "CK_Extraccion_Intentos",
+          "value": "\"ExtraccionDocumento\".\"Intentos\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -1149,140 +1034,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.ReporteInasistencia": {
-      "name": "ReporteInasistencia",
-      "schema": "",
-      "columns": {
-        "Id": {
-          "name": "Id",
-          "type": "bigint",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "ReporteInasistencia_Id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "9223372036854775807",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "SolicitudId": {
-          "name": "SolicitudId",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "DocenteId": {
-          "name": "DocenteId",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "DocenteNombre": {
-          "name": "DocenteNombre",
-          "type": "varchar(160)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ComunicadoEl": {
-          "name": "ComunicadoEl",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "Nota": {
-          "name": "Nota",
-          "type": "varchar(1000)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "RegistradoPorId": {
-          "name": "RegistradoPorId",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "RegistradoEn": {
-          "name": "RegistradoEn",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "IX_ReporteInasistencia_Solicitud": {
-          "name": "IX_ReporteInasistencia_Solicitud",
-          "columns": [
-            {
-              "expression": "SolicitudId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "ReporteInasistencia_SolicitudId_Solicitud_Id_fk": {
-          "name": "ReporteInasistencia_SolicitudId_Solicitud_Id_fk",
-          "tableFrom": "ReporteInasistencia",
-          "tableTo": "Solicitud",
-          "columnsFrom": [
-            "SolicitudId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ReporteInasistencia_DocenteId_Usuario_Id_fk": {
-          "name": "ReporteInasistencia_DocenteId_Usuario_Id_fk",
-          "tableFrom": "ReporteInasistencia",
-          "tableTo": "Usuario",
-          "columnsFrom": [
-            "DocenteId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "ReporteInasistencia_RegistradoPorId_Usuario_Id_fk": {
-          "name": "ReporteInasistencia_RegistradoPorId_Usuario_Id_fk",
-          "tableFrom": "ReporteInasistencia",
-          "tableTo": "Usuario",
-          "columnsFrom": [
-            "RegistradoPorId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "CK_ReporteInasistencia_Nota": {
-          "name": "CK_ReporteInasistencia_Nota",
-          "value": "\"ReporteInasistencia\".\"Nota\" IS NULL OR length(btrim(\"ReporteInasistencia\".\"Nota\")) > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.Rol": {
       "name": "Rol",
       "schema": "",
@@ -1397,12 +1148,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "PlazoInicioEn": {
-          "name": "PlazoInicioEn",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "FormatoEspecial": {
           "name": "FormatoEspecial",
           "type": "boolean",
@@ -1466,7 +1211,7 @@
           "name": "IX_Solicitud_Cola",
           "columns": [
             {
-              "expression": "coalesce(\"PlazoInicioEn\", \"ReenviadaEn\", \"PresentadaEn\")",
+              "expression": "coalesce(\"ReenviadaEn\", \"PresentadaEn\")",
               "asc": true,
               "isExpression": true,
               "nulls": "last"
@@ -1584,10 +1329,6 @@
         "CK_Solicitud_ConsentimientoFecha": {
           "name": "CK_Solicitud_ConsentimientoFecha",
           "value": "\"Solicitud\".\"ConsentimientoEn\" IS NULL OR (\"Solicitud\".\"PresentadaEn\" IS NOT NULL AND \"Solicitud\".\"ConsentimientoEn\" <= \"Solicitud\".\"PresentadaEn\")"
-        },
-        "CK_Solicitud_PlazoInicio": {
-          "name": "CK_Solicitud_PlazoInicio",
-          "value": "\"Solicitud\".\"PlazoInicioEn\" IS NULL OR \"Solicitud\".\"PlazoInicioEn\" >= coalesce(\"Solicitud\".\"ReenviadaEn\", \"Solicitud\".\"PresentadaEn\")"
         },
         "CK_Solicitud_FormatoEspecial": {
           "name": "CK_Solicitud_FormatoEspecial",

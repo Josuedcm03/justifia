@@ -29,7 +29,7 @@ import { createFixtures } from "@/lib/data/integration/fixtures";
 // HOW TO RUN (never part of `npm test`; owner-run, phase 14):
 //   INTEGRATION_DATABASE_URL=<disposable branch url> \
 //   INTEGRATION_ALLOW_WRITES=1 npm run test:integration
-// The branch needs migration `0011_escalation` applied. Without
+// The branch needs migration `0012_escalation` applied. Without
 // INTEGRATION_DATABASE_URL the suite is skipped; the opt-in guard is the one of
 // `intake-concurrency.integration.test.ts`.
 

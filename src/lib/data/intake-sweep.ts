@@ -5,6 +5,7 @@ import { and, eq, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { documentoRespaldo, solicitud } from "@/db/schema";
 import { cutoffOf } from "@/lib/data/solicitudes";
+import { deadlineFor } from "@/lib/extraction/limits";
 import { ORPHAN_GRACE_HOURS, PENDING_GRACE_HOURS } from "@/lib/intake/limits";
 import { INTAKE_ROOT_PREFIX } from "@/lib/intake/pathnames";
 import type { DocumentStore } from "@/lib/intake/ports";
@@ -14,7 +15,10 @@ import type { DocumentStore } from "@/lib/intake/ports";
 // documents left by a failed finalize, and stored files no record references.
 // Only `borrador` requests are ever touched, and NO audit row is written: the
 // sweep has no human actor and a draft is not yet a presented request (D14).
-// Callers report the counts; nothing personal is returned.
+// A fourth, injected step hands pending requests to document extraction
+// (DE-11, RF-11); it never deletes or modifies a request or a document, and a
+// failure of any step never stops the others. Callers report the counts;
+// nothing personal is returned.
 
 const BATCH_SIZE = 100;
 /** Hard stop against a runaway loop; a daily run never needs this many. */
@@ -25,7 +29,23 @@ export type SweepCounts = {
   draftsDeleted: number;
   pendingDocumentsDeleted: number;
   orphanBlobsDeleted: number;
+  /** Documents the extraction step took on. */
+  extractionsRun: number;
+  /** Extraction rows closed because their last lease expired. */
+  extractionsAbandoned: number;
   failures: number;
+};
+
+/**
+ * The extraction step, injected so this module imports no adapter (DE-11). It
+ * stops taking up work at `deadline`; `failures` counts what went wrong inside
+ * it and is added to the sweep's own.
+ */
+export type ExtractionSweepStep = {
+  sweep(
+    now: Date,
+    deadline: Date,
+  ): Promise<{ run: number; abandoned: number; failures: number }>;
 };
 
 /** Delete stored files; a failure is counted, never thrown (rows are gone). */
@@ -165,15 +185,38 @@ async function sweepOrphans(now: Date, store: DocumentStore, c: SweepCounts) {
   }
 }
 
-/** Run the three steps in order. `now` and `store` come from the caller. */
+/** Hand pending requests to extraction; its failure is only counted. */
+async function sweepExtractions(
+  now: Date,
+  extraction: ExtractionSweepStep,
+  c: SweepCounts,
+) {
+  try {
+    const report = await extraction.sweep(now, deadlineFor(now));
+    c.extractionsRun = report.run;
+    c.extractionsAbandoned = report.abandoned;
+    c.failures += report.failures;
+  } catch {
+    c.failures += 1;
+  }
+}
+
+/**
+ * Run the three cleanup steps in order, then the extraction step when one is
+ * given. `now`, `store` and `extraction` come from the caller. `now` is when the
+ * invocation started, so the extraction deadline counts the cleanup time.
+ */
 export async function runIntakeSweep(
   now: Date,
   store: DocumentStore,
+  extraction?: ExtractionSweepStep,
 ): Promise<SweepCounts> {
   const counts: SweepCounts = {
     draftsDeleted: 0,
     pendingDocumentsDeleted: 0,
     orphanBlobsDeleted: 0,
+    extractionsRun: 0,
+    extractionsAbandoned: 0,
     failures: 0,
   };
 
@@ -184,5 +227,6 @@ export async function runIntakeSweep(
       counts.failures += 1;
     }
   }
+  if (extraction) await sweepExtractions(now, extraction, counts);
   return counts;
 }
