@@ -1101,6 +1101,7 @@
     "escalation": {
       "reasons": {
         "sospecha_documento": "Suspicion about a document",
+        "caso_especial": "Special case",
         "exceso_inasistencias": "Excess absences"
       },
       "notification": {
@@ -1127,8 +1128,13 @@
         "trigger": "Escalate to coordination",
         "title": "Escalate this request to coordination?",
         "description": "The request moves to review by the career coordination and cannot be approved, rejected or returned until coordination answers. Coordination receives an email notice.",
+        "motivoLabel": "Escalation reason",
+        "motivo": {
+          "sospecha_documento": "Suspicion about a document",
+          "caso_especial": "Special case (outside the causes of the regulation)"
+        },
         "noteLabel": "Note for coordination",
-        "noteHint": "Explain what makes you doubt the document. Only staff can see it.",
+        "noteHint": "Explain why you are escalating the request to coordination. Only staff can see it.",
         "counter": "{count} of 1000",
         "confirm": "Escalate request",
         "pending": "Escalating...",
@@ -1138,7 +1144,7 @@
       "errors": {
         "nota_required": "Write the note for coordination.",
         "nota_too_long": "The note cannot be longer than 1000 characters.",
-        "motivo_invalid": "The escalation reason is not valid.",
+        "motivo_invalid": "Select the escalation reason.",
         "conflict": "This request is no longer pending. Go back to the queue to see its status.",
         "not_found": "This request is no longer available to you.",
         "unexpected": "The request could not be escalated. Try again.",

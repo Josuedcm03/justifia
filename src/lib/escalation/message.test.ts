@@ -120,7 +120,19 @@ describe("buildEscalationMessage (ES-10, E6)", () => {
   it("labels every reason in Spanish", () => {
     expect(REASON_LABELS).toEqual({
       sospecha_documento: "Sospecha sobre un documento",
+      caso_especial: "Caso especial",
       exceso_inasistencias: "Exceso de inasistencias",
     });
+  });
+
+  it("names a special case in the reason line and keeps the escalation subject (E18)", () => {
+    const message = buildEscalationMessage(
+      input({ tipo: "caso_especial", nota: "Fallecimiento de un familiar." }),
+    );
+    expect(message.text).toContain("Motivo: Caso especial");
+    expect(message.text).toContain("Nota: Fallecimiento de un familiar.");
+    expect(message.subject).toBe(
+      "Justifia: solicitud 42 escalada a coordinación",
+    );
   });
 });

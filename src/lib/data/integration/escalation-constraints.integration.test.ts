@@ -174,6 +174,18 @@ describe.skipIf(gate.mode !== "run")(
       };
     }
 
+    /** A valid special-case row (E18): the same shape as a suspicion. */
+    function specialCase(
+      solicitudId: number,
+      overrides: Partial<NuevoEscalamiento> = {},
+    ): NuevoEscalamiento {
+      return suspicion(solicitudId, {
+        tipo: "caso_especial",
+        nota: "A close relative passed away",
+        ...overrides,
+      });
+    }
+
     /** A valid excess-absence row; `reporteId` comes from `report()`. */
     function excess(
       solicitudId: number,
@@ -244,6 +256,46 @@ describe.skipIf(gate.mode !== "run")(
         name: "rejects a suspicion with a blank note",
         row: async (tx) => suspicion(await request(tx), { nota: "   " }),
         rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+
+      // CK_Escalamiento_Kind: special-case shape (E18), the same as a suspicion
+      {
+        name: "accepts a special case",
+        row: async (tx) => specialCase(await request(tx)),
+      },
+      {
+        name: "rejects a special case that came from a state other than pendiente",
+        row: async (tx) =>
+          specialCase(await request(tx), { estadoPrevio: "aprobada" }),
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "rejects a special case that carries a report",
+        row: async (tx) => {
+          const approved = await request(tx, { estado: "aprobada" });
+          return specialCase(await request(tx), {
+            reporteId: await report(tx, approved),
+          });
+        },
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "rejects a special case without a note",
+        row: async (tx) => specialCase(await request(tx), { nota: null }),
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "rejects a special case with a blank note",
+        row: async (tx) => specialCase(await request(tx), { nota: "   " }),
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "accepts an answered special case",
+        row: async (tx) =>
+          specialCase(await request(tx), {
+            ...answered,
+            respondidaPorId: secretariaId,
+          }),
       },
 
       // CK_Escalamiento_Kind: excess-absence shape
@@ -504,10 +556,13 @@ describe.skipIf(gate.mode !== "run")(
         "Escalamiento",
         '"Tipo"',
         "sospecha_documento",
+        "caso_especial",
         "exceso_inasistencias",
       ],
       CK_Escalamiento_Kind: [
         "Escalamiento",
+        "sospecha_documento",
+        "caso_especial",
         '"EstadoPrevio"',
         '"ReporteId"',
         "aprobada",
@@ -522,6 +577,7 @@ describe.skipIf(gate.mode !== "run")(
       CK_Escalamiento_SinRespuesta: [
         "Escalamiento",
         "sospecha_documento",
+        "caso_especial",
         '"RespondidaEn"',
       ],
       CK_Escalamiento_NotificacionEstado: [
@@ -637,6 +693,78 @@ describe.skipIf(gate.mode !== "run")(
             constraint: "CK_ReporteInasistencia_Nota",
           });
         }
+      });
+    });
+
+    describe("UX_Escalamiento_Abierto: one open escalation per request, of either motive (E12, E18)", () => {
+      const motive = (kind: "sospecha_documento" | "caso_especial") =>
+        kind === "sospecha_documento" ? suspicion : specialCase;
+
+      it.each([
+        ["sospecha_documento", "sospecha_documento"],
+        ["sospecha_documento", "caso_especial"],
+        ["caso_especial", "sospecha_documento"],
+        ["caso_especial", "caso_especial"],
+      ] as const)(
+        "rejects an open %s next to an open %s on the same request",
+        async (first, second) => {
+          const outcome = await attempt(async (tx) => {
+            const id = await request(tx);
+            await tx.insert(escalamiento).values(motive(first)(id));
+            await tx.insert(escalamiento).values(motive(second)(id));
+          });
+
+          expect(outcome).toEqual({
+            accepted: false,
+            code: UNIQUE_VIOLATION,
+            constraint: "UX_Escalamiento_Abierto",
+          });
+        },
+      );
+
+      it("allows a special case once the suspicion was answered, and the reverse", async () => {
+        const outcome = await attempt(async (tx) => {
+          const id = await request(tx);
+          const [first] = await tx
+            .insert(escalamiento)
+            .values(suspicion(id))
+            .returning({ id: escalamiento.id });
+          await tx
+            .update(escalamiento)
+            .set({
+              respuesta: "Reviewed: the certificate is genuine",
+              respondidaPorId: secretariaId,
+              respondidaEn: LATER,
+            })
+            .where(eq(escalamiento.id, first.id));
+          const [second] = await tx
+            .insert(escalamiento)
+            .values(specialCase(id))
+            .returning({ id: escalamiento.id });
+          await tx
+            .update(escalamiento)
+            .set({
+              respuesta: "Reviewed: the coordination accepts the case",
+              respondidaPorId: secretariaId,
+              respondidaEn: LATER,
+            })
+            .where(eq(escalamiento.id, second.id));
+          await tx.insert(escalamiento).values(suspicion(id));
+        });
+
+        expect(outcome).toEqual({ accepted: true });
+      });
+
+      it("allows an excess-absence notice next to an open special case", async () => {
+        const outcome = await attempt(async (tx) => {
+          const id = await request(tx);
+          await tx.insert(escalamiento).values(specialCase(id));
+          await tx
+            .insert(escalamiento)
+            .values(excess(id, await report(tx, id)));
+        });
+
+        expect(outcome).toEqual({ accepted: true });
       });
     });
 

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   ESCALATION_KINDS,
   ESCALATION_NOTE_MAX,
+  ESCALATION_REASONS,
+  isEscalationReason,
   EXCESS_REPORT_STATE,
   reasonAfterUnconfiguredRelease,
   validateAnswerText,
@@ -43,11 +45,23 @@ describe("reasonAfterUnconfiguredRelease", () => {
 });
 
 describe("escalation constants (RN-20, ES-4)", () => {
-  it("knows exactly the two kinds", () => {
+  it("knows exactly the three kinds (E18)", () => {
     expect([...ESCALATION_KINDS]).toEqual([
       "sospecha_documento",
+      "caso_especial",
       "exceso_inasistencias",
     ]);
+  });
+
+  it("lets a secretary choose between two motives, never the notice kind", () => {
+    expect([...ESCALATION_REASONS]).toEqual([
+      "sospecha_documento",
+      "caso_especial",
+    ]);
+    expect(isEscalationReason("caso_especial")).toBe(true);
+    expect(isEscalationReason("sospecha_documento")).toBe(true);
+    expect(isEscalationReason("exceso_inasistencias")).toBe(false);
+    expect(isEscalationReason(undefined)).toBe(false);
   });
 
   it("reports excess absences only on an approved request", () => {
@@ -58,6 +72,15 @@ describe("escalation constants (RN-20, ES-4)", () => {
 describe("validateEscalationDraft (RN-20)", () => {
   const ok = (nota: unknown) =>
     validateEscalationDraft({ motivo: "sospecha_documento", nota });
+
+  it.each([["sospecha_documento"], ["caso_especial"]])(
+    "accepts the motive %s and returns it (E18)",
+    (motivo) => {
+      expect(
+        validateEscalationDraft({ motivo, nota: "Fallecimiento" }),
+      ).toEqual({ ok: true, motivo, nota: "Fallecimiento" });
+    },
+  );
 
   it.each([
     ["empty", "", "nota_required"],
@@ -85,14 +108,20 @@ describe("validateEscalationDraft (RN-20)", () => {
     expect(ok(` ${"a".repeat(1000)} `).ok).toBe(true);
   });
 
-  it.each([["exceso_inasistencias"], ["otro"], [""], [null], [undefined]])(
-    "refuses the reason %j: the server fixes it",
-    (motivo) => {
-      expect(validateEscalationDraft({ motivo, nota: "Firma dudosa" })).toEqual(
-        { ok: false, errors: [{ field: "motivo", code: "motivo_invalid" }] },
-      );
-    },
-  );
+  it.each([
+    ["exceso_inasistencias"],
+    ["otro"],
+    [""],
+    [null],
+    [undefined],
+    [42],
+    [["caso_especial"]],
+  ])("refuses the reason %j: it must be one of the two motives", (motivo) => {
+    expect(validateEscalationDraft({ motivo, nota: "Firma dudosa" })).toEqual({
+      ok: false,
+      errors: [{ field: "motivo", code: "motivo_invalid" }],
+    });
+  });
 
   it("reports the reason and the note together", () => {
     expect(validateEscalationDraft({ motivo: "x", nota: "" })).toEqual({

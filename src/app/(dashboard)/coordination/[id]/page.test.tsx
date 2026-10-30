@@ -227,6 +227,31 @@ describe("CoordinationDetailPage access (RNF-01, ES-9)", () => {
   });
 });
 
+describe("CoordinationDetailPage: a special case (E18)", () => {
+  it("shows the special-case reason label and the answer form, like a suspicion", async () => {
+    detailMock.mockResolvedValue(escalation({ motivo: "caso_especial" }));
+
+    await renderPage();
+
+    const escalated = screen.getByRole("region", {
+      name: en.sections.escalation,
+    });
+    expect(
+      within(escalated).getByText(
+        messages.en.review.escalation.reasons.caso_especial,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(escalated).getByText(
+        "La firma del medico no coincide con el sello.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: en.sections.answer }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("CoordinationDetailPage: an open escalation (E1, E3, RNF-02)", () => {
   it("shows the student, the cause, the dates, the reason, the note and the time", async () => {
     await renderPage();

@@ -28,6 +28,11 @@ async function open() {
   return screen.findByRole("alertdialog");
 }
 
+/** Picks one of the two motives by its visible label. */
+async function pick(dialog: HTMLElement, label: string) {
+  await userEvent.click(within(dialog).getByRole("radio", { name: label }));
+}
+
 describe("EscalateDialog availability (E17)", () => {
   it("offers the escalation when the career has a coordination account", () => {
     renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
@@ -95,7 +100,88 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
     expect(counter).not.toHaveClass("text-destructive-ink");
   });
 
-  it("sends only the request id and the typed note when confirmed", async () => {
+  it("offers the two motives as a labelled radio group with none chosen (E18)", async () => {
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+
+    const dialog = await open();
+
+    const group = within(dialog).getByRole("radiogroup", {
+      name: en.dialog.motivoLabel,
+    });
+    const radios = within(group).getAllByRole("radio");
+    expect(radios.map((r) => r.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+    ]);
+    expect(
+      within(group).getByRole("radio", {
+        name: en.dialog.motivo.sospecha_documento,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(group).getByRole("radio", {
+        name: en.dialog.motivo.caso_especial,
+      }),
+    ).toBeInTheDocument();
+    expect(actionMock).not.toHaveBeenCalled();
+  });
+
+  it("words both motives in neutral Spanish for the secretary", async () => {
+    renderIntl(
+      <EscalateDialog solicitudId={12} unavailableCareer={null} />,
+      "es",
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Escalar a coordinación" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(
+      within(dialog).getByRole("radiogroup", {
+        name: "Motivo del escalamiento",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("radio", {
+        name: "Sospecha sobre un documento",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("radio", {
+        name: "Caso especial (fuera de las causas del reglamento)",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["sospecha_documento", en.dialog.motivo.sospecha_documento],
+    ["caso_especial", en.dialog.motivo.caso_especial],
+  ])(
+    "sends the request id, the chosen motive %s and the typed note when confirmed",
+    async (motivo, label) => {
+      renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+      const dialog = await open();
+
+      await pick(dialog, label);
+      await userEvent.type(
+        within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+        NOTE,
+      );
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: en.dialog.confirm }),
+      );
+
+      await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(1));
+      expect(actionMock).toHaveBeenCalledWith({
+        solicitudId: 12,
+        motivo,
+        nota: NOTE,
+      });
+    },
+  );
+
+  it("sends an empty motive when none is chosen, so the server refuses it (E18)", async () => {
     renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
     const dialog = await open();
 
@@ -108,7 +194,11 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
     );
 
     await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(1));
-    expect(actionMock).toHaveBeenCalledWith({ solicitudId: 12, nota: NOTE });
+    expect(actionMock).toHaveBeenCalledWith({
+      solicitudId: 12,
+      motivo: "",
+      nota: NOTE,
+    });
   });
 
   it("changes nothing when cancelled: no call, dialog closed, draft discarded", async () => {
@@ -118,6 +208,8 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
       within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
       NOTE,
     );
+
+    await pick(dialog, en.dialog.motivo.caso_especial);
 
     await userEvent.click(
       within(dialog).getByRole("button", { name: en.dialog.cancel }),
@@ -129,6 +221,11 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
     expect(
       within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
     ).toHaveValue("");
+    expect(
+      within(dialog)
+        .getAllByRole("radio")
+        .map((r) => r.getAttribute("aria-checked")),
+    ).toEqual(["false", "false"]);
   });
 
   it("closes on Escape without calling the action", async () => {
@@ -156,6 +253,29 @@ describe("EscalateDialog server refusals", () => {
     );
     return dialog;
   }
+
+  it("shows the motive error under the motive group, with the note error beside it (E18)", async () => {
+    const dialog = await confirmWith({
+      ok: false,
+      reason: "invalid",
+      errors: [
+        { field: "motivo", code: "motivo_invalid" },
+        { field: "nota", code: "nota_required" },
+      ],
+    });
+
+    const group = within(dialog).getByRole("radiogroup", {
+      name: en.dialog.motivoLabel,
+    });
+    expect(
+      await within(dialog).findByText(en.errors.motivo_invalid),
+    ).toBeVisible();
+    expect(en.errors.motivo_invalid).toBe("Select the escalation reason.");
+    expect(group).toHaveAttribute("aria-invalid", "true");
+    expect(group).toHaveAccessibleDescription(en.errors.motivo_invalid);
+    expect(within(dialog).getByText(en.errors.nota_required)).toBeVisible();
+    expect(screen.getByRole("alertdialog")).toBe(dialog);
+  });
 
   it("shows a note error under the note and keeps the dialog open", async () => {
     const dialog = await confirmWith({

@@ -19,21 +19,22 @@ import {
 } from "@/lib/data/solicitud-clases";
 import type { CoordinationScope } from "@/lib/intake/coordination-scope";
 import {
-  ESCALATION_REASON,
+  ESCALATION_REASONS,
   EXCESS_NOTICE_KIND,
-  type EscalationKind,
+  isEscalationReason,
+  type EscalationReason,
 } from "@/lib/intake/escalation";
 import { VISIBLE_STATES, type EstadoSolicitud } from "@/lib/intake/states";
 import { sourceOf } from "@/lib/intake/transitions";
 
-// What a coordinator reads (E1, E10, RNF-01): the open suspicions of the own
+// What a coordinator reads (E1, E10, RNF-01): the open escalations of the own
 // career, the informational notices, and the detail of either. Read only, and
 // deliberately separate from the secretary readers: every statement is scoped by
 // `escalationInScope` (the student's CURRENT career), none selects the student's
 // email, the consent or the decision history, and the class data comes only
 // through the `solicitud-clases` seam. `none` reads nothing.
 
-/** The state a suspicion holds the request in (the coordinator's source state). */
+/** The state an escalation holds the request in (the coordinator's source state). */
 const COORDINATION_STATE = sourceOf("pendiente", "coordinacion");
 
 export type OpenEscalationRow = {
@@ -41,7 +42,7 @@ export type OpenEscalationRow = {
   id: number;
   estudianteNombre: string | null;
   estudianteCif: string | null;
-  motivo: EscalationKind;
+  motivo: EscalationReason;
   /** When the secretary escalated it (oldest first). */
   creadoEn: Date;
 };
@@ -57,8 +58,9 @@ export type NoticeRow = {
 };
 
 /**
- * The open suspicions of the career, oldest first, whatever their notification
- * state (a blocked notice must not hide one), then its notices, newest first.
+ * The open escalations of the career (either motive, E18), oldest first,
+ * whatever their notification state (a blocked notice must not hide one), then
+ * its notices, newest first.
  */
 export async function listCoordinationEscalations(
   scope: CoordinationScope,
@@ -78,7 +80,7 @@ export async function listCoordinationEscalations(
       .innerJoin(solicitud, eq(solicitud.id, escalamiento.solicitudId))
       .where(
         and(
-          eq(escalamiento.tipo, ESCALATION_REASON),
+          inArray(escalamiento.tipo, [...ESCALATION_REASONS]),
           isNull(escalamiento.respondidaEn),
           eq(solicitud.estado, COORDINATION_STATE),
           escalationInScope(scope),
@@ -111,7 +113,10 @@ export async function listCoordinationEscalations(
   ]);
 
   return {
-    open: open.map((row) => ({ ...row, motivo: row.motivo as EscalationKind })),
+    open: open.map((row) => ({
+      ...row,
+      motivo: row.motivo as EscalationReason,
+    })),
     notices,
   };
 }
@@ -128,7 +133,7 @@ export type CoordinationDocument = {
 };
 
 /**
- * An open suspicion: everything needed to answer it. Never the student's email,
+ * An open escalation: everything needed to answer it. Never the student's email,
  * the consent state or the decision history.
  */
 export type OpenEscalationDetail = {
@@ -136,7 +141,7 @@ export type OpenEscalationDetail = {
   id: number;
   solicitudId: number;
   estado: EstadoSolicitud;
-  motivo: EscalationKind;
+  motivo: EscalationReason;
   nota: string;
   creadoEn: Date;
   estudiante: Student;
@@ -166,7 +171,7 @@ const student = alias(usuario, "estudiante");
 
 /**
  * The detail of one escalation record of the career, or `null`: an unknown id,
- * another career, an answered suspicion and a draft are indistinguishable
+ * another career, an answered escalation and a draft are indistinguishable
  * (RNF-01). The career of the student is read live (ES-3).
  */
 export async function getCoordinationDetail(
@@ -233,10 +238,10 @@ export async function getCoordinationDetail(
     };
   }
 
-  // A suspicion is reachable only while it is open and the request waits in
+  // An escalation is reachable only while it is open and the request waits in
   // coordination; once answered it leaves the coordinator's reach.
   if (
-    row.tipo !== ESCALATION_REASON ||
+    !isEscalationReason(row.tipo) ||
     row.respondidaEn !== null ||
     row.nota === null ||
     estado !== COORDINATION_STATE
@@ -271,7 +276,7 @@ export async function getCoordinationDetail(
     id: row.id,
     solicitudId: row.solicitudId,
     estado,
-    motivo: ESCALATION_REASON,
+    motivo: row.tipo,
     nota: row.nota,
     creadoEn: row.creadoEn,
     estudiante,

@@ -152,17 +152,22 @@ describe("answerEscalation (ES-8, E1, E3)", () => {
       });
     });
 
-    it("guards the escalation update: open, a suspicion, in the career of the caller", async () => {
+    it("guards the escalation update: open, either motive (E18), in the career of the caller", async () => {
       const double = use(success({ escalatedOn: MON, answeredOn: THU }));
 
       await answerEscalation(input());
 
       const where = render(double.log[0].where);
       expect(where.sql).toContain('"Escalamiento"."Id" = $1');
-      expect(where.sql).toContain('"Escalamiento"."Tipo" = $2');
+      expect(where.sql).toContain('"Escalamiento"."Tipo" in ($2, $3)');
       expect(where.sql).toContain('"Escalamiento"."RespondidaEn" is null');
-      expect(where.sql).toContain('"ec"."CarreraId" = $3');
-      expect(where.params).toEqual([ESCALATION, "sospecha_documento", CAREER]);
+      expect(where.sql).toContain('"ec"."CarreraId" = $4');
+      expect(where.params).toEqual([
+        ESCALATION,
+        "sospecha_documento",
+        "caso_especial",
+        CAREER,
+      ]);
     });
 
     it("guards the request update with the coordination source state only", async () => {
@@ -340,7 +345,7 @@ describe("answerEscalation (ES-8, E1, E3)", () => {
       expect(insertAuditMock).not.toHaveBeenCalled();
     });
 
-    it("tells an answered suspicion of the own career apart: the concurrent loser gets conflict", async () => {
+    it("tells an answered escalation of the own career apart: the concurrent loser gets conflict", async () => {
       const double = use([
         { kind: "update", rows: [] },
         { kind: "select", rows: [{ id: ESCALATION }] },
@@ -352,8 +357,13 @@ describe("answerEscalation (ES-8, E1, E3)", () => {
       });
       expect(insertAuditMock).not.toHaveBeenCalled();
       const lookup = render(double.log[1].where);
-      expect(lookup.params).toEqual([ESCALATION, "sospecha_documento", CAREER]);
-      expect(lookup.sql).toContain('"ec"."CarreraId" = $3');
+      expect(lookup.params).toEqual([
+        ESCALATION,
+        "sospecha_documento",
+        "caso_especial",
+        CAREER,
+      ]);
+      expect(lookup.sql).toContain('"ec"."CarreraId" = $4');
     });
   });
 

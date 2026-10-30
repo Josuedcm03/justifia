@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { escalamiento, solicitud } from "@/db/schema";
@@ -10,7 +10,7 @@ import { escalationInScope } from "@/lib/data/coordination-scope-sql";
 import type { CoordinationScope } from "@/lib/intake/coordination-scope";
 import { clockStartOf, pausedStartOnAnswer } from "@/lib/intake/deadline-clock";
 import {
-  ESCALATION_REASON,
+  ESCALATION_REASONS,
   validateAnswerText,
   type EscalationError,
 } from "@/lib/intake/escalation";
@@ -19,7 +19,7 @@ import { sourceOf } from "@/lib/intake/transitions";
 
 // The coordinator's answer to an open escalation (RF-10, E1, E3; ES-8). One
 // transaction, like `decideRequest`: a guarded UPDATE closes the escalation only
-// while it is open, a suspicion and in the caller's career; a second guarded
+// while it is open, of either motive (E18) and in the caller's career; a second guarded
 // UPDATE returns the request to `pendiente` and, when business days were spent
 // in coordination, stores the shifted RN-08 clock start; one audit row. The
 // answer never approves, rejects or returns anything and writes no
@@ -28,7 +28,7 @@ import { sourceOf } from "@/lib/intake/transitions";
 // Action) authorises the role and resolves the scope; the actor is the session
 // user, never request input.
 
-/** The state a suspicion holds the request in, and the one it returns to. */
+/** The state an escalation holds the request in, and the one it returns to. */
 const COORDINATION_STATE = sourceOf("pendiente", "coordinacion");
 const RETURN_STATE = "pendiente";
 
@@ -67,7 +67,7 @@ export async function answerEscalation(
       .where(
         and(
           eq(escalamiento.id, escalamientoId),
-          eq(escalamiento.tipo, ESCALATION_REASON),
+          inArray(escalamiento.tipo, [...ESCALATION_REASONS]),
           isNull(escalamiento.respondidaEn),
           escalationInScope(scope),
         ),
@@ -86,7 +86,7 @@ export async function answerEscalation(
         .where(
           and(
             eq(escalamiento.id, escalamientoId),
-            eq(escalamiento.tipo, ESCALATION_REASON),
+            inArray(escalamiento.tipo, [...ESCALATION_REASONS]),
             escalationInScope(scope),
           ),
         );
@@ -127,7 +127,7 @@ export async function answerEscalation(
         ),
       )
       .returning({ id: solicitud.id });
-    // An open suspicion implies the request is in coordination; if not, the
+    // An open escalation implies the request is in coordination; if not, the
     // data is inconsistent: throw so the answer is undone, never half applied.
     if (!returned) {
       throw new Error(

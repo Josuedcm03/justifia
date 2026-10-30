@@ -13,7 +13,7 @@ import type {
 import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
 import type {
-  EscalationKind,
+  EscalationReason,
   EscalationNoticeState,
   EscalationNoticeTrigger,
 } from "@/lib/intake/escalation";
@@ -270,7 +270,7 @@ export function documentoRetiradoEvent(args: {
 export function solicitudEscaladaEvent(args: {
   solicitudId: number;
   escalamientoId: number;
-  motivo: EscalationKind;
+  motivo: EscalationReason;
   estadoPrevio: EstadoSolicitud;
   estadoNuevo: EstadoSolicitud;
 }): AuditEvent {

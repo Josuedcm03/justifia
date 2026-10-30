@@ -20,8 +20,8 @@ import {
   type RequestClass,
 } from "@/lib/data/solicitud-clases";
 import {
-  ESCALATION_REASON,
-  type EscalationKind,
+  ESCALATION_REASONS,
+  type EscalationReason,
   type EscalationNoticeReason,
   type EscalationNoticeState,
 } from "@/lib/intake/escalation";
@@ -73,12 +73,12 @@ type NoticeDelivery = {
 };
 
 /**
- * One suspicion escalation of the request (RF-10 a). Staff only: the note and
+ * One escalation of the request, of either motive (RF-10 a, E18). Staff only: the note and
  * the answer are never part of any student payload (ES-14).
  */
 export type DetailEscalation = NoticeDelivery & {
   id: number;
-  motivo: EscalationKind;
+  motivo: EscalationReason;
   nota: string | null;
   autorNombre: string;
   creadoEn: Date;
@@ -250,7 +250,7 @@ export async function getRequestDetail(
         .where(
           and(
             eq(escalamiento.solicitudId, id),
-            eq(escalamiento.tipo, ESCALATION_REASON),
+            inArray(escalamiento.tipo, [...ESCALATION_REASONS]),
           ),
         )
         .orderBy(asc(escalamiento.creadoEn), asc(escalamiento.id)),
@@ -322,7 +322,7 @@ export async function getRequestDetail(
     revisiones: revisions,
     escalamientos: escalations.map((e) => ({
       ...e,
-      motivo: e.motivo as EscalationKind,
+      motivo: e.motivo as EscalationReason,
     })),
     reportes: reports,
   };

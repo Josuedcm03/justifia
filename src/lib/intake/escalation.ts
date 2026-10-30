@@ -8,16 +8,36 @@ import { isIsoDate, managuaToday } from "./dates";
 // problem is reported at once, in field order, each with a stable code the UI
 // maps to an i18n message.
 
-/** `Escalamiento.Tipo` (RN-20): a suspicion escalates, an excess notifies. */
+/**
+ * `Escalamiento.Tipo` (RN-20, E18): a suspicion about a document or a special
+ * case escalates, an excess notifies.
+ */
 export const ESCALATION_KINDS = [
   "sospecha_documento",
+  "caso_especial",
   "exceso_inasistencias",
 ] as const;
 
 export type EscalationKind = (typeof ESCALATION_KINDS)[number];
 
-/** The only reason a secretary escalation may carry; the server fixes it. */
-export const ESCALATION_REASON: EscalationKind = "sospecha_documento";
+/**
+ * The motives a secretary may escalate with (E18): both move the request to
+ * coordination and are answered by it. A suspicion concerns a document; a
+ * special case is a cause outside the regulation that the coordination values.
+ */
+export const ESCALATION_REASONS = [
+  "sospecha_documento",
+  "caso_especial",
+] as const satisfies readonly EscalationKind[];
+
+export type EscalationReason = (typeof ESCALATION_REASONS)[number];
+
+export function isEscalationReason(value: unknown): value is EscalationReason {
+  return (
+    typeof value === "string" &&
+    (ESCALATION_REASONS as readonly string[]).includes(value)
+  );
+}
 
 /** The kind of the informational notice an RF-15 report creates. */
 export const EXCESS_NOTICE_KIND: EscalationKind = "exceso_inasistencias";
@@ -118,19 +138,25 @@ function requiredText(
   return { text };
 }
 
-/** RN-20: the reason is fixed by the server and the note is mandatory. */
+/**
+ * RN-20, E18: the motive must be one of the two escalation motives (the server
+ * checks it, the form only offers it) and the note is mandatory.
+ */
 export function validateEscalationDraft(input: {
   motivo: unknown;
   nota: unknown;
-}): { ok: true; motivo: EscalationKind; nota: string } | Invalid {
+}): { ok: true; motivo: EscalationReason; nota: string } | Invalid {
   const errors: EscalationError[] = [];
-  if (input.motivo !== ESCALATION_REASON) {
+  const motivo = input.motivo;
+  if (!isEscalationReason(motivo)) {
     errors.push({ field: "motivo", code: "motivo_invalid" });
   }
   const note = requiredText(input.nota, "nota");
   if ("error" in note) errors.push(note.error);
-  if (errors.length > 0 || "error" in note) return { ok: false, errors };
-  return { ok: true, motivo: ESCALATION_REASON, nota: note.text };
+  if (errors.length > 0 || "error" in note || !isEscalationReason(motivo)) {
+    return { ok: false, errors };
+  }
+  return { ok: true, motivo, nota: note.text };
 }
 
 /** ES-8: the coordinator answer, 1 to 1000 trimmed characters. */

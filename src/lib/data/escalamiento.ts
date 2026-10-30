@@ -77,7 +77,7 @@ function claimableStates(
  * Guarded claim of one notice: `UPDATE ... WHERE ... RETURNING`. Null means
  * another attempt holds it, it is already sent, or its escalation was answered
  * meanwhile (the coordinator no longer needs the notice and its link would lead
- * to a record that is not there): skip silently. Only a suspicion is ever
+ * to a record that is not there): skip silently. Only an escalation is ever
  * answered, so the report notices are never excluded.
  */
 export async function claimEscalationNotice(
@@ -373,7 +373,7 @@ export type NoticeContext = {
   escalamientoId: number;
   solicitudId: number;
   tipo: EscalationKind;
-  /** The escalation note (suspicion) or the report note (excess), when any. */
+  /** The escalation note (either motive) or the report note (excess), when any. */
   nota: string | null;
   estudianteNombre: string;
   estudianteCif: string;

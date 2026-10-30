@@ -516,15 +516,15 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
       expect(detail?.reportes).toEqual([reportRow]);
     });
 
-    it("reads only the suspicion records of the request for the escalation history", async () => {
+    it("reads only the escalation records of either motive of the request for the history (E18)", async () => {
       const double = use(loaded());
 
       await getRequestDetail(SCOPE, ID);
 
       const query = render(double.log[5].where);
       expect(query.sql).toContain('"Escalamiento"."SolicitudId" = $1');
-      expect(query.sql).toContain('"Escalamiento"."Tipo" = $2');
-      expect(query.params).toEqual([ID, "sospecha_documento"]);
+      expect(query.sql).toContain('"Escalamiento"."Tipo" in ($2, $3)');
+      expect(query.params).toEqual([ID, "sospecha_documento", "caso_especial"]);
       const order = render(sql.join(double.log[5].orderBy as never[], sql`, `));
       expect(order.sql).toBe(
         '"Escalamiento"."CreadoEn" asc, "Escalamiento"."Id" asc',

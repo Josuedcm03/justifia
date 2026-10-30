@@ -22,7 +22,6 @@ import {
   requestRowInScope,
 } from "@/lib/data/request-scope-sql";
 import {
-  ESCALATION_REASON,
   EXCESS_NOTICE_KIND,
   EXCESS_REPORT_STATE,
   validateEscalationDraft,
@@ -45,7 +44,7 @@ import { sourceOf } from "@/lib/intake/transitions";
 
 type Db = typeof db;
 
-/** The state a suspicion moves the request into. */
+/** The state an escalation (either motive) moves the request into. */
 const COORDINATION_STATE = "en_revision_coordinacion";
 
 export type EscalationOutcome =
@@ -115,6 +114,8 @@ export type EscalateInput = {
   actorId: number;
   scope: RequestScope;
   solicitudId: number;
+  /** `sospecha_documento` or `caso_especial`; checked here, never trusted. */
+  motivo: unknown;
   nota: string;
   now: Date;
 };
@@ -124,7 +125,7 @@ export async function escalateRequest(
 ): Promise<EscalationOutcome> {
   const { actorId, scope, solicitudId, now } = input;
   const checked = validateEscalationDraft({
-    motivo: ESCALATION_REASON,
+    motivo: input.motivo,
     nota: input.nota,
   });
   if (!checked.ok) {
@@ -173,7 +174,7 @@ export async function escalateRequest(
         .insert(escalamiento)
         .values({
           solicitudId,
-          tipo: ESCALATION_REASON,
+          tipo: checked.motivo,
           estadoPrevio: from,
           nota: checked.nota,
           secretariaId: actorId,
@@ -186,7 +187,7 @@ export async function escalateRequest(
         solicitudEscaladaEvent({
           solicitudId,
           escalamientoId: row.id,
-          motivo: ESCALATION_REASON,
+          motivo: checked.motivo,
           estadoPrevio: from,
           estadoNuevo: COORDINATION_STATE,
         }),

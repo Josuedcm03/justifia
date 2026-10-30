@@ -362,7 +362,9 @@ describe("OwnRequestDetailPage decision (RF-07 c)", () => {
 // an escalation. The payload carries none of the staff fields; the forged ones
 // below prove the page would not surface them even if a read leaked them.
 const STAFF_LEAK = {
+  motivo: "caso_especial",
   motivoCodigo: "exceso_ausencias",
+  tipo: "caso_especial",
   nota: "Staff note about the certificate",
   respuesta: "Coordinator answer text",
   coordinadorNombre: "Coordinator Name",
@@ -425,6 +427,7 @@ describe("OwnRequestDetailPage in coordination (ES-14, E13)", () => {
     const text = container.textContent ?? "";
     for (const leaked of [
       "exceso_ausencias",
+      "caso_especial",
       "Staff note",
       "Coordinator answer",
       "Coordinator Name",
@@ -434,6 +437,8 @@ describe("OwnRequestDetailPage in coordination (ES-14, E13)", () => {
     ]) {
       expect(text).not.toContain(leaked);
     }
+    // E18: neither motive is ever named to the student.
+    expect(text).not.toMatch(/caso especial|special case|sospecha|suspicion/i);
     expect(correctLink()).toBeNull();
   });
 
@@ -483,7 +488,9 @@ describe("OwnRequestDetailPage in coordination (ES-14, E13)", () => {
     for (const locale of ["en", "es"] as const) {
       const label = messages[locale].requests.detail.coordination;
       expect(typeof label).toBe("string");
-      expect(label).not.toMatch(/sospecha|suspicion/i);
+      expect(label).not.toMatch(
+        /sospecha|suspicion|caso especial|special case/i,
+      );
     }
   });
 });

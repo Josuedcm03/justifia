@@ -107,6 +107,7 @@ describe.skipIf(gate.mode !== "run")(
               actorId: secretariaId,
               scope,
               solicitudId: requestId,
+              motivo: "sospecha_documento",
               nota: NOTE,
               now,
             }),

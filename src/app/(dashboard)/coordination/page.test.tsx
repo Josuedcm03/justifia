@@ -192,6 +192,29 @@ describe("CoordinationListPage content (E1, E10)", () => {
     expect(link).toHaveAttribute("data-prefetch", "false");
   });
 
+  it("lists a special case with its own reason label beside a suspicion (E18)", async () => {
+    listMock.mockResolvedValue({
+      open: [open(), open({ id: 10, motivo: "caso_especial" })],
+      notices: [],
+    });
+
+    await renderPage();
+
+    const items = within(
+      screen.getByRole("region", { name: en.open.title }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent(
+      messages.en.review.escalation.reasons.sospecha_documento,
+    );
+    expect(items[1]).toHaveTextContent(
+      messages.en.review.escalation.reasons.caso_especial,
+    );
+    expect(
+      within(items[1]).getByRole("link", { name: /Handle the request of/ }),
+    ).toHaveAttribute("href", "/coordination/10");
+  });
+
   it("lists the notices apart, with the teacher and the communicated date, and a link that never prefetches", async () => {
     await renderPage();
 

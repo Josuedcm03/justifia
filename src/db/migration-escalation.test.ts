@@ -145,11 +145,11 @@ describe("escalation migration (ES-1, ES-2, ES-5, ES-16)", () => {
     const bodies: [string, string][] = [
       [
         "CK_Escalamiento_Tipo",
-        `"Tipo" IN ('sospecha_documento', 'exceso_inasistencias')`,
+        `"Tipo" IN ('sospecha_documento', 'caso_especial', 'exceso_inasistencias')`,
       ],
       [
         "CK_Escalamiento_Kind",
-        `("Tipo" = 'sospecha_documento' AND "EstadoPrevio" = 'pendiente' AND "ReporteId" IS NULL AND "Nota" IS NOT NULL AND length(btrim("Nota")) > 0) OR ("Tipo" = 'exceso_inasistencias' AND "EstadoPrevio" = 'aprobada' AND "ReporteId" IS NOT NULL AND "Nota" IS NULL)`,
+        `("Tipo" IN ('sospecha_documento', 'caso_especial') AND "EstadoPrevio" = 'pendiente' AND "ReporteId" IS NULL AND "Nota" IS NOT NULL AND length(btrim("Nota")) > 0) OR ("Tipo" = 'exceso_inasistencias' AND "EstadoPrevio" = 'aprobada' AND "ReporteId" IS NOT NULL AND "Nota" IS NULL)`,
       ],
       [
         "CK_Escalamiento_Respuesta",
@@ -157,7 +157,7 @@ describe("escalation migration (ES-1, ES-2, ES-5, ES-16)", () => {
       ],
       [
         "CK_Escalamiento_SinRespuesta",
-        `"Tipo" = 'sospecha_documento' OR "RespondidaEn" IS NULL`,
+        `"Tipo" IN ('sospecha_documento', 'caso_especial') OR "RespondidaEn" IS NULL`,
       ],
       [
         "CK_Escalamiento_NotificacionEstado",
@@ -225,8 +225,8 @@ describe("escalation migration (ES-1, ES-2, ES-5, ES-16)", () => {
   describe("indexes", () => {
     it.each([
       [
-        "UX_Escalamiento_Abierto: one open suspicion per request (E12)",
-        `CREATE UNIQUE INDEX "UX_Escalamiento_Abierto" ON "Escalamiento" USING btree ("SolicitudId") WHERE "Tipo" = 'sospecha_documento' AND "RespondidaEn" IS NULL;`,
+        "UX_Escalamiento_Abierto: one open escalation of either motive per request (E12, E18)",
+        `CREATE UNIQUE INDEX "UX_Escalamiento_Abierto" ON "Escalamiento" USING btree ("SolicitudId") WHERE "Tipo" IN ('sospecha_documento', 'caso_especial') AND "RespondidaEn" IS NULL;`,
       ],
       [
         "IX_Escalamiento_Pendiente: the retry job reads pending notices",

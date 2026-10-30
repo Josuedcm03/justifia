@@ -10,18 +10,25 @@ import { oneLine } from "@/lib/mail/one-line";
 
 export const REASON_LABELS: Record<EscalationKind, string> = {
   sospecha_documento: "Sospecha sobre un documento",
+  caso_especial: "Caso especial",
   exceso_inasistencias: "Exceso de inasistencias",
 };
 
+const ESCALATION_SUBJECT = (solicitudId: number) =>
+  `Justifia: solicitud ${solicitudId} escalada a coordinación`;
+
 const SUBJECTS: Record<EscalationKind, (solicitudId: number) => string> = {
-  sospecha_documento: (id) =>
-    `Justifia: solicitud ${id} escalada a coordinación`,
+  sospecha_documento: ESCALATION_SUBJECT,
+  caso_especial: ESCALATION_SUBJECT,
   exceso_inasistencias: (id) => `Justifia: aviso sobre la solicitud ${id}`,
 };
 
+const ESCALATION_INTRO =
+  "La secretaría escaló a coordinación una solicitud de justificación para su revisión.";
+
 const INTROS: Record<EscalationKind, string> = {
-  sospecha_documento:
-    "La secretaría escaló a coordinación una solicitud de justificación para su revisión.",
+  sospecha_documento: ESCALATION_INTRO,
+  caso_especial: ESCALATION_INTRO,
   exceso_inasistencias:
     "La secretaría registró un aviso informativo sobre una solicitud de justificación aprobada.",
 };
@@ -36,7 +43,7 @@ export type EscalationMessageInput = {
   estudianteNombre: string;
   estudianteCif: string;
   carreraNombre: string;
-  /** The escalation note (suspicion) or the report note (excess), when any. */
+  /** The escalation note (either motive) or the report note (excess), when any. */
   nota: string | null;
   /** Absolute origin of the app, e.g. `https://justifia.example.edu`. */
   baseUrl: string;

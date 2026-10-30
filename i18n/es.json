@@ -1101,6 +1101,7 @@
     "escalation": {
       "reasons": {
         "sospecha_documento": "Sospecha sobre un documento",
+        "caso_especial": "Caso especial",
         "exceso_inasistencias": "Exceso de inasistencias"
       },
       "notification": {
@@ -1127,8 +1128,13 @@
         "trigger": "Escalar a coordinación",
         "title": "¿Escalar esta solicitud a coordinación?",
         "description": "La solicitud pasa a revisión de la coordinación de la carrera y no se puede aprobar, rechazar ni devolver hasta que coordinación responda. Coordinación recibe un aviso por correo.",
+        "motivoLabel": "Motivo del escalamiento",
+        "motivo": {
+          "sospecha_documento": "Sospecha sobre un documento",
+          "caso_especial": "Caso especial (fuera de las causas del reglamento)"
+        },
         "noteLabel": "Nota para coordinación",
-        "noteHint": "Explique qué le genera dudas del documento. Solo la ve el personal.",
+        "noteHint": "Explique por qué escala la solicitud a coordinación. Solo la ve el personal.",
         "counter": "{count} de 1000",
         "confirm": "Escalar solicitud",
         "pending": "Escalando...",
@@ -1138,7 +1144,7 @@
       "errors": {
         "nota_required": "Escriba la nota para coordinación.",
         "nota_too_long": "La nota no puede superar los 1000 caracteres.",
-        "motivo_invalid": "El motivo del escalamiento no es válido.",
+        "motivo_invalid": "Seleccione el motivo del escalamiento.",
         "conflict": "Esta solicitud ya no está pendiente. Vuelva a la cola para ver su estado.",
         "not_found": "Esta solicitud ya no está disponible para usted.",
         "unexpected": "No se pudo escalar la solicitud. Inténtelo de nuevo.",
