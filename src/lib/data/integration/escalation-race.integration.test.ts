@@ -27,7 +27,7 @@ import type { DecisionInput } from "@/lib/intake/decision-validation";
 // HOW TO RUN (never part of `npm test`; owner-run, phase 14):
 //   INTEGRATION_DATABASE_URL=<disposable branch url> \
 //   INTEGRATION_ALLOW_WRITES=1 npm run test:integration
-// The branch needs migration `0011_escalation` applied. The opt-in guard is the
+// The branch needs migration `0012_escalation` applied. The opt-in guard is the
 // one of `intake-concurrency.integration.test.ts`.
 //
 // Residue: audit rows are append-only, so the students of this run (with their

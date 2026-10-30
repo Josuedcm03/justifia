@@ -9,8 +9,11 @@ import { describe, expect, it } from "vitest";
 const DRIZZLE_DIR = resolve(process.cwd(), "drizzle");
 const JOURNAL_PATH = resolve(DRIZZLE_DIR, "meta/_journal.json");
 
-/** `when` of migration 0010 (request_consent); ours must be later. */
-const LAST_APPLIED_WHEN = 1792599892113;
+/**
+ * `when` of migration 0011 (document_extraction, applied in production); ours
+ * must be later, or the drizzle migrator skips it.
+ */
+const LAST_APPLIED_WHEN = 1792808788271;
 
 type Journal = { entries: { tag: string; when: number }[] };
 
