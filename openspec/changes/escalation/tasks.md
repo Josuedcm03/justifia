@@ -265,7 +265,7 @@ Chain: tracker `feat/escalation` exists. Each slice branches from the tracker he
 
 - [x] 14.1 ASK OWNER: `[CONFIRM]` `INTEGRATION_DATABASE_URL=<test-escalation-pg direct URL> INTEGRATION_ALLOW_WRITES=1 npm run test:integration`; record per-case results and counts here DONE 2026-10-30 (owner yes, test-escalation-pg only): first run 5 files / 60 tests, 59 passed (constraints, pg_constraint existence, queue index, intake suites); the race test timed out at the 60 s default with no assertion failing, and its afterAll cleanup hit an FK violation because vitest does not cancel a timed-out body. After #67: race file 1 passed in 56.8 s
 - [x] 14.2 If any case fails, STOP: fix in a branch from the tracker (new slice PR, regenerate the migration if it is schema), then repeat 4.4-4.5 and 14.1 DONE 2026-10-30: #67 gives the race test a 300 s timeout (test code only, no schema change, no migration regenerated)
-- [ ] 14.3 ASK OWNER: `[CONFIRM]` delete `test-escalation-pg` once all cases are green; record the date
+- [x] 14.3 ASK OWNER: `[CONFIRM]` delete `test-escalation-pg` once all cases are green; record the date DONE 2026-10-30 (owner yes): test-escalation-pg br-dry-art-ayad71dn deleted. Note: Neon now holds only `production`; the backup-before-* branches, walk-document-extraction and demo-predefensa were deleted outside this change on 2026-10-29 02:20-03:06 UTC, so phase 16 must take a fresh backup branch before migrating production
 
 ## Phase 15: Owner prerequisites and manual walk (before verify; after S5 merged)
 
