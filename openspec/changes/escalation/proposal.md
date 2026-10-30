@@ -13,7 +13,7 @@ authoritative; evidence in `exploration.md`.
 ### In Scope
 - **D0** FIA pilot only; no catalog data changes. Zero recipients is a visible
   blocked state (only Industrial and Sistemas have coordinators).
-- **E2** `pendiente -> en_revision_coordinacion`, reason `sospecha_documento`
+- **E2** `pendiente -> en_revision_coordinacion`, reason `sospecha_documento` or `caso_especial` (E18)
   with required note. Exit returns to `pendiente` (E3); one open escalation per
   request (E12, new table).
 - **E2/E10** On `aprobada`: one action records the RF-15 report (teacher from

@@ -482,5 +482,5 @@ consents stay valid.
    still pending; a delivery hint beside each name may avoid confusion.
 5. Coordinator detail has no history of answered escalations (roadmap #7).
 6. D0 found coordinators with email only for Industrial and Sistemas: a FIA
-   career with no active coordination account refuses every sospecha
-   escalation until the administrator creates one (P1 counts them).
+   career with no active coordination account refuses every escalation
+   (both motives, E17 and E18) until the administrator creates one (P1 counts them).
