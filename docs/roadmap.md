@@ -12,7 +12,7 @@ remiten a ese archivo.
 | 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | archivado |
 | 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | archivado |
 | 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
-| 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
+| 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | archivado |
 | 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
 | 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | archivado |
@@ -75,6 +75,23 @@ remiten a ese archivo.
   `validation-signals`. Nota para el equipo (`escalation`): su migración
   también es `0011`; debe regenerarla con el número siguiente (no numerar a
   mano).
+- `escalation` (archivado el 2026-10-30) permite a la secretaría escalar a la
+  coordinación de la carrera una solicitud pendiente por sospecha sobre el
+  documento o por un caso especial fuera de las causas del reglamento (RF-10
+  a, RN-20), con el plazo de RN-08 en pausa hasta la respuesta, y registrar en
+  una solicitud aprobada el reporte de exceso del 20 % que comunica el docente
+  (RF-15), que solo avisa a la coordinación (RF-10 b): la aprobación sigue
+  siendo definitiva. La migración `0012_escalation` se regeneró después de
+  `document-extraction` y se aplica en producción con la fase 16 de su
+  `tasks.md`. Pendientes fuera del change: la revisión legal de la UAM del
+  consentimiento v2 y del aviso de privacidad; las cuentas de coordinación de
+  cada carrera de la FIA (sin una cuenta activa la secretaría no puede
+  escalar; Civil y Arquitectura aún no la tienen); `APP_BASE_URL` en Vercel
+  (producción) para el enlace del aviso, y un dominio propio verificado en
+  Resend para que el aviso no llegue a spam. El historial de escalamientos
+  respondidos queda para `coordination-reports`. Nota para el equipo: cuando
+  dos changes traen migración, el que llega segundo a `main` la regenera con
+  `drizzle-kit generate`; nunca se numera a mano.
 - `secretary-templates` se planifica después del piloto. `secretary-review`
   entrega las plantillas de mensaje de cada decisión (aprobación, rechazo y
   devolución por cada motivo de RN-17) como constantes del sistema; la
