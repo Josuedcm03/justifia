@@ -12,6 +12,11 @@ import type {
 } from "@/lib/catalog/types";
 import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
+import type {
+  EscalationReason,
+  EscalationNoticeState,
+  EscalationNoticeTrigger,
+} from "@/lib/intake/escalation";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type {
@@ -35,6 +40,7 @@ import type {
   AuditOrigin,
   DocumentMode,
   DocumentRejectionReason,
+  MailFailureCode,
   RemissionFailureCode,
 } from "./types";
 
@@ -230,16 +236,20 @@ export function solicitudConsultadaEvent(args: {
   };
 }
 
-/** A staff open of the queue: the entity is the faculty, the payload a count. */
+/**
+ * A staff open of one review tab: the entity is the faculty, the payload the
+ * count and the tab code (the request state the tab lists), never request ids.
+ */
 export function solicitudColaConsultadaEvent(args: {
   facultadId: number;
   total: number;
+  estado: EstadoSolicitud;
 }): AuditEvent {
   return {
     accion: "solicitud.cola.consultada",
     entidadTipo: "Facultad",
     entidadId: args.facultadId,
-    datos: { total: args.total },
+    datos: { total: args.total, estado: args.estado },
   };
 }
 
@@ -253,6 +263,160 @@ export function documentoRetiradoEvent(args: {
     entidadTipo: "DocumentoRespaldo",
     entidadId: args.documentoId,
     datos: { solicitudId: args.solicitudId },
+  };
+}
+
+/** The secretary escalated a pending request to the career coordination. */
+export function solicitudEscaladaEvent(args: {
+  solicitudId: number;
+  escalamientoId: number;
+  motivo: EscalationReason;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+}): AuditEvent {
+  return {
+    accion: "solicitud.escalada",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      escalamientoId: args.escalamientoId,
+      motivo: args.motivo,
+      estadoPrevio: args.estadoPrevio,
+      estadoNuevo: args.estadoNuevo,
+    },
+  };
+}
+
+/** The coordination answered an open escalation; the request left coordination. */
+export function solicitudEscalamientoResueltoEvent(args: {
+  solicitudId: number;
+  escalamientoId: number;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+}): AuditEvent {
+  return {
+    accion: "solicitud.escalamiento_resuelto",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      escalamientoId: args.escalamientoId,
+      estadoPrevio: args.estadoPrevio,
+      estadoNuevo: args.estadoNuevo,
+    },
+  };
+}
+
+/** An RF-15 absence report was recorded on an approved request. */
+export function solicitudReporteInasistenciasEvent(args: {
+  solicitudId: number;
+  reporteId: number;
+  escalamientoId: number;
+  docenteId: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.reporte_inasistencias",
+    entidadTipo: "Solicitud",
+    entidadId: args.solicitudId,
+    datos: {
+      reporteId: args.reporteId,
+      escalamientoId: args.escalamientoId,
+      docenteId: args.docenteId,
+    },
+  };
+}
+
+/** The coordination notice was accepted by the mail provider. */
+export function escalamientoNotificacionEnviadaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  intentos: number;
+  destinatarios: number;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_enviada",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      intentos: args.intentos,
+      destinatarios: args.destinatarios,
+    },
+  };
+}
+
+/** `codigo` is a closed code: the provider's own error text, which can hold an
+ *  address, never reaches the audit log (RNF-06). */
+export function escalamientoNotificacionFallidaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  intentos: number;
+  codigo: MailFailureCode;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_fallida",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      intentos: args.intentos,
+      codigo: args.codigo,
+    },
+  };
+}
+
+/** No recipient could be resolved for the career when a send was attempted. */
+export function escalamientoNotificacionBloqueadaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  motivo: "sin_destinatarios";
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_bloqueada",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      origen: args.origen,
+      motivo: args.motivo,
+    },
+  };
+}
+
+/** A secretary asked to resend a notice (state before the attempt). */
+export function escalamientoNotificacionReenviadaEvent(args: {
+  escalamientoId: number;
+  solicitudId: number;
+  estadoPrevio: EscalationNoticeState;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.notificacion_reenviada",
+    entidadTipo: "Escalamiento",
+    entidadId: args.escalamientoId,
+    datos: {
+      solicitudId: args.solicitudId,
+      estadoPrevio: args.estadoPrevio,
+    },
+  };
+}
+
+/**
+ * A coordinator's open of the escalation list: the entity is the career of the
+ * caller, the payload the count only (RNF-06).
+ */
+export function escalamientoColaConsultadaEvent(args: {
+  carreraId: number;
+  total: number;
+}): AuditEvent {
+  return {
+    accion: "escalamiento.cola.consultada",
+    entidadTipo: "Carrera",
+    entidadId: args.carreraId,
+    datos: { total: args.total },
   };
 }
 

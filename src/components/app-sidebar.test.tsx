@@ -174,18 +174,37 @@ describe("AppSidebar", () => {
     },
   );
 
-  it.each(["administrador", "coordinacion"] as const)(
-    "orders the top level Panel, Administración, Configuración for %s",
-    (rol) => {
-      renderSidebar(rol);
+  it("orders the top level Panel, Administración, Configuración for administrador", () => {
+    renderSidebar("administrador");
 
-      expect(topLevelLabels()).toEqual([
-        "Panel",
-        "Administración",
-        "Configuración",
-      ]);
-    },
-  );
+    expect(topLevelLabels()).toEqual([
+      "Panel",
+      "Administración",
+      "Configuración",
+    ]);
+  });
+
+  it("orders the top level Panel, Solicitudes escaladas, Administración, Configuración for coordinacion, with no review entry", () => {
+    renderSidebar("coordinacion");
+
+    expect(topLevelLabels()).toEqual([
+      "Panel",
+      "Solicitudes escaladas",
+      "Administración",
+      "Configuración",
+    ]);
+    expect(
+      screen.queryByRole("link", { name: "Revisión de solicitudes" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers secretaria no coordinator entry", () => {
+    renderSidebar("secretaria");
+
+    expect(
+      screen.queryByRole("link", { name: "Solicitudes escaladas" }),
+    ).not.toBeInTheDocument();
+  });
 
   it("orders the top level Panel, Revisión de solicitudes, Administración, Configuración for secretaria", () => {
     renderSidebar("secretaria");
@@ -205,7 +224,14 @@ describe("AppSidebar", () => {
     ],
     [
       "coordinacion",
-      ["/", "/catalog/asignaturas", "/catalog/docentes", "/users", "/settings"],
+      [
+        "/",
+        "/coordination",
+        "/catalog/asignaturas",
+        "/catalog/docentes",
+        "/users",
+        "/settings",
+      ],
     ],
     [
       "secretaria",
@@ -812,7 +838,7 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
     ],
     [
       "coordinacion",
-      ["Panel", "Administración", "Configuración"],
+      ["Panel", "Solicitudes escaladas", "Administración", "Configuración"],
       ["Asignaturas", "Docentes", "Usuarios"],
     ],
     [

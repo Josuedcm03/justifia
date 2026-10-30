@@ -132,7 +132,7 @@ describe("SubmitDialog consent payload (RC-8; spec: Checked box sends the versio
       expect(submitRequestAction).toHaveBeenCalledTimes(1),
     );
     expect(submitRequestAction).toHaveBeenCalledWith({
-      consentVersion: "2026-10-20",
+      consentVersion: CONSENT_VERSION,
     });
   });
 

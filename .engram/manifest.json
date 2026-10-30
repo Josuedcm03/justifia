@@ -378,6 +378,30 @@
       "prompts": 0
     },
     {
+      "id": "0cdae492",
+      "created_by": "Arnia",
+      "created_at": "2026-10-22T18:43:35Z",
+      "sessions": 1,
+      "memories": 11,
+      "prompts": 0
+    },
+    {
+      "id": "770182e3",
+      "created_by": "Arnia",
+      "created_at": "2026-10-22T18:53:39Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "1102835e",
+      "created_by": "Arnia",
+      "created_at": "2026-10-22T19:17:49Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
       "id": "6db1fa37",
       "created_by": "jdkno",
       "created_at": "2026-10-23T02:05:20Z",
@@ -398,6 +422,118 @@
       "created_by": "jdkno",
       "created_at": "2026-10-23T03:54:18Z",
       "sessions": 0,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "f53c43cf",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T16:42:07Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "5f984532",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T17:01:27Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "913a60bb",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T17:02:53Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "2b611ee4",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T17:11:07Z",
+      "sessions": 1,
+      "memories": 3,
+      "prompts": 0
+    },
+    {
+      "id": "0c380923",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T17:35:13Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "d9837a2e",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T18:19:08Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "c648bf46",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T18:33:19Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "5061d085",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T19:02:17Z",
+      "sessions": 1,
+      "memories": 3,
+      "prompts": 0
+    },
+    {
+      "id": "26f0a397",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T19:04:10Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "7f549a14",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T19:09:34Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "e05ef0ee",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T19:16:25Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "bc421ba6",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T22:55:56Z",
+      "sessions": 1,
+      "memories": 3,
+      "prompts": 0
+    },
+    {
+      "id": "9cd0885f",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T23:17:17Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "e03cbeaa",
+      "created_by": "Arnia",
+      "created_at": "2026-10-23T23:44:08Z",
+      "sessions": 1,
       "memories": 2,
       "prompts": 0
     },
@@ -522,6 +658,54 @@
       "prompts": 0
     },
     {
+      "id": "ac48b2b6",
+      "created_by": "Arnia",
+      "created_at": "2026-10-27T23:01:43Z",
+      "sessions": 1,
+      "memories": 4,
+      "prompts": 0
+    },
+    {
+      "id": "e54f03f5",
+      "created_by": "Arnia",
+      "created_at": "2026-10-27T23:01:53Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "b183b9fe",
+      "created_by": "Arnia",
+      "created_at": "2026-10-27T23:27:13Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "b3b5477f",
+      "created_by": "Arnia",
+      "created_at": "2026-10-28T03:53:32Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "fba3f7b4",
+      "created_by": "Arnia",
+      "created_at": "2026-10-28T04:37:03Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "c4ceb8f5",
+      "created_by": "Arnia",
+      "created_at": "2026-10-28T05:32:34Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
       "id": "a7b1778e",
       "created_by": "jdkno",
       "created_at": "2026-10-29T02:02:13Z",
@@ -542,6 +726,78 @@
       "created_by": "jdkno",
       "created_at": "2026-10-29T03:32:46Z",
       "sessions": 0,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "ad297ef8",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T03:47:48Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "10e04af8",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T17:03:38Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "22c3814f",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T17:10:11Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "0f34014f",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T17:34:13Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 0
+    },
+    {
+      "id": "3d15e806",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T18:43:08Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "6192988e",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T19:00:17Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "8490a1da",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T21:26:39Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "4221a721",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T21:28:07Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "499c1a1c",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T21:30:06Z",
+      "sessions": 1,
       "memories": 1,
       "prompts": 0
     }

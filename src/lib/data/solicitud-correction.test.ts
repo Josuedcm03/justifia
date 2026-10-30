@@ -123,8 +123,19 @@ describe("resubmitCorrection: success (RF-08 a, RF-08 c, RN-16)", () => {
     expect(update.set).toEqual({
       estado: "pendiente",
       reenviadaEn: NOW,
+      plazoInicioEn: null,
       actualizadoEn: NOW,
     });
+  });
+
+  it("clears the stored pause start, so a pause before the resubmission never counts (ES-5)", async () => {
+    const double = use([...loaded(), ...transaction()]);
+
+    await resubmitCorrection(input);
+
+    const update = double.log.find((s) => s.kind === "update")!;
+    expect(update.set).toHaveProperty("plazoInicioEn", null);
+    expect((update.set as { reenviadaEn: Date }).reenviadaEn).toBe(NOW);
   });
 
   it("guards the update by id, owner, devuelta and the validated values, never a borrador", async () => {
@@ -180,6 +191,7 @@ describe("resubmitCorrection: success (RF-08 a, RF-08 c, RN-16)", () => {
     expect(Object.keys(update.set as object).sort()).toEqual([
       "actualizadoEn",
       "estado",
+      "plazoInicioEn",
       "reenviadaEn",
     ]);
   });
@@ -362,6 +374,7 @@ describe("resubmitCorrection: consent is never asked (RC-4, RN-25, C4, C12)", ()
     expect(Object.keys(update.set as object).sort()).toEqual([
       "actualizadoEn",
       "estado",
+      "plazoInicioEn",
       "reenviadaEn",
     ]);
   });
@@ -377,6 +390,25 @@ describe("resubmitCorrection: who and when (RN-16)", () => {
     });
     expect(listEligibleGroupsMock).not.toHaveBeenCalled();
     expect(double.log).toHaveLength(1);
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a request in coordination: the load guard holds devuelta alone (ES-14)", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+
+    expect(await resubmitCorrection(input)).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+    const [load] = double.log;
+    expect(params(load)).toContain("devuelta");
+    expect(params(load)).not.toContain("en_revision_coordinacion");
+    expect(
+      TRANSITIONS.filter(
+        (t) =>
+          t.from === "en_revision_coordinacion" && t.actor === "estudiante",
+      ),
+    ).toHaveLength(0);
     expect(insertAuditMock).not.toHaveBeenCalled();
   });
 

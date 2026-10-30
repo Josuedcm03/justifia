@@ -6,6 +6,7 @@ import {
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
+  Inbox,
   LayoutDashboard,
   ListChecks,
   Settings,
@@ -14,6 +15,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+  canCoordinate,
   canCreateUsers,
   canFileRequests,
   canImportCatalog,
@@ -76,6 +78,13 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
         prefetch: false,
       },
       {
+        key: "coordination",
+        href: "/coordination",
+        icon: Inbox,
+        visibleTo: canCoordinate,
+        prefetch: false,
+      },
+      {
         key: "administration",
         icon: Briefcase,
         children: [
@@ -115,12 +124,23 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
     expect(review).toMatchObject({ href: "/review", prefetch: false });
   });
 
+  it("opts the coordinator entry out of prefetching too (its list is an audited read)", () => {
+    const coordination = NAV_ITEMS.find((item) => item.key === "coordination");
+
+    expect(coordination).toMatchObject({
+      href: "/coordination",
+      prefetch: false,
+    });
+  });
+
   it("leaves every other leaf without a prefetch flag", () => {
     const leaves = NAV_ITEMS.flatMap((item): readonly NavLink[] =>
       "children" in item ? item.children : [item],
     );
 
-    for (const leaf of leaves.filter((l) => l.key !== "review")) {
+    for (const leaf of leaves.filter(
+      (l) => l.key !== "review" && l.key !== "coordination",
+    )) {
       expect(leaf, leaf.key).not.toHaveProperty("prefetch");
     }
   });
@@ -179,6 +199,7 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
     ["newRequest", ["estudiante"]],
     ["enrollment", ["estudiante"]],
     ["review", ["secretaria"]],
+    ["coordination", ["coordinacion"]],
     ["catalogAsignaturas", STAFF],
     ["catalogDocentes", STAFF],
     ["catalogImport", ["secretaria"]],
@@ -262,6 +283,14 @@ describe("trailFor (BS-CTX-1)", () => {
     ["/enrollment", { key: "enrollment", href: "/enrollment", exact: true }],
     ["/review", { key: "review", href: "/review", exact: true }],
     ["/review/42", { key: "review", href: "/review", exact: false }],
+    [
+      "/coordination",
+      { key: "coordination", href: "/coordination", exact: true },
+    ],
+    [
+      "/coordination/42",
+      { key: "coordination", href: "/coordination", exact: false },
+    ],
     ["/profile", { key: "profile", href: "/profile", exact: true }],
   ])("%s resolves to its section trail", (pathname, trail) => {
     expect(trailFor(pathname)).toEqual(trail);
@@ -292,7 +321,10 @@ describe("shortcutsFor (BS-HOME-1 inputs)", () => {
     ["estudiante", ["/requests", "/requests/new", "/enrollment"]],
     ["docente", []],
     ["administrador", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
-    ["coordinacion", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
+    [
+      "coordinacion",
+      ["/coordination", "/catalog/asignaturas", "/catalog/docentes", "/users"],
+    ],
     [
       "secretaria",
       [

@@ -25,6 +25,11 @@ import {
   documentoFormatoEspecialEvent,
   documentoRetiradoEvent,
   enrollmentWriteEvents,
+  escalamientoColaConsultadaEvent,
+  escalamientoNotificacionBloqueadaEvent,
+  escalamientoNotificacionEnviadaEvent,
+  escalamientoNotificacionFallidaEvent,
+  escalamientoNotificacionReenviadaEvent,
   grupoActiveChangedEvent,
   grupoCreatedEvent,
   grupoUpdatedEvent,
@@ -41,7 +46,10 @@ import {
   solicitudConsultadaEvent,
   solicitudCorregidaEvent,
   solicitudDecididaEvent,
+  solicitudEscaladaEvent,
+  solicitudEscalamientoResueltoEvent,
   solicitudPresentadaEvent,
+  solicitudReporteInasistenciasEvent,
   type TouchedAccount,
 } from "./events";
 import {
@@ -992,7 +1000,11 @@ describe("review event builders (RF-07, RF-08, RNF-06, RN-02)", () => {
     },
     {
       name: "queue read",
-      event: solicitudColaConsultadaEvent({ facultadId: 3, total: 12 }),
+      event: solicitudColaConsultadaEvent({
+        facultadId: 3,
+        total: 12,
+        estado: "pendiente",
+      }),
       accion: "solicitud.cola.consultada",
       entidadTipo: "Facultad",
       entidadId: 3,
@@ -1043,13 +1055,18 @@ describe("review event builders (RF-07, RF-08, RNF-06, RN-02)", () => {
       documentosRetirados: 1,
     });
     expect(cases[4].event.datos).toEqual({ estado: "pendiente" });
-    expect(cases[5].event.datos).toEqual({ total: 12 });
+    expect(cases[5].event.datos).toEqual({ total: 12, estado: "pendiente" });
     expect(cases[6].event.datos).toEqual({ solicitudId: 46 });
   });
 
-  it("the queue payload carries the count and no request id list", () => {
-    const { datos } = solicitudColaConsultadaEvent({ facultadId: 3, total: 3 });
-    expect(Object.keys(datos)).toEqual(["total"]);
+  it("the queue payload carries the count, the tab code and no request id list", () => {
+    const { datos } = solicitudColaConsultadaEvent({
+      facultadId: 3,
+      total: 3,
+      estado: "en_revision_coordinacion",
+    });
+    expect(Object.keys(datos)).toEqual(["total", "estado"]);
+    expect(datos).toEqual({ total: 3, estado: "en_revision_coordinacion" });
   });
 
   it("no payload leaks text, names, CIF, email, dates, file names or id lists", () => {
@@ -1380,5 +1397,335 @@ describe("enrollment event builders (student-enrollment SE-8, RNF-06)", () => {
         /periodo|numeroGrupo|asignatura|docente|nombre|cif|correo|email|telefono|@|password|hash|bcrypt|clave/i,
       );
     }
+  });
+});
+
+describe("escalation event builders (RF-10, RF-15, RNF-06, RN-02)", () => {
+  type Case = {
+    name: string;
+    event: AuditEvent;
+    accion: string;
+    entidadId: number;
+    datos: Record<string, unknown>;
+  };
+
+  const cases: Case[] = [
+    {
+      name: "escalation of a pending request",
+      event: solicitudEscaladaEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        motivo: "sospecha_documento",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      }),
+      accion: "solicitud.escalada",
+      entidadId: 41,
+      datos: {
+        escalamientoId: 7,
+        motivo: "sospecha_documento",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      },
+    },
+    {
+      name: "escalation of a special case (E18)",
+      event: solicitudEscaladaEvent({
+        solicitudId: 41,
+        escalamientoId: 8,
+        motivo: "caso_especial",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      }),
+      accion: "solicitud.escalada",
+      entidadId: 41,
+      datos: {
+        escalamientoId: 8,
+        motivo: "caso_especial",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      },
+    },
+    {
+      name: "coordination answer",
+      event: solicitudEscalamientoResueltoEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        estadoPrevio: "en_revision_coordinacion",
+        estadoNuevo: "pendiente",
+      }),
+      accion: "solicitud.escalamiento_resuelto",
+      entidadId: 41,
+      datos: {
+        escalamientoId: 7,
+        estadoPrevio: "en_revision_coordinacion",
+        estadoNuevo: "pendiente",
+      },
+    },
+    {
+      name: "absence report on an approved request",
+      event: solicitudReporteInasistenciasEvent({
+        solicitudId: 41,
+        reporteId: 3,
+        escalamientoId: 8,
+        docenteId: 55,
+      }),
+      accion: "solicitud.reporte_inasistencias",
+      entidadId: 41,
+      datos: { reporteId: 3, escalamientoId: 8, docenteId: 55 },
+    },
+  ];
+
+  it.each(cases)(
+    "$name maps to $accion on the Solicitud $entidadId",
+    ({ event, accion, entidadId, datos }) => {
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe("Solicitud");
+      expect(event.entidadId).toBe(entidadId);
+      expect(event.datos).toEqual(datos);
+      expect(AUDIT_ACTIONS).toContain(accion);
+    },
+  );
+
+  it("payloads hold ids and closed codes only", () => {
+    for (const { event } of cases) {
+      const datos = event.datos as Record<string, unknown>;
+      expect(Object.keys(datos).length).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(datos)) {
+        expect(key).not.toMatch(
+          /nota|texto|respuesta|nombre|cif|correo|email|fecha|causa|carrera/i,
+        );
+        expect(["number", "string"]).toContain(typeof value);
+        if (typeof value === "string") expect(value).toMatch(/^[a-z_]+$/);
+      }
+    }
+  });
+
+  it("drops a note, an answer, a teacher name or an email smuggled into the call", () => {
+    const smuggled = {
+      nota: "Diagnostico: depresion severa",
+      respuesta: "El documento es falso",
+      docenteNombre: "Ana Perez",
+      correo: "ana@uam.edu.ni",
+    };
+    const events = [
+      solicitudEscaladaEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        motivo: "sospecha_documento",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+        ...smuggled,
+      } as Parameters<typeof solicitudEscaladaEvent>[0]),
+      solicitudEscalamientoResueltoEvent({
+        solicitudId: 41,
+        escalamientoId: 7,
+        estadoPrevio: "en_revision_coordinacion",
+        estadoNuevo: "pendiente",
+        ...smuggled,
+      } as Parameters<typeof solicitudEscalamientoResueltoEvent>[0]),
+      solicitudReporteInasistenciasEvent({
+        solicitudId: 41,
+        reporteId: 3,
+        escalamientoId: 8,
+        docenteId: 55,
+        ...smuggled,
+      } as Parameters<typeof solicitudReporteInasistenciasEvent>[0]),
+    ];
+    for (const event of events) {
+      expect(JSON.stringify(event)).not.toMatch(
+        /Diagnostico|depresion|falso|Perez|@/,
+      );
+    }
+  });
+
+  it("leaves the existing review and remission payloads unchanged", () => {
+    expect(
+      solicitudColaConsultadaEvent({
+        facultadId: 3,
+        total: 4,
+        estado: "aprobada",
+      }).datos,
+    ).toEqual({ total: 4, estado: "aprobada" });
+    expect(
+      solicitudConsultadaEvent({ solicitudId: 5, estado: "aprobada" }).datos,
+    ).toEqual({ estado: "aprobada" });
+    expect(
+      remisionCreadaEvent({
+        remisionId: 11,
+        solicitudId: 41,
+        estado: "pendiente",
+      }).datos,
+    ).toEqual({ solicitudId: 41, estado: "pendiente" });
+  });
+});
+
+describe("escalation notice event builders (RF-10 b, RNF-06, RNF-02)", () => {
+  type Case = {
+    name: string;
+    event: AuditEvent;
+    accion: string;
+    datos: Record<string, unknown>;
+  };
+
+  const cases: Case[] = [
+    {
+      name: "notice sent",
+      event: escalamientoNotificacionEnviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        destinatarios: 2,
+      }),
+      accion: "escalamiento.notificacion_enviada",
+      datos: {
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        destinatarios: 2,
+      },
+    },
+    {
+      name: "notice failed",
+      event: escalamientoNotificacionFallidaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "reintento_automatico",
+        intentos: 3,
+        codigo: "unavailable",
+      }),
+      accion: "escalamiento.notificacion_fallida",
+      datos: {
+        solicitudId: 41,
+        origen: "reintento_automatico",
+        intentos: 3,
+        codigo: "unavailable",
+      },
+    },
+    {
+      name: "notice blocked",
+      event: escalamientoNotificacionBloqueadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "reenvio_manual",
+        motivo: "sin_destinatarios",
+      }),
+      accion: "escalamiento.notificacion_bloqueada",
+      datos: {
+        solicitudId: 41,
+        origen: "reenvio_manual",
+        motivo: "sin_destinatarios",
+      },
+    },
+    {
+      name: "notice resend",
+      event: escalamientoNotificacionReenviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        estadoPrevio: "bloqueada",
+      }),
+      accion: "escalamiento.notificacion_reenviada",
+      datos: { solicitudId: 41, estadoPrevio: "bloqueada" },
+    },
+  ];
+
+  it.each(cases)(
+    "$name maps to $accion on the Escalamiento 7",
+    ({ event, accion, datos }) => {
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe("Escalamiento");
+      expect(event.entidadId).toBe(7);
+      expect(event.datos).toEqual(datos);
+      expect(AUDIT_ACTIONS).toContain(accion);
+    },
+  );
+
+  it("payloads hold ids, counts and closed codes only", () => {
+    for (const { event } of cases) {
+      const datos = event.datos as Record<string, unknown>;
+      expect(Object.keys(datos).length).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(datos)) {
+        expect(key).not.toMatch(
+          /nota|texto|respuesta|nombre|cif|correo|email|fecha|causa|carrera|mensaje|error/i,
+        );
+        expect(["number", "string"]).toContain(typeof value);
+        if (typeof value === "string") expect(value).toMatch(/^[a-z_]+$/);
+      }
+    }
+  });
+
+  it("drops a provider error text, an email or a recipient list smuggled into the call", () => {
+    const smuggled = {
+      error: "550 mailbox ana@uam.edu.ni unavailable",
+      mensaje: "Asunto: Justifia",
+      correos: ["ana@uam.edu.ni"],
+    };
+    const events = [
+      escalamientoNotificacionEnviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        destinatarios: 1,
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionEnviadaEvent>[0]),
+      escalamientoNotificacionFallidaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        intentos: 1,
+        codigo: "rejected",
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionFallidaEvent>[0]),
+      escalamientoNotificacionBloqueadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        origen: "escalamiento",
+        motivo: "sin_destinatarios",
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionBloqueadaEvent>[0]),
+      escalamientoNotificacionReenviadaEvent({
+        escalamientoId: 7,
+        solicitudId: 41,
+        estadoPrevio: "pendiente",
+        ...smuggled,
+      } as Parameters<typeof escalamientoNotificacionReenviadaEvent>[0]),
+    ];
+    for (const event of events) {
+      expect(JSON.stringify(event)).not.toMatch(/550|mailbox|Asunto|@/);
+    }
+  });
+});
+
+describe("coordinator queue read event (RF-10, RNF-06, E1)", () => {
+  it("maps to escalamiento.cola.consultada on the career of the caller", () => {
+    const event = escalamientoColaConsultadaEvent({ carreraId: 9, total: 4 });
+
+    expect(event.accion).toBe("escalamiento.cola.consultada");
+    expect(event.entidadTipo).toBe("Carrera");
+    expect(event.entidadId).toBe(9);
+    expect(AUDIT_ACTIONS).toContain("escalamiento.cola.consultada");
+  });
+
+  it("carries the count only, whatever the career or total", () => {
+    expect(
+      escalamientoColaConsultadaEvent({ carreraId: 9, total: 4 }).datos,
+    ).toEqual({ total: 4 });
+    expect(
+      escalamientoColaConsultadaEvent({ carreraId: 2, total: 0 }).datos,
+    ).toEqual({ total: 0 });
+  });
+
+  it("drops a request id list, a name or a note smuggled into the call", () => {
+    const event = escalamientoColaConsultadaEvent({
+      carreraId: 9,
+      total: 2,
+      solicitudIds: [41, 42],
+      nombre: "Ana Perez",
+      nota: "Diagnostico: depresion severa",
+    } as Parameters<typeof escalamientoColaConsultadaEvent>[0]);
+
+    expect(JSON.stringify(event)).not.toMatch(/41|42|Perez|Diagnostico/);
   });
 });

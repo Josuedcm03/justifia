@@ -8,7 +8,10 @@ import type { MailMessage, MailResult, MailSender } from "@/lib/intake/ports";
 // Resend docs on 2026-10-19: `POST /emails`, `Authorization: Bearer`, optional
 // `Idempotency-Key` (max 256 chars, kept 24 h), attachments as base64
 // `content` + `filename`, message limit 40 MB including base64, response
-// `{ id }`.
+// `{ id }`. Verified on 2026-10-30: `html` beside `text`, and an inline image
+// as an attachment with `content_id` (under 128 characters, referenced as
+// `cid:<id>` in the HTML) and `content_type`; inline images are not supported
+// by the batch endpoint, which this sender never uses.
 
 const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 
@@ -33,9 +36,14 @@ function payload(from: string, message: MailMessage) {
     cc: [...message.cc],
     subject: message.subject,
     text: message.text,
+    ...(message.html === undefined ? {} : { html: message.html }),
     attachments: message.attachments.map((a) => ({
       filename: a.filename,
       content: toBase64(a.content),
+      // An inline image: `content_id` is what `cid:` in the HTML points at.
+      ...(a.contentId === undefined
+        ? {}
+        : { content_id: a.contentId, content_type: a.contentType }),
     })),
   };
 }

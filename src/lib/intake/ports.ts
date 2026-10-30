@@ -24,14 +24,25 @@ export type MailAttachment = {
   filename: string;
   contentType: string;
   content: Uint8Array;
+  /**
+   * Set only for an inline image the HTML part references as `cid:<contentId>`
+   * (the coordination notice's brand image). A request document never has one.
+   */
+  contentId?: string;
 };
 
 export type MailMessage = {
   to: string;
   cc: readonly string[];
   subject: string;
-  /** Plain text only: names are data, never markup (TR-9). */
+  /** Plain text: names are data, never markup (TR-9). */
   text: string;
+  /**
+   * Optional HTML alternative of the same message (the coordination notice).
+   * The sender of the HTML escapes every value that comes from data; the teacher
+   * remission has none.
+   */
+  html?: string;
   attachments: readonly MailAttachment[];
   /** Same key + same payload = the provider sends once (TR-6). */
   idempotencyKey: string;

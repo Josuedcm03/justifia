@@ -6,6 +6,7 @@ import {
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
+  Inbox,
   LayoutDashboard,
   ListChecks,
   type LucideIcon,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 import {
+  canCoordinate,
   canCreateUsers,
   canFileRequests,
   canImportCatalog,
@@ -29,8 +31,9 @@ export type NavLink = {
   icon: LucideIcon;
   visibleTo?: (rol: RolUsuario) => boolean;
   /**
-   * `false` keeps Next.js from prefetching the target. The review pages write an
-   * audit row when they render, so nothing may render them speculatively.
+   * `false` keeps Next.js from prefetching the target. The review and
+   * coordination pages write an audit row when they render, so nothing may
+   * render them speculatively.
    */
   prefetch?: false;
 };
@@ -74,6 +77,13 @@ export const NAV_ITEMS = [
     href: "/review",
     icon: ClipboardCheck,
     visibleTo: canReviewRequests,
+    prefetch: false,
+  },
+  {
+    key: "coordination",
+    href: "/coordination",
+    icon: Inbox,
+    visibleTo: canCoordinate,
     prefetch: false,
   },
   {

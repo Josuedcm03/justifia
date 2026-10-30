@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { templateKey } from "@/app/(dashboard)/review/template-key";
 import { DECISION_TEMPLATES } from "@/lib/intake/decision-templates";
+import { ESCALATION_KINDS } from "@/lib/intake/escalation";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { REMISSION_REASONS, REMISSION_STATES } from "@/lib/remission/states";
 
@@ -205,6 +206,267 @@ describe("review messages", () => {
     expect(en.review.detail.consent.notRecorded).toBe(
       "Not recorded (presented before consent existed)",
     );
+  });
+
+  // Scenario "Translation keys present" (request-review): the state tabs, the
+  // paused-deadline badge and the texts of the two new tabs.
+  it.each(catalogs)(
+    "%s words the review state tabs and the paused badge",
+    (_l, m) => {
+      const q = m.review.queue;
+
+      for (const text of [
+        q.tabs.label,
+        q.tabs.pendiente,
+        q.tabs.en_revision_coordinacion,
+        q.tabs.aprobada,
+        q.deadline.paused,
+        q.coordination.description,
+        q.coordination.caption,
+        q.coordination.empty,
+        q.coordination.columns.escalated,
+        q.coordination.columns.reason,
+        q.coordination.columns.notice,
+        q.approved.description,
+        q.approved.caption,
+        q.approved.empty,
+        q.approved.latest,
+        q.approved.columns.approved,
+        q.approved.columns.reports,
+        q.approved.reportsCount,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      expect(q.tabs.pendiente).not.toBe(q.tabs.aprobada);
+    },
+  );
+
+  it.each(catalogs)(
+    "%s words the escalation reasons and the four notification statuses",
+    (_l, m) => {
+      const e = m.review.escalation;
+
+      for (const kind of ESCALATION_KINDS) {
+        expect((e.reasons as Record<string, string>)[kind], kind).toBeTruthy();
+      }
+      for (const text of [
+        e.notification.pendiente,
+        e.notification.pendienteFallido,
+        e.notification.enviada,
+        e.notification.bloqueada,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      expect(e.notification.enviada).toContain("{date}");
+      expect(e.notification.pendiente).not.toBe(
+        e.notification.pendienteFallido,
+      );
+    },
+  );
+
+  // Scenarios "Translation keys present" and "Refusal message names the
+  // career" (request-review, coordination-escalation).
+  it.each(catalogs)(
+    "%s words the escalation section, dialog and every error it can show",
+    (_l, m) => {
+      const e = m.review.escalation;
+
+      for (const text of [
+        e.section.title,
+        e.section.fields.reason,
+        e.section.fields.note,
+        e.section.fields.escalated,
+        e.section.fields.answer,
+        e.section.fields.notice,
+        e.section.escalatedBy,
+        e.section.answeredBy,
+        e.section.waiting,
+        e.dialog.trigger,
+        e.dialog.title,
+        e.dialog.description,
+        e.dialog.motivoLabel,
+        e.dialog.motivo.sospecha_documento,
+        e.dialog.motivo.caso_especial,
+        e.dialog.noteLabel,
+        e.dialog.noteHint,
+        e.dialog.counter,
+        e.dialog.confirm,
+        e.dialog.pending,
+        e.dialog.cancel,
+        e.dialog.backToQueue,
+        e.reasons.sospecha_documento,
+        e.reasons.caso_especial,
+        e.reasons.exceso_inasistencias,
+        m.review.queue.result.escalada,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      for (const code of [
+        "nota_required",
+        "nota_too_long",
+        "motivo_invalid",
+        "conflict",
+        "not_found",
+        "unexpected",
+        "sin_coordinacion",
+      ]) {
+        expect((e.errors as Record<string, string>)[code], code).toBeTruthy();
+      }
+      expect(e.dialog.counter).toContain("{count}");
+    },
+  );
+
+  // E18: the exact Spanish the secretary reads when she picks the motive.
+  it("words the escalation motive in neutral Spanish with usted", () => {
+    const e = es.review.escalation;
+
+    expect(e.dialog.motivoLabel).toBe("Motivo del escalamiento");
+    expect(e.dialog.motivo).toEqual({
+      sospecha_documento: "Sospecha sobre un documento",
+      caso_especial: "Caso especial (fuera de las causas del reglamento)",
+    });
+    expect(e.errors.motivo_invalid).toBe(
+      "Seleccione el motivo del escalamiento.",
+    );
+    expect(e.reasons.caso_especial).toBe("Caso especial");
+    expect(JSON.stringify(e)).not.toMatch(/escalación/i);
+  });
+
+  it.each(catalogs)(
+    "%s words the report section, dialog and every error it can show",
+    (_l, m) => {
+      const r = m.review.report;
+
+      for (const text of [
+        r.section.title,
+        r.section.empty,
+        r.section.noTeachers,
+        r.entry.communicated,
+        r.entry.recordedBy,
+        r.entry.note,
+        r.dialog.trigger,
+        r.dialog.title,
+        r.dialog.description,
+        r.dialog.teacherLabel,
+        r.dialog.teacherPlaceholder,
+        r.dialog.dateLabel,
+        r.dialog.noteLabel,
+        r.dialog.noteHint,
+        r.dialog.counter,
+        r.dialog.confirm,
+        r.dialog.pending,
+        r.dialog.cancel,
+        r.dialog.backToQueue,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      for (const code of [
+        "date_invalid",
+        "date_future",
+        "docente_invalid",
+        "nota_blank",
+        "nota_too_long",
+        "conflict",
+        "not_found",
+        "unexpected",
+      ]) {
+        expect((r.errors as Record<string, string>)[code], code).toBeTruthy();
+      }
+    },
+  );
+
+  it("words the escalate conflict for a lost race and for a wrong state alike", () => {
+    // `conflict` is returned both when another action got there first and when
+    // the request is approved, rejected or returned, so it names no cause.
+    expect(es.review.escalation.errors.conflict).toBe(
+      "Esta solicitud ya no está pendiente. Vuelva a la cola para ver su estado.",
+    );
+    expect(en.review.escalation.errors.conflict).toBe(
+      "This request is no longer pending. Go back to the queue to see its status.",
+    );
+    expect(es.review.escalation.errors.conflict).not.toMatch(/escalada/);
+    expect(en.review.escalation.errors.conflict).not.toMatch(/escalated/);
+  });
+
+  it("words the unavailable-escalation refusal with the career, neutral and without voseo", () => {
+    expect(es.review.escalation.errors.sin_coordinacion).toBe(
+      "{carrera} no tiene coordinación registrada; solicite al administrador que cree la cuenta.",
+    );
+    expect(en.review.escalation.errors.sin_coordinacion).toContain("{carrera}");
+    expect(en.review.escalation.errors.sin_coordinacion).toContain(
+      "administrator",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s has the resend texts of the coordination notice",
+    (_l, m) => {
+      const resend = m.review.escalation.resend;
+
+      expect(resend.action).toBeTruthy();
+      expect(resend.actionNamed).toContain("{name}");
+      expect(resend.pending).toBeTruthy();
+      for (const state of ["enviada", "pendiente", "bloqueada"] as const) {
+        expect(resend.result[state], state).toBeTruthy();
+      }
+      for (const code of ["not_found", "unexpected"] as const) {
+        expect(resend.errors[code], code).toBeTruthy();
+      }
+    },
+  );
+
+  it("words the in-progress and missing-email resend outcomes neutrally", () => {
+    expect(es.review.escalation.resend.result.en_curso).toBe(
+      "Ya hay un envío en curso; actualice la página en unos segundos.",
+    );
+    expect(es.review.escalation.resend.result.sin_correo).toBe(
+      "La cuenta de coordinación de la carrera no tiene correo registrado; solicite al administrador que lo agregue.",
+    );
+    expect(en.review.escalation.resend.result.en_curso).toBe(
+      "A send is already in progress; reload the page in a few seconds.",
+    );
+    expect(en.review.escalation.resend.result.sin_correo).toBe(
+      "The career's coordination account has no email on record; ask the administrator to add it.",
+    );
+  });
+
+  it("words the notice resend texts neutrally, without voseo or a teacher", () => {
+    expect(es.review.escalation.resend.result.enviada).toBe(
+      "El aviso se envió a coordinación.",
+    );
+    expect(en.review.escalation.resend.result.enviada).toBe(
+      "The notice was sent to the coordination.",
+    );
+    expect(JSON.stringify(es.review.escalation.resend)).not.toMatch(
+      /\b(?:reenviá|tenés|podés|intentá|recargá|vos)\b/i,
+    );
+    expect(JSON.stringify(es.review.escalation.resend)).not.toMatch(/docente/i);
+  });
+
+  it("never words the student-facing or staff texts with the legacy voseo", () => {
+    const spanish = JSON.stringify([es.review.escalation, es.review.report]);
+
+    expect(spanish).not.toMatch(
+      /\b(?:escribí|elegí|seleccioná|registrá|escalá|confirmá|tenés|podés|vos)\b/i,
+    );
+  });
+
+  it("words no percentage or absence count anywhere in the report texts (RF-15 a)", () => {
+    expect(JSON.stringify(es.review.report)).not.toMatch(/porcentaje/i);
+    expect(JSON.stringify(en.review.report)).not.toMatch(/percent/i);
+  });
+
+  it("words the tabs neutrally in Spanish and in English", () => {
+    expect(es.review.queue.tabs).toMatchObject({
+      pendiente: "Pendientes",
+      en_revision_coordinacion: "En coordinación",
+      aprobada: "Aprobadas",
+    });
+    expect(en.review.queue.tabs).toMatchObject({
+      pendiente: "Pending",
+      en_revision_coordinacion: "In coordination",
+      aprobada: "Approved",
+    });
   });
 
   it.each(catalogs)("%s words the RN-19 special-format mark", (_l, m) => {

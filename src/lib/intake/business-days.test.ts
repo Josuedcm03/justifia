@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { deadlineOf, deadlineStatus } from "./business-days";
+import {
+  addBusinessDays,
+  countBusinessDays,
+  deadlineOf,
+  deadlineStatus,
+} from "./business-days";
 import { managuaToday } from "./dates";
 import type { NonWorkingDaysProvider } from "./ports";
 
@@ -120,5 +125,52 @@ describe("deadlineStatus boundary table (RF-06 b)", () => {
     expect(deadlineStatus(MON, TUE, calendar([], false)).status).toBe(
       "por_vencer",
     );
+  });
+});
+
+describe("countBusinessDays (ES-5, RN-08)", () => {
+  it.each([
+    ["Mon to Thu", MON, THU, 3],
+    ["same day", MON, MON, 0],
+    ["Tue to the next Mon", TUE, NEXT_MON, 4],
+    ["Mon to Tue", MON, TUE, 1],
+    ["Fri to the next Mon", FRI, NEXT_MON, 1],
+    ["Sat to the next Mon", SAT, NEXT_MON, 0],
+  ])("%s counts E <= d < A", (_label, from, to, expected) => {
+    expect(countBusinessDays(from, to, calendar())).toBe(expected);
+  });
+
+  it("excludes a holiday inside the span", () => {
+    expect(countBusinessDays(MON, THU, calendar([TUE]))).toBe(2);
+  });
+
+  it("counts the escalation day itself when it is a business day", () => {
+    expect(countBusinessDays(WED, THU, calendar())).toBe(1);
+    expect(countBusinessDays(WED, THU, calendar([WED]))).toBe(0);
+  });
+
+  it("is zero when the answer is before the escalation date", () => {
+    expect(countBusinessDays(THU, MON, calendar())).toBe(0);
+  });
+});
+
+describe("addBusinessDays (ES-5, RN-08)", () => {
+  it.each([
+    ["1 from Mon", MON, 1, TUE],
+    ["3 from Mon", MON, 3, THU],
+    ["4 from Tue", TUE, 4, NEXT_MON],
+    ["1 from Fri", FRI, 1, NEXT_MON],
+    ["1 from Sat", SAT, 1, NEXT_MON],
+    ["5 from Mon", MON, 5, NEXT_MON],
+  ])("%s is the P-th business day strictly after", (_l, start, p, due) => {
+    expect(addBusinessDays(start, p, calendar())).toBe(due);
+  });
+
+  it("is the start itself for zero days", () => {
+    expect(addBusinessDays(MON, 0, calendar())).toBe(MON);
+  });
+
+  it("skips a holiday inside the span", () => {
+    expect(addBusinessDays(MON, 2, calendar([TUE]))).toBe(THU);
   });
 });

@@ -17,6 +17,7 @@
     "newRequest": "Nueva solicitud",
     "enrollment": "Inscripción",
     "review": "Revisión de solicitudes",
+    "coordination": "Solicitudes escaladas",
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
     "catalogDocentes": "Docentes",
@@ -57,6 +58,7 @@
       "newRequest": "Presenta una nueva solicitud de justificación.",
       "enrollment": "Declara los grupos en los que estás inscrito.",
       "review": "Revisa las solicitudes de justificación de tu facultad.",
+      "coordination": "Atiende las solicitudes escaladas a la coordinación de tu carrera.",
       "catalogAsignaturas": "Consulta y administra las asignaturas y sus grupos.",
       "catalogDocentes": "Consulta los docentes registrados.",
       "catalogImport": "Carga el catálogo desde un archivo de Excel.",
@@ -770,7 +772,7 @@
         "pending": "Presentando…"
       },
       "consent": {
-        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas. <link>Ver aviso de privacidad</link>",
+        "label": "Acepto que la UAM use los datos de esta solicitud y de mis documentos, incluidos los datos de salud que contengan, solo para tramitarla, que se envíen a los docentes de las asignaturas afectadas y que, si la solicitud se escala, la coordinación de mi carrera pueda consultarlos. <link>Ver aviso de privacidad</link>",
         "newTab": "(se abre en una pestaña nueva)"
       },
       "discard": {
@@ -875,12 +877,100 @@
         "fecha_alterada": "La fecha del documento está alterada",
         "documento_ilegible": "El documento no es legible"
       },
-      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo."
+      "corrected": "Tu corrección fue enviada. La secretaría la revisará de nuevo.",
+      "coordination": "La coordinación de tu carrera está revisando esta solicitud. No necesitas hacer nada por ahora."
     },
     "notFound": {
       "title": "Solicitud no encontrada",
       "message": "No encontramos esa solicitud entre las tuyas.",
       "back": "Volver a mis solicitudes"
+    }
+  },
+  "coordination": {
+    "notFound": {
+      "title": "Solicitud no encontrada",
+      "message": "Esta solicitud no existe o no está disponible para usted.",
+      "back": "Volver a la lista"
+    },
+    "list": {
+      "title": "Solicitudes escaladas",
+      "description": "Solicitudes que la secretaría escaló a la coordinación de su carrera y avisos informativos de la secretaría.",
+      "unnamed": "Estudiante sin nombre",
+      "noAccess": {
+        "title": "No puede atender solicitudes con esta cuenta",
+        "message": "Su cuenta no tiene una carrera asignada o no está activa. Solicite al administrador que la revise."
+      },
+      "result": {
+        "respondida": "La respuesta quedó registrada y la solicitud volvió a la secretaría."
+      },
+      "open": {
+        "title": "Pendientes de respuesta",
+        "empty": "No hay solicitudes escaladas pendientes de respuesta en su carrera.",
+        "caption": "Solicitudes escaladas pendientes de respuesta",
+        "escalated": "Escalada el {date}",
+        "attend": "Atender",
+        "attendNamed": "Atender la solicitud de {name}"
+      },
+      "notices": {
+        "title": "Avisos informativos",
+        "empty": "No hay avisos para su carrera.",
+        "caption": "Avisos informativos de la secretaría",
+        "teacher": "Docente: {name}",
+        "communicated": "Comunicado el {date}",
+        "view": "Ver aviso",
+        "viewNamed": "Ver el aviso de {name}"
+      }
+    },
+    "detail": {
+      "title": "Solicitud de {name}",
+      "description": "Revise los documentos y responda a la secretaría. La decisión sobre la solicitud la toma la secretaría.",
+      "noticeDescription": "Aviso informativo de la secretaría. No requiere respuesta.",
+      "back": "Volver a la lista",
+      "unnamed": "Estudiante sin nombre",
+      "notSet": "Sin dato",
+      "noNote": "Sin nota",
+      "period": "{start} al {end}",
+      "sections": {
+        "student": "Estudiante",
+        "request": "Solicitud",
+        "escalation": "Escalamiento",
+        "notice": "Aviso",
+        "answer": "Respuesta a la secretaría"
+      },
+      "fields": {
+        "name": "Nombre",
+        "cif": "CIF",
+        "career": "Carrera",
+        "cause": "Causa",
+        "period": "Fechas de la inasistencia",
+        "reason": "Motivo",
+        "note": "Nota de la secretaría",
+        "escalated": "Escalada",
+        "teacher": "Docente",
+        "communicated": "Fecha comunicada por el docente",
+        "reportNote": "Nota del aviso"
+      }
+    },
+    "answer": {
+      "dialog": {
+        "trigger": "Responder a la secretaría",
+        "title": "¿Enviar esta respuesta a la secretaría?",
+        "description": "La solicitud vuelve a la secretaría, que decidirá sobre ella. La respuesta no se puede modificar después.",
+        "noteLabel": "Respuesta para la secretaría",
+        "noteHint": "Indique su valoración de los documentos. Solo la ven la secretaría y la coordinación de la carrera.",
+        "counter": "{count} de 1000",
+        "confirm": "Enviar respuesta",
+        "pending": "Enviando...",
+        "cancel": "Cancelar",
+        "backToQueue": "Volver a la lista"
+      },
+      "errors": {
+        "texto_required": "Escriba la respuesta para la secretaría.",
+        "texto_too_long": "La respuesta no puede superar los 1000 caracteres.",
+        "conflict": "Esta solicitud ya fue respondida. Vuelva a la lista para ver las pendientes.",
+        "not_found": "Esta solicitud ya no está disponible para usted.",
+        "unexpected": "No se pudo enviar la respuesta. Inténtelo de nuevo."
+      }
     }
   },
   "enrollment": {
@@ -947,6 +1037,33 @@
       "title": "Cola de revisión",
       "description": "Solicitudes pendientes de su facultad, de la más antigua a la más reciente.",
       "caption": "Solicitudes pendientes",
+      "tabs": {
+        "label": "Estado de las solicitudes",
+        "pendiente": "Pendientes",
+        "en_revision_coordinacion": "En coordinación",
+        "aprobada": "Aprobadas"
+      },
+      "coordination": {
+        "description": "Solicitudes escaladas a la coordinación de la carrera, de la más antigua a la más reciente.",
+        "caption": "Solicitudes en coordinación",
+        "empty": "No hay solicitudes en coordinación en su facultad.",
+        "columns": {
+          "escalated": "Escalada",
+          "reason": "Motivo",
+          "notice": "Aviso a coordinación"
+        }
+      },
+      "approved": {
+        "description": "Solicitudes aprobadas de su facultad, de la más reciente a la más antigua.",
+        "caption": "Solicitudes aprobadas",
+        "empty": "No hay solicitudes aprobadas en su facultad.",
+        "latest": "Se muestran las 50 solicitudes aprobadas más recientes.",
+        "columns": {
+          "approved": "Aprobada",
+          "reports": "Reportes de inasistencias"
+        },
+        "reportsCount": "{count, plural, =0 {Sin reportes} one {# reporte} other {# reportes}}"
+      },
       "columns": {
         "received": "Recibida",
         "student": "Estudiante",
@@ -962,7 +1079,8 @@
         "onTime": "En plazo",
         "dueSoon": "Vence en 1 día hábil o menos",
         "overdue": "Vencida",
-        "due": "Vence el {date}"
+        "due": "Vence el {date}",
+        "paused": "Plazo en pausa"
       },
       "review": "Revisar",
       "reviewNamed": "Revisar la solicitud de {name}",
@@ -975,7 +1093,116 @@
       "result": {
         "aprobada": "La solicitud fue aprobada.",
         "rechazada": "La solicitud fue rechazada.",
-        "devuelta": "La solicitud fue devuelta al estudiante para su corrección."
+        "devuelta": "La solicitud fue devuelta al estudiante para su corrección.",
+        "escalada": "La solicitud fue escalada a la coordinación de la carrera."
+      }
+    },
+    "escalation": {
+      "reasons": {
+        "sospecha_documento": "Sospecha sobre un documento",
+        "caso_especial": "Caso especial",
+        "exceso_inasistencias": "Exceso de inasistencias"
+      },
+      "notification": {
+        "pendiente": "Envío pendiente",
+        "pendienteFallido": "Envío pendiente: el último intento falló",
+        "enviada": "Enviado el {date}",
+        "bloqueada": "Sin destinatario de coordinación para la carrera",
+        "respondida": "No se enviará: la coordinación ya respondió"
+      },
+      "section": {
+        "title": "Escalamientos a coordinación",
+        "fields": {
+          "reason": "Motivo",
+          "note": "Nota de la secretaría",
+          "escalated": "Escalada",
+          "answer": "Respuesta de coordinación",
+          "notice": "Aviso a coordinación"
+        },
+        "escalatedBy": "{name}, {date}",
+        "answeredBy": "{name}, {date}",
+        "waiting": "En espera de la respuesta de coordinación. Mientras tanto no se puede aprobar, rechazar ni devolver la solicitud."
+      },
+      "dialog": {
+        "trigger": "Escalar a coordinación",
+        "title": "¿Escalar esta solicitud a coordinación?",
+        "description": "La solicitud pasa a revisión de la coordinación de la carrera y no se puede aprobar, rechazar ni devolver hasta que coordinación responda. Coordinación recibe un aviso por correo.",
+        "motivoLabel": "Motivo del escalamiento",
+        "motivo": {
+          "sospecha_documento": "Sospecha sobre un documento",
+          "caso_especial": "Caso especial (fuera de las causas del reglamento)"
+        },
+        "noteLabel": "Nota para coordinación",
+        "noteHint": "Explique por qué escala la solicitud a coordinación. Solo la ve el personal.",
+        "counter": "{count} de 1000",
+        "confirm": "Escalar solicitud",
+        "pending": "Escalando...",
+        "cancel": "Cancelar",
+        "backToQueue": "Volver a la cola"
+      },
+      "errors": {
+        "nota_required": "Escriba la nota para coordinación.",
+        "nota_too_long": "La nota no puede superar los 1000 caracteres.",
+        "motivo_invalid": "Seleccione el motivo del escalamiento.",
+        "conflict": "Esta solicitud ya no está pendiente. Vuelva a la cola para ver su estado.",
+        "not_found": "Esta solicitud ya no está disponible para usted.",
+        "unexpected": "No se pudo escalar la solicitud. Inténtelo de nuevo.",
+        "sin_coordinacion": "{carrera} no tiene coordinación registrada; solicite al administrador que cree la cuenta."
+      },
+      "resend": {
+        "action": "Reenviar",
+        "actionNamed": "Reenviar el aviso a coordinación: {name}",
+        "pending": "Reenviando...",
+        "result": {
+          "enviada": "El aviso se envió a coordinación.",
+          "pendiente": "No se pudo enviar. Queda pendiente y se reintentará.",
+          "bloqueada": "El aviso sigue bloqueado: la carrera no tiene un destinatario de coordinación con correo. Recargue la página para ver el estado.",
+          "en_curso": "Ya hay un envío en curso; actualice la página en unos segundos.",
+          "sin_correo": "La cuenta de coordinación de la carrera no tiene correo registrado; solicite al administrador que lo agregue.",
+          "sin_configurar": "El envío de correo aún no está configurado. El aviso queda pendiente y se enviará cuando lo esté.",
+          "respondida": "La coordinación ya respondió este escalamiento; el aviso no se enviará."
+        },
+        "errors": {
+          "not_found": "Este aviso ya no está disponible para usted.",
+          "unexpected": "No se pudo reenviar. Inténtelo de nuevo."
+        }
+      }
+    },
+    "report": {
+      "section": {
+        "title": "Reportes de inasistencias",
+        "empty": "Todavía no se registró ningún reporte.",
+        "noTeachers": "Esta solicitud no tiene docentes con aviso registrado, por lo que no se puede registrar un reporte."
+      },
+      "entry": {
+        "communicated": "Comunicado por el docente el {date}",
+        "recordedBy": "Registrado por {name}, {date}",
+        "note": "Nota"
+      },
+      "dialog": {
+        "trigger": "Registrar reporte de inasistencias",
+        "title": "¿Registrar este reporte de inasistencias?",
+        "description": "El reporte queda en el expediente y no se puede modificar ni eliminar. Coordinación de la carrera recibe un aviso por correo. La solicitud sigue aprobada.",
+        "teacherLabel": "Docente",
+        "teacherPlaceholder": "Seleccione un docente",
+        "dateLabel": "Fecha en que el docente lo comunicó",
+        "noteLabel": "Nota (opcional)",
+        "noteHint": "Solo la ve el personal.",
+        "counter": "{count} de 1000",
+        "confirm": "Registrar reporte",
+        "pending": "Registrando...",
+        "cancel": "Cancelar",
+        "backToQueue": "Volver a la cola"
+      },
+      "errors": {
+        "date_invalid": "Indique la fecha en que el docente lo comunicó.",
+        "date_future": "La fecha no puede ser posterior a hoy.",
+        "docente_invalid": "Seleccione uno de los docentes de esta solicitud.",
+        "nota_blank": "La nota no puede contener solo espacios.",
+        "nota_too_long": "La nota no puede superar los 1000 caracteres.",
+        "conflict": "Esta solicitud ya no está aprobada. Vuelva a la cola para ver su estado.",
+        "not_found": "Esta solicitud ya no está disponible para usted.",
+        "unexpected": "No se pudo registrar el reporte. Inténtelo de nuevo."
       }
     },
     "decision": {
@@ -1219,7 +1446,7 @@
     },
     "recipients": {
       "title": "Destinatarios",
-      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud."
+      "body": "Los datos de la solicitud y los documentos que adjuntas se envían por correo institucional a los docentes de las asignaturas que nombra tu solicitud. Si la solicitud se escala, la coordinación de tu carrera recibe un aviso mínimo por correo electrónico y consulta la solicitud y sus documentos dentro del sistema."
     },
     "data": {
       "title": "Datos que se tratan",
