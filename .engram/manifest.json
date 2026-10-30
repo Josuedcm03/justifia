@@ -744,6 +744,14 @@
       "sessions": 1,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "22c3814f",
+      "created_by": "Arnia",
+      "created_at": "2026-10-30T17:10:11Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }

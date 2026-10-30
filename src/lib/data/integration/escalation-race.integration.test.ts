@@ -42,6 +42,9 @@ if (gate.mode === "refuse") {
 }
 
 const ROUNDS = 8;
+// Each round builds a request and runs two transactions over the network; on a
+// remote branch eight rounds outlast the 60 s default (phase 14 run, 2026-10-30).
+const RACE_TIMEOUT_MS = 300_000;
 const DETAILS = {
   causa: "medica",
   fechaInicio: "2026-10-01",
@@ -92,72 +95,76 @@ describe.skipIf(gate.mode !== "run")(
       return draftId;
     }
 
-    it(`leaves one winner and a consistent state in each of ${ROUNDS} races`, async () => {
-      for (let round = 0; round < ROUNDS; round++) {
-        const requestId = await pendingRequest();
-        const now = new Date();
+    it(
+      `leaves one winner and a consistent state in each of ${ROUNDS} races`,
+      async () => {
+        for (let round = 0; round < ROUNDS; round++) {
+          const requestId = await pendingRequest();
+          const now = new Date();
 
-        const [escalation, approval] = await Promise.all([
-          escalateRequest({
-            actorId: secretariaId,
-            scope,
-            solicitudId: requestId,
-            nota: NOTE,
-            now,
-          }),
-          decideRequest({
-            actorId: secretariaId,
-            scope,
-            solicitudId: requestId,
-            decision: APPROVE,
-            now,
-          }),
-        ]);
-
-        // Exactly one of the two writes won; the other one reports a conflict.
-        expect([escalation.ok, approval.ok].filter(Boolean)).toHaveLength(1);
-
-        const [row] = await db
-          .select({ estado: solicitud.estado })
-          .from(solicitud)
-          .where(eq(solicitud.id, requestId));
-        const escalations = await db
-          .select({ id: escalamiento.id, tipo: escalamiento.tipo })
-          .from(escalamiento)
-          .where(eq(escalamiento.solicitudId, requestId));
-        const decisions = await db
-          .select({ tipo: solicitudDecision.tipo })
-          .from(solicitudDecision)
-          .where(eq(solicitudDecision.solicitudId, requestId));
-        const audits = await db
-          .select({ accion: eventoAuditoria.accion })
-          .from(eventoAuditoria)
-          .where(
-            and(
-              eq(eventoAuditoria.entidadId, requestId),
-              inArray(eventoAuditoria.accion, [
-                "solicitud.escalada",
-                "solicitud.aprobada",
-              ]),
-            ),
-          );
-
-        if (escalation.ok) {
-          expect(approval).toEqual({ ok: false, reason: "conflict" });
-          expect(row.estado).toBe("en_revision_coordinacion");
-          expect(escalations).toEqual([
-            { id: escalation.escalamientoId, tipo: "sospecha_documento" },
+          const [escalation, approval] = await Promise.all([
+            escalateRequest({
+              actorId: secretariaId,
+              scope,
+              solicitudId: requestId,
+              nota: NOTE,
+              now,
+            }),
+            decideRequest({
+              actorId: secretariaId,
+              scope,
+              solicitudId: requestId,
+              decision: APPROVE,
+              now,
+            }),
           ]);
-          expect(decisions).toEqual([]);
-          expect(audits).toEqual([{ accion: "solicitud.escalada" }]);
-        } else {
-          expect(escalation).toEqual({ ok: false, reason: "conflict" });
-          expect(row.estado).toBe("aprobada");
-          expect(escalations).toEqual([]);
-          expect(decisions).toEqual([{ tipo: "aprobada" }]);
-          expect(audits).toEqual([{ accion: "solicitud.aprobada" }]);
+
+          // Exactly one of the two writes won; the other one reports a conflict.
+          expect([escalation.ok, approval.ok].filter(Boolean)).toHaveLength(1);
+
+          const [row] = await db
+            .select({ estado: solicitud.estado })
+            .from(solicitud)
+            .where(eq(solicitud.id, requestId));
+          const escalations = await db
+            .select({ id: escalamiento.id, tipo: escalamiento.tipo })
+            .from(escalamiento)
+            .where(eq(escalamiento.solicitudId, requestId));
+          const decisions = await db
+            .select({ tipo: solicitudDecision.tipo })
+            .from(solicitudDecision)
+            .where(eq(solicitudDecision.solicitudId, requestId));
+          const audits = await db
+            .select({ accion: eventoAuditoria.accion })
+            .from(eventoAuditoria)
+            .where(
+              and(
+                eq(eventoAuditoria.entidadId, requestId),
+                inArray(eventoAuditoria.accion, [
+                  "solicitud.escalada",
+                  "solicitud.aprobada",
+                ]),
+              ),
+            );
+
+          if (escalation.ok) {
+            expect(approval).toEqual({ ok: false, reason: "conflict" });
+            expect(row.estado).toBe("en_revision_coordinacion");
+            expect(escalations).toEqual([
+              { id: escalation.escalamientoId, tipo: "sospecha_documento" },
+            ]);
+            expect(decisions).toEqual([]);
+            expect(audits).toEqual([{ accion: "solicitud.escalada" }]);
+          } else {
+            expect(escalation).toEqual({ ok: false, reason: "conflict" });
+            expect(row.estado).toBe("aprobada");
+            expect(escalations).toEqual([]);
+            expect(decisions).toEqual([{ tipo: "aprobada" }]);
+            expect(audits).toEqual([{ accion: "solicitud.aprobada" }]);
+          }
         }
-      }
-    });
+      },
+      RACE_TIMEOUT_MS,
+    );
   },
 );
