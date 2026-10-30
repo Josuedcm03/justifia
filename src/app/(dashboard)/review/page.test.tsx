@@ -492,6 +492,7 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
           coordinationRow({
             id: 22,
             estudianteNombre: "Ana Lopez",
+            motivo: "caso_especial",
             notificacionEstado: "bloqueada",
             notificacionMotivo: "sin_destinatarios",
           }),
@@ -548,9 +549,7 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
       ).toEqual([
         en.coordination.columns.escalated,
         en.columns.student,
-        en.columns.career,
         en.coordination.columns.reason,
-        en.coordination.columns.status,
         en.coordination.columns.notice,
         en.columns.action,
       ]);
@@ -558,8 +557,13 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
       expect(rows).toHaveLength(4);
       expect(rows[0]).toHaveTextContent("Oct 13, 2026");
       expect(rows[0]).toHaveTextContent("Luis Mora");
+      // The career sits under the student: the table has no column for it.
+      expect(rows[0]).toHaveTextContent("Ingenieria Civil");
       expect(rows[0]).toHaveTextContent(
         messages.en.review.escalation.reasons.sospecha_documento,
+      );
+      expect(rows[1]).toHaveTextContent(
+        messages.en.review.escalation.reasons.caso_especial,
       );
       expect(rows[0]).toHaveTextContent(en.deadline.paused);
       const notice = messages.en.review.escalation.notification;

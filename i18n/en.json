@@ -1050,7 +1050,6 @@
         "columns": {
           "escalated": "Escalated",
           "reason": "Reason",
-          "status": "Deadline",
           "notice": "Coordination notice"
         }
       },
@@ -1081,7 +1080,7 @@
         "dueSoon": "Due within 1 business day",
         "overdue": "Overdue",
         "due": "Due {date}",
-        "paused": "Paused"
+        "paused": "Deadline paused"
       },
       "review": "Review",
       "reviewNamed": "Review request from {name}",

@@ -226,7 +226,6 @@ describe("review messages", () => {
         q.coordination.empty,
         q.coordination.columns.escalated,
         q.coordination.columns.reason,
-        q.coordination.columns.status,
         q.coordination.columns.notice,
         q.approved.description,
         q.approved.caption,

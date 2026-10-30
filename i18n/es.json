@@ -1050,7 +1050,6 @@
         "columns": {
           "escalated": "Escalada",
           "reason": "Motivo",
-          "status": "Plazo",
           "notice": "Aviso a coordinación"
         }
       },
@@ -1081,7 +1080,7 @@
         "dueSoon": "Vence en 1 día hábil o menos",
         "overdue": "Vencida",
         "due": "Vence el {date}",
-        "paused": "En pausa"
+        "paused": "Plazo en pausa"
       },
       "review": "Revisar",
       "reviewNamed": "Revisar la solicitud de {name}",
