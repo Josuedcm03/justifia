@@ -38,6 +38,11 @@ const envSchema = z.object({
   // (escalation ES-10). No platform-URL fallback: a preview host would be the
   // wrong one. Unset leaves the notice `pendiente` (`not_configured`).
   APP_BASE_URL: z.preprocess(unsetWhenEmpty, baseUrl.optional()),
+  // Document extraction (document-extraction DE-12). Optional so builds and
+  // tests need no model server; `resolveExtractionConfig` judges the address at
+  // use, and an unset one means "not configured", never a boot failure.
+  EXTRACTION_API_URL: optionalSecret(1),
+  EXTRACTION_API_KEY: optionalSecret(16),
 });
 
 export const env = envSchema.parse(process.env);

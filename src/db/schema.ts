@@ -19,6 +19,12 @@ import {
 
 import { effectiveClockStart } from "@/db/clock-start";
 import type { GrupoOrigen } from "@/lib/catalog/origen";
+import {
+  EXTRACTION_ERRORS,
+  EXTRACTION_STATES,
+  type ExtractionError,
+  type ExtractionState,
+} from "@/lib/extraction/states";
 import { CAUSAS } from "@/lib/intake/causes";
 import { DECISION_KINDS } from "@/lib/intake/decision-templates";
 import {
@@ -771,3 +777,89 @@ export const escalamiento = pgTable(
 
 export type Escalamiento = typeof escalamiento.$inferSelect;
 export type NuevoEscalamiento = typeof escalamiento.$inferInsert;
+
+/**
+ * ExtraccionDocumento — what the model server read from one supporting
+ * document (document-extraction, DE-2): the validated name, issuer, issue date
+ * and rest period, plus the control data of a state machine with a claim and a
+ * lease (as `Remision`). Not append-only, so every write goes through
+ * `src/lib/data/extraction.ts` (pinned by a structural test). It holds no
+ * document text, no raw model answer, no confidence and no name-match value
+ * (RNF-04). The row follows its document on delete, so extracted data never
+ * outlives the document; extraction writes no audit row (no human actor).
+ */
+export const extraccionDocumento = pgTable(
+  "ExtraccionDocumento",
+  {
+    documentoId: bigint("DocumentoId", { mode: "number" })
+      .primaryKey()
+      .references(() => documentoRespaldo.id, { onDelete: "cascade" }),
+    estado: varchar("Estado", { length: 12 })
+      .$type<ExtractionState>()
+      .notNull()
+      .default("pendiente"),
+    intentos: smallint("Intentos").notNull().default(0),
+    errorCodigo: varchar("ErrorCodigo", {
+      length: 30,
+    }).$type<ExtractionError>(),
+    reclamoId: uuid("ReclamoId"),
+    reclamadaEn: timestamp("ReclamadaEn", { withTimezone: true }),
+    nombreEstudiante: varchar("NombreEstudiante", { length: 160 }),
+    emisor: varchar("Emisor", { length: 200 }),
+    fechaEmision: date("FechaEmision", { mode: "string" }),
+    reposoDesde: date("ReposoDesde", { mode: "string" }),
+    reposoHasta: date("ReposoHasta", { mode: "string" }),
+    reposoDias: smallint("ReposoDias"),
+    motor: varchar("Motor", { length: 40 }),
+    // Time of the terminal outcome (`completada` or `fallida`).
+    procesadoEn: timestamp("ProcesadoEn", { withTimezone: true }),
+    creadaEn: timestamp("CreadaEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    actualizadaEn: timestamp("ActualizadaEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "CK_Extraccion_Estado",
+      sql`${t.estado} IN (${inList(EXTRACTION_STATES)})`,
+    ),
+    check(
+      "CK_Extraccion_Error",
+      sql`${t.errorCodigo} IS NULL OR ${t.errorCodigo} IN (${inList(EXTRACTION_ERRORS)})`,
+    ),
+    check(
+      "CK_Extraccion_Reclamo",
+      sql`(${t.reclamoId} IS NULL) = (${t.reclamadaEn} IS NULL)`,
+    ),
+    check(
+      "CK_Extraccion_Procesando",
+      sql`(${t.estado} = 'procesando') = (${t.reclamoId} IS NOT NULL)`,
+    ),
+    check(
+      "CK_Extraccion_Fallida",
+      sql`${t.estado} <> 'fallida' OR ${t.errorCodigo} IS NOT NULL`,
+    ),
+    check(
+      "CK_Extraccion_Completada",
+      sql`${t.estado} <> 'completada' OR (${t.errorCodigo} IS NULL AND ${t.procesadoEn} IS NOT NULL AND ${t.motor} IS NOT NULL)`,
+    ),
+    check(
+      "CK_Extraccion_Datos",
+      sql`${t.estado} = 'completada' OR (${t.nombreEstudiante} IS NULL AND ${t.emisor} IS NULL AND ${t.fechaEmision} IS NULL AND ${t.reposoDesde} IS NULL AND ${t.reposoHasta} IS NULL AND ${t.reposoDias} IS NULL)`,
+    ),
+    check(
+      "CK_Extraccion_Reposo",
+      sql`(${t.reposoDias} IS NULL OR ${t.reposoDias} > 0) AND (${t.reposoHasta} IS NULL OR ${t.reposoDesde} IS NULL OR ${t.reposoHasta} >= ${t.reposoDesde})`,
+    ),
+    check("CK_Extraccion_Intentos", sql`${t.intentos} >= 0`),
+    // The sweep and the registration read the open rows oldest first.
+    index("IX_Extraccion_Abierta")
+      .on(t.creadaEn)
+      .where(sql`${t.estado} IN ('pendiente', 'procesando')`),
+  ],
+);
+
+export type ExtraccionDocumento = typeof extraccionDocumento.$inferSelect;
+export type NuevaExtraccionDocumento = typeof extraccionDocumento.$inferInsert;

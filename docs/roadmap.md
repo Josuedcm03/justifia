@@ -10,7 +10,7 @@ remiten a ese archivo.
 | 1   | `justification-intake` | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23 | Armando     | Sí                   | archivado |
 | 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Armando     | Sí                   | archivado |
 | 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | archivado |
-| 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | pendiente |
+| 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | archivado |
 | 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
 | 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
 | 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
@@ -59,6 +59,22 @@ remiten a ese archivo.
   llegue a `main`, `document-extraction` debe regenerar su migración como `0011`
   (la `0010` la ocupa `request-consent`; no numerar a mano) y rebasar sobre
   `submitRequestAction(input: unknown)` y `SubmitInput.consentimientoVersion`.
+  Cumplido: la migración quedó como `0011_document_extraction`.
+- `document-extraction` (archivado el 2026-10-28) lee con el modelo NuExtract3
+  los documentos de respaldo de cada solicitud presentada o corregida, y del
+  barrido diario, y muestra a la secretaría el nombre, el emisor, la fecha de
+  emisión y el reposo extraídos (RF-11). Los datos son una ayuda y no cambian
+  la solicitud. La migración `0011` ya está aplicada en producción. Orden de
+  puesta en marcha: migrar, desplegar sin `EXTRACTION_API_URL` (la secretaría
+  ve el aviso de configuración y nada se pierde) y definir la variable cuando
+  el servidor del modelo esté desplegado; el despliegue de ese servidor (GPU
+  serverless) queda fuera de alcance. `MAX_IMAGE_TOKENS` (6144) está atado al
+  contexto de 8192 tokens del servidor (`-c 8192`): si se cambia el servidor,
+  revisar ese límite, porque una solicitud que no entra agota los 3 intentos.
+  Los documentos que terminan `fallida` no tienen carga manual: la agrega
+  `validation-signals`. Nota para el equipo (`escalation`): su migración
+  también es `0011`; debe regenerarla con el número siguiente (no numerar a
+  mano).
 - `secretary-templates` se planifica después del piloto. `secretary-review`
   entrega las plantillas de mensaje de cada decisión (aprobación, rechazo y
   devolución por cada motivo de RN-17) como constantes del sistema; la

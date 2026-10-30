@@ -6,6 +6,7 @@ import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-rep
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
 import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
+import { ExtractionSection } from "@/app/(dashboard)/review/[id]/extraction-section";
 import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
 import {
   ChangesSection,
@@ -20,6 +21,7 @@ import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesRevisores } from "@/lib/auth/permissions";
+import { listExtractions, type ExtractionList } from "@/lib/data/extraction";
 import { listRemissions } from "@/lib/data/remision";
 import { recordRequestRead } from "@/lib/data/request-reads";
 import { resolveRequestScope } from "@/lib/data/request-scope";
@@ -29,6 +31,7 @@ import {
   type DetailRevision,
   type RequestDetail,
 } from "@/lib/data/solicitud-detail";
+import { isExtractionConfigured } from "@/lib/extraction/configured";
 import { deadlineStatus } from "@/lib/intake/business-days";
 import { calendar } from "@/lib/intake/calendar";
 import { isCausa } from "@/lib/intake/causes";
@@ -89,6 +92,24 @@ function changesSinceReturn(detail: RequestDetail): RevisionDiff | null {
 }
 
 /**
+ * The extracted-data read is fail-soft (RF-11): `listExtractions` already turns
+ * a failed query into a degraded result, and this guard keeps even an
+ * unexpected throw from taking the rest of the detail down. Only the error name
+ * is logged (RNF-04).
+ */
+async function loadExtractions(solicitudId: number): Promise<ExtractionList> {
+  try {
+    return await listExtractions(solicitudId);
+  } catch (error) {
+    console.error("extraction_read_failed", {
+      solicitudId,
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return { data: [], degraded: true };
+  }
+}
+
+/**
  * The staff detail (RF-06, RF-08 b, RNF-01). The audited read is written here,
  * in the page body, after authorisation and after the data loaded and every
  * derived value was built, before the JSX is returned (SR-11). An id the caller
@@ -146,6 +167,9 @@ export default async function ReviewDetailPage({
       : (accounts?.carreraNombre ??
         detail.estudiante.carrera ??
         t("detail.notSet"));
+  // The extracted data is read with the rest, before the single audited read;
+  // showing it writes no audit row of its own (RF-11, RNF-06).
+  const extractions = await loadExtractions(detail.id);
 
   await recordRequestRead(actorId, detail.id, detail.estado);
 
@@ -217,6 +241,11 @@ export default async function ReviewDetailPage({
         />
         <SubjectsSection classes={detail.clases} />
         <DocumentsSection documents={detail.documentos} />
+        <ExtractionSection
+          extractions={extractions}
+          requestState={detail.estado}
+          configured={isExtractionConfigured()}
+        />
         {remissions ? (
           <RemissionSection
             remissions={remissions}

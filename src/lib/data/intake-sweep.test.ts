@@ -1,4 +1,8 @@
 // @vitest-environment node
+import { readFileSync } from "node:fs";
+import nodePath from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -97,6 +101,8 @@ describe("runIntakeSweep: expired drafts (D8)", () => {
       draftsDeleted: 2,
       pendingDocumentsDeleted: 0,
       orphanBlobsDeleted: 0,
+      extractionsRun: 0,
+      extractionsAbandoned: 0,
       failures: 0,
     });
     expect(store.has(path(1, 1))).toBe(false);
@@ -411,11 +417,189 @@ describe("runIntakeSweep: returned requests and retired documents (SR-14, RF-08 
       draftsDeleted: 0,
       pendingDocumentsDeleted: 0,
       orphanBlobsDeleted: 0,
+      extractionsRun: 0,
+      extractionsAbandoned: 0,
       failures: 0,
     });
     expect(store.has(RETIRED)).toBe(true);
     expect(double.log.filter((s) => s.kind === "delete")).toHaveLength(0);
     // The file was old enough to be an orphan; only its record protects it.
     expect(JSON.stringify(query(double.log[2]).params)).toContain(RETIRED);
+  });
+});
+
+describe("runIntakeSweep: extraction step (DE-11, RF-11)", () => {
+  const REPORT = { run: 4, abandoned: 2, failures: 0 };
+  /** DE-7: the invocation started at NOW and ends 275 s later. */
+  const DEADLINE = new Date(NOW.getTime() + 275_000);
+
+  function step(
+    sweep: (now: Date, deadline: Date) => Promise<typeof REPORT> = async () =>
+      REPORT,
+  ) {
+    return { sweep: vi.fn(sweep) };
+  }
+
+  it("runs once with the sweep clock and the invocation deadline", async () => {
+    use([...NONE]);
+    const extraction = step();
+
+    await runIntakeSweep(NOW, createFakeDocumentStore(), extraction);
+
+    expect(extraction.sweep).toHaveBeenCalledTimes(1);
+    expect(extraction.sweep).toHaveBeenCalledWith(NOW, DEADLINE);
+  });
+
+  it("runs after the three cleanup steps, never before", async () => {
+    const order: string[] = [];
+    const store = createFakeDocumentStore();
+    const list = store.list.bind(store);
+    store.list = async (...args) => {
+      order.push("orphans");
+      return list(...args);
+    };
+    const double = use([...NONE]);
+    const extraction = step(async () => {
+      order.push(`extraction after ${double.log.length} statements`);
+      return REPORT;
+    });
+
+    await runIntakeSweep(NOW, store, extraction);
+
+    expect(order).toEqual(["orphans", "extraction after 2 statements"]);
+  });
+
+  it("reports the documents run and the leases abandoned, and adds the step's failures", async () => {
+    use([...NONE]);
+
+    const counts = await runIntakeSweep(
+      NOW,
+      createFakeDocumentStore(),
+      step(async () => ({ run: 4, abandoned: 2, failures: 3 })),
+    );
+
+    expect(counts).toEqual({
+      draftsDeleted: 0,
+      pendingDocumentsDeleted: 0,
+      orphanBlobsDeleted: 0,
+      extractionsRun: 4,
+      extractionsAbandoned: 2,
+      failures: 3,
+    });
+  });
+
+  it("keeps the cleanup failures and the step's failures together", async () => {
+    const store = createFakeDocumentStore();
+    store.seed(path(1, 1), [1]);
+    store.delete = async () => {
+      throw new Error("blob down");
+    };
+    use([
+      { kind: "select", rows: [{ id: 1 }] },
+      ...purge([path(1, 1)]),
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
+
+    const counts = await runIntakeSweep(
+      NOW,
+      store,
+      step(async () => ({ run: 1, abandoned: 0, failures: 2 })),
+    );
+
+    expect(counts).toMatchObject({
+      draftsDeleted: 1,
+      extractionsRun: 1,
+      failures: 3,
+    });
+  });
+
+  it("a throwing step still leaves the cleanup done and counts one failure (spec: Extraction failure does not stop cleanup)", async () => {
+    const store = createFakeDocumentStore();
+    store.seed(path(1, 1), [1]);
+    use([
+      { kind: "select", rows: [{ id: 1 }] },
+      ...purge([path(1, 1)]),
+      { kind: "select", rows: [] },
+    ]);
+
+    const counts = await runIntakeSweep(
+      NOW,
+      store,
+      step(async () => {
+        throw new Error("model server down: postgres://u:p@host/db");
+      }),
+    );
+
+    expect(counts).toEqual({
+      draftsDeleted: 1,
+      pendingDocumentsDeleted: 0,
+      orphanBlobsDeleted: 0,
+      extractionsRun: 0,
+      extractionsAbandoned: 0,
+      failures: 1,
+    });
+    expect(store.has(path(1, 1))).toBe(false);
+  });
+
+  it("without an extraction step nothing is run and both counts are zero", async () => {
+    use([...NONE]);
+
+    const counts = await runIntakeSweep(NOW, createFakeDocumentStore());
+
+    expect(counts).toMatchObject({
+      extractionsRun: 0,
+      extractionsAbandoned: 0,
+    });
+  });
+
+  it("deletes and modifies nothing on behalf of the step, and writes no audit row", async () => {
+    const double = use([...NONE]);
+
+    await runIntakeSweep(NOW, createFakeDocumentStore(), step());
+
+    // Only the two cleanup selects ran: no delete, update or insert.
+    expect(double.log.map((s) => s.kind)).toEqual(["select", "select"]);
+    expect(double.exhausted).toBe(true);
+    expect(insertAuditMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a pendiente request older than 30 days and its documents alone", async () => {
+    const store = createFakeDocumentStore();
+    store.seed(path(40, 1), [1], hoursAgo(40 * 24));
+    const double = use([
+      ...NONE,
+      { kind: "select", rows: [{ pathname: path(40, 1) }] },
+    ]);
+
+    const counts = await runIntakeSweep(NOW, store, step());
+
+    expect(double.log.filter((s) => s.kind === "delete")).toHaveLength(0);
+    expect(store.has(path(40, 1))).toBe(true);
+    expect(counts).toMatchObject({
+      draftsDeleted: 0,
+      pendingDocumentsDeleted: 0,
+      orphanBlobsDeleted: 0,
+    });
+  });
+});
+
+describe("intake-sweep.ts: no adapter (DE-11)", () => {
+  it("imports from the extraction slice only its pure limits", () => {
+    const source = readFileSync(
+      nodePath.join(
+        nodePath.dirname(fileURLToPath(import.meta.url)),
+        "intake-sweep.ts",
+      ),
+      "utf8",
+    );
+
+    const specifiers = [...source.matchAll(/from\s+["']([^"']+)["']/g)].map(
+      (match) => match[1],
+    );
+    expect(specifiers.length).toBeGreaterThan(5);
+    expect(specifiers.filter((s) => /extraction/.test(s)).sort()).toEqual([
+      "@/lib/extraction/limits",
+    ]);
   });
 });

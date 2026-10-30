@@ -8,6 +8,7 @@ import {
   remove,
   saveDetails,
   saveSubjects,
+  scheduleExtraction,
   submissionErrors,
 } from "@/app/(dashboard)/requests/new/step-actions";
 import { draftRange } from "@/app/(dashboard)/requests/new/steps";
@@ -33,7 +34,8 @@ import {
 // student identity from the session only, and finds the draft through it: no
 // action receives a draft id, so another student's draft cannot even be named.
 // Draft operations write no audit row (D14); the submit audits inside its own
-// transaction (see `submitDraft`).
+// transaction (see `submitDraft`). Once that transaction commits, the request
+// is handed to document extraction (DE-5); the hand-off never fails the submit.
 
 const FLOW_PATH = "/requests/new";
 const CONFIRMATION_PATH = "/requests/new/confirmation";
@@ -135,5 +137,6 @@ export async function submitRequestAction(
       outcome.reason === "conflict" ? "submit_conflict" : "profile_incomplete",
     );
   }
+  await scheduleExtraction(draft.id, now);
   redirect(CONFIRMATION_PATH);
 }

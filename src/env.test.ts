@@ -126,3 +126,55 @@ describe("env APP_BASE_URL (escalation ES-10)", () => {
     await expect(loadEnv({ APP_BASE_URL: value })).rejects.toThrow();
   });
 });
+
+describe("env extraction settings (document-extraction DE-12)", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("exposes EXTRACTION_API_URL and EXTRACTION_API_KEY when set", async () => {
+    const env = await loadEnv({
+      EXTRACTION_API_URL: "https://model.example.test",
+      EXTRACTION_API_KEY: "k".repeat(16),
+    });
+    expect(env.EXTRACTION_API_URL).toBe("https://model.example.test");
+    expect(env.EXTRACTION_API_KEY).toBe("k".repeat(16));
+  });
+
+  it("treats both as optional: unset or empty never throws at import", async () => {
+    const unset = await loadEnv({
+      EXTRACTION_API_URL: undefined,
+      EXTRACTION_API_KEY: undefined,
+    });
+    expect(unset.EXTRACTION_API_URL).toBeUndefined();
+    expect(unset.EXTRACTION_API_KEY).toBeUndefined();
+
+    const empty = await loadEnv({
+      EXTRACTION_API_URL: "",
+      EXTRACTION_API_KEY: "",
+    });
+    expect(empty.EXTRACTION_API_URL).toBeUndefined();
+    expect(empty.EXTRACTION_API_KEY).toBeUndefined();
+  });
+
+  it("accepts a URL with no key (a local container needs none)", async () => {
+    const env = await loadEnv({
+      EXTRACTION_API_URL: "http://127.0.0.1:8080",
+      EXTRACTION_API_KEY: undefined,
+    });
+    expect(env.EXTRACTION_API_URL).toBe("http://127.0.0.1:8080");
+    expect(env.EXTRACTION_API_KEY).toBeUndefined();
+  });
+
+  it("rejects a key too short to be a secret", async () => {
+    await expect(loadEnv({ EXTRACTION_API_KEY: "short" })).rejects.toThrow();
+  });
+
+  it("accepts a key of exactly 16 characters", async () => {
+    const env = await loadEnv({ EXTRACTION_API_KEY: "k".repeat(16) });
+    expect(env.EXTRACTION_API_KEY).toBe("k".repeat(16));
+  });
+});

@@ -18,6 +18,12 @@ import {
 import { type Draft, openDraft } from "@/lib/data/solicitudes";
 import { getIntakeDeps } from "@/lib/intake/deps";
 
+// Applies to every Server Action used on this page. The submit hands the
+// request to document extraction, which keeps running after the response (DE-5,
+// N2, N3). Next reads segment config statically, so this must be a literal, not
+// an import; `max-duration.test.ts` pins it to EXTRACTION_MAX_DURATION_S.
+export const maxDuration = 300;
+
 /**
  * Fail-soft draft read (A7): a database or storage-wiring failure becomes an
  * in-page message, never an error screen. Resuming or creating the draft is the
