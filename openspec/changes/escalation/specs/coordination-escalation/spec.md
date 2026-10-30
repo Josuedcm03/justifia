@@ -10,9 +10,9 @@ RN-15, RN-16, RN-25 (consent v2, in `justification-intake`), RNF-01, RNF-02,
 RNF-06, RNF-07 (outbox pattern), RNF-12. Pilot scope is the Facultad de
 Ingenieria y Arquitectura (D0); no catalog data changes. Documented deviation
 (changelog 2026-10-22 in `docs/requirements.md`): RF-10 (a) applies only to a
-`pendiente` request escalated for `sospecha_documento`; the RF-15 report on an
-`aprobada` request notifies the coordination (RF-10 b) but the state stays
-`aprobada`. Review UI of the secretary is in `request-review`; student view in
+`pendiente` request escalated for `sospecha_documento` or `caso_especial` (E18);
+the RF-15 report on an `aprobada` request notifies the coordination (RF-10 b)
+but the state stays `aprobada`. Review UI of the secretary is in `request-review`; student view in
 `student-requests`; audit actions in `audit-log`; document access in
 `supporting-documents`; role matrix in `user-roles`; consent and notice in
 `justification-intake` and `privacy-notice`.
@@ -22,9 +22,12 @@ coordinator reports and dashboards (roadmap #7), other faculties, withdrawing
 an escalation, UAM legal review (owner task).
 
 Terms: "escalation record" = one coordination notification record, with reason
-`sospecha_documento` or `exceso_inasistencias`; "open escalation" = a
-`sospecha_documento` record not yet answered; "notice" = an
-`exceso_inasistencias` record (informational, never open, never answered);
+`sospecha_documento`, `caso_especial` or `exceso_inasistencias`; "escalation
+motive" = `sospecha_documento` (suspicion about a document) or `caso_especial`
+(a case outside the causes of the regulation, for instance a death in the
+family or migration paperwork, that the career coordination values); "open
+escalation" = a record with an escalation motive not yet answered; "notice" =
+an `exceso_inasistencias` record (informational, never open, never answered);
 "report" = an RF-15 absence report; "own career" = the coordinator's
 `Usuario.CarreraId`; career of a request = `Usuario.CarreraId` of the
 student (never the snapshot career name); "today" = current date in
@@ -32,11 +35,20 @@ America/Managua.
 
 ## Requirements
 
-### Requirement: Escalate a pendiente request (RF-10 a, RN-20, RN-15, RN-16)
+### Requirement: Escalate a pendiente request (RF-10 a, RN-20, RN-15, RN-16, E18)
 
 Only a `secretaria` in scope MUST be able to escalate, and only a request in
-`pendiente`. Escalation MUST carry the reason `sospecha_documento` (fixed by
-the server; any other value MUST be refused) and a note, trimmed, of 1 to 1000
+`pendiente`. Escalation MUST carry one escalation motive chosen by the
+secretary in the dialog, `sospecha_documento` or `caso_especial` (E18); the
+server MUST validate it against that closed set and MUST refuse any other
+value, including `exceso_inasistencias`, and a missing one. The motive MUST be
+required with no default preselected. Both motives MUST behave identically:
+the same state change, the same RN-08 pause, the same notice to the
+coordination with the same recipients and the same E17 rule, the same answer
+and the same return to `pendiente`. A `caso_especial` is a case outside the
+causes of the regulation (for instance the death of a close relative or
+migration paperwork) that the career coordination values with the teacher.
+Escalation MUST also carry a note, trimmed, of 1 to 1000
 characters, enforced by the server. It MUST require explicit confirmation in a
 dialog; cancelling MUST change nothing. In ONE transaction it MUST: move the
 request from `pendiente` to `en_revision_coordinacion` with a guarded update
@@ -58,6 +70,26 @@ escalation (see "Zero recipients is a visible blocked state").
 - WHEN the secretary confirms the escalation
 - THEN the state is `en_revision_coordinacion`, one open escalation exists with the note and the secretary as author
 - AND its notification is `pendiente` and one `solicitud.escalada` row exists
+
+#### Scenario: Escalation for a special case (E18)
+
+- GIVEN a `pendiente` request in scope and a note about the death of a close relative
+- WHEN the secretary confirms the escalation with the motive `caso_especial`
+- THEN the state is `en_revision_coordinacion`, one open escalation with the motive `caso_especial`, the note and the secretary as author exists
+- AND its notification is `pendiente` and one `solicitud.escalada` row carries the motive `caso_especial`
+
+#### Scenario: Motive is required and closed (table-driven, E18)
+
+| Motive | Result |
+|---|---|
+| `sospecha_documento` | accepted |
+| `caso_especial` | accepted |
+| missing, empty or not a string | refused, error on motive |
+| `exceso_inasistencias` or any other value | refused, error on motive |
+
+- GIVEN an escalation call with the motive in the row and a valid note
+- WHEN the server validates it
+- THEN the outcome is as shown and a refusal leaves the request `pendiente` with no row
 
 #### Scenario: Note bounds (table-driven)
 
@@ -83,7 +115,7 @@ escalation (see "Zero recipients is a visible blocked state").
 
 #### Scenario: Client bypass
 
-- GIVEN a direct call with reason `exceso_inasistencias`, an empty note, or no confirmation flow
+- GIVEN a direct call with reason `exceso_inasistencias` or no reason, an empty note, or no confirmation flow
 - WHEN the server processes it
 - THEN it is refused and the request stays `pendiente`
 
@@ -132,16 +164,37 @@ escalation (see "Zero recipients is a visible blocked state").
 
 ### Requirement: One open escalation per request (RF-10, RN-20)
 
-A request MUST have at most one open escalation at a time. The database MUST
-reject a second open escalation for the same request, independently of
-application code. Notices are never open and MUST NOT count against this
-rule. After an escalation is answered, the same request MAY be escalated again.
+A request MUST have at most one open escalation at a time, whatever its
+motive (`sospecha_documento` or `caso_especial`, E18). The database MUST
+reject a second open escalation for the same request, of either motive,
+independently of application code. Notices are never open and MUST NOT count
+against this rule. After an escalation is answered, the same request MAY be
+escalated again, with either motive.
 
 #### Scenario: Database rejects a second open escalation
 
 - GIVEN a request with an open escalation
 - WHEN a second open escalation row for it is inserted directly
 - THEN the database rejects the statement
+
+#### Scenario: A second open escalation of either motive is refused (E18, table-driven)
+
+| Open escalation | Second one | Result |
+|---|---|---|
+| `sospecha_documento` | `sospecha_documento` | refused |
+| `sospecha_documento` | `caso_especial` | refused |
+| `caso_especial` | `sospecha_documento` | refused |
+| `caso_especial` | `caso_especial` | refused |
+
+- GIVEN a request with the open escalation in the row
+- WHEN a second open escalation with the motive in the row is created, by the application or directly in the database
+- THEN it is refused and only the first one exists
+
+#### Scenario: Re-escalation with the other motive
+
+- GIVEN a request whose `sospecha_documento` escalation was answered and which is `pendiente` again
+- WHEN the secretary escalates it with the motive `caso_especial`
+- THEN a new open escalation with that motive exists and the earlier one is kept, answered
 
 #### Scenario: Re-escalation after the answer
 
@@ -425,7 +478,7 @@ notification MUST send nothing.
 
 #### Scenario: Answered before it was sent
 
-- GIVEN a `sospecha_documento` notification still `pendiente` (or retrying) and an escalation the coordinator then answers
+- GIVEN an escalation notification (either motive) still `pendiente` (or retrying) and an escalation the coordinator then answers
 - WHEN the scheduled job runs, or a secretary resends
 - THEN no message is sent and the notification is unchanged
 - AND the staff detail shows that it will not be sent and offers no resend
@@ -489,17 +542,58 @@ notification MUST send nothing.
 
 The message MUST be in Spanish and MUST contain only: the request number, the
 student's full name and CIF, the career, the reason label, the note of the
-escalation or notice, and a link to the request in the system. It MUST NOT
-contain attachments, the cause, dates, document names or content, health data,
-or the coordination's answer. The link MUST lead to a page that requires a
-session of an authorized coordinator; it MUST NOT carry any token that grants
-access without login.
+escalation or notice, and a link to the request in the system. The reason
+label of a `caso_especial` escalation MUST be "Caso especial" and the notice
+of both escalation motives MUST follow the same recipients, subject pattern
+and rules (E18). It MUST NOT
+contain attachments of documents, the cause, dates, document names or content,
+health data, or the coordination's answer. The link MUST lead to a page that
+requires a session of an authorized coordinator; it MUST NOT carry any token
+that grants access without login. The message MUST be multipart: a plain-text
+part with exactly the fields above, and an HTML part that carries the same
+fields and the same link under the identity of the Universidad Americana (UAM)
+and its Facultad de Ingeniería y Arquitectura (FIA). The HTML part MUST escape
+every value that comes from data, MUST NOT load a script, a remote resource or
+a tracking pixel, and MUST show the brand image as an inline embedded image of
+the message; that image is a brand asset, not a supporting document, so the
+rule of no document attachments still holds (E6, E18).
 
 #### Scenario: Message fields
 
 - GIVEN an escalation with a note
 - WHEN the message is built
-- THEN it holds exactly the fields above and no attachment
+- THEN it holds exactly the fields above and no document attachment
+
+#### Scenario: Special-case notice (E18)
+
+- GIVEN a `caso_especial` escalation with a note, in a career with two coordinators with email
+- WHEN the notice is built and sent
+- THEN both coordinators receive it, its reason label is "Caso especial", and its subject reads "Justifia: solicitud N escalada a coordinación"
+
+#### Scenario: HTML part carries the same data, escaped
+
+- GIVEN an escalation whose student name and note contain `<script>` and `&`
+- WHEN the message is built
+- THEN the HTML part shows each field, escaped, with no active markup from the data
+- AND the plain-text part holds the same fields unescaped
+
+#### Scenario: Link is the same in both parts
+
+- GIVEN a built message
+- WHEN the text and the HTML parts are read
+- THEN the button of the HTML part and the plain link below it equal the link of the text part
+
+#### Scenario: Inline brand image
+
+- GIVEN a built message
+- WHEN its HTML part and attachments are read
+- THEN the HTML references the brand image by a content id, the message attaches that image inline under the same content id, and no supporting document is attached
+
+#### Scenario: Excess-absence notice uses the same template
+
+- GIVEN an `exceso_inasistencias` notice
+- WHEN the message is built
+- THEN the HTML part has the title "Aviso de exceso de inasistencias" and no wording that asks the coordination to answer
 
 #### Scenario: Cause and documents absent
 
@@ -537,6 +631,12 @@ authentication, role and career server-side.
 - GIVEN open escalations for careers C and D and a coordinator of C
 - WHEN they open the list
 - THEN only the escalations of C appear
+
+#### Scenario: Special case in the list and its answer (E18)
+
+- GIVEN an open `caso_especial` escalation of career C and a coordinator of C
+- WHEN they open the list, the detail, and submit an answer
+- THEN the list and the detail show it with the reason label "Caso especial", the answer closes it and the request is `pendiente`, exactly as for `sospecha_documento`
 
 #### Scenario: Notices are informational
 
