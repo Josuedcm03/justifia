@@ -170,3 +170,47 @@ equipo), `resuelta` (cubierta por un change).
   (E13).
 - **Requisitos:** RF-10, RN-16; specs `student-requests` y
   `coordination-escalation`.
+
+### UX-13. Por qué el plazo cambió al volver de coordinación
+
+- **Estado:** abierta.
+- **Origen:** observación 1 del diseño de `escalation`, aprobada en el
+  recorrido del 2026-10-30.
+- **Pantalla:** cola de revisión de la secretaría, pestaña «Pendientes»
+  (`/review`).
+- **Hoy:** una solicitud que vuelve de la coordinación muestra un vencimiento
+  más tardío que el original, sin explicar por qué. El plazo de RN-08 estuvo
+  pausado mientras la solicitud estaba escalada.
+- **Esperado:** una indicación junto al plazo, por ejemplo «Plazo pausado N
+  días mientras estuvo en coordinación», para que la secretaría entienda el
+  cambio.
+- **Requisitos:** RF-10, RN-08; specs `request-review` y
+  `coordination-escalation`.
+
+### UX-14. Buscar en la pestaña «Aprobadas»
+
+- **Estado:** abierta.
+- **Origen:** observación 2 del diseño de `escalation` (corte E14), aprobada
+  en el recorrido del 2026-10-30.
+- **Pantalla:** cola de revisión de la secretaría, pestaña «Aprobadas»
+  (`/review`).
+- **Hoy:** la pestaña lista solo las 50 solicitudes aprobadas más recientes y
+  no tiene búsqueda. Para reportar exceso de inasistencias sobre una solicitud
+  más antigua, la secretaría necesita conocer su URL.
+- **Esperado:** búsqueda por estudiante (nombre o CIF) o por número de
+  solicitud, y paginación más allá de las 50 más recientes.
+- **Requisitos:** RF-15; spec `request-review`.
+
+### UX-15. Estado de la remisión en el selector de docentes
+
+- **Estado:** abierta.
+- **Origen:** observación 4 del diseño de `escalation`, aprobada en el
+  recorrido del 2026-10-30.
+- **Pantalla:** diálogo «Reportar exceso de inasistencias» en el detalle de
+  una solicitud aprobada (`/review/[id]`).
+- **Hoy:** el selector lista a los docentes a los que se remitió la
+  solicitud, aunque el correo de remisión siga pendiente o haya fallado. La
+  secretaría no sabe si el docente ya recibió la justificación.
+- **Esperado:** junto a cada nombre, una indicación breve del estado de la
+  remisión (enviada, pendiente o fallida).
+- **Requisitos:** RF-15; specs `request-review` y `coordination-escalation`.
