@@ -176,7 +176,10 @@ exposed to clients. Authorized readers: (a) the owning student, for their own
 `valido` documents of a draft or request; (b) a `secretaria` whose `FacultadId`
 equals the facultad of the request's student (via the student's current
 `CarreraId`), for `valido` documents of a non-`borrador` request, including
-retired ones (`RetiradoEn` set). No other role MAY read. Unauthorized, out-of-scope,
+retired ones (`RetiradoEn` set); (c) a `coordinacion` with a `CarreraId` equal
+to the current `CarreraId` of the request's student, only for the `valido`,
+non-retired documents of a request that is in `en_revision_coordinacion` with
+an open escalation. No other role MAY read. Unauthorized, out-of-scope,
 draft-of-another-user and unknown ids MUST yield identical denials with no file
 bytes. The route MUST accept a mode: `ver` (default) serves inline
 (`Content-Disposition: inline` with the RFC 5987 original name); `descarga`
@@ -260,9 +263,29 @@ refused. Every successful read, in either mode, MUST write exactly one
 - WHEN an in-scope secretary calls the route
 - THEN the response is the same denial as for a nonexistent id
 
-#### Scenario: Secretary without facultad or other staff role denied
+#### Scenario: Coordinator of the career reads while in coordination
 
-- GIVEN a `secretaria` with null `FacultadId`, or a `coordinacion`
+- GIVEN a coordinator of career C and a `valido`, non-retired document of a request of a career C student in `en_revision_coordinacion` with an open escalation
+- WHEN they call the route in mode `ver`
+- THEN the file is streamed inline with the security headers and one `documento.descargado` row exists with the coordinator as actor
+
+#### Scenario: Coordinator denied outside coordination (table-driven)
+
+| Case | Result |
+|---|---|
+| request answered and back in `pendiente` | denied |
+| `aprobada` request with a notice | denied |
+| retired document of an escalated request | denied |
+| request of another career | denied |
+| `coordinacion` with null `CarreraId` | denied |
+
+- GIVEN a coordinator and the case in the row
+- WHEN they call the route in any mode
+- THEN the response equals that for a nonexistent id, no bytes are returned and no audit row is written
+
+#### Scenario: Secretary without facultad or non-reader role denied
+
+- GIVEN a `secretaria` with null `FacultadId`, an `administrador`, or a `docente`
 - WHEN they call the route
 - THEN access is denied with no bytes and no audit row
 

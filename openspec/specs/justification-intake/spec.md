@@ -197,6 +197,7 @@ on the review step"), with per-field errors (see "Submit blocking").
 - GIVEN a draft without valid dates
 - WHEN the student opens step 2
 - THEN no subject can be selected and a message asks for dates first
+
 ### Requirement: Cause and dates rules (RN-01, RN-05, RN-23, RF-01 b)
 
 The cause MUST be one of exactly five: maternity/paternity/breastfeeding;
@@ -522,28 +523,64 @@ user-facing text MUST exist in both `i18n/es.json` and `i18n/en.json`.
 ### Requirement: Consent text and version (RF-01 d, RN-25)
 
 The system MUST hold one consent text per supported locale, identified by a
-single `CONSENT_VERSION`. The initial text in `es` MUST be exactly: «Acepto que la UAM use
-los datos de esta solicitud y de mis documentos, incluidos los datos de salud
-que contengan, solo para tramitarla, y que se envíen a los docentes de las
-asignaturas afectadas. Ver aviso de privacidad». The initial text in `en` MUST be: "I
+single `CONSENT_VERSION`. The version of this change (v2) MUST be a new value,
+an ISO date later than `2026-10-20`, fixed when the change is applied. The v2
+text in `es` MUST be exactly: «Acepto que la UAM use los datos de esta
+solicitud y de mis documentos, incluidos los datos de salud que contengan,
+solo para tramitarla, que se envíen a los docentes de las asignaturas
+afectadas y que, si la solicitud se escala, la coordinación de mi carrera
+pueda consultarlos. Ver aviso de privacidad». The v2 text in `en` MUST be: "I
 agree that UAM may use the data in this request and in my documents, including
-any health data they contain, only to process it, and that they be sent to the
-teachers of the affected subjects. View privacy notice". The trailing "Ver aviso
-de privacidad" / "View privacy notice" is the link to the privacy notice. A
-change to the `es` text MUST require a new `CONSENT_VERSION`; a test MUST pin
-the hash of the `es` text to the version and fail when only one changes.
+any health data they contain, only to process it, that they be sent to the
+teachers of the affected subjects and that, if the request is escalated, my
+career coordination may consult them. View privacy notice". The trailing "Ver
+aviso de privacidad" / "View privacy notice" is the link to the privacy
+notice. A change to the `es` text MUST require a new `CONSENT_VERSION`; a test
+MUST pin the hash of the `es` text to the version and fail when only one
+changes. The v1 text and version (`2026-10-20`) remain the record of the
+requests presented under them.
 
 #### Scenario: Text is the approved one
 
-- GIVEN `CONSENT_VERSION` `"2026-10-20"` for the initial text
+- GIVEN the v2 `CONSENT_VERSION`
 - WHEN the `es` and `en` consent texts are read
-- THEN they equal the texts above
+- THEN they equal the v2 texts above and both name the career coordination
+
+#### Scenario: Version is new
+
+- GIVEN the v2 `CONSENT_VERSION`
+- WHEN it is compared with `2026-10-20`
+- THEN it is a different, later ISO date
 
 #### Scenario: Text changed without version change
 
 - GIVEN the `es` text is edited and `CONSENT_VERSION` is not
 - WHEN the test suite runs
 - THEN the hash test fails
+
+#### Scenario: Version changed without text change
+
+- GIVEN `CONSENT_VERSION` is edited and the `es` text is not
+- WHEN the test suite runs
+- THEN the hash test fails
+
+#### Scenario: New request stores v2
+
+- GIVEN a valid draft and `consentVersion` equal to the v2 version
+- WHEN the student submits
+- THEN the request stores the v2 version and `solicitud.presentada` carries it
+
+#### Scenario: Page rendered under v1 is outdated
+
+- GIVEN a review step rendered under `2026-10-20` and the server now at v2
+- WHEN the student checks the box and submits
+- THEN submit is refused with `consent_outdated` and nothing is stored or audited
+
+#### Scenario: v1 requests untouched
+
+- GIVEN requests presented under `2026-10-20`
+- WHEN the change is applied
+- THEN their stored consent version and timestamp are unchanged and they remain valid and correctable
 
 ### Requirement: Consent checkbox on the review step (RF-03 e, RNF-11, RNF-12)
 
