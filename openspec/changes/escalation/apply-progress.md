@@ -617,3 +617,85 @@ Branch `feat/escalation-s7-review-fixes` (pushed), stacked on `feat/escalation-s
 
 - Phase 14 must run the integration suite, now with the catalog test and the real-statement plan.
 - 13b.8 and 13b.9 are still open follow-ups.
+
+## Batch S10: Phase 13d, walk findings (2026-10-30)
+
+Branch `feat/escalation-s10-special-case-mail` (pushed), cut from the tracker `feat/escalation` at `4194f78`. Findings of the owner's manual walk (15.4 to 15.7, partial). Strict TDD (vitest). **Schema change:** `0012_escalation` was never applied to production, so it was regenerated in place; phases 4 and 14 must be re-run for it (task 14.4). No database command was run; the integration suite was edited and compiled, not run.
+
+### Completed tasks
+
+13d.1 to 13d.7.
+
+| Task | Commit |
+|---|---|
+| 13d.1 spec, design (ES-17), preproposal E18 | `a22af09` |
+| 13d.2, 13d.3 `caso_especial` motive, regenerated `0012_escalation` | `b581981` |
+| 13d.4 branded multipart notice | `54a7011` |
+| 13d.5 coordination tab table fit | `aca4844` |
+| 13d.6, 13d.7 tracker docs, gates, PR | this commit |
+
+### TDD cycle evidence
+
+| Task | Test file | RED | GREEN | Notes |
+|------|-----------|-----|-------|-------|
+| validation | `src/lib/intake/escalation.test.ts` | 3 failed / 41 passed (closed set, accepted `caso_especial`, `isEscalationReason`) | 44 passed | motive table: both accepted; `exceso_inasistencias`, empty, null, number, array refused |
+| migration | `src/db/migration-escalation.test.ts` | 4 failed / 22 passed (Tipo, Kind, SinRespuesta, the index) | 26 passed after `drizzle-kit generate`; `src/db` 217 passed | a second `generate` printed "No schema changes" |
+| write path | `src/lib/data/solicitud-escalation.test.ts` | 21 failed / 60 (the removed constant and the new motive cases) | 60 passed | special case writes `tipo` and the audit `motivo`; five invalid motives refused before any query |
+| action | `escalation-actions.test.ts` | 2 failed / 106 (the line `motivo: payload.motivo` removed, then restored) | 108 passed | the actor and the scope still never come from the payload |
+| coordinator list and detail | `coordination-queue.test.ts` | 5 failed / 21 | 26 passed | `Tipo in ($1, $2)`, the stored motive is returned |
+| answer | `escalation-answer.test.ts` | 2 failed / 20 | 22 passed | the guard and the conflict lookup use the set |
+| staff history, secretary queue, document rule | `solicitud-detail`, `revision-queue`, `documentos` tests | not run before the change (tests and code edited together) | 1129 passed in `src/lib/data` | `Tipo in ($2, $3)` pinned in each |
+| audit | `events.test.ts` | not run separately (type-only change plus one table case) | passed | |
+| dialog | `escalate-dialog.test.tsx` | 7 failed / 18 | 18 passed | radio group labelled by the legend, none chosen, error under the group, draft discarded on cancel |
+| i18n | `review-messages.test.ts` | covered by the dialog run (keys were added first) | passed | exact es strings pinned |
+| student view | `requests/[id]/page.test.tsx` | passes at once (the view was already neutral) | 47 passed | "caso especial" and the motive code asserted absent, in both locales |
+| labels in the four screens | section, coordinator list, coordinator detail, tab | passed at once (the key exists) | passed | |
+| message and HTML | `message.test.ts`, `brand.test.ts`, `resend-mail-sender.test.ts` | 16 failed | 66 passed | escaping with `<script>` and `&`, one link in both parts, `cid:` referenced and attached, text part pinned verbatim, subject unchanged, contrast ratios, embedded logo equals the file |
+| dispatch | `escalation-dispatch.test.ts` | not run before the change | 26 passed | html and the logo reach the mail port |
+| table | `coordination-queue-table.test.tsx`, `review-queue-table.test.tsx` | 9 failed | 21 passed | five columns, `whitespace-normal` on student, reason, notice, `w-36` on actions, no `whitespace-nowrap` on the long cells |
+
+### Work unit evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | per task above; `npx vitest run src/lib src/app src/db src/i18n` green |
+| Runtime harness | N/A: db doubles and jsdom; the real-Postgres cases (accept and reject `caso_especial`, either motive blocking the other, `pg_constraint` fragments) are written and run at task 14.4. The mail was not sent: the Resend payload shape was checked against the provider docs on 2026-10-30 |
+| Rollback boundary | the four commits are independent in behavior; reverting `b581981` also needs the regenerated 0012 reverted (same commit) |
+
+### Decisions
+
+1. `CK_Escalamiento_MotivoEstado` is unchanged. It pins the notification state and reason (`bloqueada` needs `sin_destinatarios`), not the kind, so the motive does not touch it. `CK_Escalamiento_Tipo`, `_Kind`, `_SinRespuesta` and `UX_Escalamiento_Abierto` are the four objects that changed.
+2. The motive is validated only on the server and the dialog sends `""` when nothing is chosen, so the one answer carries the motive and the note errors together (as every other form here). `motivo_invalid` now reads "Seleccione el motivo del escalamiento." because the form offers only the two values.
+3. The brand image is embedded as a base64 constant (`brand-logo-data.ts`), not read from `public/` at run time: a serverless bundle does not carry `public/`. A test fails when the constant and `public/brand/uam-fia-logo.png` differ.
+4. The button is orange with dark text (`#1f2933`, 5.1:1), not white: white on `#ee7601` is 2.9:1. The teal title bar keeps white bold 20 px text (3.5:1, large text).
+5. The `deadline.paused` label became "Plazo en pausa" / "Deadline paused" because the pill now sits under the escalation date, where "En pausa" alone could read as the escalation being paused. The column key `coordination.columns.status` was removed.
+6. The pre-commit hook of the repository exports the team's Engram memory into `.engram/` and stages it; the first commit of this slice carries that chunk, as the previous commits of the tracker do.
+
+### Gates (S10 head, dummy `DATABASE_URL`)
+
+- `npx vitest run`: 304 files, 6903 passed.
+- `npm run typecheck`: clean.
+- `npx eslint src`: 118309 problems, all the CRLF `Delete ␍` noise, 0 others.
+- `npx prettier --check --end-of-line auto` on the changed `.ts` and `.tsx` files: clean (`.engram/manifest.json`, written by the commit hook, is not formatted and is not ours).
+- `npm run build`: ok (dummy `AUTH_SECRET`, dummy `DATABASE_URL`).
+
+### Measured vs `4194f78`
+
+`git diff --shortstat 4194f78..HEAD` (before this docs commit): 62 files changed, 1796 insertions, 231 deletions. Production (non-test `src/` plus `i18n/`): 507 added, 125 deleted, 632 total (the logo constant is one long line). Tests (including the integration suite): 1077 added, 44 deleted. Generated 0012 SQL and snapshot: 10 added, 10 deleted.
+
+### New copy (es, verbatim)
+
+- `review.escalation.dialog.motivoLabel`: "Motivo del escalamiento".
+- `review.escalation.dialog.motivo.sospecha_documento`: "Sospecha sobre un documento".
+- `review.escalation.dialog.motivo.caso_especial`: "Caso especial (fuera de las causas del reglamento)".
+- `review.escalation.errors.motivo_invalid`: "Seleccione el motivo del escalamiento." (replaces "El motivo del escalamiento no es válido.").
+- `review.escalation.reasons.caso_especial`: "Caso especial".
+- `review.escalation.dialog.noteHint`: "Explique por qué escala la solicitud a coordinación. Solo la ve el personal." (replaces the text that spoke of doubts about the document).
+- `review.queue.deadline.paused`: "Plazo en pausa" (was "En pausa").
+- Email (es, HTML and text): title "Solicitud escalada a coordinación" or "Aviso de exceso de inasistencias"; button "Revisar solicitud" or "Ver aviso"; "Debe iniciar sesión en el sistema para ver la solicitud. Si el botón no funciona, copie este enlace en su navegador:"; footer "Secretaría Académica · Facultad de Ingeniería y Arquitectura · Universidad Americana (UAM)" and "Este es un aviso automático de Justifia; no responda a este correo."
+
+### Remaining
+
+- Task 14.4: re-run the migration smoke and the real-Postgres proof for the regenerated 0012 (owner, disposable branch).
+- Repeat the walk 15.4 to 15.7 for the new motive and the new email.
+- Owner setup, not code: a verified sender domain in `MAIL_FROM`; the walk received the notice in Gmail spam from Resend's shared test address `onboarding@resend.dev`.
