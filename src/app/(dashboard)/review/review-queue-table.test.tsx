@@ -2,6 +2,10 @@ import { screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ApprovedQueueTable,
+  type ApprovedQueueTableRow,
+} from "@/app/(dashboard)/review/approved-queue-table";
+import {
   ReviewQueueTable,
   type ReviewQueueTableRow,
 } from "@/app/(dashboard)/review/review-queue-table";
@@ -156,5 +160,47 @@ describe("ReviewQueueTable (bounded kit, RF-06)", () => {
     const { container } = show([]);
 
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+// The three tabs share the student, career and actions columns, so the fit that
+// the En coordinacion walk asked for holds in each of them.
+describe("the shared columns of the three queue tables fit the desktop", () => {
+  const APPROVED_ROW: ApprovedQueueTableRow = {
+    id: 31,
+    approvedText: "Oct 9, 2026",
+    name: "Ana Lopez",
+    cif: "2021-0042",
+    career: "Ingenieria en Sistemas de Informacion",
+    reportsText: "2 reports",
+    reviewLabel: "Review",
+    reviewAriaLabel: "Review request from Ana Lopez",
+  };
+  const NOWRAP = "whitespace-nowrap";
+
+  it("lets the career wrap, and keeps the actions narrow, in Pendientes", () => {
+    show([ROW]);
+
+    const cells = screen.getAllByRole("cell");
+    expect(cells[2]).toHaveClass("whitespace-normal");
+    expect(cells[2]).not.toHaveClass(NOWRAP);
+    expect(cells[5]).toHaveClass("w-36");
+    expect(
+      screen.getByRole("columnheader", {
+        name: messages.en.review.queue.columns.action,
+      }),
+    ).toHaveClass("w-36");
+  });
+
+  it("lets the career wrap, and keeps the actions narrow, in Aprobadas", () => {
+    renderWithIntl(
+      <ApprovedQueueTable rows={[APPROVED_ROW]} caption="Approved" />,
+      "en",
+    );
+
+    const cells = screen.getAllByRole("cell");
+    expect(cells[2]).toHaveClass("whitespace-normal");
+    expect(cells[2]).not.toHaveClass(NOWRAP);
+    expect(cells[4]).toHaveClass("w-36");
   });
 });

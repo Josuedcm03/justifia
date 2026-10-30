@@ -25,15 +25,23 @@ export type QueueRowBase = {
 export function QueueStudent({
   name,
   cif,
+  career,
 }: {
   name: string;
   cif: string | null;
+  /** The career under the CIF, for a table that has no column for it. */
+  career?: string;
 }) {
   return (
     <div className="flex flex-col">
       <span className="font-medium break-words">{name}</span>
       {cif ? (
         <span className="text-muted-foreground text-xs">{cif}</span>
+      ) : null}
+      {career ? (
+        <span className="text-muted-foreground text-sm break-words">
+          {career}
+        </span>
       ) : null}
     </div>
   );
@@ -105,7 +113,15 @@ export function QueueCard({ children }: { children: ReactNode }) {
   );
 }
 
-/** The student and career columns, in that order. */
+/**
+ * A table cell may wrap. The table kit keeps every cell on one line (right for
+ * a date or a count); a name, a career or a notice is longer than its column at
+ * a desktop width, so these cells wrap instead of pushing the actions column out
+ * of the card behind a horizontal scrollbar.
+ */
+export const WRAP = "whitespace-normal";
+
+/** The student and career columns, in that order; both wrap. */
 export function studentColumns<T extends QueueRowBase>(headers: {
   student: string;
   career: string;
@@ -117,17 +133,21 @@ export function studentColumns<T extends QueueRowBase>(headers: {
       cell: ({ row }) => (
         <QueueStudent name={row.original.name} cif={row.original.cif} />
       ),
+      meta: { className: WRAP },
     },
     {
       id: "career",
       header: headers.career,
       cell: ({ row }) => row.original.career,
-      meta: { className: "text-muted-foreground" },
+      meta: { className: `text-muted-foreground ${WRAP}` },
     },
   ];
 }
 
-/** The closing review-link column. */
+/**
+ * The closing review-link column: a narrow fixed width, so the link keeps its
+ * own size and the wrapping columns give way first.
+ */
 export function actionColumn<T extends QueueRowBase>(
   header: string,
 ): ColumnDef<T> {
@@ -141,6 +161,6 @@ export function actionColumn<T extends QueueRowBase>(
         ariaLabel={row.original.reviewAriaLabel}
       />
     ),
-    meta: { align: "end" },
+    meta: { align: "end", className: "w-36" },
   };
 }

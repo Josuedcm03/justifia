@@ -65,7 +65,11 @@ import {
 const SCOPE = { kind: "facultad", facultadId: 4 } as const;
 const NOTE = "La firma del medico no coincide con el sello.";
 
-const ESCALATE = { solicitudId: 12, nota: NOTE };
+const ESCALATE = {
+  solicitudId: 12,
+  motivo: "sospecha_documento",
+  nota: NOTE,
+};
 const DEPS = { mail: "mail", baseUrl: "https://justifia.example.edu" };
 const NOT_FOUND = { ok: false, reason: "not_found" };
 const REPORT = {
@@ -203,11 +207,10 @@ describe.each(actions)(
 );
 
 describe("escalateRequestAction (RF-10 a, RN-20, E17)", () => {
-  it("takes the actor from the session and the scope from the database, and fixes the reason server-side", async () => {
+  it("takes the actor from the session and the scope from the database, never from the payload", async () => {
     await expect(
       escalateRequestAction({
         ...ESCALATE,
-        motivo: "exceso_inasistencias",
         actorId: 99,
         scope: { kind: "all" },
       }),
@@ -217,10 +220,41 @@ describe("escalateRequestAction (RF-10 a, RN-20, E17)", () => {
       actorId: 7,
       scope: SCOPE,
       solicitudId: 12,
+      motivo: "sospecha_documento",
       nota: NOTE,
       now: expect.any(Date),
     });
-    expect(Object.keys(escalateMock.mock.calls[0][0])).not.toContain("motivo");
+  });
+
+  it("hands the chosen motive on as it came, for the data layer to validate (E18)", async () => {
+    await expect(
+      escalateRequestAction({ ...ESCALATE, motivo: "caso_especial" }),
+    ).rejects.toThrow("REDIRECT:");
+    expect(escalateMock.mock.calls[0][0].motivo).toBe("caso_especial");
+
+    escalateMock.mockClear();
+    await expect(
+      escalateRequestAction({ ...ESCALATE, motivo: "exceso_inasistencias" }),
+    ).rejects.toThrow("REDIRECT:");
+    expect(escalateMock.mock.calls[0][0].motivo).toBe("exceso_inasistencias");
+  });
+
+  it("maps a refused motive to the invalid outcome without a redirect", async () => {
+    escalateMock.mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+      errors: [{ field: "motivo", code: "motivo_invalid" }],
+    });
+
+    await expect(
+      escalateRequestAction({ solicitudId: 12, nota: NOTE }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+      errors: [{ field: "motivo", code: "motivo_invalid" }],
+    });
+    expect(escalateMock.mock.calls[0][0].motivo).toBeUndefined();
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("goes back to the queue with the escalated banner on success", async () => {

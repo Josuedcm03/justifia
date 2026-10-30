@@ -87,7 +87,7 @@ beforeEach(() => {
 
 describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
   describe("success", () => {
-    it("sends one message to the recipients of the career with the link and no attachment", async () => {
+    it("sends one multipart message to the recipients of the career with the link and only the inline brand image", async () => {
       const { deps, mail } = setup();
       escalamientoMock.listCoordinationRecipients.mockResolvedValue([
         "coord1@uam.edu.ni",
@@ -101,10 +101,19 @@ describe("dispatchEscalationNotice (RF-10 b, ES-11)", () => {
       const [message] = mail.sent;
       expect(message.to).toBe("coord1@uam.edu.ni");
       expect(message.cc).toEqual(["coord2@uam.edu.ni"]);
-      expect(message.attachments).toEqual([]);
+      expect(message.attachments.map((a) => a.contentId)).toEqual([
+        "uam-fia-logo",
+      ]);
+      expect(
+        message.attachments.every((a) => a.contentType === "image/png"),
+      ).toBe(true);
       expect(message.text).toContain(
         "https://justifia.example.edu/coordination/7",
       );
+      expect(message.html).toContain(
+        'href="https://justifia.example.edu/coordination/7"',
+      );
+      expect(message.html).toContain('src="cid:uam-fia-logo"');
       expect(message.idempotencyKey).toMatch(/^escalamiento-7-[0-9a-f]{16}$/);
     });
 

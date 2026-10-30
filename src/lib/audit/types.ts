@@ -1,5 +1,5 @@
 import type {
-  EscalationKind,
+  EscalationReason,
   EscalationNoticeState,
   EscalationNoticeTrigger,
 } from "@/lib/intake/escalation";
@@ -229,7 +229,7 @@ type SpecialFormatPayload = {
  *  RN-02). The entity is the request, not the escalation. */
 type RequestEscalatedPayload = {
   escalamientoId: number;
-  motivo: EscalationKind;
+  motivo: EscalationReason;
   estadoPrevio: EstadoSolicitud;
   estadoNuevo: EstadoSolicitud;
 };

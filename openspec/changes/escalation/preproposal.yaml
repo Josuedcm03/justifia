@@ -1,6 +1,6 @@
 schema: gentle-ai.sdd-preproposal/v1
 change: escalation
-revision: 6
+revision: 7
 exploration:
   outcome: done
   reference:
@@ -28,6 +28,8 @@ product_decisions:
       decision: The RN-08 deadline is paused while the request is in coordination; time spent there does not count. This changes the deadline computation and the queue index IX_Solicitud_Cola.
     - id: E17
       decision: Confirmed by the owner on 2026-10-22. A sospecha_documento escalation is refused when the student's current career has no active coordinacion account; the refusal is an actionable error naming the career and asking to have the administrator create the account, the request stays pendiente and nothing is written (no audit row). If an active coordinacion account exists but none has an email, the escalation proceeds, its notification is bloqueada with sin_destinatarios, the coordinator still sees and answers it in the coordinator view, and a manual resend follows the fix. The RF-15 report on an aprobada request is always recorded; with zero recipients (no account or no email) its notice is bloqueada with sin_destinatarios.
+    - id: E18
+      decision: Confirmed by the owner on 2026-10-30 after the manual walk (RN-20 correction). A pendiente request can be escalated by the secretaria with motive sospecha_documento OR caso_especial (a case outside the causes of the regulation, for instance the death of a close relative or migration paperwork, valued by the career coordination). Both motives behave identically - state to en_revision_coordinacion, RN-08 pause, notice to the coordination with the same recipients and the E17 rule, the coordinator answers and the request returns to pendiente - and a request has at most one open escalation across both. exceso_inasistencias is unchanged (notice on an aprobada request, no state change). The secretaria chooses the motive in the dialog with no default; the student view stays neutral (E13). Evidence from the thesis interviews - E-02 (secretaria academica) at 03:36, causes outside art. 36 (health or sport), such as the death of a close relative or migration paperwork, "esos casos asi especiales los valora la coordinacion de cada carrera... el coordinador valora en conjunto con el docente si aplica o no"; E-01 (ex-coordinator), "el primer nivel seria la secretaria academica; si el caso lo requiere, escala a la coordinacion". The coordination notice is sent as a branded multipart message (text plus HTML) with the UAM and FIA lockup as an inline image; E6 (no attachments) refers to request documents, not to a brand image. Migration 0012_escalation, never applied to production, is regenerated in place.
   defaults_from_exploration:
     - id: E3
       decision: Leaving coordination returns the request to pendiente (no direct decision from the coordination state).

@@ -10,18 +10,19 @@
 > `[LOCAL]`, `[READ-ONLY]` or `[CONFIRM]`; a `[CONFIRM]` step needs the owner's
 > explicit "yes" for that single command (`CLAUDE.md`).
 
-Binding inputs: `proposal.md`, `preproposal.yaml` revision 6 (D0, E1-E17),
+Binding inputs: `proposal.md`, `preproposal.yaml` revision 7 (D0, E1-E18),
 `exploration.md`, the delta specs (the contract), `docs/requirements.md`
 (RF-07 a/c, RF-10, RF-15, RN-08, RN-16, RN-20, RN-25/RF-01 d, RNF-01, RNF-06,
-RNF-07, RNF-12; changelog 2026-10-22). Decisions here are **ES-1..ES-16**.
+RNF-07, RNF-12; changelog 2026-10-22). Decisions here are **ES-1..ES-17**.
 
 ## Technical Approach
 
 A new `Escalamiento` row is both the escalation record and its notification
-outbox; a `ReporteInasistencia` row is the append-only RF-15 report. Two kinds
-share the escalation table: `sospecha_documento` (moves `pendiente ->
-en_revision_coordinacion`, answered by the coordination, returns to
-`pendiente`) and `exceso_inasistencias` (state stays `aprobada`, informational,
+outbox; a `ReporteInasistencia` row is the append-only RF-15 report. Two
+escalation motives, `sospecha_documento` and `caso_especial` (E18), and one
+notice kind share the escalation table. Both motives move `pendiente ->
+en_revision_coordinacion`, are answered by the coordination and return to
+`pendiente`, and behave identically; `exceso_inasistencias` (state stays `aprobada`, informational,
 never answered). Writes are guarded single transactions like `decideRequest`;
 `SolicitudDecision` and `decideRequest` are untouched. The career of a request
 is always the student's live `Usuario.CarreraId` (spec terms). The RN-08 clock
@@ -32,27 +33,27 @@ drains the second outbox.
 
 ## Architecture Decisions
 
-### ES-1. `Escalamiento` table (one table, two kinds)
+### ES-1. `Escalamiento` table (one table, motives and a notice kind)
 
 | Column | Definition |
 |---|---|
 | `Id` | bigint identity PK |
 | `SolicitudId` | FK `Solicitud`, NOT NULL, no cascade |
-| `Tipo` | varchar(30) NOT NULL, `IN ('sospecha_documento','exceso_inasistencias')` (`ESCALATION_KINDS`, RN-20) |
+| `Tipo` | varchar(30) NOT NULL, `IN ('sospecha_documento','caso_especial','exceso_inasistencias')` (`ESCALATION_KINDS`, RN-20, E18) |
 | `EstadoPrevio` | varchar(30) NOT NULL |
-| `Nota` | varchar(1000) NULL: secretary note (sospecha only) |
+| `Nota` | varchar(1000) NULL: secretary note (either motive) |
 | `ReporteId` | FK `ReporteInasistencia` NULL (exceso only) |
 | `SecretariaId`, `CreadoEn` | FK `Usuario` NOT NULL; timestamptz NOT NULL |
 | `Respuesta`, `RespondidaPorId`, `RespondidaEn` | varchar(1000), FK `Usuario`, timestamptz; all NULL until answered |
 | Outbox | `NotificacionEstado` varchar(20) NOT NULL default `pendiente` (`pendiente`/`enviada`/`bloqueada`), `NotificacionMotivo` varchar(30) NULL (`sin_destinatarios`/`error_envio`), `Intentos` smallint default 0, `ReclamoId` uuid, `ReclamadaEn`, `EnviadaEn`, `ProveedorMensajeId` varchar(100), `ActualizadaEn` |
 
 CHECKs: `CK_Escalamiento_Tipo`; `CK_Escalamiento_Kind`
-(`(Tipo='sospecha_documento' AND EstadoPrevio='pendiente' AND ReporteId IS NULL
+(`(Tipo IN ('sospecha_documento','caso_especial') AND EstadoPrevio='pendiente' AND ReporteId IS NULL
 AND Nota IS NOT NULL AND length(btrim(Nota))>0) OR (Tipo='exceso_inasistencias'
 AND EstadoPrevio='aprobada' AND ReporteId IS NOT NULL AND Nota IS NULL)`);
 `CK_Escalamiento_Respuesta` (the three answer columns all NULL or all set,
 answer non-blank, `RespondidaEn >= CreadoEn`); `CK_Escalamiento_SinRespuesta`
-(`Tipo='sospecha_documento' OR RespondidaEn IS NULL`); outbox CHECKs mirroring
+(`Tipo IN ('sospecha_documento','caso_especial') OR RespondidaEn IS NULL`); outbox CHECKs mirroring
 `Remision` (`enviada` iff `EnviadaEn`; motive/state consistency:
 `CK_Escalamiento_NotificacionMotivo` = `NotificacionMotivo IS NULL OR
 NotificacionMotivo IN ('sin_destinatarios','error_envio')`, `bloqueada` needs
@@ -60,7 +61,8 @@ NotificacionMotivo IN ('sin_destinatarios','error_envio')`, `bloqueada` needs
 claim pair; `Intentos >= 0`).
 
 Indexes: `UX_Escalamiento_Abierto` unique on `(SolicitudId)` WHERE
-`Tipo='sospecha_documento' AND RespondidaEn IS NULL` (E12);
+`Tipo IN ('sospecha_documento','caso_especial') AND RespondidaEn IS NULL`
+(E12, E18: one open escalation across both motives);
 `IX_Escalamiento_Pendiente (CreadoEn, Id)` WHERE `NotificacionEstado='pendiente'`;
 `IX_Escalamiento_Solicitud (SolicitudId, CreadoEn)`.
 
@@ -171,10 +173,13 @@ In the En coordinacion tab the badge shows a display status `en_pausa`
 label; `DeadlineStatus` itself unchanged); alert/overdue marks stay
 Pendientes-only.
 
-### ES-6. Escalate (sospecha) write path (E17)
+### ES-6. Escalate write path (E17, E18)
 
-`escalateRequest({ actorId, scope, solicitudId, nota, now })` in
-`src/lib/data/solicitud-escalation.ts`, one transaction: guarded UPDATE
+`escalateRequest({ actorId, scope, solicitudId, motivo, nota, now })` in
+`src/lib/data/solicitud-escalation.ts`; `motivo` comes from the dialog and
+`validateEscalationDraft` checks it against `ESCALATION_REASONS`
+(`sospecha_documento`, `caso_especial`; anything else, `exceso_inasistencias`
+included, is `motivo_invalid`). One transaction: guarded UPDATE
 `Estado = sourceOf('en_revision_coordinacion','secretaria')` AND
 `requestInScope(scope)` RETURNING; read the student's current `CarreraId` and
 career name; count active `coordinacion` accounts of that career
@@ -211,7 +216,7 @@ refuse (E17); the post-commit dispatch blocks the notice with
 
 `answerEscalation({ actorId, scope: CoordinationScope, escalamientoId,
 respuesta, now })` in `src/lib/data/escalation-answer.ts`: guarded UPDATE
-`Escalamiento` WHERE id AND `Tipo='sospecha_documento'` AND `RespondidaEn IS
+`Escalamiento` WHERE id AND `Tipo IN ESCALATION_REASONS` AND `RespondidaEn IS
 NULL` AND `escalationInScope(scope)` (student's current career) RETURNING
 `SolicitudId`, `CreadoEn`; read the request's `PresentadaEn`, `ReenviadaEn`,
 `PlazoInicioEn` (nothing else writes them while in coordination); compute the
@@ -228,12 +233,12 @@ answered"). The secretary then decides with the existing panel.
 |---|---|
 | Role | `rolesCoordinadores = ["coordinacion"]`, `canCoordinate(rol)` in `permissions.ts` |
 | Scope | Pure `CoordinationScope = { kind:"carrera"; carreraId } \| { kind:"none" }` and `coordinationScopeFor` in `src/lib/intake/coordination-scope.ts`; `resolveCoordinationScope(userId, rol)` reads `Usuario.CarreraId`/`Activo` per call (never cached); SQL `escalationInScope(scope)` in `src/lib/data/coordination-scope-sql.ts` is the only place it becomes SQL (`none` -> `false`; `carrera` -> student's current `CarreraId` equals it) |
-| Routes | `src/app/(dashboard)/coordination/page.tsx`: open sospecha escalations of the own career (oldest first, regardless of notification state) then all notices of the own career (newest first); `coordination/[id]/page.tsx` keyed by **escalation id**; `coordination/[id]/actions.ts` `answerEscalationAction` |
-| Guards | Every page and action: `requireRole(...rolesCoordinadores)`, resolve scope, `none` -> denial with no rows; an escalation of another career, an answered sospecha escalation, a `borrador` or an unknown id is `notFound()` |
+| Routes | `src/app/(dashboard)/coordination/page.tsx`: open escalations (either motive) of the own career (oldest first, regardless of notification state) then all notices of the own career (newest first); `coordination/[id]/page.tsx` keyed by **escalation id**; `coordination/[id]/actions.ts` `answerEscalationAction` |
+| Guards | Every page and action: `requireRole(...rolesCoordinadores)`, resolve scope, `none` -> denial with no rows; an escalation of another career, an answered escalation, a `borrador` or an unknown id is `notFound()` |
 | Detail | Open escalation: student full name, CIF, career, cause, dates, subjects with group and teacher, current non-retired documents, reason label, secretary note, escalation time, answer form with `ConfirmDialog` (RNF-12); never the student email, consent state or decision history. Notice: student full name, CIF, career, teacher name, communicated date, report note; no documents, cause, dates or answer form |
 | Audit | List open writes `escalamiento.cola.consultada` (entity `Carrera`); detail open writes `solicitud.consultada` (entity `Solicitud`, coordinator actor), exactly once per render (same pattern as the secretary detail and `recordQueueRead`) |
 | Nav | `NAV_ITEMS` entry `coordination`, `visibleTo: canCoordinate`, `prefetch: false` (audited render) |
-| Documents | `getDocumentForDownload` adds `estudianteCarreraId` and `tieneEscalamientoAbierto` (exists on the open sospecha row; unique index => at most one). `canViewDocument(viewer, doc, scope, coordination = NONE)`: `coordinacion` allowed iff `coordination.kind==="carrera"` AND `doc.estudianteCarreraId === carreraId` AND `solicitudEstado === "en_revision_coordinacion"` AND `tieneEscalamientoAbierto` AND `doc.estado === "valido"` AND `doc.retiradoEn === null`; the download route resolves the coordination scope only for that role. Reads keep writing `documento.descargado` |
+| Documents | `getDocumentForDownload` adds `estudianteCarreraId` and `tieneEscalamientoAbierto` (exists on the open escalation row of either motive; unique index => at most one). `canViewDocument(viewer, doc, scope, coordination = NONE)`: `coordinacion` allowed iff `coordination.kind==="carrera"` AND `doc.estudianteCarreraId === carreraId` AND `solicitudEstado === "en_revision_coordinacion"` AND `tieneEscalamientoAbierto` AND `doc.estado === "valido"` AND `doc.retiradoEn === null`; the download route resolves the coordination scope only for that role. Reads keep writing `documento.descargado` |
 
 Rejected: widening `RequestScope` with a `carrera` kind (touches 8 secretary
 callers and `facultadId` narrowing; a coordinator could reach secretary data
@@ -251,9 +256,10 @@ before any mail configuration check); else `to` = first, `cc` = rest (one
 message, so "every recipient accepted" = one provider acceptance; no
 `MailSender` change). Spanish subject and text with exactly: request number,
 student full name and CIF, career name, reason label, the escalation note
-(sospecha) or the report note when present (exceso), and the absolute link
+(either motive) or the report note when present (exceso), and the absolute link
 `${APP_BASE_URL}/coordination/${id}` (login required, no token). No cause, no
-dates, no teacher name, no document names, no attachments, no answer.
+dates, no teacher name, no document names, no document attachments, no answer
+(see ES-17 for the HTML part and its inline brand image).
 Idempotency key `escalamiento-${id}-${sha256(to,cc)[0..16]}`. `APP_BASE_URL`
 joins `env.ts` as optional URL; unset -> failure `not_configured`, row stays
 `pendiente` (same as a missing Resend key). Rejected:
@@ -291,7 +297,7 @@ Data: `listReviewQueue` (pending, pause-aware), new
 the approval `SolicitudDecision.DecididaEn` descending, report count; newest 50
 with a "latest 50" note; search is the E14 cut line). Detail `/review/[id]`:
 `EscalationSection` (history, answers, delivery) for any state with
-escalations; escalate dialog when `pendiente` (note required); when the
+escalations; escalate dialog when `pendiente` (motive and note required, E18); when the
 career has no active `coordinacion` account the action is unavailable with the
 career-named E17 text (`countCoordinationAccounts` read in the page); report
 dialog when `aprobada` (teacher select from remissions, date, optional note)
@@ -324,8 +330,9 @@ E17 `sin_coordinacion` refusal), lost races and rollbacks write nothing.
 `getOwnRequestDetail` is unchanged; the page renders a neutral callout
 `requests.detail.coordination` when the state is `en_revision_coordinacion`.
 No reason code, note, answer, coordinator or excess notice reaches the student
-payload (the approved state does not change). Texts contain neither "sospecha"
-nor "suspicion" (test). `DECIDED_STATES` unchanged.
+payload (the approved state does not change). Texts contain neither "sospecha",
+"suspicion", "caso especial" nor "special case" (test); the motive never reaches
+the student (E18). `DECIDED_STATES` unchanged.
 
 ### ES-15. Consent v2
 
@@ -346,6 +353,26 @@ second regenerates; the number is never assumed). Additive except
 `src/db/migration-escalation.test.ts`: located by name, journal `when` after
 its predecessor, both tables and every CHECK body, `PlazoInicioEn` nullable,
 the only `DROP` is that index, no `UPDATE`, no `ALTER ... TYPE`.
+
+### ES-17. Special-case motive, branded notice, coordination table (E18, S10)
+
+Owner walk of 2026-10-30; evidence from the thesis interviews: E-02 (secretaria
+académica, 03:36) says causes outside art. 36 (health or sport), such as the
+death of a close relative or migration paperwork, are valued by the career
+coordination together with the teacher; E-01 (ex-coordinator) says the first
+level is the secretaría and, if the case requires it, it escalates to the
+coordination.
+
+| Topic | Decision |
+|---|---|
+| Motive | `ESCALATION_KINDS` gains `caso_especial`; `ESCALATION_REASONS = ["sospecha_documento","caso_especial"]` is the closed set a secretary may choose (`exceso_inasistencias` stays the notice kind). Every query that selected `Tipo = 'sospecha_documento'` now selects the set (`inArray` or the shared SQL fragment) |
+| Schema | CHECKs `Tipo`, `Kind`, `SinRespuesta` and the partial unique index `UX_Escalamiento_Abierto` cover both motives, so one open escalation exists per request across them. `CK_Escalamiento_MotivoEstado` pins the notification state and reason, not the kind, and is unchanged |
+| Migration | `0012_escalation` was never applied to production (production stops at `0011_document_extraction`; only disposable branches got it), so it is regenerated in place by drizzle-kit instead of adding `0013`. The disposable branches that hold the old 0012 are not valid targets for the new one; phases 4 and 14 must be re-run |
+| Dialog | The secretary picks the motive (radio group, accessible legend, no default); the server validates it against `ESCALATION_REASONS` (`motivo_invalid`); the note stays required |
+| Student | Unchanged and neutral (E13): neither motive reaches the student payload or text |
+| Message | One template function builds the text part (unchanged content) and the HTML part for both motives and the excess notice. The reason label of `caso_especial` is "Caso especial". `MailMessage` gains optional `html` and `attachments`; `ResendMailSender` forwards them, remission mails are unchanged |
+| Inline brand image | The UAM and FIA lockup travels as an inline attachment with a content id (`cid:`), because mail clients such as Gmail do not load images from `http://localhost` and a remote image would be a tracking surface. E6 ("no attachments") is about request documents; a brand image is not a document and holds no personal data. No remote resource, script or pixel in the HTML |
+| Coordination tab table | The columns Carrera and Plazo no longer take their own columns: the career goes under the student and the deadline pause under the escalation time; the notification status wraps (no `whitespace-nowrap` on it) and the actions column has a narrow fixed width. The 360 px card layout is unchanged |
 
 ## Data Flow
 

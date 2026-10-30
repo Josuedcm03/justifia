@@ -360,19 +360,20 @@ describe("listCoordinationQueue (RF-06, RF-10, E14)", () => {
     holder.current = null;
   });
 
-  it("selects the open suspicion of requests in coordination inside the scope", async () => {
+  it("selects the open escalation, of either motive, of requests in coordination inside the scope", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
     await listCoordinationQueue(SCOPE);
 
     const query = render(double.log[0].where);
     expect(query.sql).toContain('"Solicitud"."Estado" = $1');
-    expect(query.sql).toContain('"Escalamiento"."Tipo" = $2');
+    expect(query.sql).toContain('"Escalamiento"."Tipo" in ($2, $3)');
     expect(query.sql).toContain('"Escalamiento"."RespondidaEn" is null');
     expect(query.sql).toContain('"c"."FacultadId" = $');
     expect(query.params).toEqual([
       "en_revision_coordinacion",
       "sospecha_documento",
+      "caso_especial",
       3,
     ]);
   });

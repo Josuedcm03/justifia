@@ -15,8 +15,10 @@ state, and the latest decision text and RN-17 reason when the state is
 `en_revision_coordinacion`, the detail MUST show the state and a short neutral
 reason label (the request is being reviewed by the coordination of the
 student's career); the label MUST NOT contain the words "sospecha" or
-"suspicion", the note, the answer, the author or the identity of any
-coordinator. A report or notice recorded on an `aprobada` request (the
+"suspicion", nor "caso especial" or "special case", the note, the answer, the
+author or the identity of any coordinator. The motive of the escalation (E18)
+MUST NOT be shown to the student in any form, so a `sospecha_documento` and a
+`caso_especial` escalation look identical to the owner (E13). A report or notice recorded on an `aprobada` request (the
 excess-absence path) MUST NOT appear in any student view. After a coordination
 answer returns the request to `pendiente`, the student MUST see only that
 state. The detail MUST keep the history of earlier states and revisions.
@@ -53,7 +55,7 @@ data. Reads by the student of their own requests MUST NOT be audited.
 
 - GIVEN the student-facing label keys
 - WHEN `es.json` and `en.json` are read
-- THEN both exist and neither text contains "sospecha" or "suspicion"
+- THEN both exist and neither text contains "sospecha", "suspicion", "caso especial" or "special case"
 
 #### Scenario: Another student's request
 

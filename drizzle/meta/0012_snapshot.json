@@ -1,5 +1,5 @@
 {
-  "id": "b60a4dc6-63c3-40d3-8478-aefb76c424a9",
+  "id": "35e8f3bd-f4f1-4bad-9b79-b2cf0524d5c1",
   "prevId": "64438107-9024-40cc-b789-b3a4540dd6df",
   "version": "7",
   "dialect": "postgresql",
@@ -486,7 +486,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"Escalamiento\".\"Tipo\" = 'sospecha_documento' AND \"Escalamiento\".\"RespondidaEn\" IS NULL",
+          "where": "\"Escalamiento\".\"Tipo\" IN ('sospecha_documento', 'caso_especial') AND \"Escalamiento\".\"RespondidaEn\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -595,11 +595,11 @@
       "checkConstraints": {
         "CK_Escalamiento_Tipo": {
           "name": "CK_Escalamiento_Tipo",
-          "value": "\"Escalamiento\".\"Tipo\" IN ('sospecha_documento', 'exceso_inasistencias')"
+          "value": "\"Escalamiento\".\"Tipo\" IN ('sospecha_documento', 'caso_especial', 'exceso_inasistencias')"
         },
         "CK_Escalamiento_Kind": {
           "name": "CK_Escalamiento_Kind",
-          "value": "(\"Escalamiento\".\"Tipo\" = 'sospecha_documento' AND \"Escalamiento\".\"EstadoPrevio\" = 'pendiente' AND \"Escalamiento\".\"ReporteId\" IS NULL AND \"Escalamiento\".\"Nota\" IS NOT NULL AND length(btrim(\"Escalamiento\".\"Nota\")) > 0) OR (\"Escalamiento\".\"Tipo\" = 'exceso_inasistencias' AND \"Escalamiento\".\"EstadoPrevio\" = 'aprobada' AND \"Escalamiento\".\"ReporteId\" IS NOT NULL AND \"Escalamiento\".\"Nota\" IS NULL)"
+          "value": "(\"Escalamiento\".\"Tipo\" IN ('sospecha_documento', 'caso_especial') AND \"Escalamiento\".\"EstadoPrevio\" = 'pendiente' AND \"Escalamiento\".\"ReporteId\" IS NULL AND \"Escalamiento\".\"Nota\" IS NOT NULL AND length(btrim(\"Escalamiento\".\"Nota\")) > 0) OR (\"Escalamiento\".\"Tipo\" = 'exceso_inasistencias' AND \"Escalamiento\".\"EstadoPrevio\" = 'aprobada' AND \"Escalamiento\".\"ReporteId\" IS NOT NULL AND \"Escalamiento\".\"Nota\" IS NULL)"
         },
         "CK_Escalamiento_Respuesta": {
           "name": "CK_Escalamiento_Respuesta",
@@ -607,7 +607,7 @@
         },
         "CK_Escalamiento_SinRespuesta": {
           "name": "CK_Escalamiento_SinRespuesta",
-          "value": "\"Escalamiento\".\"Tipo\" = 'sospecha_documento' OR \"Escalamiento\".\"RespondidaEn\" IS NULL"
+          "value": "\"Escalamiento\".\"Tipo\" IN ('sospecha_documento', 'caso_especial') OR \"Escalamiento\".\"RespondidaEn\" IS NULL"
         },
         "CK_Escalamiento_NotificacionEstado": {
           "name": "CK_Escalamiento_NotificacionEstado",

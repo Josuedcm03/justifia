@@ -161,7 +161,7 @@ export type ViewableDocument = {
   solicitudEstado: string;
   /** Set when a correction retired the document (still `valido`). */
   retiradoEn: Date | null;
-  /** The request has an open `sospecha_documento` escalation. */
+  /** The request has an open escalation (either motive, E18). */
   tieneEscalamientoAbierto: boolean;
 };
 
@@ -171,8 +171,8 @@ const NO_COORDINATION: CoordinationScope = { kind: "none" };
  * Who may read a supporting document (D15, SR-12). The owning student reads
  * their own documents in any state, retired ones included. A reviewing role
  * reads only inside its facultad scope, and only a request that is not a
- * draft. A coordinator reads only while a suspicion escalation of the request
- * is open for their career, and only a current document (the lookup returns
+ * draft. A coordinator reads only while an escalation (either motive) of the
+ * request is open for their career, and only a current document (the lookup returns
  * `valido` ones only; a retired one is refused here). Every other role, and a
  * `none` scope, is denied.
  */

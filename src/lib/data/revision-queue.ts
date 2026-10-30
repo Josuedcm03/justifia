@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { effectiveClockStart } from "@/db/clock-start";
@@ -19,8 +19,8 @@ import {
 import { managuaToday } from "@/lib/intake/dates";
 import { clockStartOf } from "@/lib/intake/deadline-clock";
 import {
-  ESCALATION_REASON,
-  type EscalationKind,
+  ESCALATION_REASONS,
+  type EscalationReason,
   type EscalationNoticeReason,
   type EscalationNoticeState,
 } from "@/lib/intake/escalation";
@@ -129,7 +129,7 @@ export type CoordinationQueueRow = {
   estudianteCarrera: string | null;
   asignaturas: number;
   /** The reason label code of the open escalation. */
-  motivo: EscalationKind;
+  motivo: EscalationReason;
   /** When the secretary escalated it (oldest first). */
   escaladaEn: Date;
   notificacionEstado: EscalationNoticeState;
@@ -139,7 +139,7 @@ export type CoordinationQueueRow = {
 };
 
 /**
- * Requests in `en_revision_coordinacion` with their open suspicion, oldest
+ * Requests in `en_revision_coordinacion` with their open escalation, oldest
  * escalation first. The deadline is paused here, so the row carries no deadline;
  * the page shows the `en_pausa` display status.
  */
@@ -161,7 +161,7 @@ export async function listCoordinationQueue(
     .where(
       and(
         eq(solicitud.estado, "en_revision_coordinacion"),
-        eq(escalamiento.tipo, ESCALATION_REASON),
+        inArray(escalamiento.tipo, [...ESCALATION_REASONS]),
         isNull(escalamiento.respondidaEn),
         requestInScope(scope),
       ),
@@ -180,7 +180,7 @@ export async function listCoordinationQueue(
       estudianteCif: r.estudianteCif,
       estudianteCarrera: r.estudianteCarrera,
       asignaturas: classes.get(r.id)?.length ?? 0,
-      motivo: r.motivo as EscalationKind,
+      motivo: r.motivo as EscalationReason,
       escaladaEn: r.escaladaEn,
       notificacionEstado: r.notificacionEstado,
       notificacionMotivo: r.notificacionMotivo,

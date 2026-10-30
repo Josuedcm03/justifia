@@ -45,6 +45,25 @@ describe("EscalationSection history (RF-10, RN-16)", () => {
     expect(region).toHaveTextContent("Rosa Lopez, Oct 8, 2026, 9:00 AM");
   });
 
+  it("lists a special case with its own reason label, in both locales (E18)", () => {
+    show([escalation({ motivo: "caso_especial", nota: "Fallecimiento." })]);
+
+    const region = screen.getByRole("region", { name: en.section.title });
+    expect(region).toHaveTextContent(en.reasons.caso_especial);
+    expect(region).not.toHaveTextContent(en.reasons.sospecha_documento);
+    expect(region).toHaveTextContent("Fallecimiento.");
+  });
+
+  it("words the special case in neutral Spanish", () => {
+    show([escalation({ motivo: "caso_especial" })], "es");
+
+    expect(
+      screen.getByRole("region", {
+        name: messages.es.review.escalation.section.title,
+      }),
+    ).toHaveTextContent("Caso especial");
+  });
+
   it("says an open escalation is waiting for the coordination and offers no decision control", () => {
     show([
       escalation({ notificacionEstado: "enviada", enviadaEn: new Date() }),

@@ -7,7 +7,8 @@ import { useMemo } from "react";
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
 import {
   actionColumn,
-  studentColumns,
+  QueueStudent,
+  WRAP,
   type QueueRowBase,
 } from "@/app/(dashboard)/review/queue-parts";
 import { DataTable } from "@/components/tables/data-table";
@@ -27,7 +28,10 @@ export type CoordinationQueueTableRow = QueueRowBase & {
 /**
  * The En coordinacion tab in bounded mode, like the Pendientes table: rows in
  * the order delivered (oldest escalation first), no sort, paging or toolbar.
- * The deadline column is the muted `en_pausa` badge: the clock is stopped.
+ * The paused deadline (the muted `en_pausa` badge: the clock is stopped) sits
+ * under the escalation date and the career under the student, so the table has
+ * five columns and fits a desktop without a horizontal scroll; the student, the
+ * reason and the notice wrap.
  */
 export function CoordinationQueueTable({
   rows,
@@ -42,29 +46,37 @@ export function CoordinationQueueTable({
       {
         id: "escalated",
         header: t("coordination.columns.escalated"),
-        cell: ({ row }) => row.original.escalatedText,
+        cell: ({ row }) => (
+          <div className="flex flex-col items-start gap-1">
+            <span>{row.original.escalatedText}</span>
+            <DeadlineBadge status="en_pausa" label={row.original.pausedLabel} />
+          </div>
+        ),
         meta: { className: "tabular-nums" },
       },
-      ...studentColumns<CoordinationQueueTableRow>({
-        student: t("columns.student"),
-        career: t("columns.career"),
-      }),
+      {
+        id: "student",
+        header: t("columns.student"),
+        cell: ({ row }) => (
+          <QueueStudent
+            name={row.original.name}
+            cif={row.original.cif}
+            career={row.original.career}
+          />
+        ),
+        meta: { className: WRAP },
+      },
       {
         id: "reason",
         header: t("coordination.columns.reason"),
         cell: ({ row }) => row.original.reasonText,
-      },
-      {
-        id: "status",
-        header: t("coordination.columns.status"),
-        cell: ({ row }) => (
-          <DeadlineBadge status="en_pausa" label={row.original.pausedLabel} />
-        ),
+        meta: { className: WRAP },
       },
       {
         id: "notice",
         header: t("coordination.columns.notice"),
         cell: ({ row }) => row.original.noticeText,
+        meta: { className: WRAP },
       },
       actionColumn<CoordinationQueueTableRow>(t("columns.action")),
     ],

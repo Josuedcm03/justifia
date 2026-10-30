@@ -1,6 +1,15 @@
 import "server-only";
 
-import { and, count, desc, eq, exists, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import { QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -28,7 +37,7 @@ import {
   ownedWhere,
   type EditTarget,
 } from "@/lib/data/solicitudes";
-import { ESCALATION_REASON } from "@/lib/intake/escalation";
+import { ESCALATION_REASONS } from "@/lib/intake/escalation";
 import {
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS_PER_DRAFT,
@@ -403,8 +412,8 @@ export async function removeDocument(
 
 /**
  * A `valido` document with its owner, the owner's current career and its
- * facultad, the request state, any retirement and whether a suspicion
- * escalation of the request is open (the coordinator's reader rule, ES-9), or
+ * facultad, the request state, any retirement and whether an escalation
+ * (either motive) of the request is open (the coordinator's reader rule, ES-9), or
  * null. Retired documents stay `valido`, so they are returned. Authorization is
  * the caller's job (`canViewDocument`): this only answers "what is this
  * document".
@@ -431,7 +440,7 @@ export async function getDocumentForDownload(
           .where(
             and(
               eq(escalamiento.solicitudId, documentoRespaldo.solicitudId),
-              eq(escalamiento.tipo, ESCALATION_REASON),
+              inArray(escalamiento.tipo, [...ESCALATION_REASONS]),
               isNull(escalamiento.respondidaEn),
             ),
           ),

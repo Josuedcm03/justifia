@@ -1429,6 +1429,24 @@ describe("escalation event builders (RF-10, RF-15, RNF-06, RN-02)", () => {
       },
     },
     {
+      name: "escalation of a special case (E18)",
+      event: solicitudEscaladaEvent({
+        solicitudId: 41,
+        escalamientoId: 8,
+        motivo: "caso_especial",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      }),
+      accion: "solicitud.escalada",
+      entidadId: 41,
+      datos: {
+        escalamientoId: 8,
+        motivo: "caso_especial",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      },
+    },
+    {
       name: "coordination answer",
       event: solicitudEscalamientoResueltoEvent({
         solicitudId: 41,

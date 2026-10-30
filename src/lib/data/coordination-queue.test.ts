@@ -91,6 +91,23 @@ describe("listCoordinationEscalations (E1, E10, RNF-01)", () => {
     expect(double.log).toHaveLength(2);
   });
 
+  it("lists a special case beside a suspicion, with its own motive (E18)", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [openRow, { ...openRow, id: 10, motivo: "caso_especial" }],
+      },
+      { kind: "select", rows: [] },
+    ]);
+
+    const result = await listCoordinationEscalations(SCOPE);
+
+    expect(result.open.map((r) => [r.id, r.motivo])).toEqual([
+      [9, "sospecha_documento"],
+      [10, "caso_especial"],
+    ]);
+  });
+
   it("lists open escalations oldest first, and notices newest first", async () => {
     const double = use([
       { kind: "select", rows: [] },
@@ -109,7 +126,7 @@ describe("listCoordinationEscalations (E1, E10, RNF-01)", () => {
     ]);
   });
 
-  it("keeps only open suspicions of a request still in coordination", async () => {
+  it("keeps only open escalations of either motive of a request still in coordination", async () => {
     const double = use([
       { kind: "select", rows: [] },
       { kind: "select", rows: [] },
@@ -118,11 +135,12 @@ describe("listCoordinationEscalations (E1, E10, RNF-01)", () => {
     await listCoordinationEscalations(SCOPE);
 
     const open = render(double.log[0].where);
-    expect(open.sql).toContain('"Escalamiento"."Tipo" = $1');
+    expect(open.sql).toContain('"Escalamiento"."Tipo" in ($1, $2)');
     expect(open.sql).toContain('"Escalamiento"."RespondidaEn" is null');
-    expect(open.sql).toContain('"Solicitud"."Estado" = $2');
+    expect(open.sql).toContain('"Solicitud"."Estado" = $3');
     expect(open.params).toEqual([
       "sospecha_documento",
+      "caso_especial",
       "en_revision_coordinacion",
       CAREER,
     ]);
@@ -279,6 +297,16 @@ describe("getCoordinationDetail (E1, E10, RNF-01)", () => {
         fechaFin: "2026-10-14",
         clases: [classRow],
         documentos: [document],
+      });
+    });
+
+    it("shows a special case with its own motive, like a suspicion (E18)", async () => {
+      use(openScript({ tipo: "caso_especial", causa: "otra" }));
+
+      expect(await getCoordinationDetail(SCOPE, 9)).toMatchObject({
+        kind: "escalation",
+        motivo: "caso_especial",
+        nota: "La firma del medico no coincide con el sello.",
       });
     });
 

@@ -226,7 +226,6 @@ describe("review messages", () => {
         q.coordination.empty,
         q.coordination.columns.escalated,
         q.coordination.columns.reason,
-        q.coordination.columns.status,
         q.coordination.columns.notice,
         q.approved.description,
         q.approved.caption,
@@ -285,6 +284,9 @@ describe("review messages", () => {
         e.dialog.trigger,
         e.dialog.title,
         e.dialog.description,
+        e.dialog.motivoLabel,
+        e.dialog.motivo.sospecha_documento,
+        e.dialog.motivo.caso_especial,
         e.dialog.noteLabel,
         e.dialog.noteHint,
         e.dialog.counter,
@@ -292,6 +294,9 @@ describe("review messages", () => {
         e.dialog.pending,
         e.dialog.cancel,
         e.dialog.backToQueue,
+        e.reasons.sospecha_documento,
+        e.reasons.caso_especial,
+        e.reasons.exceso_inasistencias,
         m.review.queue.result.escalada,
       ]) {
         expect(text.trim().length).toBeGreaterThan(0);
@@ -310,6 +315,22 @@ describe("review messages", () => {
       expect(e.dialog.counter).toContain("{count}");
     },
   );
+
+  // E18: the exact Spanish the secretary reads when she picks the motive.
+  it("words the escalation motive in neutral Spanish with usted", () => {
+    const e = es.review.escalation;
+
+    expect(e.dialog.motivoLabel).toBe("Motivo del escalamiento");
+    expect(e.dialog.motivo).toEqual({
+      sospecha_documento: "Sospecha sobre un documento",
+      caso_especial: "Caso especial (fuera de las causas del reglamento)",
+    });
+    expect(e.errors.motivo_invalid).toBe(
+      "Seleccione el motivo del escalamiento.",
+    );
+    expect(e.reasons.caso_especial).toBe("Caso especial");
+    expect(JSON.stringify(e)).not.toMatch(/escalación/i);
+  });
 
   it.each(catalogs)(
     "%s words the report section, dialog and every error it can show",

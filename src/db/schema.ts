@@ -31,6 +31,7 @@ import {
   ESCALATION_KINDS,
   ESCALATION_NOTICE_REASONS,
   ESCALATION_NOTICE_STATES,
+  ESCALATION_REASONS,
   type EscalationNoticeReason,
   type EscalationNoticeState,
 } from "@/lib/intake/escalation";
@@ -673,10 +674,11 @@ export type NuevoReporteInasistencia = typeof reporteInasistencia.$inferInsert;
 
 /**
  * Escalamiento — one escalation to the career coordination and its own
- * notification outbox (escalation, ES-1). Two kinds share the table: a
- * `sospecha_documento` moves the request to `en_revision_coordinacion` and is
- * answered by the coordination; an `exceso_inasistencias` is informational and
- * leaves the request `aprobada`. The career is never stored: it is the
+ * notification outbox (escalation, ES-1). Two escalation motives and one
+ * notice kind share the table: a `sospecha_documento` or a `caso_especial` (E18)
+ * moves the request to `en_revision_coordinacion` and is answered by the
+ * coordination; an `exceso_inasistencias` is informational and leaves the
+ * request `aprobada`. The career is never stored: it is the
  * student's live `CarreraId` (ES-3). The outbox columns mirror `Remision`; after
  * creation only `src/lib/data/escalamiento.ts` writes them (structural test).
  * No cascade: a decided request is never deleted.
@@ -730,7 +732,7 @@ export const escalamiento = pgTable(
     ),
     check(
       "CK_Escalamiento_Kind",
-      sql`(${t.tipo} = 'sospecha_documento' AND ${t.estadoPrevio} = 'pendiente' AND ${t.reporteId} IS NULL AND ${t.nota} IS NOT NULL AND length(btrim(${t.nota})) > 0) OR (${t.tipo} = 'exceso_inasistencias' AND ${t.estadoPrevio} = 'aprobada' AND ${t.reporteId} IS NOT NULL AND ${t.nota} IS NULL)`,
+      sql`(${t.tipo} IN (${inList(ESCALATION_REASONS)}) AND ${t.estadoPrevio} = 'pendiente' AND ${t.reporteId} IS NULL AND ${t.nota} IS NOT NULL AND length(btrim(${t.nota})) > 0) OR (${t.tipo} = 'exceso_inasistencias' AND ${t.estadoPrevio} = 'aprobada' AND ${t.reporteId} IS NOT NULL AND ${t.nota} IS NULL)`,
     ),
     check(
       "CK_Escalamiento_Respuesta",
@@ -738,7 +740,7 @@ export const escalamiento = pgTable(
     ),
     check(
       "CK_Escalamiento_SinRespuesta",
-      sql`${t.tipo} = 'sospecha_documento' OR ${t.respondidaEn} IS NULL`,
+      sql`${t.tipo} IN (${inList(ESCALATION_REASONS)}) OR ${t.respondidaEn} IS NULL`,
     ),
     check(
       "CK_Escalamiento_NotificacionEstado",
@@ -761,11 +763,11 @@ export const escalamiento = pgTable(
       sql`(${t.reclamoId} IS NULL) = (${t.reclamadaEn} IS NULL)`,
     ),
     check("CK_Escalamiento_Intentos", sql`${t.intentos} >= 0`),
-    // E12: at most one open suspicion per request.
+    // E12, E18: at most one open escalation per request, whatever its motive.
     uniqueIndex("UX_Escalamiento_Abierto")
       .on(t.solicitudId)
       .where(
-        sql`${t.tipo} = 'sospecha_documento' AND ${t.respondidaEn} IS NULL`,
+        sql`${t.tipo} IN (${inList(ESCALATION_REASONS)}) AND ${t.respondidaEn} IS NULL`,
       ),
     // The retry job reads pending notices oldest first.
     index("IX_Escalamiento_Pendiente")

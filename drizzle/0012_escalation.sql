@@ -18,10 +18,10 @@ CREATE TABLE "Escalamiento" (
 	"EnviadaEn" timestamp with time zone,
 	"ProveedorMensajeId" varchar(100),
 	"ActualizadaEn" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "CK_Escalamiento_Tipo" CHECK ("Escalamiento"."Tipo" IN ('sospecha_documento', 'exceso_inasistencias')),
-	CONSTRAINT "CK_Escalamiento_Kind" CHECK (("Escalamiento"."Tipo" = 'sospecha_documento' AND "Escalamiento"."EstadoPrevio" = 'pendiente' AND "Escalamiento"."ReporteId" IS NULL AND "Escalamiento"."Nota" IS NOT NULL AND length(btrim("Escalamiento"."Nota")) > 0) OR ("Escalamiento"."Tipo" = 'exceso_inasistencias' AND "Escalamiento"."EstadoPrevio" = 'aprobada' AND "Escalamiento"."ReporteId" IS NOT NULL AND "Escalamiento"."Nota" IS NULL)),
+	CONSTRAINT "CK_Escalamiento_Tipo" CHECK ("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'exceso_inasistencias')),
+	CONSTRAINT "CK_Escalamiento_Kind" CHECK (("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial') AND "Escalamiento"."EstadoPrevio" = 'pendiente' AND "Escalamiento"."ReporteId" IS NULL AND "Escalamiento"."Nota" IS NOT NULL AND length(btrim("Escalamiento"."Nota")) > 0) OR ("Escalamiento"."Tipo" = 'exceso_inasistencias' AND "Escalamiento"."EstadoPrevio" = 'aprobada' AND "Escalamiento"."ReporteId" IS NOT NULL AND "Escalamiento"."Nota" IS NULL)),
 	CONSTRAINT "CK_Escalamiento_Respuesta" CHECK (("Escalamiento"."Respuesta" IS NULL) = ("Escalamiento"."RespondidaPorId" IS NULL) AND ("Escalamiento"."Respuesta" IS NULL) = ("Escalamiento"."RespondidaEn" IS NULL) AND ("Escalamiento"."Respuesta" IS NULL OR (length(btrim("Escalamiento"."Respuesta")) > 0 AND "Escalamiento"."RespondidaEn" >= "Escalamiento"."CreadoEn"))),
-	CONSTRAINT "CK_Escalamiento_SinRespuesta" CHECK ("Escalamiento"."Tipo" = 'sospecha_documento' OR "Escalamiento"."RespondidaEn" IS NULL),
+	CONSTRAINT "CK_Escalamiento_SinRespuesta" CHECK ("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial') OR "Escalamiento"."RespondidaEn" IS NULL),
 	CONSTRAINT "CK_Escalamiento_NotificacionEstado" CHECK ("Escalamiento"."NotificacionEstado" IN ('pendiente', 'enviada', 'bloqueada')),
 	CONSTRAINT "CK_Escalamiento_NotificacionMotivo" CHECK ("Escalamiento"."NotificacionMotivo" IS NULL OR "Escalamiento"."NotificacionMotivo" IN ('sin_destinatarios', 'error_envio')),
 	CONSTRAINT "CK_Escalamiento_Enviada" CHECK (("Escalamiento"."NotificacionEstado" = 'enviada') = ("Escalamiento"."EnviadaEn" IS NOT NULL)),
@@ -51,7 +51,7 @@ ALTER TABLE "Escalamiento" ADD CONSTRAINT "Escalamiento_RespondidaPorId_Usuario_
 ALTER TABLE "ReporteInasistencia" ADD CONSTRAINT "ReporteInasistencia_SolicitudId_Solicitud_Id_fk" FOREIGN KEY ("SolicitudId") REFERENCES "public"."Solicitud"("Id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ReporteInasistencia" ADD CONSTRAINT "ReporteInasistencia_DocenteId_Usuario_Id_fk" FOREIGN KEY ("DocenteId") REFERENCES "public"."Usuario"("Id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ReporteInasistencia" ADD CONSTRAINT "ReporteInasistencia_RegistradoPorId_Usuario_Id_fk" FOREIGN KEY ("RegistradoPorId") REFERENCES "public"."Usuario"("Id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "UX_Escalamiento_Abierto" ON "Escalamiento" USING btree ("SolicitudId") WHERE "Escalamiento"."Tipo" = 'sospecha_documento' AND "Escalamiento"."RespondidaEn" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "UX_Escalamiento_Abierto" ON "Escalamiento" USING btree ("SolicitudId") WHERE "Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial') AND "Escalamiento"."RespondidaEn" IS NULL;--> statement-breakpoint
 CREATE INDEX "IX_Escalamiento_Pendiente" ON "Escalamiento" USING btree ("CreadoEn","Id") WHERE "Escalamiento"."NotificacionEstado" = 'pendiente';--> statement-breakpoint
 CREATE INDEX "IX_Escalamiento_Solicitud" ON "Escalamiento" USING btree ("SolicitudId","CreadoEn");--> statement-breakpoint
 CREATE INDEX "IX_ReporteInasistencia_Solicitud" ON "ReporteInasistencia" USING btree ("SolicitudId");--> statement-breakpoint

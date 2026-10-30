@@ -16,7 +16,10 @@ coordination does not count toward the RN-08 deadline.
 in scope (facultad of the student's current career) in that state, never a
 `borrador`, and each row MUST link to the staff detail. En coordinacion MUST be
 ordered by escalation time ascending (oldest first) and show the reason label
-and the notification status; Aprobadas MUST be ordered by approval time
+(either motive, E18) and the notification status, without a horizontal scroll at
+a desktop width of 1280 px (the deadline pause shown under the escalation time,
+the career under the student) and as cards at 360 px; Aprobadas MUST be
+ordered by approval time
 descending and show the number of recorded reports; only Pendientes shows the
 alert and overdue marks. The selected tab MUST be addressable so it can be
 bookmarked. `rechazada` and `devuelta` requests appear in no tab. Search by
@@ -57,7 +60,9 @@ rules in `audit-log`. All tab texts MUST exist in both locales.
 ### Requirement: Escalation controls and history on the staff detail (RF-10, RN-15, RNF-12)
 
 The staff detail of a `pendiente` request MUST offer, beside the decision
-actions, an "Escalate to coordination" action with a required note and a
+actions, an "Escalate to coordination" action with a required motive
+("Sospecha sobre un documento" or "Caso especial (fuera de las causas del
+reglamento)", no default preselected, E18), a required note and a
 confirmation dialog (see `coordination-escalation`). The staff detail of any
 request that has escalation records MUST show their history: reason label,
 note, author and time of each, and for an answered escalation the answer, the
@@ -76,6 +81,12 @@ the existing `solicitud.consultada`.
 - GIVEN a `pendiente` request in scope
 - WHEN the secretary opens its detail
 - THEN the escalate action is offered beside approve, reject and return
+
+#### Scenario: Motive is required in the dialog (E18)
+
+- GIVEN the escalate dialog with a note and no motive chosen
+- WHEN the secretary confirms
+- THEN no escalation is made, the error "Seleccione el motivo del escalamiento." is shown on the motive, and choosing "Caso especial (fuera de las causas del reglamento)" then confirming escalates with that motive
 
 #### Scenario: In coordination, no controls
 

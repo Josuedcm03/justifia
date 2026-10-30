@@ -124,7 +124,10 @@ export async function dispatchEscalationNotice(
     cc: plan.draft.cc,
     subject: plan.draft.subject,
     text: plan.draft.text,
-    attachments: [],
+    html: plan.draft.html,
+    // Only the inline brand image: a coordination notice never attaches a
+    // request document (E6).
+    attachments: plan.draft.attachments,
     idempotencyKey: plan.idempotencyKey,
   });
 

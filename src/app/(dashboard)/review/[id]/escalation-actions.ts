@@ -113,6 +113,7 @@ export async function escalateRequestAction(
       actorId,
       scope,
       solicitudId,
+      motivo: payload.motivo,
       nota: payload.nota as string,
       now: new Date(),
     });

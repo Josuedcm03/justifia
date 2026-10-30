@@ -143,6 +143,7 @@ describe("escalateRequest (RF-10 a, ES-6, E17)", () => {
     actorId: ACTOR,
     scope: SCOPE,
     solicitudId: ID,
+    motivo: "sospecha_documento",
     nota: NOTE,
     now: NOW,
     ...overrides,
@@ -198,6 +199,43 @@ describe("escalateRequest (RF-10 a, ES-6, E17)", () => {
           datos: {
             escalamientoId: 9,
             motivo: "sospecha_documento",
+            estadoPrevio: "pendiente",
+            estadoNuevo: "en_revision_coordinacion",
+          },
+        },
+      ]);
+    });
+
+    it("escalates a special case exactly like a suspicion, with its own motive (E18)", async () => {
+      const double = use(success());
+
+      const result = await escalateRequest(input({ motivo: "caso_especial" }));
+
+      expect(result).toEqual({ ok: true, escalamientoId: 9 });
+      expect(double.log.map((s) => s.kind)).toEqual([
+        "update",
+        "select",
+        "select",
+        "insert",
+      ]);
+      expect(double.log[0].set).toEqual({
+        estado: "en_revision_coordinacion",
+        actualizadoEn: NOW,
+      });
+      expect(double.log[3].values).toMatchObject({
+        tipo: "caso_especial",
+        estadoPrevio: "pendiente",
+        nota: NOTE,
+        notificacionEstado: "pendiente",
+      });
+      expect(insertAuditMock.mock.calls[0][2]).toEqual([
+        {
+          accion: "solicitud.escalada",
+          entidadTipo: "Solicitud",
+          entidadId: ID,
+          datos: {
+            escalamientoId: 9,
+            motivo: "caso_especial",
             estadoPrevio: "pendiente",
             estadoNuevo: "en_revision_coordinacion",
           },
@@ -380,6 +418,23 @@ describe("escalateRequest (RF-10 a, ES-6, E17)", () => {
         const result = await escalateRequest(input({ nota }));
 
         expect(result).toMatchObject({ ok: false, reason: "invalid" });
+        expect(double.transactions).toBe(0);
+        expect(double.log).toHaveLength(0);
+      },
+    );
+
+    it.each([["exceso_inasistencias"], ["otro"], [""], [undefined], [null]])(
+      "refuses the motive %j before touching the database (E18)",
+      async (motivo) => {
+        const double = use([]);
+
+        const result = await escalateRequest(input({ motivo }));
+
+        expect(result).toEqual({
+          ok: false,
+          reason: "invalid",
+          errors: [{ field: "motivo", code: "motivo_invalid" }],
+        });
         expect(double.transactions).toBe(0);
         expect(double.log).toHaveLength(0);
       },

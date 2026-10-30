@@ -112,7 +112,7 @@ dates, message text, provider response bodies or any credential.
 
 - GIVEN a successful escalation
 - WHEN its `solicitud.escalada` payload is read
-- THEN it carries the reason `sospecha_documento` and the previous and new state
+- THEN it carries the reason chosen by the secretary, `sospecha_documento` or `caso_especial` (E18), and the previous and new state
 
 ### Requirement: Actor of notification events from the scheduled job
 
