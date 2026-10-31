@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 //   2. every link under reports/ and every link to /reports opts out of prefetch;
 //   3. no loading, layout, template or default file sits under reports/;
 //   4. nothing revalidates or refreshes a report page.
-// Slice 3 extends the allow-lists with the download route.
+// The download route (slice 3) is a third audited writer, pinned in its own
+// block: it writes once, after authorisation and the file, before the bytes.
 
 const ROOT = process.cwd();
 const SRC = join(ROOT, "src");
@@ -44,6 +45,7 @@ const reportFiles = filesUnder(REPORTS_DIR).map((path) =>
 const DASHBOARD_PAGE = "src/app/(dashboard)/reports/page.tsx";
 const DETAIL_PAGE = "src/app/(dashboard)/reports/requests/page.tsx";
 const READS_MODULE = "src/lib/data/report-reads.ts";
+const EXPORT_ROUTE = "src/app/api/reports/justifications/route.ts";
 
 /** Every audit writer of the reports; later slices add their page or route. */
 const WRITERS = [
@@ -117,17 +119,10 @@ describe("reports structure: the audit write lives in the page bodies (CR-AUDIT-
     );
   });
 
-  it("calls no other report writer yet: the download slice adds its own", () => {
-    for (const writer of WRITERS.filter(
-      (name) =>
-        name !== "recordReportDashboardRead" &&
-        name !== "recordReportRequestsRead",
-    )) {
-      expect(
-        usersOf(writer).filter((path) => path !== READS_MODULE),
-        writer,
-      ).toEqual([]);
-    }
+  it("calls recordReportDownload only from the download route", () => {
+    expect(usersOf("recordReportDownload")).toEqual(
+      [READS_MODULE, EXPORT_ROUTE].sort(),
+    );
   });
 
   it("never writes a report read from a layout or a loading file", () => {
@@ -176,6 +171,61 @@ describe("reports structure: the audit write lives in the page bodies (CR-AUDIT-
       expect(text).not.toMatch(/useEffect/);
     },
   );
+});
+
+describe("reports structure: the download route (CR-XLS-1, CR-XLS-4)", () => {
+  const routeText = () =>
+    sources.find((s) => s.path === EXPORT_ROUTE)?.text ?? "";
+
+  it("finds the route", () => {
+    expect(routeText().length).toBeGreaterThan(0);
+  });
+
+  it("guards itself in order: session, report predicate, scope, then the read", () => {
+    const text = routeText();
+    const at = (needle: string) => text.indexOf(needle);
+
+    expect(at("requireRole(")).toBeGreaterThan(-1);
+    expect(at("canViewReports(")).toBeGreaterThan(at("requireRole("));
+    expect(at("resolveReportScope(")).toBeGreaterThan(at("canViewReports("));
+    expect(at("listReportExport(")).toBeGreaterThan(at("resolveReportScope("));
+    expect(text).toContain("redirect(ACCESS_DENIED_PATH)");
+  });
+
+  it("writes the audit row exactly once, after the file is built and before the response", () => {
+    const text = routeText();
+    const calls = text.match(/\brecordReportDownload\(/g) ?? [];
+
+    expect(calls).toHaveLength(1);
+    expect(text.indexOf("recordReportDownload(")).toBeGreaterThan(
+      text.indexOf("buildWorkbook("),
+    );
+    expect(text.indexOf("buildWorkbook(")).toBeGreaterThan(
+      text.indexOf("listReportExport("),
+    );
+    expect(text.indexOf("new Response(")).toBeGreaterThan(
+      text.indexOf("recordReportDownload("),
+    );
+  });
+
+  it("exposes only GET and sends no cacheable response", () => {
+    const text = routeText();
+
+    expect(text.match(/export (async )?function \w+/g)).toEqual([
+      "export async function GET",
+    ]);
+    expect(text).toContain('"Cache-Control": "private, no-store"');
+  });
+
+  it("is reached by a plain anchor, never a <Link>: a prefetch would write a row and download", () => {
+    const linksToFile = sources.flatMap((s) =>
+      linkTags(s.text)
+        .filter((tag) => /exportHref|api\/reports/.test(tag))
+        .map((tag) => `${s.path}: ${tag}`),
+    );
+
+    expect(linksToFile).toEqual([]);
+  });
 });
 
 describe("reports structure: links opt out of prefetch (CR-AUDIT-1, N2, guard 2)", () => {
