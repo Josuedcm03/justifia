@@ -6,6 +6,7 @@ import { db } from "@/db";
 import {
   solicitudRankingConsultadoEvent,
   solicitudReporteConsultadoEvent,
+  solicitudReporteDescargadoEvent,
 } from "@/lib/audit/events";
 import { insertAuditEvents } from "@/lib/data/audit";
 import type { Causa } from "@/lib/intake/causes";
@@ -69,3 +70,32 @@ export const recordReportRequestsRead = cache(
     });
   },
 );
+
+/**
+ * One `solicitud.reporte.descargado` row per successful download. Deliberately NOT
+ * `cache()`d: repeated downloads write one row each (CR-XLS-4). The route calls it
+ * after authorisation and before any byte is sent; a failed insert throws, so no
+ * file leaves without its row.
+ */
+export async function recordReportDownload(
+  actorId: number,
+  carreraId: number,
+  periodo: string,
+  docenteId: number | null,
+  causa: Causa | null,
+  busqueda: boolean,
+  total: number,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await insertAuditEvents(tx, actorId, [
+      solicitudReporteDescargadoEvent({
+        carreraId,
+        periodo,
+        docenteId,
+        causa,
+        busqueda,
+        total,
+      }),
+    ]);
+  });
+}

@@ -44,6 +44,7 @@ import {
   solicitudPresentadaEvent,
   solicitudRankingConsultadoEvent,
   solicitudReporteConsultadoEvent,
+  solicitudReporteDescargadoEvent,
   type TouchedAccount,
 } from "./events";
 import {
@@ -1497,6 +1498,64 @@ describe("solicitudReporteConsultadoEvent (RF-13 b, RNF-06, audit-log delta)", (
   it("accepts the unfiltered shape: every period, no teacher, no cause, no search", () => {
     expect(
       solicitudReporteConsultadoEvent({
+        carreraId: 4,
+        periodo: "all",
+        docenteId: null,
+        causa: null,
+        busqueda: false,
+        total: 0,
+      }).datos,
+    ).toEqual({
+      periodo: "all",
+      docenteId: null,
+      causa: null,
+      busqueda: false,
+      total: 0,
+    });
+  });
+});
+
+describe("solicitudReporteDescargadoEvent (RF-13 a, RNF-06, audit-log delta)", () => {
+  const args = {
+    carreraId: 4,
+    periodo: "2026-S1",
+    docenteId: 12,
+    causa: "medica",
+    busqueda: true,
+    total: 12,
+  } as const;
+  const event = solicitudReporteDescargadoEvent(args);
+
+  it("is the workbook download on the Carrera of the coordinator", () => {
+    expect(event).toEqual({
+      accion: "solicitud.reporte.descargado",
+      entidadTipo: "Carrera",
+      entidadId: 4,
+      datos: {
+        periodo: "2026-S1",
+        docenteId: 12,
+        causa: "medica",
+        busqueda: true,
+        total: 12,
+      },
+    });
+    expect(AUDIT_ACTIONS).toContain(event.accion);
+  });
+
+  it("has the same payload shape as the detail view, so one query reads both", () => {
+    const viewed = solicitudReporteConsultadoEvent(args);
+
+    expect(Object.keys(event.datos).sort()).toEqual(
+      Object.keys(viewed.datos).sort(),
+    );
+    expect(event.datos).toEqual(viewed.datos);
+    expect(event.accion).not.toBe(viewed.accion);
+  });
+
+  it("holds the filters and the row count only: a boolean for the search, never a term", () => {
+    expect(JSON.stringify(event)).not.toMatch(/nombre|cif|solicitudId|@/i);
+    expect(
+      solicitudReporteDescargadoEvent({
         carreraId: 4,
         periodo: "all",
         docenteId: null,

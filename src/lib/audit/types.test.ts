@@ -69,6 +69,7 @@ describe("AUDIT_ACTIONS", () => {
         "inscripcion.desactivada",
         "solicitud.ranking.consultado",
         "solicitud.reporte.consultado",
+        "solicitud.reporte.descargado",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([

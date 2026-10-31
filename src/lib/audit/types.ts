@@ -48,6 +48,7 @@ export const AUDIT_ACTIONS = [
   "inscripcion.desactivada",
   "solicitud.ranking.consultado",
   "solicitud.reporte.consultado",
+  "solicitud.reporte.descargado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -76,8 +77,9 @@ type RankingReadPayload = {
   asignaturas: number;
 };
 
-/** The request detail open (RF-13 b): the filters that were applied and the
- *  total they matched. The search is a boolean, never the typed term, which may
+/** The request detail open (RF-13 b) or the workbook download (RF-13 a): the
+ *  filters that were applied and the total they matched (the rows of the file
+ *  for a download). The search is a boolean, never the typed term, which may
  *  be a student name (RNF-06). */
 type ReportReadPayload = {
   /** A `AAAA-S1|S2` code or "all". */
@@ -434,8 +436,9 @@ export type AuditEvent =
       datos: RankingReadPayload;
     }
   | {
-      // The entity is the coordinator's career: the detail is a scope too.
-      accion: "solicitud.reporte.consultado";
+      // The entity is the coordinator's career: the detail and its workbook
+      // are a scope too, with one payload shape for both.
+      accion: "solicitud.reporte.consultado" | "solicitud.reporte.descargado";
       entidadTipo: "Carrera";
       entidadId: number;
       datos: ReportReadPayload;

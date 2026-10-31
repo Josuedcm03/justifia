@@ -36,6 +36,7 @@ vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
 import {
   recordReportDashboardRead,
+  recordReportDownload,
   recordReportRequestsRead,
 } from "@/lib/data/report-reads";
 
@@ -182,6 +183,67 @@ describe("recordReportRequestsRead (CR-DET-4, RNF-06)", () => {
 
     await expect(
       recordReportRequestsRead(30, 8, "2026-S1", null, null, false, 1),
+    ).rejects.toThrow("audit down");
+  });
+});
+
+describe("recordReportDownload (CR-XLS-4, RNF-06)", () => {
+  beforeEach(() => {
+    insertAuditMock.mockReset();
+    insertAuditMock.mockResolvedValue(undefined);
+  });
+
+  it("writes one solicitud.reporte.descargado row in one transaction", async () => {
+    const double = use();
+
+    await recordReportDownload(30, 4, "2026-S1", 12, "medica", true, 12);
+
+    expect(double.transactions).toBe(1);
+    expect(insertAuditMock).toHaveBeenCalledTimes(1);
+    const [, actor, events] = insertAuditMock.mock.calls[0];
+    expect(actor).toBe(30);
+    expect(events).toEqual([
+      {
+        accion: "solicitud.reporte.descargado",
+        entidadTipo: "Carrera",
+        entidadId: 4,
+        datos: {
+          periodo: "2026-S1",
+          docenteId: 12,
+          causa: "medica",
+          busqueda: true,
+          total: 12,
+        },
+      },
+    ]);
+  });
+
+  it("is NOT deduplicated: two identical downloads write two rows", async () => {
+    const double = use();
+
+    await recordReportDownload(30, 5, "all", null, null, false, 3);
+    await recordReportDownload(30, 5, "all", null, null, false, 3);
+
+    expect(insertAuditMock).toHaveBeenCalledTimes(2);
+    expect(double.transactions).toBe(2);
+  });
+
+  it("stores a boolean for the search: the typed term never reaches the row", async () => {
+    use();
+
+    await recordReportDownload(30, 9, "all", null, null, true, 2);
+
+    const serialized = JSON.stringify(insertAuditMock.mock.calls[0][2]);
+    expect(serialized).toContain('"busqueda":true');
+    expect(serialized).not.toContain("Maria Lopez");
+  });
+
+  it("rejects when the audit insert fails, so the route sends no bytes", async () => {
+    use();
+    insertAuditMock.mockRejectedValue(new Error("audit down"));
+
+    await expect(
+      recordReportDownload(30, 8, "2026-S1", null, null, false, 1),
     ).rejects.toThrow("audit down");
   });
 });

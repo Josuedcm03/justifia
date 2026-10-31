@@ -266,19 +266,21 @@ export function solicitudRankingConsultadoEvent(args: {
   };
 }
 
-/** A coordinator opened the request detail: the entity is the career, the
- *  payload the applied filters and the total. `busqueda` says only that a term
- *  was typed; the term itself is never stored (RF-13 b, RNF-06). */
-export function solicitudReporteConsultadoEvent(args: {
+type ReportReadArgs = {
   carreraId: number;
   periodo: string;
   docenteId: number | null;
   causa: Causa | null;
   busqueda: boolean;
   total: number;
-}): AuditEvent {
+};
+
+function reportReadEvent(
+  accion: "solicitud.reporte.consultado" | "solicitud.reporte.descargado",
+  args: ReportReadArgs,
+): AuditEvent {
   return {
-    accion: "solicitud.reporte.consultado",
+    accion,
     entidadTipo: "Carrera",
     entidadId: args.carreraId,
     datos: {
@@ -289,6 +291,23 @@ export function solicitudReporteConsultadoEvent(args: {
       total: args.total,
     },
   };
+}
+
+/** A coordinator opened the request detail: the entity is the career, the
+ *  payload the applied filters and the total. `busqueda` says only that a term
+ *  was typed; the term itself is never stored (RF-13 b, RNF-06). */
+export function solicitudReporteConsultadoEvent(
+  args: ReportReadArgs,
+): AuditEvent {
+  return reportReadEvent("solicitud.reporte.consultado", args);
+}
+
+/** A coordinator downloaded the workbook: the same payload as the detail view,
+ *  with `total` the rows of the file (RF-13 a, RNF-06). */
+export function solicitudReporteDescargadoEvent(
+  args: ReportReadArgs,
+): AuditEvent {
+  return reportReadEvent("solicitud.reporte.descargado", args);
 }
 
 /** A correction retired a document of a previous revision (soft retirement). */
