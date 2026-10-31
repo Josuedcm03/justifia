@@ -13,7 +13,7 @@ remiten a ese archivo.
 | 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | archivado |
 | 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
 | 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
-| 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
+| 7   | `coordination-reports` | RF-17; RF-13 (a), (b), (d)                  | Por asignar | No                   | en curso  |
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
 | 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | archivado |
 | 10  | `secretary-templates`  | Plantillas propias de la secretaría (RF-07) | Por asignar | No                   | pendiente |
