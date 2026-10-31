@@ -71,6 +71,15 @@ describe("RequestsTable", () => {
     ]);
   });
 
+  it("lets headers and cells wrap so the seven columns fit without side scrolling", () => {
+    show([row(1)]);
+
+    const table = screen.getByRole("table", { name: "Justification requests" });
+    expect(table.className).toContain("[&_th]:whitespace-normal");
+    expect(table.className).toContain("[&_td]:whitespace-normal");
+    expect(table.querySelector('[class*="min-w-"]')).toBeNull();
+  });
+
   it("renders one row per request with each value in its column", () => {
     show([
       row(2, { student: "Luis Mora", cause: "Other force majeure" }),

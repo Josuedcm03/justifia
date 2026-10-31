@@ -42,9 +42,10 @@ export type RequestsTableColumns = {
 /**
  * The request detail table (CR-DET-1): one row per request, the classes of a
  * request together in one cell. Hook-free, so the server page renders it as is.
- * The table scrolls inside its own container, so a narrow screen never widens
- * the page; the classes cell wraps instead of forcing the width. Zero rows are
- * never rendered here: the page shows the no-results state instead.
+ * Seven columns only fit a desktop content area when compact, so headers and
+ * cells wrap and use tighter padding; on a narrow screen the table still scrolls
+ * inside its own container and never widens the page. Zero rows are never
+ * rendered here: the page shows the no-results state instead.
  */
 export function RequestsTable({
   caption,
@@ -57,7 +58,7 @@ export function RequestsTable({
   rows: readonly RequestsTableRow[];
 }) {
   return (
-    <Table>
+    <Table className="text-xs [&_td]:px-3 [&_td]:py-3 [&_td]:whitespace-normal [&_th]:px-3 [&_th]:whitespace-normal">
       <TableCaption className="sr-only">{caption}</TableCaption>
       <TableHeader>
         <TableRow>
@@ -81,7 +82,7 @@ export function RequestsTable({
             <TableCell>{row.state}</TableCell>
             <TableCell className="tabular-nums">{row.absence}</TableCell>
             <TableCell className="tabular-nums">{row.submitted}</TableCell>
-            <TableCell className="min-w-64 whitespace-normal">
+            <TableCell>
               <ul className="flex flex-col gap-1">
                 {row.classes.map((line, at) => (
                   <li key={`${at}:${line}`}>{line}</li>
