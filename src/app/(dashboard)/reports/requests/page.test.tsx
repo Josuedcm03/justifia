@@ -592,3 +592,86 @@ describe("ReportRequestsPage audit (CR-DET-4, RNF-06)", () => {
     expect(auditMock).not.toHaveBeenCalled();
   });
 });
+
+describe("ReportRequestsPage download control (CR-XLS-1, RF-13 a)", () => {
+  const download = () =>
+    screen.queryByRole("link", { name: en.export.download });
+
+  it("offers the workbook of the resolved filters as a plain anchor, never a Link", async () => {
+    await renderPage({
+      period: "2026-S1",
+      docente: "9",
+      causa: "medica",
+      q: "Ana",
+    });
+
+    const link = download();
+    expect(link).not.toBeNull();
+    expect(link).toHaveAttribute(
+      "href",
+      "/api/reports/justifications?q=Ana&period=2026-S1&docente=9&causa=medica",
+    );
+    // The Link double stamps data-prefetch on everything it renders: its
+    // absence proves this is the file's own <a>, which a prefetch cannot reach.
+    expect(link).not.toHaveAttribute("data-prefetch");
+  });
+
+  it("writes period=all when no period was chosen, so the file lists what the screen lists", async () => {
+    await renderPage();
+
+    expect(download()).toHaveAttribute(
+      "href",
+      "/api/reports/justifications?period=all",
+    );
+  });
+
+  it("never carries the page: the file holds every page", async () => {
+    loadMock.mockResolvedValue(view({ total: 80, page: 2 }));
+
+    await renderPage({ causa: "medica", page: "2" });
+
+    expect(download()).toHaveAttribute(
+      "href",
+      "/api/reports/justifications?period=all&causa=medica",
+    );
+  });
+
+  it("is shown when nothing matches: an empty download is allowed", async () => {
+    loadMock.mockResolvedValue(view({ rows: [], total: 0 }));
+
+    await renderPage({ docente: "999" });
+
+    expect(download()).toHaveAttribute(
+      "href",
+      "/api/reports/justifications?period=all&docente=999",
+    );
+  });
+
+  it("is labelled in the user's language", async () => {
+    state.locale = "es";
+
+    await renderPage();
+
+    expect(
+      screen.getByRole("link", { name: messages.es.reports.export.download }),
+    ).toHaveAttribute("href", "/api/reports/justifications?period=all");
+  });
+
+  it("is hidden for a degraded read", async () => {
+    loadMock.mockResolvedValue(
+      view({ rows: [], total: 0, periods: [], docentes: [], degraded: true }),
+    );
+
+    await renderPage();
+
+    expect(download()).toBeNull();
+  });
+
+  it("is hidden for a coordinator without a career", async () => {
+    scopeMock.mockResolvedValue({ kind: "none" });
+
+    await renderPage();
+
+    expect(download()).toBeNull();
+  });
+});

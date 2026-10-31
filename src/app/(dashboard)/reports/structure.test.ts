@@ -217,6 +217,18 @@ describe("reports structure: the download route (CR-XLS-1, CR-XLS-4)", () => {
     expect(text).toContain('"Cache-Control": "private, no-store"');
   });
 
+  it("is offered only by the detail page, as a plain <a> built with exportHref", () => {
+    const users = sources
+      .filter((s) => /\bexportHref\(/.test(s.text))
+      .map((s) => s.path)
+      .sort();
+    const text = sources.find((s) => s.path === DETAIL_PAGE)?.text ?? "";
+
+    expect(users).toEqual(["src/lib/reports/params.ts", DETAIL_PAGE].sort());
+    expect(text.match(/\bexportHref\(/g)).toHaveLength(1);
+    expect(text).toMatch(/<a\s[^>]*href=\{exportHref\(/);
+  });
+
   it("is reached by a plain anchor, never a <Link>: a prefetch would write a row and download", () => {
     const linksToFile = sources.flatMap((s) =>
       linkTags(s.text)

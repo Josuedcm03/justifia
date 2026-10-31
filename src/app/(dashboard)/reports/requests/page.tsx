@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { RequestFilters } from "@/app/(dashboard)/reports/requests/request-filters";
@@ -10,6 +11,7 @@ import { DegradedAlert } from "@/components/degraded-alert";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { TableCard } from "@/components/table-card";
+import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesQueVenReportes } from "@/lib/auth/permissions";
 import { recordReportRequestsRead } from "@/lib/data/report-reads";
@@ -21,6 +23,7 @@ import { resolveReportScope } from "@/lib/data/report-scope";
 import { CAUSAS, isCausa } from "@/lib/intake/causes";
 import {
   detailPeriod,
+  exportHref,
   parseReportParams,
   requestsReportHref,
 } from "@/lib/reports/params";
@@ -50,7 +53,7 @@ export default async function ReportRequestsPage({
   const format = await getFormatter();
   const actorId = Number(user.sub);
 
-  const header = (
+  const plainHeader = (
     <PageHeader
       title={t("detail.title")}
       description={t("detail.description")}
@@ -61,7 +64,7 @@ export default async function ReportRequestsPage({
   if (scope.kind === "none") {
     return (
       <div className="flex flex-col gap-8">
-        {header}
+        {plainHeader}
         <div role="alert" className={`${ALERT} flex flex-col gap-1`}>
           <p className="font-medium">{t("noCareer.title")}</p>
           <p>{t("noCareer.message")}</p>
@@ -90,7 +93,7 @@ export default async function ReportRequestsPage({
   if (view.degraded) {
     return (
       <div className="flex flex-col gap-8">
-        {header}
+        {plainHeader}
         <DegradedAlert message={t("detail.degraded")} />
       </div>
     );
@@ -107,6 +110,25 @@ export default async function ReportRequestsPage({
   );
 
   const query = { period, docenteId, causa, q };
+  // A plain anchor on purpose, never a Link: the target is a file route that
+  // writes an audit row, so nothing may prefetch it. The header of the states that
+  // show data (or an empty result) carries it; the degraded and no-career states
+  // return earlier with the plain header.
+  const header = (
+    <PageHeader
+      title={t("detail.title")}
+      description={t("detail.description")}
+      action={
+        <a
+          href={exportHref(query)}
+          className={buttonVariants({ variant: "outline", size: "lg" })}
+        >
+          <Download aria-hidden="true" />
+          {t("export.download")}
+        </a>
+      }
+    />
+  );
   const pages = Math.max(1, Math.ceil(view.total / view.pageSize));
 
   const calendarDate = (value: string) =>
