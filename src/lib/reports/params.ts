@@ -89,16 +89,33 @@ export type DetailQuery = {
   q: string;
 };
 
+/** The query-string pairs of resolved filters, shared by the detail and the file. */
+function filterParams(query: DetailQuery): Record<string, string> {
+  const extra: Record<string, string> = {
+    period: query.period.kind === "all" ? "all" : query.period.periodo,
+  };
+  if (query.docenteId !== null) extra.docente = String(query.docenteId);
+  if (query.causa !== null) extra.causa = query.causa;
+  return extra;
+}
+
 /**
  * The detail URL for resolved filters (CR-6): the resolved period is always
  * written so the screen and the file query the same period; empty filters and
  * page 1 are left out.
  */
 export function requestsReportHref(query: DetailQuery, page = 1): string {
-  const extra: Record<string, string> = {
-    period: query.period.kind === "all" ? "all" : query.period.periodo,
-  };
-  if (query.docenteId !== null) extra.docente = String(query.docenteId);
-  if (query.causa !== null) extra.causa = query.causa;
-  return listHref("/reports/requests", { q: query.q, page, extra });
+  return listHref("/reports/requests", {
+    q: query.q,
+    page,
+    extra: filterParams(query),
+  });
+}
+
+/** The workbook route for the same resolved filters; it never pages (CR-XLS-2). */
+export function exportHref(query: DetailQuery): string {
+  return listHref("/api/reports/justifications", {
+    q: query.q,
+    extra: filterParams(query),
+  });
 }

@@ -67,12 +67,11 @@ export function requestsCountQuery(
     .where(buildReportWhere(scope, filters, VISIBLE_STATES));
 }
 
-/** One page of requests, newest submission first, then the highest id (A-SORT). */
-export function requestsPageQuery(
+/** The requests matching the filters, newest submission first, then the highest id (A-SORT). */
+function orderedRequestsQuery(
   source: RankingSource,
   scope: ReportScope,
   filters: ReportFilters,
-  page: number,
 ) {
   return source
     .select({
@@ -87,9 +86,31 @@ export function requestsPageQuery(
     })
     .from(solicitud)
     .where(buildReportWhere(scope, filters, VISIBLE_STATES))
-    .orderBy(desc(solicitud.presentadaEn), desc(solicitud.id))
+    .orderBy(desc(solicitud.presentadaEn), desc(solicitud.id));
+}
+
+/** One page of the ordered requests. */
+export function requestsPageQuery(
+  source: RankingSource,
+  scope: ReportScope,
+  filters: ReportFilters,
+  page: number,
+) {
+  return orderedRequestsQuery(source, scope, filters)
     .limit(REPORT_PAGE_SIZE)
     .offset((page - 1) * REPORT_PAGE_SIZE);
+}
+
+/**
+ * Every matching request, no LIMIT: the workbook holds all pages (CR-XLS-2). It
+ * shares the where of the count, so the file and the screen total agree (CR-XLS-3).
+ */
+export function requestsExportQuery(
+  source: RankingSource,
+  scope: ReportScope,
+  filters: ReportFilters,
+) {
+  return orderedRequestsQuery(source, scope, filters);
 }
 
 /**
@@ -230,4 +251,19 @@ export async function loadReportRequests(
   } catch {
     return DEGRADED;
   }
+}
+
+/**
+ * Every request matching the filters with its classes, for the workbook: no
+ * paging, and the classes of all of them in ONE batch. Unlike the detail it is
+ * not fail-soft: a failed read throws and the route answers without a file.
+ */
+export async function listReportExport(
+  scope: ReportScope,
+  filters: ReportFilters,
+): Promise<ReportRequestView[]> {
+  const rows = await requestsExportQuery(db, scope, filters);
+  const classes = await listReportClasses(rows.map((row) => row.id));
+  const byRequest = Map.groupBy(classes, (row) => row.solicitudId);
+  return rows.map((row) => ({ ...row, classes: byRequest.get(row.id) ?? [] }));
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   detailPeriod,
+  exportHref,
   parseReportParams,
   reportsHref,
   requestsReportHref,
@@ -196,5 +197,56 @@ describe("requestsReportHref (CR-6)", () => {
     const parsed = parseReportParams(raw);
 
     expect(parsed).toEqual({ ...query, page: 2 });
+  });
+});
+
+describe("exportHref (CR-6, CR-XLS-1)", () => {
+  const base = {
+    period: { kind: "code", periodo: "2026-S1" },
+    docenteId: null,
+    causa: null,
+    q: "",
+  } as const;
+
+  it("targets the download route and carries the resolved period", () => {
+    expect(exportHref(base)).toBe("/api/reports/justifications?period=2026-S1");
+    expect(exportHref({ ...base, period: { kind: "all" } })).toBe(
+      "/api/reports/justifications?period=all",
+    );
+  });
+
+  it("carries every active filter and omits the empty ones", () => {
+    expect(
+      exportHref({ ...base, docenteId: 12, causa: "medica", q: "Ana Lopez" }),
+    ).toBe(
+      "/api/reports/justifications?q=Ana+Lopez&period=2026-S1&docente=12&causa=medica",
+    );
+    expect(exportHref({ ...base, causa: "fuerza_mayor" })).toBe(
+      "/api/reports/justifications?period=2026-S1&causa=fuerza_mayor",
+    );
+  });
+
+  it("never carries a page: the file holds every matching request", () => {
+    expect(exportHref(base)).not.toContain("page");
+  });
+
+  it("writes the same filters as the detail link, so screen and file agree", () => {
+    const query = {
+      period: { kind: "all" },
+      docenteId: 5,
+      causa: "intercambio_academico",
+      q: "Mora",
+    } as const;
+    const search = (href: string) => href.split("?")[1];
+
+    expect(search(exportHref(query))).toBe(search(requestsReportHref(query)));
+    expect(
+      parseReportParams(
+        Object.fromEntries(new URLSearchParams(search(exportHref(query)))),
+      ),
+    ).toEqual({
+      ...query,
+      page: 1,
+    });
   });
 });

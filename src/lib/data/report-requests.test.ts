@@ -24,9 +24,11 @@ import {
   docentesQuery,
   listReportClasses,
   listReportDocentes,
+  listReportExport,
   listReportRequests,
   loadReportRequests,
   requestsCountQuery,
+  requestsExportQuery,
   requestsPageQuery,
 } from "@/lib/data/report-requests";
 import { VISIBLE_STATES } from "@/lib/intake/states";
@@ -372,4 +374,117 @@ describe("loadReportRequests (CR-DET-1..3: fail-soft view)", () => {
       degraded: true,
     });
   });
+});
+
+describe("request export SQL (CR-XLS-2, CR-XLS-3)", () => {
+  const filterSets = [
+    ["no filter", { periodo: null }],
+    ["a period", { periodo: "2026-S1" }],
+    ["period and teacher", { periodo: "2026-S2", docenteId: 4 }],
+    ["cause and search", { periodo: null, causa: "medica", q: "Ana" }],
+    [
+      "every filter",
+      { periodo: "2026-S1", docenteId: 12, causa: "fuerza_mayor", q: "50%" },
+    ],
+  ] as const;
+
+  /** The `where ...` clause up to the ORDER BY: the part that picks the rows. */
+  const whereOf = (sql: string) =>
+    sql.slice(sql.indexOf(" where "), sql.indexOf(" order by "));
+
+  it.each(filterSets)(
+    "uses the very same where as the count (%s)",
+    (_name, filters) => {
+      const count = toSql(requestsCountQuery(source, CARRERA, filters));
+      const file = toSql(requestsExportQuery(source, CARRERA, filters));
+
+      expect(whereOf(file.sql)).toBe(
+        count.sql.slice(count.sql.indexOf(" where ")),
+      );
+      expect(file.params).toEqual(count.params);
+    },
+  );
+
+  it("filters on the visible states only, so a borrador never reaches the file", () => {
+    const { params } = toSql(requestsExportQuery(source, CARRERA, ALL));
+
+    expect(params).toEqual([7, ...VISIBLE_STATES]);
+    expect(params).not.toContain("borrador");
+  });
+
+  it("has no LIMIT and no OFFSET: it reads every page", () => {
+    const { sql } = toSql(requestsExportQuery(source, CARRERA, ALL));
+
+    expect(sql).not.toMatch(/limit|offset/);
+  });
+
+  it("is the same rows, columns and order as the page query", () => {
+    const filters = { periodo: "2026-S1", causa: "medica" } as const;
+    const file = toSql(requestsExportQuery(source, CARRERA, filters)).sql;
+    const page = toSql(requestsPageQuery(source, CARRERA, filters, 1)).sql;
+
+    expect(page.startsWith(file)).toBe(true);
+    expect(file).toContain(
+      'order by "Solicitud"."PresentadaEn" desc, "Solicitud"."Id" desc',
+    );
+  });
+});
+
+describe("listReportExport (CR-XLS-2)", () => {
+  const many = Array.from({ length: REPORT_PAGE_SIZE + 5 }, (_, at) =>
+    request(at + 1),
+  );
+
+  it("returns every matching request, not one page, with its classes from ONE batch", async () => {
+    const double = use([
+      { kind: "select", rows: many },
+      {
+        kind: "select",
+        rows: [
+          pair(1),
+          pair(1, { codigo: "FIS101", asignatura: "Fisica", docente: "Luis" }),
+          pair(30),
+        ],
+      },
+    ]);
+
+    const rows = await listReportExport(CARRERA, ALL);
+
+    expect(rows).toHaveLength(REPORT_PAGE_SIZE + 5);
+    expect(rows.length).toBeGreaterThan(REPORT_PAGE_SIZE);
+    expect(rows[0].classes.map((item) => item.asignatura)).toEqual([
+      "Calculo I",
+      "Fisica",
+    ]);
+    expect(rows[29].classes).toHaveLength(1);
+    expect(rows[1].classes).toEqual([]);
+    expect(double.log).toHaveLength(2);
+    expect(double.exhausted).toBe(true);
+  });
+
+  it("reads no classes when nothing matches (one statement, zero rows)", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+
+    await expect(
+      listReportExport(CARRERA, { periodo: null, docenteId: 99 }),
+    ).resolves.toEqual([]);
+    expect(double.log).toHaveLength(1);
+  });
+
+  it.each([
+    ["the requests", 0],
+    ["the classes", 1],
+  ])(
+    "propagates a failed read of %s, with no partial rows",
+    async (_name, at) => {
+      const script: Step[] = [
+        { kind: "select", rows: [request(1)] },
+        { kind: "select", rows: [pair(1)] },
+      ];
+      script[at] = { kind: "select", error: new Error("down") };
+      use(script);
+
+      await expect(listReportExport(CARRERA, ALL)).rejects.toThrow("down");
+    },
+  );
 });
