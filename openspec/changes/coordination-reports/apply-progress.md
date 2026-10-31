@@ -197,3 +197,97 @@ The page commit precedes the nav commit, so every commit on the stack is deploya
 ### Remaining
 
 2.13 `[ASK OWNER]` dev walk; then Phase 3 (slice 2, detail), Phase 4 (slice 3, workbook), Phase 5 (archive-time).
+
+---
+
+## Batch 4: Phase 3 slice 2 (detail page), split into 2-i and 2-ii, tasks 3.1-3.16 and 3.18 - DONE (3.17 pending owner)
+
+Tasks 3.1-3.16 and 3.18 are `[x]`; 3.17 (`[ASK OWNER]` dev walk of `/reports/requests`) stays open, and so does Phase 4. Carry-over closed: task 2.13 is `[x]` (the owner walked `/reports` and approved it on 2026-10-31) and the slice table records 1b-ii as delivered at 1,032 lines (870 tests) as a size exception.
+
+### Branches and commits (nothing pushed, no PR opened)
+
+| Branch | Base | Commit | Message |
+|--------|------|--------|---------|
+| `feat/coordination-reports-2-i` | `feat/coordination-reports-1b-ii` (66cc6f0) | `fe9c5f1` | `feat(reports): add the detail filters to the report params and where-builder` (3.3-3.6) |
+| | | `f4aad0d` | `feat(reports): add the request detail reads` (3.7-3.8) |
+| | | `31cb570` | `feat(reports): add the request detail audit event` (3.9-3.10) |
+| | | `6cef2c3` | `docs(coordination-reports): record the slice 2 split and the 2-i progress` |
+| `feat/coordination-reports-2-ii` | `feat/coordination-reports-2-i` | `9e2f711` | `fix(navigation): keep the section back link from prefetching audited pages` (3.1-3.2) |
+| | | `792c598` | `feat(reports): add the request detail copy` (3.11) |
+| | | `8bbc1ba` | `feat(reports): add the request filters and table` (3.12-3.13) |
+| | | `fe5bf6a` | `feat(ui): let the empty state opt its clear link out of prefetch` |
+| | | `ae254ad` | `feat(reports): add the filterable request detail page` (3.14-3.16) |
+| | | `6f1c04b` | `feat(reports): link the dashboard to the request detail` |
+| | | (this docs commit) | `docs(coordination-reports): record the slice 2 apply progress` |
+
+Every commit passes its own focused tests and typechecks; the full suite was run on the 2-i code tip and on the 2-ii code tip. Every prefix is deployable: 2-i is all `src/lib` (no route imports it); in 2-ii the trail fix, the copy and the presentational components are inert, the page commit adds `/reports/requests` with no link to it, and only the last commit links the dashboard to it.
+
+### Measured size (`git diff --shortstat <base>..<branch> -- src i18n`)
+
+| Branch | Changed lines | Production | Tests |
+|--------|--------------:|-----------:|------:|
+| 2-i | 1,238 (12 files, +1212 / -26) | 449 | 789 |
+| 2-ii | 2,004 (18 files, +1973 / -31) | 699 | 1,305 |
+| Slice 2 total | 3,242 | 1,148 | 2,094 |
+
+Both are over the 800 session budget (forecast was ~550 for the whole slice; tests ran 1.8x production). Finished at a clean commit boundary and not split further (instruction). Per commit (total / prod / tests): `fe9c5f1` 399/132/267, `f4aad0d` 608/233/375, `31cb570` 231/84/147, `9e2f711` 98/24/74, `792c598` 125/66/59, `8bbc1ba` 788/344/444, `fe5bf6a` 44/8/36, `ae254ad` 874/236/638, `6f1c04b` 79/25/54. If the owner wants 2-ii cut, the clean boundary is after `8bbc1ba` and `fe5bf6a` (inert parts) versus `ae254ad` and `6f1c04b` (the page and the link).
+
+### TDD Cycle Evidence (Batch 4)
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.3-3.4 | `src/lib/reports/params.test.ts` | Unit | 170/170 (reports, report-data, audit) | 32 failed (`detailPeriod`, `requestsReportHref` missing, new fields undefined) | 56/56 | docente: 3 valid + 10 invalid forms; causa: 3 valid + 5 invalid; q cap/blank/array; page; detailPeriod x2; href: empty, full, page 1, round trip | None needed |
+| 3.5-3.6 | `src/lib/data/report-scope-sql.test.ts` | Unit (toSQL) | 12/12 | 5 failed | 21/21 | period+teacher in one EXISTS, teacher alone, none, term name OR CIF with escaped wildcards, empty term, cause alone, `none` scope | One test assertion fixed: the escaped LIKE pattern (`%50\%\_x%`) |
+| 3.7-3.8 | `src/lib/data/report-requests.test.ts` | Unit (toSQL + db double) | N/A (new) | import not found | 23/23 (first run 8 failed: my own test scripted `{count}` while the query selects `total`, then one assertion expected qualified columns on a single-table select; both were test errors) | count without joins, visible states, order/limit/offset, batched classes, in-scope teachers, 3 requests / 7 pairs -> 3, clamp up and down, zero total, foreign teacher, fail-soft x5 positions | Typed `ReportRequestsView` with `Omit` (tsc) |
+| 3.9-3.10 | `src/lib/audit/{events,types}.test.ts`, `src/lib/data/report-reads.test.ts` | Unit | 186/186 | 7 failed | 186/186 + tsc | builder, key set, unfiltered shape; writer: one transaction, boolean search never the term, cache dedupe, other args write again, insert failure | Types for the new payload |
+| 3.1-3.2 | `src/lib/navigation.test.ts`, `src/components/page-context.test.tsx` | Unit + component | 94 (99 with the new cases) | 7 failed | 99/99 | 4 audited trails carry `prefetch:false`, 5 plain trails carry no key; back link `/review/42`, `/reports/requests` false, `/users/new`, `/requests/42` default | None needed |
+| 3.11 | `src/i18n/reports-messages.test.ts` | Unit | 16/16 | 4 failed (+2 for `degraded`) | 20/20, `src/i18n` 325/325 | es/en key parity, coverage list, date range es and en | None needed |
+| 3.12 | `reports/requests/request-filters.test.tsx` | Component + axe | N/A (new) | module not found | 12/12 | GET form, labels, defaults, chosen values, period/teacher/cause options, absent period, foreign teacher, clear link prefetch | None needed |
+| 3.13 | `reports/requests/requests-table.test.tsx` | Component + axe | N/A (new) | module not found | 9/9 | 7 headers, 2 rows, 3 classes in one cell, scroll container, axe; pagination: middle, first, last, landmark | `key` of class lines includes the index (duplicate lines) |
+| (UI) | `src/components/empty-state.test.tsx` | Component | 8/8 | 1 failed | 10/10 | `prefetch:false` opt-out and the default | None needed |
+| 3.14-3.15 | `reports/requests/page.test.tsx` | Component (real `dal`, mocked session, data and audit) | N/A (new) | module not found | 34/34 | 4 roles denied, anonymous, flagged, none scope, degraded, rows, time zone (03:00Z -> 5 Mar), several classes, total vs page, singular, es, filters x7, foreign teacher, no-results, paging x4, audit x5 | Mutation check: BUSINESS_TIME_ZONE=UTC and `q !== ""` -> `false` made 2 cases fail; reverted |
+| 3.16 | `reports/structure.test.ts` | Source scan | 13/13 | Mutation RED: temporary `loading.tsx`, an unguarded `<Link href="/reports/requests">`, a second writer call in the dashboard and in the detail page made 4 guards fail; files removed | 16/16 | detail writer allow-list, once and after the load, no client triggers on both pages | None needed |
+| (link) | `reports/page.test.tsx`, `structure.test.ts` | Component + source scan | 123/123 | 4 failed (link absent) | 125/125 | link for a code, `all`, the URL period; no link for none, degraded, empty | `periodo` narrowed directly instead of through `selected` |
+
+### Work Unit Evidence (Batch 4)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run "src/app/(dashboard)/reports" src/lib/reports src/lib/data/report- src/lib/audit src/lib/navigation.test.ts src/components src/i18n` -> all pass (final full run: 284 files, 6,239 tests) |
+| Runtime harness | Pending: task 3.17 is `[ASK OWNER]` (opening `/reports/requests` against Neon writes an audit row); `npm run dev` was not run and no command wrote to the database. `npm run build` lists `/reports/requests` as a dynamic route |
+| Rollback boundary | 2-ii: revert `6f1c04b` (dashboard link), `ae254ad` (delete `reports/requests/page.tsx` and its test, structure test extension), `fe5bf6a`, `8bbc1ba`, `792c598`, `9e2f711`; 2-i: revert `31cb570`, `f4aad0d`, `fe9c5f1` (written audit rows stay) |
+
+### Gates (2-ii tip, dummy `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`)
+
+- `npm test`: 284 files, 6,239 tests, all pass (2-i code tip: 281 files, 6,168 tests). The owner's uncommitted `app-sidebar.tsx` edit was in the working tree for every run and caused no failure.
+- Flaky, unrelated: in a wider focused run (`src/app` + `src/components`, run in the background) `src/app/api/cron/intake-sweep/route.test.ts` "answers 500 with a generic body when the whole sweep fails" failed once and passed alone and in both full runs; it is an untouched file.
+- `npm run typecheck`: clean.
+- ESLint on the 28 changed `.ts/.tsx` files: only the known CRLF `prettier/prettier` "Delete CR" rows (2,702, all of that kind); no other rule fires.
+- `prettier --check --end-of-line auto` on all 30 changed files (including both `i18n` JSON): clean.
+- `npm run build`: success; `/reports` and `/reports/requests` are dynamic.
+
+### Deviations from design / tasks (Batch 4)
+
+1. **Two branches, `2-i` and `2-ii`** instead of `2-detail` (instruction); the slice table and Phase 3 note are updated.
+2. **`loadReportRequests`** (not in the design file table) is the fail-soft aggregator for the page: count, page, classes, periods and teachers in one `try`; the three `list*` reads stay as named in the tasks.
+3. **`parseReportParams` returns all five params for the dashboard too** (one parser, as CR-6 says); the dashboard ignores the extra fields. `detailPeriod` maps the dashboard default `latest` to every period on the detail (CR-DET-2).
+4. **No separate "back link" copy key and no body back link**: the top-bar trail already links back to `/reports` (now with `prefetch={false}`).
+5. **Two extra keys** the page needs: `reports.detail.degraded` and `reports.detail.filters.teacherOutside`. A teacher id outside the career shows generic text and zero rows, never a name.
+6. **Shared `EmptyState` gained an optional `prefetch: false`** on its clear link (own commit): the design said every link to an audited report page opts out of prefetch and the no-results state is the only place a shared component links to it. The structure test cannot see that link (it lives in `src/components`), so the page test pins it.
+7. **Own `RequestsPagination`** (previous, status, next) instead of the shared `TablePagination`, whose links prefetch and need the list-navigation provider.
+8. **"All" select values are the literal `all`** for period, teacher and cause; the URL therefore carries `docente=all` and `causa=all` after a submit, which the parser reads as no filter.
+9. **The audit `periodo` for the detail is `"all"` or the code** (never null, because the detail has no empty-period state) and the audit total for a no-results open is 0.
+10. **Search guard in `report-reads.test.ts`** no longer bans the word `busqueda` (the writer now takes the boolean) but still bans `parseQ`, `searchParams` and `termino`.
+11. **Size**: both branches are over 800 (see above).
+
+### What a coordinator sees at `/reports/requests` (for the 3.17 walk)
+
+- Entry point: the new **View requests** outline button in the `/reports` header (carries the period shown); the sidebar keeps Reports active, and the top-bar trail shows "Reports" as a link back (no prefetch).
+- Header "Justification requests" with its description, then a four-field filter form (academic period, teacher, student by name or CIF, cause) with **Apply filters** and a **Clear filters** link; period defaults to **all periods** (no hidden default).
+- A table card with the count ("N requests", the total, not the page) and one row per request: student, CIF, cause, state in words, absence dates, submission date (America/Managua) and the classes in one cell, each line "subject . teacher . period". 25 rows per page; Previous/Next links keep the period and every filter.
+- No match: the no-results card ("No request matches the filters") with a clear link; a teacher id from another career shows "Teacher outside your career" and zero rows. Degraded read: one status notice. No career: the same alert block as the dashboard.
+- Each successful open (including a no-results open) writes one `solicitud.reporte.consultado` row on the career: period, teacher id, cause, whether a search was typed, and the total; never the typed term.
+
+### Remaining
+
+3.17 `[ASK OWNER]` dev walk of `/reports/requests`; then Phase 4 (slice 3, workbook) and Phase 5 (archive-time).
