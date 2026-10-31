@@ -291,3 +291,102 @@ Both are over the 800 session budget (forecast was ~550 for the whole slice; tes
 ### Remaining
 
 3.17 `[ASK OWNER]` dev walk of `/reports/requests`; then Phase 4 (slice 3, workbook) and Phase 5 (archive-time).
+
+---
+
+## Batch 5: Phase 4 slice 3 (workbook download), tasks 4.1-4.11 and 4.13, plus the 3.17 carry-over - DONE (4.12 pending owner)
+
+Tasks 4.1-4.11 and 4.13 are `[x]`; 4.12 (`[ASK OWNER]` real download) stays open. Carry-over closed: task 3.17 is `[x]` (the owner walked `/reports/requests` on 2026-10-31 and approved it after commit `34e40bb`). Phase 5 (archive-time) is not started.
+
+### Carry-over: commit `34e40bb` (outside the task list)
+
+`34e40bb fix(reports): fit the request detail table without side scrolling` was made by the owner's request during the 3.17 walk: the detail table was compacted so it fits without horizontal scrolling. It has no task of its own; it is part of 2-ii and was approved together with the page. No code of this batch touches it.
+
+### Branch and commits (nothing pushed, no PR opened)
+
+Branch `feat/coordination-reports-3-export`, created from `feat/coordination-reports-2-ii` (tip `34e40bb`). The owner's uncommitted edit of `src/components/app-sidebar.tsx` (the commented-out `SidebarGroupLabel`) was never touched, staged or committed; every commit was staged by explicit path.
+
+| Hash | Message | Tasks | Prod / tests |
+|------|---------|-------|--------------|
+| `b772548` | `feat(reports): add the export href and the unpaged export read` | 4.1, 4.2 | 73 / 167 |
+| `48cc4ff` | `feat(reports): add the workbook download audit event` | 4.3 | 72 / 122 |
+| `087a486` | `feat(reports): add the workbook builder and its copy` | 4.4-4.6 | 137 / 373 |
+| `f2ea790` | `test(reports): anchor the export no-limit assertion` | fix of a test in `b772548` (see Issues) | 0 / 8 |
+| `3cc16c7` | `feat(reports): add the justification workbook download route` | 4.7, 4.8, 4.11 (route part) | 192 / 631 |
+| `e7ffb5f` | `test(reports): prove the screen and the workbook share their total` | 4.9 | 0 / 250 |
+| `c0b0706` | `feat(reports): add the workbook download control to the request detail` | 4.10, 4.11 (anchor part) | 28 / 95 |
+| (this docs commit) | `docs(coordination-reports): record the slice 3 apply progress` | tasks and progress | n/a |
+
+Every commit typechecks and passes its own focused tests. Every prefix is deployable: the first three commits are inert (no route imports them), `3cc16c7` adds a guarded route nobody links to, and only the last commit exposes the download control.
+
+### Measured size (`git diff --shortstat feat/coordination-reports-2-ii..HEAD -- src i18n`)
+
+22 files, +2110 / -36 = **2,146 changed lines (502 production, 1,644 tests)**. Over the 800 session budget (forecast ~450; tests ran 3.3x production, more than the 1.7-2.5x of earlier slices because the route test is 540 lines in 33 cases, the builder test 380 and the parity test 250). Finished at a clean commit boundary and not split further (instruction). If the owner wants a cut, the clean boundary is after `087a486` (inert) versus `3cc16c7`, `e7ffb5f` and `c0b0706`.
+
+### TDD Cycle Evidence (Batch 5)
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.1 | `src/lib/reports/params.test.ts` | Unit | 46/46 | 4 failed (`exportHref` missing) | 50/50 | all-period, code, every filter, empties, no page, same query string as the detail link, round trip through the parser | `requestsReportHref` and `exportHref` share `filterParams` |
+| 4.2 | `src/lib/data/report-requests.test.ts` | Unit (toSQL + db double) | 23/23 | 12 failed (`requestsExportQuery`, `listReportExport` missing) | 35/35 | where equals the count where for 5 filter sets, visible states only, no LIMIT/OFFSET, same columns and order as the page query, 30 rows (more than a page) with ONE class batch, zero rows (1 statement), 2 failure positions | `requestsPageQuery` rebuilt on the shared ordered query (the 23 earlier cases are the approval net) |
+| 4.3 | `src/lib/audit/{events,types}.test.ts`, `src/lib/data/report-reads.test.ts` | Unit | 114 (121 minus the 7 new cases) | 5 failed | 121/121 + tsc | builder, same payload shape as the detail event, term never present, unfiltered shape; writer: one transaction, two identical calls write two rows, boolean search, insert failure | `reportReadEvent` shared by the two builders |
+| 4.4 | `src/i18n/reports-messages.test.ts` | Unit | 20/20 | 4 failed | 24/24, `src/i18n` 329/329 | es/en key parity (existing), six keys in both locales, file name without extension or separator | None needed |
+| 4.5-4.6 | `src/lib/reports/build-workbook.test.ts` | Unit (ExcelJS read-back) | N/A (new) | module not found | 17/17 | sheet order and names en/es, headers en/es, 3 rows in order, 3 classes in one cell, none, summary en and es, number total, empty input, 5 formula-like names, every text column, the typed term in the summary, numeric-looking text | Mutation: a builder writing `{ formula }` for `=` names fails 2 cases; reverted |
+| 4.7-4.8 | `src/app/api/reports/justifications/route.test.ts` | Route (real `dal` and `getUserLocale`, real builder; session, scope, reads and audit doubled) | N/A (new) | module not found | 33/33 | 4 denied roles, anonymous, flagged, `none`; headers; 4 filter shapes; audit once and in order, `all`, term never passed, two downloads two rows; audit/read/build failures; log without the message; en row content, several classes, formula-like names as text, summary with and without filters, foreign teacher, empty download; es, en, no cookie, `fr`, empty cookie | Mutations: hard-coded `es` fails 6 cases; an un-awaited audit write fails the audit-gate case; both reverted |
+| 4.9 | `src/app/api/reports/justifications/parity.test.tsx` | Route + page (real page, real route, scripted db) | 33/33 route, 36/36 requests | passes on first run by design (it asserts the wiring of already-built pieces); non-vacuity proven by mutation | 9/9 | 7 filter sets (60, 12, 25, 26, 51, 24, 0 matches), more rows in the file than one page shows, parameters differ when filters differ | Mutation: the route dropping `causa` fails 4 cases; reverted. Lint fixes (`use` renamed, JSX) before commit |
+| 4.10 | `src/app/(dashboard)/reports/requests/page.test.tsx` | Component | 34/34 | 5 failed (the 2 hidden-state cases pass vacuously until implemented) | 41/41 | resolved filters, `period=all`, no page, zero rows, es, degraded, `none` | None needed |
+| 4.11 | `src/app/(dashboard)/reports/structure.test.ts` | Source scan | 16/16 | Mutation RED: swapping the anchor for a `<Link>` fails 3 guards; reverted | 22/22 | writer allow-list, once and in order, guard order, GET only with `no-store`, `exportHref` users, no `<Link>` at the file | None needed |
+
+### Work Unit Evidence (Batch 5)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and result | `npx vitest run src/app/api/reports src/lib/reports src/lib/data/report- src/lib/audit src/i18n "src/app/(dashboard)/reports"` -> all pass; final full run: 287 files, 6,340 tests |
+| Runtime harness | `npm run build` lists `/api/reports/justifications` as a dynamic route; `next start` (dummy `DATABASE_URL`, no database reached) answered an anonymous GET with `307 /login`, so the route bundle loads in the real runtime. Task 4.12 is `[ASK OWNER]` (a real download writes an audit row): `npm run dev` was not run and no command wrote to the database |
+| Rollback boundary | Revert `c0b0706` (download control), `e7ffb5f` and `3cc16c7` (parity test; route, `src/i18n/messages.ts`, structure extension), `087a486` (workbook builder, copy), `48cc4ff` (event and writer), `f2ea790` and `b772548` (href, export read). Written audit rows stay |
+
+### Gates (tip `c0b0706`, dummy `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`)
+
+- `npm test`: 287 files, 6,340 tests, all pass on the first full run (2-ii tip: 284 / 6,239). The owner's uncommitted `app-sidebar.tsx` edit was in the working tree and caused no failure. No flaky test appeared in this batch.
+- `npm run typecheck`: clean.
+- ESLint on the 20 changed `.ts/.tsx` files: 0 messages (the files written in this batch are LF).
+- `prettier --check --end-of-line auto` on every changed file (including both `i18n` JSON): clean.
+- `npm run build`: success; `/api/reports/justifications` is dynamic.
+
+### Open question 1 (design): the locale in a route handler - settled by test 4.7
+
+`cookies()` is readable in a Route Handler (Next 16 docs, `cookies.md`), so the route reads the `NEXT_LOCALE` cookie through the app's own `getUserLocale()` and builds its translators with `createTranslator` from the catalog (`loadMessages`, new `src/i18n/messages.ts`, the same dynamic import `request.ts` uses). It does not use `getTranslations`, so it does not depend on the next-intl request scope. The route test drives the real `getUserLocale` over a mocked `cookies()` with the real catalogs: `es` and `en` give Spanish and English sheets, headers, summary and file name; an absent cookie, `fr` and an empty value fall back to `es`. A unit test cannot prove Next's production request context; the authenticated path is task 4.12.
+
+### Deviations from design / tasks (Batch 5)
+
+1. **Translator** is `createTranslator` over `getUserLocale()` + `loadMessages`, not `getTranslations` (see above); `src/i18n/messages.ts` is a new file not in the design table.
+2. **Parity test** is `parity.test.tsx`, not `.ts`, because it renders the real detail page; it runs the real page and the real route against a scripted database (the db double does not execute SQL, so the equality that carries weight is the compiled WHERE of both statements, plus the three totals). The optional integration test was not written.
+3. **Dates in the workbook** are ISO text (`YYYY-MM-DD`; the submission date is the calendar day in `America/Managua`; the absence range reuses `reports.detail.dates` with ISO dates) instead of the screen's "medium" format: unambiguous and sortable in a spreadsheet. The CR-DET-1 columns and their order are the screen's.
+4. **Summary teacher name**: the summary shows the teacher's name, which needs `listReportDocentes(scope)`; it is read only when a teacher filter is set. A teacher id outside the career shows the generic "Teacher outside your career", never a looked-up name. The audit row keeps the id only.
+5. **File name** is a catalog key (`reports.export.fileName`: `ReporteJustificaciones` / `JustificationsReport`) so it is not hard-coded Spanish for English users.
+6. **Failure response** is `500 {"error":"export_failed"}` with `no-store`, like the cron route; `listReportExport` is not fail-soft. The log line carries the error name only (a database error can quote the typed search term). Failing to resolve the scope (a database error) is not caught: Next answers its generic 500, consistent with `resolveReportScope` failing loud.
+7. **The `none` scope redirects to `/denied`** (spec: "`none` scope redirects"), rather than rendering a block, since a file route has no page to render.
+8. **Design `Boundary rule`**: `build-workbook.ts` lives in `src/lib/reports/` and imports only `exceljs`, so the framework-free scan of `report-reads.test.ts` covers it.
+9. **Size**: 2,146 lines, over 800 (see above).
+
+### Issues found
+
+- **Control character in a committed test (fixed in `f2ea790`).** While writing the structure test, a Python escape (`\b` typed with a single backslash) turned a regex word boundary into a backspace character. The same slip had silently reached `b772548`: the "has no LIMIT and no OFFSET" assertion used a regex containing control characters, so it could not match anything and passed vacuously. It was found by scanning the changed files for control characters, fixed, and given a triangulation case (the paged query must match the same pattern) in `f2ea790`. The rest of the branch was scanned clean.
+- **Amended once:** `e7ffb5f` was amended before any other commit existed on top of it, to fix two lint errors and a type error found by the gate after the first commit (a helper named `use`, and `createElement` without children); nothing else was rewritten.
+- **Known limit, not fixed:** the classes of the whole export are read in one `IN (...)` batch with one bind parameter per request. Postgres allows 65,535 bind parameters per statement, so a career with more than about 65,000 matching requests would fail with a 500 instead of a file. That is far above pilot volume; it belongs with the open question "export has no row cap" and would be solved with chunked batches or a subquery.
+- **Residual spreadsheet risk, documented:** a name such as `=1+1` is stored as a string cell, so Excel does not evaluate it on open (proved by reading the written file back). Excel would still turn it into a formula if a user edits that cell and presses Enter; ExcelJS 4.4 has no `quotePrefix` style to prevent that. Accepted; the owner decides if a visible prefix is wanted.
+
+### What the owner should check in the downloaded file (task 4.12)
+
+1. Open `/reports/requests` as a coordinator: the **Download Excel** (Spanish: **Descargar Excel**) button is in the page header, next to the title, with and without filters, also when nothing matches, and absent when the read is degraded.
+2. Click it with a filter set (for example a period and a cause): a file named `ReporteJustificaciones.xlsx` (English: `JustificationsReport.xlsx`) downloads and the page does not navigate.
+3. The first sheet (Solicitudes / Requests) has the header row in bold and frozen, the seven columns of the screen, and **one row per request across all pages**: its row count (minus the header) must equal the screen's "N solicitudes" total, even when the screen has several pages.
+4. Dates read `YYYY-MM-DD` (the submission day is the business-zone day); the classes of a request are in one wrapped cell, one line each ("Subject · Teacher · Period").
+5. The second sheet (Resumen / Summary) lists the period, teacher (by name), student term, cause, and **Total** as a number equal to the screen total; unset filters read "All ...".
+6. A student whose name begins with `=`, `+`, `-` or `@`, if any exists, shows as plain text in the cell and is not calculated.
+7. Audit (read-only query on `EventoAuditoria`): exactly one `solicitud.reporte.descargado` row per click, on entity `Carrera`, with `periodo`, `docenteId`, `causa`, `busqueda` (boolean) and `total` (the file's rows), and no search text; opening the page still writes its own `solicitud.reporte.consultado` row. Hovering or loading the page must not write a download row.
+8. Switch the language and download again: the sheet names, headers and summary labels follow the language cookie (Spanish when unset).
+
+### Remaining
+
+4.12 `[ASK OWNER]` real download; then Phase 5 (archive-time), after verify.
