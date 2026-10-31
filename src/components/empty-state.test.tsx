@@ -4,6 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { EmptyState } from "@/components/empty-state";
 
+// `next/link` double that exposes the `prefetch` prop.
+vi.mock("next/link", async () =>
+  (await import("@/app/(dashboard)/review/test-support")).linkDouble(),
+);
+
 describe("EmptyState (BS-STATE-1)", () => {
   describe("empty variant", () => {
     it("shows one sentence and no action by default", () => {
@@ -63,6 +68,37 @@ describe("EmptyState (BS-STATE-1)", () => {
         "href",
         "/users?status=all",
       );
+    });
+
+    it("opts the clear link out of prefetch when asked: its target may write an audit row", () => {
+      render(
+        <EmptyState
+          variant="no-results"
+          title="Nothing"
+          hint="Hint"
+          clear={{ href: "/reports/requests", label: "Clear", prefetch: false }}
+        />,
+      );
+
+      expect(screen.getByRole("link", { name: "Clear" })).toHaveAttribute(
+        "data-prefetch",
+        "false",
+      );
+    });
+
+    it("leaves the default prefetch on a clear link that does not ask", () => {
+      render(
+        <EmptyState
+          variant="no-results"
+          title="Nothing"
+          hint="Hint"
+          clear={clear}
+        />,
+      );
+
+      expect(
+        screen.getByRole("link", { name: "Clear search and filters" }),
+      ).toHaveAttribute("data-prefetch", "undefined");
     });
 
     it("does not render the empty-state create action", () => {

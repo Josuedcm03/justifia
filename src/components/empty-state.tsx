@@ -2,7 +2,12 @@ import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 
-type StateLink = { href: string; label: string };
+type StateLink = {
+  href: string;
+  label: string;
+  /** `false` for a target that writes an audit row when it renders. */
+  prefetch?: false;
+};
 /** A clear control for a client component whose search term lives in state. */
 type StateAction = { label: string; onClick: () => void };
 
@@ -65,6 +70,7 @@ export function EmptyState(props: EmptyStateProps) {
       ) : (
         <Link
           href={clear.href}
+          prefetch={clear.prefetch}
           className={buttonVariants({ variant: "outline" })}
         >
           {clear.label}
