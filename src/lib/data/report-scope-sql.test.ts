@@ -134,3 +134,127 @@ describe("buildReportWhere (CR-3: one where-builder)", () => {
     ).toThrow();
   });
 });
+
+describe("classFilter with a teacher (CR-3: period and teacher in ONE EXISTS)", () => {
+  function filterSql(periodo: string | null, docenteId?: number | null) {
+    const filter = classFilter(periodo, docenteId);
+    expect(filter).toBeDefined();
+    return whereSql(filter as NonNullable<typeof filter>);
+  }
+
+  it("puts period and teacher on the same class row", () => {
+    const { where, params } = filterSql("2026-S1", 12);
+
+    expect(where.match(/exists \(/g)).toHaveLength(1);
+    expect(where).toContain('."Periodo" = $');
+    expect(where).toContain('."DocenteId" = $');
+    expect(params).toEqual(["2026-S1", 12]);
+  });
+
+  it("is still one EXISTS for a teacher alone, with no period predicate", () => {
+    const { where, params } = filterSql(null, 12);
+
+    expect(where.match(/exists \(/g)).toHaveLength(1);
+    expect(where).toContain('."DocenteId" = $');
+    expect(where).not.toContain('."Periodo"');
+    expect(params).toEqual([12]);
+  });
+
+  it("is omitted when neither a period nor a teacher is asked for", () => {
+    expect(classFilter(null)).toBeUndefined();
+    expect(classFilter(null, null)).toBeUndefined();
+  });
+});
+
+describe("buildReportWhere with the detail filters (CR-3, CR-DET-2)", () => {
+  const detail = {
+    periodo: "2026-S1",
+    docenteId: 12,
+    q: "Ana",
+    causa: "medica",
+  } as const;
+
+  it("ANDs period, teacher, term and cause after the scope term", () => {
+    const { where, params } = whereSql(
+      buildReportWhere(CARRERA, detail, VISIBLE_STATES),
+    );
+
+    const at = (needle: string) => where.indexOf(needle);
+    expect(at('"e"."CarreraId"')).toBeGreaterThan(-1);
+    expect(at('"Solicitud"."Estado" in')).toBeGreaterThan(
+      at('"e"."CarreraId"'),
+    );
+    expect(at('."DocenteId" =')).toBeGreaterThan(at('"Solicitud"."Estado" in'));
+    expect(at('"EstudianteNombre" ilike')).toBeGreaterThan(
+      at('."DocenteId" ='),
+    );
+    expect(at('"Solicitud"."Causa" =')).toBeGreaterThan(
+      at('"EstudianteNombre" ilike'),
+    );
+    expect(params).toEqual([
+      7,
+      ...VISIBLE_STATES,
+      "2026-S1",
+      12,
+      "%Ana%",
+      "%Ana%",
+      "medica",
+    ]);
+  });
+
+  it("keeps period and teacher in one class EXISTS beside the scope EXISTS", () => {
+    const { where } = whereSql(
+      buildReportWhere(CARRERA, detail, VISIBLE_STATES),
+    );
+
+    expect(where.match(/exists \(/g)).toHaveLength(2);
+  });
+
+  it("matches the term against the snapshot name OR the CIF, escaping wildcards", () => {
+    const { where, params } = whereSql(
+      buildReportWhere(CARRERA, { periodo: null, q: "50%_x" }, VISIBLE_STATES),
+    );
+
+    expect(where).toMatch(
+      /\("Solicitud"\."EstudianteNombre" ilike \$\d+ or "Solicitud"\."EstudianteCif" ilike \$\d+\)/,
+    );
+    expect(params.slice(-2)).toEqual([
+      String.raw`%50\%\_x%`,
+      String.raw`%50\%\_x%`,
+    ]);
+  });
+
+  it("adds nothing for an empty term, a null cause or a null teacher", () => {
+    const { where, params } = whereSql(
+      buildReportWhere(
+        CARRERA,
+        { periodo: null, docenteId: null, q: "", causa: null },
+        VISIBLE_STATES,
+      ),
+    );
+
+    expect(where).not.toContain("ilike");
+    expect(where).not.toContain('"Causa"');
+    expect(where).not.toContain("SolicitudAsignatura");
+    expect(params).toEqual([7, ...VISIBLE_STATES]);
+  });
+
+  it("narrows by the cause alone", () => {
+    const { where, params } = whereSql(
+      buildReportWhere(
+        CARRERA,
+        { periodo: null, causa: "fuerza_mayor" },
+        VISIBLE_STATES,
+      ),
+    );
+
+    expect(where).toContain('"Solicitud"."Causa" = $');
+    expect(params.at(-1)).toBe("fuerza_mayor");
+  });
+
+  it("still matches nothing for the none scope with every filter set", () => {
+    const { where } = whereSql(buildReportWhere(NONE, detail, VISIBLE_STATES));
+
+    expect(where.startsWith("(false and ")).toBe(true);
+  });
+});
