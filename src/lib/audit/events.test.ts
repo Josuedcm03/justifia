@@ -42,6 +42,7 @@ import {
   solicitudCorregidaEvent,
   solicitudDecididaEvent,
   solicitudPresentadaEvent,
+  solicitudRankingConsultadoEvent,
   type TouchedAccount,
 } from "./events";
 import {
@@ -1380,5 +1381,76 @@ describe("enrollment event builders (student-enrollment SE-8, RNF-06)", () => {
         /periodo|numeroGrupo|asignatura|docente|nombre|cif|correo|email|telefono|@|password|hash|bcrypt|clave/i,
       );
     }
+  });
+});
+
+describe("report event builders (RF-17 e, RNF-06, audit-log delta)", () => {
+  const event = solicitudRankingConsultadoEvent({
+    carreraId: 4,
+    periodo: "2026-S2",
+    estudiantes: 10,
+    docentes: 4,
+    asignaturas: 7,
+  });
+
+  it("the dashboard view is on the Carrera of the coordinator", () => {
+    expect(event).toEqual({
+      accion: "solicitud.ranking.consultado",
+      entidadTipo: "Carrera",
+      entidadId: 4,
+      datos: {
+        periodo: "2026-S2",
+        estudiantes: 10,
+        docentes: 4,
+        asignaturas: 7,
+      },
+    });
+    expect(AUDIT_ACTIONS).toContain(event.accion);
+  });
+
+  it("the payload holds the period and counts only, no name, CIF or request id", () => {
+    expect(Object.keys(event.datos).sort()).toEqual([
+      "asignaturas",
+      "docentes",
+      "estudiantes",
+      "periodo",
+    ]);
+    expect(JSON.stringify(event.datos)).not.toMatch(/nombre|cif|solicitud|@/i);
+  });
+
+  it("accepts every period shape the page can show: a code, all, or none", () => {
+    for (const periodo of ["2025-S1", "all", null]) {
+      expect(
+        solicitudRankingConsultadoEvent({
+          carreraId: 4,
+          periodo,
+          estudiantes: 0,
+          docentes: 0,
+          asignaturas: 0,
+        }).datos,
+      ).toMatchObject({ periodo });
+    }
+  });
+
+  it("leaves existing events byte-identical", () => {
+    expect(
+      JSON.stringify(
+        solicitudColaConsultadaEvent({ facultadId: 3, total: 12 }),
+      ),
+    ).toBe(
+      '{"accion":"solicitud.cola.consultada","entidadTipo":"Facultad","entidadId":3,"datos":{"total":12}}',
+    );
+    expect(
+      JSON.stringify(
+        documentDownloadedEvent({
+          documentoId: 11,
+          solicitudId: 4,
+          tipo: "png",
+          modo: "descarga",
+        }),
+      ),
+    ).toBe(
+      '{"accion":"documento.descargado","entidadTipo":"DocumentoRespaldo","entidadId":11,"datos":{"solicitudId":4,"tipo":"png","modo":"descarga"}}',
+    );
   });
 });

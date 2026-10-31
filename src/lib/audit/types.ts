@@ -45,6 +45,7 @@ export const AUDIT_ACTIONS = [
   "inscripcion.creada",
   "inscripcion.reactivada",
   "inscripcion.desactivada",
+  "solicitud.ranking.consultado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -58,7 +59,20 @@ export type AuditEntityType =
   | "Asignatura"
   | "Grupo"
   | "Remision"
-  | "Inscripcion";
+  | "Inscripcion"
+  | "Carrera";
+
+/** Coordination report events (coordination-reports, RF-17 e, RNF-06). The
+ *  period code (or "all"), and counts only: no name, CIF, request id or search
+ *  term. */
+type RankingReadPayload = {
+  /** A `AAAA-S1|S2` code, "all", or null when there is no data. */
+  periodo: string | null;
+  /** Rows shown per ranking. */
+  estudiantes: number;
+  docentes: number;
+  asignaturas: number;
+};
 
 /** Closed list. A field not named here can never be reported as changed.
  *  `login` and `hashClave` are ABSENT on purpose: `hashClave` is a
@@ -397,4 +411,11 @@ export type AuditEvent =
       entidadTipo: "Inscripcion";
       entidadId: number;
       datos: InscripcionPayload;
+    }
+  | {
+      // The entity is the coordinator's career: the dashboard is a scope.
+      accion: "solicitud.ranking.consultado";
+      entidadTipo: "Carrera";
+      entidadId: number;
+      datos: RankingReadPayload;
     };

@@ -71,16 +71,16 @@ Chain: while a parent is open, the child targets the parent branch (clean diff);
 
 1a-ii: rankings, loader, audit.
 
-- [ ] 1.12 RED: `src/lib/data/report-rankings.test.ts` SQL: students `GROUP BY u.Id, NombreCompleto, Cif`; teachers `GROUP BY d.Id` over `Grupo.DocenteId`; classes `GROUP BY a.Id, Codigo, Nombre`; all `ORDER BY total DESC, name ASC, id ASC LIMIT 10`; states = `RANKING_STATES`; pair rankings add `g.Periodo = $p` on the joined group; aliases never collide with `e`; `listReportPeriods` is `DISTINCT g.Periodo ... ORDER BY DESC`, filtered by `PERIODO_RE`, uses `VISIBLE_STATES` (CR-4, CR-5; CR-RANK-1..3).
-- [ ] 1.13 GREEN: `src/lib/data/report-rankings.ts` (`listReportPeriods` + three ranking queries).
-- [ ] 1.14 RED: same file, `loadReportDashboard(scope, period)` with the db double: `latest` resolves to newest period; `all`; well-formed absent code applied (zero rows); no periods -> `periodo: null`; one request with 2 pairs of teacher T and one subject S -> student 1, T 2, S 2; period limits pairs; 12 students with a tie at rank 10 -> 10 kept, alphabetical; any thrown query -> `{ degraded: true }` with no partial data (scenarios "Pairs, not requests", "Period limits pairs", "Cut and tie", "Reassigned group", "No data at all", "Degraded read").
-- [ ] 1.15 GREEN: `loadReportDashboard` (periods first, then `Promise.all` of three, one `try`; fail-soft `{ periods, periodo, rankings, degraded }`).
-- [ ] 1.16 RED: `src/lib/audit/events.test.ts` + `types` test: `AuditEntityType` gains `Carrera`; builder for `solicitud.ranking.consultado` has entity `Carrera`, id = carreraId, payload `{ periodo, estudiantes, docentes, asignaturas }` only (no name, CIF, request id); existing events byte-identical (pin one `solicitud.cola.consultada` and one `documento.descargado`) (audit-log delta).
-- [ ] 1.17 GREEN: `src/lib/audit/types.ts` (`Carrera`, action, payload type) and `src/lib/audit/events.ts` builder.
-- [ ] 1.18 RED: `src/lib/data/report-reads.test.ts`: `recordReportDashboardRead` opens one transaction, calls `insertAuditEvents` once with the session user as actor, throws when the insert fails, is `cache()`-deduped for equal args (pattern of `request-reads.ts`) (CR-7, CR-AUDIT-1).
-- [ ] 1.19 GREEN: `src/lib/data/report-reads.ts`; structural RED+GREEN in the same test: no `next/*` import and no `i18n/` import under the new `src/lib/reports` and `report-*.ts` files, `react` only for `cache` in `report-reads.ts`; the search term never reaches an event builder.
-- [ ] 1.20 Gates 1a; measure the authored diff (target ~500, stop and report if over 800).
-- [ ] 1.21 Commit unit 1a-ii: `feat(reports): add the report rankings and the dashboard audit event`.
+- [x] 1.12 RED: `src/lib/data/report-rankings.test.ts` SQL: students `GROUP BY u.Id, NombreCompleto, Cif`; teachers `GROUP BY d.Id` over `Grupo.DocenteId`; classes `GROUP BY a.Id, Codigo, Nombre`; all `ORDER BY total DESC, name ASC, id ASC LIMIT 10`; states = `RANKING_STATES`; pair rankings add `g.Periodo = $p` on the joined group; aliases never collide with `e`; `listReportPeriods` is `DISTINCT g.Periodo ... ORDER BY DESC`, filtered by `PERIODO_RE`, uses `VISIBLE_STATES` (CR-4, CR-5; CR-RANK-1..3).
+- [x] 1.13 GREEN: `src/lib/data/report-rankings.ts` (`listReportPeriods` + three ranking queries).
+- [x] 1.14 RED: same file, `loadReportDashboard(scope, period)` with the db double: `latest` resolves to newest period; `all`; well-formed absent code applied (zero rows); no periods -> `periodo: null`; one request with 2 pairs of teacher T and one subject S -> student 1, T 2, S 2; period limits pairs; 12 students with a tie at rank 10 -> 10 kept, alphabetical; any thrown query -> `{ degraded: true }` with no partial data (scenarios "Pairs, not requests", "Period limits pairs", "Cut and tie", "Reassigned group", "No data at all", "Degraded read").
+- [x] 1.15 GREEN: `loadReportDashboard` (periods first, then `Promise.all` of three, one `try`; fail-soft `{ periods, periodo, rankings, degraded }`).
+- [x] 1.16 RED: `src/lib/audit/events.test.ts` + `types` test: `AuditEntityType` gains `Carrera`; builder for `solicitud.ranking.consultado` has entity `Carrera`, id = carreraId, payload `{ periodo, estudiantes, docentes, asignaturas }` only (no name, CIF, request id); existing events byte-identical (pin one `solicitud.cola.consultada` and one `documento.descargado`) (audit-log delta).
+- [x] 1.17 GREEN: `src/lib/audit/types.ts` (`Carrera`, action, payload type) and `src/lib/audit/events.ts` builder.
+- [x] 1.18 RED: `src/lib/data/report-reads.test.ts`: `recordReportDashboardRead` opens one transaction, calls `insertAuditEvents` once with the session user as actor, throws when the insert fails, is `cache()`-deduped for equal args (pattern of `request-reads.ts`) (CR-7, CR-AUDIT-1).
+- [x] 1.19 GREEN: `src/lib/data/report-reads.ts`; structural RED+GREEN in the same test: no `next/*` import and no `i18n/` import under the new `src/lib/reports` and `report-*.ts` files, `react` only for `cache` in `report-reads.ts`; the search term never reaches an event builder.
+- [x] 1.20 Gates 1a; measure the authored diff (target ~500, stop and report if over 800).
+- [x] 1.21 Commit unit 1a-ii: `feat(reports): add the report rankings and the dashboard audit event`.
 
 ## Phase 2: Slice 1b - Dashboard, nav, i18n (work unit 1b)
 

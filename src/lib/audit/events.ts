@@ -243,6 +243,28 @@ export function solicitudColaConsultadaEvent(args: {
   };
 }
 
+/** A coordinator opened the report dashboard: the entity is the career, the
+ *  payload the period code and the rows shown per ranking (RF-17 e). */
+export function solicitudRankingConsultadoEvent(args: {
+  carreraId: number;
+  periodo: string | null;
+  estudiantes: number;
+  docentes: number;
+  asignaturas: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.ranking.consultado",
+    entidadTipo: "Carrera",
+    entidadId: args.carreraId,
+    datos: {
+      periodo: args.periodo,
+      estudiantes: args.estudiantes,
+      docentes: args.docentes,
+      asignaturas: args.asignaturas,
+    },
+  };
+}
+
 /** A correction retired a document of a previous revision (soft retirement). */
 export function documentoRetiradoEvent(args: {
   documentoId: number;
