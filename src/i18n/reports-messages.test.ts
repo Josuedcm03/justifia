@@ -6,7 +6,7 @@ import es from "../../i18n/es.json";
 
 // CR-I18N-1, BS-I18N-1: every user-facing string of the coordination reports
 // dashboard exists in both locales, with the same keys and a non-empty message.
-// The detail keys (slice 2) are covered below; slice 3 adds the workbook keys.
+// The detail keys (slice 2) and the workbook keys (slice 3) are covered below.
 
 function leaves(value: unknown, prefix = ""): [string, unknown][] {
   if (typeof value !== "object" || value === null) return [[prefix, value]];
@@ -124,6 +124,31 @@ describe("reports messages (dashboard)", () => {
       ]) {
         expect(keys, key).toContain(key);
       }
+    },
+  );
+
+  it.each(catalogs)(
+    "%s covers the workbook: file name, download control, sheets and summary labels (slice 3)",
+    (_locale, messages) => {
+      const keys = leaves(messages.reports, "reports").map(([key]) => key);
+
+      for (const key of [
+        "reports.export.download",
+        "reports.export.fileName",
+        "reports.export.sheets.requests",
+        "reports.export.sheets.summary",
+        "reports.export.summary.total",
+        "reports.export.summary.allStudents",
+      ]) {
+        expect(keys, key).toContain(key);
+      }
+    },
+  );
+
+  it.each(catalogs)(
+    "%s names the file without an extension or a path separator",
+    (_locale, messages) => {
+      expect(messages.reports.export.fileName).toMatch(/^[A-Za-z0-9_-]+$/);
     },
   );
 

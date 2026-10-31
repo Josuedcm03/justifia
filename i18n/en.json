@@ -1238,6 +1238,18 @@
       "empty": "No subjects to rank in this period."
     },
     "viewRequests": "View requests",
+    "export": {
+      "download": "Download Excel",
+      "fileName": "JustificationsReport",
+      "sheets": {
+        "requests": "Requests",
+        "summary": "Summary"
+      },
+      "summary": {
+        "total": "Total requests",
+        "allStudents": "All students"
+      }
+    },
     "detail": {
       "title": "Justification requests",
       "description": "Every request of your career with its cause, dates and justified classes. Filter by period, teacher, student or cause.",

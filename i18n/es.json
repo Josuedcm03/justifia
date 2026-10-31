@@ -1238,6 +1238,18 @@
       "empty": "No hay asignaturas que ordenar en este periodo."
     },
     "viewRequests": "Ver solicitudes",
+    "export": {
+      "download": "Descargar Excel",
+      "fileName": "ReporteJustificaciones",
+      "sheets": {
+        "requests": "Solicitudes",
+        "summary": "Resumen"
+      },
+      "summary": {
+        "total": "Total de solicitudes",
+        "allStudents": "Todos los estudiantes"
+      }
+    },
     "detail": {
       "title": "Solicitudes de justificación",
       "description": "Todas las solicitudes de tu carrera con su causa, sus fechas y las clases justificadas. Filtra por periodo, docente, estudiante o causa.",
