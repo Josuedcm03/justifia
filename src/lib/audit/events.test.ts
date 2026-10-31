@@ -43,6 +43,7 @@ import {
   solicitudDecididaEvent,
   solicitudPresentadaEvent,
   solicitudRankingConsultadoEvent,
+  solicitudReporteConsultadoEvent,
   type TouchedAccount,
 } from "./events";
 import {
@@ -1452,5 +1453,63 @@ describe("report event builders (RF-17 e, RNF-06, audit-log delta)", () => {
     ).toBe(
       '{"accion":"documento.descargado","entidadTipo":"DocumentoRespaldo","entidadId":11,"datos":{"solicitudId":4,"tipo":"png","modo":"descarga"}}',
     );
+  });
+});
+
+describe("solicitudReporteConsultadoEvent (RF-13 b, RNF-06, audit-log delta)", () => {
+  const event = solicitudReporteConsultadoEvent({
+    carreraId: 4,
+    periodo: "2026-S1",
+    docenteId: 12,
+    causa: "medica",
+    busqueda: true,
+    total: 18,
+  });
+
+  it("is the detail view on the Carrera of the coordinator", () => {
+    expect(event).toEqual({
+      accion: "solicitud.reporte.consultado",
+      entidadTipo: "Carrera",
+      entidadId: 4,
+      datos: {
+        periodo: "2026-S1",
+        docenteId: 12,
+        causa: "medica",
+        busqueda: true,
+        total: 18,
+      },
+    });
+    expect(AUDIT_ACTIONS).toContain(event.accion);
+  });
+
+  it("holds the filters and the count only: a boolean for the search, never a term", () => {
+    expect(Object.keys(event.datos).sort()).toEqual([
+      "busqueda",
+      "causa",
+      "docenteId",
+      "periodo",
+      "total",
+    ]);
+    expect(JSON.stringify(event.datos)).toContain('"busqueda":true');
+    expect(JSON.stringify(event)).not.toMatch(/nombre|cif|solicitudId|@/i);
+  });
+
+  it("accepts the unfiltered shape: every period, no teacher, no cause, no search", () => {
+    expect(
+      solicitudReporteConsultadoEvent({
+        carreraId: 4,
+        periodo: "all",
+        docenteId: null,
+        causa: null,
+        busqueda: false,
+        total: 0,
+      }).datos,
+    ).toEqual({
+      periodo: "all",
+      docenteId: null,
+      causa: null,
+      busqueda: false,
+      total: 0,
+    });
   });
 });

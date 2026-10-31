@@ -34,7 +34,10 @@ vi.mock("@/db", () => ({
 }));
 vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
-import { recordReportDashboardRead } from "@/lib/data/report-reads";
+import {
+  recordReportDashboardRead,
+  recordReportRequestsRead,
+} from "@/lib/data/report-reads";
 
 // Captured at load: the setup file clears mock history between tests.
 const cacheCallsAtLoad = [...cacheMock.mock.calls];
@@ -51,9 +54,9 @@ describe("report reads (CR-7, CR-AUDIT-1, RNF-06)", () => {
     insertAuditMock.mockResolvedValue(undefined);
   });
 
-  it("wraps the writer in React cache() once, at module load", () => {
-    expect(cacheCallsAtLoad).toHaveLength(1);
-    expect(cacheCallsAtLoad[0][0]).toBeTypeOf("function");
+  it("wraps each page writer in React cache() once, at module load", () => {
+    expect(cacheCallsAtLoad).toHaveLength(2);
+    for (const [fn] of cacheCallsAtLoad) expect(fn).toBeTypeOf("function");
   });
 
   describe("recordReportDashboardRead", () => {
@@ -112,6 +115,77 @@ describe("report reads (CR-7, CR-AUDIT-1, RNF-06)", () => {
   });
 });
 
+describe("recordReportRequestsRead (CR-DET-4, RNF-06)", () => {
+  beforeEach(() => {
+    insertAuditMock.mockReset();
+    insertAuditMock.mockResolvedValue(undefined);
+  });
+
+  it("writes one solicitud.reporte.consultado row in one transaction", async () => {
+    const double = use();
+
+    await recordReportRequestsRead(30, 4, "2026-S1", 12, "medica", true, 18);
+
+    expect(double.transactions).toBe(1);
+    expect(insertAuditMock).toHaveBeenCalledTimes(1);
+    const [, actor, events] = insertAuditMock.mock.calls[0];
+    expect(actor).toBe(30);
+    expect(events).toEqual([
+      {
+        accion: "solicitud.reporte.consultado",
+        entidadTipo: "Carrera",
+        entidadId: 4,
+        datos: {
+          periodo: "2026-S1",
+          docenteId: 12,
+          causa: "medica",
+          busqueda: true,
+          total: 18,
+        },
+      },
+    ]);
+  });
+
+  it("stores a boolean for the search: the typed term never reaches the row", async () => {
+    use();
+
+    await recordReportRequestsRead(30, 9, "all", null, null, true, 2);
+
+    const serialized = JSON.stringify(insertAuditMock.mock.calls[0][2]);
+    expect(serialized).toContain('"busqueda":true');
+    expect(serialized).not.toContain("Maria Lopez");
+  });
+
+  it("is a no-op for a second identical call in a render", async () => {
+    const double = use();
+
+    await recordReportRequestsRead(30, 5, "all", null, null, false, 3);
+    await recordReportRequestsRead(30, 5, "all", null, null, false, 3);
+
+    expect(insertAuditMock).toHaveBeenCalledTimes(1);
+    expect(double.transactions).toBe(1);
+  });
+
+  it("writes again when the filters or the total differ", async () => {
+    use();
+
+    await recordReportRequestsRead(30, 6, "all", null, null, false, 3);
+    await recordReportRequestsRead(30, 6, "all", null, "medica", false, 3);
+    await recordReportRequestsRead(30, 6, "all", null, null, false, 4);
+
+    expect(insertAuditMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects when the audit insert fails, so the page returns no data", async () => {
+    use();
+    insertAuditMock.mockRejectedValue(new Error("audit down"));
+
+    await expect(
+      recordReportRequestsRead(30, 8, "2026-S1", null, null, false, 1),
+    ).rejects.toThrow("audit down");
+  });
+});
+
 // Boundary of slice 1a (design): the data layer is inert and framework-free.
 describe("report modules stay framework-free (boundary rule)", () => {
   const root = process.cwd();
@@ -135,6 +209,7 @@ describe("report modules stay framework-free (boundary rule)", () => {
         "src/lib/reports/params.ts",
         "src/lib/data/report-reads.ts",
         "src/lib/data/report-rankings.ts",
+        "src/lib/data/report-requests.ts",
       ]),
     );
   });
@@ -161,7 +236,7 @@ describe("report modules stay framework-free (boundary rule)", () => {
 
   it("never reads a search term (it must not reach an event builder)", () => {
     expect(read("src/lib/data/report-reads.ts")).not.toMatch(
-      /parseQ|searchParams|termino|busqueda/,
+      /parseQ|searchParams|termino/,
     );
   });
 });

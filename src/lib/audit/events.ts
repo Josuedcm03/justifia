@@ -11,6 +11,7 @@ import type {
   GrupoWriteResult,
 } from "@/lib/catalog/types";
 import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
+import type { Causa } from "@/lib/intake/causes";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type { EstadoSolicitud } from "@/lib/intake/states";
@@ -261,6 +262,31 @@ export function solicitudRankingConsultadoEvent(args: {
       estudiantes: args.estudiantes,
       docentes: args.docentes,
       asignaturas: args.asignaturas,
+    },
+  };
+}
+
+/** A coordinator opened the request detail: the entity is the career, the
+ *  payload the applied filters and the total. `busqueda` says only that a term
+ *  was typed; the term itself is never stored (RF-13 b, RNF-06). */
+export function solicitudReporteConsultadoEvent(args: {
+  carreraId: number;
+  periodo: string;
+  docenteId: number | null;
+  causa: Causa | null;
+  busqueda: boolean;
+  total: number;
+}): AuditEvent {
+  return {
+    accion: "solicitud.reporte.consultado",
+    entidadTipo: "Carrera",
+    entidadId: args.carreraId,
+    datos: {
+      periodo: args.periodo,
+      docenteId: args.docenteId,
+      causa: args.causa,
+      busqueda: args.busqueda,
+      total: args.total,
     },
   };
 }

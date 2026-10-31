@@ -1,3 +1,4 @@
+import type { Causa } from "@/lib/intake/causes";
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type {
@@ -46,6 +47,7 @@ export const AUDIT_ACTIONS = [
   "inscripcion.reactivada",
   "inscripcion.desactivada",
   "solicitud.ranking.consultado",
+  "solicitud.reporte.consultado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -72,6 +74,18 @@ type RankingReadPayload = {
   estudiantes: number;
   docentes: number;
   asignaturas: number;
+};
+
+/** The request detail open (RF-13 b): the filters that were applied and the
+ *  total they matched. The search is a boolean, never the typed term, which may
+ *  be a student name (RNF-06). */
+type ReportReadPayload = {
+  /** A `AAAA-S1|S2` code or "all". */
+  periodo: string;
+  docenteId: number | null;
+  causa: Causa | null;
+  busqueda: boolean;
+  total: number;
 };
 
 /** Closed list. A field not named here can never be reported as changed.
@@ -418,4 +432,11 @@ export type AuditEvent =
       entidadTipo: "Carrera";
       entidadId: number;
       datos: RankingReadPayload;
+    }
+  | {
+      // The entity is the coordinator's career: the detail is a scope too.
+      accion: "solicitud.reporte.consultado";
+      entidadTipo: "Carrera";
+      entidadId: number;
+      datos: ReportReadPayload;
     };
