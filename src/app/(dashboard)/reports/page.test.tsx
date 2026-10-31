@@ -164,6 +164,7 @@ describe("ReportsPage without a career (fail closed)", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("list")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(loadMock).not.toHaveBeenCalled();
     expect(auditMock).not.toHaveBeenCalled();
   });
@@ -190,6 +191,7 @@ describe("ReportsPage degraded read (BS-STATE-2)", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("list")).toBeNull();
     expect(screen.queryByText(en.empty)).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(auditMock).not.toHaveBeenCalled();
   });
 });
@@ -209,6 +211,7 @@ describe("ReportsPage without any period (CR-PERIOD-1)", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("list")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledWith(7, CARRERA, null, 0, 0, 0);
   });
@@ -319,11 +322,37 @@ describe("ReportsPage dashboard (CR-DASH-1, CR-RANK-2, CR-RANK-3)", () => {
     expect(auditMock).toHaveBeenCalledWith(7, CARRERA, "2026-S2", 0, 0, 0);
   });
 
-  it("links nowhere: the detail page does not exist yet", async () => {
+  it("links to the detail for the period it shows, and never prefetches it (CR-DASH-1, N2)", async () => {
     await renderPage();
 
-    expect(screen.queryAllByRole("link")).toEqual([]);
-    expect(document.querySelector('a[href^="/reports/requests"]')).toBeNull();
+    const link = screen.getByRole("link", { name: en.viewRequests });
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(link).toHaveAttribute("href", "/reports/requests?period=2026-S2");
+    expect(link).toHaveAttribute("data-prefetch", "false");
+  });
+
+  it("carries every period to the detail when every period is shown", async () => {
+    loadMock.mockResolvedValue(dashboard({ periodo: { kind: "all" } }));
+
+    await renderPage();
+
+    expect(screen.getByRole("link", { name: en.viewRequests })).toHaveAttribute(
+      "href",
+      "/reports/requests?period=all",
+    );
+  });
+
+  it("carries the period of the URL, not the default, to the detail", async () => {
+    loadMock.mockResolvedValue(
+      dashboard({ periodo: { kind: "code", periodo: "2026-S1" } }),
+    );
+
+    await renderPage({ period: "2026-S1" });
+
+    expect(screen.getByRole("link", { name: en.viewRequests })).toHaveAttribute(
+      "href",
+      "/reports/requests?period=2026-S1",
+    );
   });
 
   it("never shows a cause, a state, a date or a request id", async () => {

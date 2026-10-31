@@ -223,15 +223,24 @@ describe("reports structure: links opt out of prefetch (CR-AUDIT-1, N2, guard 2)
     );
   });
 
-  it("adds no link to the detail page from the dashboard files", () => {
+  it("links to the detail page only from the dashboard page, through requestsReportHref, with prefetch off", () => {
     const dashboardFiles = reportSources.filter((s) =>
       /\/reports\/(page|ranking-card|period-filter)\.tsx$/.test(s.path),
     );
-
     expect(dashboardFiles).toHaveLength(3);
-    expect(
-      dashboardFiles.filter((s) => s.text.includes("/reports/requests")),
-    ).toEqual([]);
+
+    const linkers = dashboardFiles.filter(
+      (s) =>
+        s.text.includes("requestsReportHref") ||
+        /\/reports\/requests/.test(s.text),
+    );
+    expect(linkers.map((s) => s.path)).toEqual([DASHBOARD_PAGE]);
+
+    const detailLinks = linkTags(linkers[0].text).filter((tag) =>
+      tag.includes("requestsReportHref("),
+    );
+    expect(detailLinks).toHaveLength(1);
+    expect(optsOut(detailLinks[0])).toBe(true);
   });
 });
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { PeriodFilter } from "@/app/(dashboard)/reports/period-filter";
@@ -8,12 +9,13 @@ import {
 import { DegradedAlert } from "@/components/degraded-alert";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesQueVenReportes } from "@/lib/auth/permissions";
 import { loadReportDashboard } from "@/lib/data/report-rankings";
 import { recordReportDashboardRead } from "@/lib/data/report-reads";
 import { resolveReportScope } from "@/lib/data/report-scope";
-import { parseReportParams } from "@/lib/reports/params";
+import { parseReportParams, requestsReportHref } from "@/lib/reports/params";
 
 const ALERT =
   "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
@@ -75,7 +77,7 @@ export default async function ReportsPage({
     rankings.asignaturas.length,
   );
 
-  if (selected === null) {
+  if (periodo === null || selected === null) {
     return (
       <div className="flex flex-col gap-8">
         {header}
@@ -109,7 +111,24 @@ export default async function ReportsPage({
 
   return (
     <div className="flex flex-col gap-8">
-      {header}
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        action={
+          <Link
+            href={requestsReportHref({
+              period: periodo,
+              docenteId: null,
+              causa: null,
+              q: "",
+            })}
+            prefetch={false}
+            className={buttonVariants({ variant: "outline", size: "lg" })}
+          >
+            {t("viewRequests")}
+          </Link>
+        }
+      />
 
       <PeriodFilter
         label={t("period.label")}
