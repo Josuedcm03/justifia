@@ -348,6 +348,27 @@ describe("rolesQueGestionanCatalogo", () => {
   });
 });
 
+describe("canViewReports (CR-ACC-1: only coordinacion)", () => {
+  it("lists exactly coordinacion as the reporting role", () => {
+    expect([...perms.rolesQueVenReportes]).toEqual(["coordinacion"]);
+  });
+
+  it("allows coordinacion", () => {
+    expect(perms.canViewReports("coordinacion")).toBe(true);
+  });
+
+  it.each(["administrador", "secretaria", "docente", "estudiante"] as const)(
+    "denies %s",
+    (rol) => {
+      expect(perms.canViewReports(rol)).toBe(false);
+    },
+  );
+
+  it("denies a missing role", () => {
+    expect(perms.canViewReports(undefined)).toBe(false);
+  });
+});
+
 describe("isCarreraScopedRole", () => {
   it.each(rolesUsuario)("%s", (rol) => {
     expect(isCarreraScopedRole(rol)).toBe(rol === "coordinacion");

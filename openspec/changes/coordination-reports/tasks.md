@@ -49,25 +49,25 @@ Chain: while a parent is open, the child targets the parent branch (clean diff);
 
 ## Phase 0: Planning docs and chain decision (before 1a)
 
-- [ ] 0.1 On tracker `feat/coordination-reports`: run `git diff docs/requirements.md docs/roadmap.md`, confirm the pending edits belong to this change, stage them with `openspec/changes/coordination-reports/` and commit `docs(coordination-reports): add the SDD planning documents`.
+- [x] 0.1 On tracker `feat/coordination-reports`: run `git diff docs/requirements.md docs/roadmap.md`, confirm the pending edits belong to this change, stage them with `openspec/changes/coordination-reports/` and commit `docs(coordination-reports): add the SDD planning documents`.
 - [x] 0.2 Chain strategy recorded: stacked-to-main (user, 2026-10-30). Each PR targets the previous slice branch; 1a targets `main`.
-- [ ] 0.3 [READ-ONLY] Re-read `node_modules/next/dist/docs/` `link.md` (`prefetch`) and `route.md` (findings N2, N3) and confirm `ChartColumn` is exported by the installed `lucide-react`; note any drift here before 1b.
+- [x] 0.3 [READ-ONLY] Re-read `node_modules/next/dist/docs/` `link.md` (`prefetch`) and `route.md` (findings N2, N3) and confirm `ChartColumn` is exported by the installed `lucide-react`; note any drift here before 1b. Result (2026-10-30): `Link` `prefetch={false}` never prefetches on viewport or hover (App Router `link.md`); GET route handlers are dynamic by default since v15 (`route.md`); `ChartColumn` is declared by the installed `lucide-react` 1.42; drift: the repo still guards with root `middleware.ts` while the Next 16 docs name the file convention `proxy`, which does not change the design (the export route guards itself, N3).
 
 ## Phase 1: Slice 1a - Data and audit (work unit 1a, `src/lib` only)
 
 1a-i: access, scope, params, where-builder.
 
-- [ ] 1.1 Branch `feat/coordination-reports-1a-data` per 0.2. RED: `src/lib/auth/permissions.test.ts` table: `canViewReports` true only for `coordinacion`, false for `administrador`, `secretaria`, `docente`, `estudiante` (CR-ACC-1 matrix).
-- [ ] 1.2 GREEN: `src/lib/auth/permissions.ts` adds `rolesQueVenReportes = ["coordinacion"]` and `canViewReports(rol)`; no other role check anywhere.
-- [ ] 1.3 RED: `src/lib/reports/constants.test.ts` + `scope.test.ts`: `RANKING_LIMIT` 10, `RANKING_STATES` exactly `aprobada`, `pendiente` and a subset of `VISIBLE_STATES`, `REPORT_PAGE_SIZE` 25; `reportScopeFor` role x carrera table (coordinacion + id -> `carrera`; coordinacion + null or `actor === null` -> `none`; every other role -> `none`) (CR-ACC-1, CR-SCOPE-1; scenario "Coordination without a career").
-- [ ] 1.4 GREEN: `src/lib/reports/constants.ts`, `src/lib/reports/scope.ts` (`ReportScope`, pure, fail-closed, mirrors `catalogScopeFor`).
-- [ ] 1.5 RED: `src/lib/reports/params.test.ts` period only: `period=all` -> `all`; `2026-S1` -> code; `2026-S9`, `2026-s1`, empty, array, junk -> `latest`; `reportsHref(period)` emits `period=<code>|all` (CR-6; scenario "All periods and invalid value").
-- [ ] 1.6 GREEN: `src/lib/reports/params.ts` (`PeriodFilter`, period branch of `parseReportParams`, `reportsHref`) reusing `PERIODO_RE` from `src/lib/import/normalize.ts`.
-- [ ] 1.7 RED: `src/lib/data/report-scope-sql.test.ts` via `new QueryBuilder().toSQL()` (pattern of `request-scope-sql.test.ts`): `reportInScope(carrera)` is `EXISTS` on `Usuario e` with `e.CarreraId = $c`; `none` -> `false`; unknown kind throws; `buildReportWhere` has scope as the first term, `inArray(Estado, states)`, one `EXISTS` for `classFilter` only when `periodo` is set, none when null (CR-2, CR-3; scenario "Other career invisible").
-- [ ] 1.8 GREEN: `src/lib/data/report-scope-sql.ts` (`reportInScope`, `classFilter(periodo, docenteId?)`, `buildReportWhere`); the only place a `ReportScope` becomes SQL.
-- [ ] 1.9 RED: `src/lib/data/report-scope.test.ts` (db double): `resolveReportScope` returns `none` with no read for non-`coordinacion`; reads `Usuario.CarreraId` for `coordinacion`; missing user -> `none`; a thrown read propagates (fail loud); never cached.
-- [ ] 1.10 GREEN: `src/lib/data/report-scope.ts` (`server-only`).
-- [ ] 1.11 Commit unit 1a-i: `feat(reports): add the report scope, period params and where-builder`.
+- [x] 1.1 Branch `feat/coordination-reports-1a-data` per 0.2. RED: `src/lib/auth/permissions.test.ts` table: `canViewReports` true only for `coordinacion`, false for `administrador`, `secretaria`, `docente`, `estudiante` (CR-ACC-1 matrix).
+- [x] 1.2 GREEN: `src/lib/auth/permissions.ts` adds `rolesQueVenReportes = ["coordinacion"]` and `canViewReports(rol)`; no other role check anywhere.
+- [x] 1.3 RED: `src/lib/reports/constants.test.ts` + `scope.test.ts`: `RANKING_LIMIT` 10, `RANKING_STATES` exactly `aprobada`, `pendiente` and a subset of `VISIBLE_STATES`, `REPORT_PAGE_SIZE` 25; `reportScopeFor` role x carrera table (coordinacion + id -> `carrera`; coordinacion + null or `actor === null` -> `none`; every other role -> `none`) (CR-ACC-1, CR-SCOPE-1; scenario "Coordination without a career").
+- [x] 1.4 GREEN: `src/lib/reports/constants.ts`, `src/lib/reports/scope.ts` (`ReportScope`, pure, fail-closed, mirrors `catalogScopeFor`).
+- [x] 1.5 RED: `src/lib/reports/params.test.ts` period only: `period=all` -> `all`; `2026-S1` -> code; `2026-S9`, `2026-s1`, empty, array, junk -> `latest`; `reportsHref(period)` emits `period=<code>|all` (CR-6; scenario "All periods and invalid value").
+- [x] 1.6 GREEN: `src/lib/reports/params.ts` (`PeriodFilter`, period branch of `parseReportParams`, `reportsHref`) reusing `PERIODO_RE` from `src/lib/import/normalize.ts`.
+- [x] 1.7 RED: `src/lib/data/report-scope-sql.test.ts` via `new QueryBuilder().toSQL()` (pattern of `request-scope-sql.test.ts`): `reportInScope(carrera)` is `EXISTS` on `Usuario e` with `e.CarreraId = $c`; `none` -> `false`; unknown kind throws; `buildReportWhere` has scope as the first term, `inArray(Estado, states)`, one `EXISTS` for `classFilter` only when `periodo` is set, none when null (CR-2, CR-3; scenario "Other career invisible").
+- [x] 1.8 GREEN: `src/lib/data/report-scope-sql.ts` (`reportInScope`, `classFilter(periodo, docenteId?)`, `buildReportWhere`); the only place a `ReportScope` becomes SQL.
+- [x] 1.9 RED: `src/lib/data/report-scope.test.ts` (db double): `resolveReportScope` returns `none` with no read for non-`coordinacion`; reads `Usuario.CarreraId` for `coordinacion`; missing user -> `none`; a thrown read propagates (fail loud); never cached.
+- [x] 1.10 GREEN: `src/lib/data/report-scope.ts` (`server-only`).
+- [x] 1.11 Commit unit 1a-i: `feat(reports): add the report scope, period params and where-builder`.
 
 1a-ii: rankings, loader, audit.
 

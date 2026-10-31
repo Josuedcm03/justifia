@@ -135,6 +135,21 @@ export function canReviewRequests(rol: RolUsuario | undefined): boolean {
   );
 }
 
+/**
+ * Roles that see the coordination reports (coordination-reports, CR-ACC-1,
+ * RF-17 a). Typed against `RolUsuario` so a renamed role is a compile error.
+ */
+export const rolesQueVenReportes = [
+  "coordinacion",
+] as const satisfies readonly RolUsuario[];
+
+export function canViewReports(rol: RolUsuario | undefined): boolean {
+  return (
+    rol !== undefined &&
+    (rolesQueVenReportes as readonly string[]).includes(rol)
+  );
+}
+
 /** What the document predicate needs to know about the document's request. */
 export type ViewableDocument = {
   estudianteId: number;
