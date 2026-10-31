@@ -43,6 +43,20 @@ describe("reports messages (dashboard)", () => {
     },
   );
 
+  it("names the sidebar entry in both catalogs", () => {
+    expect(es.nav.reports).toBe("Reportes");
+    expect(en.nav.reports).toBe("Reports");
+  });
+
+  it.each(catalogs)(
+    "%s offers the home shortcut text for the reports entry",
+    (_locale, messages) => {
+      const shortcuts = messages.dashboard.shortcuts as Record<string, string>;
+
+      expect(shortcuts.reports?.trim().length).toBeGreaterThan(0);
+    },
+  );
+
   it.each(catalogs)(
     "%s covers the page states and the three rankings",
     (_locale, messages) => {

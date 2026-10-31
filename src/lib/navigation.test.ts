@@ -2,6 +2,7 @@ import {
   BookMarked,
   BookOpen,
   Briefcase,
+  ChartColumn,
   ClipboardCheck,
   FilePlus,
   FileSpreadsheet,
@@ -20,6 +21,7 @@ import {
   canManageCatalog,
   canManageOwnEnrollment,
   canReviewRequests,
+  canViewReports,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -76,6 +78,13 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
         prefetch: false,
       },
       {
+        key: "reports",
+        href: "/reports",
+        icon: ChartColumn,
+        visibleTo: canViewReports,
+        prefetch: false,
+      },
+      {
         key: "administration",
         icon: Briefcase,
         children: [
@@ -115,12 +124,31 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
     expect(review).toMatchObject({ href: "/review", prefetch: false });
   });
 
+  it("opts the reports entry out of prefetching (it writes an audited read)", () => {
+    const reports = NAV_ITEMS.find((item) => item.key === "reports");
+
+    expect(reports).toMatchObject({
+      href: "/reports",
+      icon: ChartColumn,
+      prefetch: false,
+    });
+  });
+
+  it("places reports after review and before administration", () => {
+    const keys = NAV_ITEMS.map((item) => item.key);
+
+    expect(keys.indexOf("reports")).toBe(keys.indexOf("review") + 1);
+    expect(keys.indexOf("reports")).toBe(keys.indexOf("administration") - 1);
+  });
+
   it("leaves every other leaf without a prefetch flag", () => {
     const leaves = NAV_ITEMS.flatMap((item): readonly NavLink[] =>
       "children" in item ? item.children : [item],
     );
 
-    for (const leaf of leaves.filter((l) => l.key !== "review")) {
+    for (const leaf of leaves.filter(
+      (l) => l.key !== "review" && l.key !== "reports",
+    )) {
       expect(leaf, leaf.key).not.toHaveProperty("prefetch");
     }
   });
@@ -179,6 +207,7 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
     ["newRequest", ["estudiante"]],
     ["enrollment", ["estudiante"]],
     ["review", ["secretaria"]],
+    ["reports", ["coordinacion"]],
     ["catalogAsignaturas", STAFF],
     ["catalogDocentes", STAFF],
     ["catalogImport", ["secretaria"]],
@@ -262,6 +291,8 @@ describe("trailFor (BS-CTX-1)", () => {
     ["/enrollment", { key: "enrollment", href: "/enrollment", exact: true }],
     ["/review", { key: "review", href: "/review", exact: true }],
     ["/review/42", { key: "review", href: "/review", exact: false }],
+    ["/reports", { key: "reports", href: "/reports", exact: true }],
+    ["/reports/requests", { key: "reports", href: "/reports", exact: false }],
     ["/profile", { key: "profile", href: "/profile", exact: true }],
   ])("%s resolves to its section trail", (pathname, trail) => {
     expect(trailFor(pathname)).toEqual(trail);
@@ -292,7 +323,10 @@ describe("shortcutsFor (BS-HOME-1 inputs)", () => {
     ["estudiante", ["/requests", "/requests/new", "/enrollment"]],
     ["docente", []],
     ["administrador", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
-    ["coordinacion", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
+    [
+      "coordinacion",
+      ["/reports", "/catalog/asignaturas", "/catalog/docentes", "/users"],
+    ],
     [
       "secretaria",
       [

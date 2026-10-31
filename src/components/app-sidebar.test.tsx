@@ -49,6 +49,11 @@ vi.mock("next/navigation", () => ({
   usePathname: () => env.pathname,
 }));
 
+// Exposes the `prefetch` prop the Reports entry must set to false.
+vi.mock("next/link", async () =>
+  (await import("@/app/(dashboard)/review/test-support")).linkDouble(),
+);
+
 beforeEach(() => {
   env.pathname = "/";
   env.locale = "es";
@@ -174,18 +179,26 @@ describe("AppSidebar", () => {
     },
   );
 
-  it.each(["administrador", "coordinacion"] as const)(
-    "orders the top level Panel, Administración, Configuración for %s",
-    (rol) => {
-      renderSidebar(rol);
+  it("orders the top level Panel, Administración, Configuración for administrador", () => {
+    renderSidebar("administrador");
 
-      expect(topLevelLabels()).toEqual([
-        "Panel",
-        "Administración",
-        "Configuración",
-      ]);
-    },
-  );
+    expect(topLevelLabels()).toEqual([
+      "Panel",
+      "Administración",
+      "Configuración",
+    ]);
+  });
+
+  it("orders the top level Panel, Reportes, Administración, Configuración for coordinacion", () => {
+    renderSidebar("coordinacion");
+
+    expect(topLevelLabels()).toEqual([
+      "Panel",
+      "Reportes",
+      "Administración",
+      "Configuración",
+    ]);
+  });
 
   it("orders the top level Panel, Revisión de solicitudes, Administración, Configuración for secretaria", () => {
     renderSidebar("secretaria");
@@ -205,7 +218,14 @@ describe("AppSidebar", () => {
     ],
     [
       "coordinacion",
-      ["/", "/catalog/asignaturas", "/catalog/docentes", "/users", "/settings"],
+      [
+        "/",
+        "/reports",
+        "/catalog/asignaturas",
+        "/catalog/docentes",
+        "/users",
+        "/settings",
+      ],
     ],
     [
       "secretaria",
@@ -812,7 +832,7 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
     ],
     [
       "coordinacion",
-      ["Panel", "Administración", "Configuración"],
+      ["Panel", "Reportes", "Administración", "Configuración"],
       ["Asignaturas", "Docentes", "Usuarios"],
     ],
     [
@@ -887,6 +907,62 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
     expect(marked).toHaveLength(1);
     expect(marked[0]).toHaveTextContent("Asignaturas");
     expect(getTrigger()).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("AppSidebar reports item (BS-NAV-1, RF-17 a)", () => {
+  it.each([
+    ["es", "Reportes"],
+    ["en", "Reports"],
+  ] as const)(
+    "offers coordinacion the %s link to /reports with prefetch disabled",
+    (locale, name) => {
+      env.locale = locale;
+      renderSidebar("coordinacion");
+
+      const link = screen.getByRole("link", { name });
+
+      expect(link).toHaveAttribute("href", "/reports");
+      expect(link).toHaveAttribute("data-prefetch", "false");
+      expect(link.querySelector("svg.lucide-chart-column")).not.toBeNull();
+    },
+  );
+
+  it.each(["administrador", "secretaria", "docente", "estudiante"] as const)(
+    "hides it from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(
+        screen.queryByRole("link", { name: "Reportes" }),
+      ).not.toBeInTheDocument();
+      expect(
+        document.querySelector('a[href="/reports"]'),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["/reports", "/reports/requests"])(
+    "marks Reportes as the only current entry on %s",
+    (pathname) => {
+      env.pathname = pathname;
+      renderSidebar("coordinacion");
+
+      const marked = document.querySelectorAll("[aria-current]");
+
+      expect(marked).toHaveLength(1);
+      expect(marked[0]).toHaveAttribute("href", "/reports");
+      expect(marked[0]).toHaveAttribute("aria-current", "page");
+    },
+  );
+
+  it("marks nothing as Reportes on another page", () => {
+    env.pathname = "/catalog/docentes";
+    renderSidebar("coordinacion");
+
+    expect(screen.getByRole("link", { name: "Reportes" })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 });
 

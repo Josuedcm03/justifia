@@ -177,6 +177,25 @@ describe("reports structure: links opt out of prefetch (CR-AUDIT-1, N2, guard 2)
     expect(offenders).toEqual([]);
   });
 
+  it("opts the sidebar entry out as well", () => {
+    // The entry lives in the shared navigation config (single source for the
+    // sidebar, the home shortcuts and the trail); the sidebar and the home
+    // read the flag from it.
+    const textOf = (path: string) =>
+      sources.find((s) => s.path === path)?.text ?? "";
+    const config = textOf("src/lib/navigation.ts");
+    const entry = config.match(/\{[^{}]*href:\s*"\/reports"[^{}]*\}/)?.[0];
+
+    expect(entry).toBeDefined();
+    expect(entry).toContain("prefetch: false");
+    expect(textOf("src/components/app-sidebar.tsx")).toContain(
+      "prefetch={prefetchOf(item)}",
+    );
+    expect(textOf("src/app/(dashboard)/(home)/page.tsx")).toContain(
+      "prefetch=",
+    );
+  });
+
   it("adds no link to the detail page from the dashboard files", () => {
     const dashboardFiles = reportSources.filter((s) =>
       /\/reports\/(page|ranking-card|period-filter)\.tsx$/.test(s.path),

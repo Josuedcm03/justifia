@@ -51,6 +51,11 @@ vi.mock("next-intl", () => ({
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 
+// Exposes the `prefetch` prop the Reports shortcut must set to false.
+vi.mock("next/link", async () =>
+  (await import("@/app/(dashboard)/review/test-support")).linkDouble(),
+);
+
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -104,7 +109,7 @@ const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
   ],
   [
     "coordinacion",
-    ["/catalog/asignaturas", "/catalog/docentes", "/users"],
+    ["/reports", "/catalog/asignaturas", "/catalog/docentes", "/users"],
     true,
   ],
   [
@@ -219,6 +224,27 @@ describe("DashboardPage (BS-HOME-1)", () => {
         1,
       );
       expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    },
+  );
+
+  it("offers coordinacion the Reports shortcut first, not prefetched", async () => {
+    await renderHome("coordinacion");
+
+    const card = screen.getByRole("link", { name: /reports/ });
+
+    expect(card).toHaveAttribute("href", "/reports");
+    expect(card).toHaveAttribute("data-prefetch", "false");
+    expect(within(card).getByText("shortcuts.reports")).toBeInTheDocument();
+    expect(shortcutHrefs()[0]).toBe("/reports");
+  });
+
+  it.each(["administrador", "secretaria", "docente", "estudiante"] as const)(
+    "shows %s no Reports card and no link to /reports",
+    async (rol) => {
+      await renderHome(rol);
+
+      expect(shortcutHrefs()).not.toContain("/reports");
+      expect(screen.queryByText("shortcuts.reports")).not.toBeInTheDocument();
     },
   );
 
@@ -344,6 +370,7 @@ describe("DashboardPage copy", () => {
         "newRequest",
         "enrollment",
         "review",
+        "reports",
         "catalogAsignaturas",
         "catalogDocentes",
         "catalogImport",

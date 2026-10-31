@@ -2,6 +2,7 @@ import {
   BookMarked,
   BookOpen,
   Briefcase,
+  ChartColumn,
   ClipboardCheck,
   FilePlus,
   FileSpreadsheet,
@@ -20,6 +21,7 @@ import {
   canManageCatalog,
   canManageOwnEnrollment,
   canReviewRequests,
+  canViewReports,
 } from "@/lib/auth/permissions";
 import type { RolUsuario } from "@/lib/validations/auth";
 
@@ -29,8 +31,9 @@ export type NavLink = {
   icon: LucideIcon;
   visibleTo?: (rol: RolUsuario) => boolean;
   /**
-   * `false` keeps Next.js from prefetching the target. The review pages write an
-   * audit row when they render, so nothing may render them speculatively.
+   * `false` keeps Next.js from prefetching the target. The review and report
+   * pages write an audit row when they render, so nothing may render them
+   * speculatively.
    */
   prefetch?: false;
 };
@@ -74,6 +77,13 @@ export const NAV_ITEMS = [
     href: "/review",
     icon: ClipboardCheck,
     visibleTo: canReviewRequests,
+    prefetch: false,
+  },
+  {
+    key: "reports",
+    href: "/reports",
+    icon: ChartColumn,
+    visibleTo: canViewReports,
     prefetch: false,
   },
   {
