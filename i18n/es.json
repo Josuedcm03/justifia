@@ -1236,6 +1236,39 @@
       "title": "Asignaturas",
       "description": "Asignaturas con más clases justificadas.",
       "empty": "No hay asignaturas que ordenar en este periodo."
+    },
+    "viewRequests": "Ver solicitudes",
+    "detail": {
+      "title": "Solicitudes de justificación",
+      "description": "Todas las solicitudes de tu carrera con su causa, sus fechas y las clases justificadas. Filtra por periodo, docente, estudiante o causa.",
+      "caption": "Solicitudes de justificación de tu carrera",
+      "dates": "{start} al {end}",
+      "classLine": "{subject} · {teacher} · {period}",
+      "filters": {
+        "label": "Filtros",
+        "teacher": "Docente",
+        "allTeachers": "Todos los docentes",
+        "teacherOutside": "Docente fuera de tu carrera",
+        "student": "Estudiante",
+        "studentHint": "Nombre o CIF",
+        "cause": "Causa",
+        "allCauses": "Todas las causas",
+        "apply": "Aplicar filtros",
+        "clear": "Quitar filtros"
+      },
+      "columns": {
+        "student": "Estudiante",
+        "cif": "CIF",
+        "cause": "Causa",
+        "state": "Estado",
+        "absence": "Fechas de ausencia",
+        "submitted": "Presentada",
+        "classes": "Clases"
+      },
+      "noResults": {
+        "title": "Ninguna solicitud coincide con los filtros",
+        "hint": "Prueba con otro periodo, docente, estudiante o causa."
+      }
     }
   },
   "privacy": {

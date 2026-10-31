@@ -6,7 +6,7 @@ import es from "../../i18n/es.json";
 
 // CR-I18N-1, BS-I18N-1: every user-facing string of the coordination reports
 // dashboard exists in both locales, with the same keys and a non-empty message.
-// Later slices extend this file with the detail and workbook keys.
+// The detail keys (slice 2) are covered below; slice 3 adds the workbook keys.
 
 function leaves(value: unknown, prefix = ""): [string, unknown][] {
   if (typeof value !== "object" || value === null) return [[prefix, value]];
@@ -82,6 +82,63 @@ describe("reports messages (dashboard)", () => {
       ]) {
         expect(keys, key).toContain(key);
       }
+    },
+  );
+
+  it.each(catalogs)(
+    "%s covers the request detail: link, filters, columns and no-results (slice 2)",
+    (_locale, messages) => {
+      const keys = leaves(messages.reports, "reports").map(([key]) => key);
+
+      for (const key of [
+        "reports.viewRequests",
+        "reports.detail.title",
+        "reports.detail.description",
+        "reports.detail.caption",
+        "reports.detail.dates",
+        "reports.detail.classLine",
+        ...[
+          "label",
+          "teacher",
+          "allTeachers",
+          "teacherOutside",
+          "student",
+          "studentHint",
+          "cause",
+          "allCauses",
+          "apply",
+          "clear",
+        ].map((name) => `reports.detail.filters.${name}`),
+        ...[
+          "student",
+          "cif",
+          "cause",
+          "state",
+          "absence",
+          "submitted",
+          "classes",
+        ].map((name) => `reports.detail.columns.${name}`),
+        "reports.detail.noResults.title",
+        "reports.detail.noResults.hint",
+      ]) {
+        expect(keys, key).toContain(key);
+      }
+    },
+  );
+
+  it.each([
+    ["es", "2026-03-02", "2026-03-04", "2026-03-02 al 2026-03-04"],
+    ["en", "2026-03-02", "2026-03-04", "2026-03-02 to 2026-03-04"],
+  ] as const)(
+    "%s writes the absence dates as a range",
+    (locale, start, end, expected) => {
+      const t = createTranslator({
+        locale,
+        messages: locale === "es" ? es : en,
+        namespace: "reports.detail",
+      });
+
+      expect(t("dates", { start, end })).toBe(expected);
     },
   );
 

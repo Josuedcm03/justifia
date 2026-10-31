@@ -1236,6 +1236,39 @@
       "title": "Subjects",
       "description": "Subjects with the most justified classes.",
       "empty": "No subjects to rank in this period."
+    },
+    "viewRequests": "View requests",
+    "detail": {
+      "title": "Justification requests",
+      "description": "Every request of your career with its cause, dates and justified classes. Filter by period, teacher, student or cause.",
+      "caption": "Justification requests of your career",
+      "dates": "{start} to {end}",
+      "classLine": "{subject} · {teacher} · {period}",
+      "filters": {
+        "label": "Filters",
+        "teacher": "Teacher",
+        "allTeachers": "All teachers",
+        "teacherOutside": "Teacher outside your career",
+        "student": "Student",
+        "studentHint": "Name or CIF",
+        "cause": "Cause",
+        "allCauses": "All causes",
+        "apply": "Apply filters",
+        "clear": "Clear filters"
+      },
+      "columns": {
+        "student": "Student",
+        "cif": "CIF",
+        "cause": "Cause",
+        "state": "State",
+        "absence": "Absence dates",
+        "submitted": "Submitted",
+        "classes": "Classes"
+      },
+      "noResults": {
+        "title": "No request matches the filters",
+        "hint": "Try another period, teacher, student or cause."
+      }
     }
   },
   "privacy": {
