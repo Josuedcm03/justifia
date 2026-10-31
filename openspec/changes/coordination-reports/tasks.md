@@ -31,10 +31,13 @@ Chain strategy: stacked-to-main
 | Slice | Branch | Content | Authored lines | Base: stacked-to-main | Base: feature-branch-chain |
 |-------|--------|---------|---------------:|-----------------------|----------------------------|
 | Docs | tracker `feat/coordination-reports` | SDD planning documents | n/a | main | tracker (draft, no-merge) |
-| 1a | `feat/coordination-reports-1a-data` | permissions, scope, params (period), constants, report-scope(-sql), rankings, dashboard event, `report-reads` | ~500 | main | tracker |
+| 1a-i | `feat/coordination-reports-1a-i` | permissions, scope, params (period), constants, report-scope(-sql) | 579 (measured) | main | tracker |
+| 1a-ii | `feat/coordination-reports-1a-ii` | rankings, dashboard event, `report-reads` | 818 (measured) | 1a-i branch, then main | 1a-i branch |
 | 1b | `feat/coordination-reports-1b-dashboard` | `/reports` page, `RankingCard`, `PeriodFilter`, structure test, nav entry, i18n | ~380 | 1a branch, retarget to main after 1a merges | 1a branch |
 | 2 | `feat/coordination-reports-2-detail` | filters in the builder, `report-requests`, `/reports/requests`, detail event, `NavTrail` prefetch, i18n | ~550 | 1b branch, then main | 1b branch |
 | 3 | `feat/coordination-reports-3-export` | `build-workbook`, route, download event, parity test, download link, i18n | ~450 | 2 branch, then main | 2 branch |
+
+**Measured 2026-10-31:** 1a came in at 1,397 lines (512 prod, 885 tests) against the ~500 forecast. The user chose to deliver it as two stacked PRs, 1a-i and 1a-ii, and accepted 1a-ii at 818 lines. Tests run about 1.7x production code here: re-forecast 1b, 2 and 3 with tests included before each apply.
 
 Chain: while a parent is open, the child targets the parent branch (clean diff); on stacked-to-main it is retargeted to `main` after the parent merges, on feature-branch-chain only the tracker merges to `main`. 1a is inert (no route imports it), 1b is the first user-visible slice, nothing needs a migration, so any prefix of the chain is deployable.
 
