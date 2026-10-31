@@ -1204,6 +1204,38 @@
       "back": "Back to the queue"
     }
   },
+  "reports": {
+    "title": "Reports",
+    "description": "The students, teachers and subjects of your career with the most justified absences. Only approved and pending requests are counted.",
+    "period": {
+      "label": "Academic period",
+      "all": "All periods",
+      "apply": "Show period"
+    },
+    "noCareer": {
+      "title": "Your account has no career assigned",
+      "message": "Your account has no career assigned, so there are no reports to show. Ask whoever administers the system to set it up."
+    },
+    "degraded": "The rankings could not be loaded. Try again later.",
+    "empty": "Your career has no justification requests yet, so there is nothing to rank.",
+    "requestsCount": "{count, plural, one {# request} other {# requests}}",
+    "classesCount": "{count, plural, one {# class} other {# classes}}",
+    "students": {
+      "title": "Students",
+      "description": "Students with the most justification requests.",
+      "empty": "No students to rank in this period."
+    },
+    "teachers": {
+      "title": "Teachers",
+      "description": "Teachers with the most justified classes.",
+      "empty": "No teachers to rank in this period."
+    },
+    "classes": {
+      "title": "Subjects",
+      "description": "Subjects with the most justified classes.",
+      "empty": "No subjects to rank in this period."
+    }
+  },
   "privacy": {
     "title": "Privacy notice",
     "draft": "Draft pending UAM review",

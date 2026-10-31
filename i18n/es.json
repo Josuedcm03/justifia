@@ -1204,6 +1204,38 @@
       "back": "Volver a la cola"
     }
   },
+  "reports": {
+    "title": "Reportes",
+    "description": "Los estudiantes, docentes y asignaturas de tu carrera con más inasistencias justificadas. Solo se cuentan las solicitudes aprobadas y pendientes.",
+    "period": {
+      "label": "Periodo académico",
+      "all": "Todos los periodos",
+      "apply": "Mostrar periodo"
+    },
+    "noCareer": {
+      "title": "Tu cuenta no tiene una carrera asignada",
+      "message": "Tu cuenta no tiene una carrera asignada, por lo que no hay reportes que mostrar. Pide a quien administra el sistema que la configure."
+    },
+    "degraded": "No se pudieron cargar los rankings. Inténtalo de nuevo más tarde.",
+    "empty": "Tu carrera aún no tiene solicitudes de justificación, por lo que no hay nada que ordenar.",
+    "requestsCount": "{count, plural, one {# solicitud} other {# solicitudes}}",
+    "classesCount": "{count, plural, one {# clase} other {# clases}}",
+    "students": {
+      "title": "Estudiantes",
+      "description": "Estudiantes con más solicitudes de justificación.",
+      "empty": "No hay estudiantes que ordenar en este periodo."
+    },
+    "teachers": {
+      "title": "Docentes",
+      "description": "Docentes con más clases justificadas.",
+      "empty": "No hay docentes que ordenar en este periodo."
+    },
+    "classes": {
+      "title": "Asignaturas",
+      "description": "Asignaturas con más clases justificadas.",
+      "empty": "No hay asignaturas que ordenar en este periodo."
+    }
+  },
   "privacy": {
     "title": "Aviso de privacidad",
     "draft": "Borrador pendiente de revisión de la UAM",
