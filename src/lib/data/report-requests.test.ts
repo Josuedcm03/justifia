@@ -415,7 +415,13 @@ describe("request export SQL (CR-XLS-2, CR-XLS-3)", () => {
   it("has no LIMIT and no OFFSET: it reads every page", () => {
     const { sql } = toSql(requestsExportQuery(source, CARRERA, ALL));
 
-    expect(sql).not.toMatch(/limit|offset/);
+    expect(sql).not.toMatch(/\blimit\b|\boffset\b/);
+  });
+
+  it("would notice a LIMIT: the paged query matches the same pattern", () => {
+    const page = toSql(requestsPageQuery(source, CARRERA, ALL, 1)).sql;
+
+    expect(page).toMatch(/\blimit\b|\boffset\b/);
   });
 
   it("is the same rows, columns and order as the page query", () => {
