@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 //   2. every link under reports/ and every link to /reports opts out of prefetch;
 //   3. no loading, layout, template or default file sits under reports/;
 //   4. nothing revalidates or refreshes a report page.
-// Slices 2 and 3 extend the allow-lists with the detail page and the route.
+// Slice 3 extends the allow-lists with the download route.
 
 const ROOT = process.cwd();
 const SRC = join(ROOT, "src");
@@ -42,6 +42,7 @@ const reportFiles = filesUnder(REPORTS_DIR).map((path) =>
 );
 
 const DASHBOARD_PAGE = "src/app/(dashboard)/reports/page.tsx";
+const DETAIL_PAGE = "src/app/(dashboard)/reports/requests/page.tsx";
 const READS_MODULE = "src/lib/data/report-reads.ts";
 
 /** Every audit writer of the reports; later slices add their page or route. */
@@ -81,10 +82,11 @@ function linkTags(text: string): string[] {
 }
 
 describe("reports structure: the file scan itself", () => {
-  it("finds the dashboard page, its cards and the reads module", () => {
+  it("finds the dashboard page, the detail page, their parts and the reads module", () => {
     const paths = sources.map((s) => s.path);
 
     expect(paths).toContain(DASHBOARD_PAGE);
+    expect(paths).toContain(DETAIL_PAGE);
     expect(paths).toContain(READS_MODULE);
     expect(reportSources.length).toBeGreaterThanOrEqual(3);
   });
@@ -109,9 +111,17 @@ describe("reports structure: the audit write lives in the page bodies (CR-AUDIT-
     );
   });
 
-  it("calls no other report writer yet: later slices add their own", () => {
+  it("calls recordReportRequestsRead only from the detail page", () => {
+    expect(usersOf("recordReportRequestsRead")).toEqual(
+      [READS_MODULE, DETAIL_PAGE].sort(),
+    );
+  });
+
+  it("calls no other report writer yet: the download slice adds its own", () => {
     for (const writer of WRITERS.filter(
-      (name) => name !== "recordReportDashboardRead",
+      (name) =>
+        name !== "recordReportDashboardRead" &&
+        name !== "recordReportRequestsRead",
     )) {
       expect(
         usersOf(writer).filter((path) => path !== READS_MODULE),
@@ -143,12 +153,29 @@ describe("reports structure: the audit write lives in the page bodies (CR-AUDIT-
     );
   });
 
-  it("keeps the page free of client-side audit triggers", () => {
-    const text = sources.find((s) => s.path === DASHBOARD_PAGE)?.text ?? "";
+  it("calls the detail writer exactly once, after the guard and the data load", () => {
+    const text = sources.find((s) => s.path === DETAIL_PAGE)?.text ?? "";
+    const calls = text.match(/\brecordReportRequestsRead\(/g) ?? [];
 
-    expect(text).not.toMatch(/["']use client["']/);
-    expect(text).not.toMatch(/useEffect/);
+    expect(calls).toHaveLength(1);
+    expect(text.indexOf("recordReportRequestsRead(")).toBeGreaterThan(
+      text.indexOf("loadReportRequests("),
+    );
+    expect(text.indexOf("loadReportRequests(")).toBeGreaterThan(
+      text.indexOf("requireRole("),
+    );
   });
+
+  it.each([DASHBOARD_PAGE, DETAIL_PAGE])(
+    "keeps %s free of client-side audit triggers",
+    (path) => {
+      const text = sources.find((s) => s.path === path)?.text ?? "";
+
+      expect(text.length).toBeGreaterThan(0);
+      expect(text).not.toMatch(/["']use client["']/);
+      expect(text).not.toMatch(/useEffect/);
+    },
+  );
 });
 
 describe("reports structure: links opt out of prefetch (CR-AUDIT-1, N2, guard 2)", () => {

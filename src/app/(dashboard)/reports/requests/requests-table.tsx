@@ -83,8 +83,8 @@ export function RequestsTable({
             <TableCell className="tabular-nums">{row.submitted}</TableCell>
             <TableCell className="min-w-64 whitespace-normal">
               <ul className="flex flex-col gap-1">
-                {row.classes.map((line) => (
-                  <li key={line}>{line}</li>
+                {row.classes.map((line, at) => (
+                  <li key={`${at}:${line}`}>{line}</li>
                 ))}
               </ul>
             </TableCell>

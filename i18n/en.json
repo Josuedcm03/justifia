@@ -1244,6 +1244,7 @@
       "caption": "Justification requests of your career",
       "dates": "{start} to {end}",
       "classLine": "{subject} · {teacher} · {period}",
+      "degraded": "The requests could not be loaded. Try again later.",
       "filters": {
         "label": "Filters",
         "teacher": "Teacher",

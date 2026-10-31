@@ -118,6 +118,7 @@ describe("reports messages (dashboard)", () => {
           "submitted",
           "classes",
         ].map((name) => `reports.detail.columns.${name}`),
+        "reports.detail.degraded",
         "reports.detail.noResults.title",
         "reports.detail.noResults.hint",
       ]) {

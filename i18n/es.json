@@ -1244,6 +1244,7 @@
       "caption": "Solicitudes de justificación de tu carrera",
       "dates": "{start} al {end}",
       "classLine": "{subject} · {teacher} · {period}",
+      "degraded": "No se pudieron cargar las solicitudes. Inténtalo de nuevo más tarde.",
       "filters": {
         "label": "Filtros",
         "teacher": "Docente",
