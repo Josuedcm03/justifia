@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { linkDouble } from "@/app/(dashboard)/review/test-support";
 import { PageContext } from "@/components/page-context";
 
 import enMessages from "../../i18n/en.json";
@@ -13,6 +14,7 @@ const env = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("next/navigation", () => ({
   usePathname: () => env.pathname,
 }));
+vi.mock("next/link", () => linkDouble());
 
 beforeEach(() => {
   env.pathname = "/";
@@ -220,6 +222,38 @@ describe("PageContext (BS-CTX-1)", () => {
     expect(link).not.toHaveFocus();
     expect(nav).not.toContainElement(document.activeElement as HTMLElement);
   });
+
+  it.each([
+    ["/review/42", "Revisión de solicitudes"],
+    ["/reports/requests", "Reportes"],
+  ])(
+    "opts the link back from %s out of prefetch: its target writes an audit row (CR-9)",
+    (pathname, label) => {
+      env.pathname = pathname;
+      renderContext();
+
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+        "data-prefetch",
+        "false",
+      );
+    },
+  );
+
+  it.each([
+    ["/users/new", "Usuarios"],
+    ["/requests/42", "Mis solicitudes"],
+  ])(
+    "leaves the default prefetch on the link back from %s (no audited target)",
+    (pathname, label) => {
+      env.pathname = pathname;
+      renderContext();
+
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+        "data-prefetch",
+        "undefined",
+      );
+    },
+  );
 
   it("gives the link back to the list a 44px target", () => {
     env.pathname = "/catalog/docentes/9/edit";

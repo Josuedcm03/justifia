@@ -36,6 +36,7 @@ export function PageContext() {
           ) : (
             <Link
               href={trail.href}
+              prefetch={trail.prefetch}
               className="hover:text-primary inline-flex min-h-11 items-center"
             >
               {t(trail.key)}

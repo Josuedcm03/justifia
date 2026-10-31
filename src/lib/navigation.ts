@@ -129,6 +129,11 @@ export type NavTrail = {
   href: string;
   /** True when the page is the entry itself, false when it is below it. */
   exact: boolean;
+  /**
+   * The entry's own prefetch opt-out, so the back link of a page below it never
+   * prefetches an audited page either (CR-9). Absent when the entry has none.
+   */
+  prefetch?: false;
 };
 
 export function isCurrentPath(pathname: string, href: string): boolean {
@@ -162,12 +167,17 @@ export function isNavVisible(item: NavLink, rol: RolUsuario): boolean {
  * entry has no trail.
  */
 export function trailFor(pathname: string): NavTrail | null {
-  const places: { groupKey?: string; key: string; href: string }[] = [
-    ...NAV_ITEMS.flatMap(
-      (item): { groupKey?: string; key: string; href: string }[] =>
-        "children" in item
-          ? item.children.map((child) => ({ ...child, groupKey: item.key }))
-          : [item],
+  type Place = {
+    groupKey?: string;
+    key: string;
+    href: string;
+    prefetch?: false;
+  };
+  const places: Place[] = [
+    ...NAV_ITEMS.flatMap((item): Place[] =>
+      "children" in item
+        ? item.children.map((child) => ({ ...child, groupKey: item.key }))
+        : [item],
     ),
     ...NAV_CONTEXT_ONLY,
   ];
@@ -184,6 +194,7 @@ export function trailFor(pathname: string): NavTrail | null {
     key: match.key,
     href: match.href,
     exact: pathname === match.href,
+    ...(match.prefetch === false ? { prefetch: false as const } : {}),
   };
 }
 

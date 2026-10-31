@@ -289,10 +289,22 @@ describe("trailFor (BS-CTX-1)", () => {
     ],
     ["/requests/42", { key: "myRequests", href: "/requests", exact: false }],
     ["/enrollment", { key: "enrollment", href: "/enrollment", exact: true }],
-    ["/review", { key: "review", href: "/review", exact: true }],
-    ["/review/42", { key: "review", href: "/review", exact: false }],
-    ["/reports", { key: "reports", href: "/reports", exact: true }],
-    ["/reports/requests", { key: "reports", href: "/reports", exact: false }],
+    [
+      "/review",
+      { key: "review", href: "/review", exact: true, prefetch: false },
+    ],
+    [
+      "/review/42",
+      { key: "review", href: "/review", exact: false, prefetch: false },
+    ],
+    [
+      "/reports",
+      { key: "reports", href: "/reports", exact: true, prefetch: false },
+    ],
+    [
+      "/reports/requests",
+      { key: "reports", href: "/reports", exact: false, prefetch: false },
+    ],
     ["/profile", { key: "profile", href: "/profile", exact: true }],
   ])("%s resolves to its section trail", (pathname, trail) => {
     expect(trailFor(pathname)).toEqual(trail);
@@ -304,6 +316,26 @@ describe("trailFor (BS-CTX-1)", () => {
       expect(trailFor(pathname)).toBeNull();
     },
   );
+
+  it("carries the prefetch opt-out of the audited entries, and only theirs (CR-9)", () => {
+    for (const pathname of [
+      "/review",
+      "/review/42",
+      "/reports",
+      "/reports/requests",
+    ]) {
+      expect(trailFor(pathname)?.prefetch, pathname).toBe(false);
+    }
+    for (const pathname of [
+      "/",
+      "/users",
+      "/users/new",
+      "/requests/42",
+      "/profile",
+    ]) {
+      expect(trailFor(pathname), pathname).not.toHaveProperty("prefetch");
+    }
+  });
 
   it("never carries a record name or id: only config keys and hrefs", () => {
     const trail = trailFor("/catalog/asignaturas/12345/edit");
