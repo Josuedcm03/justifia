@@ -173,6 +173,42 @@ vacía.
 Mismo comando que el 3.3, con `--no-mmproj-offload` al final. El codificador
 de imágenes corre en la CPU: usa ~3 GB de VRAM y cada documento tarda más.
 
+### 3.4 bis Variante para GPU AMD o Intel (Vulkan, sin Docker)
+
+La imagen `server-cuda` solo funciona con NVIDIA. Con una GPU AMD o Intel se
+usa el `llama-server` nativo de Windows compilado con Vulkan. La aplicación no
+nota la diferencia: el servidor escucha en el mismo `127.0.0.1:8080` y
+`EXTRACTION_API_URL` no cambia. Probado con una AMD Radeon RX 6600 (8 GB) y el
+build `b12057` de llama.cpp.
+
+Los archivos del modelo se descargan igual que en el paso 3.2 (sin el
+`docker pull`). Luego:
+
+```powershell
+mkdir C:\tools\llama.cpp\b12057
+curl.exe -L -o C:\tools\llama.cpp\b12057.zip https://github.com/ggml-org/llama.cpp/releases/download/b12057/llama-b12057-bin-win-vulkan-x64.zip
+Expand-Archive C:\tools\llama.cpp\b12057.zip C:\tools\llama.cpp\b12057
+C:\tools\llama.cpp\b12057\llama-server.exe --list-devices
+```
+
+`--list-devices` tiene que mostrar la GPU como `Vulkan0`. Para levantar el
+servidor:
+
+```powershell
+C:\tools\llama.cpp\b12057\llama-server.exe `
+  -m C:\models\nuextract3\NuExtract3-Q4_K_M.gguf `
+  --mmproj C:\models\nuextract3\mmproj-NuExtract3-BF16.gguf `
+  --jinja -ngl 99 -c 8192 --host 127.0.0.1 --port 8080
+```
+
+Corre en primer plano: se detiene con `Ctrl+C` y hay que volver a lanzarlo en
+cada sesión (no hay `docker start`). Con `--host 127.0.0.1` no queda expuesto
+a la red. Con 4 GB de VRAM se agrega `--no-mmproj-offload`, como en el 3.4.
+
+La primera extracción después de arrancar tarda unos 20 segundos porque
+Vulkan compila sus shaders; las siguientes, unos 5 segundos por imagen en la
+RX 6600.
+
 ### 3.5 Comprobar el servidor
 
 Espera unos 30 segundos después de crearlo:
