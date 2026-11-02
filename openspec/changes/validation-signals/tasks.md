@@ -60,10 +60,10 @@ Chain: cut the tracker `feat/validation-signals` from `main`. S1 branches from t
 
 ## Phase 0: Planning docs, tracker and coordination (before S1)
 
-- [ ] 0.1 `[READ-ONLY]` Check how `docs/validation-prep` relates to `main` (`git log main..docs/validation-prep`): `docs/setup-local.md` and `docs/pendientes-validacion-tesis.md` are needed by units 3 and 8; if they are not on `main`, STOP and ask the owner how they reach the tracker
-- [ ] 0.2 `[READ-ONLY]` Re-check `drizzle/` on `main` for a migration newer than `0012_escalation.sql` (read-only); if one exists, 6.4 regenerates (never hand-numbered)
-- [ ] 0.3 Reconcile `openspec/changes/validation-signals/design.md` with the spec: VS-1 reason table to the spec codes and precedence, VS-6 placement after the Extracted data section, VS-7 reason labels in the coordination view; docs-only edit
-- [ ] 0.4 Cut the tracker `feat/validation-signals` from `main`; commit only `openspec/changes/validation-signals/` as `docs(validation-signals): add the SDD planning documents`; push; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate
+- [x] 0.1 `[READ-ONLY]` Check how `docs/validation-prep` relates to `main` (`git log main..docs/validation-prep`): `docs/setup-local.md` and `docs/pendientes-validacion-tesis.md` are needed by units 3 and 8; if they are not on `main`, STOP and ask the owner how they reach the tracker Done 2026-11-02: PR #70 merged as c24ceb5.
+- [x] 0.2 `[READ-ONLY]` Re-check `drizzle/` on `main` for a migration newer than `0012_escalation.sql` (read-only); if one exists, 6.4 regenerates (never hand-numbered) Done 2026-11-02: latest is 0012_escalation.
+- [x] 0.3 Reconcile `openspec/changes/validation-signals/design.md` with the spec: VS-1 reason table to the spec codes and precedence, VS-6 placement after the Extracted data section, VS-7 reason labels in the coordination view; docs-only edit
+- [x] 0.4 Cut the tracker `feat/validation-signals` from `main`; commit only `openspec/changes/validation-signals/` as `docs(validation-signals): add the SDD planning documents`; push; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate Done 2026-11-02: tracker e5fd245, draft PR #71.
 - [ ] 0.5 [OWNER] Settle the ref the 2026-11-03 system tests run from (S1 branch, or the tracker head after S1 merges); record the answer next to this task
 - [ ] 0.6 `[READ-ONLY]` Read the server-component and `searchParams` guides under `node_modules/next/dist/docs/` (read-only) before touching the pages (`AGENTS.md`)
 
