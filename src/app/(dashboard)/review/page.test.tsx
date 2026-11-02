@@ -20,6 +20,7 @@ const {
   coordinationMock,
   approvedMock,
   queueReadMock,
+  signalsMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -31,6 +32,7 @@ const {
   coordinationMock: vi.fn(),
   approvedMock: vi.fn(),
   queueReadMock: vi.fn(),
+  signalsMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -50,6 +52,7 @@ vi.mock("@/lib/data/revision-queue", () => ({
 vi.mock("@/lib/data/request-reads", () => ({
   recordQueueRead: queueReadMock,
 }));
+vi.mock("@/lib/data/signals", () => ({ loadSignals: signalsMock }));
 vi.mock("next-intl/server", async () =>
   (await import("@/app/(dashboard)/review/test-support")).serverIntl(state),
 );
@@ -112,6 +115,8 @@ beforeEach(() => {
   approvedMock.mockResolvedValue({ rows: [] });
   queueReadMock.mockReset();
   queueReadMock.mockResolvedValue(undefined);
+  signalsMock.mockReset();
+  signalsMock.mockRejectedValue(new Error("the queue must never read signals"));
 });
 
 describe("ReviewQueuePage access (RNF-01)", () => {
@@ -711,5 +716,93 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
 
     await expect(renderPage({ estado: "aprobada" })).rejects.toThrow("db down");
     expect(queueReadMock).not.toHaveBeenCalled();
+  });
+});
+
+// validation-signals: "Not in the queue or the tabs" and "Queue unchanged"
+// (RN-15). A characterization: it passes at write and fails the day a queue
+// row, a tab or the order starts to depend on a signal.
+describe("ReviewQueuePage carries no signal (RN-15)", () => {
+  const TABS = [
+    {},
+    { estado: "en_revision_coordinacion" },
+    { estado: "aprobada" },
+  ];
+
+  /** Every user-facing signal text of both locales. */
+  function signalTexts(): string[] {
+    return (["en", "es"] as const).flatMap((locale) => {
+      const x = messages[locale].review.signals;
+      return [
+        x.title,
+        x.note,
+        x.verdict.review_carefully,
+        x.verdict.no_alerts,
+        x.verdict.inconclusive,
+        ...Object.values(x.names),
+        ...Object.values(x.outcomes),
+        ...Object.values(x.reasons),
+      ];
+    });
+  }
+
+  beforeEach(() => {
+    coordinationMock.mockResolvedValue({
+      rows: [coordinationRow(), coordinationRow({ id: 22 })],
+    });
+    approvedMock.mockResolvedValue({
+      rows: [approvedRow(), approvedRow({ id: 32, reportes: 0 })],
+    });
+    queueMock.mockResolvedValue({
+      rows: [
+        row({ id: 12, status: "vencida" }),
+        row({ id: 13, status: "por_vencer", reenviada: true }),
+        row({ id: 14 }),
+      ],
+      calendarLoaded: true,
+    });
+  });
+
+  it.each(TABS)(
+    "shows no signal, outcome or verdict on the tab %j",
+    async (params) => {
+      const { container } = await renderPage(params);
+
+      for (const text of signalTexts()) {
+        expect(container.textContent, text).not.toContain(text);
+      }
+      expect(signalsMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(TABS)(
+    "renders the same order and alert marks whatever the signals would say, on the tab %j",
+    async (params) => {
+      const first = await renderPage(params);
+      const withoutSignals = first.container.innerHTML;
+      first.unmount();
+
+      // Every request would be "review carefully": the queue cannot know.
+      signalsMock.mockReset();
+      signalsMock.mockResolvedValue({
+        data: { verdict: "review_carefully", results: [], notEvaluable: [] },
+        degraded: false,
+      });
+      const second = await renderPage(params);
+
+      expect(second.container.innerHTML).toBe(withoutSignals);
+      expect(signalsMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the order the queue read gave, whatever the documents show", async () => {
+    await renderPage();
+
+    const hrefs = within(screen.getByRole("table"))
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"))
+      .filter((href) => /^\/review\/\d+$/.test(href ?? ""));
+    expect(hrefs).toEqual(["/review/12", "/review/13", "/review/14"]);
+    expect(signalsMock).not.toHaveBeenCalled();
   });
 });

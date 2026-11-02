@@ -6,6 +6,11 @@ import { DECISION_TEMPLATES } from "@/lib/intake/decision-templates";
 import { ESCALATION_KINDS } from "@/lib/intake/escalation";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { REMISSION_REASONS, REMISSION_STATES } from "@/lib/remission/states";
+import {
+  NOT_EVALUABLE_REASONS,
+  SIGNAL_CODES,
+  VERDICTS,
+} from "@/lib/signals/types";
 
 import en from "../../i18n/en.json";
 import es from "../../i18n/es.json";
@@ -583,6 +588,98 @@ describe("extraction section messages (RF-11)", () => {
     }
     for (const name of ["date", "days"]) {
       expect(x.restSingleDay).toContain(`{${name}}`);
+    }
+  });
+});
+
+describe("review signals messages (validation-signals, RNF-12)", () => {
+  const keysOf = (m: typeof es) =>
+    leaves(m.review.signals, "review.signals").map(([key]) => key);
+
+  it("has the same review.signals keys in both locales", () => {
+    expect(keysOf(es).length).toBeGreaterThan(20);
+    expect(keysOf(en).sort()).toEqual(keysOf(es).sort());
+  });
+
+  it.each(catalogs)(
+    "%s words the section, its sentence and the notice",
+    (_l, m) => {
+      const x = m.review.signals;
+
+      for (const text of [x.title, x.note, x.degraded, x.verdict.line]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+      expect(x.notEvaluable.title.trim().length).toBeGreaterThan(0);
+    },
+  );
+
+  it.each(catalogs)(
+    "%s names every signal, outcome, verdict and reason",
+    (_l, m) => {
+      const x = m.review.signals as unknown as Record<
+        string,
+        Record<string, string>
+      >;
+
+      for (const signal of SIGNAL_CODES)
+        expect(x.names[signal], signal).toBeTruthy();
+      for (const outcome of ["present", "absent", "not_evaluable"]) {
+        expect(x.outcomes[outcome], outcome).toBeTruthy();
+      }
+      for (const verdict of VERDICTS)
+        expect(x.verdict[verdict], verdict).toBeTruthy();
+      for (const reason of NOT_EVALUABLE_REASONS) {
+        expect(x.reasons[reason], reason).toBeTruthy();
+      }
+    },
+  );
+
+  it("words the verdicts as «Revisar con cuidado», «Sin alertas» and «No concluyente»", () => {
+    expect(es.review.signals.verdict.review_carefully).toBe(
+      "Revisar con cuidado",
+    );
+    expect(es.review.signals.verdict.no_alerts).toBe("Sin alertas");
+    expect(es.review.signals.verdict.inconclusive).toBe("No concluyente");
+    expect(en.review.signals.verdict.review_carefully).toBe("Review carefully");
+    expect(en.review.signals.verdict.no_alerts).toBe("No alerts");
+    expect(en.review.signals.verdict.inconclusive).toBe("Inconclusive");
+  });
+
+  it("states in both locales that the suggestion does not change the request", () => {
+    expect(es.review.signals.note).toMatch(
+      /no cambia el estado de la solicitud/,
+    );
+    expect(en.review.signals.note).toMatch(
+      /does not change the state of the request/,
+    );
+  });
+
+  it("is neutral professional Spanish, with no voseo", () => {
+    const text = leaves(es.review.signals)
+      .map(([, value]) => String(value))
+      .join(" ");
+
+    expect(text).not.toMatch(
+      /(vos|tenés|podés|querés|sabés|sos|mirá|revisá|fijate|hacé|verificá|contactá)/i,
+    );
+    expect(text).not.toMatch(/che/i);
+  });
+
+  it("keeps the evidence placeholders", () => {
+    for (const m of [es, en]) {
+      const e = m.review.signals.evidence;
+
+      expect(e.timing).toContain("{presented}");
+      expect(e.timing).toContain("{deadline}");
+      for (const name of ["issued", "end"]) {
+        expect(e.incoherent).toContain(`{${name}}`);
+      }
+      for (const name of ["issuer", "count", "threshold"]) {
+        expect(e.recurrence).toContain(`{${name}}`);
+      }
+      for (const name of ["absence", "covered"]) {
+        expect(e.uncovered).toContain(`{${name}}`);
+      }
     }
   });
 });
