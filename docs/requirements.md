@@ -112,6 +112,10 @@ No se construyen.
 - NS-10: criterios de accesibilidad (WCAG).
 - NS-11: cruce de las solicitudes por representación cultural o deportiva y por
   intercambio académico con el registro institucional que las originó.
+- NS-12: señal de procedencia IA declarada en los metadatos de la imagen (IPTC
+  `DigitalSourceType` o C2PA). Candidata de `validation-signals`: se promueve a
+  regla de negocio si el spike en dispositivos de
+  `docs/investigacion/procedencia-ia-metadatos.md` la sustenta.
 
 ## 5. Historial de cambios
 
@@ -132,6 +136,7 @@ se hace en los dos a la vez y se anota aquí.
 | 2026-10-22 | RF-10 (a) se aplica solo a la solicitud pendiente, escalada por sospecha sobre el documento (RN-20). El reporte de exceso del 20 % (RF-15) se registra en la solicitud ya aprobada y remitida y notifica a la coordinación de carrera (RF-10 b), pero la solicitud sigue aprobada. | Decisión E2 del cambio `escalation` (`openspec/changes/escalation/preproposal.yaml`): la aprobación es definitiva, porque el docente ya recibió la remisión. Pendiente de sincronizar con la matriz de la tesis. |
 | 2026-10-22 | RNF-03: criterio de aceptación precisado. «Propio entorno de ejecución» incluye el servidor de extracción que el sistema despliega y opera (contenedor y pesos del modelo propios) en infraestructura alquilada, igual que Vercel Functions y Blob; excluye las API de reconocimiento o de inferencia de terceros (FA-04). | Spike de `document-extraction` (`docs/investigacion/spike-ocr-resultados.md`): el modelo NuExtract3 necesita GPU, no corre en Vercel y se aloja en una GPU serverless. El criterio anterior («ninguna petición saliente contiene el documento») no se podía cumplir con un servidor separado. Sincronizado en la matriz de la tesis el 2026-10-22. |
 | 2026-10-24 | RF-16 nuevo (el estudiante declara, reemplaza y da de baja su propia inscripción; Alta); RF-12 (c) y RN-21 ajustados: mientras no haya acceso al registro académico, el catálogo interno incluye las inscripciones declaradas por el estudiante. Recuento: 16 RF, 14 RNF, 25 RN. **Pendiente de sincronizar con la matriz de la tesis.** | Change `student-enrollment`: sin el registro académico, la inscripción que alimenta RF-04 no tenía quién la cargara. La declaración es del estudiante y no está verificada; la secretaría mantiene el control de aprobación (RN-15). |
+| 2026-10-30 | NS-12 nuevo: señal de procedencia IA declarada en los metadatos de la imagen, candidata de `validation-signals`. No cambia el recuento. **Pendiente de sincronizar con la matriz de la tesis.** | Investigación `docs/investigacion/procedencia-ia-metadatos.md`: la marca sobrevivió en 1 de 113 imágenes reales generadas con IA y la subida desde el teléfono no está verificada. Se promueve a RN solo si el spike en dispositivos la sustenta. |
 
 **Pendientes derivados del cambio del 2026-10-12:**
 

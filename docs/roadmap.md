@@ -92,6 +92,12 @@ remiten a ese archivo.
   respondidos queda para `coordination-reports`. Nota para el equipo: cuando
   dos changes traen migración, el que llega segundo a `main` la regenera con
   `drizzle-kit generate`; nunca se numera a mano.
+- Candidata para `validation-signals`: NS-12, señal de procedencia IA
+  declarada en los metadatos de la imagen. No entra en el subconjunto mínimo
+  previo a la prueba de usabilidad de la semana 13. Se promueve a RN y a un
+  criterio de RF-05 solo si el spike en dispositivos de
+  [`docs/investigacion/procedencia-ia-metadatos.md`](./investigacion/procedencia-ia-metadatos.md)
+  la sustenta; si no, pasa a trabajo futuro de la tesis.
 - `secretary-templates` se planifica después del piloto. `secretary-review`
   entrega las plantillas de mensaje de cada decisión (aprobación, rechazo y
   devolución por cada motivo de RN-17) como constantes del sistema; la
