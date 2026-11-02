@@ -1,0 +1,205 @@
+# Tasks: Validation Signals
+
+> Strict TDD (vitest): every behavior task is a RED task (failing test) followed by a GREEN task; a unit commit holds its tests and code together. Test command: `npx vitest run <paths>`.
+> Gate set G (per slice, last step of each slice): `npm run typecheck`, `npm test`, `npx eslint src` (ignore the CRLF `Delete ␍` noise: `| rg -v 'Delete .␍.'`), `npm run format:check` (CRLF: `--end-of-line auto`), `npm run build`. Run `npm test` and `npm run build` with a dummy `DATABASE_URL` (`postgres://u:p@127.0.0.1:9/x`) so no database is targeted.
+> DB rule (`CLAUDE.md`): `[LOCAL]` touches no database; `[READ-ONLY]` is a select or CLI status; `[CONFIRM]` writes or applies and needs the owner's explicit "yes" for that single command, never batched. Generating 0013 with `npm run db:generate` is allowed (generate only); APPLYING it (`db:migrate`) is `[CONFIRM]`. No agent task runs `drizzle-kit migrate`, `drizzle-kit push`, `db:seed` or write SQL. Never touch the student or secretary validation Neon branches or their instances (fictitious data only). Neon rule (`neon-postgres` skill): migrations over the direct (non-`-pooler`) URL, tested on a disposable branch of production first.
+> Spec IDs: RF-05 (a)-(d), RN-07, RN-09, RN-10, RN-14, RN-15, RN-26 (new), RNF-01, RNF-02, RNF-04, RNF-06, RNF-12; RNF-14 not met (threshold is a code constant until roadmap #8). Decisions VS-1..VS-9 refer to `design.md`; S0, S1, V1, R26, R10, SNAP, PRIV, BACKFILL, DELIVERY, X1-X4 to `preproposal.yaml` revision 2.
+> Owner resolutions of 2026-11-02 (already in spec and design): the coordinator sees the verdict and never an RN-26 reference (`referenceScope` kind "none"); RN-26 mixed hashed/NULL documents with no match is `absent`; RN-10 with another pending or failed document is `not_evaluable`; RN-14 counts `rechazada` and `devuelta` requests; the RN-14 multi-period reason is `no_period` (no `ambiguous_period`).
+> Spec wins over design where they differ: reason codes are the spec's closed set (`calendar_not_covering_year`, `extraction_pending`, `extraction_failed`, `field_missing`, `days_only`, `no_period`, `no_eligible_documents`, `no_fingerprint`; precedence in that order, `no_period` first); the section sits after the "Extracted data" section (design VS-6 says after `RequestSection`). Task 0.3 reconciles `design.md`. Inputs the spec has no code for (a presented request without `fechaFin` or `presentadaEn`) cannot occur; the loader treats them as a read failure (degraded), never a reason code.
+> Skills for apply: `C:\Users\Arnia\.agents\skills\chained-pr\SKILL.md`, `C:\Users\Arnia\.agents\skills\work-unit-commits\SKILL.md`; for the DB phases also `C:\justifia\.agents\skills\neon-postgres\SKILL.md`. One commit per work unit (tests and code together), Conventional Commits, no AI attribution.
+> Never touch: `openspec/changes/backoffice-ui-refresh/`, `docs/flow-experience-backlog.md`, `package-lock.json` (an unrelated modification stays out of every commit). Edit authority: a backticked path on a checkbox line is an edit target; read-only references carry `(read-only)`.
+> Threat matrix: N/A (design): no new route, shell, subprocess, VCS/PR automation or executable-file classification. Access is covered by RNF-01 RED tasks 3.1, 3.7, 8.4, 11.4 and 12.1.
+> Size note: the `sdd-tasks` cap (530 words) is exceeded on purpose; the repository precedent (`escalation`) keeps one line per task with spec links.
+
+## Review Workload Forecast
+
+| Field | Value |
+|-------|-------|
+| Estimated changed lines | ~1,950 authored total (S1 ~900, S2 ~650, S3 ~400, tests included, about 55% of it); generated SQL, `drizzle/meta/*`, `openspec/` and `package-lock.json` excluded |
+| 400-line budget risk | High: aggregate ~1,950 and every slice above 400 |
+| 1500-line budget risk (session `review_budget_lines`) | Low: the largest slice (S1, ~900) sits at 60% of the budget; production-only lines are lower; fallback split named for S1 |
+| Chained PRs recommended | Yes |
+| Suggested split | S1 signals RN-07/09/10/14, loader and secretary section -> S2 fingerprint, migration 0013 and RN-26 -> S3 coordination projection, student guard and docs closeout |
+| Delivery strategy | auto-chain (review_budget_lines=1500 per slice PR) |
+| Chain strategy | feature-branch-chain |
+
+| Slice | Branch | Content | Authored lines | PR base |
+|-------|--------|---------|---------------:|---------|
+| Docs | tracker `feat/validation-signals` | SDD planning documents, one docs commit, before S1 | n/a | tracker to `main` (draft, no-merge) |
+| S1 Signals and secretary UI | `feat/validation-signals-s1-signals-secretary` | Unit 1 evaluators; unit 2 loader Q1-Q4 and display-only guard; unit 3 secretary section, i18n, page wiring | ~900 | tracker (PR #1) |
+| S1a / S1b (fallback, if S1 > 1500) | `feat/validation-signals-s1a-evaluators-loader`, `feat/validation-signals-s1b-secretary-ui` | Phases 1-2 / Phase 3 | ~550 / ~350 | tracker / S1a branch until it merges |
+| S2 Fingerprint and RN-26 | `feat/validation-signals-s2-fingerprint-rn26` | Unit 4 schema and migration 0013; unit 5 digest stream, port, finalize; unit 6 RN-26, Q5, scope, UI reference | ~650 | S1 branch until S1 merges, then tracker |
+| S3 Coordination and closeout | `feat/validation-signals-s3-coordination-docs` | Unit 7 coordination projection and page; unit 8 student guard, RN-26 docs, roadmap, pendientes | ~400 | S2 branch until S2 merges, then tracker |
+
+Decision needed before apply: No
+Chained PRs recommended: Yes
+Chain strategy: feature-branch-chain
+400-line budget risk: High
+
+Chain: cut the tracker `feat/validation-signals` from `main`. S1 branches from the tracker (PR #1 base = tracker); S2 branches from the S1 head (PR #2 base = S1 branch, retargeted to the tracker after S1 merges with a merge commit); S3 from the S2 head (PR #3 base = S2 branch, same retarget). A child diff that shows a previous slice is a base bug: retarget or rebase. Only the tracker merges to `main`; the tracker is never deleted; merged slice branches are deleted at closeout with the owner's yes. Open the tracker PR as draft/no-merge. Every child PR carries the Chain Context diagram with the current slice marked with the pin, gates, measured size and rollback.
+
+**Split rule:** after Gate set G measure authored lines against the base. At or under 1500, open one PR. Over 1500, split once at the named unit boundary; if a half still exceeds 1500, stop and report with a `size:exception` recommendation (never code golf).
+
+**Order constraint:** S1 has no schema and must land in the tracker first, before the 2026-11-03 system tests. S2 and S3 follow without blocking them. Task 0.5 settles which ref the system tests run from.
+
+**Merge gate:** the tracker MUST NOT reach `main` before S3, the owner walk (13.2), the owner's decision on migration 0013 in production (10.9) and the UAM legal review of hashing and cross-request comparison (PRIV). S2 is separable: reverting S2 leaves S1 and the schema-free signals intact.
+
+### Suggested Work Units
+
+| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
+|------|------|-----------|----------------------|-----------------|-------------------|
+| 1 | Pure evaluators RN-07/09/10/14, verdict, closed reasons | S1 | `npx vitest run src/lib/signals` | N/A: pure functions, table-driven | Revert `src/lib/signals/*` (no importer yet) |
+| 2 | Fail-soft loader (Q1-Q4) and display-only guard | S1 | `npx vitest run src/lib/data/signals.test.ts src/lib/data/signals-sql.test.ts src/lib/signals/display-only.test.ts` | N/A: mocked db and SQL rendering | Revert `src/lib/data/signals*.ts`, guard test |
+| 3 | Secretary `SignalsSection`, access helper, i18n, page wiring | S1 | `npx vitest run "src/app/(dashboard)/review" src/i18n src/lib/auth` | `npm run dev` walk (4.3): `/review/[id]` with the local model server at 127.0.0.1:8080 | Revert `signals-section.tsx`, page wiring, `permissions.ts` helper, keys |
+| 4 | Fingerprint column, generated migration 0013 | S2 | `npx vitest run src/db/migration-validation-signals.test.ts` | N/A: SQL read by test, not applied; real Postgres in 8.9 and phase 10 | Revert `schema.ts`, `drizzle/0013_*`, `drizzle/meta/` (unapplied) |
+| 5 | Single-stream digest, port, adapters, finalize stores the hash | S2 | `npx vitest run src/lib/intake src/lib/data/documentos.test.ts` | Phase 10 walk: upload and finalize on the disposable branch | Revert `stream-digest.ts`, `ports.ts`, adapters, fakes, `documentos.ts` |
+| 6 | RN-26 evaluator, Q5, scope-confined reference, UI link | S2 | `npx vitest run src/lib/signals src/lib/data/signals.test.ts src/lib/data/signals-sql.test.ts` | Phase 10 walk: reuse across two requests | Revert `repeated-document.ts`, Q5, section reference |
+| 7 | Coordination projection and read-only section | S3 | `npx vitest run src/lib/signals/coordination-view.test.ts "src/app/(dashboard)/coordination"` | Phase 13 owner walk: coordinator detail | Revert `coordination-view.ts`, coordination page wiring |
+| 8 | Student guard tests, RN-26 in requirements, roadmap, pendientes | S3 | `npx vitest run "src/app/(dashboard)/requests"` | N/A: structural tests and docs | Revert guard tests and docs commits; code untouched |
+| 9 | System-test data path, gates, walks, verify, archive | tracker docs commits | `npm test` | Tasks 4.1-4.4, phase 10, phase 13 | Revert docs commits |
+
+## Phase 0: Planning docs, tracker and coordination (before S1)
+
+- [ ] 0.1 `[READ-ONLY]` Check how `docs/validation-prep` relates to `main` (`git log main..docs/validation-prep`): `docs/setup-local.md` and `docs/pendientes-validacion-tesis.md` are needed by units 3 and 8; if they are not on `main`, STOP and ask the owner how they reach the tracker
+- [ ] 0.2 `[READ-ONLY]` Re-check `drizzle/` on `main` for a migration newer than `0012_escalation.sql` (read-only); if one exists, 6.4 regenerates (never hand-numbered)
+- [ ] 0.3 Reconcile `openspec/changes/validation-signals/design.md` with the spec: VS-1 reason table to the spec codes and precedence, VS-6 placement after the Extracted data section, VS-7 reason labels in the coordination view; docs-only edit
+- [ ] 0.4 Cut the tracker `feat/validation-signals` from `main`; commit only `openspec/changes/validation-signals/` as `docs(validation-signals): add the SDD planning documents`; push; open the tracker PR to `main` as draft/no-merge with the chain table and the merge gate
+- [ ] 0.5 [OWNER] Settle the ref the 2026-11-03 system tests run from (S1 branch, or the tracker head after S1 merges); record the answer next to this task
+- [ ] 0.6 `[READ-ONLY]` Read the server-component and `searchParams` guides under `node_modules/next/dist/docs/` (read-only) before touching the pages (`AGENTS.md`)
+
+## Phase 1: S1 - Pure evaluators (work unit 1)
+
+- [ ] 1.1 Branch `feat/validation-signals-s1-signals-secretary` from the tracker; PR #1 targets the tracker
+- [ ] 1.2 RED `src/lib/signals/timing.test.ts` (RN-07): boundary table of 5 rows, Managua date not UTC (2026-10-14 03:00Z is Tue), `reenviadaEn` never read, deadline year not covered (`fechaFin` Thu 2027-12-30) gives `calendar_not_covering_year` while a 2027 deadline evaluates, no extraction input (scenarios "Boundary dates", "Managua date", "Resubmission", "Calendar")
+- [ ] 1.3 GREEN `src/lib/signals/types.ts` (signal codes, `SignalResult` discriminated on `outcome`, closed `NotEvaluableReason`, allowed-reasons-per-signal map, precedence list, `SignalView`), `src/lib/signals/params.ts` (`DEFAULT_SIGNAL_PARAMS`, threshold 3), `src/lib/signals/timing.ts` using `deadlineOf` and `managuaToday`
+- [ ] 1.4 RED `src/lib/signals/rest-dates.test.ts` (RN-09): document table of 7 rows (equal dates absent, days-only, field missing, failed, pending or no row), aggregation table of 5 rows, request present if any document present, absent if one evaluable and none present (scenarios "Document boundaries", "Aggregation")
+- [ ] 1.5 GREEN `src/lib/signals/rest-dates.ts`: `evaluateIncoherentDates`
+- [ ] 1.6 RED same file (RN-10): containment table of 7 rows (exact, wider, last day, first day, adjacent merge, one-day gap, single day), days-only table of 3 rows, uncovered plus pending or failed document is `not_evaluable` never `present`, no dated period at all is `not_evaluable`, day granularity (scenarios "Containment", "Days-only", "Pending or failed")
+- [ ] 1.7 GREEN `src/lib/signals/rest-dates.ts`: interval-union helper and `evaluateUncoveredDates`
+- [ ] 1.8 RED `src/lib/signals/issuer.test.ts`: `normalizeIssuer` (accents, case, punctuation, whitespace; "Clínica  Santa Fe" equals "CLINICA SANTA FE." and differs from "... S.A."); RN-14 count tables (1st/2nd absent, 3rd/4th present, later requests never change an earlier one), one request counts once, threshold 3 vs 2 on the 2nd, missing-input table of 4 rows including `no_period` for none or two periods (scenarios "Nth request", "Normalization", "One request counts once", "Threshold is a parameter", "Missing inputs")
+- [ ] 1.9 GREEN `src/lib/signals/issuer.ts`: `normalizeIssuer`, `evaluateRecurrence` (threshold from params, history rows `(solicitudId, emisor)` plus the current request)
+- [ ] 1.10 RED `src/lib/signals/verdict.test.ts`: truth table of 4 rows, present beats not-evaluable, pending extraction never `no_alerts`, `notEvaluable` list with codes (scenarios "Verdict table", "Present beats not evaluable", "Extraction not available")
+- [ ] 1.11 GREEN `src/lib/signals/verdict.ts`: `suggestVerdict`
+- [ ] 1.12 RED `src/lib/signals/evaluate.test.ts`: `evaluateSignals(input, params, calendar)` returns four results plus verdict; reason precedence table (`no_period` first through `no_fingerprint`), "failed plus days-only" gives `extraction_failed`; generated check over input combinations that a reason is always from the closed set and allowed for that signal; the report holds no fingerprint and no name field (scenarios "Reason is always from the closed set", "Precedence of reasons")
+- [ ] 1.13 GREEN `src/lib/signals/evaluate.ts` (shared reason-precedence helper in `types.ts`)
+- [ ] 1.14 Commit unit 1: `feat(validation-signals): add the pure signal evaluators and the suggested verdict`
+
+## Phase 2: S1 - Loader and display-only guard (work unit 2)
+
+- [ ] 2.1 RED `src/lib/data/signals-sql.test.ts` (pattern of `src/lib/data/extraction-sql.test.ts` (read-only)): Q3 distinct `Grupo.Periodo` via `SolicitudAsignatura`; Q4 renders same student, `id <> R`, `PresentadaEn IS NOT NULL`, earlier-only tuple `(PresentadaEn, Id) <`, EXISTS group of the period, documents `valido` and not retired and `SubidoPorId IS NULL` and not `FormatoEspecial`, `completada` with non-null `Emisor`, no state filter so `rechazada` and `devuelta` count; current-document filter excludes retired, staff and `no_aplica` (scenarios "What does not count", "Retired and staff documents ignored")
+- [ ] 2.2 RED `src/lib/data/signals.test.ts`: `loadSignals({ solicitudId, referenceScope, params?, calendar? })` assembles Q1-Q4 and `listExtractions`; any throw or a degraded extraction read returns `{ data: null, degraded: true }` with no partial verdict and logs `signals_read_failed` with the error name only; the RN-14 query throwing degrades the whole result; nothing is written, no audit call (scenarios "Read failure", "One signal's query fails", "Late extraction changes the next read")
+- [ ] 2.3 GREEN `src/lib/data/signals.ts` (`server-only`, fail-soft, Q1-Q4; the extraction reader is `src/lib/data/extraction.ts` (read-only))
+- [ ] 2.4 RED `src/lib/signals/display-only.test.ts`: pure scanner over `{ path, text }` flagged on a fixture that imports the signals modules; real scan of `src/**/actions.ts`, `src/**/*-actions.ts` and every `src/lib/data/*.ts` except `signals.ts`; with both signal modules mocked to throw, each scanned write-path module still imports (no module-level evaluation) (VS-2; scenarios "No write path reads the signals", "Queue unchanged")
+- [ ] 2.5 RED `src/lib/signals/no-persistence.test.ts`: `src/db/schema.ts` and `src/lib/audit/**` hold no verdict, signal or reason-code field; the decision write sets only its existing columns (scenario "Decision does not store the verdict"; passes at write, a guard)
+- [ ] 2.6 Commit unit 2: `feat(validation-signals): add the fail-soft signals read and the display-only guard`
+
+## Phase 3: S1 - Secretary section and wiring (work unit 3)
+
+- [ ] 3.1 RED `src/lib/auth/permissions.test.ts`: `signalsAccess(role)` is `full` for `secretaria`, `outcomes` for `coordinacion`, `null` for `estudiante`, `docente`, `administrador` and undefined (RNF-01; scenario "Roles")
+- [ ] 3.2 GREEN `src/lib/auth/permissions.ts`: `signalsAccess`
+- [ ] 3.3 RED `src/i18n/review-messages.test.ts`: `review.signals.*` same keys in both locales (title, note, degraded, verdict, names, outcomes, reasons, evidence); verdict wording «Revisar con cuidado», «Sin alertas», «No concluyente»; es neutral, no voseo (scenarios "Translation keys present", "Verdict wording")
+- [ ] 3.4 GREEN `i18n/es.json`, `i18n/en.json`: `review.signals.*` for the four S1 signals and seven reason codes (RN-26 keys come in S2)
+- [ ] 3.5 RED `src/app/(dashboard)/review/[id]/signals-section.test.tsx`: three verdicts in words in a `role="status"` paragraph with the sentence that it does not change the request; one entry per signal with outcome in words; `not_evaluable` listed apart with reason text; evidence via `useDates` and count/threshold; degraded shows `DegradedAlert` and no verdict or entries; no buttons or links; axe clean and no overflow at 360 px (pattern of `layout-360.test.tsx` (read-only); tokens per `docs/design-system.md` (read-only)) (scenarios "Section content", "Text, not color", "Read failure")
+- [ ] 3.6 GREEN `src/app/(dashboard)/review/[id]/signals-section.tsx`
+- [ ] 3.7 RED `src/app/(dashboard)/review/[id]/page.test.tsx`: section after the Extracted data section in every visible state (`pendiente`, `aprobada`, `devuelta`, `rechazada`, `en_revision_coordinacion`); `loadSignals` called with the resolved scope before `recordRequestRead`; a degraded or throwing read still renders the rest and the decision panel; exactly one `solicitud.consultada` row and no other; decision controls unchanged; other roles and out-of-scope ids denied with `loadSignals` not called (scenarios "Decision controls untouched", "Shown after the decision", "One audit row", "Not for other roles")
+- [ ] 3.8 GREEN `src/app/(dashboard)/review/[id]/page.tsx`: load via `signalsAccess`, render `SignalsSection` after `ExtractionSection`
+- [ ] 3.9 RED+GREEN `src/app/(dashboard)/review/page.test.tsx`: no queue row or tab shows a signal, outcome or verdict, and order and alert marks equal those without signals (characterization, passes at write)
+- [ ] 3.10 Commit unit 3: `feat(validation-signals): add the signals section to the secretary detail`
+
+## Phase 4: S1 - System-test data path for 2026-11-03 (VS-9)
+
+- [ ] 4.1 `[READ-ONLY]` Local model server up: `curl.exe http://127.0.0.1:8080/health` (setup in `docs/setup-local.md` (read-only)); if down, start it as that guide says (local container, no database)
+- [ ] 4.2 `[READ-ONLY]` Confirm `EXTRACTION_API_URL` is set in `.env.development.local` (read-only; check the key exists, never print or edit values) and valid per `src/lib/extraction/config.ts` (read-only)
+- [ ] 4.3 [OWNER] `[CONFIRM]` Walk on a disposable dev branch only (the owner names which `DATABASE_URL` branch; never a validation branch): `npm run dev`, submit a fictitious request with a document, wait for extraction `completada` in the Extracted data section, open `/review/[id]`; expect RN-07 evaluated and RN-09/10/14 no longer `extraction_pending`. Record the outcome next to this task
+- [ ] 4.4 FALLBACK only if 4.3 cannot work: `scripts/validation-signals-fixture.local.ts` inserting `completada` extraction rows for fictitious requests, host-guarded (refuses the production endpoint `ep-orange-math` and any validation endpoint); first check how `scripts/demo-reset.local.ts` (read-only) is excluded from commits and mirror it; running it is `[CONFIRM]` and never on a validation branch
+- [ ] 4.5 Expected-state note for the testers (record next to this task): without extraction rows the verdict is `inconclusive` with RN-09/10/14 `extraction_pending`; only RN-07 and RN-26 work without extraction (known limitation)
+
+## Phase 5: S1 - Gates and PR
+
+- [ ] 5.1 Gates S1: `npx vitest run src/lib/signals src/lib/data src/app src/i18n src/lib/auth` then Gate set G ending with `npm run typecheck` and `npm test`; record exact results; no DB command run
+- [ ] 5.2 Measure authored lines against the tracker (target ~900, budget 1500); apply the split rule (S1a = Phases 1-2, S1b = Phase 3)
+- [ ] 5.3 Open the S1 PR to the tracker: Chain Context with the pin, forecast, gates, size, "no schema, no migration", "display-only, no write path reads it", rollback
+- [ ] 5.4 After review merge into the tracker with a merge commit; tell the owner so the 2026-11-03 system tests can use it (0.5)
+
+## Phase 6: S2 - Fingerprint schema and migration 0013 (work unit 4)
+
+- [ ] 6.1 Branch `feat/validation-signals-s2-fingerprint-rn26` from the S1 head (or the tracker once S1 merged); PR #2 base = S1 branch until it merges, then the tracker
+- [ ] 6.2 RED `src/db/migration-validation-signals.test.ts` (pattern of `src/db/migration-escalation.test.ts` (read-only)): SQL located by name `validation_signals`; journal `when` after `0012_escalation`; `HuellaSha256` `char(64)` nullable; `CK_Documento_Huella` body `HuellaSha256 IS NULL OR (Estado = 'valido' AND HuellaSha256 ~ '^[0-9a-f]{64}$')`; partial index `IX_Documento_Huella ... WHERE HuellaSha256 IS NOT NULL`; no `DROP`, no `UPDATE`, no `ALTER ... TYPE` (VS-5; scenario "Database rejects a malformed value")
+- [ ] 6.3 GREEN `src/db/schema.ts`: `documentoRespaldo.huellaSha256`, the check and the partial index
+- [ ] 6.4 `[LOCAL]` G1: `npm run db:generate -- --name validation_signals` (generate only, dummy `DATABASE_URL`; no migrate, no push): expect `drizzle/0013_validation_signals.sql`, `drizzle/meta/0013_snapshot.json`, `drizzle/meta/_journal.json`; only `ADD COLUMN`, `ADD CONSTRAINT`, `CREATE INDEX`, anything else STOP; a second run reports no drift; re-run 6.2 to green
+- [ ] 6.5 Commit unit 4: `feat(validation-signals): add the document fingerprint column and migration 0013`
+
+## Phase 7: S2 - Single-stream digest, port, finalize (work unit 5)
+
+- [ ] 7.1 RED `src/lib/intake/stream-digest.test.ts`: chunked hash equals the known SHA-256 vector, head filled across chunk boundaries, bytes counted, exactly `maxBytes` hashes, over `maxBytes` cancels the stream and returns `sha256: null` with the counted size, empty stream has size 0, stream error propagates (X1)
+- [ ] 7.2 GREEN `src/lib/intake/stream-digest.ts`: `digestStream(stream, headBytes, maxBytes)` with `node:crypto`
+- [ ] 7.3 RED `src/lib/intake/fakes.test.ts`: `readDigest(pathname, { headBytes, maxBytes })` returns `{ size, head, sha256 }`, `null` when missing, `sha256: null` over the cap; `readHead` unchanged
+- [ ] 7.4 GREEN `src/lib/intake/ports.ts` (`DocumentStore.readDigest`) and `src/lib/intake/fakes.ts`
+- [ ] 7.5 RED `src/lib/intake/adapters/vercel-blob-store.test.ts`: `readDigest` reads with `access: "private"`, `useCache: false` and the token, feeds the stream to `digestStream`, returns `null` when the blob is missing or not 200; missing token fails as the existing methods do
+- [ ] 7.6 GREEN `src/lib/intake/adapters/vercel-blob-store.ts`: `readDigest`
+- [ ] 7.7 RED `src/lib/data/documentos.test.ts`: the accepted update sets `huellaSha256` as 64 lower-case hex; same bytes same hash, re-saved bytes differ; `refusalFor` runs on the counted size, not blob metadata (small metadata, large stream gives `too_large`); spoofed, empty and oversized files delete the file, create no record and store no hash; an unreadable stored file (`null` or a stream error) fails the same way with an existing reason code and no record; only `finalizeDocument` sets the hash (source scan) and retirement leaves it (scenarios "Fingerprint stored at finalize", "Same bytes", "Failed finalize stores no fingerprint", "Retirement keeps it")
+- [ ] 7.8 GREEN `src/lib/data/documentos.ts`: `fingerprintStoredFile` replaces the head read in `inspectStoredFile` for finalize and the update sets `huellaSha256`
+- [ ] 7.9 RED+GREEN `src/lib/data/special-format.test.ts` then `src/lib/data/special-format.ts` only if the shared inspector signature changed: special-format attach keeps `readHead` and stores a NULL fingerprint (scenario "Staff upload and old documents have no fingerprint")
+- [ ] 7.10 Commit unit 5: `feat(validation-signals): compute and store the SHA-256 at finalize from one stream`
+
+## Phase 8: S2 - RN-26 evaluator, Q5, scope, UI (work unit 6)
+
+- [ ] 8.1 RED `src/lib/signals/repeated-document.test.ts` (RN-26): NULL-hash table of 4 rows (all NULL `no_fingerprint`, one NULL plus unmatched `absent`, one NULL plus matched `present`, none `no_eligible_documents`); present carries only in-scope request numbers (null entries dropped, no count of the rest); never a name, CIF, email or document name (scenarios "Documents from before the change", "Earlier document with NULL fingerprint", "Cross-scope match without reference", "Reference carries no personal data")
+- [ ] 8.2 GREEN `src/lib/signals/repeated-document.ts`; extend `src/lib/signals/types.ts` (rn26 evidence, `no_fingerprint` allowed) and `src/lib/signals/evaluate.ts`; update `evaluate.test.ts` and `verdict.test.ts` for five signals
+- [ ] 8.3 RED `src/lib/data/signals-sql.test.ts` (Q5): `HuellaSha256 IN (...)`, `s.Id <> R`, `PresentadaEn IS NOT NULL`, earlier-only tuple (equal time broken by id), `SubidoPorId IS NULL`, `NOT FormatoEspecial`, `Estado = 'valido'` with retired documents included on the other side and excluded on the current side; selects `CASE WHEN <scope> THEN s.Id END` so an out-of-scope id never leaves the database; `{ kind: "none" }` renders the literal `false`; no name or hash column selected (scenarios "Earlier request reused", "Equal presentation time", "Correction re-upload", "Order follows first presentation")
+- [ ] 8.4 RED `src/lib/data/signals.test.ts` (scope): secretary of facultad A, match in B gives `present` with no number; matches 41 (in scope) and 55 (out) reference 41 only; coordinator `{ kind: "none" }` gets `present` and no reference; correction reusing another request's document is `present` while the earlier one stays `absent`; serialized report holds no `nombre`, `cif`, `correo` or hash
+- [ ] 8.5 GREEN `src/lib/data/signals.ts`: Q5, `referenceScope` honored, RN-26 added to the loader input
+- [ ] 8.6 RED+GREEN `src/i18n/review-messages.test.ts`, `signals-section.test.tsx`, then `i18n/es.json`, `i18n/en.json`, `signals-section.tsx`: RN-26 name, `no_fingerprint` text, reference rendered as a link to `/review/<n>` with no prefetch, `present` with no number and no link when none, no student or document name (scenarios "Reference to an earlier request", "Match outside the scope shows no reference")
+- [ ] 8.7 RED+GREEN `src/lib/signals/fingerprint-exposure.test.ts`: source scan allows `huellaSha256` only in `src/db/schema.ts`, the finalize path, the Q5 reader and tests; none in `src/lib/audit/`, the detail readers, the document route or mail messages; serialized staff, student and coordination detail shapes hold no fingerprint (scenario "Never exposed")
+- [ ] 8.8 RED+GREEN `src/lib/signals/display-only.test.ts`: extend the scan list so RN-26 and `repeated-document.ts` are covered (S2 half of "Display-only")
+- [ ] 8.9 RED opt-in `src/lib/data/integration/validation-signals.integration.test.ts` (pattern of `src/lib/data/integration/intake-concurrency.integration.test.ts` (read-only)): `CK_Documento_Huella` accepts NULL and 64 hex, rejects 63, 65, upper-case, non-hex and a hash on a non-`valido` row; `EXPLAIN` of the Q5 lookup uses `IX_Documento_Huella`; compile-only here (excluded from `npm test`), run in 10.6
+- [ ] 8.10 Commit unit 6: `feat(validation-signals): add the repeated-document signal with scope-confined references`
+
+## Phase 9: S2 - Gates and PR
+
+- [ ] 9.1 Gates S2: `npx vitest run src/lib src/db src/app src/i18n` then Gate set G ending with `npm run typecheck` and `npm test`; record exact results; no DB command run
+- [ ] 9.2 Measure authored lines against the S1 head (generated SQL and meta excluded; target ~650, budget 1500); apply the split rule at the unit boundary (4 + 5 / 6)
+- [ ] 9.3 Open the S2 PR: Chain Context with the pin, "migration generated, NOT applied", "hashing pending UAM legal review, fictitious data only", gates, size, rollback (revert S2 leaves S1 intact; applied 0013 needs a confirmed down-migration)
+- [ ] 9.4 After review merge into the tracker with a merge commit; retarget first if S1 merged meanwhile
+
+## Phase 10: S2 - Migration smoke on a disposable branch (owner-run, after S2 merged)
+
+> Every step: ASK OWNER, explicit yes per command, never batched. Connection strings come from the Neon CLI, direct URL for the migration. Production is touched read-only only. Never a validation branch.
+
+- [ ] 10.1 ASK OWNER `[READ-ONLY]` P1: latest applied migration and the `DocumentoRespaldo` columns on production; expect row 13 = `0012_escalation`, no `HuellaSha256`; record next to this task
+- [ ] 10.2 ASK OWNER `[CONFIRM]` create disposable Neon branch `test-validation-signals-pg` from production (name by branch, never a validation branch)
+- [ ] 10.3 ASK OWNER `[CONFIRM]` M1: `npm run db:migrate` (applies `0013_validation_signals`) against `test-validation-signals-pg` only, over its direct URL, with the endpoint guard of the escalation precedent; STOP until "yes"
+- [ ] 10.4 ASK OWNER `[READ-ONLY]` V1 on the branch: column `HuellaSha256` char(64) nullable, `CK_Documento_Huella` and `IX_Documento_Huella` present, every hash NULL, migration count +1; if the DDL failed, STOP and fix the migration in a branch from the tracker
+- [ ] 10.5 ASK OWNER `[CONFIRM]` run the opt-in suite `INTEGRATION_ALLOW_WRITES=1 npm run test:integration` against the disposable branch only (task 8.9)
+- [ ] 10.6 [OWNER] End-to-end on the branch with fictitious data: the same file in two requests gives RN-26 `present` with the earlier number on the later one's secretary detail and `absent` on the earlier; a correction re-upload in the same request stays `absent`; the student sees nothing
+- [ ] 10.7 ASK OWNER `[CONFIRM]` delete the disposable branch at closeout
+- [ ] 10.8 [OWNER] Record the UAM legal review status of hashing and cross-request comparison (PRIV); production migration is blocked until it is positive
+- [ ] 10.9 [OWNER] Decide when to apply 0013 to production (`[CONFIRM]`, direct URL); out of the apply scope of this change and a precondition of the tracker merge
+
+## Phase 11: S3 - Coordination projection (work unit 7)
+
+- [ ] 11.1 Branch `feat/validation-signals-s3-coordination-docs` from the S2 head (or the tracker once S2 merged); PR #3 base = S2 branch until it merges, then the tracker
+- [ ] 11.2 RED `src/lib/signals/coordination-view.test.ts`: `toCoordinationView(report)` keeps outcome, reason code, verdict and `notEvaluable`; drops every evidence field (dates, counts, threshold, issuer, extracted values) and any RN-26 reference or count; verdict equals the secretary's (scenarios "Outcomes and labels only", "Verdict shown, no extracted values", "RN-26 match never gives a reference")
+- [ ] 11.3 GREEN `src/lib/signals/coordination-view.ts`
+- [ ] 11.4 RED `src/app/(dashboard)/coordination/[id]/page.test.tsx`: an open escalation of the own career loads signals with `referenceScope: { kind: "none" }` and renders the section from the projection; a notice (no documents) neither loads nor renders it; other careers and unknown ids give the nonexistent-id outcome with the loader not called; a throwing read renders the rest, the answer form and the degraded notice; no audit row or event type added; the answer succeeds and the request returns to `pendiente` with RN-26 `present`; the coordinator list shows none (scenarios "Other careers and ids", "Notices and the list carry none", "Answer unaffected", "Read failure", "No audit row")
+- [ ] 11.5 GREEN `src/app/(dashboard)/coordination/[id]/page.tsx`: load only for `kind === "escalation"` using `signalsAccess`, project, render the same `SignalsSection`
+- [ ] 11.6 RED+GREEN `src/i18n/review-messages.test.ts` then `i18n/es.json`, `i18n/en.json`: any coordination-only text under `review.signals.*` with the same keys in both locales, outcomes in words (spec "Signals UI i18n"); no new keys if the shared texts suffice
+- [ ] 11.7 Commit unit 7: `feat(validation-signals): show signal outcomes to coordination without evidence`
+
+## Phase 12: S3 - Student guard and docs closeout (work unit 8)
+
+- [ ] 12.1 RED `src/app/(dashboard)/requests/no-signals.test.ts`: scan `src/app/(dashboard)/requests/` and `src/lib/data/student-requests.ts` for imports of the signals modules and for fingerprint fields; the own detail and list render with a request whose signals are `present` and show no signal, outcome, reason, verdict or fingerprint; `getOwnRequestDetail` shape unchanged; the finalize and correction results of a file matching an earlier request equal those of the existing flow; another student's id equals a nonexistent id (scenarios in `student-requests` delta; passes at write, a guard)
+- [ ] 12.2 `docs/requirements.md`: add RN-26 (repeated document: SHA-256 of the stored file matches a document of another request earlier in the order of presentation; exact bytes only; reference confined to the caller's scope; display-only) and a changelog row; before committing check `git diff docs/requirements.md` holds only these (anything else, STOP and ask the owner)
+- [ ] 12.3 `docs/roadmap.md` row 5: set the status to the change state and its coverage to RF-05 (a)-(d), RN-07, RN-09, RN-10, RN-14, RN-15, RN-26; note that RF-05 (e), RN-11, RN-12, RN-13, RN-24 (RF-14) and NS-12 remain; set it to done at archive
+- [ ] 12.4 `docs/pendientes-validacion-tesis.md`: record what shipped, the known limitations (RNF-14 threshold constant, exact-hash evasion, extraction dependency), PRIV pending the UAM legal review, the 2026-11-03 data path and the NS-12 candidate
+- [ ] 12.5 Commit unit 8: `docs(validation-signals): add RN-26 to the requirements and close the roadmap and pendientes entries`
+- [ ] 12.6 Gates S3: `npx vitest run src/lib/signals "src/app/(dashboard)" src/i18n` then Gate set G ending with `npm run typecheck` and `npm test`; record exact results
+- [ ] 12.7 Measure authored lines against the S2 head (target ~400, budget 1500); open the S3 PR (Chain Context, gates, size, rollback); after review merge into the tracker with a merge commit
+
+## Phase 13: Proof, verify, archive
+
+- [ ] 13.1 Gate set G on the tracker head (all slices merged): `npm run typecheck`, `npm test`, `npx eslint src`, `npm run format:check`, `npm run build`; record results
+- [ ] 13.2 [OWNER] Walk on the disposable branch (migration applied there): secretary sees verdict, entries, evidence and not-evaluable list in es and en; coordinator sees outcomes and verdict only, never an RN-26 number; student sees nothing; queue and tabs unchanged
+- [ ] 13.3 Run `sdd-verify` against the specs; fix findings in a slice branch from the tracker
+- [ ] 13.4 After the merge gate is met (S3, 13.2, 10.9, PRIV), take the tracker PR out of draft and merge it to `main`; update `docs/roadmap.md` row 5 status at archive; run `sdd-archive`
+- [ ] 13.5 Keep the tracker branch `feat/validation-signals` after the merge; delete merged slice branches only with the owner's yes
