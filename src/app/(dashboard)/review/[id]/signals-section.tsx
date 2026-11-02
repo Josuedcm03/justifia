@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import {
@@ -71,8 +72,43 @@ function useEvidenceLines() {
             threshold: evidence.threshold,
           }),
         ];
+      case "repeated":
+        // Rendered by `RepeatedEvidence`: the references are links.
+        return [];
     }
   };
+}
+
+/**
+ * RN-26: states the match in words and links each earlier request the caller
+ * may open (RNF-01). With no reference it says only that a document repeats:
+ * nothing tells whether the other request is out of scope or whose it is.
+ */
+function RepeatedEvidence({ references }: { references: number[] }) {
+  const t = useTranslations("review.signals.evidence");
+
+  return (
+    <>
+      <span className="text-muted-foreground block">{t("repeated")}</span>
+      {references.length > 0 && (
+        <span className="text-muted-foreground block">
+          {t("repeatedSee")}{" "}
+          {references.map((id, index) => (
+            <span key={id}>
+              {index > 0 && ", "}
+              <Link
+                href={`/review/${id}`}
+                prefetch={false}
+                className="text-primary underline underline-offset-2"
+              >
+                {t("requestLink", { id })}
+              </Link>
+            </span>
+          ))}
+        </span>
+      )}
+    </>
+  );
 }
 
 function SignalFact({ result }: { result: SignalViewResult }) {
@@ -91,6 +127,9 @@ function SignalFact({ result }: { result: SignalViewResult }) {
           {line}
         </span>
       ))}
+      {result.outcome === "present" && result.evidence?.kind === "repeated" && (
+        <RepeatedEvidence references={result.evidence.references} />
+      )}
     </Fact>
   );
 }

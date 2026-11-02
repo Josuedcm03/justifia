@@ -1385,7 +1385,8 @@
         "rn07": "Presentación tardía",
         "rn09": "Fechas incoherentes",
         "rn10": "Fechas no cubiertas",
-        "rn14": "Reincidencia"
+        "rn14": "Reincidencia",
+        "rn26": "Documento repetido"
       },
       "outcomes": {
         "present": "Señal presente",
@@ -1403,14 +1404,18 @@
         "field_missing": "A un documento le falta un dato necesario.",
         "days_only": "El reposo indica solo una cantidad de días, sin fechas.",
         "no_period": "Las asignaturas no corresponden a un único período académico.",
-        "no_eligible_documents": "La solicitud no tiene documentos vigentes del estudiante."
+        "no_eligible_documents": "La solicitud no tiene documentos vigentes del estudiante.",
+        "no_fingerprint": "Los documentos vigentes se guardaron antes de que existiera la detección de documentos repetidos, por lo que no se pueden comparar."
       },
       "evidence": {
         "timing": "Presentada el {presented}; el plazo vence el {deadline}.",
         "incoherent": "Emisión el {issued}; el reposo termina el {end}.",
         "uncovered": "Ausencia: {absence}. Reposos con fecha: {covered}.",
         "uncoveredNone": "Ausencia: {absence}. Ningún reposo con fecha.",
-        "recurrence": "Solicitudes con el emisor «{issuer}» en el período: {count} (umbral: {threshold})."
+        "recurrence": "Solicitudes con el emisor «{issuer}» en el período: {count} (umbral: {threshold}).",
+        "repeated": "Un documento es idéntico a uno de una solicitud anterior.",
+        "repeatedSee": "Solicitudes anteriores con el mismo documento:",
+        "requestLink": "Solicitud {id}"
       }
     },
     "remission": {

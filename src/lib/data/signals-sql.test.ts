@@ -19,6 +19,8 @@ vi.mock("@/db", () => ({
 }));
 
 import {
+  readCurrentFingerprints,
+  readEarlierMatches,
   readIssuerHistory,
   readPeriods,
   readRequestBase,
@@ -119,5 +121,114 @@ describe("RN-14 history statement (Q4)", () => {
     expect(sql).not.toContain('"Solicitud"."Estado"');
     expect(params).not.toContain("rechazada");
     expect(params).not.toContain("devuelta");
+  });
+});
+
+describe("RN-26 current fingerprints (Q5, current side)", () => {
+  it("reads the id and fingerprint of the current student documents only", async () => {
+    const { sql, params } = await emitted(() => readCurrentFingerprints(42));
+
+    expect(sql).toMatch(
+      /^select "Id", "HuellaSha256" from "DocumentoRespaldo" where /,
+    );
+    expect(sql).toContain('"DocumentoRespaldo"."SolicitudId" = $');
+    expect(sql).toContain('"DocumentoRespaldo"."Estado" = $');
+    expect(sql).toContain('"DocumentoRespaldo"."RetiradoEn" is null');
+    expect(sql).toContain('"DocumentoRespaldo"."SubidoPorId" is null');
+    expect(sql).toContain('"DocumentoRespaldo"."FormatoEspecial" = $');
+    expect(params).toEqual(expect.arrayContaining([42, "valido", false]));
+  });
+});
+
+describe("RN-26 earlier matches (Q5, other side)", () => {
+  const HASHES = ["a".repeat(64), "b".repeat(64)];
+  const SECRETARY = { kind: "facultad", facultadId: 4 } as const;
+  const query = (
+    referenceScope: Parameters<
+      typeof readEarlierMatches
+    >[0]["referenceScope"] = SECRETARY,
+  ) =>
+    emitted(() =>
+      readEarlierMatches({
+        solicitudId: 42,
+        hashes: HASHES,
+        referenceScope,
+      }),
+    );
+
+  it("looks the fingerprints up with IN, once per distinct earlier request", async () => {
+    const { sql, params } = await query();
+
+    expect(sql).toMatch(/^select distinct case when /);
+    expect(sql).toMatch(
+      /from "DocumentoRespaldo" inner join "Solicitud" on "Solicitud"\."Id" = "DocumentoRespaldo"\."SolicitudId" where /,
+    );
+    expect(sql).toMatch(
+      /"DocumentoRespaldo"\."HuellaSha256" in \(\$\d+, \$\d+\)/,
+    );
+    expect(params).toEqual(expect.arrayContaining(HASHES));
+  });
+
+  it("never matches the request itself", async () => {
+    const { sql, params } = await query();
+
+    expect(sql).toContain('"Solicitud"."Id" <> $');
+    expect(params).toContain(42);
+  });
+
+  it("keeps only presented requests that are earlier in the order of presentation", async () => {
+    const { sql } = await query();
+
+    expect(sql).toContain('"Solicitud"."PresentadaEn" is not null');
+    // Equal presentation time is broken by the request id, inside the database.
+    expect(sql).toMatch(
+      /\("Solicitud"\."PresentadaEn", "Solicitud"\."Id"\) < \(select "PresentadaEn", "Id" from "Solicitud" "r" where "r"\."Id" = \$\d+\)/,
+    );
+  });
+
+  it("excludes staff uploads and special format, and includes retired documents", async () => {
+    const { sql, params } = await query();
+
+    expect(sql).toContain('"DocumentoRespaldo"."SubidoPorId" is null');
+    expect(sql).toContain('"DocumentoRespaldo"."FormatoEspecial" = $');
+    expect(sql).toContain('"DocumentoRespaldo"."Estado" = $');
+    expect(sql).not.toContain('"DocumentoRespaldo"."RetiradoEn"');
+    expect(params).toContain("valido");
+    expect(params).toContain(false);
+  });
+
+  it("has no state filter, so rejected and returned requests count", async () => {
+    const { sql, params } = await query();
+
+    expect(sql).not.toContain('"Solicitud"."Estado"');
+    expect(params).not.toContain("rechazada");
+    expect(params).not.toContain("devuelta");
+  });
+
+  it("nulls the other request id inside the database when it is outside the scope", async () => {
+    const { sql, params } = await query();
+
+    expect(sql).toMatch(
+      /^select distinct case when exists \(select 1 from "Usuario" "e" inner join "Carrera" "c" on "c"\."Id" = "e"\."CarreraId" where \("e"\."Id" = "Solicitud"\."EstudianteId" and "c"\."FacultadId" = \$\d+\)\) then "Solicitud"\."Id" end from /,
+    );
+    expect(params).toContain(4);
+  });
+
+  it("renders the literal false for a caller with no scope, so no id ever leaves", async () => {
+    const { sql, params } = await query({ kind: "none" });
+
+    expect(sql).toMatch(
+      /^select distinct case when false then "Solicitud"\."Id" end from /,
+    );
+    expect(sql).not.toContain('"Usuario"');
+    expect(params).not.toContain(4);
+  });
+
+  it("selects no name, document name, e-mail or fingerprint column", async () => {
+    const { sql } = await query();
+    const selected = sql.slice(0, sql.indexOf(' from "DocumentoRespaldo"'));
+
+    expect(selected).not.toMatch(/Nombre|Cif|Correo|Pathname|HuellaSha256/i);
+    expect(sql.match(/HuellaSha256/g)).toHaveLength(1);
   });
 });

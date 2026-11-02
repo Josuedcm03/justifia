@@ -18,6 +18,10 @@ vi.mock("@/lib/data/signals", () => {
 vi.mock("@/lib/signals/evaluate", () => {
   throw new Error("signals_loaded_by_a_write_path");
 });
+// RN-26 (S2) has its own evaluator; it is covered like the rest.
+vi.mock("@/lib/signals/repeated-document", () => {
+  throw new Error("signals_loaded_by_a_write_path");
+});
 
 type SourceFile = { path: string; text: string };
 
@@ -102,6 +106,10 @@ describe("the scanner", () => {
       },
       { path: "src/app/e/actions.ts", text: 'import "@/lib/signals/types";' },
       {
+        path: "src/lib/data/g.ts",
+        text: 'import { evaluateRepeatedDocument } from "@/lib/signals/repeated-document";',
+      },
+      {
         path: "src/app/f/actions.ts",
         text: 'const m = require("@/lib/data/signals");',
       },
@@ -113,6 +121,7 @@ describe("the scanner", () => {
       "src/lib/data/c.ts",
       "src/lib/data/d.ts",
       "src/app/e/actions.ts",
+      "src/lib/data/g.ts",
       "src/app/f/actions.ts",
     ]);
   });
@@ -160,6 +169,9 @@ describe("write paths do not read the signals (No write path reads the signals)"
       /error when mocking a module/,
     );
     await expect(import("@/lib/signals/evaluate")).rejects.toThrow(
+      /error when mocking a module/,
+    );
+    await expect(import("@/lib/signals/repeated-document")).rejects.toThrow(
       /error when mocking a module/,
     );
   });

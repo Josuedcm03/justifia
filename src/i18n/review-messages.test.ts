@@ -682,4 +682,37 @@ describe("review signals messages (validation-signals, RNF-12)", () => {
       }
     }
   });
+
+  it.each(catalogs)(
+    "%s words RN-26: its name, the match line, the link and the missing fingerprint",
+    (_l, m) => {
+      const x = m.review.signals;
+
+      expect(x.names.rn26.trim().length).toBeGreaterThan(0);
+      expect(x.reasons.no_fingerprint.trim().length).toBeGreaterThan(0);
+      expect(x.evidence.repeated.trim().length).toBeGreaterThan(0);
+      expect(x.evidence.repeatedSee.trim().length).toBeGreaterThan(0);
+      expect(x.evidence.requestLink).toContain("{id}");
+    },
+  );
+
+  it("words RN-26 as «Documento repetido» and «Repeated document»", () => {
+    expect(es.review.signals.names.rn26).toBe("Documento repetido");
+    expect(en.review.signals.names.rn26).toBe("Repeated document");
+  });
+
+  it.each(catalogs)(
+    "%s keeps the match text free of anything that says whose request it is or why no number shows",
+    (_l, m) => {
+      const text = [
+        m.review.signals.evidence.repeated,
+        m.review.signals.evidence.repeatedSee,
+        m.review.signals.reasons.no_fingerprint,
+      ].join(" ");
+
+      expect(text).not.toMatch(
+        /alcance|facultad|otro estudiante|mismo estudiante|scope|faculty|another student|same student|hash|huella|fingerprint/i,
+      );
+    },
+  );
 });
