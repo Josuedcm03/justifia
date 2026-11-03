@@ -186,3 +186,96 @@ Production lines count against the 1500 budget (owner rule): 83, one PR, no spli
 - The coordination section renders outcomes only; the owner walk (13.2) is the first check of what the coordinator sees against a real database.
 - Everything in the S3 slice is read-only and fail-soft; reverting S3 leaves S1 and S2 intact (rollback boundary: `coordination-view.ts`, coordination page wiring, the guard tests and the docs commit).
 - PRIV (legal review of hashing and cross-request comparison) and the production decision on 0013 (10.9) are still open and block the tracker merge.
+
+## Remediation after verify (W4 and W3), branch `docs/validation-signals-closeout`, 2026-11-02
+
+Scope: the two work units the orchestrator assigned from the verify report on db08b54. No task checkbox changed (102/102 stay done); a note under Phase 13 of tasks.md points here. Strict TDD (vitest). No database command of any kind was run; the opt-in integration suite was collected under its own config without `INTEGRATION_DATABASE_URL` (45 tests skipped, none executed).
+
+### Unit 1: W4, failed finalize on an unreadable stored file
+
+Spec: supporting-documents, "Failed finalize stores no fingerprint" (the file is deleted, no record exists, no fingerprint stored) and the clause "if the fingerprint cannot be computed because the stored content cannot be read, finalize MUST fail the same way and MUST NOT create a record without a fingerprint", "a message naming the reason returned".
+
+Reason chosen: the spec names no reason for this case and `DocumentRejectionReason` (src/lib/audit/types.ts) has six: `unsupported_format`, `too_large`, `empty_file`, `not_found`, `not_allowed`, `too_many_documents`. `not_found` is the closest: its student message is "No encontramos el archivo. Inténtalo de nuevo." (es) and asks for a retry, which is what an unreadable stored file calls for. No new audit reason was invented: `documento.rechazado` already accepts `{ reason: "not_found" }` in its closed set, so audit types and the audit tests are unchanged.
+
+Behavior now: the catch around `fingerprintStoredFile` in `finalizeDocument` calls the existing `reject()` with `reason: "not_found"` and the claim id. `reject()` deletes the stored blob best effort (a failing delete still returns the rejection), drops the `pendiente` claim and writes one `documento.rechazado` row in one transaction, then returns `{ ok: false, reason: "not_found" }`. Before, the claim was dropped and the error rethrown, with the blob left to the orphan sweep and no reason. The same path now covers a digest with no hash inside the size cap (store contract violation), which used to throw "Stored file read without a fingerprint". One log line, `document_finalize_read_failed`, carries the error name only (never the message, which can hold a path); the event name avoids the words that `signals/fingerprint-exposure.test.ts` bars from log calls.
+
+Difference from a plain `not_found` (missing file): that one still writes no audit row and deletes nothing, because nothing is stored; the unreadable case has a stored blob, so it audits and deletes like the other refusals.
+
+Files: `src/lib/data/documentos.ts`, `src/lib/data/documentos.test.ts`.
+
+### Unit 2: W3, RN-26 and RN-14 predicates executed on Postgres (opt-in)
+
+New describe "RN-14 and RN-26 predicates (real Postgres)" appended to `src/lib/data/integration/validation-signals.integration.test.ts`. It calls the exported statements (`readIssuerHistory`, `readEarlierMatches`) and the real `loadSignals` on committed rows; every case owns fresh students and a fingerprint derived from the run id and the case label, and `cleanup()` removes the rows. `fixtures.ts` got two additive options: `addGroup({ periodo })` and `addStudentInOtherFacultad()` (a second facultad and career, tracked by the existing cleanup arrays).
+
+Limits found while building the rows, stated in the file header:
+
+- `CK_Documento_FormatoEspecial` ties `SubidoPorId IS NOT NULL` to `FormatoEspecial`, so "staff upload" and "special format" are one row shape; both predicates are exercised by that one row, not independently.
+- `CK_Documento_Huella` allows a fingerprint only on `valido` documents, so a non-valid document can never match on the RN-26 side. The `Estado = 'valido'` predicate of Q4 (RN-14, no fingerprint involved) is executed with a `pendiente` document.
+- The spec table "Earlier request reused" says the staff-upload and special-format R1 outcome is `absent`; by the evaluator's own rule that request has no current student document, so its RN-26 would be `not_evaluable`. The suite asserts the SQL meaning of "R1 stays absent" instead: the later request reusing its file never appears as an earlier match for R1 (`readEarlierMatches(R1) = []`).
+
+Integration test names added (45 collected, all skipped without a database), prefix `RN-14 and RN-26 predicates (real Postgres) > `:
+
+- `RN-14 history (Q4) > same student, same period, rechazada: counted = true`
+- `RN-14 history (Q4) > same student, same period, devuelta: counted = true`
+- `RN-14 history (Q4) > same student, same period, aprobada: counted = true`
+- `RN-14 history (Q4) > same student, same period, en_revision_coordinacion: counted = true`
+- `RN-14 history (Q4) > same student, other period: counted = false`
+- `RN-14 history (Q4) > other student, same period: counted = false`
+- `RN-14 history (Q4) > same student, borrador: counted = false`
+- `RN-14 history (Q4) > same student, retired documents only: counted = false`
+- `RN-14 history (Q4) > same student, staff-uploaded special-format document: counted = false`
+- `RN-14 history (Q4) > same student, document not valido: counted = false`
+- `RN-14 history (Q4) > same student, extraction fallida: counted = false`
+- `RN-14 history (Q4) > same student, extraction pendiente: counted = false`
+- `RN-14 history (Q4) > same student, extraction no_aplica: counted = false`
+- `RN-14 history (Q4) > same student, completed extraction without issuer: counted = false`
+- `RN-14 history (Q4) > same student, presented later than the current request: counted = false`
+- `RN-14 history (Q4) > same instant, lower id than the current request: counted = true`
+- `RN-14 history (Q4) > same instant, higher id than the current request: counted = false`
+- `RN-14 history (Q4) > never returns the request under evaluation`
+- `RN-14 history (Q4) > through loadSignals, a rechazada request counts: the 3rd request is present`
+- `RN-14 history (Q4) > through loadSignals, a request of another period does not: the 3rd stays absent`
+- `RN-26 earlier-only matching (Q5) > presented pendiente, document H: the later request is present = true`
+- `RN-26 earlier-only matching (Q5) > presented rechazada, document H: the later request is present = true`
+- `RN-26 earlier-only matching (Q5) > presented devuelta, document H: the later request is present = true`
+- `RN-26 earlier-only matching (Q5) > presented, document H retired by a correction: the later request is present = true`
+- `RN-26 earlier-only matching (Q5) > draft with document H: the later request is present = false`
+- `RN-26 earlier-only matching (Q5) > presented, document H uploaded by staff (special format): the later request is present = false`
+- `RN-26 earlier-only matching (Q5) > presented, other student, document H: the later request is present = true`
+- `RN-26 earlier-only matching (Q5) > presented, document from before the change (NULL fingerprint): the later request is present = false`
+- `RN-26 earlier-only matching (Q5) > breaks a tie on the presentation instant by request id`
+- `RN-26 earlier-only matching (Q5) > never matches a correction re-upload against its own request`
+- `RN-26 earlier-only matching (Q5) > flags a correction that reuses a document of another, earlier request`
+- `RN-26 earlier-only matching (Q5) > orders by the first presentation, never by the resubmission`
+- `RN-26 reference confined to the caller's scope > nulls, inside the database, the id of a request outside the scope, and keeps the match`
+- `RN-26 reference confined to the caller's scope > references the request of the facultad and hides the others (41 and 55)`
+- `RN-26 reference confined to the caller's scope > shows the other facultad its own request and hides the first one`
+- `RN-26 reference confined to the caller's scope > gives a caller with no scope the match and no id at all`
+
+Run (owner yes per command, disposable branch with migration 0013): `INTEGRATION_DATABASE_URL=<branch url> INTEGRATION_ALLOW_WRITES=1 npm run test:integration -- -t "RN-14 and RN-26 predicates"`.
+
+Verify rows addressed (once the owner runs them green): RN-14 "What does not count"; RN-26 "Earlier request reused" (all seven rows, with the staff and special-format shape caveat above), "Equal presentation time", "Correction re-upload same request", "Correction reusing another request document", "Order follows first presentation"; Scope "Cross-scope match without reference" and "In-scope match with reference (41/55)" at the SQL level.
+
+### TDD cycle evidence (remediation; also addresses W2 for this work, with a Safety Net column)
+
+| Unit | Test | Layer | Safety net | RED seen | GREEN | Triangulate | Refactor |
+|------|------|-------|------------|----------|-------|-------------|----------|
+| W4 | `documentos.test.ts` > "a stored file that cannot be read for hashing" (4 tests: store down, stream breaks, blob delete also fails, log carries the error name only) | Unit, db double and `DocumentStore` fake | `documentos.test.ts` 64 of 64 before the change | all 4 failed (as did the rewritten test below: 5 failures in the file) with the original rethrow ("store down", "connection reset", "cannot read ...") | 66 of 66 after the catch calls `reject()` | read failure by throw, stream failure, a digest with no hash inside the cap, failing blob delete, message with a path and a hash that must not be logged | event name renamed after `fingerprint-exposure.test.ts` failed in the full run (the word "fingerprint" is barred from log calls); no other change |
+| W4 | `documentos.test.ts` > "never creates a record without a fingerprint: a digest with no hash inside the cap ..." (rewritten from "fails loud") | Unit | same | failed with the thrown "Stored file read without a fingerprint" | passes: `not_found`, blob gone, claim dropped, no `huellaSha256` written | covered with the two above | none |
+| W3 | `validation-signals.integration.test.ts` > "RN-14 and RN-26 predicates (real Postgres)" (45 tests) | Integration, opt-in | `signals-sql.test.ts` 17 tests (rendering) and the existing 9 integration tests unchanged | not observable: no database is available to the executor. Not claimed. The suite compiles and is collected (45 skipped) | not run; the owner runs it on a disposable branch | counted and not-counted rows per predicate, both directions of the tie-break, both viewers of the scope, three scope shapes | `prettier` only |
+
+Honest note on W3 RED: these tests pin existing behavior, so the useful RED is a mutation of each predicate (drop a `WHERE` term in `readIssuerHistory` or `earlierMatchesQuery`) against the real database. That check is the owner's run; it was not simulated here.
+
+### Gates (remediation head)
+
+- `npx vitest run` (dummy `DATABASE_URL` `postgres://u:p@127.0.0.1:9/x`): 320 files, 7234 tests passed (7232 before, +2 net in `documentos.test.ts`), exit 0. The first full runs after the change failed once, `signals/fingerprint-exposure.test.ts` "logs no fingerprint" (the first log event name contained "fingerprint"); fixed by renaming the event and rerun green.
+- `npm run typecheck`: 0 errors.
+- `npx eslint src`: 0 problems other than the CRLF `Delete ␍` noise of `core.autocrlf` (filtered, as in the Gate set G note).
+- `npx prettier --check "src/**/*.{ts,tsx}" --end-of-line auto`: clean.
+- No database command of any kind was run; `drizzle-kit` was not run.
+
+### Decisions and deviations
+
+- W4 uses the existing `not_found` reason (no new audit reason, no change to `src/lib/audit`); the alternative of a new `read_failed` reason was left out because it would touch the audit types, their tests and the intake messages in both locales for a case a retry solves.
+- design.md VS-4 still lacks the unreadable-file behavior (suggestion S1 of the verify report); this change did not edit design.md.
+- `fixtures.ts` was extended (additive options), not replaced.
