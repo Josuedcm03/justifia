@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { PgDialect } from "drizzle-orm/pg-core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { carrera, usuario } from "@/db/schema";
 import { createFakeDocumentStore } from "@/lib/intake/fakes";
@@ -434,31 +434,96 @@ describe("documentos data layer", () => {
       expect(insertAuditMock).not.toHaveBeenCalled();
     });
 
-    it("drops the pendiente claim and rethrows when the store cannot be read", async () => {
-      const double = use([lookupDraft, ...claim(0), dropClaim]);
-      const store = createFakeDocumentStore();
-      store.readDigest = vi.fn().mockRejectedValue(new Error("store down"));
+    // Failed finalize stores no fingerprint (supporting-documents): a stored
+    // file that cannot be read for hashing fails like any other refusal, with
+    // the closest existing reason (`not_found`, "we could not find the file,
+    // try again"), the blob deleted best effort, no record and no hash.
+    describe("a stored file that cannot be read for hashing", () => {
+      const errorLog = () => vi.spyOn(console, "error").mockReturnValue();
 
-      await expect(finalizeDocument(input(), store)).rejects.toThrow(
-        "store down",
-      );
-      expect(double.log.at(-1)?.kind).toBe("delete");
-      expect(insertAuditMock).not.toHaveBeenCalled();
-    });
+      afterEach(() => {
+        vi.mocked(console.error).mockRestore?.();
+      });
 
-    it("fails the same way, with no record and no hash, when the stored stream breaks while hashing", async () => {
-      const double = use([lookupDraft, ...claim(0), dropClaim]);
-      const store = createFakeDocumentStore();
-      store.readDigest = vi
-        .fn()
-        .mockRejectedValue(new Error("connection reset"));
+      it("drops the claim, deletes the blob, audits and answers not_found when the store cannot be read", async () => {
+        const double = use([lookupDraft, ...claim(0), dropClaim]);
+        errorLog();
+        const store = createFakeDocumentStore();
+        store.seed(PATH, PDF);
+        store.readDigest = vi.fn().mockRejectedValue(new Error("store down"));
 
-      await expect(finalizeDocument(input(), store)).rejects.toThrow(
-        "connection reset",
-      );
-      expect(double.log.at(-1)?.kind).toBe("delete");
-      expect(writtenValues(double)).not.toContain("huellaSha256");
-      expect(insertAuditMock).not.toHaveBeenCalled();
+        expect(await finalizeDocument(input(), store)).toEqual({
+          ok: false,
+          reason: "not_found",
+        });
+        expect(store.has(PATH)).toBe(false);
+        expect(double.log.at(-1)?.kind).toBe("delete");
+        expect(writtenValues(double)).not.toContain("huellaSha256");
+        expect(insertAuditMock).toHaveBeenCalledTimes(1);
+        expect(insertAuditMock.mock.calls[0][2]).toEqual([
+          {
+            accion: "documento.rechazado",
+            entidadTipo: "Solicitud",
+            entidadId: DRAFT,
+            datos: { reason: "not_found" },
+          },
+        ]);
+        expect(double.exhausted).toBe(true);
+      });
+
+      it("fails the same way, with no record and no hash, when the stored stream breaks while hashing", async () => {
+        const double = use([lookupDraft, ...claim(0), dropClaim]);
+        errorLog();
+        const store = createFakeDocumentStore();
+        store.seed(PATH, PDF);
+        store.readDigest = vi
+          .fn()
+          .mockRejectedValue(new Error("connection reset"));
+
+        expect(await finalizeDocument(input(), store)).toEqual({
+          ok: false,
+          reason: "not_found",
+        });
+        expect(store.has(PATH)).toBe(false);
+        expect(double.log.at(-1)?.kind).toBe("delete");
+        expect(double.log.some((s) => s.kind === "insert")).toBe(true); // the claim only
+        expect(writtenValues(double)).not.toContain("huellaSha256");
+      });
+
+      it("keeps the rejection when the blob cannot be deleted either", async () => {
+        use([lookupDraft, ...claim(0), dropClaim]);
+        errorLog();
+        const store = createFakeDocumentStore();
+        store.seed(PATH, PDF);
+        store.readDigest = vi.fn().mockRejectedValue(new Error("store down"));
+        store.delete = vi
+          .fn()
+          .mockRejectedValue(new Error("blob delete failed"));
+
+        expect(await finalizeDocument(input(), store)).toEqual({
+          ok: false,
+          reason: "not_found",
+        });
+        expect(store.delete).toHaveBeenCalledWith([PATH]);
+      });
+
+      it("logs the error name only, never the message, the path or any content", async () => {
+        use([lookupDraft, ...claim(0), dropClaim]);
+        const log = errorLog();
+        const store = createFakeDocumentStore();
+        store.seed(PATH, PDF);
+        const failure = new TypeError(`cannot read ${PATH} with ${HASH}`);
+        store.readDigest = vi.fn().mockRejectedValue(failure);
+
+        await finalizeDocument(input(), store);
+
+        expect(log).toHaveBeenCalledTimes(1);
+        const logged = JSON.stringify(log.mock.calls);
+        expect(logged).toContain("TypeError");
+        expect(logged).not.toContain(PATH);
+        expect(logged).not.toContain(HASH);
+        expect(logged).not.toContain("cannot read");
+      });
     });
 
     it("does not report success when the audit insert fails", async () => {
@@ -549,20 +614,25 @@ describe("documentos data layer", () => {
       );
     });
 
-    it("never creates a record without a fingerprint: a digest with no hash inside the cap fails loud and drops the claim", async () => {
+    it("never creates a record without a fingerprint: a digest with no hash inside the cap is an unreadable file, rejected as not_found with the blob deleted", async () => {
       const double = use([lookupDraft, ...claim(0), dropClaim]);
+      const log = vi.spyOn(console, "error").mockReturnValue();
       const store = createFakeDocumentStore();
+      store.seed(PATH, PDF);
       store.readDigest = vi.fn().mockResolvedValue({
         size: PDF.length,
         head: new Uint8Array(PDF),
         sha256: null,
       });
 
-      await expect(finalizeDocument(input(), store)).rejects.toThrow(
-        /fingerprint/i,
-      );
+      expect(await finalizeDocument(input(), store)).toEqual({
+        ok: false,
+        reason: "not_found",
+      });
+      expect(store.has(PATH)).toBe(false);
       expect(double.log.at(-1)?.kind).toBe("delete");
       expect(writtenValues(double)).not.toContain("huellaSha256");
+      log.mockRestore();
     });
 
     it("gives a file identical to an earlier request's the result and audit of any other file, with no lookup of other requests (Correction and upload results)", async () => {

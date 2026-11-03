@@ -328,10 +328,10 @@ documents.
 |---|---|---|---|
 | presented, `pendiente`, document H | document H | `present` | `absent` |
 | presented, `rechazada`, document H | document H | `present` | `absent` |
-| presented, document H retired by a correction | document H | `present` | `absent` |
+| presented, document H retired by a correction | document H | `present` | `absent`, or `not_evaluable`, `no_eligible_documents` when H is R1's only document |
 | draft with document H | document H | `absent` | not applicable |
-| presented, document H uploaded by staff | document H | `absent` | `absent` |
-| presented, document H special format | document H | `absent` | `absent` |
+| presented, document H uploaded by staff | document H | `absent` | `not_evaluable`, `no_eligible_documents` |
+| presented, document H special format | document H | `absent` | `not_evaluable`, `no_eligible_documents` |
 | presented, other student, document H | document H | `present` | `absent` |
 
 - GIVEN R1 presented before R2 as in the row and R2 with a current student document with fingerprint H

@@ -215,8 +215,18 @@ export async function finalizeDocument(
   try {
     inspection = await fingerprintStoredFile(pathname, store);
   } catch (error) {
-    await db.delete(documentoRespaldo).where(eq(documentoRespaldo.id, claimId));
-    throw error;
+    // The stored content cannot be read for hashing: fail like any refusal
+    // (blob deleted best effort, claim dropped, no fingerprint, a named
+    // reason). The spec names none for this case; `not_found` ("we could not
+    // find the file, try again") is the closest existing one. The error name
+    // only is logged, never its message, which may carry a path.
+    console.error("document_finalize_read_failed", {
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return reject(
+      { userId, solicitudId, pathname, reason: "not_found", claimId },
+      store,
+    );
   }
 
   if (!inspection.ok && inspection.reason === "not_found") {
@@ -295,8 +305,9 @@ export type StoredFileFingerprint =
  * The finalize read: ONE pass over the stored bytes feeds the signature check,
  * the size check (on the counted size, never the blob metadata) and the
  * SHA-256 stored with the document. A missing file is `not_found`; a store or
- * stream failure throws, and the caller drops its claim, so no record is ever
- * created without a fingerprint.
+ * stream failure throws, and finalize then rejects the file the same way (the
+ * blob deleted, the claim dropped), so no record is ever created without a
+ * fingerprint.
  */
 export async function fingerprintStoredFile(
   pathname: string,

@@ -58,6 +58,7 @@ Rejection reasons (distinct, translatable): `unsupported_format`, `too_large`,
 | zero-byte file | `empty_file` |
 | stored size over 10 MB | `too_large` |
 | path does not exist | `not_found` |
+| stored file cannot be read for hashing (the record is not created, the blob is deleted best effort, and the audit row carries `not_found`) | `not_found` |
 | path under another draft's prefix | `not_allowed` |
 
 - GIVEN the case in the row
@@ -96,7 +97,7 @@ Rejection reasons (distinct, translatable): `unsupported_format`, `too_large`,
 
 #### Scenario: Failed finalize stores no fingerprint
 
-- GIVEN a spoofed, empty or oversized file, or a stored file that cannot be read for hashing
+- GIVEN a spoofed, empty or oversized file, or a stored file that cannot be read for hashing (rejected with reason `not_found`)
 - WHEN finalize runs
 - THEN the file is deleted, no record exists, and no fingerprint is stored anywhere
 

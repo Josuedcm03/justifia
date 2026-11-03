@@ -62,6 +62,8 @@ async function ensureRole(codigo: RolUsuario, nombre: string): Promise<number> {
 
 export type Student = { id: number; cif: string };
 
+export type StudentInOtherFacultad = Student & { facultadId: number };
+
 export type Secretaria = { id: number; facultadId: number };
 
 export type Coordinator = { id: number; carreraId: number };
@@ -83,6 +85,7 @@ export function createFixtures() {
 
   let careerId: number | null = null;
   let careerFacultadId: number | null = null;
+  let otherCareer: { carreraId: number; facultadId: number } | null = null;
 
   async function ensureCareer(): Promise<number> {
     if (careerId !== null) return careerId;
@@ -101,26 +104,61 @@ export function createFixtures() {
     return car.id;
   }
 
+  /** A second facultad with its own career, for scope-confinement cases. */
+  async function ensureOtherCareer(): Promise<{
+    carreraId: number;
+    facultadId: number;
+  }> {
+    if (otherCareer !== null) return otherCareer;
+    const [fac] = await db
+      .insert(facultad)
+      .values({ nombre: `IT otra facultad ${run}` })
+      .returning({ id: facultad.id });
+    facultadIds.push(fac.id);
+    const [car] = await db
+      .insert(carrera)
+      .values({ nombre: `IT otra carrera ${run}`, facultadId: fac.id })
+      .returning({ id: carrera.id });
+    carreraIds.push(car.id);
+    otherCareer = { carreraId: car.id, facultadId: fac.id };
+    return otherCareer;
+  }
+
+  async function insertStudent(carreraId: number): Promise<Student> {
+    const tag = next();
+    const [row] = await db
+      .insert(usuario)
+      .values({
+        login: `it-${tag}`,
+        hashClave: "integration-not-a-real-hash",
+        rolId: await ensureRole("estudiante", "Estudiante"),
+        nombreCompleto: `IT Estudiante ${tag}`,
+        correo: `it-${tag}@integration.invalid`,
+        cif: `IT${tag}`.slice(0, 20),
+        carreraId,
+      })
+      .returning({ id: usuario.id, cif: usuario.cif });
+    studentIds.push(row.id);
+    return { id: row.id, cif: row.cif as string };
+  }
+
   return {
     run,
 
     /** A student with the account data a submission snapshots. */
     async addStudent(): Promise<Student> {
-      const tag = next();
-      const [row] = await db
-        .insert(usuario)
-        .values({
-          login: `it-${tag}`,
-          hashClave: "integration-not-a-real-hash",
-          rolId: await ensureRole("estudiante", "Estudiante"),
-          nombreCompleto: `IT Estudiante ${tag}`,
-          correo: `it-${tag}@integration.invalid`,
-          cif: `IT${tag}`.slice(0, 20),
-          carreraId: await ensureCareer(),
-        })
-        .returning({ id: usuario.id, cif: usuario.cif });
-      studentIds.push(row.id);
-      return { id: row.id, cif: row.cif as string };
+      return insertStudent(await ensureCareer());
+    },
+
+    /**
+     * A student whose current career belongs to a SECOND facultad, so a
+     * secretaria of the facultad of `addStudent` / `addSecretaria` sees this
+     * student's requests as out of scope (RN-26 reference, RNF-01).
+     */
+    async addStudentInOtherFacultad(): Promise<StudentInOtherFacultad> {
+      const other = await ensureOtherCareer();
+      const student = await insertStudent(other.carreraId);
+      return { ...student, facultadId: other.facultadId };
     },
 
     /**
@@ -187,9 +225,12 @@ export function createFixtures() {
 
     /**
      * A group (with its subject and teacher) a draft can point at. Pass the
-     * teacher's `correo` for a remission that can be sent (teacher-remission).
+     * teacher's `correo` for a remission that can be sent (teacher-remission),
+     * and `periodo` for a period other than the default `IT` (RN-14).
      */
-    async addGroup(options: { correo?: string } = {}): Promise<number> {
+    async addGroup(
+      options: { correo?: string; periodo?: string } = {},
+    ): Promise<number> {
       const tag = next();
       const [docente] = await db
         .insert(usuario)
@@ -216,7 +257,7 @@ export function createFixtures() {
         .insert(grupo)
         .values({
           asignaturaId: subject.id,
-          periodo: "IT",
+          periodo: options.periodo ?? "IT",
           numeroGrupo: "1",
           docenteId: docente.id,
         })
