@@ -266,6 +266,18 @@ Verify rows addressed (once the owner runs them green): RN-14 "What does not cou
 
 Honest note on W3 RED: these tests pin existing behavior, so the useful RED is a mutation of each predicate (drop a `WHERE` term in `readIssuerHistory` or `earlierMatchesQuery`) against the real database. That check is the owner's run; it was not simulated here.
 
+### Postgres run (W3 evidence, recorded at archive)
+
+Added after verify (W5 of `verify-report`). The section above says the suite was not run; that was true at the time of the remediation head. The run below happened later on 2026-11-02.
+
+- Environment: a disposable Neon branch `test-validation-signals-evidence` created from `dev-arnia`, with migration 0013 applied. The branch was deleted after the run. Owner's explicit yes was given for this run.
+- Command shape: `INTEGRATION_DATABASE_URL=<disposable> INTEGRATION_ALLOW_WRITES=1 npm run test:integration -- src/lib/data/integration/validation-signals.integration.test.ts`.
+- First run, before f5e4744: 26 passed, 10 failed. All 10 failures were `expected [ { solicitudId: '207' } ] to deeply equal [ { solicitudId: 207 } ]`. This is the RED that the unit suite could not see.
+- Defect: the raw SQL `CASE` in `earlierMatchesQuery` returned the bigint request id as a string, so the earlier-match id reached the coordinator as `'207'` instead of `207`.
+- Fix: f5e4744 `fix(validation-signals): return the earlier request id as a number`, adding `.mapWith(Number)` to that column (NULL stays NULL).
+- Second run, after f5e4744: 1 file passed, 45 of 45 tests passed (36 new RN-14 and RN-26 predicate and scope cases plus the 9 existing integration tests).
+- Limit: the run cannot be repeated without a new disposable branch and a new owner yes. The default unit suite does not pin `.mapWith(Number)` (verify S7).
+
 ### Gates (remediation head)
 
 - `npx vitest run` (dummy `DATABASE_URL` `postgres://u:p@127.0.0.1:9/x`): 320 files, 7234 tests passed (7232 before, +2 net in `documentos.test.ts`), exit 0. The first full runs after the change failed once, `signals/fingerprint-exposure.test.ts` "logs no fingerprint" (the first log event name contained "fingerprint"); fixed by renaming the event and rerun green.

@@ -36,7 +36,7 @@ students get nothing.
 | `params.ts` | `SignalParams = { issuerRecurrenceThreshold: number }`, `DEFAULT_SIGNAL_PARAMS = { issuerRecurrenceThreshold: 3 }` (X3; roadmap #8 replaces the source, RNF-14 not met) |
 | `timing.ts` | RN-07 |
 | `rest-dates.ts` | RN-09, RN-10 (interval union helper) |
-| `issuer.ts` | `normalizeIssuer` (NFD, strip marks, lowercase, punctuation to space, collapse whitespace) + RN-14 |
+| `issuer.ts` | `normalizeIssuer` (NFD, strip marks, lowercase, remove punctuation, collapse whitespace, trim) + RN-14 |
 | `repeated-document.ts` | RN-26 (S2) |
 | `verdict.ts` | `suggestVerdict(results)` |
 | `evaluate.ts` | `evaluateSignals(input, params, calendar): SignalReport` |
