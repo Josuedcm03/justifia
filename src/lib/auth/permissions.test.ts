@@ -2,18 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   canAssignRole,
-  canCoordinate,
   canCreateUsers,
   canImportCatalog,
   canManageCatalog,
-  canReviewRequests,
   isCarreraScopedRole,
   rolesAsignablesPor,
   rolesQueCreanUsuarios,
   rolesQueGestionanCatalogo,
   rolesVisibles,
   rolesVisiblesPara,
-  signalsAccess,
 } from "@/lib/auth/permissions";
 import * as perms from "@/lib/auth/permissions";
 import {
@@ -538,34 +535,5 @@ describe("isCarreraScopedRole", () => {
 
   it("is false for a missing role", () => {
     expect(isCarreraScopedRole(undefined)).toBe(false);
-  });
-});
-
-describe("signalsAccess (validation-signals, RNF-01)", () => {
-  it.each([
-    ["secretaria", "full"],
-    ["coordinacion", "outcomes"],
-    ["estudiante", null],
-    ["docente", null],
-    ["administrador", null],
-  ] as const)("%s gets %s", (rol, expected) => {
-    expect(signalsAccess(rol)).toBe(expected);
-  });
-
-  it("covers every role and denies a missing one", () => {
-    expect(rolesUsuario.map((rol) => signalsAccess(rol))).toHaveLength(5);
-    expect(signalsAccess(undefined)).toBeNull();
-  });
-
-  it("gives the full signals only to the roles that review requests", () => {
-    for (const rol of rolesUsuario) {
-      expect(signalsAccess(rol) === "full").toBe(canReviewRequests(rol));
-    }
-  });
-
-  it("gives the outcomes only to the roles that coordinate", () => {
-    for (const rol of rolesUsuario) {
-      expect(signalsAccess(rol) === "outcomes").toBe(canCoordinate(rol));
-    }
   });
 });

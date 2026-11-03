@@ -211,9 +211,9 @@ export async function finalizeDocument(
   }
   const claimId = claim.documentId;
 
-  let inspection: StoredFileFingerprint;
+  let inspection: StoredFileInspection;
   try {
-    inspection = await fingerprintStoredFile(pathname, store);
+    inspection = await inspectStoredFile(pathname, store);
   } catch (error) {
     await db.delete(documentoRespaldo).where(eq(documentoRespaldo.id, claimId));
     throw error;
@@ -229,18 +229,12 @@ export async function finalizeDocument(
       store,
     );
   }
-  const { tipo, size, sha256 } = inspection;
+  const { tipo, size } = inspection;
 
   await db.transaction(async (tx) => {
     await tx
       .update(documentoRespaldo)
-      .set({
-        estado: "valido",
-        tipoDetectado: tipo,
-        tamanoBytes: size,
-        // The only place the fingerprint is ever written (RN-26).
-        huellaSha256: sha256,
-      })
+      .set({ estado: "valido", tipoDetectado: tipo, tamanoBytes: size })
       .where(eq(documentoRespaldo.id, claimId));
     await insertAuditEvents(tx, userId, [
       documentAttachedEvent({
@@ -283,42 +277,6 @@ export async function inspectStoredFile(
     ok: true,
     tipo: detectSignature(head.head) as TipoDetectado,
     size: head.size,
-  };
-}
-
-/** What finalize learns from its single read of a stored file (RN-26, X1). */
-export type StoredFileFingerprint =
-  | { ok: true; tipo: TipoDetectado; size: number; sha256: string }
-  | { ok: false; reason: InspectionRefusal };
-
-/**
- * The finalize read: ONE pass over the stored bytes feeds the signature check,
- * the size check (on the counted size, never the blob metadata) and the
- * SHA-256 stored with the document. A missing file is `not_found`; a store or
- * stream failure throws, and the caller drops its claim, so no record is ever
- * created without a fingerprint.
- */
-export async function fingerprintStoredFile(
-  pathname: string,
-  store: DocumentStore,
-): Promise<StoredFileFingerprint> {
-  const digest = await store.readDigest(pathname, {
-    headBytes: SIGNATURE_HEAD_BYTES,
-    maxBytes: MAX_DOCUMENT_BYTES,
-  });
-  if (digest === null) return { ok: false, reason: "not_found" };
-
-  const refusal = refusalFor(digest);
-  if (refusal !== null) return { ok: false, reason: refusal };
-  // Inside the cap the store always hashes; anything else is an unreadable file.
-  if (digest.sha256 === null) {
-    throw new Error("Stored file read without a fingerprint");
-  }
-  return {
-    ok: true,
-    tipo: detectSignature(digest.head) as TipoDetectado,
-    size: digest.size,
-    sha256: digest.sha256,
   };
 }
 

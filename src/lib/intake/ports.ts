@@ -2,29 +2,12 @@
 // on these interfaces only; adapters live in `./adapters`. The upload-token
 // protocol is vendor specific and is NOT part of `DocumentStore` (A4).
 
-export type StoredDigest = {
-  size: number;
-  head: Uint8Array;
-  sha256: string | null;
-};
-
 export interface DocumentStore {
   /** First `bytes` bytes and total size of a stored file, or null if missing. */
   readHead(
     pathname: string,
     bytes: number,
   ): Promise<{ size: number; head: Uint8Array } | null>;
-  /**
-   * One read of a stored file for finalize (validation-signals, X1): the first
-   * `headBytes` bytes, the size COUNTED from the stream (never the blob
-   * metadata) and the SHA-256 of the whole content as 64 lower-case hex, or
-   * `null` once the stream went past `maxBytes` (then the read is cancelled
-   * and `size` is only a lower bound). `null` result when the file is missing.
-   */
-  readDigest(
-    pathname: string,
-    options: { headBytes: number; maxBytes: number },
-  ): Promise<StoredDigest | null>;
   delete(pathnames: readonly string[]): Promise<void>;
   list(
     prefix: string,

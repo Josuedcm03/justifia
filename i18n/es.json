@@ -1371,54 +1371,6 @@
       },
       "degraded": "No se pudieron cargar los datos extraídos. El resto de la solicitud se muestra completo."
     },
-    "signals": {
-      "title": "Señales de validación",
-      "note": "Sugerencia automática para apoyar su revisión; no cambia el estado de la solicitud ni reemplaza su decisión.",
-      "coordinationNote": "Sugerencia automática para apoyar su respuesta; no cambia el estado de la solicitud.",
-      "degraded": "No se pudieron calcular las señales de validación. El resto de la solicitud se muestra completo.",
-      "verdict": {
-        "line": "Sugerencia: {verdict}",
-        "review_carefully": "Revisar con cuidado",
-        "no_alerts": "Sin alertas",
-        "inconclusive": "No concluyente"
-      },
-      "names": {
-        "rn07": "Presentación tardía",
-        "rn09": "Fechas incoherentes",
-        "rn10": "Fechas no cubiertas",
-        "rn14": "Reincidencia",
-        "rn26": "Documento repetido"
-      },
-      "outcomes": {
-        "present": "Señal presente",
-        "absent": "Sin señal",
-        "not_evaluable": "No evaluable"
-      },
-      "notEvaluable": {
-        "title": "Señales no evaluadas",
-        "description": "No se pudo comprobar lo siguiente, por lo que la sugerencia puede ser incompleta."
-      },
-      "reasons": {
-        "calendar_not_covering_year": "El calendario de días no laborables no cubre el año del plazo.",
-        "extraction_pending": "La lectura automática de un documento aún no termina.",
-        "extraction_failed": "No se pudo leer un documento automáticamente.",
-        "field_missing": "A un documento le falta un dato necesario.",
-        "days_only": "El reposo indica solo una cantidad de días, sin fechas.",
-        "no_period": "Las asignaturas no corresponden a un único período académico.",
-        "no_eligible_documents": "La solicitud no tiene documentos vigentes del estudiante.",
-        "no_fingerprint": "Los documentos vigentes se guardaron antes de que existiera la detección de documentos repetidos, por lo que no se pueden comparar."
-      },
-      "evidence": {
-        "timing": "Presentada el {presented}; el plazo vence el {deadline}.",
-        "incoherent": "Emisión el {issued}; el reposo termina el {end}.",
-        "uncovered": "Ausencia: {absence}. Reposos con fecha: {covered}.",
-        "uncoveredNone": "Ausencia: {absence}. Ningún reposo con fecha.",
-        "recurrence": "Solicitudes con el emisor «{issuer}» en el período: {count} (umbral: {threshold}).",
-        "repeated": "Un documento es idéntico a uno de una solicitud anterior.",
-        "repeatedSee": "Solicitudes anteriores con el mismo documento:",
-        "requestLink": "Solicitud {id}"
-      }
-    },
     "remission": {
       "title": "Aviso a los docentes",
       "fields": {

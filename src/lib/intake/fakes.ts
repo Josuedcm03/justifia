@@ -1,5 +1,4 @@
 import { permissiveSchedule } from "@/lib/intake/adapters/permissive-schedule";
-import { digestStream } from "@/lib/intake/stream-digest";
 import type {
   DocumentStore,
   GroupScheduleProvider,
@@ -28,20 +27,6 @@ export function createFakeDocumentStore(): FakeDocumentStore {
       const file = files.get(pathname);
       if (!file) return null;
       return { size: file.bytes.length, head: file.bytes.slice(0, bytes) };
-    },
-    async readDigest(pathname, { headBytes, maxBytes }) {
-      const file = files.get(pathname);
-      if (!file) return null;
-      return digestStream(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(file.bytes);
-            controller.close();
-          },
-        }),
-        headBytes,
-        maxBytes,
-      );
     },
     async delete(pathnames) {
       for (const pathname of pathnames) files.delete(pathname);
