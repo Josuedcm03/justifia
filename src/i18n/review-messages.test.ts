@@ -654,6 +654,17 @@ describe("review signals messages (validation-signals, RNF-12)", () => {
     );
   });
 
+  it("words the coordination note as support for the answer, without the secretary's decision", () => {
+    expect(es.review.signals.coordinationNote).toBe(
+      "Sugerencia automática para apoyar su respuesta; no cambia el estado de la solicitud.",
+    );
+    expect(en.review.signals.coordinationNote).toBe(
+      "Automatic suggestion to support your answer; it does not change the state of the request.",
+    );
+    expect(es.review.signals.coordinationNote).not.toMatch(/decisi/i);
+    expect(en.review.signals.coordinationNote).not.toMatch(/decision/i);
+  });
+
   it("is neutral professional Spanish, with no voseo", () => {
     const text = leaves(es.review.signals)
       .map(([, value]) => String(value))

@@ -1374,6 +1374,7 @@
     "signals": {
       "title": "Señales de validación",
       "note": "Sugerencia automática para apoyar su revisión; no cambia el estado de la solicitud ni reemplaza su decisión.",
+      "coordinationNote": "Sugerencia automática para apoyar su respuesta; no cambia el estado de la solicitud.",
       "degraded": "No se pudieron calcular las señales de validación. El resto de la solicitud se muestra completo.",
       "verdict": {
         "line": "Sugerencia: {verdict}",
