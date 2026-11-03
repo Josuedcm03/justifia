@@ -1,0 +1,3 @@
+ALTER TABLE "DocumentoRespaldo" ADD COLUMN "HuellaSha256" char(64);--> statement-breakpoint
+CREATE INDEX "IX_Documento_Huella" ON "DocumentoRespaldo" USING btree ("HuellaSha256") WHERE "DocumentoRespaldo"."HuellaSha256" IS NOT NULL;--> statement-breakpoint
+ALTER TABLE "DocumentoRespaldo" ADD CONSTRAINT "CK_Documento_Huella" CHECK ("DocumentoRespaldo"."HuellaSha256" IS NULL OR ("DocumentoRespaldo"."Estado" = 'valido' AND "DocumentoRespaldo"."HuellaSha256" ~ '^[0-9a-f]{64}$'));
