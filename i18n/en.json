@@ -1374,6 +1374,7 @@
     "signals": {
       "title": "Validation signals",
       "note": "Automatic suggestion to support your review; it does not change the state of the request or replace your decision.",
+      "coordinationNote": "Automatic suggestion to support your answer; it does not change the state of the request.",
       "degraded": "The validation signals could not be calculated. The rest of the request is shown in full.",
       "verdict": {
         "line": "Suggestion: {verdict}",

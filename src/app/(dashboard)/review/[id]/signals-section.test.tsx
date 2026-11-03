@@ -271,6 +271,69 @@ describe("SignalsSection evidence for the secretary", () => {
   });
 });
 
+describe("SignalsSection for coordination (Signals UI i18n)", () => {
+  const COORDINATION_VIEW: SignalView = {
+    verdict: "review_carefully",
+    results: [
+      { signal: "rn07", outcome: "present" },
+      { signal: "rn14", outcome: "not_evaluable", reason: "no_period" },
+      { signal: "rn26", outcome: "present" },
+    ],
+    notEvaluable: [{ signal: "rn14", reason: "no_period" }],
+  };
+
+  function showForCoordination(locale: "es" | "en" = "en") {
+    return renderIntl(
+      <SignalsSection
+        signals={{ data: COORDINATION_VIEW, degraded: false }}
+        audience="coordination"
+      />,
+      locale,
+    );
+  }
+
+  it("states that the suggestion supports the answer and says nothing of a decision", () => {
+    showForCoordination();
+
+    expect(section()).toHaveTextContent(en.signals.coordinationNote);
+    expect(section()).not.toHaveTextContent(en.signals.note);
+    expect(section()).not.toHaveTextContent(/decision/i);
+  });
+
+  it("shows outcomes in words, the reason label and the verdict, and no number or link for RN-26", () => {
+    showForCoordination();
+
+    expect(within(section()).getByRole("status")).toHaveTextContent(
+      "Suggestion: Review carefully",
+    );
+    expect(fact(en.signals.names.rn07).textContent).toBe(
+      en.signals.outcomes.present,
+    );
+    expect(fact(en.signals.names.rn26).textContent).toBe(
+      en.signals.outcomes.present,
+    );
+    expect(section()).toHaveTextContent(en.signals.reasons.no_period);
+    expect(within(section()).queryAllByRole("link")).toHaveLength(0);
+    expect(section()).not.toHaveTextContent(/Request \d|earlier request/);
+  });
+
+  it("speaks Spanish with the coordination note", () => {
+    showForCoordination("es");
+
+    const root = screen.getByRole("region", { name: es.signals.title });
+    expect(root).toHaveTextContent(es.signals.coordinationNote);
+    expect(root).toHaveTextContent("Sugerencia: Revisar con cuidado");
+    expect(root).not.toHaveTextContent(/decisi/i);
+  });
+
+  it("keeps the secretary note by default", () => {
+    show(COORDINATION_VIEW);
+
+    expect(section()).toHaveTextContent(en.signals.note);
+    expect(section()).not.toHaveTextContent(en.signals.coordinationNote);
+  });
+});
+
 describe("SignalsSection fail-soft (Read failure)", () => {
   it("shows only the degraded notice, with no verdict and no entries", () => {
     show(null, { degraded: true });

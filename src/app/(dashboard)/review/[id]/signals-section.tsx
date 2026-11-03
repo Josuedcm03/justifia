@@ -169,8 +169,11 @@ function NotEvaluableList({
 
 export function SignalsSection({
   signals,
+  audience = "secretary",
 }: {
   signals: { data: SignalView | null; degraded: boolean };
+  /** The coordinator answers an escalation; only the secretary decides. */
+  audience?: "secretary" | "coordination";
 }) {
   const t = useTranslations("review.signals");
   const { data } = signals;
@@ -191,7 +194,7 @@ export function SignalsSection({
             {t("verdict.line", { verdict: t(`verdict.${data.verdict}`) })}
           </p>
           <p className="text-muted-foreground max-w-prose text-sm">
-            {t("note")}
+            {t(audience === "coordination" ? "coordinationNote" : "note")}
           </p>
           <dl className="grid gap-4 sm:grid-cols-2">
             {data.results.map((result) => (
