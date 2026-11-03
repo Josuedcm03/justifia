@@ -211,7 +211,9 @@ export function earlierMatchesQuery(input: {
     .selectDistinct({
       solicitudId: sql<
         number | null
-      >`case when ${requestInScope(input.referenceScope)} then ${solicitud.id} end`,
+      >`case when ${requestInScope(input.referenceScope)} then ${solicitud.id} end`
+        // A raw bigint comes back from the driver as a string; NULL stays NULL.
+        .mapWith(Number),
     })
     .from(documentoRespaldo)
     .innerJoin(solicitud, eq(solicitud.id, documentoRespaldo.solicitudId))
