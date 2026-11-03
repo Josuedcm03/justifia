@@ -1,6 +1,6 @@
 # Apply progress: Validation Signals
 
-Cumulative across slices: S1 (36 checkboxes) and S2 (27 checkboxes, below). S3 and the owner-run Phase 10 are untouched.
+Cumulative across slices: S1 (36 checkboxes), S2 (27 checkboxes) and S3 (13 checkboxes, at the end). The owner-run Phase 10 and Phase 13 are untouched.
 
 ## Slice S1 (branch `feat/validation-signals-s1-signals`), 2026-11-02
 
@@ -128,3 +128,61 @@ Generated and excluded: 2337 lines (0013 SQL 3, snapshot 2327, journal 7). Produ
 - 0013 is generated and untested against Postgres: the CHECK, the partial index and the EXPLAIN of the lookup are covered by SQL-reading tests and by the opt-in suite, which only runs in Phase 10 on a disposable branch.
 - Hashing and cross-request comparison are pending the UAM legal review (PRIV); fictitious data only.
 - RN-26 matches exact bytes only; documents recorded before 0013 have a NULL fingerprint and never match (no backfill).
+
+## Slice S3 (branch `feat/validation-signals-s3-coordination`, cut from the S2 head 1359098), 2026-11-02
+
+Status: tasks 11.1-11.7, 12.1-12.6 done (13 checkboxes); 12.7 measured, the PR is for the orchestrator. Phase 10 (owner-run), Phase 13 and every `[OWNER]` and `[CONFIRM]` step were not started. Strict TDD (vitest). No database command of any kind was run and no `.env*` file was opened, printed or edited.
+
+### Commits (tests and code together, no AI attribution)
+
+| Hash | Message | Tasks |
+|------|---------|-------|
+| 47470eb | feat(validation-signals): show signal outcomes to coordination without evidence | 11.2-11.7 |
+| 5a4cd41 | test(validation-signals): pin that students never see signals or fingerprints | 12.1 |
+| 3a3a76d | docs(validation-signals): add RN-26 to the requirements and close the roadmap and pendientes entries | 12.2-12.5 |
+
+### TDD cycle evidence (S3)
+
+| Task | Test file | Layer | RED | GREEN | Triangulate | Refactor |
+|------|-----------|-------|-----|-------|-------------|----------|
+| 11.2-11.3 | `src/lib/signals/coordination-view.test.ts` | Unit (pure) | module missing | 10 of 10 | all five signals, three verdicts, several reasons, RN-26 with 0 / 1 / 2 references, a leaky report with undeclared fields | none needed |
+| 11.6 | `src/i18n/review-messages.test.ts`, `signals-section.test.tsx` | Unit (Testing Library) | 3 failed (key and prop missing) | 98 passed | es and en, coordination vs secretary note, no link or number for RN-26, no "decision" word | none needed |
+| 11.4-11.5 | `coordination/[id]/page.test.tsx`, `coordination/structure.test.ts` | Unit (page with mocked data) | 9 failed (the pin of the allowlist failed after the page was wired) | 155 coordination tests passed | open escalation, notice, other career or draft or unknown id, no career, malformed id, other role, degraded, throwing, es, order, one audit row, source pins | allowlist extended with a dedicated pin |
+| 12.1 | `requests/no-signals.test.ts`, `documentos.test.ts` | Structural scan, render, db double | guard (passes at write); mutation check made the scan fail | 17 of 17 and 64 of 64 | pages in both locales and four states, list, detail keys, other student vs unknown id, upload chain, student-facing texts | none needed |
+
+### Gates (S3 head)
+
+- Targeted: `npx vitest run src/lib/signals "src/app/(dashboard)" src/i18n` passed (113 files, 3003 tests at unit 7).
+- `npm run typecheck`: 0 errors.
+- `npm test` (dummy `DATABASE_URL` `postgres://u:p@127.0.0.1:9/x`): 320 files, 7232 tests passed. The first full run had one failure, `catalog/import/import-form.test.tsx` "shows the summary and the credentials download after the apply" (822 ms, a timing flake while other commands ran); it passes alone (39 of 39) and the rerun of the whole suite was green.
+- `npx eslint src` (prettier `endOfLine: auto`): clean. `prettier --check --end-of-line auto src i18n`: clean. The docs files do not pass `prettier --check` and did not before this slice (the baseline versions fail the same way); the gate scope is `src i18n`.
+- `npm run build` (dummy `DATABASE_URL`): ok.
+- No database command of any kind was run.
+
+### Size (task 12.7) against the S2 head 1359098, openspec excluded
+
+| Scope | Added | Production | Tests | Docs |
+|-------|------:|-----------:|------:|-----:|
+| S3 total | 1232 | 83 | 1101 | 48 |
+
+Production lines count against the 1500 budget (owner rule): 83, one PR, no split. The forecast was ~400 authored; tests are 89% of the added lines (the student guard alone is 550).
+
+### Decisions and deviations
+
+- Branch name: the orchestrator cut `feat/validation-signals-s3-coordination`, not `-docs` (task 11.1).
+- Unit 8 went in two commits (guard tests, then docs) instead of the single docs commit named in 12.5, so each commit holds one kind of change.
+- Coordination note: the shared `review.signals.note` ends "replace your decision". The coordinator answers, not decides, and the existing coordination page test forbids the word "decision" in the page. One new key, `review.signals.coordinationNote` (es and en), and a `SignalsSection` prop `audience` ("secretary" default, "coordination") select it. This is the only coordination-only text.
+- Placement: the section sits after the documents and before the answer form on the coordination detail.
+- `coordination/structure.test.ts` pinned that the coordinator surface imports no secretary data module. `@/lib/data/signals` joined its allowlist, with a new pin: only the detail page imports it, with `referenceScope: { kind: "none" }`, through `toCoordinationView`.
+- Local fail-soft wrapper in the coordination page, as in the review page (the loader never throws; the wrapper keeps even an unexpected throw from taking the page down and logs the error name only).
+- `toCoordinationView` copies fields by name, so a field added to the report later stays out of the coordinator view until someone decides it may go in.
+- "Answer unaffected" has no signals import to test in the answer path: the display-only scan (S1/S2) already pins that `coordination/[id]/actions.ts` and `escalation-answer.ts` import nothing from the signals; the page test shows the form is unchanged with RN-26 `present`.
+- 12.1: the finalize-equality test lives in `documentos.test.ts` (the db double is there); an exact statement script proves a file identical to an earlier request's issues no extra statement and gives the same result and audit as any other file. The correction submit does not read fingerprints (`solicitud-correction.ts` is in the upload-chain scan).
+- Docs: RN-26 row and changelog row only (`git diff docs/requirements.md` is two added lines); recount 16 RF, 14 RNF, 26 RN, marked as pending sync with the thesis matrix. Roadmap row 5 is `en curso` with coverage RF-05 (a) a (d); RN-07, RN-09, RN-10, RN-14, RN-15, RN-26, and a note for what remains. Pendientes item 1 records what shipped, the limits, PRIV, the 2026-11-03 data path and NS-12.
+- The pendientes entry names RN-26 "documento repetido" (the UI name) and says it is what the 2026-10-28 note called "documento reaparecido".
+
+### Risks
+
+- The coordination section renders outcomes only; the owner walk (13.2) is the first check of what the coordinator sees against a real database.
+- Everything in the S3 slice is read-only and fail-soft; reverting S3 leaves S1 and S2 intact (rollback boundary: `coordination-view.ts`, coordination page wiring, the guard tests and the docs commit).
+- PRIV (legal review of hashing and cross-request comparison) and the production decision on 0013 (10.9) are still open and block the tracker merge.
