@@ -17,14 +17,16 @@ import {
   StudentSection,
   SubjectsSection,
 } from "@/app/(dashboard)/review/[id]/request-sections";
+import { SignalsSection } from "@/app/(dashboard)/review/[id]/signals-section";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
-import { rolesRevisores } from "@/lib/auth/permissions";
+import { rolesRevisores, signalsAccess } from "@/lib/auth/permissions";
 import { listExtractions, type ExtractionList } from "@/lib/data/extraction";
 import { listRemissions } from "@/lib/data/remision";
 import { recordRequestRead } from "@/lib/data/request-reads";
 import { resolveRequestScope } from "@/lib/data/request-scope";
+import { loadSignals, type SignalsRead } from "@/lib/data/signals";
 import { coordinationAccountsOf } from "@/lib/data/solicitud-escalation";
 import {
   getRequestDetail,
@@ -43,6 +45,7 @@ import {
   type DecisionKind,
 } from "@/lib/intake/decision-templates";
 import { diffRevision, type RevisionDiff } from "@/lib/intake/revision-diff";
+import type { RequestScope } from "@/lib/intake/request-scope";
 import { isVisibleState } from "@/lib/intake/states";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
@@ -110,6 +113,27 @@ async function loadExtractions(solicitudId: number): Promise<ExtractionList> {
 }
 
 /**
+ * The validation-signals read is fail-soft (RF-05): `loadSignals` already turns
+ * a failure into a degraded result, and this guard keeps even an unexpected
+ * throw from taking the rest of the detail down. Only the error name is logged
+ * (RNF-04). It writes nothing and adds no audit row (RNF-06).
+ */
+async function loadSignalsSafely(
+  solicitudId: number,
+  referenceScope: RequestScope,
+): Promise<SignalsRead> {
+  try {
+    return await loadSignals({ solicitudId, referenceScope });
+  } catch (error) {
+    console.error("signals_read_failed", {
+      solicitudId,
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return { data: null, degraded: true };
+  }
+}
+
+/**
  * The staff detail (RF-06, RF-08 b, RNF-01). The audited read is written here,
  * in the page body, after authorisation and after the data loaded and every
  * derived value was built, before the JSX is returned (SR-11). An id the caller
@@ -170,6 +194,13 @@ export default async function ReviewDetailPage({
   // The extracted data is read with the rest, before the single audited read;
   // showing it writes no audit row of its own (RF-11, RNF-06).
   const extractions = await loadExtractions(detail.id);
+  // The validation signals are read with the rest, before the single audited
+  // read; showing them writes no audit row of their own and decides nothing
+  // (RF-05, RN-15). Only a role with full access gets them.
+  const signals =
+    signalsAccess(user.rol) === "full"
+      ? await loadSignalsSafely(detail.id, scope)
+      : null;
 
   await recordRequestRead(actorId, detail.id, detail.estado);
 
@@ -246,6 +277,7 @@ export default async function ReviewDetailPage({
           requestState={detail.estado}
           configured={isExtractionConfigured()}
         />
+        {signals ? <SignalsSection signals={signals} /> : null}
         {remissions ? (
           <RemissionSection
             remissions={remissions}

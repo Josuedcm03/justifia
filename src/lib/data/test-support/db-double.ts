@@ -126,6 +126,8 @@ export function createDbDouble(script: readonly Step[]) {
 
   const handle = {
     select: (selection?: unknown) => statement("select", undefined, selection),
+    selectDistinct: (selection?: unknown) =>
+      statement("select", undefined, selection),
     insert: (table: unknown) => statement("insert", table),
     update: (table: unknown) => statement("update", table),
     delete: (table: unknown) => statement("delete", table),
