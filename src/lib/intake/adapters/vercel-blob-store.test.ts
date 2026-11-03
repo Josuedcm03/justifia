@@ -108,6 +108,77 @@ describe("createVercelBlobStore", () => {
     });
   });
 
+  describe("readDigest", () => {
+    it("reads private, uncached, with the token, and digests the one stream", async () => {
+      getMock.mockResolvedValue(
+        // Metadata says 1 byte; only the counted stream size may be trusted.
+        found(streamOf([0x61], [0x62, 0x63]), 1),
+      );
+      const result = await createVercelBlobStore().readDigest(
+        "intake/1/a.pdf",
+        { headBytes: 2, maxBytes: 100 },
+      );
+
+      expect(getMock).toHaveBeenCalledTimes(1);
+      expect(getMock).toHaveBeenCalledWith("intake/1/a.pdf", {
+        access: "private",
+        useCache: false,
+        token: "vercel_blob_rw_test",
+      });
+      expect(result?.size).toBe(3);
+      expect(Array.from(result!.head)).toEqual([0x61, 0x62]);
+      expect(result?.sha256).toBe(
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      );
+    });
+
+    it("returns no hash and cancels the stream over maxBytes", async () => {
+      const cancelled = vi.fn();
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          controller.enqueue(new Uint8Array(4));
+        },
+        cancel: cancelled,
+      });
+      getMock.mockResolvedValue(found(stream, 4));
+
+      const result = await createVercelBlobStore().readDigest(
+        "intake/1/a.pdf",
+        { headBytes: 2, maxBytes: 10 },
+      );
+
+      expect(result?.sha256).toBeNull();
+      expect(result!.size).toBeGreaterThan(10);
+      expect(cancelled).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns null when the blob is missing or the answer is not 200", async () => {
+      const store = createVercelBlobStore();
+      getMock.mockResolvedValueOnce(null);
+      expect(
+        await store.readDigest("intake/1/x.pdf", { headBytes: 2, maxBytes: 9 }),
+      ).toBeNull();
+
+      getMock.mockResolvedValueOnce({
+        ...found(streamOf([1]), 1),
+        statusCode: 304,
+      });
+      expect(
+        await store.readDigest("intake/1/x.pdf", { headBytes: 2, maxBytes: 9 }),
+      ).toBeNull();
+    });
+
+    it("propagates a failure of the store", async () => {
+      getMock.mockRejectedValue(new Error("store down"));
+      await expect(
+        createVercelBlobStore().readDigest("intake/1/x.pdf", {
+          headBytes: 2,
+          maxBytes: 9,
+        }),
+      ).rejects.toThrow("store down");
+    });
+  });
+
   describe("stream", () => {
     it("returns the private body", async () => {
       const body = streamOf([1]);

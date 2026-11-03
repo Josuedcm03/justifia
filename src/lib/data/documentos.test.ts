@@ -1,4 +1,8 @@
 // @vitest-environment node
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,6 +46,15 @@ const PDF = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37];
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00];
 const JPEG = [0xff, 0xd8, 0xff, 0xe0, 0x00];
 const EXE = [0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00];
+
+const sha256Of = (bytes: readonly number[]) =>
+  createHash("sha256").update(new Uint8Array(bytes)).digest("hex");
+const HASH = "a".repeat(64);
+
+/** What the statements wrote (inserted values and updated columns), as text. */
+function writtenValues(double: ReturnType<typeof use>): string {
+  return JSON.stringify(double.log.map((step) => [step.values, step.set]));
+}
 
 function use(script: Step[]) {
   const double = createDbDouble(script);
@@ -204,6 +217,7 @@ describe("documentos data layer", () => {
           estado: "valido",
           tipoDetectado: tipo,
           tamanoBytes: bytes.length,
+          huellaSha256: sha256Of(bytes),
         });
         expect(insertAuditMock).toHaveBeenCalledTimes(1);
         const [, actorId, events] = insertAuditMock.mock.calls[0];
@@ -261,9 +275,10 @@ describe("documentos data layer", () => {
       use([lookupDraft, ...claim(0), dropClaim]);
       const store = createFakeDocumentStore();
       store.seed(PATH, PDF);
-      store.readHead = vi.fn().mockResolvedValue({
+      store.readDigest = vi.fn().mockResolvedValue({
         size: MAX_DOCUMENT_BYTES + 1,
         head: new Uint8Array(PDF),
+        sha256: null,
       });
       const deleteSpy = vi.spyOn(store, "delete");
 
@@ -274,12 +289,35 @@ describe("documentos data layer", () => {
       expect(deleteSpy).toHaveBeenCalledWith([PATH]);
     });
 
+    it("judges the size on the counted stream, never on the blob metadata", async () => {
+      use([lookupDraft, ...claim(0), dropClaim]);
+      const store = createFakeDocumentStore();
+      store.seed(PATH, PDF);
+      // The metadata says a few bytes; the stream is over the cap.
+      store.readHead = vi.fn().mockResolvedValue({
+        size: PDF.length,
+        head: new Uint8Array(PDF),
+      });
+      store.readDigest = vi.fn().mockResolvedValue({
+        size: MAX_DOCUMENT_BYTES + 1,
+        head: new Uint8Array(PDF),
+        sha256: null,
+      });
+
+      expect(await finalizeDocument(input(), store)).toEqual({
+        ok: false,
+        reason: "too_large",
+      });
+      expect(store.readHead).not.toHaveBeenCalled();
+    });
+
     it("accepts a file of exactly 10 MiB", async () => {
       use([lookupDraft, ...claim(0), accept]);
       const store = createFakeDocumentStore();
-      store.readHead = vi.fn().mockResolvedValue({
+      store.readDigest = vi.fn().mockResolvedValue({
         size: MAX_DOCUMENT_BYTES,
         head: new Uint8Array(PDF),
+        sha256: HASH,
       });
 
       expect(await finalizeDocument(input(), store)).toMatchObject({
@@ -399,12 +437,27 @@ describe("documentos data layer", () => {
     it("drops the pendiente claim and rethrows when the store cannot be read", async () => {
       const double = use([lookupDraft, ...claim(0), dropClaim]);
       const store = createFakeDocumentStore();
-      store.readHead = vi.fn().mockRejectedValue(new Error("store down"));
+      store.readDigest = vi.fn().mockRejectedValue(new Error("store down"));
 
       await expect(finalizeDocument(input(), store)).rejects.toThrow(
         "store down",
       );
       expect(double.log.at(-1)?.kind).toBe("delete");
+      expect(insertAuditMock).not.toHaveBeenCalled();
+    });
+
+    it("fails the same way, with no record and no hash, when the stored stream breaks while hashing", async () => {
+      const double = use([lookupDraft, ...claim(0), dropClaim]);
+      const store = createFakeDocumentStore();
+      store.readDigest = vi
+        .fn()
+        .mockRejectedValue(new Error("connection reset"));
+
+      await expect(finalizeDocument(input(), store)).rejects.toThrow(
+        "connection reset",
+      );
+      expect(double.log.at(-1)?.kind).toBe("delete");
+      expect(writtenValues(double)).not.toContain("huellaSha256");
       expect(insertAuditMock).not.toHaveBeenCalled();
     });
 
@@ -448,6 +501,125 @@ describe("documentos data layer", () => {
       expect(JSON.stringify(insertAuditMock.mock.calls[0][2])).not.toContain(
         "nnnn",
       );
+    });
+  });
+
+  describe("fingerprint at finalize (RN-26, supporting-documents)", () => {
+    it("stores the same fingerprint for the same bytes and a different one for re-saved bytes", async () => {
+      const store = createFakeDocumentStore();
+      const other = `intake/${DRAFT}/bbbbbbbb-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+      const third = `intake/${DRAFT}/cccccccc-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+      store.seed(PATH, PDF);
+      store.seed(other, PDF);
+      store.seed(third, [...PDF, 0x00]); // the same document, re-saved
+
+      const stored: string[] = [];
+      for (const pathname of [PATH, other, third]) {
+        const double = use([lookupDraft, ...claim(0), accept]);
+        expect(
+          await finalizeDocument(input({ pathname }), store),
+        ).toMatchObject({ ok: true });
+        const set = double.log.filter((s) => s.kind === "update")[1].set as {
+          huellaSha256: string;
+        };
+        stored.push(set.huellaSha256);
+      }
+
+      expect(stored[0]).toBe(stored[1]);
+      expect(stored[0]).toMatch(/^[0-9a-f]{64}$/);
+      expect(stored[2]).toMatch(/^[0-9a-f]{64}$/);
+      expect(stored[2]).not.toBe(stored[0]);
+    });
+
+    it.each([
+      ["a spoofed executable", EXE],
+      ["an empty file", []],
+    ] as const)("%s stores no fingerprint anywhere", async (_name, bytes) => {
+      const double = use([lookupDraft, ...claim(0), dropClaim]);
+      const store = createFakeDocumentStore();
+      store.seed(PATH, bytes);
+
+      expect(await finalizeDocument(input(), store)).toMatchObject({
+        ok: false,
+      });
+      expect(store.has(PATH)).toBe(false);
+      expect(writtenValues(double)).not.toContain("huellaSha256");
+      expect(JSON.stringify(insertAuditMock.mock.calls)).not.toMatch(
+        /[0-9a-f]{64}/,
+      );
+    });
+
+    it("never creates a record without a fingerprint: a digest with no hash inside the cap fails loud and drops the claim", async () => {
+      const double = use([lookupDraft, ...claim(0), dropClaim]);
+      const store = createFakeDocumentStore();
+      store.readDigest = vi.fn().mockResolvedValue({
+        size: PDF.length,
+        head: new Uint8Array(PDF),
+        sha256: null,
+      });
+
+      await expect(finalizeDocument(input(), store)).rejects.toThrow(
+        /fingerprint/i,
+      );
+      expect(double.log.at(-1)?.kind).toBe("delete");
+      expect(writtenValues(double)).not.toContain("huellaSha256");
+    });
+
+    it("gives a file identical to an earlier request's the result and audit of any other file, with no lookup of other requests (Correction and upload results)", async () => {
+      const store = createFakeDocumentStore();
+      const repeated = `intake/${DRAFT}/dddddddd-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+      const fresh = `intake/${DRAFT}/eeeeeeee-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+      store.seed(repeated, PDF); // the bytes of a document already stored elsewhere
+      store.seed(fresh, [...PDF.slice(0, -1), 0x38]); // same size, other bytes
+
+      const outcomes = [];
+      for (const pathname of [repeated, fresh]) {
+        insertAuditMock.mockClear();
+        // The script is exact: one statement more (a lookup of another
+        // request's documents) would find no scripted step and fail.
+        const double = use([lookupDraft, ...claim(0), accept]);
+        const result = await finalizeDocument(input({ pathname }), store);
+        outcomes.push({
+          result,
+          audit: insertAuditMock.mock.calls[0][2],
+          statements: double.log.map((s) => s.kind),
+          exhausted: double.exhausted,
+        });
+      }
+
+      expect(outcomes[0].result).toEqual({
+        ok: true,
+        documentId: 11,
+        tipo: "pdf",
+      });
+      expect(outcomes[0].result).toEqual(outcomes[1].result);
+      expect(outcomes[0].audit).toEqual(outcomes[1].audit);
+      expect(outcomes[0].statements).toEqual(outcomes[1].statements);
+      expect(outcomes.map((o) => o.exhausted)).toEqual([true, true]);
+    });
+
+    it("keeps the fingerprint out of the audit payload of an accepted document", async () => {
+      use([lookupDraft, ...claim(0), accept]);
+      const store = createFakeDocumentStore();
+      store.seed(PATH, PDF);
+
+      await finalizeDocument(input(), store);
+
+      expect(JSON.stringify(insertAuditMock.mock.calls)).not.toContain(
+        sha256Of(PDF),
+      );
+    });
+
+    it("is set only by finalizeDocument: one assignment in documentos.ts, none in other data modules", () => {
+      const dir = resolve(process.cwd(), "src/lib/data");
+      const own = readFileSync(resolve(dir, "documentos.ts"), "utf8");
+      expect(own.match(/huellaSha256:/g)).toHaveLength(1);
+
+      for (const file of ["special-format.ts", "solicitudes.ts"]) {
+        expect(readFileSync(resolve(dir, file), "utf8")).not.toContain(
+          "huellaSha256",
+        );
+      }
     });
   });
 

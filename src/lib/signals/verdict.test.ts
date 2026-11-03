@@ -32,19 +32,37 @@ describe("suggestVerdict table", () => {
   it.each([
     [
       "one present, others any",
-      [present("rn07"), absent("rn09"), unknown("rn10"), absent("rn14")],
+      [
+        present("rn07"),
+        absent("rn09"),
+        unknown("rn10"),
+        absent("rn14"),
+        absent("rn26"),
+      ],
       "review_carefully",
       ["rn10"],
     ],
     [
       "all absent",
-      [absent("rn07"), absent("rn09"), absent("rn10"), absent("rn14")],
+      [
+        absent("rn07"),
+        absent("rn09"),
+        absent("rn10"),
+        absent("rn14"),
+        absent("rn26"),
+      ],
       "no_alerts",
       [],
     ],
     [
       "none present, one not evaluable",
-      [absent("rn07"), absent("rn09"), unknown("rn10"), absent("rn14")],
+      [
+        absent("rn07"),
+        absent("rn09"),
+        unknown("rn10"),
+        absent("rn14"),
+        absent("rn26"),
+      ],
       "inconclusive",
       ["rn10"],
     ],
@@ -55,9 +73,10 @@ describe("suggestVerdict table", () => {
         unknown("rn09"),
         unknown("rn10"),
         unknown("rn14"),
+        unknown("rn26", "no_fingerprint"),
       ],
       "inconclusive",
-      ["rn07", "rn09", "rn10", "rn14"],
+      ["rn07", "rn09", "rn10", "rn14", "rn26"],
     ],
   ] as const)("%s", (_label, results, verdict, listed) => {
     const suggestion = suggestVerdict(results);
@@ -79,6 +98,38 @@ describe("suggestVerdict table", () => {
       { signal: "rn09", reason: "extraction_pending" },
       { signal: "rn10", reason: "extraction_failed" },
       { signal: "rn14", reason: "no_period" },
+    ]);
+  });
+
+  it("lets a repeated document beat a signal that could not be checked", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      unknown("rn09"),
+      unknown("rn10"),
+      unknown("rn14"),
+      present("rn26"),
+    ]);
+
+    expect(suggestion.verdict).toBe("review_carefully");
+    expect(suggestion.notEvaluable.map((e) => e.signal)).toEqual([
+      "rn09",
+      "rn10",
+      "rn14",
+    ]);
+  });
+
+  it("is inconclusive, never no_alerts, when only RN-26 has no fingerprint", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      absent("rn09"),
+      absent("rn10"),
+      absent("rn14"),
+      unknown("rn26", "no_fingerprint"),
+    ]);
+
+    expect(suggestion.verdict).toBe("inconclusive");
+    expect(suggestion.notEvaluable).toEqual([
+      { signal: "rn26", reason: "no_fingerprint" },
     ]);
   });
 

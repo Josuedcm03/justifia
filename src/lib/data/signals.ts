@@ -1,6 +1,15 @@
 import "server-only";
 
-import { and, eq, exists, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { QueryBuilder, alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -12,11 +21,13 @@ import {
   solicitudAsignatura,
 } from "@/db/schema";
 import { listExtractions } from "@/lib/data/extraction";
+import { requestInScope } from "@/lib/data/request-scope-sql";
 import { calendar as defaultCalendar } from "@/lib/intake/calendar";
 import type { NonWorkingDaysProvider } from "@/lib/intake/ports";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { evaluateSignals } from "@/lib/signals/evaluate";
 import { DEFAULT_SIGNAL_PARAMS, type SignalParams } from "@/lib/signals/params";
+import type { RepeatedDocumentInput } from "@/lib/signals/repeated-document";
 import type { IssuerHistoryRow, SignalReport } from "@/lib/signals/types";
 
 // The ONLY data module that reads the validation signals (RF-05, RN-15). It
@@ -35,8 +46,9 @@ export type SignalsRead = {
 export type LoadSignalsInput = {
   solicitudId: number;
   /**
-   * Scope that decides which other request numbers may be named. S1 has no
-   * reference to name (RN-26 arrives in S2), so it is accepted and unused.
+   * Scope that decides which other request numbers RN-26 may name (RNF-01):
+   * the secretary passes her own, the coordinator `{ kind: "none" }`. It is
+   * applied inside the database, so an out-of-scope id never leaves it.
    */
   referenceScope: RequestScope;
   params?: SignalParams;
@@ -155,6 +167,77 @@ export async function readIssuerHistory(input: {
 }
 
 /**
+ * Q5 (current side): the current student documents of R and their
+ * fingerprint, which is NULL for documents from before migration 0013. Current
+ * means valid, not retired, student-uploaded and not special format. The
+ * fingerprint is read only to look it up; it is reduced to "has one" before it
+ * reaches the evaluator and never leaves this module.
+ */
+export async function readCurrentFingerprints(
+  solicitudId: number,
+): Promise<{ documentId: number; huella: string | null }[]> {
+  return db
+    .select({
+      documentId: documentoRespaldo.id,
+      huella: documentoRespaldo.huellaSha256,
+    })
+    .from(documentoRespaldo)
+    .where(
+      and(
+        eq(documentoRespaldo.solicitudId, solicitudId),
+        eq(documentoRespaldo.estado, "valido"),
+        isNull(documentoRespaldo.retiradoEn),
+        isNull(documentoRespaldo.subidoPorId),
+        eq(documentoRespaldo.formatoEspecial, false),
+      ),
+    );
+}
+
+/**
+ * Q5 (other side, RN-26): the earlier presented requests holding a document
+ * with one of `hashes`, one row per request. Earlier means `(PresentadaEn, Id)`
+ * below R's. The other side takes any state (`rechazada` and `devuelta`
+ * included) and retired documents, and excludes staff uploads and special
+ * format. The request id is nulled IN SQL when the request is outside
+ * `referenceScope`, so an out-of-scope number never leaves the database; the
+ * coordinator's `none` renders the literal `false`. Names are never selected.
+ */
+export function earlierMatchesQuery(input: {
+  solicitudId: number;
+  hashes: readonly string[];
+  referenceScope: RequestScope;
+}) {
+  return db
+    .selectDistinct({
+      solicitudId: sql<
+        number | null
+      >`case when ${requestInScope(input.referenceScope)} then ${solicitud.id} end`,
+    })
+    .from(documentoRespaldo)
+    .innerJoin(solicitud, eq(solicitud.id, documentoRespaldo.solicitudId))
+    .where(
+      and(
+        inArray(documentoRespaldo.huellaSha256, [...input.hashes]),
+        ne(solicitud.id, input.solicitudId),
+        isNotNull(solicitud.presentadaEn),
+        sql`(${solicitud.presentadaEn}, ${solicitud.id}) < ${subquery
+          .select({ at: reference.presentadaEn, id: reference.id })
+          .from(reference)
+          .where(eq(reference.id, input.solicitudId))}`,
+        isNull(documentoRespaldo.subidoPorId),
+        eq(documentoRespaldo.formatoEspecial, false),
+        eq(documentoRespaldo.estado, "valido"),
+      ),
+    );
+}
+
+export async function readEarlierMatches(
+  input: Parameters<typeof earlierMatchesQuery>[0],
+): Promise<RepeatedDocumentInput["matches"][number][]> {
+  return earlierMatchesQuery(input);
+}
+
+/**
  * Reads and evaluates the signals of one request, computed on every read from
  * current data (SNAP). The caller has already proven the request is in its
  * scope. Never throws: a failure of any query, or a degraded extraction read,
@@ -162,6 +245,7 @@ export async function readIssuerHistory(input: {
  */
 export async function loadSignals({
   solicitudId,
+  referenceScope,
   params = DEFAULT_SIGNAL_PARAMS,
   calendar = defaultCalendar,
 }: LoadSignalsInput): Promise<SignalsRead> {
@@ -180,6 +264,15 @@ export async function loadSignals({
           })
         : [];
 
+    const current = await readCurrentFingerprints(solicitudId);
+    const hashes = [
+      ...new Set(current.flatMap((d) => (d.huella === null ? [] : [d.huella]))),
+    ];
+    const matches =
+      hashes.length === 0
+        ? []
+        : await readEarlierMatches({ solicitudId, hashes, referenceScope });
+
     return {
       degraded: false,
       data: evaluateSignals(
@@ -194,6 +287,13 @@ export async function loadSignals({
           })),
           periods,
           issuerHistory,
+          repeated: {
+            documents: current.map((d) => ({
+              documentId: d.documentId,
+              fingerprinted: d.huella !== null,
+            })),
+            matches,
+          },
         },
         params,
         calendar,

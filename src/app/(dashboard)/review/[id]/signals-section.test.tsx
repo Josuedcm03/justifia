@@ -1,10 +1,14 @@
 import { screen, within } from "@testing-library/react";
 import axe from "axe-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SignalsSection } from "@/app/(dashboard)/review/[id]/signals-section";
 import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
 import type { SignalView, Verdict } from "@/lib/signals/types";
+
+vi.mock("next/link", async () =>
+  (await import("@/app/(dashboard)/review/test-support")).linkDouble(),
+);
 
 // request-review: "Signals section and suggested verdict on the staff detail",
 // "Signals are fail-soft" and "Signals UI i18n" (RF-05, RN-15, RNF-12). The
@@ -267,6 +271,69 @@ describe("SignalsSection evidence for the secretary", () => {
   });
 });
 
+describe("SignalsSection for coordination (Signals UI i18n)", () => {
+  const COORDINATION_VIEW: SignalView = {
+    verdict: "review_carefully",
+    results: [
+      { signal: "rn07", outcome: "present" },
+      { signal: "rn14", outcome: "not_evaluable", reason: "no_period" },
+      { signal: "rn26", outcome: "present" },
+    ],
+    notEvaluable: [{ signal: "rn14", reason: "no_period" }],
+  };
+
+  function showForCoordination(locale: "es" | "en" = "en") {
+    return renderIntl(
+      <SignalsSection
+        signals={{ data: COORDINATION_VIEW, degraded: false }}
+        audience="coordination"
+      />,
+      locale,
+    );
+  }
+
+  it("states that the suggestion supports the answer and says nothing of a decision", () => {
+    showForCoordination();
+
+    expect(section()).toHaveTextContent(en.signals.coordinationNote);
+    expect(section()).not.toHaveTextContent(en.signals.note);
+    expect(section()).not.toHaveTextContent(/decision/i);
+  });
+
+  it("shows outcomes in words, the reason label and the verdict, and no number or link for RN-26", () => {
+    showForCoordination();
+
+    expect(within(section()).getByRole("status")).toHaveTextContent(
+      "Suggestion: Review carefully",
+    );
+    expect(fact(en.signals.names.rn07).textContent).toBe(
+      en.signals.outcomes.present,
+    );
+    expect(fact(en.signals.names.rn26).textContent).toBe(
+      en.signals.outcomes.present,
+    );
+    expect(section()).toHaveTextContent(en.signals.reasons.no_period);
+    expect(within(section()).queryAllByRole("link")).toHaveLength(0);
+    expect(section()).not.toHaveTextContent(/Request \d|earlier request/);
+  });
+
+  it("speaks Spanish with the coordination note", () => {
+    showForCoordination("es");
+
+    const root = screen.getByRole("region", { name: es.signals.title });
+    expect(root).toHaveTextContent(es.signals.coordinationNote);
+    expect(root).toHaveTextContent("Sugerencia: Revisar con cuidado");
+    expect(root).not.toHaveTextContent(/decisi/i);
+  });
+
+  it("keeps the secretary note by default", () => {
+    show(COORDINATION_VIEW);
+
+    expect(section()).toHaveTextContent(en.signals.note);
+    expect(section()).not.toHaveTextContent(en.signals.coordinationNote);
+  });
+});
+
 describe("SignalsSection fail-soft (Read failure)", () => {
   it("shows only the degraded notice, with no verdict and no entries", () => {
     show(null, { degraded: true });
@@ -331,6 +398,116 @@ describe("SignalsSection layout and accessibility", () => {
 
     // jsdom has no layout, so contrast cannot be computed here; the design
     // system measures the tokens and the owner walk covers 360 px.
+    const results = await axe.run(container, {
+      runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+      rules: { "color-contrast": { enabled: false } },
+    });
+
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    expect(results.passes.length).toBeGreaterThan(0);
+  });
+});
+
+describe("SignalsSection RN-26 (Reference to an earlier request)", () => {
+  const rn26 = (
+    references: number[],
+    outcome: "present" | "absent" = "present",
+  ): SignalView => ({
+    verdict: outcome === "present" ? "review_carefully" : "no_alerts",
+    results: [
+      {
+        signal: "rn26",
+        outcome,
+        evidence: { kind: "repeated", references },
+      },
+    ],
+    notEvaluable: [],
+  });
+
+  it("names the signal and states the match in words", () => {
+    show(rn26([41]));
+
+    expect(fact(en.signals.names.rn26)).toHaveTextContent(
+      en.signals.outcomes.present,
+    );
+    expect(fact(en.signals.names.rn26)).toHaveTextContent(
+      en.signals.evidence.repeated,
+    );
+  });
+
+  it("renders each referenced request as a link to its detail, with no prefetch", () => {
+    show(rn26([41, 55]));
+
+    const links = within(fact(en.signals.names.rn26)).getAllByRole("link");
+    expect(links.map((a) => a.textContent)).toEqual([
+      "Request 41",
+      "Request 55",
+    ]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "/review/41",
+      "/review/55",
+    ]);
+    expect(links.map((a) => a.getAttribute("data-prefetch"))).toEqual([
+      "false",
+      "false",
+    ]);
+  });
+
+  it("shows present with no number and no link when the match is out of scope (Match outside the scope shows no reference)", () => {
+    show(rn26([]));
+
+    const entry = fact(en.signals.names.rn26);
+    expect(entry).toHaveTextContent(en.signals.outcomes.present);
+    expect(entry).toHaveTextContent(en.signals.evidence.repeated);
+    expect(within(entry).queryAllByRole("link")).toHaveLength(0);
+    expect(entry).not.toHaveTextContent(en.signals.evidence.repeatedSee);
+    expect(entry.textContent).not.toMatch(/\d/);
+  });
+
+  it("shows no match line and no link when the signal is absent", () => {
+    show(rn26([], "absent"));
+
+    const entry = fact(en.signals.names.rn26);
+    expect(entry.textContent).toBe(en.signals.outcomes.absent);
+  });
+
+  it("lists the missing fingerprint apart, with its reason as text", () => {
+    show({
+      verdict: "inconclusive",
+      results: [
+        { signal: "rn26", outcome: "not_evaluable", reason: "no_fingerprint" },
+      ],
+      notEvaluable: [{ signal: "rn26", reason: "no_fingerprint" }],
+    });
+
+    const items = within(
+      screen.getByRole("list", { name: en.signals.notEvaluable.title }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent(en.signals.names.rn26);
+    expect(items[0]).toHaveTextContent(en.signals.reasons.no_fingerprint);
+  });
+
+  it("shows no student or document name", () => {
+    show(rn26([41]));
+
+    expect(section().textContent).not.toMatch(
+      /nombre|cif|correo|\.pdf|\.png|\.jpg/i,
+    );
+  });
+
+  it("speaks Spanish", () => {
+    show(rn26([41]), { locale: "es" });
+
+    const root = screen.getByRole("region", { name: es.signals.title });
+    const entry = fact(es.signals.names.rn26, root);
+    expect(entry).toHaveTextContent(es.signals.evidence.repeated);
+    expect(within(entry).getByRole("link")).toHaveTextContent("Solicitud 41");
+  });
+
+  it("reports no accessibility violation with links", async () => {
+    const { container } = show(rn26([41, 55]));
+
     const results = await axe.run(container, {
       runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
       rules: { "color-contrast": { enabled: false } },

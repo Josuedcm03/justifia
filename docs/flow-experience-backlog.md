@@ -214,3 +214,20 @@ equipo), `resuelta` (cubierta por un change).
 - **Esperado:** junto a cada nombre, una indicación breve del estado de la
   remisión (enviada, pendiente o fallida).
 - **Requisitos:** RF-15; specs `request-review` y `coordination-escalation`.
+
+### UX-16. Visor del documento dentro del detalle
+
+- **Estado:** abierta.
+- **Origen:** recorrido del change `validation-signals` del 2026-11-02, como
+  secretaría.
+- **Pantalla:** sección «Documentos de respaldo» del detalle de la solicitud,
+  para la secretaría (`/review/[id]`) y la coordinación
+  (`/coordination/[id]`).
+- **Hoy:** cada documento ofrece «Ver», que lo abre en otra pestaña, y
+  «Descargar». Para contrastar el documento con los datos extraídos y las
+  señales, hay que cambiar de ventana o abrir el archivo descargado.
+- **Esperado:** el documento se muestra dentro del mismo detalle, en un
+  contenedor con zoom y desplazamiento (imágenes y PDF), junto a los datos
+  extraídos y las señales, sin salir de la pantalla. «Descargar» se mantiene.
+- **Requisitos:** RF-05, RF-11; specs `request-review`,
+  `coordination-escalation` y `supporting-documents`.

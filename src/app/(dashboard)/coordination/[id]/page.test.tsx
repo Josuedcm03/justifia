@@ -19,6 +19,7 @@ const {
   scopeMock,
   detailMock,
   readMock,
+  signalsMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -31,6 +32,7 @@ const {
   scopeMock: vi.fn(),
   detailMock: vi.fn(),
   readMock: vi.fn(),
+  signalsMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -49,6 +51,7 @@ vi.mock("@/lib/data/coordination-queue", () => ({
   getCoordinationDetail: detailMock,
 }));
 vi.mock("@/lib/data/request-reads", () => ({ recordRequestRead: readMock }));
+vi.mock("@/lib/data/signals", () => ({ loadSignals: signalsMock }));
 vi.mock("@/app/(dashboard)/coordination/[id]/actions", () => ({
   answerEscalationAction: vi.fn(),
 }));
@@ -114,6 +117,48 @@ function notice(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+// What the loader hands the page: the full report, evidence included. The page
+// must project it before rendering, so none of these values may reach the DOM.
+const SIGNAL_REPORT = {
+  verdict: "review_carefully",
+  results: [
+    {
+      signal: "rn07",
+      outcome: "present",
+      evidence: {
+        kind: "timing",
+        presented: "2026-10-14",
+        deadline: "2026-10-13",
+      },
+    },
+    {
+      signal: "rn09",
+      outcome: "absent",
+      evidence: {
+        kind: "incoherent",
+        documents: [
+          { documentId: 31, issueDate: "2026-10-09", restTo: "2026-10-12" },
+        ],
+      },
+    },
+    { signal: "rn10", outcome: "not_evaluable", reason: "extraction_pending" },
+    {
+      signal: "rn14",
+      outcome: "not_evaluable",
+      reason: "no_period",
+    },
+    {
+      signal: "rn26",
+      outcome: "present",
+      evidence: { kind: "repeated", references: [58] },
+    },
+  ],
+  notEvaluable: [
+    { signal: "rn10", reason: "extraction_pending" },
+    { signal: "rn14", reason: "no_period" },
+  ],
+};
+
 let Page: (props: {
   params: Promise<{ id: string }>;
 }) => Promise<React.ReactNode>;
@@ -152,6 +197,8 @@ beforeEach(() => {
   detailMock.mockResolvedValue(escalation());
   readMock.mockReset();
   readMock.mockResolvedValue(undefined);
+  signalsMock.mockReset();
+  signalsMock.mockResolvedValue({ data: SIGNAL_REPORT, degraded: false });
 });
 
 describe("CoordinationDetailPage access (RNF-01, ES-9)", () => {
@@ -434,5 +481,201 @@ describe("CoordinationDetailPage audited read (RNF-06, SR-11)", () => {
     readMock.mockRejectedValue(new Error("audit down"));
 
     await expect(renderPage()).rejects.toThrow("audit down");
+  });
+});
+
+describe("CoordinationDetailPage validation signals (RF-05, RN-15, RN-26, RNF-01)", () => {
+  const sig = messages.en.review.signals;
+  const signalsRegion = () => screen.getByRole("region", { name: sig.title });
+  const noSignals = () =>
+    expect(
+      screen.queryByRole("region", { name: sig.title }),
+    ).not.toBeInTheDocument();
+
+  it("loads the signals of an open escalation by its request, with no reference scope, before the audited read", async () => {
+    await renderPage();
+
+    expect(signalsMock).toHaveBeenCalledTimes(1);
+    expect(signalsMock).toHaveBeenCalledWith({
+      solicitudId: 41,
+      referenceScope: { kind: "none" },
+    });
+    expect(signalsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      readMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("renders the section after the documents and before the answer form", async () => {
+    await renderPage();
+
+    const documents = screen.getByRole("region", {
+      name: messages.en.review.detail.sections.documents,
+    });
+    const answer = screen.getByRole("region", { name: en.sections.answer });
+    expect(
+      documents.compareDocumentPosition(signalsRegion()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      signalsRegion().compareDocumentPosition(answer) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows the verdict, each outcome in words and the reason labels, from the projection (Outcomes and labels only)", async () => {
+    await renderPage();
+
+    const region = signalsRegion();
+    expect(within(region).getByRole("status")).toHaveTextContent(
+      "Suggestion: Review carefully",
+    );
+    for (const [signal, outcome] of [
+      ["rn07", "present"],
+      ["rn09", "absent"],
+      ["rn26", "present"],
+    ] as const) {
+      const term = within(region).getByText(sig.names[signal], {
+        selector: "dt",
+      });
+      expect(term.nextElementSibling).toHaveTextContent(sig.outcomes[outcome]);
+    }
+    expect(region).toHaveTextContent(sig.reasons.extraction_pending);
+    expect(region).toHaveTextContent(sig.reasons.no_period);
+    expect(region).toHaveTextContent(sig.coordinationNote);
+  });
+
+  it("shows no extracted value, date, count or document id of the report (Verdict shown, no extracted values)", async () => {
+    await renderPage();
+
+    const text = signalsRegion().textContent ?? "";
+    expect(text).not.toMatch(/Oct|2026|Presented|deadline|threshold/i);
+    expect(text).not.toMatch(/issued|rest ends|Absence|31/);
+  });
+
+  it("shows RN-26 as present with no number, count or link, whether the match is in the career or not (RN-26 match never gives a reference)", async () => {
+    await renderPage();
+
+    const region = signalsRegion();
+    expect(within(region).queryAllByRole("link")).toHaveLength(0);
+    expect(region).not.toHaveTextContent(/58|Request \d|earlier request/);
+    expect(within(region).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("leaves the answer form and the escalation unchanged with RN-26 present (Answer unaffected)", async () => {
+    await renderPage();
+
+    expect(
+      screen.getByRole("button", {
+        name: messages.en.coordination.answer.dialog.trigger,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: en.sections.answer }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the rest, the answer form and the degraded notice when the read is degraded (Read failure)", async () => {
+    signalsMock.mockResolvedValue({ data: null, degraded: true });
+
+    await renderPage();
+
+    expect(within(signalsRegion()).getByText(sig.degraded)).toBeInTheDocument();
+    expect(signalsRegion()).not.toHaveTextContent("Suggestion");
+    expect(
+      screen.getByRole("region", { name: en.sections.student }),
+    ).toHaveTextContent("Ana Lopez");
+    expect(
+      screen.getByRole("region", { name: en.sections.answer }),
+    ).toBeInTheDocument();
+    expect(readMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the rest, the answer form and the degraded notice when the read throws, logging the error name only", async () => {
+    signalsMock.mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await renderPage();
+
+    expect(within(signalsRegion()).getByText(sig.degraded)).toBeInTheDocument();
+    expect(signalsRegion()).not.toHaveTextContent("connection lost");
+    expect(
+      screen.getByRole("region", { name: en.sections.answer }),
+    ).toBeInTheDocument();
+    expect(console.error).toHaveBeenCalledWith("signals_read_failed", {
+      solicitudId: 41,
+      code: "Error",
+    });
+    vi.restoreAllMocks();
+  });
+
+  it("neither loads nor renders the section on a notice (Notices and the list carry none)", async () => {
+    detailMock.mockResolvedValue(notice());
+
+    await renderPage("12");
+
+    expect(signalsMock).not.toHaveBeenCalled();
+    noSignals();
+    expect(document.body.textContent).not.toMatch(/Suggestion/);
+  });
+
+  it.each([
+    ["another career, an answered suspicion or an unknown id", null],
+    ["a draft", escalation({ estado: "borrador" })],
+  ])(
+    "answers notFound and never calls the loader for %s (Other careers and ids)",
+    async (_label, found) => {
+      detailMock.mockResolvedValue(found);
+
+      await expect(renderPage("404")).rejects.toThrow("NOT_FOUND");
+
+      expect(signalsMock).not.toHaveBeenCalled();
+      expect(readMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("never calls the loader for a coordinator without a career, a malformed id or another role", async () => {
+    scopeMock.mockResolvedValue({ kind: "none" });
+    await expect(renderPage()).rejects.toThrow("NOT_FOUND");
+    scopeMock.mockResolvedValue({ kind: "carrera", carreraId: 4 });
+    await expect(renderPage("abc")).rejects.toThrow("NOT_FOUND");
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+    await expect(renderPage()).rejects.toThrow(
+      `REDIRECT:${ACCESS_DENIED_PATH}`,
+    );
+
+    expect(signalsMock).not.toHaveBeenCalled();
+  });
+
+  it("adds no audit row: the only read is the existing one (No audit row)", async () => {
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 41, "en_revision_coordinacion");
+  });
+
+  it("renders in neutral Spanish with the coordination note", async () => {
+    state.locale = "es";
+
+    await renderPage();
+
+    const region = screen.getByRole("region", {
+      name: messages.es.review.signals.title,
+    });
+    expect(region).toHaveTextContent("Sugerencia: Revisar con cuidado");
+    expect(region).toHaveTextContent(
+      messages.es.review.signals.coordinationNote,
+    );
+  });
+
+  it("decides access through the shared helper and projects before rendering", async () => {
+    const { readFileSync } = await import("node:fs");
+    const text = readFileSync(
+      "src/app/(dashboard)/coordination/[id]/page.tsx",
+      "utf8",
+    );
+
+    expect(text).toContain("signalsAccess(");
+    expect(text).toContain("toCoordinationView(");
+    expect(text).not.toMatch(/\.rol\s*[!=]==?|rolesUsuario|isCoordinacion/);
   });
 });

@@ -1374,6 +1374,7 @@
     "signals": {
       "title": "Validation signals",
       "note": "Automatic suggestion to support your review; it does not change the state of the request or replace your decision.",
+      "coordinationNote": "Automatic suggestion to support your answer; it does not change the state of the request.",
       "degraded": "The validation signals could not be calculated. The rest of the request is shown in full.",
       "verdict": {
         "line": "Suggestion: {verdict}",
@@ -1385,7 +1386,8 @@
         "rn07": "Late presentation",
         "rn09": "Incoherent dates",
         "rn10": "Uncovered dates",
-        "rn14": "Recurrence"
+        "rn14": "Recurrence",
+        "rn26": "Repeated document"
       },
       "outcomes": {
         "present": "Signal present",
@@ -1403,14 +1405,18 @@
         "field_missing": "A document lacks a needed field.",
         "days_only": "The rest period gives only a number of days, with no dates.",
         "no_period": "The subjects do not belong to a single academic period.",
-        "no_eligible_documents": "The request has no current student documents."
+        "no_eligible_documents": "The request has no current student documents.",
+        "no_fingerprint": "The current documents were stored before repeated-document detection existed, so they cannot be compared."
       },
       "evidence": {
         "timing": "Presented {presented}; the deadline is {deadline}.",
         "incoherent": "Issued {issued}; the rest ends {end}.",
         "uncovered": "Absence: {absence}. Dated rest periods: {covered}.",
         "uncoveredNone": "Absence: {absence}. No dated rest period.",
-        "recurrence": "Requests with the issuer “{issuer}” in the period: {count} (threshold: {threshold})."
+        "recurrence": "Requests with the issuer “{issuer}” in the period: {count} (threshold: {threshold}).",
+        "repeated": "A document is identical to one in an earlier request.",
+        "repeatedSee": "Earlier requests with the same document:",
+        "requestLink": "Request {id}"
       }
     },
     "remission": {

@@ -1,12 +1,13 @@
 import type { ExtractionRowView } from "@/lib/extraction/display";
 
+import type { RepeatedDocumentInput } from "./repeated-document";
+
 // Validation signals (RF-05, RN-15). Pure types and tables shared by the
 // evaluators: no database, no `server-only`. A signal yields exactly one
 // outcome; `not_evaluable` carries exactly one reason from a closed set, and
-// `present` / `absent` carry none. Reason codes are the spec's set (S1 half):
-// `no_fingerprint` arrives with RN-26.
+// `present` / `absent` carry none. Reason codes are the spec's closed set.
 
-export const SIGNAL_CODES = ["rn07", "rn09", "rn10", "rn14"] as const;
+export const SIGNAL_CODES = ["rn07", "rn09", "rn10", "rn14", "rn26"] as const;
 export type SignalCode = (typeof SIGNAL_CODES)[number];
 
 /**
@@ -21,6 +22,7 @@ export const REASON_PRECEDENCE = [
   "extraction_failed",
   "days_only",
   "field_missing",
+  "no_fingerprint",
 ] as const;
 
 export const NOT_EVALUABLE_REASONS = [
@@ -56,6 +58,7 @@ export const ALLOWED_REASONS: Record<
     "extraction_failed",
     "field_missing",
   ],
+  rn26: ["no_eligible_documents", "no_fingerprint"],
 };
 
 /** The first of `reasons` in precedence order. */
@@ -84,7 +87,12 @@ export type SignalEvidence =
       /** The dated rest periods merged by calendar day. */
       covered: { from: string; to: string }[];
     }
-  | { kind: "recurrence"; issuer: string; count: number; threshold: number };
+  | { kind: "recurrence"; issuer: string; count: number; threshold: number }
+  /**
+   * RN-26: the numbers of the earlier requests INSIDE the caller's scope. A
+   * match outside it adds nothing here, not even a count (RNF-01).
+   */
+  | { kind: "repeated"; references: number[] };
 
 export type SignalResult =
   | {
@@ -145,7 +153,7 @@ export type SignalDocument = {
 /** An earlier presented request of the same student and period, one issuer. */
 export type IssuerHistoryRow = { solicitudId: number; issuer: string };
 
-/** Everything the four S1 signals read. Plain data, no connection. */
+/** Everything the five signals read. Plain data, no connection. */
 export type SignalInput = {
   solicitudId: number;
   /** First presentation (`PresentadaEn`), never the resubmission time. */
@@ -158,4 +166,6 @@ export type SignalInput = {
   periods: readonly string[];
   /** Raw issuers of the earlier requests; normalized by the evaluator. */
   issuerHistory: readonly IssuerHistoryRow[];
+  /** RN-26: fingerprint presence of the current documents and earlier matches. */
+  repeated: RepeatedDocumentInput;
 };

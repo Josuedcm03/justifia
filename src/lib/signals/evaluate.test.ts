@@ -5,6 +5,7 @@ import type { ExtractionRowView } from "@/lib/extraction/display";
 
 import { evaluateSignals } from "./evaluate";
 import { DEFAULT_SIGNAL_PARAMS } from "./params";
+import type { RepeatedDocumentInput } from "./repeated-document";
 import {
   ALLOWED_REASONS,
   NOT_EVALUABLE_REASONS,
@@ -39,6 +40,10 @@ function input(overrides: Partial<SignalInput> = {}): SignalInput {
     documents: [{ documentId: 1, extraction: COMPLETE }],
     periods: ["2026-S2"],
     issuerHistory: [],
+    repeated: {
+      documents: [{ documentId: 1, fingerprinted: true }],
+      matches: [],
+    },
     ...overrides,
   };
 }
@@ -53,11 +58,13 @@ const evaluate = (value: SignalInput, threshold?: number) =>
   );
 
 describe("evaluateSignals", () => {
-  it("returns the four results in order, with the verdict", () => {
+  it("returns the five results in order, with the verdict", () => {
     const report = evaluate(input());
 
     expect(report.results.map((r) => r.signal)).toEqual(SIGNAL_CODES);
+    expect(SIGNAL_CODES).toEqual(["rn07", "rn09", "rn10", "rn14", "rn26"]);
     expect(report.results.map((r) => r.outcome)).toEqual([
+      "absent",
       "absent",
       "absent",
       "absent",
@@ -81,6 +88,44 @@ describe("evaluateSignals", () => {
       { signal: "rn09", reason: "extraction_pending" },
       { signal: "rn10", reason: "extraction_pending" },
       { signal: "rn14", reason: "extraction_pending" },
+    ]);
+  });
+
+  it("evaluates RN-26 from the fingerprint input and suggests reviewing carefully", () => {
+    const report = evaluate(
+      input({
+        repeated: {
+          documents: [{ documentId: 1, fingerprinted: true }],
+          matches: [{ solicitudId: 41 }],
+        },
+      }),
+    );
+
+    expect(report.results[4]).toEqual({
+      signal: "rn26",
+      outcome: "present",
+      evidence: { kind: "repeated", references: [41] },
+    });
+    expect(report.verdict).toBe("review_carefully");
+  });
+
+  it("lists RN-26 as not evaluable, and never suggests no alerts, for documents from before the change", () => {
+    const report = evaluate(
+      input({
+        repeated: {
+          documents: [{ documentId: 1, fingerprinted: false }],
+          matches: [],
+        },
+      }),
+    );
+
+    expect(report.results[4]).toMatchObject({
+      outcome: "not_evaluable",
+      reason: "no_fingerprint",
+    });
+    expect(report.verdict).toBe("inconclusive");
+    expect(report.notEvaluable).toEqual([
+      { signal: "rn26", reason: "no_fingerprint" },
     ]);
   });
 
@@ -148,7 +193,7 @@ describe("pickReason precedence", () => {
     }
   });
 
-  it("runs no_period, no_eligible_documents, pending, failed, days_only, field_missing", () => {
+  it("runs no_period, no_eligible_documents, pending, failed, days_only, field_missing, no_fingerprint", () => {
     expect(REASON_PRECEDENCE).toEqual([
       "no_period",
       "no_eligible_documents",
@@ -156,6 +201,7 @@ describe("pickReason precedence", () => {
       "extraction_failed",
       "days_only",
       "field_missing",
+      "no_fingerprint",
     ]);
   });
 
@@ -188,10 +234,26 @@ describe("evaluateSignals reasons are always from the closed set", () => {
   ];
   const periodSets = [[], ["2026-S2"], ["2026-S1", "2026-S2"]];
   const ends = ["2026-10-09", "2027-12-30", "2025-06-02"];
+  const repeatedSets: RepeatedDocumentInput[] = [
+    { documents: [], matches: [] },
+    { documents: [{ documentId: 1, fingerprinted: false }], matches: [] },
+    { documents: [{ documentId: 1, fingerprinted: true }], matches: [] },
+    {
+      documents: [{ documentId: 1, fingerprinted: true }],
+      matches: [{ solicitudId: null }],
+    },
+  ];
 
   const cases = documentSets.flatMap((documents) =>
     periodSets.flatMap((periods) =>
-      ends.map((absenceTo) => ({ documents, periods, absenceTo })),
+      ends.flatMap((absenceTo) =>
+        repeatedSets.map((repeated) => ({
+          documents,
+          periods,
+          absenceTo,
+          repeated,
+        })),
+      ),
     ),
   );
 
@@ -200,13 +262,17 @@ describe("evaluateSignals reasons are always from the closed set", () => {
   });
 
   it("gives present and absent no reason, and not_evaluable one allowed for the signal", () => {
-    for (const { documents, periods, absenceTo } of cases) {
-      const report = evaluate(input({ documents, periods, absenceTo }));
+    const seen = new Set<string>();
+    for (const { documents, periods, absenceTo, repeated } of cases) {
+      const report = evaluate(
+        input({ documents, periods, absenceTo, repeated }),
+      );
 
       for (const result of report.results) {
         if (result.outcome === "not_evaluable") {
           expect(NOT_EVALUABLE_REASONS).toContain(result.reason);
           expect(ALLOWED_REASONS[result.signal]).toContain(result.reason);
+          seen.add(`${result.signal}:${result.reason}`);
           expect(Object.keys(result).sort()).toEqual([
             "outcome",
             "reason",
@@ -224,5 +290,8 @@ describe("evaluateSignals reasons are always from the closed set", () => {
         ),
       );
     }
+    // The combinations really reach both RN-26 reasons.
+    expect(seen).toContain("rn26:no_fingerprint");
+    expect(seen).toContain("rn26:no_eligible_documents");
   });
 });
