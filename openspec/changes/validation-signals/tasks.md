@@ -42,7 +42,7 @@ Chain: cut the tracker `feat/validation-signals` from `main`. S1 branches from t
 
 **Order constraint:** S1 has no schema and must land in the tracker first, before the 2026-11-03 system tests. S2 and S3 follow without blocking them. Task 0.5 settles which ref the system tests run from.
 
-**Merge gate:** the tracker MUST NOT reach `main` before S3, the owner walk (13.2), the owner's decision on migration 0013 in production (10.9) and the UAM legal review of hashing and cross-request comparison (PRIV). S2 is separable: reverting S2 leaves S1 and the schema-free signals intact.
+**Merge gate:** the tracker MUST NOT reach `main` before S3, the owner walk (13.2), and migration 0013 applied to production (10.9). The UAM legal review of hashing and cross-request comparison (PRIV, 10.8) is not a merge gate: owner decision 2026-11-02, see 10.8. S2 is separable: reverting S2 leaves S1 and the schema-free signals intact.
 
 ### Suggested Work Units
 
@@ -171,10 +171,10 @@ Chain: cut the tracker `feat/validation-signals` from `main`. S1 branches from t
 - [x] 10.3 ASK OWNER `[CONFIRM]` M1: `npm run db:migrate` (applies `0013_validation_signals`) against `test-validation-signals-pg` only, over its direct URL, with the endpoint guard of the escalation precedent; STOP until "yes" Done 2026-11-02: 0013 applied with an endpoint guard over the direct URL, owner yes.
 - [x] 10.4 ASK OWNER `[READ-ONLY]` V1 on the branch: column `HuellaSha256` char(64) nullable, `CK_Documento_Huella` and `IX_Documento_Huella` present, every hash NULL, migration count +1; if the DDL failed, STOP and fix the migration in a branch from the tracker Done 2026-11-02: 14 migrations, char(64) nullable, CK_Documento_Huella and partial IX_Documento_Huella as designed, 2 documents all NULL.
 - [x] 10.5 ASK OWNER `[CONFIRM]` run the opt-in suite `INTEGRATION_ALLOW_WRITES=1 npm run test:integration` against the disposable branch only (task 8.9) Done 2026-11-02: validation-signals.integration.test.ts 9/9 passed, owner yes. Then 0013 applied to dev-arnia (owner yes; 14 migrations) for the 2026-11-03 system tests.
-- [x] 10.6 [OWNER] End-to-end on the branch with fictitious data: the same file in two requests gives RN-26 `present` with the earlier number on the later one's secretary detail and `absent` on the earlier; a correction re-upload in the same request stays `absent`; the student sees nothing Scheduled 2026-11-03 on dev-arnia with the system tests. Scheduled 2026-11-03 on dev-arnia with the system tests. Done 2026-11-02 by the owner on dev-arnia: same file in requests 138 and 139 gave RN-26 present with "Solicitud 138" on 139 and absent on 138; escalated 139 shows outcomes and verdict to the coordinator with no reference; the student sees no signals. Escalation notice ended pendiente/error_envio (mail provider, pre-existing escalation path, not this change).
+- [x] 10.6 [OWNER] End-to-end on the branch with fictitious data: the same file in two requests gives RN-26 `present` with the earlier number on the later one's secretary detail and `absent` on the earlier; a correction re-upload in the same request stays `absent`; the student sees nothing  Done 2026-11-02 by the owner on dev-arnia: same file in requests 138 and 139 gave RN-26 present with "Solicitud 138" on 139 and absent on 138; escalated 139 shows outcomes and verdict to the coordinator with no reference; the student sees no signals. Escalation notice ended pendiente/error_envio (mail provider, pre-existing escalation path, not this change).
 - [x] 10.7 ASK OWNER `[CONFIRM]` delete the disposable branch at closeout Done 2026-11-02: disposable branch deleted, owner yes.
-- [ ] 10.8 [OWNER] Record the UAM legal review status of hashing and cross-request comparison (PRIV); production migration is blocked until it is positive
-- [ ] 10.9 [OWNER] Decide when to apply 0013 to production (`[CONFIRM]`, direct URL); out of the apply scope of this change and a precondition of the tracker merge
+- [x] 10.8 [OWNER] Record the UAM legal review status of hashing and cross-request comparison (PRIV) Deferred by owner decision 2026-11-02: the review is a precondition of a real deployment with real students, not of this change. The thesis validation is a usability test on seeded scenarios with fictitious or anonymized documents (decision of 2026-10-28), so no real pilot processes student data. Recorded as a limitation and future work in the thesis; the usability-test consent or session briefing mentions the document comparison.
+- [ ] 10.9 [OWNER] Apply 0013 to production (`[CONFIRM]`, direct URL) before the tracker reaches `main`; `main` auto-deploys to Vercel Production
 
 ## Phase 11: S3 - Coordination projection (work unit 7)
 
@@ -198,8 +198,8 @@ Chain: cut the tracker `feat/validation-signals` from `main`. S1 branches from t
 
 ## Phase 13: Proof, verify, archive
 
-- [ ] 13.1 Gate set G on the tracker head (all slices merged): `npm run typecheck`, `npm test`, `npx eslint src`, `npm run format:check`, `npm run build`; record results
-- [ ] 13.2 [OWNER] Walk on the disposable branch (migration applied there): secretary sees verdict, entries, evidence and not-evaluable list in es and en; coordinator sees outcomes and verdict only, never an RN-26 number; student sees nothing; queue and tabs unchanged
-- [ ] 13.3 Run `sdd-verify` against the specs; fix findings in a slice branch from the tracker
-- [ ] 13.4 After the merge gate is met (S3, 13.2, 10.9, PRIV), take the tracker PR out of draft and merge it to `main`; update `docs/roadmap.md` row 5 status at archive; run `sdd-archive`
+- [x] 13.1 Gate set G on the tracker head (all slices merged): `npm run typecheck`, `npm test`, `npx eslint src`, `npm run format:check`, `npm run build`; record results Done 2026-11-02 on e4ff52e: typecheck OK, 7232/7232 tests, eslint OK, prettier on src OK (local lint noise is CRLF from core.autocrlf only), build OK.
+- [x] 13.2 [OWNER] Walk on the disposable branch (migration applied there): secretary sees verdict, entries, evidence and not-evaluable list in es and en; coordinator sees outcomes and verdict only, never an RN-26 number; student sees nothing; queue and tabs unchanged Done 2026-11-02 on dev-arnia (see 10.6) and in the system tests of Tabla 13 (RF-10 c shows the signals to the coordinator).
+- [x] 13.3 Run `sdd-verify` against the specs; fix findings in a slice branch from the tracker Done 2026-11-02: PASS WITH WARNINGS, 0 critical (verify-report.md).
+- [ ] 13.4 After the merge gate is met (S3, 13.2, 10.9), take the tracker PR out of draft and merge it to `main`; update `docs/roadmap.md` row 5 status at archive; run `sdd-archive` Note 2026-11-02: the tracker was merged to `main` (#71) before 10.9 and reverted (#75) because production lacked `HuellaSha256`; the re-merge reverts that revert after 10.9.
 - [ ] 13.5 Keep the tracker branch `feat/validation-signals` after the merge; delete merged slice branches only with the owner's yes
