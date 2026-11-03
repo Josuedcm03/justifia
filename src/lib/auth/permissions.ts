@@ -151,6 +151,21 @@ export function canCoordinate(rol: RolUsuario | undefined): boolean {
   );
 }
 
+/**
+ * What a role may see of the validation signals (RNF-01, RF-05). `full` is the
+ * reviewing secretary: verdict, outcomes and evidence. `outcomes` is the
+ * coordinator of the request's own career on an open escalation: outcomes and
+ * verdict, never evidence. Every other role, and a missing one, sees nothing.
+ * Derived from the two role predicates, never a second role list.
+ */
+export type SignalsAccess = "full" | "outcomes" | null;
+
+export function signalsAccess(rol: RolUsuario | undefined): SignalsAccess {
+  if (canReviewRequests(rol)) return "full";
+  if (canCoordinate(rol)) return "outcomes";
+  return null;
+}
+
 /** What the document predicate needs to know about the document's request. */
 export type ViewableDocument = {
   estudianteId: number;

@@ -4,6 +4,7 @@ import { del, get, list } from "@vercel/blob";
 
 import { env } from "@/env";
 import type { DocumentStore } from "@/lib/intake/ports";
+import { digestStream } from "@/lib/intake/stream-digest";
 
 // Vercel Blob implementation of `DocumentStore` (D1, A4). Every call uses
 // `access: "private"`: a stored file has no public URL (RNF-02). The upload
@@ -56,6 +57,18 @@ export function createVercelBlobStore(): DocumentStore {
         size: result.blob.size,
         head: await readUpTo(result.stream, bytes),
       };
+    },
+
+    async readDigest(pathname, { headBytes, maxBytes }) {
+      // Same uncached private read as `readHead`; the size comes from counting
+      // the stream, so a lying blob size cannot hide an oversized file.
+      const result = await get(pathname, {
+        access: "private",
+        useCache: false,
+        token,
+      });
+      if (!result || result.statusCode !== 200) return null;
+      return digestStream(result.stream, headBytes, maxBytes);
     },
 
     async delete(pathnames) {
