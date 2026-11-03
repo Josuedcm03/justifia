@@ -565,6 +565,39 @@ describe("documentos data layer", () => {
       expect(writtenValues(double)).not.toContain("huellaSha256");
     });
 
+    it("gives a file identical to an earlier request's the result and audit of any other file, with no lookup of other requests (Correction and upload results)", async () => {
+      const store = createFakeDocumentStore();
+      const repeated = `intake/${DRAFT}/dddddddd-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+      const fresh = `intake/${DRAFT}/eeeeeeee-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
+      store.seed(repeated, PDF); // the bytes of a document already stored elsewhere
+      store.seed(fresh, [...PDF.slice(0, -1), 0x38]); // same size, other bytes
+
+      const outcomes = [];
+      for (const pathname of [repeated, fresh]) {
+        insertAuditMock.mockClear();
+        // The script is exact: one statement more (a lookup of another
+        // request's documents) would find no scripted step and fail.
+        const double = use([lookupDraft, ...claim(0), accept]);
+        const result = await finalizeDocument(input({ pathname }), store);
+        outcomes.push({
+          result,
+          audit: insertAuditMock.mock.calls[0][2],
+          statements: double.log.map((s) => s.kind),
+          exhausted: double.exhausted,
+        });
+      }
+
+      expect(outcomes[0].result).toEqual({
+        ok: true,
+        documentId: 11,
+        tipo: "pdf",
+      });
+      expect(outcomes[0].result).toEqual(outcomes[1].result);
+      expect(outcomes[0].audit).toEqual(outcomes[1].audit);
+      expect(outcomes[0].statements).toEqual(outcomes[1].statements);
+      expect(outcomes.map((o) => o.exhausted)).toEqual([true, true]);
+    });
+
     it("keeps the fingerprint out of the audit payload of an accepted document", async () => {
       use([lookupDraft, ...claim(0), accept]);
       const store = createFakeDocumentStore();
