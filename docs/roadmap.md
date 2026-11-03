@@ -11,7 +11,7 @@ remiten a ese archivo.
 | 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Armando     | Sí                   | archivado |
 | 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | archivado |
 | 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | archivado |
-| 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
+| 5   | `validation-signals`   | RF-05 (a) a (d); RN-07, RN-09, RN-10, RN-14, RN-15, RN-26 | Por asignar | Si alcanza el tiempo | en curso |
 | 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | archivado |
 | 7   | `coordination-reports` | RF-13                                       | Por asignar | No                   | pendiente |
 | 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
@@ -92,6 +92,17 @@ remiten a ese archivo.
   respondidos queda para `coordination-reports`. Nota para el equipo: cuando
   dos changes traen migración, el que llega segundo a `main` la regenera con
   `drizzle-kit generate`; nunca se numera a mano.
+- `validation-signals` (en curso, entrega parcial) entrega el veredicto
+  sugerido y las señales RN-07, RN-09, RN-10, RN-14 y RN-26 (RF-05 a a d), que
+  se calculan en cada lectura, no se guardan y no cambian la solicitud (RN-15).
+  La secretaría ve el detalle completo; la coordinación ve solo resultados y
+  veredicto, sin valores extraídos ni número de otra solicitud; el estudiante no
+  ve nada. Quedan fuera de esta entrega: RF-05 (e), RN-11, RN-12, RN-13 y RN-24
+  con RF-14 (la carga manual de datos del documento), y NS-12. El umbral de
+  RN-14 es una constante de código hasta `normative-parameters` (RNF-14). La
+  migración `0013_validation_signals` (huella del archivo) está generada y no
+  aplicada; el uso de la huella espera la revisión jurídica de la UAM. Pasa a
+  `archivado` con el archivo del change.
 - Candidata para `validation-signals`: NS-12, señal de procedencia IA
   declarada en los metadatos de la imagen. No entra en el subconjunto mínimo
   previo a la prueba de usabilidad de la semana 13. Se promueve a RN y a un

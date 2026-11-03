@@ -24,6 +24,7 @@ const {
   accountsMock,
   extractionsMock,
   configuredMock,
+  signalsMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -40,6 +41,7 @@ const {
   accountsMock: vi.fn(),
   extractionsMock: vi.fn(),
   configuredMock: vi.fn(),
+  signalsMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -66,6 +68,7 @@ vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
   resendEscalationNoticeAction: vi.fn(),
 }));
 vi.mock("@/lib/data/extraction", () => ({ listExtractions: extractionsMock }));
+vi.mock("@/lib/data/signals", () => ({ loadSignals: signalsMock }));
 vi.mock("@/lib/extraction/configured", () => ({
   isExtractionConfigured: configuredMock,
 }));
@@ -138,6 +141,29 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+const SIGNAL_REPORT = {
+  verdict: "review_carefully",
+  results: [
+    {
+      signal: "rn07",
+      outcome: "present",
+      evidence: {
+        kind: "timing",
+        presented: "2026-10-14",
+        deadline: "2026-10-13",
+      },
+    },
+    { signal: "rn09", outcome: "not_evaluable", reason: "extraction_pending" },
+    { signal: "rn10", outcome: "not_evaluable", reason: "extraction_pending" },
+    { signal: "rn14", outcome: "not_evaluable", reason: "extraction_pending" },
+  ],
+  notEvaluable: [
+    { signal: "rn09", reason: "extraction_pending" },
+    { signal: "rn10", reason: "extraction_pending" },
+    { signal: "rn14", reason: "extraction_pending" },
+  ],
+};
+
 type Props = { params: Promise<{ id: string }> };
 let Page: (props: Props) => Promise<React.ReactNode>;
 
@@ -187,6 +213,8 @@ beforeEach(() => {
   extractionsMock.mockResolvedValue({ data: [], degraded: false });
   configuredMock.mockReset();
   configuredMock.mockReturnValue(true);
+  signalsMock.mockReset();
+  signalsMock.mockResolvedValue({ data: SIGNAL_REPORT, degraded: false });
 });
 
 describe("ReviewDetailPage access (RNF-01)", () => {
@@ -203,6 +231,7 @@ describe("ReviewDetailPage access (RNF-01)", () => {
       expect(detailMock).not.toHaveBeenCalled();
       expect(readMock).not.toHaveBeenCalled();
       expect(extractionsMock).not.toHaveBeenCalled();
+      expect(signalsMock).not.toHaveBeenCalled();
     },
   );
 
@@ -250,6 +279,7 @@ describe("ReviewDetailPage access (RNF-01)", () => {
 
     await expect(renderPage()).rejects.toThrow("NOT_FOUND");
     expect(readMock).not.toHaveBeenCalled();
+    expect(signalsMock).not.toHaveBeenCalled();
   });
 });
 
@@ -1528,5 +1558,150 @@ describe("extracted data access (RNF-01)", () => {
         /listExtractions|extraction-section|lib\/data\/extraction|lib\/extraction/,
       );
     }
+  });
+});
+
+describe("ReviewDetailPage validation signals (RF-05, RN-15, RNF-01)", () => {
+  const signalsRegion = () =>
+    screen.getByRole("region", { name: messages.en.review.signals.title });
+
+  it.each([
+    "pendiente",
+    "aprobada",
+    "devuelta",
+    "rechazada",
+    "en_revision_coordinacion",
+  ])(
+    "renders the section after the Extracted data section for a %s request",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+      extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+      await renderPage();
+
+      expect(
+        extractionRegion().compareDocumentPosition(signalsRegion()) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(signalsRegion()).toHaveTextContent("Suggestion: Review carefully");
+    },
+  );
+
+  it("shows the section even when the request has no extracted data section", async () => {
+    await renderPage();
+
+    expect(
+      screen.queryByRole("region", { name: en.sections.extraction }),
+    ).toBeNull();
+    expect(signalsRegion()).toBeInTheDocument();
+  });
+
+  it("loads the signals for the opened request with the resolved scope, before the audited read", async () => {
+    await renderPage();
+
+    expect(signalsMock).toHaveBeenCalledTimes(1);
+    expect(signalsMock).toHaveBeenCalledWith({
+      solicitudId: 12,
+      referenceScope: { kind: "facultad", facultadId: 4 },
+    });
+    expect(signalsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      readMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("offers the decision controls exactly as without the section", async () => {
+    await renderPage();
+
+    const panel = screen.getByRole("region", { name: en.sections.decision });
+    expect(within(panel).getAllByRole("button")).toHaveLength(4);
+    expect(within(signalsRegion()).queryAllByRole("button")).toHaveLength(0);
+    expect(within(signalsRegion()).queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it.each(["no_alerts", "inconclusive"])(
+    "keeps the decision controls for the %s verdict",
+    async (verdict) => {
+      signalsMock.mockResolvedValue({
+        data: { ...SIGNAL_REPORT, verdict },
+        degraded: false,
+      });
+
+      await renderPage();
+
+      expect(
+        within(
+          screen.getByRole("region", { name: en.sections.decision }),
+        ).getAllByRole("button"),
+      ).toHaveLength(4);
+    },
+  );
+
+  it("renders the rest and the decision panel with the degraded notice when the read is degraded", async () => {
+    signalsMock.mockResolvedValue({ data: null, degraded: true });
+
+    await renderPage();
+
+    expect(
+      within(signalsRegion()).getByText(messages.en.review.signals.degraded),
+    ).toBeInTheDocument();
+    expect(signalsRegion()).not.toHaveTextContent("Suggestion");
+    expect(
+      screen.getByRole("region", { name: en.sections.student }),
+    ).toHaveTextContent("Ana Lopez");
+    expect(
+      screen.getByRole("region", { name: en.sections.decision }),
+    ).toBeInTheDocument();
+    expect(readMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the rest and the decision panel with the degraded notice when the read throws", async () => {
+    signalsMock.mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await renderPage();
+
+    expect(
+      within(signalsRegion()).getByText(messages.en.review.signals.degraded),
+    ).toBeInTheDocument();
+    expect(signalsRegion()).not.toHaveTextContent("connection lost");
+    expect(
+      screen.getByRole("region", { name: en.sections.decision }),
+    ).toBeInTheDocument();
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledWith("signals_read_failed", {
+      solicitudId: 12,
+      code: "Error",
+    });
+    vi.restoreAllMocks();
+  });
+
+  it("writes exactly one audit row, the existing one", async () => {
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 12, "pendiente");
+  });
+
+  it("renders in Spanish", async () => {
+    state.locale = "es";
+
+    await renderPage();
+
+    expect(
+      screen.getByRole("region", {
+        name: messages.es.review.signals.title,
+      }),
+    ).toHaveTextContent("Sugerencia: Revisar con cuidado");
+  });
+
+  it("decides access through the shared helper, with no role check of its own", async () => {
+    const { readFileSync } = await import("node:fs");
+    const text = readFileSync(
+      "src/app/(dashboard)/review/[id]/page.tsx",
+      "utf8",
+    );
+
+    expect(text).toContain("signalsAccess(");
+    expect(text).not.toMatch(/\.rol\s*[!=]==?|rolesUsuario|isCoordinacion/);
   });
 });
