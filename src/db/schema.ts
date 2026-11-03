@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
-  char,
   check,
   date,
   index,
@@ -407,10 +406,6 @@ export const documentoRespaldo = pgTable(
       () => usuario.id,
     ),
     formatoEspecial: boolean("FormatoEspecial").notNull().default(false),
-    // SHA-256 of the stored bytes, 64 lower-case hex, set once at finalize
-    // (validation-signals, RN-26). Internal: never shown, never updated, kept
-    // on retirement. NULL for staff uploads and documents from before 0013.
-    huellaSha256: char("HuellaSha256", { length: 64 }),
     creadoEn: timestamp("CreadoEn", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -441,15 +436,7 @@ export const documentoRespaldo = pgTable(
     uniqueIndex("UX_Documento_FormatoEspecial")
       .on(t.solicitudId)
       .where(sql`${t.formatoEspecial}`),
-    check(
-      "CK_Documento_Huella",
-      sql`${t.huellaSha256} IS NULL OR (${t.estado} = 'valido' AND ${t.huellaSha256} ~ '^[0-9a-f]{64}$')`,
-    ),
     index("IX_Documento_Solicitud").on(t.solicitudId),
-    // RN-26 lookup: only hashed rows are indexed (most are NULL before backfill).
-    index("IX_Documento_Huella")
-      .on(t.huellaSha256)
-      .where(sql`${t.huellaSha256} IS NOT NULL`),
   ],
 );
 

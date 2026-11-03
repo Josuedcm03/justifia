@@ -33,61 +33,6 @@ describe("createFakeDocumentStore", () => {
     expect(await store.stream("intake/1/a.pdf")).toBeNull();
   });
 
-  it("digests a seeded file: size, head and the SHA-256 of the whole content", async () => {
-    const store = createFakeDocumentStore();
-    store.seed("intake/1/a.pdf", [0x61, 0x62, 0x63]);
-
-    const digest = await store.readDigest("intake/1/a.pdf", {
-      headBytes: 2,
-      maxBytes: 100,
-    });
-
-    expect(digest?.size).toBe(3);
-    expect(Array.from(digest!.head)).toEqual([0x61, 0x62]);
-    expect(digest?.sha256).toBe(
-      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-    );
-  });
-
-  it("digests different bytes to a different hash and leaves readHead unchanged", async () => {
-    const store = createFakeDocumentStore();
-    store.seed("intake/1/a.pdf", [0x61, 0x62, 0x63]);
-    store.seed("intake/1/b.pdf", [0x61, 0x62, 0x64]);
-
-    const a = await store.readDigest("intake/1/a.pdf", {
-      headBytes: 2,
-      maxBytes: 100,
-    });
-    const b = await store.readDigest("intake/1/b.pdf", {
-      headBytes: 2,
-      maxBytes: 100,
-    });
-    expect(a?.sha256).not.toBe(b?.sha256);
-
-    const head = await store.readHead("intake/1/a.pdf", 2);
-    expect(head?.size).toBe(3);
-    expect(Array.from(head!.head)).toEqual([0x61, 0x62]);
-  });
-
-  it("answers null for a missing file and no hash over the cap", async () => {
-    const store = createFakeDocumentStore();
-    store.seed("intake/1/big.pdf", [1, 2, 3, 4, 5, 6]);
-
-    expect(
-      await store.readDigest("intake/1/none.pdf", {
-        headBytes: 2,
-        maxBytes: 100,
-      }),
-    ).toBeNull();
-
-    const over = await store.readDigest("intake/1/big.pdf", {
-      headBytes: 2,
-      maxBytes: 5,
-    });
-    expect(over?.sha256).toBeNull();
-    expect(over?.size).toBeGreaterThan(5);
-  });
-
   it("lists by prefix with upload dates", async () => {
     const store = createFakeDocumentStore();
     const at = new Date("2026-10-01T00:00:00Z");

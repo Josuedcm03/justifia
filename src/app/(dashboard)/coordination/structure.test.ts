@@ -46,8 +46,6 @@ const ALLOWED_DATA = [
   "@/lib/data/coordination-scope",
   "@/lib/data/escalation-answer",
   "@/lib/data/request-reads",
-  // Validation signals, outcomes only (RF-05 a, RN-26): see the dedicated pin.
-  "@/lib/data/signals",
 ];
 
 function importsOf(text: string): string[] {
@@ -103,18 +101,6 @@ describe("coordination structure: no secretary data module (RNF-01)", () => {
     for (const dataModule of ALLOWED_DATA) {
       expect(imported).toContain(dataModule);
     }
-  });
-
-  it("reads the signals only from the detail page, with no reference scope and through the projection (RN-26)", () => {
-    const importers = sources
-      .filter((s) => importsOf(s.text).includes("@/lib/data/signals"))
-      .map((s) => s.path);
-    expect(importers).toEqual([DETAIL_PAGE]);
-
-    const text = textOf(DETAIL_PAGE);
-    expect(text).toMatch(/referenceScope:\s*\{\s*kind:\s*"none"\s*\}/);
-    expect(text).toContain("toCoordinationView(");
-    expect(importsOf(text)).toContain("@/lib/signals/coordination-view");
   });
 
   it("never reaches the facultad request scope", () => {

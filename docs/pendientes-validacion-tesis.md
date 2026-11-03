@@ -30,7 +30,7 @@ construido, la matriz de pruebas con desenlaces reales y los RNF medibles.
 | Acciones manuales por solicitud (I-2) | Observación contra la lista de doce acciones del Anexo A | No requiere código |
 | Exactitud de extracción por campo (I-3) | `ExtraccionDocumento` contra un etiquetado a mano hecho fuera del sistema | En `feat/document-extraction`, sin servidor. Guarda solo el valor del modelo, no el corregido; alcanza si el etiquetado se hace aparte |
 | Docentes correctos en la remisión (I-4) | `Remision` contra el horario sembrado | Existe |
-| Concordancia veredicto sugerido / esperado / LC-01 | Señales y veredicto por solicitud | Existe en las ramas de `validation-signals` (S1 a S3), aún sin integrar a `main`. El veredicto se calcula en cada lectura y no se guarda: se registra a mano al ejecutar cada caso (ver el punto 1) |
+| Concordancia veredicto sugerido / esperado / LC-01 | Señales y veredicto por solicitud | **No existe** (ver abajo) |
 | SUS y facilidad por tarea | Cuestionario U-02, fuera del sistema | No requiere código |
 
 ## Pendientes, por prioridad
@@ -51,39 +51,6 @@ construido, la matriz de pruebas con desenlaces reales y los RNF medibles.
    **Anotado el 2026-10-30:** la señal de procedencia IA en los metadatos de
    la imagen (NS-12) es candidata y **no** entra antes de la prueba; depende de
    un spike en dispositivos (`docs/investigacion/procedencia-ia-metadatos.md`).
-   **Estado al 2026-11-02 (ramas `feat/validation-signals-s1-signals`,
-   `-s2-fingerprint` y `-s3-coordination`, sin integrar a `main`):**
-   - *Entregado.* El veredicto sugerido («Revisar con cuidado», «Sin alertas»,
-     «No concluyente») y cinco señales: presentación tardía (RN-07), fechas
-     incoherentes (RN-09), fechas no cubiertas (RN-10), reincidencia (RN-14) y
-     documento repetido (RN-26, el nombre que usa la interfaz para el
-     «documento reaparecido»). La secretaría ve el detalle completo; la
-     coordinación ve solo los resultados, los motivos de «no evaluable» y el
-     veredicto, y nunca el número de otra solicitud; el estudiante no ve nada.
-     Las señales se calculan en cada lectura, no se guardan y no cambian la
-     solicitud (RN-15).
-   - *Límites conocidos.* (1) El umbral de RN-14 (tres) es una constante de
-     código hasta `normative-parameters`: RNF-14 no se cumple. (2) RN-26 solo
-     detecta el archivo idéntico byte a byte; un documento vuelto a guardar,
-     recortado o fotografiado de nuevo no coincide. (3) RN-09, RN-10 y RN-14
-     necesitan la extracción `completada`; los documentos anteriores a la
-     migración `0013` no tienen huella y RN-26 queda «no evaluable». (4) No se
-     entregan RF-05 (e), RN-11, RN-12, RN-13 ni RN-24 con RF-14 (la carga
-     manual de datos del documento): sin ella, un documento con extracción
-     `fallida` deja las señales que dependen de ella en «no evaluable».
-   - *Pendiente de privacidad.* La huella SHA-256 y la comparación entre
-     solicitudes esperan la revisión jurídica de la UAM. La migración
-     `0013_validation_signals` está generada y no se aplica en producción hasta
-     que sea positiva; las pruebas usan solo datos ficticios.
-   - *Datos para las pruebas del 2026-11-03.* Sin extracción, el veredicto es
-     «No concluyente» y RN-09, RN-10 y RN-14 aparecen «no evaluables»
-     (extracción pendiente); solo RN-07 y RN-26 funcionan sin ella. Para ver las
-     cinco señales hace falta el servidor local del modelo en
-     `127.0.0.1:8080` (`docs/setup-local.md`) y el documento extraído antes de
-     abrir `/review/[id]`. Decisión del propietario del 2026-11-02: las pruebas
-     corren desde la rama S3, en `dev-arnia`, con la migración `0013` aplicada
-     allí después de la prueba de humo de la fase 10 de su `tasks.md`.
-   - *Candidata.* NS-12 sigue fuera de esta entrega.
 2. **Servidor del modelo (NuExtract3).** Sin él, I-3 queda «no evaluable» y los
    escenarios pasan por captura manual (RF-14, que tampoco está construido).
    Fijar fecha límite para tener el servidor.

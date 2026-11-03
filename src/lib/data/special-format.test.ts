@@ -207,24 +207,6 @@ describe("attachSpecialFormat: accepted (RN-19)", () => {
   });
 });
 
-describe("attachSpecialFormat: no fingerprint (RN-26, supporting-documents)", () => {
-  it("keeps the head read and stores a NULL fingerprint for the staff document", async () => {
-    const double = use([context, unreferenced, lock, noFormatYet, insertDoc()]);
-    const store = createFakeDocumentStore();
-    store.seed(PATH, PDF);
-    const head = vi.spyOn(store, "readHead");
-    const digest = vi.spyOn(store, "readDigest");
-
-    const result = await attachSpecialFormat(input(), store);
-
-    expect(result).toMatchObject({ ok: true });
-    expect(head).toHaveBeenCalledTimes(1);
-    expect(digest).not.toHaveBeenCalled();
-    const insert = double.log.find((s) => s.kind === "insert");
-    expect(insert?.values).not.toHaveProperty("huellaSha256");
-  });
-});
-
 describe("attachSpecialFormat: denied (RNF-01)", () => {
   it("answers not_allowed, reads no file and audits nothing when the request is not eligible", async () => {
     const double = use([{ kind: "select", rows: [] }]);
