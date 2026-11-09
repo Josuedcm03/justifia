@@ -175,7 +175,7 @@ describe("EnrollmentPage ?asignatura= guard (SE-6)", () => {
   });
 });
 
-describe("EnrollmentPage content (RF-16)", () => {
+describe("EnrollmentPage content (RF-17)", () => {
   it("has exactly one h1 and lists the student's enrollments", async () => {
     await renderPage();
 
@@ -239,7 +239,7 @@ const GROUP = {
   dias: ["martes"],
 };
 
-describe("EnrollmentPage picker (RF-16)", () => {
+describe("EnrollmentPage picker (RF-17)", () => {
   it("offers the picker, with the list, when groups are offered", async () => {
     loadMock.mockResolvedValue(pageData({ asignaturas: [ASIGNATURA] }));
 
@@ -317,7 +317,7 @@ describe("EnrollmentPage picker (RF-16)", () => {
   });
 });
 
-describe("EnrollmentPage degraded read (RF-16)", () => {
+describe("EnrollmentPage degraded read (RF-17)", () => {
   beforeEach(() => {
     loadMock.mockResolvedValue({
       data: pageData({ enrollments: [] }).data,

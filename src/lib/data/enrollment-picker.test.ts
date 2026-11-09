@@ -90,7 +90,7 @@ describe("getLatestPeriod (SE-4)", () => {
   });
 });
 
-describe("listMyEnrollments (RF-16, RF-04)", () => {
+describe("listMyEnrollments (RF-17, RF-04)", () => {
   it("lists effective enrollments of ALL periods, keeping a group without teacher", async () => {
     const double = use([
       {
@@ -138,7 +138,7 @@ describe("listMyEnrollments (RF-16, RF-04)", () => {
   });
 });
 
-describe("listEnrollableAsignaturas (RF-16, RN-21)", () => {
+describe("listEnrollableAsignaturas (RF-17, RN-21)", () => {
   it("offers active asignaturas with an active grupo in the period, own carrera first", async () => {
     const double = use([
       { kind: "select", rows: [offered(1, true), offered(2, false)] },

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import type { MyEnrollment } from "@/lib/data/enrollment-picker";
 
 /**
- * The student's effective enrollments (RF-16, RF-04) with a drop control per
+ * The student's effective enrollments (RF-17, RF-04) with a drop control per
  * entry. Dropping always confirms (RNF-12) and warns when a draft or returned
  * request uses the group (D5); the warning never blocks. The list itself comes
  * from the server and refreshes when the action revalidates `/enrollment`.

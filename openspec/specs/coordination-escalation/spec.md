@@ -5,7 +5,7 @@
 The academic secretary escalates a doubtful `pendiente` request to the career
 coordination of the student, records a teacher's excess-absence report on an
 `aprobada` request, and the coordination is notified by email and answers
-inside the system. Covers RF-10, RF-15, RN-20; touches RF-07 (a, c), RN-08,
+inside the system. Covers RF-10, RF-15, RF-16 (the coordination answer), RN-20; touches RF-07 (a, c), RN-08,
 RN-15, RN-16, RN-25 (consent v2, in `justification-intake`), RNF-01, RNF-02,
 RNF-06, RNF-07 (outbox pattern), RNF-12. Pilot scope is the Facultad de
 Ingenieria y Arquitectura (D0); no catalog data changes. Documented deviation
@@ -208,7 +208,7 @@ escalated again, with either motive.
 - WHEN a rule counting open escalations is evaluated
 - THEN the count is zero
 
-### Requirement: Coordination answer returns the request to pendiente (E1, E3, RF-10)
+### Requirement: Coordination answer returns the request to pendiente (E1, E3, RF-10, RF-16)
 
 A `coordinacion` user whose own career equals the request's career MUST be
 able to answer an open escalation of it, with a text, trimmed, of 1 to 1000

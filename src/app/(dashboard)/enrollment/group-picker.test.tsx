@@ -93,7 +93,7 @@ beforeEach(() => {
   replace.mockReset();
 });
 
-describe("GroupPicker subjects (RF-16, RN-21)", () => {
+describe("GroupPicker subjects (RF-17, RN-21)", () => {
   it.each([
     [
       "lists the student's own carrera first, whatever order it receives",
@@ -191,7 +191,7 @@ describe("GroupPicker subjects (RF-16, RN-21)", () => {
   );
 });
 
-describe("GroupPicker groups (RF-16)", () => {
+describe("GroupPicker groups (RF-17)", () => {
   it("lists the groups with docente and days and marks the one the student is in", () => {
     show({ selectedId: 1, groups: [G1, G2], enrollments: [enrolled()] });
 
@@ -244,7 +244,7 @@ describe("GroupPicker groups (RF-16)", () => {
   });
 });
 
-describe("GroupPicker replace (RF-16, RNF-12, D5)", () => {
+describe("GroupPicker replace (RF-17, RNF-12, D5)", () => {
   // The student is in group 11 (G1) of asignatura 1 for 2026-S2 and picks G2.
   const props = { selectedId: 1, groups: [G1, G2], enrollments: [enrolled()] };
 

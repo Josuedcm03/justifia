@@ -59,7 +59,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("enrollInGroup outcomes (RF-16, RN-21)", () => {
+describe("enrollInGroup outcomes (RF-17, RN-21)", () => {
   const CREATED = {
     ok: true,
     kind: "created",
@@ -218,7 +218,7 @@ describe("role integrity (RNF-01, academic-catalog role table)", () => {
   });
 });
 
-describe("replace and audit (RF-16, RNF-12, RNF-06)", () => {
+describe("replace and audit (RF-17, RNF-12, RNF-06)", () => {
   it("deactivates only same-asignatura same-period siblings, then audits last on the same tx", async () => {
     const double = use([
       STUDENT,
@@ -273,7 +273,7 @@ describe("replace and audit (RF-16, RNF-12, RNF-06)", () => {
   });
 });
 
-describe("atomicity and failure (RF-16, audit-log)", () => {
+describe("atomicity and failure (RF-17, audit-log)", () => {
   it.each([
     { label: "a data statement", failing: "insert", reached: false },
     { label: "the audit insert", failing: "audit", reached: true },
@@ -320,7 +320,7 @@ describe("atomicity and failure (RF-16, audit-log)", () => {
   });
 });
 
-describe("dropGroup (RF-16, RNF-12, D7)", () => {
+describe("dropGroup (RF-17, RNF-12, D7)", () => {
   it("deactivates the student's own enrollment and writes one baja audit row", async () => {
     const double = use([
       STUDENT,
