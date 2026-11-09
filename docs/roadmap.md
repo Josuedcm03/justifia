@@ -20,16 +20,16 @@ remiten a ese archivo.
 | 11  | `backoffice-ui-refresh` | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué | No | archivado |
 | 12  | `printable-forms`      | Formato especial prellenado e impresión (RN-19); requiere RF nuevo | Por asignar | No | pendiente |
 | 13  | `flow-experience`      | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md` | Por asignar | No | pendiente |
-| 14  | `student-enrollment`   | RF-16, RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12 | Josué | No | archivado |
+| 14  | `student-enrollment`   | RF-17 (antes RF-16), RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12 | Josué | No | archivado |
 
 **Notas:**
 
-- `student-enrollment` agrega RF-16: el estudiante declara su propia inscripción
+- `student-enrollment` agrega RF-17 (numerado RF-16 hasta el 2026-11-09): el estudiante declara su propia inscripción
   en `/enrollment`, mientras no haya acceso al registro académico (RN-21). La
   declaración no está verificada y el control sigue siendo la aprobación de la
   secretaría (RN-15). Quedan fuera de alcance la vista del personal sobre las
-  inscripciones y la columna `Origen`. Pendiente: sincronizar RF-16, RF-12 (c) y
-  RN-21 con la matriz de la tesis.
+  inscripciones y la columna `Origen`. Pendiente: agregar RF-17 a la matriz de la tesis y
+  sincronizar RF-12 (c) y RN-21.
   Archivado el 2026-10-25; el recorrido del propietario (fase 13) quedó
   parcial, según `openspec/changes/archive/2026-10-25-student-enrollment/tasks.md`.
 - RF-12 y RNF-13 (mantenimiento e importación de catálogos) los cubren los

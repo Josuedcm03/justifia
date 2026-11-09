@@ -111,8 +111,9 @@ construido, la matriz de pruebas con desenlaces reales y los RNF medibles.
 
 - `docs/roadmap.md` marca `escalation` como pendiente, pero está integrado en
   `main` (PR #54 a #64).
-- RF-16 (inscripción declarada por el estudiante) no existe en la tesis, que
-  tiene RF-01 a RF-15. Hay que sincronizar la matriz y 4.2.
+- RF-16 es la respuesta de la coordinación en ambos lados desde el 2026-11-09.
+  La inscripción declarada por el estudiante pasó a RF-17 en el repositorio y
+  falta agregarla a la matriz de la tesis y a 4.2.
 - La tesis describe Tesseract.js como motor de OCR; se reemplaza por NuExtract3
   en un servidor alquilado. Se actualiza en la tesis (4.6, 4.7, 1.6, 3.8, RNF-03).
 

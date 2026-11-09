@@ -115,7 +115,7 @@ export function canFileRequests(rol: RolUsuario | undefined): boolean {
 }
 
 /**
- * Who may declare their own enrollment (student-enrollment, RF-16): the
+ * Who may declare their own enrollment (student-enrollment, RF-17): the
  * requesting roles, so the page and its menu entry share one list.
  */
 export function canManageOwnEnrollment(rol: RolUsuario | undefined): boolean {
