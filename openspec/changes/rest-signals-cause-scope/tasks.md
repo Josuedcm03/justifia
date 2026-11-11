@@ -113,8 +113,10 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
 
 ## Phase 11: Final verification
 
-- [ ] 11.1 Gate set G on the branch head: `npm run typecheck`, `npm test` (dummy `DATABASE_URL`), `npx eslint src`, `npm run format:check`; record exact results
-- [ ] 11.2 Measure authored lines against `main`; if above 1200, stop and report (no code golf); record the size
+- [x] 11.1 Gate set G on the branch head: `npm run typecheck`, `npm test` (dummy `DATABASE_URL`), `npx eslint src`, `npm run format:check`; record exact results
+  - Result: typecheck exit 0; `npm test` 320 files / 7286 tests passed; `npx eslint src` has no error other than CRLF `Delete ␍` / prettier-on-CRLF noise (131401 problems, every one mentions `␍`); `prettier --check --end-of-line auto` over the files of this change passes for every `src/` and `i18n/` file; it flags only Markdown: `docs/requirements.md` and `docs/roadmap.md` (already unformatted at `245ad57`), the committed-as-is brief and the openspec planning documents. The repository-wide `prettier --check .` also flags many unrelated pre-existing files.
+- [x] 11.2 Measure authored lines against `main`; if above 1200, stop and report (no code golf); record the size
+  - Result: 1020 authored lines (967 additions + 53 deletions) in `git diff 245ad57..HEAD` excluding `openspec/` and `.engram/`; 834 additions / 51 deletions in `src/` + `i18n/`, of which production code is 112 / 38. Under the 1200 budget; above the ~600 forecast because the strict-TDD triangulation tests came out larger than planned.
 - [ ] 11.3 Run `sdd-verify` against the three spec deltas; fix findings on this branch
 
 ## Merge gate
