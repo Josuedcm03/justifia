@@ -1392,8 +1392,10 @@
       "outcomes": {
         "present": "Señal presente",
         "absent": "Sin señal",
-        "not_evaluable": "No evaluable"
+        "not_evaluable": "No evaluable",
+        "not_applicable": "No aplica"
       },
+      "notApplicableNote": "La causa declarada no incluye reposo.",
       "notEvaluable": {
         "title": "Señales no evaluadas",
         "description": "No se pudo comprobar lo siguiente, por lo que la sugerencia puede ser incompleta."

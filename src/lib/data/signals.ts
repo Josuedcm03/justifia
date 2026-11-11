@@ -23,6 +23,7 @@ import {
 import { listExtractions } from "@/lib/data/extraction";
 import { requestInScope } from "@/lib/data/request-scope-sql";
 import { calendar as defaultCalendar } from "@/lib/intake/calendar";
+import { isCausa, type Causa } from "@/lib/intake/causes";
 import type { NonWorkingDaysProvider } from "@/lib/intake/ports";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { evaluateSignals } from "@/lib/signals/evaluate";
@@ -59,10 +60,11 @@ type RequestBase = {
   presentadaEn: Date;
   fechaInicio: string;
   fechaFin: string;
+  causa: Causa;
   estudianteId: number;
 };
 
-/** Q1: the request's own dates and student. */
+/** Q1: the request's own dates, declared cause and student. */
 export async function readRequestBase(
   solicitudId: number,
 ): Promise<RequestBase> {
@@ -71,20 +73,28 @@ export async function readRequestBase(
       presentadaEn: solicitud.presentadaEn,
       fechaInicio: solicitud.fechaInicio,
       fechaFin: solicitud.fechaFin,
+      causa: solicitud.causa,
       estudianteId: solicitud.estudianteId,
     })
     .from(solicitud)
     .where(eq(solicitud.id, solicitudId))
     .limit(1);
-  // A presented request always has all three; anything else is a read failure,
-  // never a reason code.
-  if (!row?.presentadaEn || !row.fechaInicio || !row.fechaFin) {
+  // A presented request always has the three dates and one of the five causes;
+  // anything else is a read failure, never a reason code and never a default
+  // cause (RN-09 and RN-10 depend on it).
+  if (
+    !row?.presentadaEn ||
+    !row.fechaInicio ||
+    !row.fechaFin ||
+    !isCausa(row.causa)
+  ) {
     throw new Error("signals_request_incomplete");
   }
   return {
     presentadaEn: row.presentadaEn,
     fechaInicio: row.fechaInicio,
     fechaFin: row.fechaFin,
+    causa: row.causa,
     estudianteId: row.estudianteId,
   };
 }
@@ -283,6 +293,7 @@ export async function loadSignals({
           presentedAt: base.presentadaEn,
           absenceFrom: base.fechaInicio,
           absenceTo: base.fechaFin,
+          causa: base.causa,
           documents: extractions.data.map((item) => ({
             documentId: item.documentoId,
             extraction: item.row,

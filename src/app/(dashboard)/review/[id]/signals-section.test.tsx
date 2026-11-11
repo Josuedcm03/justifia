@@ -334,6 +334,169 @@ describe("SignalsSection for coordination (Signals UI i18n)", () => {
   });
 });
 
+describe("SignalsSection not applicable entries (RN-09, RN-10)", () => {
+  // A `fuerza_mayor` request whose extraction invented a rest period: the two
+  // signals do not apply and the others are clean.
+  const NOT_APPLICABLE_VIEW: SignalView = {
+    verdict: "no_alerts",
+    results: [
+      {
+        signal: "rn07",
+        outcome: "absent",
+        evidence: {
+          kind: "timing",
+          presented: "2026-10-13",
+          deadline: "2026-10-13",
+        },
+      },
+      { signal: "rn09", outcome: "not_applicable" },
+      { signal: "rn10", outcome: "not_applicable" },
+      { signal: "rn14", outcome: "absent" },
+    ],
+    notEvaluable: [],
+  };
+
+  function showFor(audience: "secretary" | "coordination", locale = "en") {
+    return renderIntl(
+      <SignalsSection
+        signals={{ data: NOT_APPLICABLE_VIEW, degraded: false }}
+        audience={audience}
+      />,
+      locale as "es" | "en",
+    );
+  }
+
+  it.each(["secretary", "coordination"] as const)(
+    "shows the label and the muted note for RN-09 and RN-10, %s view",
+    (audience) => {
+      showFor(audience);
+
+      for (const signal of ["rn09", "rn10"] as const) {
+        const entry = fact(en.signals.names[signal]);
+        expect(entry).toHaveTextContent(en.signals.outcomes.not_applicable);
+        expect(entry).toHaveTextContent(en.signals.notApplicableNote);
+      }
+    },
+  );
+
+  it("words the entry in Spanish as «No aplica» and the declared-cause line", () => {
+    showFor("secretary", "es");
+
+    const root = screen.getByRole("region", { name: es.signals.title });
+    const entry = fact(es.signals.names.rn09, root);
+    expect(entry).toHaveTextContent("No aplica");
+    expect(entry).toHaveTextContent("La causa declarada no incluye reposo.");
+  });
+
+  it("shows no evidence line, only the label and the note", () => {
+    showFor("secretary");
+
+    const entry = fact(en.signals.names.rn09);
+    expect(entry.textContent).toBe(
+      `${en.signals.outcomes.not_applicable}${en.signals.notApplicableNote}`,
+    );
+    expect(entry.querySelectorAll("a")).toHaveLength(0);
+  });
+
+  it("shows no evidence even if one reaches the component", () => {
+    renderIntl(
+      <SignalsSection
+        signals={{
+          data: {
+            verdict: "no_alerts",
+            results: [
+              {
+                signal: "rn09",
+                outcome: "not_applicable",
+                evidence: {
+                  kind: "incoherent",
+                  documents: [
+                    {
+                      documentId: 3,
+                      issueDate: "2026-07-12",
+                      restTo: "2026-07-10",
+                    },
+                  ],
+                },
+              } as unknown as SignalView["results"][number],
+            ],
+            notEvaluable: [],
+          },
+          degraded: false,
+        }}
+      />,
+      "en",
+    );
+
+    expect(section()).not.toHaveTextContent(/Issued|rest ends|Jul/);
+    expect(fact(en.signals.names.rn09)).toHaveTextContent(
+      en.signals.notApplicableNote,
+    );
+  });
+
+  it("does not raise the incoherent dates signal and reads «No alerts»", () => {
+    showFor("secretary");
+
+    expect(within(section()).getByRole("status")).toHaveTextContent(
+      "Suggestion: No alerts",
+    );
+    expect(fact(en.signals.names.rn09)).not.toHaveTextContent(
+      en.signals.outcomes.present,
+    );
+    expect(section().querySelectorAll("dt")).toHaveLength(4);
+  });
+
+  it("does not list a not applicable signal among the signals not evaluated", () => {
+    showFor("secretary");
+
+    expect(
+      screen.queryByRole("list", { name: en.signals.notEvaluable.title }),
+    ).toBeNull();
+    expect(section()).not.toHaveTextContent(en.signals.notEvaluable.title);
+  });
+
+  it("states the outcome in words next to a present and a not evaluable signal (Text, not color)", () => {
+    show({
+      verdict: "review_carefully",
+      results: [
+        { signal: "rn07", outcome: "present" },
+        { signal: "rn09", outcome: "not_applicable" },
+        { signal: "rn14", outcome: "not_evaluable", reason: "no_period" },
+      ],
+      notEvaluable: [{ signal: "rn14", reason: "no_period" }],
+    });
+
+    expect(fact(en.signals.names.rn07)).toHaveTextContent(
+      en.signals.outcomes.present,
+    );
+    expect(fact(en.signals.names.rn09)).toHaveTextContent(
+      en.signals.outcomes.not_applicable,
+    );
+    expect(fact(en.signals.names.rn14)).toHaveTextContent(
+      en.signals.outcomes.not_evaluable,
+    );
+    // The note belongs to the not applicable entry alone.
+    expect(fact(en.signals.names.rn07)).not.toHaveTextContent(
+      en.signals.notApplicableNote,
+    );
+    expect(fact(en.signals.names.rn14)).not.toHaveTextContent(
+      en.signals.notApplicableNote,
+    );
+  });
+
+  it("reports no accessibility violation", async () => {
+    const { container } = showFor("secretary");
+
+    const results = await axe.run(container, {
+      runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+      rules: { "color-contrast": { enabled: false } },
+    });
+
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    expect(results.passes.length).toBeGreaterThan(0);
+  });
+});
+
 describe("SignalsSection fail-soft (Read failure)", () => {
   it("shows only the degraded notice, with no verdict and no entries", () => {
     show(null, { degraded: true });

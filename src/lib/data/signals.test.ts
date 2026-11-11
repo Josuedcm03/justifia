@@ -44,6 +44,7 @@ const BASE = {
   presentadaEn: new Date("2026-10-13T15:00:00Z"),
   fechaInicio: "2026-10-05",
   fechaFin: "2026-10-09",
+  causa: "medica",
   estudianteId: 7,
 };
 
@@ -201,6 +202,47 @@ describe("loadSignals assembly", () => {
   });
 });
 
+describe("loadSignals cause scope (RN-09, RN-10)", () => {
+  const incoherent = { ...COMPLETE, issueDate: "2026-10-12" };
+
+  function withCausa(causa: string) {
+    const script = fullScript();
+    script[0] = { kind: "select", rows: [{ ...BASE, causa }] };
+    return script;
+  }
+
+  it("hands the declared cause to the evaluator: fuerza_mayor makes RN-09 and RN-10 not applicable", async () => {
+    listExtractionsMock.mockResolvedValue(extractions(incoherent));
+    const double = use(withCausa("fuerza_mayor"));
+
+    const result = await load();
+
+    expect(result.degraded).toBe(false);
+    expect(result.data?.results.map((r) => [r.signal, r.outcome])).toEqual([
+      ["rn07", "absent"],
+      ["rn09", "not_applicable"],
+      ["rn10", "not_applicable"],
+      ["rn14", "absent"],
+      ["rn26", "absent"],
+    ]);
+    expect(result.data?.verdict).toBe("no_alerts");
+    expect(double.exhausted).toBe(true);
+  });
+
+  it("keeps RN-09 present for the same extraction on a medical request", async () => {
+    listExtractionsMock.mockResolvedValue(extractions(incoherent));
+    use(withCausa("medica"));
+
+    const result = await load();
+
+    expect(result.data?.results[1]).toMatchObject({
+      signal: "rn09",
+      outcome: "present",
+    });
+    expect(result.data?.verdict).toBe("review_carefully");
+  });
+});
+
 describe("loadSignals fail-soft", () => {
   const degraded = { data: null, degraded: true };
 
@@ -271,6 +313,23 @@ describe("loadSignals fail-soft", () => {
       use([{ kind: "select", rows }]);
 
       await expect(load()).resolves.toEqual(degraded);
+    },
+  );
+
+  it.each([
+    ["a null cause", null],
+    ["a cause outside the five of RN-01", "vacaciones"],
+    ["an empty cause", ""],
+  ])(
+    "degrades with no verdict and reads nothing else when the request has %s",
+    async (_label, causa) => {
+      const double = use([{ kind: "select", rows: [{ ...BASE, causa }] }]);
+
+      await expect(load()).resolves.toEqual(degraded);
+
+      // Fail loud: no default cause is assumed, the read stops at Q1.
+      expect(double.log).toHaveLength(1);
+      expect(listExtractionsMock).not.toHaveBeenCalled();
     },
   );
 

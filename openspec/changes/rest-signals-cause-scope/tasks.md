@@ -56,36 +56,36 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
 
 ## Phase 2: Verdict over applicable results (unit 2 starts)
 
-- [ ] 2.1 RED `src/lib/signals/verdict.test.ts`: every row of "Verdict table" involving `not_applicable` (plus all absent -> `no_alerts`; plus one present -> `review_carefully`; only `not_applicable` + `not_evaluable` -> `inconclusive`; every signal `not_applicable` -> `inconclusive`); `not_applicable` never in `notEvaluable`; scenarios "Non-rest cause with the other signals evaluable and absent", "Non-rest cause with a signal not evaluable", "Non-rest cause with RN-14 present" (D7)
-- [ ] 2.2 GREEN `src/lib/signals/types.ts`: `NotApplicableResult` (`signal: "rn09" | "rn10"`, no reason, no evidence) in `SignalResult` and `SignalViewResult`, `SignalInput.causa: Causa` required, header comment (D1, D4, D5); `src/lib/signals/verdict.ts`: filter applicable before `some`/`every`
+- [x] 2.1 RED `src/lib/signals/verdict.test.ts`: every row of "Verdict table" involving `not_applicable` (plus all absent -> `no_alerts`; plus one present -> `review_carefully`; only `not_applicable` + `not_evaluable` -> `inconclusive`; every signal `not_applicable` -> `inconclusive`); `not_applicable` never in `notEvaluable`; scenarios "Non-rest cause with the other signals evaluable and absent", "Non-rest cause with a signal not evaluable", "Non-rest cause with RN-14 present" (D7)
+- [x] 2.2 GREEN `src/lib/signals/types.ts`: `NotApplicableResult` (`signal: "rn09" | "rn10"`, no reason, no evidence) in `SignalResult` and `SignalViewResult`, `SignalInput.causa: Causa` required, header comment (D1, D4, D5); `src/lib/signals/verdict.ts`: filter applicable before `some`/`every`
 
 ## Phase 3: Cause cut in evaluate
 
-- [ ] 3.1 RED `src/lib/signals/evaluate.test.ts`: `input()` defaults `causa: "medica"`; table "Non-rest causes make RN-09 and RN-10 not applicable" for the three causes, with `rest_to` before `issue_date`; scenario "Cut precedes extraction state" (`pendiente`, `fallida`, no row stay `not_applicable`); "Medical cause keeps RF-05 b (E-02, SC-02)" RN-09 `present`; "Maternity or paternity cause still evaluates both"; "RN-07, RN-14 and RN-26 do not depend on the cause" across the five causes; "Five results in fixed order for every cause"; "Reason is always from the closed set" extended to `not_applicable` (no reason, no evidence)
-- [ ] 3.2 GREEN `src/lib/signals/evaluate.ts`: `results: SignalResult[]`; when `!admitsRest(input.causa)` emit `{ signal, outcome: "not_applicable" }` in the rn09 and rn10 slots without calling the evaluators (D2); `src/lib/signals/rest-dates.ts` stays untouched
+- [x] 3.1 RED `src/lib/signals/evaluate.test.ts`: `input()` defaults `causa: "medica"`; table "Non-rest causes make RN-09 and RN-10 not applicable" for the three causes, with `rest_to` before `issue_date`; scenario "Cut precedes extraction state" (`pendiente`, `fallida`, no row stay `not_applicable`); "Medical cause keeps RF-05 b (E-02, SC-02)" RN-09 `present`; "Maternity or paternity cause still evaluates both"; "RN-07, RN-14 and RN-26 do not depend on the cause" across the five causes; "Five results in fixed order for every cause"; "Reason is always from the closed set" extended to `not_applicable` (no reason, no evidence)
+- [x] 3.2 GREEN `src/lib/signals/evaluate.ts`: `results: SignalResult[]`; when `!admitsRest(input.causa)` emit `{ signal, outcome: "not_applicable" }` in the rn09 and rn10 slots without calling the evaluators (D2); `src/lib/signals/rest-dates.ts` stays untouched
 
 ## Phase 4: Coordination view
 
-- [ ] 4.1 RED `src/lib/signals/coordination-view.test.ts`: `toCoordinationView` projects `not_applicable` as `{ signal, outcome }` only; verdict equals the secretary's; no evidence field leaks (requirement "Signal outcomes on the open escalation detail", scenario "Not applicable without evidence")
-- [ ] 4.2 GREEN `src/lib/signals/coordination-view.ts`: `projectResult` becomes an exhaustive `switch` over `outcome` (D4)
+- [x] 4.1 RED `src/lib/signals/coordination-view.test.ts`: `toCoordinationView` projects `not_applicable` as `{ signal, outcome }` only; verdict equals the secretary's; no evidence field leaks (requirement "Signal outcomes on the open escalation detail", scenario "Not applicable without evidence")
+- [x] 4.2 GREEN `src/lib/signals/coordination-view.ts`: `projectResult` becomes an exhaustive `switch` over `outcome` (D4)
 
 ## Phase 5: Loader
 
-- [ ] 5.1 RED `src/lib/data/signals.test.ts`: `BASE.causa`; `it.each` null and a value outside the five causes make `loadSignals` return `{ data: null, degraded: true }` with no verdict (scenario "Missing or invalid cause fails loud"); a `fuerza_mayor` request reaches the evaluator with `causa` and yields `not_applicable` for RN-09 and RN-10 (D6)
-- [ ] 5.2 GREEN `src/lib/data/signals.ts`: `readRequestBase` selects `Solicitud.causa` and throws `signals_request_incomplete` when null or `!isCausa`; `loadSignals` passes `causa` in `SignalInput`
+- [x] 5.1 RED `src/lib/data/signals.test.ts`: `BASE.causa`; `it.each` null and a value outside the five causes make `loadSignals` return `{ data: null, degraded: true }` with no verdict (scenario "Missing or invalid cause fails loud"); a `fuerza_mayor` request reaches the evaluator with `causa` and yields `not_applicable` for RN-09 and RN-10 (D6)
+- [x] 5.2 GREEN `src/lib/data/signals.ts`: `readRequestBase` selects `Solicitud.causa` and throws `signals_request_incomplete` when null or `!isCausa`; `loadSignals` passes `causa` in `SignalInput`
 
 ## Phase 6: i18n
 
-- [ ] 6.1 RED `src/i18n/review-messages.test.ts`: extend the outcome list (line ~626) with `not_applicable` and add `notApplicableNote`; es reads "No aplica" and "La causa declarada no incluye reposo."; the same-keys and no-voseo tests cover the rest (requirement "Signals UI i18n", scenarios "Translation keys present", "Not applicable wording")
-- [ ] 6.2 GREEN `i18n/es.json`, `i18n/en.json`: `review.signals.outcomes.not_applicable` ("No aplica" / "Not applicable") and `review.signals.notApplicableNote` ("La causa declarada no incluye reposo." / "The declared cause does not include a rest period.")
+- [x] 6.1 RED `src/i18n/review-messages.test.ts`: extend the outcome list (line ~626) with `not_applicable` and add `notApplicableNote`; es reads "No aplica" and "La causa declarada no incluye reposo."; the same-keys and no-voseo tests cover the rest (requirement "Signals UI i18n", scenarios "Translation keys present", "Not applicable wording")
+- [x] 6.2 GREEN `i18n/es.json`, `i18n/en.json`: `review.signals.outcomes.not_applicable` ("No aplica" / "Not applicable") and `review.signals.notApplicableNote` ("La causa declarada no incluye reposo." / "The declared cause does not include a rest period.")
 
 ## Phase 7: Section component
 
-- [ ] 7.1 RED `src/app/(dashboard)/review/[id]/signals-section.test.tsx`: `not_applicable` RN-09 and RN-10 show the label and the muted note, no evidence, not listed among "Señales no evaluadas", "fechas incoherentes" absent, verdict "Sin alertas"; same for `audience="coordination"`; text, not color only (scenarios "Not applicable entries", "Text, not color", coordination "Not applicable without evidence")
-- [ ] 7.2 GREEN `src/app/(dashboard)/review/[id]/signals-section.tsx`: evidence only for `present`/`absent` (line ~118); render `notApplicableNote` as a muted line inside `SignalFact` when `not_applicable` (D8); the extraction section stays unchanged (scenario "Extracted data section unchanged for a non-rest cause")
-- [ ] 7.3 Fix any other test fixture that builds `SignalInput` or `SignalResult` and no longer compiles (for example under `src/app/(dashboard)/coordination/[id]/` and `src/lib/signals/display-only.test.ts`); test files only, no behavior change
-- [ ] 7.4 Gates unit 2: `npx vitest run src/lib/signals src/lib/data src/i18n "src/app/(dashboard)"`, then `npm run typecheck` (it also compiles `scripts/session-verify.local.ts` (read-only), which must still typecheck unchanged; `tsconfig.json` includes `**/*.ts`) and `npx eslint src`
-- [ ] 7.5 Commit unit 2: `feat(validation-signals): evaluate RN-09 and RN-10 only for causes that admit rest`
+- [x] 7.1 RED `src/app/(dashboard)/review/[id]/signals-section.test.tsx`: `not_applicable` RN-09 and RN-10 show the label and the muted note, no evidence, not listed among "Señales no evaluadas", "fechas incoherentes" absent, verdict "Sin alertas"; same for `audience="coordination"`; text, not color only (scenarios "Not applicable entries", "Text, not color", coordination "Not applicable without evidence")
+- [x] 7.2 GREEN `src/app/(dashboard)/review/[id]/signals-section.tsx`: evidence only for `present`/`absent` (line ~118); render `notApplicableNote` as a muted line inside `SignalFact` when `not_applicable` (D8); the extraction section stays unchanged (scenario "Extracted data section unchanged for a non-rest cause")
+- [x] 7.3 Fix any other test fixture that builds `SignalInput` or `SignalResult` and no longer compiles (for example under `src/app/(dashboard)/coordination/[id]/` and `src/lib/signals/display-only.test.ts`); test files only, no behavior change
+- [x] 7.4 Gates unit 2: `npx vitest run src/lib/signals src/lib/data src/i18n "src/app/(dashboard)"`, then `npm run typecheck` (it also compiles `scripts/session-verify.local.ts` (read-only), which must still typecheck unchanged; `tsconfig.json` includes `**/*.ts`) and `npx eslint src`
+- [x] 7.5 Commit unit 2: `feat(validation-signals): evaluate RN-09 and RN-10 only for causes that admit rest`
 
 ## Phase 8: Integration case (opt-in, unit 3)
 

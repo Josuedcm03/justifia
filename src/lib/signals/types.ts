@@ -1,4 +1,5 @@
 import type { ExtractionRowView } from "@/lib/extraction/display";
+import type { Causa } from "@/lib/intake/causes";
 
 import type { RepeatedDocumentInput } from "./repeated-document";
 
@@ -6,13 +7,16 @@ import type { RepeatedDocumentInput } from "./repeated-document";
 // evaluators: no database, no `server-only`. A signal yields exactly one
 // outcome; `not_evaluable` carries exactly one reason from a closed set, and
 // `present` / `absent` carry none. Reason codes are the spec's closed set.
+// RN-09 and RN-10 have a fourth outcome, `not_applicable`: the declared cause
+// admits no rest period. It carries no reason and no evidence, and is never a
+// reason code nor a `not_evaluable` (that one means an input is missing).
 
 export const SIGNAL_CODES = ["rn07", "rn09", "rn10", "rn14", "rn26"] as const;
 export type SignalCode = (typeof SIGNAL_CODES)[number];
 
 /**
  * The reasons of the documents, in precedence order: when several explain a
- * `not_evaluable` outcome the first match wins ("Three outcomes with a closed
+ * `not_evaluable` outcome the first match wins ("Four outcomes with a closed
  * set of reasons"). `calendar_not_covering_year` is RN-07's alone.
  */
 export const REASON_PRECEDENCE = [
@@ -94,6 +98,12 @@ export type SignalEvidence =
    */
   | { kind: "repeated"; references: number[] };
 
+/** RN-09 / RN-10 only: typed so no other signal can be marked not applicable. */
+export type NotApplicableResult = {
+  signal: "rn09" | "rn10";
+  outcome: "not_applicable";
+};
+
 export type SignalResult =
   | {
       signal: SignalCode;
@@ -104,7 +114,8 @@ export type SignalResult =
       signal: SignalCode;
       outcome: "not_evaluable";
       reason: NotEvaluableReason;
-    };
+    }
+  | NotApplicableResult;
 
 export const VERDICTS = [
   "review_carefully",
@@ -135,7 +146,8 @@ export type SignalViewResult =
       outcome: "present" | "absent";
       evidence?: SignalEvidence;
     }
-  | Extract<SignalResult, { outcome: "not_evaluable" }>;
+  | Extract<SignalResult, { outcome: "not_evaluable" }>
+  | NotApplicableResult;
 
 export type SignalView = {
   verdict: Verdict;
@@ -160,6 +172,8 @@ export type SignalInput = {
   presentedAt: Date;
   absenceFrom: string;
   absenceTo: string;
+  /** Declared cause (RN-01): decides whether RN-09 and RN-10 apply. */
+  causa: Causa;
   /** Current documents only: not retired, student-uploaded, not special format. */
   documents: readonly SignalDocument[];
   /** Distinct `Grupo.periodo` of the request's subjects. */
