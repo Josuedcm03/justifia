@@ -96,10 +96,14 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
 
 > Every step needs the user's explicit "yes" for that specific command, never batched and never automatic. Connection strings come from the Neon CLI. Never a validation branch.
 
-- [ ] 9.1 ASK USER `[READ-ONLY]` agree on the throwaway branch name and its parent branch (fictitious data only)
-- [ ] 9.2 ASK USER `[CONFIRM]` create the throwaway Neon branch (one command, one yes)
-- [ ] 9.3 ASK USER `[CONFIRM]` run `INTEGRATION_ALLOW_WRITES=1 npm run test:integration` against that branch only; record the exact result next to this task
-- [ ] 9.4 ASK USER `[CONFIRM]` delete the throwaway Neon branch (a separate command, a separate yes)
+- [x] 9.1 ASK USER `[READ-ONLY]` agree on the throwaway branch name and its parent branch (fictitious data only)
+  - Result: `test-rest-signals-cause-scope-pg`, parent `production` (owner-approved 2026-11-11, following the `request-consent` precedent; the parent holds real data, the suite wrote only to the throwaway branch).
+- [x] 9.2 ASK USER `[CONFIRM]` create the throwaway Neon branch (one command, one yes)
+  - Result: created `br-spring-union-ayjx9t0p` on 2026-11-11 with `neon branches create --name test-rest-signals-cause-scope-pg --parent production`.
+- [x] 9.3 ASK USER `[CONFIRM]` run `INTEGRATION_ALLOW_WRITES=1 npm run test:integration` against that branch only; record the exact result next to this task
+  - Result (head `a15aa79`): 7 files, 120 tests: 119 passed, 1 failed. `validation-signals.integration.test.ts` passed, including the non-rest cause case. The failure is `queue-index.integration.test.ts` (planner chose `Bitmap Heap Scan` instead of `Index Scan` on `IX_Solicitud_Cola`). Re-run of that single file on the same branch and code: 1 passed. The test imports only `@/db` and `reviewQueueQuery`, neither changed by this change; the failure is intermittent under the full suite and is recorded as a follow-up outside this change. Root cause not investigated.
+- [x] 9.4 ASK USER `[CONFIRM]` delete the throwaway Neon branch (a separate command, a separate yes)
+  - Result: deleted on 2026-11-11 with `neon branches delete test-rest-signals-cause-scope-pg`; `neon branches list` no longer shows it.
 
 ## Phase 10: Docs (unit 4)
 
@@ -117,7 +121,8 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
   - Result: typecheck exit 0; `npm test` 320 files / 7286 tests passed; `npx eslint src` has no error other than CRLF `Delete ␍` / prettier-on-CRLF noise (131401 problems, every one mentions `␍`); `prettier --check --end-of-line auto` over the files of this change passes for every `src/` and `i18n/` file; it flags only Markdown: `docs/requirements.md` and `docs/roadmap.md` (already unformatted at `245ad57`), the committed-as-is brief and the openspec planning documents. The repository-wide `prettier --check .` also flags many unrelated pre-existing files.
 - [x] 11.2 Measure authored lines against `main`; if above 1200, stop and report (no code golf); record the size
   - Result: 1020 authored lines (967 additions + 53 deletions) in `git diff 245ad57..HEAD` excluding `openspec/` and `.engram/`; 834 additions / 51 deletions in `src/` + `i18n/`, of which production code is 112 / 38. Under the 1200 budget; above the ~600 forecast because the strict-TDD triangulation tests came out larger than planned.
-- [ ] 11.3 Run `sdd-verify` against the three spec deltas; fix findings on this branch
+- [x] 11.3 Run `sdd-verify` against the three spec deltas; fix findings on this branch
+  - Result: pass with warnings (0 critical, 2 warnings, 5 suggestions), report in `verify-report.md`. Follow-ups applied in `1a3ad50` (closed-set sweep over the five causes, comment reflow); the extraction-section test was not added because the component takes no cause input. Warning 1 (integration never executed) is closed by task 9.3.
 
 ## Merge gate
 
@@ -132,4 +137,5 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
 - Re-run the extraction check with the real photos: `npx tsx scripts/session-extraction-check.local.ts`.
 - Rehearsal in `ensayo-secretaria` (Thu 2026-11-12 from 07:00): seed `--rehearsal`, extraction cron, `--resolve-history`, `scripts/session-verify.local.ts`.
 - Update `scripts/session-verify.local.ts` expectations of RN-09 and RN-10 for SC-06, SC-10, SC-11 a/b, SC-13, P2, P3 and P5 to "no aplica".
+- `queue-index.integration.test.ts` is intermittent under the full integration suite (see task 9.3): it disables `enable_seqscan` but the planner can still pick a bitmap scan. Investigate separately; not part of this change.
 - Thesis (in `thesis-workspace`): review 4.x and A.5 for the cause cut; sync RN-09 and RN-10 to the requirements matrix.
