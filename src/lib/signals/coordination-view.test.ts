@@ -100,6 +100,74 @@ describe("toCoordinationView keeps outcomes, reasons and the verdict", () => {
   });
 });
 
+describe("toCoordinationView with a cause that admits no rest", () => {
+  const NOT_APPLICABLE_REPORT: SignalReport = {
+    verdict: "no_alerts",
+    results: [
+      {
+        signal: "rn07",
+        outcome: "absent",
+        evidence: {
+          kind: "timing",
+          presented: "2026-10-13",
+          deadline: "2026-10-13",
+        },
+      },
+      { signal: "rn09", outcome: "not_applicable" },
+      { signal: "rn10", outcome: "not_applicable" },
+      { signal: "rn14", outcome: "not_evaluable", reason: "field_missing" },
+    ],
+    notEvaluable: [{ signal: "rn14", reason: "field_missing" }],
+  };
+
+  it("projects not applicable as the signal and the outcome only", () => {
+    const view = toCoordinationView(NOT_APPLICABLE_REPORT);
+
+    expect(view.results).toEqual([
+      { signal: "rn07", outcome: "absent" },
+      { signal: "rn09", outcome: "not_applicable" },
+      { signal: "rn10", outcome: "not_applicable" },
+      { signal: "rn14", outcome: "not_evaluable", reason: "field_missing" },
+    ]);
+  });
+
+  it("gives the verdict the secretary gets and never lists not applicable apart", () => {
+    const view = toCoordinationView(NOT_APPLICABLE_REPORT);
+
+    expect(view.verdict).toBe(NOT_APPLICABLE_REPORT.verdict);
+    expect(view.notEvaluable).toEqual([
+      { signal: "rn14", reason: "field_missing" },
+    ]);
+  });
+
+  it("leaks no evidence or reason through a not applicable entry", () => {
+    const leaky = {
+      ...NOT_APPLICABLE_REPORT,
+      notEvaluable: [],
+      results: [
+        {
+          signal: "rn09",
+          outcome: "not_applicable",
+          evidence: {
+            kind: "incoherent",
+            documents: [
+              { documentId: 31, issueDate: "2026-10-09", restTo: "2026-10-01" },
+            ],
+          },
+          reason: "field_missing",
+        },
+      ],
+    } as unknown as SignalReport;
+
+    const view = toCoordinationView(leaky);
+
+    expect(view.results).toEqual([
+      { signal: "rn09", outcome: "not_applicable" },
+    ]);
+    expect(JSON.stringify(view)).not.toMatch(/2026|documentId|field_missing/);
+  });
+});
+
 describe("toCoordinationView drops every evidence field", () => {
   it("carries no evidence key on any result", () => {
     const view = toCoordinationView(FULL_REPORT);

@@ -623,9 +623,15 @@ describe("review signals messages (validation-signals, RNF-12)", () => {
 
       for (const signal of SIGNAL_CODES)
         expect(x.names[signal], signal).toBeTruthy();
-      for (const outcome of ["present", "absent", "not_evaluable"]) {
+      for (const outcome of [
+        "present",
+        "absent",
+        "not_evaluable",
+        "not_applicable",
+      ]) {
         expect(x.outcomes[outcome], outcome).toBeTruthy();
       }
+      expect(x.notApplicableNote, "notApplicableNote").toBeTruthy();
       for (const verdict of VERDICTS)
         expect(x.verdict[verdict], verdict).toBeTruthy();
       for (const reason of NOT_EVALUABLE_REASONS) {
@@ -643,6 +649,17 @@ describe("review signals messages (validation-signals, RNF-12)", () => {
     expect(en.review.signals.verdict.review_carefully).toBe("Review carefully");
     expect(en.review.signals.verdict.no_alerts).toBe("No alerts");
     expect(en.review.signals.verdict.inconclusive).toBe("Inconclusive");
+  });
+
+  it("words not applicable as «No aplica» with its explanation line (RN-09, RN-10)", () => {
+    expect(es.review.signals.outcomes.not_applicable).toBe("No aplica");
+    expect(es.review.signals.notApplicableNote).toBe(
+      "La causa declarada no incluye reposo.",
+    );
+    expect(en.review.signals.outcomes.not_applicable).toBe("Not applicable");
+    expect(en.review.signals.notApplicableNote).toBe(
+      "The declared cause does not include a rest period.",
+    );
   });
 
   it("states in both locales that the suggestion does not change the request", () => {

@@ -114,14 +114,22 @@ function RepeatedEvidence({ references }: { references: number[] }) {
 function SignalFact({ result }: { result: SignalViewResult }) {
   const t = useTranslations("review.signals");
   const lines = useEvidenceLines();
+  // Evidence belongs to `present` and `absent` alone: a not evaluable or not
+  // applicable entry carries none, whatever reaches this component.
   const evidence =
-    result.outcome === "not_evaluable" || !result.evidence
-      ? []
-      : lines(result.evidence);
+    (result.outcome === "present" || result.outcome === "absent") &&
+    result.evidence
+      ? lines(result.evidence)
+      : [];
 
   return (
     <Fact label={t(`names.${result.signal}`)}>
       <span className="font-medium">{t(`outcomes.${result.outcome}`)}</span>
+      {result.outcome === "not_applicable" && (
+        <span className="text-muted-foreground block">
+          {t("notApplicableNote")}
+        </span>
+      )}
       {evidence.map((line, index) => (
         <span key={`${index}-${line}`} className="text-muted-foreground block">
           {line}

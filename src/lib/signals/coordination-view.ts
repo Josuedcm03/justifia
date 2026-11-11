@@ -11,16 +11,24 @@ import type {
 // another request. Every field is copied by name, so a field added to the
 // report later stays out of this view until someone decides it may go in.
 
-function projectResult(result: SignalReport["results"][number]) {
-  const projected: SignalViewResult =
-    result.outcome === "not_evaluable"
-      ? {
-          signal: result.signal,
-          outcome: result.outcome,
-          reason: result.reason,
-        }
-      : { signal: result.signal, outcome: result.outcome };
-  return projected;
+function projectResult(
+  result: SignalReport["results"][number],
+): SignalViewResult {
+  // Exhaustive on purpose: a fifth outcome fails to compile here until someone
+  // decides what the coordinator may see of it.
+  switch (result.outcome) {
+    case "present":
+    case "absent":
+      return { signal: result.signal, outcome: result.outcome };
+    case "not_evaluable":
+      return {
+        signal: result.signal,
+        outcome: result.outcome,
+        reason: result.reason,
+      };
+    case "not_applicable":
+      return { signal: result.signal, outcome: result.outcome };
+  }
 }
 
 export function toCoordinationView(report: SignalReport): SignalView {

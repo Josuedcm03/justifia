@@ -41,7 +41,7 @@ describe("statements emitted by the signals read", () => {
     const { sql, params } = await emitted(() => readRequestBase(42));
 
     expect(sql).toMatch(
-      /^select "PresentadaEn", "FechaInicio", "FechaFin", "EstudianteId" from "Solicitud" where "Solicitud"\."Id" = \$1/,
+      /^select "PresentadaEn", "FechaInicio", "FechaFin", "Causa", "EstudianteId" from "Solicitud" where "Solicitud"\."Id" = \$1/,
     );
     expect(params).toEqual([42, 1]);
   });

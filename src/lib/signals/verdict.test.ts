@@ -27,6 +27,10 @@ const unknown = (
     { outcome: "not_evaluable" }
   >["reason"] = "extraction_pending",
 ): SignalResult => ({ signal, outcome: "not_evaluable", reason });
+const notApplicable = (signal: "rn09" | "rn10"): SignalResult => ({
+  signal,
+  outcome: "not_applicable",
+});
 
 describe("suggestVerdict table", () => {
   it.each([
@@ -147,5 +151,101 @@ describe("suggestVerdict table", () => {
 
   it("is inconclusive when nothing was evaluated at all", () => {
     expect(suggestVerdict([]).verdict).toBe("inconclusive");
+  });
+});
+
+// "Verdict table": the rows that involve `not_applicable` (RF-05 a, RN-15).
+describe("suggestVerdict with not applicable signals", () => {
+  it.each([
+    [
+      "not applicable plus the rest all absent",
+      [
+        absent("rn07"),
+        notApplicable("rn09"),
+        notApplicable("rn10"),
+        absent("rn14"),
+        absent("rn26"),
+      ],
+      "no_alerts",
+      [],
+    ],
+    [
+      "not applicable plus one present",
+      [
+        absent("rn07"),
+        notApplicable("rn09"),
+        notApplicable("rn10"),
+        present("rn14"),
+        absent("rn26"),
+      ],
+      "review_carefully",
+      [],
+    ],
+    [
+      "not applicable plus a present and a not evaluable",
+      [
+        present("rn07"),
+        notApplicable("rn09"),
+        notApplicable("rn10"),
+        unknown("rn14", "field_missing"),
+        absent("rn26"),
+      ],
+      "review_carefully",
+      ["rn14"],
+    ],
+    [
+      "none present, one not evaluable, not applicable ignored",
+      [
+        absent("rn07"),
+        notApplicable("rn09"),
+        notApplicable("rn10"),
+        unknown("rn14", "field_missing"),
+        absent("rn26"),
+      ],
+      "inconclusive",
+      ["rn14"],
+    ],
+    [
+      "none present, all applicable not evaluable",
+      [
+        unknown("rn07", "calendar_not_covering_year"),
+        notApplicable("rn09"),
+        notApplicable("rn10"),
+        unknown("rn14"),
+        unknown("rn26", "no_fingerprint"),
+      ],
+      "inconclusive",
+      ["rn07", "rn14", "rn26"],
+    ],
+    [
+      "only not applicable and not evaluable",
+      [notApplicable("rn09"), unknown("rn10")],
+      "inconclusive",
+      ["rn10"],
+    ],
+    [
+      "every signal not applicable",
+      [notApplicable("rn09"), notApplicable("rn10")],
+      "inconclusive",
+      [],
+    ],
+  ] as const)("%s", (_label, results, verdict, listed) => {
+    const suggestion = suggestVerdict(results);
+
+    expect(suggestion.verdict).toBe(verdict);
+    expect(suggestion.notEvaluable.map((e) => e.signal)).toEqual(listed);
+  });
+
+  it("never lists a not applicable signal among the not evaluable ones", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      notApplicable("rn09"),
+      notApplicable("rn10"),
+      unknown("rn14", "no_period"),
+    ]);
+
+    expect(suggestion.notEvaluable).toEqual([
+      { signal: "rn14", reason: "no_period" },
+    ]);
   });
 });

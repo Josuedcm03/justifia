@@ -1392,8 +1392,10 @@
       "outcomes": {
         "present": "Signal present",
         "absent": "No signal",
-        "not_evaluable": "Not evaluable"
+        "not_evaluable": "Not evaluable",
+        "not_applicable": "Not applicable"
       },
+      "notApplicableNote": "The declared cause does not include a rest period.",
       "notEvaluable": {
         "title": "Signals not evaluated",
         "description": "The following could not be checked, so the suggestion may be incomplete."

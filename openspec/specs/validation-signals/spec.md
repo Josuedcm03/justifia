@@ -41,13 +41,17 @@ America/Managua; "extraction row" = the `ExtraccionDocumento` of a document.
 
 ## Requirements
 
-### Requirement: Three outcomes with a closed set of reasons (RF-05 a, RN-15)
+### Requirement: Four outcomes with a closed set of reasons (RF-05 a, RN-15)
 
 Slice S1 (S2 adds the RN-26 codes). Every signal MUST yield exactly one outcome:
-`present`, `absent` or `not_evaluable`. A `not_evaluable` outcome MUST carry
-exactly one reason code from this closed set, and `present` and `absent` MUST
-carry none. A signal MUST be `not_evaluable` only when an input it needs is
-missing, never as a fallback for an error.
+`present`, `absent`, `not_evaluable` or, for RN-09 and RN-10 only,
+`not_applicable`. A `not_evaluable` outcome MUST carry exactly one reason code
+from this closed set, and `present` and `absent` MUST carry none.
+`not_applicable` MUST carry no reason code and no evidence and MUST be produced
+only by "Rest signals apply only to causes that admit rest"; it MUST NOT be a
+reason code and MUST NOT replace `not_evaluable`. A signal MUST be
+`not_evaluable` only when an input it needs is missing, never as a fallback for
+an error.
 
 | Reason code | Meaning | Allowed for |
 |---|---|---|
@@ -72,6 +76,7 @@ chosen by this precedence, first match winning: `no_period`,
 | `present` | none |
 | `absent` | none |
 | `not_evaluable` | exactly one code of the table, allowed for that signal |
+| `not_applicable` | none, and no evidence; only RN-09 and RN-10 |
 
 - GIVEN every signal evaluated over the input combinations of this spec
 - WHEN the outcomes are collected
@@ -128,8 +133,10 @@ cover the year of the deadline. The signal MUST NOT depend on extraction.
 
 ### Requirement: Incoherent dates, RN-09 (RF-05 a, RF-05 b, RN-09)
 
-Slice S1. Per current document with a `completada` extraction row, the check
-MUST be `present` when the end of the rest period (`reposoHasta`) is before the
+Slice S1. Only when the declared cause is a rest-admitting cause (otherwise the
+outcome is `not_applicable`, see "Rest signals apply only to causes that admit
+rest"), per current document with a `completada` extraction row, the check MUST
+be `present` when the end of the rest period (`reposoHasta`) is before the
 issue date (`fechaEmision`), `absent` when it is on or after it, and not
 evaluable for that document when the issue date or the end date is missing
 (`field_missing`, or `days_only` when the rest period has days and no dates), or
@@ -137,7 +144,7 @@ when the extraction row is `pendiente`, `procesando`, missing
 (`extraction_pending`) or `fallida` (`extraction_failed`). At request level the
 signal MUST be `present` if any document is `present`; `absent` if at least one
 document is evaluable and none is `present`; otherwise `not_evaluable` with the
-reason chosen by the precedence of "Three outcomes with a closed set of
+reason chosen by the precedence of "Four outcomes with a closed set of
 reasons". Documents retired, staff-uploaded or `no_aplica` MUST NOT count.
 
 #### Scenario: Document boundaries (table-driven)
@@ -152,7 +159,7 @@ reasons". Documents retired, staff-uploaded or `no_aplica` MUST NOT count.
 | any | extraction `fallida` | not evaluable, `extraction_failed` |
 | any | extraction `pendiente` or no row | not evaluable, `extraction_pending` |
 
-- GIVEN a request with one current document with the values in the row
+- GIVEN a request of cause `medica` with one current document with the values in the row
 - WHEN the signal is evaluated
 - THEN the request-level outcome is the document check
 
@@ -166,19 +173,27 @@ reasons". Documents retired, staff-uploaded or `no_aplica` MUST NOT count.
 | pending | failed | `not_evaluable`, `extraction_pending` |
 | days only | field missing | `not_evaluable`, `days_only` |
 
-- GIVEN a request with the two current documents in the row
+- GIVEN a request of cause `medica` with the two current documents in the row
 - WHEN the signal is evaluated
 - THEN the outcome is as shown
 
 #### Scenario: Retired and staff documents ignored
 
 - GIVEN a retired document that would be `present` and a staff-uploaded document with extraction data
-- WHEN the signal is evaluated over a request whose only current student document is `absent`
+- WHEN the signal is evaluated over a `medica` request whose only current student document is `absent`
 - THEN the outcome is `absent`
+
+#### Scenario: Cause without rest
+
+- GIVEN a `fuerza_mayor` request whose document has rest ending before the issue date
+- WHEN the signal is evaluated
+- THEN the outcome is `not_applicable`, not `present`
 
 ### Requirement: Uncovered dates, RN-10 (RF-05 a, RN-10)
 
-Slice S1. The signal MUST use full containment: the union, at calendar-day
+Slice S1. Only when the declared cause is a rest-admitting cause (otherwise the
+outcome is `not_applicable`, see "Rest signals apply only to causes that admit
+rest"), the signal MUST use full containment: the union, at calendar-day
 granularity, of the rest periods `[reposoDesde, reposoHasta]` of the current
 `completada` documents MUST cover the whole absence range
 `[fechaInicio, fechaFin]`. Adjacent periods (one ending the day before the next
@@ -203,7 +218,7 @@ reason chosen by precedence. A request with no dated period at all MUST be
 | 10-05 to 10-06 and 10-08 to 10-09 | `present` (gap on 10-07) |
 | 10-07 to 10-07 (single day) | `present` |
 
-- GIVEN a request whose current documents are all `completada` with dated periods as in the row
+- GIVEN a `medica` request whose current documents are all `completada` with dated periods as in the row
 - WHEN the signal is evaluated
 - THEN the outcome is as shown
 
@@ -215,15 +230,21 @@ reason chosen by precedence. A request with no dated period at all MUST be
 | 10-05 to 10-07 | one days-only | `not_evaluable`, `days_only` |
 | none | one days-only | `not_evaluable`, `days_only` |
 
-- GIVEN absence Mon 2026-10-05 to Fri 2026-10-09 and the documents in the row
+- GIVEN a `medica` request, absence Mon 2026-10-05 to Fri 2026-10-09 and the documents in the row
 - WHEN the signal is evaluated
 - THEN the outcome is as shown
 
 #### Scenario: Extraction pending or failed on an uncovered range
 
-- GIVEN a dated union 10-05 to 10-07 and a second current document with extraction `pendiente`, or `fallida`
+- GIVEN a `medica` request, a dated union 10-05 to 10-07 and a second current document with extraction `pendiente`, or `fallida`
 - WHEN the signal is evaluated
 - THEN the outcome is `not_evaluable` with `extraction_pending`, or `extraction_failed`, and never `present`
+
+#### Scenario: Cause without rest
+
+- GIVEN an `intercambio_academico` request whose documents leave the absence range uncovered
+- WHEN the signal is evaluated
+- THEN the outcome is `not_applicable`, not `present`
 
 ### Requirement: Recurrence, RN-14 (RF-05 a, RF-05 c, RN-14)
 
@@ -414,14 +435,17 @@ or of another student.
 ### Requirement: Three-state suggested verdict (RF-05 a, RF-05 d, RN-15)
 
 Slice S1 (the verdict covers the signals delivered so far; S2 adds RN-26 to
-the set). The verdict MUST be computed from the outcomes of all signals as:
-`review_carefully` ("review carefully") when any signal is `present`;
-`no_alerts` ("no alerts") when no signal is `present` and every signal is
-`absent`; `inconclusive` when no signal is `present` and at least one is
-`not_evaluable`. The signals that are `not_evaluable` MUST be listed apart from
-the verdict, each with its reason, so the secretary sees what was not checked.
-The verdict MUST be a suggestion: its text MUST state that it does not change
-the state of the request.
+the set). The verdict MUST be computed from the outcomes of the applicable
+signals only; `not_applicable` outcomes MUST be ignored. It MUST be:
+`review_carefully` ("review carefully") when any applicable signal is
+`present`; `no_alerts` ("no alerts") when no signal is `present`, at least one
+signal is applicable and every applicable signal is `absent`; `inconclusive`
+otherwise, that is, when no signal is `present` and at least one applicable
+signal is `not_evaluable`, or when no signal is applicable. The signals that are
+`not_evaluable` MUST be listed apart from the verdict, each with its reason, so
+the secretary sees what was not checked; `not_applicable` signals MUST NOT be
+listed there. The verdict MUST be a suggestion: its text MUST state that it does
+not change the state of the request.
 
 #### Scenario: Verdict table (table-driven)
 
@@ -429,8 +453,11 @@ the state of the request.
 |---|---|---|
 | one `present`, others any | `review_carefully` | the `not_evaluable` ones |
 | all `absent` | `no_alerts` | none |
-| none `present`, one `not_evaluable` | `inconclusive` | that one with its reason |
-| none `present`, all `not_evaluable` | `inconclusive` | all of them |
+| `not_applicable` plus the rest all `absent` | `no_alerts` | none |
+| `not_applicable` plus one `present` | `review_carefully` | the `not_evaluable` ones, if any |
+| none `present`, one `not_evaluable` (any `not_applicable` ignored) | `inconclusive` | that one with its reason |
+| none `present`, all applicable `not_evaluable` | `inconclusive` | all of them |
+| every signal `not_applicable` | `inconclusive` | none |
 
 - GIVEN signal outcomes as in the row
 - WHEN the verdict is computed
@@ -444,9 +471,27 @@ the state of the request.
 
 #### Scenario: Extraction not available
 
-- GIVEN a request with extraction rows `pendiente` and RN-07 `absent`
+- GIVEN a `medica` request with extraction rows `pendiente` and RN-07 `absent`
 - WHEN the verdict is computed
 - THEN it is `inconclusive`, never `no_alerts`
+
+#### Scenario: Non-rest cause with the other signals evaluable and absent
+
+- GIVEN a `fuerza_mayor` request with `rest_to` before `issue_date`, RN-07, RN-14 and RN-26 evaluable and `absent`
+- WHEN the verdict is computed
+- THEN RN-09 and RN-10 are `not_applicable` and the verdict is `no_alerts`, not `inconclusive`
+
+#### Scenario: Non-rest cause with a signal not evaluable
+
+- GIVEN a `fuerza_mayor` request with RN-07 and RN-26 `absent` and RN-14 `not_evaluable` with `field_missing`
+- WHEN the verdict is computed
+- THEN the verdict is `inconclusive` and only RN-14 is listed apart
+
+#### Scenario: Non-rest cause with RN-14 present
+
+- GIVEN an `actividad_representativa` request that is the 3rd of the same issuer and period (RN-14 `present`)
+- WHEN the verdict is computed
+- THEN the verdict is `review_carefully` and RN-09 and RN-10 stay `not_applicable`
 
 ### Requirement: Signals and verdict are display-only (RN-15, RF-05 d)
 
@@ -520,17 +565,99 @@ underlying screen. The access decision MUST live in `src/lib/auth/permissions.ts
 
 Slice S1 (RN-26 texts S2, coordination texts S3). Every label of a signal,
 outcome, verdict and reason code MUST exist in `i18n/es.json` and `i18n/en.json`
-with the same keys. Outcome and verdict MUST be conveyed as text, never by color
-alone.
+with the same keys. This includes the `not_applicable` outcome label and the
+explanation line shown with it, which in `es` MUST read "No aplica" and "La
+causa declarada no incluye reposo." (neutral professional Spanish, no
+voseo) and in `en` MUST be their equivalents. Outcome and verdict MUST be
+conveyed as text, never by color alone; the explanation line MAY be visually
+muted but MUST remain text.
 
 #### Scenario: Translation keys present
 
 - GIVEN the `review.signals.*` keys
 - WHEN `es.json` and `en.json` are compared
-- THEN both contain the same keys, one text per signal, outcome, verdict and reason code
+- THEN both contain the same keys, one text per signal, outcome (including `not_applicable`), verdict and reason code, and the same key for the explanation line
+
+#### Scenario: Not applicable wording
+
+- GIVEN the `not_applicable` outcome label and explanation line
+- WHEN the `es` locale is read
+- THEN they read "No aplica" and "La causa declarada no incluye reposo.", and the `en` locale holds an English text for each
 
 #### Scenario: Text, not color
 
-- GIVEN a `present` signal and a `not_evaluable` signal
+- GIVEN a `present` signal, a `not_evaluable` signal and a `not_applicable` signal
 - WHEN the section renders
 - THEN each states its outcome in words
+
+### Requirement: Rest signals apply only to causes that admit rest (RF-05 a, RF-05 b, RN-09, RN-10)
+
+RN-09 and RN-10 MUST be evaluated only when the declared cause of the request
+is a rest-admitting cause. For any other declared cause (`actividad_representativa`,
+`intercambio_academico`, `fuerza_mayor`) both signals MUST be `not_applicable`,
+whatever the extracted data, including a rest period ending before the issue
+date, days-only, missing, pending or failed extraction. The cause cut MUST
+precede any reading of extraction: it MUST NOT change, hide or delete the
+extracted data. RN-07, RN-14 and RN-26 MUST be evaluated identically for every
+cause. The system MUST always return the five results in the fixed order RN-07,
+RN-09, RN-10, RN-14, RN-26. A presented request whose declared cause is missing
+or outside the five causes of RN-01 MUST make the signals read fail, with no
+default cause assumed; the existing fail-soft degraded notice of the signals
+section (see `request-review`) then applies and no verdict is shown.
+
+#### Scenario: Non-rest causes make RN-09 and RN-10 not applicable (table-driven)
+
+| Declared cause | RN-09 | RN-10 |
+|---|---|---|
+| `fuerza_mayor` | `not_applicable` | `not_applicable` |
+| `actividad_representativa` | `not_applicable` | `not_applicable` |
+| `intercambio_academico` | `not_applicable` | `not_applicable` |
+
+- GIVEN a presented request with that cause, absence 2026-11-02 to 2026-11-03 and a `completada` extraction with issue date 2026-11-04 and rest 2026-11-02 to 2026-11-03
+- WHEN the signals are evaluated
+- THEN RN-09 and RN-10 are as shown, with no reason and no evidence, and "fechas incoherentes" is not raised
+
+#### Scenario: Cut precedes extraction state
+
+- GIVEN a `fuerza_mayor` request whose only document has extraction `pendiente`, `fallida` or no row
+- WHEN the signals are evaluated
+- THEN RN-09 and RN-10 are `not_applicable`, not `not_evaluable`
+
+#### Scenario: Medical cause keeps RF-05 b (E-02, SC-02)
+
+- GIVEN a `medica` request whose document has issue date 2026-07-12 and rest ending 2026-07-10
+- WHEN the signals are evaluated
+- THEN RN-09 is `present`
+
+#### Scenario: Maternity or paternity cause still evaluates both
+
+- GIVEN a `maternidad_paternidad` request with absence Mon 2026-10-05 to Fri 2026-10-09 and one `completada` document with issue date 2026-10-05
+- WHEN the rest period is 10-05 to 10-09, then 10-05 to 10-07
+- THEN RN-09 is `absent` in both cases, RN-10 is `absent` then `present`, and neither is `not_applicable`
+
+#### Scenario: RN-07, RN-14 and RN-26 do not depend on the cause (table-driven)
+
+| Declared cause | RN-07 (first presented after the deadline) | RN-14 (3rd request, same issuer and period) |
+|---|---|---|
+| each of the five causes | `present` | `present` |
+
+- GIVEN requests that meet the row, evaluated once per cause
+- WHEN the signals are evaluated
+- THEN RN-07 and RN-14 are as shown for every cause, and RN-26 follows its own rule
+
+#### Scenario: Five results in fixed order for every cause
+
+- GIVEN a request of any cause
+- WHEN the signals are evaluated
+- THEN the results are RN-07, RN-09, RN-10, RN-14, RN-26 in that order, including when two are `not_applicable`
+
+#### Scenario: Missing or invalid cause fails loud (table-driven)
+
+| Declared cause | Result |
+|---|---|
+| null | signals read fails, no outcome, no verdict |
+| a value outside the five causes | signals read fails, no outcome, no verdict |
+
+- GIVEN a presented request with the cause in the row
+- WHEN the signals are read
+- THEN the read fails and the staff detail shows the degraded notice instead of a verdict
