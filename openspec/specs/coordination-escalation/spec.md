@@ -717,12 +717,15 @@ alone.
 The detail of a request with an open escalation, for a `coordinacion` of the
 request's own career, MUST show a read-only "Señales de validación" section
 with, for each signal, its name and outcome (`present`, `absent`,
-`not_evaluable`) in words and, for a `not_evaluable` signal, its reason label,
-plus the suggested verdict, which derives only from those outcomes.
-The projection MUST contain only outcomes, labels and the verdict: it MUST NOT
-contain extracted data (name, issuer, issue date, rest period, days), document
-fingerprints, counts, student identity of other requests, or the number of any
-other request. For RN-26 `present` it MUST show only `present`, never the
+`not_evaluable` or, for RN-09 and RN-10 only, `not_applicable`) in words and,
+for a `not_evaluable` signal, its reason label, plus the suggested verdict,
+which derives only from those outcomes (`not_applicable` ignored, see
+`validation-signals`). A `not_applicable` entry MUST show the same outcome as
+the staff detail ("No aplica" in `es`) and its muted explanation line, and no
+evidence. The projection MUST contain only outcomes, labels and the verdict: it
+MUST NOT contain extracted data (name, issuer, issue date, rest period, days),
+document fingerprints, counts, student identity of other requests, or the number
+of any other request. For RN-26 `present` it MUST show only `present`, never the
 number of the matching request, because the coordinator can open only escalated
 requests. The section MUST offer no action, MUST NOT appear on the detail of a
 notice (no documents) or in the coordinator list, and MUST NOT change the answer
@@ -737,6 +740,13 @@ alone.
 - GIVEN an open escalation of career C with RN-07 `present`, RN-09 `absent` and RN-14 `not_evaluable` for `no_period`
 - WHEN a coordinator of C opens the detail
 - THEN the section lists the three signals with their outcomes in words and the reason label for RN-14
+
+#### Scenario: Not applicable without evidence
+
+- GIVEN an open escalation of career C for a `fuerza_mayor` request whose extraction has rest ending before the issue date
+- WHEN a coordinator of C opens the detail
+- THEN RN-09 and RN-10 read "No aplica" with the muted explanation line, exactly as on the staff detail
+- AND no issue date, rest period, days or any other extracted value appears
 
 #### Scenario: Verdict shown, no extracted values
 
