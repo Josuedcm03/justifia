@@ -44,15 +44,15 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
 
 ## Phase 0: Planning and baseline
 
-- [ ] 0.1 `[READ-ONLY]` Confirm the branch is `fix/rest-signals-cause-scope` and run `npx vitest run src/lib/signals src/lib/intake` for a green baseline
-- [ ] 0.2 Commit only `openspec/changes/rest-signals-cause-scope/` as unit 0: `docs(rest-signals-cause-scope): add the SDD planning documents`
-- [ ] 0.3 `[READ-ONLY]` No Next.js API is touched (design); skip the `node_modules/next/dist/docs/` read, note it in the apply progress
+- [x] 0.1 `[READ-ONLY]` Confirm the branch is `fix/rest-signals-cause-scope` and run `npx vitest run src/lib/signals src/lib/intake` for a green baseline
+- [x] 0.2 Commit only `openspec/changes/rest-signals-cause-scope/` as unit 0: `docs(rest-signals-cause-scope): add the SDD planning documents`
+- [x] 0.3 `[READ-ONLY]` No Next.js API is touched (design); skip the `node_modules/next/dist/docs/` read, note it in the apply progress
 
 ## Phase 1: Cause constant (unit 1)
 
-- [ ] 1.1 RED `src/lib/intake/causes.test.ts` (file exists; add cases): `admitsRest` true for `medica`, `maternidad_paternidad`; false for `actividad_representativa`, `intercambio_academico`, `fuerza_mayor`; `CAUSAS_CON_REPOSO` holds exactly the two (requirement "Rest signals apply only to causes that admit rest", D3)
-- [ ] 1.2 GREEN `src/lib/intake/causes.ts`: `CAUSAS_CON_REPOSO` (`as const satisfies readonly Causa[]`) and `admitsRest(causa)`; pure, no `server-only`
-- [ ] 1.3 Commit unit 1: `feat(intake): add the causes that admit a rest period`
+- [x] 1.1 RED `src/lib/intake/causes.test.ts` (file exists; add cases): `admitsRest` true for `medica`, `maternidad_paternidad`; false for `actividad_representativa`, `intercambio_academico`, `fuerza_mayor`; `CAUSAS_CON_REPOSO` holds exactly the two (requirement "Rest signals apply only to causes that admit rest", D3)
+- [x] 1.2 GREEN `src/lib/intake/causes.ts`: `CAUSAS_CON_REPOSO` (`as const satisfies readonly Causa[]`) and `admitsRest(causa)`; pure, no `server-only`
+- [x] 1.3 Commit unit 1: `feat(intake): add the causes that admit a rest period`
 
 ## Phase 2: Verdict over applicable results (unit 2 starts)
 
