@@ -6,7 +6,8 @@ import type { NotEvaluableEntry, SignalResult, Verdict } from "./types";
  * `no_alerts` only when at least one is applicable and every applicable one is
  * absent; `inconclusive` otherwise, so a request whose extraction is still
  * pending is never "no alerts". The signals that could not be checked are
- * listed apart, each with its reason; a not applicable signal is never listed. It is a suggestion only: nothing reads it to decide anything.
+ * listed apart, each with its reason; a not applicable signal is never listed.
+ * It is a suggestion only: nothing reads it to decide anything.
  */
 export function suggestVerdict(results: readonly SignalResult[]): {
   verdict: Verdict;

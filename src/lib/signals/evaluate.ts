@@ -11,10 +11,10 @@ import { suggestVerdict } from "./verdict";
 
 /**
  * Evaluates the five signals (RN-09 and RN-10 only for a cause that admits
- * rest, otherwise `not_applicable`) over plain data (computed on every read, SNAP)
- * and builds the suggested verdict. Pure: the calendar and the parameters are
- * injected, and the report is never stored. Nothing outside the display reads
- * it (RN-15).
+ * rest, otherwise `not_applicable`) over plain data (computed on every read,
+ * SNAP) and builds the suggested verdict. Pure: the calendar and the parameters
+ * are injected, and the report is never stored. Nothing outside the display
+ * reads it (RN-15).
  */
 export function evaluateSignals(
   input: SignalInput,

@@ -417,7 +417,14 @@ describe("evaluateSignals reasons are always from the closed set", () => {
     },
   ];
 
-  const causas: Causa[] = ["medica", "fuerza_mayor"];
+  // Every cause is swept. The causes without rest are spelled out here rather
+  // than derived from `admitsRest`, so the sweep does not restate the code.
+  const causas: readonly Causa[] = CAUSAS;
+  const withoutRest: readonly Causa[] = [
+    "fuerza_mayor",
+    "actividad_representativa",
+    "intercambio_academico",
+  ];
 
   const cases = documentSets.flatMap((documents) =>
     periodSets.flatMap((periods) =>
@@ -451,9 +458,10 @@ describe("evaluateSignals reasons are always from the closed set", () => {
           // Only RN-09 and RN-10, only for a cause without rest, never with a
           // reason or evidence.
           expect(["rn09", "rn10"]).toContain(result.signal);
-          expect(causa).toBe("fuerza_mayor");
+          expect(withoutRest).toContain(causa);
           expect(Object.keys(result).sort()).toEqual(["outcome", "signal"]);
           seen.add(`${result.signal}:not_applicable`);
+          seen.add(`${causa}:${result.signal}:not_applicable`);
         } else if (result.outcome === "not_evaluable") {
           expect(NOT_EVALUABLE_REASONS).toContain(result.reason);
           expect(ALLOWED_REASONS[result.signal]).toContain(result.reason);
@@ -480,19 +488,30 @@ describe("evaluateSignals reasons are always from the closed set", () => {
     expect(seen).toContain("rn26:no_eligible_documents");
     expect(seen).toContain("rn09:not_applicable");
     expect(seen).toContain("rn10:not_applicable");
+    // Each cause without rest reaches both cuts; no cause with rest does.
+    expect(
+      [...seen].filter((key) => key.split(":").length === 3).sort(),
+    ).toEqual(
+      withoutRest
+        .flatMap((causa) => [
+          `${causa}:rn09:not_applicable`,
+          `${causa}:rn10:not_applicable`,
+        ])
+        .sort(),
+    );
   });
 
-  it("makes RN-09 and RN-10 not applicable in every case of a cause without rest, and in none of medica", () => {
+  it("makes RN-09 and RN-10 not applicable in every case of a cause without rest, and in none of a cause with rest", () => {
     for (const { documents, periods, absenceTo, repeated, causa } of cases) {
       const outcomes = evaluate(
         input({ documents, periods, absenceTo, repeated, causa }),
       ).results.map((result) => result.outcome);
 
       expect(outcomes.slice(1, 3).every((o) => o === "not_applicable")).toBe(
-        causa === "fuerza_mayor",
+        withoutRest.includes(causa),
       );
       expect(outcomes.some((o) => o === "not_applicable")).toBe(
-        causa === "fuerza_mayor",
+        withoutRest.includes(causa),
       );
     }
   });
