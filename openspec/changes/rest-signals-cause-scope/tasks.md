@@ -103,13 +103,13 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
 
 ## Phase 10: Docs (unit 4)
 
-- [ ] 10.1 `docs/requirements.md` RN-09 (line ~46): append in Spanish that it is evaluated only in requests whose declared cause is medical or maternity/paternity, and that with another cause it does not apply
-- [ ] 10.2 `docs/requirements.md` RN-10 (line ~47): same cause scope, with the "no aplica" wording; no change to the recount (17 RF, 14 RNF, 26 RN)
-- [ ] 10.3 `docs/requirements.md` RN-15 and RF-05 (a): read their rows; clarify "no aplica" only if the verdict wording there says every signal must be absent, otherwise leave untouched
-- [ ] 10.4 `docs/requirements.md` section 5: add the row `2026-11-11` with the change and the reason (10 Nov simulated-handwriting run, NuExtract3 invents a rest period on non-medical documents, change `rest-signals-cause-scope`); end the "Cambio" cell with `**Pendiente de sincronizar con la matriz de la tesis.**` like the 2026-11-02 and 2026-11-09 rows
-- [ ] 10.5 `docs/roadmap.md`: add row 15 `rest-signals-cause-scope`, covers RF-05 (a), (b); RN-09, RN-10, RN-15, responsible Armando, prototype No, status `pendiente` (set `archivado` at archive)
-- [ ] 10.6 `docs/next-change-rest-signals-cause-scope.md`: commit the existing untracked brief as is, with this docs unit
-- [ ] 10.7 Check `git diff docs/requirements.md docs/roadmap.md` holds only the rows above (anything else, STOP and ask the owner); commit unit 4: `docs(rest-signals-cause-scope): scope RN-09 and RN-10 to causes with rest and add roadmap row 15`
+- [x] 10.1 `docs/requirements.md` RN-09 (line ~46): append in Spanish that it is evaluated only in requests whose declared cause is medical or maternity/paternity, and that with another cause it does not apply
+- [x] 10.2 `docs/requirements.md` RN-10 (line ~47): same cause scope, with the "no aplica" wording; no change to the recount (17 RF, 14 RNF, 26 RN)
+- [x] 10.3 `docs/requirements.md` RN-15 and RF-05 (a): read their rows; clarify "no aplica" only if the verdict wording there says every signal must be absent, otherwise leave untouched
+- [x] 10.4 `docs/requirements.md` section 5: add the row `2026-11-11` with the change and the reason (10 Nov simulated-handwriting run, NuExtract3 invents a rest period on non-medical documents, change `rest-signals-cause-scope`); end the "Cambio" cell with `**Pendiente de sincronizar con la matriz de la tesis.**` like the 2026-11-02 and 2026-11-09 rows
+- [x] 10.5 `docs/roadmap.md`: add row 15 `rest-signals-cause-scope`, covers RF-05 (a), (b); RN-09, RN-10, RN-15, responsible Armando, prototype No, status `pendiente` (set `archivado` at archive)
+- [x] 10.6 `docs/next-change-rest-signals-cause-scope.md`: commit the existing untracked brief as is, with this docs unit
+- [x] 10.7 Check `git diff docs/requirements.md docs/roadmap.md` holds only the rows above (anything else, STOP and ask the owner); commit unit 4: `docs(rest-signals-cause-scope): scope RN-09 and RN-10 to causes with rest and add roadmap row 15`
 
 ## Phase 11: Final verification
 

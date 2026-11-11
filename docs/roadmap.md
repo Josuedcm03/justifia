@@ -21,6 +21,7 @@ remiten a ese archivo.
 | 12  | `printable-forms`      | Formato especial prellenado e impresión (RN-19); requiere RF nuevo | Por asignar | No | pendiente |
 | 13  | `flow-experience`      | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md` | Por asignar | No | pendiente |
 | 14  | `student-enrollment`   | RF-17 (antes RF-16), RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12 | Josué | No | archivado |
+| 15  | `rest-signals-cause-scope` | RF-05 (a), (b); RN-09, RN-10, RN-15 | Armando | No | pendiente |
 
 **Notas:**
 
