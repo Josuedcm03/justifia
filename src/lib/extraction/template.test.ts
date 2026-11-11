@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ENGINE_ID,
+  NUEXTRACT_INSTRUCTIONS,
   NUEXTRACT_TEMPLATE,
   buildChatRequest,
   type PreparedDocument,
@@ -95,6 +96,16 @@ describe("buildChatRequest (DE-8)", () => {
     expect(request.chat_template_kwargs.template).toContain(
       '\n    "student_name": "verbatim-string"',
     );
+  });
+
+  it("passes the global instructions in the chat template kwargs", () => {
+    const request = buildChatRequest(prepared);
+
+    expect(request.chat_template_kwargs.instructions).toBe(
+      NUEXTRACT_INSTRUCTIONS,
+    );
+    expect(NUEXTRACT_INSTRUCTIONS).toContain("not the name of the person");
+    expect(NUEXTRACT_INSTRUCTIONS).toContain("return null for the three");
   });
 
   it("does not put the template or any option inside the message text", () => {
