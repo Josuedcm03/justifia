@@ -17,6 +17,20 @@ export const NUEXTRACT_TEMPLATE = {
   rest_days: "integer",
 } as const;
 
+/**
+ * Global instructions, sent through the `instructions` chat template kwarg
+ * (NuExtract3 model card). Without them the model reads the doctor's name as
+ * the issuer on clinic letterheads (breaks RN-14) and copies the absence dates
+ * as rest on non-medical documents. Measured on 2026-11-11 over 25 session
+ * photos, 3 runs each: invented fields 14-16 -> 0-2, correct 91-92 -> 109-111,
+ * no field regressed. Changing this text needs the same check again.
+ */
+export const NUEXTRACT_INSTRUCTIONS = [
+  "Extract only what is written in the document.",
+  "- issuer: the institution named in the letterhead or seal (clinic, hospital, health center, company, university office or foundation), not the name of the person who signs. If no institution is named, use the signer's name.",
+  "- rest_from, rest_to, rest_days: only when the document explicitly grants medical rest (reposo, incapacidad, descanso médico). A letter or form that only states an absence, a trip, work or an event grants no rest: return null for the three.",
+].join("\n");
+
 /** Engine identifier stored in `Motor` (the model and the input mode). */
 export const ENGINE_ID = "nuextract3-4b/image";
 
@@ -40,7 +54,11 @@ export interface ChatRequest {
   max_tokens: number;
   stream: false;
   messages: { role: "user"; content: ChatImagePart[] }[];
-  chat_template_kwargs: { template: string; enable_thinking: false };
+  chat_template_kwargs: {
+    template: string;
+    instructions: string;
+    enable_thinking: false;
+  };
 }
 
 const TEMPERATURE = 0.2;
@@ -66,6 +84,7 @@ export function buildChatRequest(prepared: PreparedDocument): ChatRequest {
     ],
     chat_template_kwargs: {
       template: JSON.stringify(NUEXTRACT_TEMPLATE, null, 4),
+      instructions: NUEXTRACT_INSTRUCTIONS,
       enable_thinking: false,
     },
   };
