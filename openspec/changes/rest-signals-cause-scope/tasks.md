@@ -89,8 +89,8 @@ Why unit 2 is one commit: making `SignalInput.causa` required (D5), adding the `
 
 ## Phase 8: Integration case (opt-in, unit 3)
 
-- [ ] 8.1 Add a case in `src/lib/data/integration/validation-signals.integration.test.ts` (pattern of the existing `addPresented` and `addExtraction` helpers): `addPresented({ causa: "fuerza_mayor" })` with the issuer present, `addExtraction({ issueDate, restTo })` with `restTo` before `issueDate`, a fingerprint without a match; expect RN-09 and RN-10 `not_applicable` and verdict `no_alerts` (brief §6 criteria 1-2). Written after the code, so it passes at write; compile-only here (excluded from `npm test`)
-- [ ] 8.2 Gates unit 3: `npm run typecheck` and `npx eslint src`; then commit: `test(validation-signals): add the non-rest cause integration case`
+- [x] 8.1 Add a case in `src/lib/data/integration/validation-signals.integration.test.ts` (pattern of the existing `addPresented` and `addExtraction` helpers): `addPresented({ causa: "fuerza_mayor" })` with the issuer present, `addExtraction({ issueDate, restTo })` with `restTo` before `issueDate`, a fingerprint without a match; expect RN-09 and RN-10 `not_applicable` and verdict `no_alerts` (brief §6 criteria 1-2). Written after the code, so it passes at write; compile-only here (excluded from `npm test`)
+- [x] 8.2 Gates unit 3: `npm run typecheck` and `npx eslint src`; then commit: `test(validation-signals): add the non-rest cause integration case`
 
 ## Phase 9: Integration run (USER-GATED, optional)
 

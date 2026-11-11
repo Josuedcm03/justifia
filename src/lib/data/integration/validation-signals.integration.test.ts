@@ -17,6 +17,7 @@ import {
   readIssuerHistory,
 } from "@/lib/data/signals";
 import { createFixtures, PDF_BYTES } from "@/lib/data/integration/fixtures";
+import type { Causa } from "@/lib/intake/causes";
 import { buildPathname } from "@/lib/intake/pathnames";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import type { EstadoSolicitud } from "@/lib/intake/states";
@@ -336,6 +337,7 @@ describe.skipIf(gate.mode !== "run")(
         estado?: PresentedState;
         groupId?: number;
         reenviadaEn?: Date;
+        causa?: Causa;
       } = {},
     ): Promise<number> {
       const [row] = await db
@@ -343,7 +345,7 @@ describe.skipIf(gate.mode !== "run")(
         .values({
           estudianteId: studentId,
           estado: options.estado ?? "pendiente",
-          causa: "medica",
+          causa: options.causa ?? "medica",
           fechaInicio: "2026-08-24",
           fechaFin: "2026-08-26",
           presentadaEn,
@@ -405,12 +407,15 @@ describe.skipIf(gate.mode !== "run")(
       documentoId: number,
       kind: ExtractionKind,
       emisor: string | null,
+      dates: { issueDate?: string; restTo?: string } = {},
     ): Promise<void> {
       if (kind === "completada") {
         await db.insert(extraccionDocumento).values({
           documentoId,
           estado: kind,
           emisor,
+          fechaEmision: dates.issueDate ?? null,
+          reposoHasta: dates.restTo ?? null,
           motor: "it",
           procesadoEn: at(1),
         });
@@ -975,6 +980,61 @@ describe.skipIf(gate.mode !== "run")(
         expect(await signalOf(later, { kind: "none" }, "rn26")).toMatchObject({
           outcome: "present",
           evidence: { kind: "repeated", references: [] },
+        });
+      });
+    });
+
+    // rest-signals-cause-scope (RN-09, RN-10): the declared cause is read from
+    // the real `Solicitud.Causa` column, so a non-rest cause never raises the
+    // rest signals even when the extraction invented a rest period that ends
+    // before the document was issued (brief section 6, criteria 1 and 2).
+    describe("RN-09 and RN-10 cause scope (Q1 reads the cause)", () => {
+      // Presented the day after the absence ends, inside the RN-07 deadline.
+      const ON_TIME = new Date(Date.UTC(2026, 7, 27, 15, 0, 0));
+
+      async function nonRestRequest(causa: Causa, label: string) {
+        const student = await fixtures.addStudent();
+        const id = await addPresented(student.id, ON_TIME, {
+          causa,
+          groupId: groupA,
+        });
+        const documentId = await addDocument(id, {
+          huella: hashFor(label),
+        });
+        // The invented rest ends before the issue date: RN-09 for a medical
+        // request.
+        await addExtraction(documentId, "completada", ISSUER, {
+          issueDate: "2026-08-27",
+          restTo: "2026-08-26",
+        });
+        return id;
+      }
+
+      it("makes RN-09 and RN-10 not applicable for fuerza_mayor and leaves no alerts", async () => {
+        const id = await nonRestRequest("fuerza_mayor", "cause-scope-fm");
+
+        const read = await loadSignals({
+          solicitudId: id,
+          referenceScope: scope,
+        });
+
+        expect(read.degraded).toBe(false);
+        expect(read.data?.results.map((r) => [r.signal, r.outcome])).toEqual([
+          ["rn07", "absent"],
+          ["rn09", "not_applicable"],
+          ["rn10", "not_applicable"],
+          ["rn14", "absent"],
+          ["rn26", "absent"],
+        ]);
+        expect(read.data?.verdict).toBe("no_alerts");
+        expect(read.data?.notEvaluable).toEqual([]);
+      });
+
+      it("still raises RN-09 for the same extraction on a medical request", async () => {
+        const id = await nonRestRequest("medica", "cause-scope-medica");
+
+        expect(await signalOf(id, scope, "rn09")).toMatchObject({
+          outcome: "present",
         });
       });
     });
