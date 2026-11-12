@@ -48,7 +48,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Overview of your backoffice",
+    "subtitle": "Where your work in Justifia starts",
     "totalUsers": "Total users",
     "activeUsers": "Active users",
     "degraded": "The figures could not be loaded. Try again later.",
@@ -63,6 +63,10 @@
       "catalogDocentes": "Browse the registered teachers.",
       "catalogImport": "Load the catalog from an Excel file.",
       "users": "Manage user accounts."
+    },
+    "featured": {
+      "description": "Start here: review the pending requests of your faculty.",
+      "action": "See pending requests"
     }
   },
   "shell": {
@@ -600,7 +604,7 @@
   "auth": {
     "login": {
       "title": "Sign in",
-      "subtitle": "Access the backoffice with your institutional account",
+      "subtitle": "Sign in with your institutional account",
       "loginLabel": "Username",
       "passwordLabel": "Password",
       "submit": "Sign in",

@@ -232,6 +232,59 @@ describe("DashboardPage (BS-HOME-1)", () => {
     expect(link.querySelector("[aria-hidden='true']")).not.toBeNull();
   });
 
+  it("leads the secretary's home with the review card, above the counts", async () => {
+    await renderHome("secretaria");
+
+    const featured = screen.getByRole("link", { name: /featured.description/ });
+    expect(featured).toHaveAttribute("href", "/review");
+    expect(featured).toHaveAttribute("data-featured", "true");
+    expect(featured).toHaveClass("border-primary");
+    expect(within(featured).getByText("review")).toBeInTheDocument();
+    expect(within(featured).getByText("featured.action")).toBeInTheDocument();
+    // First link of the page and before the first count card.
+    expect(screen.getAllByRole("link")[0]).toBe(featured);
+    expect(
+      featured.compareDocumentPosition(screen.getByText("totalUsers")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // It replaces the review card in the grid: /review is offered once.
+    expect(shortcutHrefs().filter((href) => href === "/review")).toHaveLength(
+      1,
+    );
+  });
+
+  it.each(["estudiante", "docente", "administrador", "coordinacion"] as const)(
+    "features no card for %s",
+    async (rol) => {
+      await renderHome(rol);
+
+      expect(document.querySelector("[data-featured]")).toBeNull();
+    },
+  );
+
+  it("words the home and login copy formally, without 'backoffice'", () => {
+    expect(esMessages.dashboard.subtitle).toBe(
+      "Inicio de su trabajo en Justifia",
+    );
+    expect(esMessages.dashboard.featured.description).toBe(
+      "Empiece aquí: revise las solicitudes pendientes de su facultad.",
+    );
+    for (const text of [
+      esMessages.dashboard.subtitle,
+      esMessages.dashboard.degraded,
+      esMessages.dashboard.empty,
+      esMessages.dashboard.shortcuts.review,
+      esMessages.auth.login.subtitle,
+      esMessages.auth.login.isStudent,
+      esMessages.auth.login.registerLink,
+    ]) {
+      expect(text).not.toMatch(
+        /backoffice|tu|tienes|Revisa |Accede|Inténtalo|Eres|Regístrate/i,
+      );
+    }
+    expect(enMessages.dashboard.subtitle).not.toMatch(/backoffice/i);
+  });
+
   it("tints a shortcut on hover only (hover-capable pointers)", async () => {
     await renderHome("estudiante");
 

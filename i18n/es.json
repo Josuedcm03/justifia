@@ -7,7 +7,7 @@
     "loading": "Cargando...",
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
-    "tagline": "Tus justificaciones académicas, en un solo lugar.",
+    "tagline": "Sus justificaciones académicas, en un solo lugar.",
     "institution": "Universidad Americana - UAM",
     "privacyNotice": "Aviso de privacidad"
   },
@@ -48,21 +48,25 @@
   },
   "dashboard": {
     "title": "Panel",
-    "subtitle": "Resumen de tu backoffice",
+    "subtitle": "Inicio de su trabajo en Justifia",
     "totalUsers": "Usuarios totales",
     "activeUsers": "Usuarios activos",
-    "degraded": "No se pudieron cargar las cifras. Inténtalo de nuevo más tarde.",
-    "empty": "Por ahora no tienes accesos directos en el panel.",
+    "degraded": "No se pudieron cargar las cifras. Inténtelo de nuevo más tarde.",
+    "empty": "Por ahora no tiene accesos directos en el panel.",
     "shortcuts": {
       "myRequests": "Consulta el estado de tus solicitudes de justificación.",
       "newRequest": "Presenta una nueva solicitud de justificación.",
       "enrollment": "Declara los grupos en los que estás inscrito.",
-      "review": "Revisa las solicitudes de justificación de tu facultad.",
-      "coordination": "Atiende las solicitudes escaladas a la coordinación de tu carrera.",
-      "catalogAsignaturas": "Consulta y administra las asignaturas y sus grupos.",
-      "catalogDocentes": "Consulta los docentes registrados.",
-      "catalogImport": "Carga el catálogo desde un archivo de Excel.",
-      "users": "Administra las cuentas de usuario."
+      "review": "Revise las solicitudes de justificación de su facultad.",
+      "coordination": "Atienda las solicitudes escaladas a la coordinación de su carrera.",
+      "catalogAsignaturas": "Consulte y administre las asignaturas y sus grupos.",
+      "catalogDocentes": "Consulte los docentes registrados.",
+      "catalogImport": "Cargue el catálogo desde un archivo de Excel.",
+      "users": "Administre las cuentas de usuario."
+    },
+    "featured": {
+      "description": "Empiece aquí: revise las solicitudes pendientes de su facultad.",
+      "action": "Ver solicitudes pendientes"
     }
   },
   "shell": {
@@ -600,13 +604,13 @@
   "auth": {
     "login": {
       "title": "Iniciar sesión",
-      "subtitle": "Accede al backoffice con tu cuenta institucional",
+      "subtitle": "Ingrese con su cuenta institucional",
       "loginLabel": "Usuario",
       "passwordLabel": "Contraseña",
       "submit": "Ingresar",
       "submitting": "Ingresando…",
-      "isStudent": "¿Eres estudiante?",
-      "registerLink": "Regístrate"
+      "isStudent": "¿Es estudiante?",
+      "registerLink": "Regístrese"
     },
     "register": {
       "title": "Crear cuenta de estudiante",
