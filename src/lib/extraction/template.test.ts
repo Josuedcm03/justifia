@@ -108,6 +108,16 @@ describe("buildChatRequest (DE-8)", () => {
     expect(NUEXTRACT_INSTRUCTIONS).toContain("return null for the three");
   });
 
+  it("tells the model how to read single-day rest, days-only rest and date order", () => {
+    expect(NUEXTRACT_INSTRUCTIONS).toContain(
+      "rest_from and rest_to are both that date",
+    );
+    expect(NUEXTRACT_INSTRUCTIONS).toContain(
+      "Never compute rest dates from the issue date",
+    );
+    expect(NUEXTRACT_INSTRUCTIONS).toContain("day first, then month");
+  });
+
   it("does not put the template or any option inside the message text", () => {
     const request = buildChatRequest(prepared);
 
