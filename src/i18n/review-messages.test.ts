@@ -511,6 +511,25 @@ function at(tree: unknown, path: string): unknown {
     );
 }
 
+describe("secretary guidance copy (usability session)", () => {
+  it("tells the secretary the teachers are notified on approval", () => {
+    expect(es.review.decision.approve.description).toContain(
+      "Al aprobar, el sistema envía un aviso por correo a los docentes de las asignaturas; su estado se ve en «Aviso a los docentes» en esta misma página.",
+    );
+    expect(es.review.queue.result.aprobada).toContain("«Aviso a los docentes»");
+    expect(en.review.queue.result.aprobada).toContain("“Notice to teachers”");
+  });
+
+  it("points to the escalation button from the decision panel by its label", () => {
+    expect(es.review.detail.decisionPanel.description).toContain(
+      `«${es.review.escalation.dialog.trigger}»`,
+    );
+    expect(en.review.detail.decisionPanel.description).toContain(
+      `“${en.review.escalation.dialog.trigger}”`,
+    );
+  });
+});
+
 describe("extraction section messages (RF-11)", () => {
   it.each(catalogs)(
     "%s names the section and every extraction text",
@@ -527,7 +546,9 @@ describe("extraction section messages (RF-11)", () => {
   );
 
   it("titles the section in each language", () => {
-    expect(es.review.detail.sections.extraction).toBe("Datos extraídos");
+    expect(es.review.detail.sections.extraction).toBe(
+      "Datos leídos del documento",
+    );
     expect(en.review.detail.sections.extraction).toBe("Extracted data");
   });
 

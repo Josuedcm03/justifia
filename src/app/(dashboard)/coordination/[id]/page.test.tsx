@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -346,13 +347,24 @@ describe("CoordinationDetailPage: an open escalation (E1, E3, RNF-02)", () => {
     expect(screen.getByText(/Pedro Ruiz/)).toBeInTheDocument();
   });
 
-  it("links each document through the authenticated route, to open in a new tab", async () => {
+  it("views each document inline through the authenticated route, with a new-tab link", async () => {
     await renderPage();
 
-    const view = screen.getByRole("link", { name: /View.*constancia\.pdf/ });
-    expect(view).toHaveAttribute("href", "/api/intake/documents/31?modo=ver");
-    expect(view).toHaveAttribute("target", "_blank");
-    expect(view).toHaveAttribute("rel", "noopener noreferrer");
+    const view = screen.getByRole("button", {
+      name: /View.*constancia\.pdf/,
+    });
+    expect(document.querySelector("iframe")).toBeNull();
+    await userEvent.click(view);
+    expect(document.querySelector("iframe")).toHaveAttribute(
+      "src",
+      "/api/intake/documents/31?modo=ver",
+    );
+    const tab = screen.getByRole("link", {
+      name: messages.en.review.detail.documents.openNewTab,
+    });
+    expect(tab).toHaveAttribute("href", "/api/intake/documents/31?modo=ver");
+    expect(tab).toHaveAttribute("target", "_blank");
+    expect(tab).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("offers the answer form and nothing to approve, reject, return or escalate", async () => {

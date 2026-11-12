@@ -48,7 +48,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Overview of your backoffice",
+    "subtitle": "Where your work in Justifia starts",
     "totalUsers": "Total users",
     "activeUsers": "Active users",
     "degraded": "The figures could not be loaded. Try again later.",
@@ -63,6 +63,10 @@
       "catalogDocentes": "Browse the registered teachers.",
       "catalogImport": "Load the catalog from an Excel file.",
       "users": "Manage user accounts."
+    },
+    "featured": {
+      "description": "Start here: review the pending requests of your faculty.",
+      "action": "See pending requests"
     }
   },
   "shell": {
@@ -600,7 +604,7 @@
   "auth": {
     "login": {
       "title": "Sign in",
-      "subtitle": "Access the backoffice with your institutional account",
+      "subtitle": "Sign in with your institutional account",
       "loginLabel": "Username",
       "passwordLabel": "Password",
       "submit": "Sign in",
@@ -1091,7 +1095,7 @@
       },
       "calendarNotLoaded": "The non-working days calendar for this year is not loaded, so deadlines only skip weekends.",
       "result": {
-        "aprobada": "The request was approved.",
+        "aprobada": "The request was approved. The system notifies the teachers by email automatically; the notice status shows in the request detail, under “Notice to teachers”.",
         "rechazada": "The request was rejected.",
         "devuelta": "The request was returned to the student for correction.",
         "escalada": "The request was escalated to the career coordination."
@@ -1210,7 +1214,7 @@
       "approve": {
         "trigger": "Approve",
         "title": "Approve this request?",
-        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
+        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first. On approval, the system emails a notice to the teachers of the subjects; its status shows under “Notice to teachers” on this same page.",
         "confirm": "Approve request",
         "pending": "Approving...",
         "specialFormat": {
@@ -1333,7 +1337,18 @@
         "view": "View",
         "download": "Download",
         "viewNamed": "View {name}",
-        "downloadNamed": "Download {name}"
+        "downloadNamed": "Download {name}",
+        "viewHere": "View here",
+        "hide": "Hide",
+        "viewHereNamed": "View {name} here",
+        "hideNamed": "Hide {name}",
+        "viewerNamed": "Preview of {name}",
+        "openNewTab": "Open in a new tab",
+        "zoomHint": "Click the image to enlarge it or to see it whole again.",
+        "zoomIn": "Enlarge the image",
+        "zoomOut": "See the whole image",
+        "imageAlt": "Document {name}",
+        "pdfTitle": "Document {name}"
       },
       "history": {
         "empty": "This request has no earlier decisions or versions.",
@@ -1349,7 +1364,14 @@
         "replacedOn": "Replaced {date}"
       },
       "decisionPanel": {
-        "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
+        "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it."
+      },
+      "goToDecision": "Go to the decision",
+      "statusNote": {
+        "aprobada": "This request has already been approved. No decisions remain.",
+        "rechazada": "This request has already been rejected. No decisions remain.",
+        "devuelta": "It was returned to the student for correction; it will come back to the queue when they resubmit it.",
+        "en_revision_coordinacion": "It is under coordination review. You can decide once the coordination answers."
       }
     },
     "extraction": {
@@ -1380,7 +1402,8 @@
         "line": "Suggestion: {verdict}",
         "review_carefully": "Review carefully",
         "no_alerts": "No alerts",
-        "inconclusive": "Inconclusive"
+        "inconclusive": "Inconclusive",
+        "lineWithSignals": "Suggestion: {verdict} — {signals}"
       },
       "names": {
         "rn07": "Late presentation",
@@ -1398,7 +1421,7 @@
       "notApplicableNote": "The declared cause does not include a rest period.",
       "notEvaluable": {
         "title": "Signals not evaluated",
-        "description": "The following could not be checked, so the suggestion may be incomplete."
+        "description": "These signals could not be checked, so the suggestion may be incomplete."
       },
       "reasons": {
         "calendar_not_covering_year": "The non-working-day calendar does not cover the year of the deadline.",
@@ -1415,7 +1438,7 @@
         "incoherent": "Issued {issued}; the rest ends {end}.",
         "uncovered": "Absence: {absence}. Dated rest periods: {covered}.",
         "uncoveredNone": "Absence: {absence}. No dated rest period.",
-        "recurrence": "Requests with the issuer “{issuer}” in the period: {count} (threshold: {threshold}).",
+        "recurrence": "Requests from this student with the issuer “{issuer}” in the period: {count} (an alert is raised from {threshold}).",
         "repeated": "A document is identical to one in an earlier request.",
         "repeatedSee": "Earlier requests with the same document:",
         "requestLink": "Request {id}"

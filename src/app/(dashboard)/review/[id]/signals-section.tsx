@@ -122,9 +122,24 @@ function SignalFact({ result }: { result: SignalViewResult }) {
       ? lines(result.evidence)
       : [];
 
+  const present = result.outcome === "present";
+
   return (
-    <Fact label={t(`names.${result.signal}`)}>
-      <span className="font-medium">{t(`outcomes.${result.outcome}`)}</span>
+    <Fact
+      label={t(`names.${result.signal}`)}
+      // A present signal stands out with the amber of the "review carefully"
+      // banner; the outcome stays in words, the tone only reinforces it.
+      className={
+        present
+          ? "border-warning/30 border-l-warning bg-warning/10 rounded-lg border border-l-4 p-3"
+          : undefined
+      }
+    >
+      <span
+        className={present ? "text-warning-ink font-semibold" : "font-medium"}
+      >
+        {t(`outcomes.${result.outcome}`)}
+      </span>
       {result.outcome === "not_applicable" && (
         <span className="text-muted-foreground block">
           {t("notApplicableNote")}
@@ -150,9 +165,11 @@ function NotEvaluableList({
   const t = useTranslations("review.signals");
   if (entries.length === 0) return null;
 
+  // Kept apart from the verdict, as the spec requires, but as a quiet aside:
+  // the entries above already say "not evaluable", this adds the reasons.
   return (
-    <div className="flex flex-col gap-3">
-      <h3 id="signals-not-evaluable-title" className="text-title">
+    <div className="border-border bg-muted/50 flex flex-col gap-2 rounded-lg border p-4">
+      <h3 id="signals-not-evaluable-title" className="text-sm font-semibold">
         {t("notEvaluable.title")}
       </h3>
       <p className="text-muted-foreground max-w-prose text-sm">
@@ -185,6 +202,14 @@ export function SignalsSection({
 }) {
   const t = useTranslations("review.signals");
   const { data } = signals;
+  // "Review carefully" names the signals behind it, in display order.
+  const presentNames =
+    data?.verdict === "review_carefully"
+      ? data.results
+          .filter((result) => result.outcome === "present")
+          .map((result) => t(`names.${result.signal}`))
+      : [];
+  const verdictText = t(`verdict.${data?.verdict ?? "inconclusive"}`);
 
   return (
     <Section id="signals" title={t("title")}>
@@ -199,7 +224,12 @@ export function SignalsSection({
               VERDICT_TONES[data.verdict],
             )}
           >
-            {t("verdict.line", { verdict: t(`verdict.${data.verdict}`) })}
+            {presentNames.length > 0
+              ? t("verdict.lineWithSignals", {
+                  verdict: verdictText,
+                  signals: presentNames.join(", "),
+                })
+              : t("verdict.line", { verdict: verdictText })}
           </p>
           <p className="text-muted-foreground max-w-prose text-sm">
             {t(audience === "coordination" ? "coordinationNote" : "note")}

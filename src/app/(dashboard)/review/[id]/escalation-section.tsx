@@ -158,8 +158,12 @@ export function EscalationSection({
               </p>
             </div>
             {e.respondidaEn && e.respuesta ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-label text-muted-foreground">
+              // The answer is what the secretary came back for: a callout.
+              <div
+                data-testid="escalation-answer"
+                className="border-l-primary bg-primary/5 flex flex-col gap-1 rounded border-l-4 p-3"
+              >
+                <span className="text-label text-foreground font-semibold">
                   {t("section.fields.answer")}
                 </span>
                 <p className="text-sm break-words whitespace-pre-wrap">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserCheck, Users } from "lucide-react";
+import { ArrowRight, UserCheck, Users } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { DegradedAlert } from "@/components/degraded-alert";
@@ -21,13 +21,20 @@ import { shortcutsFor } from "@/lib/navigation";
  *   only to roles that may open `/users`, and the stats read is not performed
  *   for any other role.
  * - A failed stats read shows the degraded alert instead of zeros (R10).
+ * - For the secretary, the review shortcut leads the page as a featured card,
+ *   above the counts: it is where her work starts. Same link, same order.
  */
 export default async function DashboardPage() {
   const user = await requireUser();
   const t = await getTranslations("dashboard");
   const nav = await getTranslations("nav");
 
-  const shortcuts = shortcutsFor(user.rol);
+  const allShortcuts = shortcutsFor(user.rol);
+  const featured =
+    user.rol === "secretaria"
+      ? allShortcuts.find((link) => link.key === "review")
+      : undefined;
+  const shortcuts = allShortcuts.filter((link) => link !== featured);
   const stats = canCreateUsers(user.rol) ? await getDashboardStats() : null;
 
   const counts = stats
@@ -44,6 +51,30 @@ export default async function DashboardPage() {
   return (
     <PageFrame>
       <PageHeader title={t("title")} description={t("subtitle")} />
+
+      {featured ? (
+        <Link
+          href={featured.href}
+          prefetch={"prefetch" in featured ? featured.prefetch : undefined}
+          data-featured="true"
+          className="border-primary bg-primary/5 text-card-foreground shadow-soft hover:bg-primary/10 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-4 rounded-xl border-2 p-6 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:flex-row sm:items-center"
+        >
+          <span
+            aria-hidden="true"
+            className="bg-primary text-primary-foreground flex size-14 shrink-0 items-center justify-center rounded-lg"
+          >
+            <featured.icon className="size-7" />
+          </span>
+          <span className="flex flex-1 flex-col gap-1">
+            <span className="text-headline">{nav(featured.key)}</span>
+            <span className="text-foreground">{t("featured.description")}</span>
+          </span>
+          <span className="bg-primary text-primary-foreground inline-flex h-11 w-fit shrink-0 items-center gap-2 rounded-lg px-6 text-sm font-medium">
+            {t("featured.action")}
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </span>
+        </Link>
+      ) : null}
 
       {stats?.degraded ? (
         <DegradedAlert message={t("degraded")} />
@@ -95,7 +126,7 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </div>
-      ) : !stats ? (
+      ) : !stats && !featured ? (
         <p className="text-muted-foreground max-w-prose">{t("empty")}</p>
       ) : null}
     </PageFrame>
