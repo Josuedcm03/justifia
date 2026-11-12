@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ExtractionRowView } from "@/lib/extraction/display";
 
-import { evaluateRecurrence, normalizeIssuer } from "./issuer";
+import { evaluateRecurrence, issuerKey, normalizeIssuer } from "./issuer";
 import { DEFAULT_SIGNAL_PARAMS } from "./params";
 import type { IssuerHistoryRow, SignalDocument } from "./types";
 
@@ -34,6 +34,23 @@ describe("normalizeIssuer", () => {
 
   it("returns an empty string for text with no letters or digits", () => {
     expect(normalizeIssuer(" ... ")).toBe("");
+  });
+});
+
+describe("issuerKey", () => {
+  it("collapses a run of the same letter into one", () => {
+    expect(issuerKey("CLÍNICA ODONTOOLÓGICA")).toBe(
+      issuerKey("Clínica Odontológica"),
+    );
+    expect(issuerKey("Villa  Arroyo")).toBe("vila aroyo");
+  });
+
+  it("leaves repeated digits alone", () => {
+    expect(issuerKey("Clinica 11")).not.toBe(issuerKey("Clinica 1"));
+  });
+
+  it("applies the normalization first", () => {
+    expect(issuerKey("Ó-o")).toBe("o");
   });
 });
 
@@ -133,6 +150,42 @@ describe("evaluateRecurrence Nth request", () => {
     });
 
     expect(result.outcome).toBe("present");
+  });
+
+  it("matches issuers that differ only by a doubled letter (extraction typo)", () => {
+    // Measured on real photos: the model writes "ODONTOLOÓGICA" at random.
+    const result = evaluate({
+      documents: docs("CLÍNICA ODONTOLÓGICA DENTALIA PRADO"),
+      history: history(
+        [10, "CLÍNICA ODONTOLOÓGICA DENTALIA PRADO"],
+        [20, "CLÍNICA ODONTOOLÓGICA DENTALIA PRADO"],
+      ),
+    });
+
+    expect(result.outcome).toBe("present");
+    expect(result).toMatchObject({
+      evidence: { issuer: "clinica odontologica dentalia prado", count: 3 },
+    });
+  });
+
+  it("shows the current document's issuer, not the comparison key", () => {
+    const result = evaluate({
+      documents: docs("Clínica Villa Esperanza"),
+      history: history([10, "Clinica Vila Esperanza"]),
+    });
+
+    expect(result).toMatchObject({
+      evidence: { issuer: "clinica villa esperanza", count: 2 },
+    });
+  });
+
+  it("keeps issuers apart when they differ by a repeated digit", () => {
+    const result = evaluate({
+      documents: docs("Clinica 11"),
+      history: history([10, "Clinica 1"], [20, "Clinica 1"]),
+    });
+
+    expect(result.outcome).toBe("absent");
   });
 
   it("does not count another issuer", () => {
