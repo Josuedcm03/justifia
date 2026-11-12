@@ -25,6 +25,19 @@ export function normalizeIssuer(raw: string): string {
     .trim();
 }
 
+/**
+ * RN-14 comparison key: the normalized issuer with every run of one repeated
+ * letter collapsed to a single letter. Real photos showed the extraction model
+ * doubling a letter at random ("ODONTOLOÓGICA"), which split one clinic into
+ * several issuers. Digits are kept as they are ("Clinica 11" is not
+ * "Clinica 1"). Two issuers that differ only by a doubled letter ("Correa",
+ * "Corea") compare equal (known heuristic limit). The evidence still shows the
+ * normalized issuer, not this key.
+ */
+export function issuerKey(raw: string): string {
+  return normalizeIssuer(raw).replace(/(\p{L})\1+/gu, "$1");
+}
+
 /** The normalized issuer of a completed row, or null when there is none. */
 function issuerOf(row: ExtractionRowView | null): string | null {
   if (row?.state !== "completada" || row.issuer === null) return null;
@@ -81,15 +94,20 @@ export function evaluateRecurrence(
     return notEvaluable(missingIssuerReason(input.documents));
   }
 
-  const requestsByIssuer = new Map<string, Set<number>>(
-    [...current].map((issuer) => [issuer, new Set([input.solicitudId])]),
-  );
+  // Keyed by `issuerKey`; the first current issuer with a key is what is shown.
+  const byKey = new Map<string, { issuer: string; requests: Set<number> }>();
+  for (const issuer of current) {
+    const key = issuerKey(issuer);
+    if (!byKey.has(key)) {
+      byKey.set(key, { issuer, requests: new Set([input.solicitudId]) });
+    }
+  }
   for (const { solicitudId, issuer } of input.history) {
-    requestsByIssuer.get(normalizeIssuer(issuer))?.add(solicitudId);
+    byKey.get(issuerKey(issuer))?.requests.add(solicitudId);
   }
 
   let top = { issuer: "", count: 0 };
-  for (const [issuer, requests] of requestsByIssuer) {
+  for (const { issuer, requests } of byKey.values()) {
     if (requests.size > top.count) top = { issuer, count: requests.size };
   }
   const threshold = params.issuerRecurrenceThreshold;

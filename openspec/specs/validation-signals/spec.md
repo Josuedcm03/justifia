@@ -250,7 +250,11 @@ reason chosen by precedence. A request with no dated period at all MUST be
 
 Slice S1. The issuer of each current `completada` document MUST be normalized
 before comparison: Unicode decomposition with diacritics removed, lower case,
-punctuation removed and whitespace collapsed and trimmed. For each normalized
+punctuation removed and whitespace collapsed and trimmed. Issuers MUST be
+compared on that normalized form with every run of one repeated letter
+collapsed to a single letter (digits unchanged), because the extraction model
+doubles letters at random; the evidence MUST show the normalized issuer of the
+current request, not the comparison key. For each normalized
 issuer of the request, the count MUST be the number of distinct presented
 requests of the same student, in the same academic period (`Grupo.periodo` of
 the request's subjects), that have a current document with that issuer, in the
@@ -299,6 +303,13 @@ student only; no cross-student volume is computed.
 - GIVEN issuers "Clínica  Santa Fe", "CLINICA SANTA FE." and "Clinica Santa Fe S.A."
 - WHEN they are normalized
 - THEN the first two are equal and the third differs (known heuristic limit)
+
+#### Scenario: Doubled letter from the extraction
+
+- GIVEN a current issuer "CLÍNICA ODONTOLÓGICA DENTALIA PRADO" and two earlier requests of the same student and period with "CLÍNICA ODONTOLOÓGICA DENTALIA PRADO" and "CLÍNICA ODONTOOLÓGICA DENTALIA PRADO"
+- WHEN the signal is evaluated with threshold 3
+- THEN the outcome is `present` with count 3 and evidence issuer "clinica odontologica dentalia prado"
+- AND "Clinica 11" and "Clinica 1" stay different issuers (digits are not collapsed)
 
 #### Scenario: One request counts once
 
