@@ -58,7 +58,7 @@ export function Section({
       aria-labelledby={`${id}-title`}
       className="border-border bg-card shadow-soft flex flex-col gap-4 rounded-xl border p-6"
     >
-      <h2 id={`${id}-title`} className="text-headline">
+      <h2 id={`${id}-title`} className="text-headline scroll-mt-24">
         {title}
       </h2>
       {children}

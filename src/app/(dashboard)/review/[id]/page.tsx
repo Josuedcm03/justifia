@@ -1,3 +1,4 @@
+import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
@@ -49,6 +50,18 @@ import type { RequestScope } from "@/lib/intake/request-scope";
 import { isVisibleState } from "@/lib/intake/states";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
+/** The states that show a short note where the decision panel would be. */
+const STATUS_NOTE_STATES = [
+  "aprobada",
+  "rechazada",
+  "devuelta",
+  "en_revision_coordinacion",
+] as const;
+type StatusNoteState = (typeof STATUS_NOTE_STATES)[number];
+
+function isStatusNoteState(estado: string): estado is StatusNoteState {
+  return (STATUS_NOTE_STATES as readonly string[]).includes(estado);
+}
 /** Approve first, the irreversible reject last. */
 const DECISION_ORDER = ["aprobada", "devuelta", "rechazada"] as const;
 
@@ -221,13 +234,26 @@ export default async function ReviewDetailPage({
           date: presented,
         })}
         action={
-          <Link
-            href="/review"
-            prefetch={false}
-            className={buttonVariants({ variant: "ghost", size: "lg" })}
-          >
-            {t("detail.back")}
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {templatesFor ? (
+              // A plain in-page anchor: it fetches nothing and only moves to
+              // the decision panel, whose heading clears the sticky header.
+              <a
+                href="#decision-title"
+                className={buttonVariants({ variant: "default", size: "lg" })}
+              >
+                <ArrowDown aria-hidden="true" />
+                {t("detail.goToDecision")}
+              </a>
+            ) : null}
+            <Link
+              href="/review"
+              prefetch={false}
+              className={buttonVariants({ variant: "ghost", size: "lg" })}
+            >
+              {t("detail.back")}
+            </Link>
+          </div>
         }
       />
 
@@ -331,6 +357,11 @@ export default async function ReviewDetailPage({
               />
             </div>
           </Section>
+        ) : isStatusNoteState(detail.estado) ? (
+          // UX-05: where the decision panel would be, say why there is none.
+          <p className="border-border bg-muted text-foreground rounded-lg border border-l-4 px-4 py-3 text-sm">
+            {t(`detail.statusNote.${detail.estado}`)}
+          </p>
         ) : null}
       </div>
     </div>

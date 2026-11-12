@@ -1350,6 +1350,13 @@
       },
       "decisionPanel": {
         "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
+      },
+      "goToDecision": "Go to the decision",
+      "statusNote": {
+        "aprobada": "This request has already been approved. No decisions remain.",
+        "rechazada": "This request has already been rejected. No decisions remain.",
+        "devuelta": "It was returned to the student for correction; it will come back to the queue when they resubmit it.",
+        "en_revision_coordinacion": "It is under coordination review. You can decide once the coordination answers."
       }
     },
     "extraction": {

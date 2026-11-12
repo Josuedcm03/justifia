@@ -1350,6 +1350,13 @@
       },
       "decisionPanel": {
         "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Cada decisión le pide confirmarla."
+      },
+      "goToDecision": "Ir a la decisión",
+      "statusNote": {
+        "aprobada": "Esta solicitud ya fue aprobada. No quedan decisiones por tomar.",
+        "rechazada": "Esta solicitud ya fue rechazada. No quedan decisiones por tomar.",
+        "devuelta": "Se devolvió al estudiante para corrección; volverá a la cola cuando la reenvíe.",
+        "en_revision_coordinacion": "Está en revisión de coordinación. Podrá decidir cuando la coordinación responda."
       }
     },
     "extraction": {

@@ -494,7 +494,13 @@ describe("ReviewDetailPage decision panel (RF-07, RN-16)", () => {
       expect(
         screen.queryByRole("region", { name: en.sections.decision }),
       ).toBeNull();
-      expect(screen.queryByRole("button")).toBeNull();
+      for (const name of [
+        dec.approve.trigger,
+        dec.return.trigger,
+        dec.reject.trigger,
+      ]) {
+        expect(screen.queryByRole("button", { name })).toBeNull();
+      }
       const request = screen.getByRole("region", { name: en.sections.request });
       expect(request).toHaveTextContent(
         en.states[estado as keyof typeof en.states],
@@ -502,6 +508,38 @@ describe("ReviewDetailPage decision panel (RF-07, RN-16)", () => {
       expect(request).not.toHaveTextContent(en.fields.deadline);
     },
   );
+
+  it("links from the header to the decision panel only while pending", async () => {
+    await renderPage();
+
+    const jump = screen.getByRole("link", { name: en.goToDecision });
+    expect(jump).toHaveAttribute("href", "#decision-title");
+    expect(document.getElementById("decision-title")).toHaveTextContent(
+      en.sections.decision,
+    );
+  });
+
+  it.each(["aprobada", "rechazada", "devuelta", "en_revision_coordinacion"])(
+    "shows the status note and no jump link for a %s request (UX-05)",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+
+      await renderPage();
+
+      expect(screen.queryByRole("link", { name: en.goToDecision })).toBeNull();
+      expect(
+        screen.getByText(en.statusNote[estado as keyof typeof en.statusNote]),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("shows no status note for a pending request", async () => {
+    await renderPage();
+
+    for (const note of Object.values(en.statusNote)) {
+      expect(screen.queryByText(note)).toBeNull();
+    }
+  });
 
   it("prefills each dialog with the template rendered for this request", async () => {
     await renderPage();
