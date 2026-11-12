@@ -1091,7 +1091,7 @@
       },
       "calendarNotLoaded": "El calendario de días no laborables de este año no está cargado, por lo que los plazos solo omiten los fines de semana.",
       "result": {
-        "aprobada": "La solicitud fue aprobada.",
+        "aprobada": "La solicitud fue aprobada. El sistema avisa automáticamente a los docentes por correo; el estado del aviso se ve en el detalle de la solicitud, en «Aviso a los docentes».",
         "rechazada": "La solicitud fue rechazada.",
         "devuelta": "La solicitud fue devuelta al estudiante para su corrección.",
         "escalada": "La solicitud fue escalada a la coordinación de la carrera."
@@ -1210,7 +1210,7 @@
       "approve": {
         "trigger": "Aprobar",
         "title": "¿Aprobar esta solicitud?",
-        "description": "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes.",
+        "description": "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes. Al aprobar, el sistema envía un aviso por correo a los docentes de las asignaturas; su estado se ve en «Aviso a los docentes» en esta misma página.",
         "confirm": "Aprobar solicitud",
         "pending": "Aprobando...",
         "specialFormat": {
@@ -1301,7 +1301,7 @@
         "student": "Estudiante",
         "subjects": "Asignaturas",
         "documents": "Documentos de respaldo",
-        "extraction": "Datos extraídos",
+        "extraction": "Datos leídos del documento",
         "history": "Historial",
         "decision": "Decisión"
       },
@@ -1349,7 +1349,7 @@
         "replacedOn": "Reemplazado el {date}"
       },
       "decisionPanel": {
-        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Cada decisión le pide confirmarla."
+        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Si necesita la opinión de la coordinación, use «Escalar a coordinación». Cada decisión le pide confirmarla."
       },
       "goToDecision": "Ir a la decisión",
       "statusNote": {

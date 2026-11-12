@@ -90,6 +90,33 @@ describe("EscalationSection history (RF-10, RN-16)", () => {
     expect(screen.queryByText(en.section.waiting)).toBeNull();
   });
 
+  it("shows the coordination answer as a highlighted callout", () => {
+    show([
+      escalation({
+        respuesta: "El documento es autentico.",
+        respondidaPorNombre: "Marta Gomez",
+        respondidaEn: new Date("2026-10-09T21:00:00Z"),
+      }),
+    ]);
+
+    const callout = screen.getByTestId("escalation-answer");
+    expect(callout).toHaveClass(
+      "border-l-4",
+      "border-l-primary",
+      "bg-primary/5",
+    );
+    expect(callout).toHaveTextContent("El documento es autentico.");
+    expect(within(callout).getByText(en.section.fields.answer)).toHaveClass(
+      "font-semibold",
+    );
+  });
+
+  it("has no answer callout while the escalation waits", () => {
+    show([escalation()]);
+
+    expect(screen.queryByTestId("escalation-answer")).toBeNull();
+  });
+
   it("keeps the earlier answered escalation next to a new open one, in the order given", () => {
     show([
       escalation({

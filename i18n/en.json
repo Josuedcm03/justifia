@@ -1091,7 +1091,7 @@
       },
       "calendarNotLoaded": "The non-working days calendar for this year is not loaded, so deadlines only skip weekends.",
       "result": {
-        "aprobada": "The request was approved.",
+        "aprobada": "The request was approved. The system notifies the teachers by email automatically; the notice status shows in the request detail, under “Notice to teachers”.",
         "rechazada": "The request was rejected.",
         "devuelta": "The request was returned to the student for correction.",
         "escalada": "The request was escalated to the career coordination."
@@ -1210,7 +1210,7 @@
       "approve": {
         "trigger": "Approve",
         "title": "Approve this request?",
-        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
+        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first. On approval, the system emails a notice to the teachers of the subjects; its status shows under “Notice to teachers” on this same page.",
         "confirm": "Approve request",
         "pending": "Approving...",
         "specialFormat": {
@@ -1349,7 +1349,7 @@
         "replacedOn": "Replaced {date}"
       },
       "decisionPanel": {
-        "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
+        "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it."
       },
       "goToDecision": "Go to the decision",
       "statusNote": {
