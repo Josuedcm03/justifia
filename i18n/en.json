@@ -1387,7 +1387,8 @@
         "line": "Suggestion: {verdict}",
         "review_carefully": "Review carefully",
         "no_alerts": "No alerts",
-        "inconclusive": "Inconclusive"
+        "inconclusive": "Inconclusive",
+        "lineWithSignals": "Suggestion: {verdict} — {signals}"
       },
       "names": {
         "rn07": "Late presentation",
@@ -1405,7 +1406,7 @@
       "notApplicableNote": "The declared cause does not include a rest period.",
       "notEvaluable": {
         "title": "Signals not evaluated",
-        "description": "The following could not be checked, so the suggestion may be incomplete."
+        "description": "These signals could not be checked, so the suggestion may be incomplete."
       },
       "reasons": {
         "calendar_not_covering_year": "The non-working-day calendar does not cover the year of the deadline.",
@@ -1422,7 +1423,7 @@
         "incoherent": "Issued {issued}; the rest ends {end}.",
         "uncovered": "Absence: {absence}. Dated rest periods: {covered}.",
         "uncoveredNone": "Absence: {absence}. No dated rest period.",
-        "recurrence": "Requests with the issuer “{issuer}” in the period: {count} (threshold: {threshold}).",
+        "recurrence": "Requests from this student with the issuer “{issuer}” in the period: {count} (an alert is raised from {threshold}).",
         "repeated": "A document is identical to one in an earlier request.",
         "repeatedSee": "Earlier requests with the same document:",
         "requestLink": "Request {id}"

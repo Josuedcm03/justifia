@@ -69,12 +69,14 @@ export function Section({
 export function Fact({
   label,
   children,
+  className,
 }: {
   label: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
       <dt className="text-label text-muted-foreground">{label}</dt>
       <dd className="text-sm break-words">{children}</dd>
     </div>

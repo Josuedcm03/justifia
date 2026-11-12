@@ -69,6 +69,92 @@ function fact(label: string, root: HTMLElement = section()) {
 }
 
 describe("SignalsSection content (Section content)", () => {
+  it("highlights each present signal and only those", () => {
+    show({
+      ...REPORT,
+      results: [
+        ...REPORT.results.slice(0, 3),
+        {
+          signal: "rn14",
+          outcome: "present",
+          evidence: {
+            kind: "recurrence",
+            issuer: "clinica central",
+            count: 3,
+            threshold: 3,
+          },
+        },
+      ],
+    });
+
+    const entry = (name: string) => fact(name).parentElement as HTMLElement;
+    for (const name of [en.signals.names.rn07, en.signals.names.rn14]) {
+      expect(entry(name)).toHaveClass("border-l-warning", "bg-warning/10");
+      expect(
+        within(fact(name)).getByText(en.signals.outcomes.present),
+      ).toHaveClass("font-semibold");
+    }
+    for (const name of [en.signals.names.rn09, en.signals.names.rn10]) {
+      expect(entry(name)).not.toHaveClass("border-l-warning");
+    }
+  });
+
+  it("names the present signals in the review-carefully suggestion", () => {
+    show({
+      ...REPORT,
+      results: [
+        ...REPORT.results.slice(0, 3),
+        {
+          signal: "rn14",
+          outcome: "present",
+          evidence: {
+            kind: "recurrence",
+            issuer: "clinica central",
+            count: 3,
+            threshold: 3,
+          },
+        },
+      ],
+    });
+
+    expect(within(section()).getByRole("status")).toHaveTextContent(
+      "Suggestion: Review carefully — Late presentation, Recurrence",
+    );
+  });
+
+  it("names a single present signal in the Spanish suggestion", () => {
+    const rn14Only: SignalView = {
+      ...REPORT,
+      results: [
+        { signal: "rn07", outcome: "absent" },
+        {
+          signal: "rn14",
+          outcome: "present",
+          evidence: {
+            kind: "recurrence",
+            issuer: "clinica central",
+            count: 3,
+            threshold: 3,
+          },
+        },
+      ],
+      notEvaluable: [],
+    };
+    show(rn14Only, { locale: "es" });
+
+    expect(
+      within(section(es.signals.title)).getByRole("status"),
+    ).toHaveTextContent("Sugerencia: Revisar con cuidado — Reincidencia");
+  });
+
+  it("adds no signal names to the other verdicts", () => {
+    show({ ...REPORT, verdict: "inconclusive" });
+
+    expect(within(section()).getByRole("status").textContent).toBe(
+      "Suggestion: Inconclusive",
+    );
+  });
+
   it("shows the verdict in words in a status paragraph, with the display-only sentence", () => {
     show(REPORT);
 
@@ -174,12 +260,22 @@ describe("SignalsSection evidence for the secretary", () => {
     );
   });
 
-  it("shows the count and the threshold of the recurrence", () => {
+  it("shows the count and the threshold of the recurrence in plain words", () => {
     show(REPORT);
 
     expect(fact(en.signals.names.rn14)).toHaveTextContent(
-      "Requests with the issuer “clinica central” in the period: 2 (threshold: 3).",
+      "Requests from this student with the issuer “clinica central” in the period: 2 (an alert is raised from 3).",
     );
+  });
+
+  it("words the recurrence in Spanish without the technical threshold label", () => {
+    show(REPORT, { locale: "es" });
+
+    const rn14 = fact(es.signals.names.rn14, section(es.signals.title));
+    expect(rn14).toHaveTextContent(
+      "Solicitudes de este estudiante con el emisor «clinica central» en el período: 2 (se alerta a partir de 3).",
+    );
+    expect(rn14).not.toHaveTextContent("umbral");
   });
 
   it("shows the incoherent documents' dates and the uncovered periods", () => {

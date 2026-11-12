@@ -1387,7 +1387,8 @@
         "line": "Sugerencia: {verdict}",
         "review_carefully": "Revisar con cuidado",
         "no_alerts": "Sin alertas",
-        "inconclusive": "No concluyente"
+        "inconclusive": "No concluyente",
+        "lineWithSignals": "Sugerencia: {verdict} — {signals}"
       },
       "names": {
         "rn07": "Presentación tardía",
@@ -1405,7 +1406,7 @@
       "notApplicableNote": "La causa declarada no incluye reposo.",
       "notEvaluable": {
         "title": "Señales no evaluadas",
-        "description": "No se pudo comprobar lo siguiente, por lo que la sugerencia puede ser incompleta."
+        "description": "Estas señales no se pudieron comprobar, por lo que la sugerencia puede estar incompleta."
       },
       "reasons": {
         "calendar_not_covering_year": "El calendario de días no laborables no cubre el año del plazo.",
@@ -1422,7 +1423,7 @@
         "incoherent": "Emisión el {issued}; el reposo termina el {end}.",
         "uncovered": "Ausencia: {absence}. Reposos con fecha: {covered}.",
         "uncoveredNone": "Ausencia: {absence}. Ningún reposo con fecha.",
-        "recurrence": "Solicitudes con el emisor «{issuer}» en el período: {count} (umbral: {threshold}).",
+        "recurrence": "Solicitudes de este estudiante con el emisor «{issuer}» en el período: {count} (se alerta a partir de {threshold}).",
         "repeated": "Un documento es idéntico a uno de una solicitud anterior.",
         "repeatedSee": "Solicitudes anteriores con el mismo documento:",
         "requestLink": "Solicitud {id}"
