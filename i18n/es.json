@@ -1333,7 +1333,18 @@
         "view": "Ver",
         "download": "Descargar",
         "viewNamed": "Ver {name}",
-        "downloadNamed": "Descargar {name}"
+        "downloadNamed": "Descargar {name}",
+        "viewHere": "Ver aquí",
+        "hide": "Ocultar",
+        "viewHereNamed": "Ver aquí {name}",
+        "hideNamed": "Ocultar {name}",
+        "viewerNamed": "Vista de {name}",
+        "openNewTab": "Abrir en otra pestaña",
+        "zoomHint": "Haga clic en la imagen para ampliarla o volver a verla completa.",
+        "zoomIn": "Ampliar la imagen",
+        "zoomOut": "Ver la imagen completa",
+        "imageAlt": "Documento {name}",
+        "pdfTitle": "Documento {name}"
       },
       "history": {
         "empty": "Esta solicitud no tiene decisiones ni versiones anteriores.",

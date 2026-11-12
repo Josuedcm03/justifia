@@ -1333,7 +1333,18 @@
         "view": "View",
         "download": "Download",
         "viewNamed": "View {name}",
-        "downloadNamed": "Download {name}"
+        "downloadNamed": "Download {name}",
+        "viewHere": "View here",
+        "hide": "Hide",
+        "viewHereNamed": "View {name} here",
+        "hideNamed": "Hide {name}",
+        "viewerNamed": "Preview of {name}",
+        "openNewTab": "Open in a new tab",
+        "zoomHint": "Click the image to enlarge it or to see it whole again.",
+        "zoomIn": "Enlarge the image",
+        "zoomOut": "See the whole image",
+        "imageAlt": "Document {name}",
+        "pdfTitle": "Document {name}"
       },
       "history": {
         "empty": "This request has no earlier decisions or versions.",

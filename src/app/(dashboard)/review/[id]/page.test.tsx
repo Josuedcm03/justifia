@@ -364,17 +364,22 @@ describe("ReviewDetailPage content (RF-06, RF-08 b)", () => {
     expect(items[1]).toHaveTextContent(en.subject.noTeacher);
   });
 
-  it("offers View and Download for each current document through the authenticated route", async () => {
+  it("offers an inline view and Download for each current document through the authenticated route", async () => {
     await renderPage();
 
     const docs = screen.getByRole("region", { name: en.sections.documents });
     expect(docs).toHaveTextContent("constancia.pdf");
-    const view = within(docs).getByRole("link", {
-      name: "View constancia.pdf",
+    const view = within(docs).getByRole("button", {
+      name: "View constancia.pdf here",
     });
-    expect(view).toHaveAttribute("href", "/api/intake/documents/31?modo=ver");
-    expect(view).toHaveAttribute("target", "_blank");
-    expect(view).toHaveAttribute("rel", "noopener noreferrer");
+    expect(view).toHaveAttribute("aria-expanded", "false");
+    // Nothing requests the audited route before the click.
+    expect(docs.querySelector("iframe, img")).toBeNull();
+    await userEvent.click(view);
+    expect(docs.querySelector("iframe")).toHaveAttribute(
+      "src",
+      "/api/intake/documents/31?modo=ver",
+    );
     expect(
       within(docs).getByRole("link", { name: "Download constancia.pdf" }),
     ).toHaveAttribute("href", "/api/intake/documents/31?modo=descarga");
@@ -681,8 +686,8 @@ describe("ReviewDetailPage history (RF-06, RF-08 b)", () => {
     expect(history).toHaveTextContent("borroso.jpg");
     expect(history).toHaveTextContent("Replaced Oct 10, 2026");
     expect(
-      within(history).getByRole("link", { name: "View borroso.jpg" }),
-    ).toHaveAttribute("href", "/api/intake/documents/30?modo=ver");
+      within(history).getByRole("button", { name: "View borroso.jpg here" }),
+    ).toHaveAttribute("aria-expanded", "false");
     const current = screen.getByRole("region", { name: en.sections.documents });
     expect(current).not.toHaveTextContent("borroso.jpg");
   });
@@ -1223,6 +1228,14 @@ describe("ReviewDetailPage escalate action (RF-10 a, E17)", () => {
   );
 });
 
+/** Every button but the inline document viewers, which decide nothing. */
+function controlsOutsideDocuments() {
+  const docs = screen.getByRole("region", { name: en.sections.documents });
+  return screen
+    .queryAllByRole("button")
+    .filter((button) => !docs.contains(button));
+}
+
 describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
   it("shows the open escalation, its note and the notification status in coordination, with no decision control", async () => {
     detailMock.mockResolvedValue(
@@ -1238,10 +1251,11 @@ describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
     expect(region).toHaveTextContent("El sello parece alterado.");
     expect(region).toHaveTextContent(esc.notification.pendiente);
     expect(region).toHaveTextContent(esc.section.waiting);
-    // Approve, reject, return and escalate are gone; the only control left is
-    // the resend of the notice that is still pending (RF-10 b).
+    // Approve, reject, return and escalate are gone; the only control left,
+    // besides the document viewers, is the resend of the notice that is still
+    // pending (RF-10 b).
     expect(
-      screen.queryAllByRole("button").map((button) => button.textContent),
+      controlsOutsideDocuments().map((button) => button.textContent),
     ).toEqual([esc.resend.action]);
   });
 
@@ -1260,7 +1274,7 @@ describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
 
     await renderPage();
 
-    expect(screen.queryAllByRole("button")).toEqual([]);
+    expect(controlsOutsideDocuments()).toEqual([]);
   });
 
   it("shows the earlier escalation with its answer once the request is pendiente again", async () => {
