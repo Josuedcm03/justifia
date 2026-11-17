@@ -2,9 +2,9 @@ import { cn } from "cn";
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { DocumentRow } from "@/app/(dashboard)/review/[id]/document-row";
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
 import { templateKey } from "@/app/(dashboard)/review/template-key";
-import { buttonVariants } from "@/components/ui/button";
 import type {
   DetailDecision,
   DetailDocument,
@@ -58,7 +58,7 @@ export function Section({
       aria-labelledby={`${id}-title`}
       className="border-border bg-card shadow-soft flex flex-col gap-4 rounded-xl border p-6"
     >
-      <h2 id={`${id}-title`} className="text-headline">
+      <h2 id={`${id}-title`} className="text-headline scroll-mt-24">
         {title}
       </h2>
       {children}
@@ -69,12 +69,14 @@ export function Section({
 export function Fact({
   label,
   children,
+  className,
 }: {
   label: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
       <dt className="text-label text-muted-foreground">{label}</dt>
       <dd className="text-sm break-words">{children}</dd>
     </div>
@@ -218,43 +220,6 @@ export function SubjectsSection({
         ))}
       </ul>
     </Section>
-  );
-}
-
-/** View and download go through the authenticated route, which audits both. */
-function DocumentRow({ doc, note }: { doc: DetailDocument; note?: string }) {
-  const t = useTranslations("review.detail.documents");
-  const href = `/api/intake/documents/${doc.id}`;
-
-  return (
-    <li className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <span className="flex min-w-0 flex-col">
-        <span className="text-sm font-medium break-all">
-          {doc.nombreOriginal}
-        </span>
-        {note ? (
-          <span className="text-muted-foreground text-xs">{note}</span>
-        ) : null}
-      </span>
-      <span className="flex flex-col gap-2 sm:flex-row">
-        <a
-          href={`${href}?modo=ver`}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={t("viewNamed", { name: doc.nombreOriginal })}
-          className={buttonVariants({ variant: "outline", size: "lg" })}
-        >
-          {t("view")}
-        </a>
-        <a
-          href={`${href}?modo=descarga`}
-          aria-label={t("downloadNamed", { name: doc.nombreOriginal })}
-          className={buttonVariants({ variant: "ghost", size: "lg" })}
-        >
-          {t("download")}
-        </a>
-      </span>
-    </li>
   );
 }
 

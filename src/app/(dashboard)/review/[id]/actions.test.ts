@@ -101,6 +101,24 @@ describe("decideAction authorisation (RNF-01, RN-15)", () => {
     },
   );
 
+  it.each([
+    ["approve", APPROVE],
+    ["reject", REJECT],
+    ["return", RETURN],
+  ])(
+    "denies a coordinacion the %s decision: the coordinator never decides (RNF-01)",
+    async (_name, payload) => {
+      getSessionMock.mockResolvedValue(sessionFor("coordinacion"));
+
+      await expect(decideAction(payload)).rejects.toThrow(
+        `REDIRECT:${ACCESS_DENIED_PATH}`,
+      );
+
+      expect(scopeMock).not.toHaveBeenCalled();
+      expect(decideMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("sends an anonymous caller to /login", async () => {
     getSessionMock.mockResolvedValue(null);
 

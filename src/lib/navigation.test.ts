@@ -7,6 +7,7 @@ import {
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
+  Inbox,
   LayoutDashboard,
   ListChecks,
   Settings,
@@ -15,6 +16,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+  canCoordinate,
   canCreateUsers,
   canFileRequests,
   canImportCatalog,
@@ -78,6 +80,13 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
         prefetch: false,
       },
       {
+        key: "coordination",
+        href: "/coordination",
+        icon: Inbox,
+        visibleTo: canCoordinate,
+        prefetch: false,
+      },
+      {
         key: "reports",
         href: "/reports",
         icon: ChartColumn,
@@ -124,6 +133,15 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
     expect(review).toMatchObject({ href: "/review", prefetch: false });
   });
 
+  it("opts the coordinator entry out of prefetching too (its list is an audited read)", () => {
+    const coordination = NAV_ITEMS.find((item) => item.key === "coordination");
+
+    expect(coordination).toMatchObject({
+      href: "/coordination",
+      prefetch: false,
+    });
+  });
+
   it("opts the reports entry out of prefetching (it writes an audited read)", () => {
     const reports = NAV_ITEMS.find((item) => item.key === "reports");
 
@@ -134,10 +152,10 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
     });
   });
 
-  it("places reports after review and before administration", () => {
+  it("places reports after coordination and before administration", () => {
     const keys = NAV_ITEMS.map((item) => item.key);
 
-    expect(keys.indexOf("reports")).toBe(keys.indexOf("review") + 1);
+    expect(keys.indexOf("reports")).toBe(keys.indexOf("coordination") + 1);
     expect(keys.indexOf("reports")).toBe(keys.indexOf("administration") - 1);
   });
 
@@ -147,7 +165,8 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
     );
 
     for (const leaf of leaves.filter(
-      (l) => l.key !== "review" && l.key !== "reports",
+      (l) =>
+        l.key !== "review" && l.key !== "coordination" && l.key !== "reports",
     )) {
       expect(leaf, leaf.key).not.toHaveProperty("prefetch");
     }
@@ -207,6 +226,7 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
     ["newRequest", ["estudiante"]],
     ["enrollment", ["estudiante"]],
     ["review", ["secretaria"]],
+    ["coordination", ["coordinacion"]],
     ["reports", ["coordinacion"]],
     ["catalogAsignaturas", STAFF],
     ["catalogDocentes", STAFF],
@@ -298,6 +318,24 @@ describe("trailFor (BS-CTX-1)", () => {
       { key: "review", href: "/review", exact: false, prefetch: false },
     ],
     [
+      "/coordination",
+      {
+        key: "coordination",
+        href: "/coordination",
+        exact: true,
+        prefetch: false,
+      },
+    ],
+    [
+      "/coordination/42",
+      {
+        key: "coordination",
+        href: "/coordination",
+        exact: false,
+        prefetch: false,
+      },
+    ],
+    [
       "/reports",
       { key: "reports", href: "/reports", exact: true, prefetch: false },
     ],
@@ -357,7 +395,13 @@ describe("shortcutsFor (BS-HOME-1 inputs)", () => {
     ["administrador", ["/catalog/asignaturas", "/catalog/docentes", "/users"]],
     [
       "coordinacion",
-      ["/reports", "/catalog/asignaturas", "/catalog/docentes", "/users"],
+      [
+        "/coordination",
+        "/reports",
+        "/catalog/asignaturas",
+        "/catalog/docentes",
+        "/users",
+      ],
     ],
     [
       "secretaria",

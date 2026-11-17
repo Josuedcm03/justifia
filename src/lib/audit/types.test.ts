@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion and two report ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, three escalation, four escalation notice one coordinator read and three report ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -70,6 +70,14 @@ describe("AUDIT_ACTIONS", () => {
         "solicitud.ranking.consultado",
         "solicitud.reporte.consultado",
         "solicitud.reporte.descargado",
+        "solicitud.escalada",
+        "solicitud.escalamiento_resuelto",
+        "solicitud.reporte_inasistencias",
+        "escalamiento.notificacion_enviada",
+        "escalamiento.notificacion_fallida",
+        "escalamiento.notificacion_bloqueada",
+        "escalamiento.notificacion_reenviada",
+        "escalamiento.cola.consultada",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([
@@ -109,5 +117,12 @@ describe("AuditEntityType", () => {
   it("includes Inscripcion for the enrollment events", () => {
     const inscripcion: AuditEntityType = "Inscripcion";
     expect(inscripcion).toBe("Inscripcion");
+  });
+});
+
+describe("AuditEntityType (escalation)", () => {
+  it("includes Escalamiento and Carrera next to the existing types", () => {
+    const types: AuditEntityType[] = ["Escalamiento", "Carrera", "Solicitud"];
+    expect(types).toEqual(["Escalamiento", "Carrera", "Solicitud"]);
   });
 });

@@ -36,7 +36,7 @@ beforeEach(() => {
   dropAction.mockReset();
 });
 
-describe("MyEnrollments list (RF-16, RF-04)", () => {
+describe("MyEnrollments list (RF-17, RF-04)", () => {
   it("shows code, name, period, group and docente of each entry", () => {
     renderIntl(<MyEnrollments enrollments={[CALCULO, FISICA]} />);
 

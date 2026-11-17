@@ -17,11 +17,11 @@ export type LoggedStatement = {
   set?: unknown;
   where?: unknown;
   orderBy?: unknown[];
+  limit?: number;
   /** The argument of `select(...)`: the column set a read asks for. */
   selection?: unknown;
   /** The arguments of `.for(...)`: row-lock strength and its config. */
   lock?: { strength: unknown; config?: unknown };
-  limit?: number;
   /** Other builder methods called, in order (for example `onConflictDoNothing`). */
   calls?: string[];
   inTransaction: boolean;
@@ -69,15 +69,15 @@ function builder(
           return proxy;
         };
       }
-      if (prop === "for") {
-        return (strength: unknown, config?: unknown) => {
-          record({ lock: { strength, config } });
-          return proxy;
-        };
-      }
       if (prop === "limit") {
         return (limit: number) => {
           record({ limit });
+          return proxy;
+        };
+      }
+      if (prop === "for") {
+        return (strength: unknown, config?: unknown) => {
+          record({ lock: { strength, config } });
           return proxy;
         };
       }

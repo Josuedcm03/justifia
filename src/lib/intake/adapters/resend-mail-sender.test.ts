@@ -83,6 +83,44 @@ describe("createResendMailSender (TR-9)", () => {
       });
     });
 
+    it("sends the HTML part beside the text, and an inline image with its content id and type", async () => {
+      fetchMock.mockResolvedValue(reply(200, { id: "49a3999c" }));
+      await createResendMailSender(fetchMock).send(
+        message({
+          html: '<p>Hola <img src="cid:logo"></p>',
+          attachments: [
+            {
+              filename: "logo.png",
+              contentType: "image/png",
+              content: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+              contentId: "logo",
+            },
+          ],
+        }),
+      );
+
+      const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+      expect(body.text).toBe("Buenos días");
+      expect(body.html).toBe('<p>Hola <img src="cid:logo"></p>');
+      expect(body.attachments).toEqual([
+        {
+          filename: "logo.png",
+          content: "iVBORw==",
+          content_id: "logo",
+          content_type: "image/png",
+        },
+      ]);
+    });
+
+    it("sends no html field and no content id for a plain-text message with a document", async () => {
+      fetchMock.mockResolvedValue(reply(200, { id: "49a3999c" }));
+      await createResendMailSender(fetchMock).send(message());
+
+      const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+      expect(Object.keys(body)).not.toContain("html");
+      expect(Object.keys(body.attachments[0])).toEqual(["filename", "content"]);
+    });
+
     it("sends an empty attachments list when there are none", async () => {
       fetchMock.mockResolvedValue(reply(200, { id: "x" }));
       await createResendMailSender(fetchMock).send(

@@ -358,6 +358,143 @@ describe("OwnRequestDetailPage decision (RF-07 c)", () => {
   );
 });
 
+// ES-14, E13: the student sees the state and one neutral label, nothing else of
+// an escalation. The payload carries none of the staff fields; the forged ones
+// below prove the page would not surface them even if a read leaked them.
+const STAFF_LEAK = {
+  motivo: "caso_especial",
+  motivoCodigo: "exceso_ausencias",
+  tipo: "caso_especial",
+  nota: "Staff note about the certificate",
+  respuesta: "Coordinator answer text",
+  coordinadorNombre: "Coordinator Name",
+  coordinacion: { nombre: "Coordinator Name", respuesta: "Answer" },
+  reporteExceso: { nota: "Report note", docente: "Teacher Name" },
+  aviso: "Notice text",
+};
+
+describe("OwnRequestDetailPage in coordination (ES-14, E13)", () => {
+  const callout = () => screen.queryByText(en.detail.coordination);
+
+  it("shows the state and the neutral label while the request is in coordination", async () => {
+    detailMock.mockResolvedValue(
+      detail({ estado: "en_revision_coordinacion", decision: null }),
+    );
+
+    await renderPage();
+
+    expect(callout()).not.toBeNull();
+    expect(section(en.detail.sections.request)).toHaveTextContent(
+      en.states.en_revision_coordinacion,
+    );
+  });
+
+  it("says it in Spanish too", async () => {
+    state.locale = "es";
+    detailMock.mockResolvedValue(
+      detail({ estado: "en_revision_coordinacion", decision: null }),
+    );
+
+    await renderPage();
+
+    expect(
+      screen.getByText(messages.es.requests.detail.coordination),
+    ).toBeInTheDocument();
+  });
+
+  it.each(["pendiente", "devuelta", "rechazada", "aprobada"])(
+    "shows no label while the request is %s",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+
+      await renderPage();
+
+      expect(callout()).toBeNull();
+    },
+  );
+
+  it("shows no reason code, note, answer or coordinator anywhere", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "en_revision_coordinacion",
+        decision: null,
+        ...STAFF_LEAK,
+      }),
+    );
+
+    const { container } = await renderPage();
+
+    const text = container.textContent ?? "";
+    for (const leaked of [
+      "exceso_ausencias",
+      "caso_especial",
+      "Staff note",
+      "Coordinator answer",
+      "Coordinator Name",
+      "Report note",
+      "Teacher Name",
+      "Notice text",
+    ]) {
+      expect(text).not.toContain(leaked);
+    }
+    // E18: neither motive is ever named to the student.
+    expect(text).not.toMatch(/caso especial|special case|sospecha|suspicion/i);
+    expect(correctLink()).toBeNull();
+  });
+
+  it("shows only the state after an answer returned the request to pendiente", async () => {
+    detailMock.mockResolvedValue(
+      detail({ estado: "pendiente", decision: null, ...STAFF_LEAK }),
+    );
+
+    const { container } = await renderPage();
+
+    expect(callout()).toBeNull();
+    expect(section(en.detail.sections.request)).toHaveTextContent(
+      en.states.pendiente,
+    );
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("Coordinator answer");
+    expect(text).not.toContain("Staff note");
+  });
+
+  it("shows nothing of an excess-absence report or notice on an approved request", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "aprobada",
+        decision: {
+          ...DECISION,
+          tipo: "aprobada",
+          motivoCodigo: null,
+          texto: "Your absence is approved.",
+        },
+        ...STAFF_LEAK,
+      }),
+    );
+
+    const { container } = await renderPage();
+
+    expect(section(en.detail.sections.decision)).toHaveTextContent(
+      "Your absence is approved.",
+    );
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("Report note");
+    expect(text).not.toContain("Teacher Name");
+    expect(text).not.toContain("Notice text");
+    expect(callout()).toBeNull();
+  });
+
+  it("words the label without suspicion in both locales", () => {
+    for (const locale of ["en", "es"] as const) {
+      const label = messages[locale].requests.detail.coordination;
+      expect(typeof label).toBe("string");
+      expect(label).not.toMatch(
+        /sospecha|suspicion|caso especial|special case/i,
+      );
+    }
+  });
+});
+
 describe("OwnRequestDetailPage history (RF-08 b)", () => {
   it("lists earlier decisions and earlier versions of the request", async () => {
     detailMock.mockResolvedValue(

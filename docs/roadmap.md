@@ -4,32 +4,33 @@ Orden de los changes de SDD que cubren la línea base de
 [`docs/requirements.md`](./requirements.md). Los identificadores RF, RN y RNF
 remiten a ese archivo.
 
-| #   | Change                 | Cubre                                       | Responsable | Prototipo            | Estado    |
-| --- | ---------------------- | ------------------------------------------- | ----------- | -------------------- | --------- |
-| 0   | `catalog-schedule`     | Horarios en el catálogo (RN-22, RF-12)      | Josué       | Sí                   | pendiente |
-| 1   | `justification-intake` | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23 | Armando     | Sí                   | archivado |
-| 2   | `secretary-review`     | RF-06 a RF-08; RN-08, RN-15 a RN-17         | Armando     | Sí                   | archivado |
-| 3   | `teacher-remission`    | RF-09; RN-18, RN-19; RNF-07                 | Por asignar | Sí                   | archivado |
-| 4   | `document-extraction`  | RF-11; RNF-03                               | Por asignar | Si alcanza el tiempo | archivado |
-| 5   | `validation-signals`   | RF-05, RF-14; RN-07, RN-09 a RN-14, RN-24   | Por asignar | Si alcanza el tiempo | pendiente |
-| 6   | `escalation`           | RF-10, RF-15; RN-20                         | Por asignar | No                   | pendiente |
-| 7   | `coordination-reports` | RF-17; RF-13 (a), (b), (d)                  | Por asignar | No                   | en curso  |
-| 8   | `normative-parameters` | RNF-14                                      | Por asignar | No                   | pendiente |
-| 9   | `request-consent`      | RF-01 (d), RF-03 (f); RN-25                 | Por asignar | Sí                   | archivado |
-| 10  | `secretary-templates`  | Plantillas propias de la secretaría (RF-07) | Por asignar | No                   | pendiente |
-| 11  | `backoffice-ui-refresh` | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué | No | archivado |
-| 12  | `printable-forms`      | Formato especial prellenado e impresión (RN-19); requiere RF nuevo | Por asignar | No | pendiente |
-| 13  | `flow-experience`      | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md` | Por asignar | No | pendiente |
-| 14  | `student-enrollment`   | RF-16, RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12 | Josué | No | archivado |
+| #   | Change                     | Cubre                                                                                | Responsable | Prototipo            | Estado    |
+| --- | -------------------------- | ------------------------------------------------------------------------------------ | ----------- | -------------------- | --------- |
+| 0   | `catalog-schedule`         | Horarios en el catálogo (RN-22, RF-12)                                               | Josué       | Sí                   | pendiente |
+| 1   | `justification-intake`     | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23                                          | Armando     | Sí                   | archivado |
+| 2   | `secretary-review`         | RF-06 a RF-08; RN-08, RN-15 a RN-17                                                  | Armando     | Sí                   | archivado |
+| 3   | `teacher-remission`        | RF-09; RN-18, RN-19; RNF-07                                                          | Por asignar | Sí                   | archivado |
+| 4   | `document-extraction`      | RF-11; RNF-03                                                                        | Por asignar | Si alcanza el tiempo | archivado |
+| 5   | `validation-signals`       | RF-05 (a) a (d); RN-07, RN-09, RN-10, RN-14, RN-15, RN-26                            | Por asignar | Si alcanza el tiempo | archivado |
+| 6   | `escalation`               | RF-10, RF-15; RN-20                                                                  | Por asignar | No                   | archivado |
+| 7   | `coordination-reports`     | RF-18; RF-13 (a), (b), (d)                                                           | Por asignar | No                   | en curso  |
+| 8   | `normative-parameters`     | RNF-14                                                                               | Por asignar | No                   | pendiente |
+| 9   | `request-consent`          | RF-01 (d), RF-03 (f); RN-25                                                          | Por asignar | Sí                   | archivado |
+| 10  | `secretary-templates`      | Plantillas propias de la secretaría (RF-07)                                          | Por asignar | No                   | pendiente |
+| 11  | `backoffice-ui-refresh`    | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué       | No                   | archivado |
+| 12  | `printable-forms`          | Formato especial prellenado e impresión (RN-19); requiere RF nuevo                   | Por asignar | No                   | pendiente |
+| 13  | `flow-experience`          | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md`        | Por asignar | No                   | pendiente |
+| 14  | `student-enrollment`       | RF-17 (antes RF-16), RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12                      | Josué       | No                   | archivado |
+| 15  | `rest-signals-cause-scope` | RF-05 (a), (b); RN-09, RN-10, RN-15                                                  | Armando     | No                   | archivado |
 
 **Notas:**
 
-- `student-enrollment` agrega RF-16: el estudiante declara su propia inscripción
+- `student-enrollment` agrega RF-17 (numerado RF-16 hasta el 2026-11-09): el estudiante declara su propia inscripción
   en `/enrollment`, mientras no haya acceso al registro académico (RN-21). La
   declaración no está verificada y el control sigue siendo la aprobación de la
   secretaría (RN-15). Quedan fuera de alcance la vista del personal sobre las
-  inscripciones y la columna `Origen`. Pendiente: sincronizar RF-16, RF-12 (c) y
-  RN-21 con la matriz de la tesis.
+  inscripciones y la columna `Origen`. Pendiente: agregar RF-17 a la matriz de la tesis y
+  sincronizar RF-12 (c) y RN-21.
   Archivado el 2026-10-25; el recorrido del propietario (fase 13) quedó
   parcial, según `openspec/changes/archive/2026-10-25-student-enrollment/tasks.md`.
 - RF-12 y RNF-13 (mantenimiento e importación de catálogos) los cubren los
@@ -71,10 +72,46 @@ remiten a ese archivo.
   serverless) queda fuera de alcance. `MAX_IMAGE_TOKENS` (6144) está atado al
   contexto de 8192 tokens del servidor (`-c 8192`): si se cambia el servidor,
   revisar ese límite, porque una solicitud que no entra agota los 3 intentos.
-  Los documentos que terminan `fallida` no tienen carga manual: la agrega
+  Los documentos que terminan `fallida` no tienen carga manual; la carga manual (RF-14) no está construida y queda fuera de
   `validation-signals`. Nota para el equipo (`escalation`): su migración
   también es `0011`; debe regenerarla con el número siguiente (no numerar a
   mano).
+- `escalation` (archivado el 2026-10-30) permite a la secretaría escalar a la
+  coordinación de la carrera una solicitud pendiente por sospecha sobre el
+  documento o por un caso especial fuera de las causas del reglamento (RF-10
+  a, RN-20), con el plazo de RN-08 en pausa hasta la respuesta, y registrar en
+  una solicitud aprobada el reporte de exceso del 20 % que comunica el docente
+  (RF-15), que solo avisa a la coordinación (RF-10 b): la aprobación sigue
+  siendo definitiva. La migración `0012_escalation` se regeneró después de
+  `document-extraction` y se aplica en producción con la fase 16 de su
+  `tasks.md`. Pendientes fuera del change: la revisión legal de la UAM del
+  consentimiento v2 y del aviso de privacidad; las cuentas de coordinación de
+  cada carrera de la FIA (sin una cuenta activa la secretaría no puede
+  escalar; Civil y Arquitectura aún no la tienen); `APP_BASE_URL` en Vercel
+  (producción) para el enlace del aviso, y un dominio propio verificado en
+  Resend para que el aviso no llegue a spam. El historial de escalamientos
+  respondidos queda para `coordination-reports`. Nota para el equipo: cuando
+  dos changes traen migración, el que llega segundo a `main` la regenera con
+  `drizzle-kit generate`; nunca se numera a mano.
+- `validation-signals` (archivado el 2026-11-02, entrega parcial) entrega el
+  veredicto sugerido y las señales RN-07, RN-09, RN-10, RN-14 y RN-26 (RF-05
+  (a) a (d)), que se calculan en cada lectura, no se guardan y no cambian la
+  solicitud (RN-15). La secretaría ve el detalle completo; la coordinación ve
+  solo resultados y veredicto, sin valores extraídos ni número de otra
+  solicitud; el estudiante no ve nada. Quedan fuera de esta entrega: RF-05 (e),
+  RN-11, RN-12, RN-13 y RN-24 con RF-14 (la carga manual de datos del
+  documento), y NS-12. El umbral de RN-14 es una constante de código hasta
+  `normative-parameters` (RNF-14). La migración `0013_validation_signals`
+  (huella del archivo) se aplicó en la base de producción el 2026-11-02. La
+  revisión jurídica de la UAM (tarea 10.8 del change) quedó diferida por
+  decisión del propietario hasta un despliegue real con estudiantes reales; no
+  se realizó.
+- Candidata para `validation-signals`: NS-12, señal de procedencia IA
+  declarada en los metadatos de la imagen. No entra en el subconjunto mínimo
+  previo a la prueba de usabilidad de la semana 13. Se promueve a RN y a un
+  criterio de RF-05 solo si el spike en dispositivos de
+  [`docs/investigacion/procedencia-ia-metadatos.md`](./investigacion/procedencia-ia-metadatos.md)
+  la sustenta; si no, pasa a trabajo futuro de la tesis.
 - `secretary-templates` se planifica después del piloto. `secretary-review`
   entrega las plantillas de mensaje de cada decisión (aprobación, rechazo y
   devolución por cada motivo de RN-17) como constantes del sistema; la

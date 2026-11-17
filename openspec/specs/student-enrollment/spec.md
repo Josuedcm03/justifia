@@ -6,7 +6,7 @@ A student declares, replaces and drops their own enrollment in groups of the
 current offering, at `/enrollment`. This is the stopgap of RN-21 while the
 institutional academic register is unavailable: the declaration is
 self-declared and unverified (D1), and the secretaria approval gate (RN-15)
-remains the control on a wrong group. Covers RF-16 (new), RF-04, RF-12 b, RN-21
+remains the control on a wrong group. Covers RF-17 (new; numbered RF-16 until 2026-11-09), RF-04, RF-12 b, RN-21
 (amended), RNF-01, RNF-06, RNF-11, RNF-12. Audit events are specified in the
 `audit-log` delta; the writer guard and role integrity of `Inscripcion` in the
 `academic-catalog` delta; empty-state and navigation nudges in the
@@ -27,7 +27,7 @@ periods, institutional API sync.
 
 ## ADDED Requirements
 
-### Requirement: Enrollment access and identity (RF-16, RNF-01)
+### Requirement: Enrollment access and identity (RF-17, RNF-01)
 
 Only an authenticated user with role `estudiante` MUST be able to open
 `/enrollment` or call any of its actions, and only for their own enrollments.
@@ -60,7 +60,7 @@ input. A denied call MUST return no data and change nothing.
 - WHEN the action runs
 - THEN the enrollment is written for the session student only
 
-### Requirement: Latest period and offered groups (RF-16, RF-12 b, RN-21)
+### Requirement: Latest period and offered groups (RF-17, RF-12 b, RN-21)
 
 The system MUST derive the latest period from the catalog at read time (D3);
 no period is configured or chosen by the user. Only offered groups MAY be
@@ -87,7 +87,7 @@ inactive asignatura MUST NOT be offered.
 - THEN a localized empty state says no groups are offered yet and no group can
   be enrolled in
 
-### Requirement: Own effective enrollments list (RF-16, RF-04, RN-21)
+### Requirement: Own effective enrollments list (RF-17, RF-04, RN-21)
 
 The page MUST list the student's effective enrollments with, for each, the
 asignatura code and name, the period, the group number and the docente name,
@@ -127,7 +127,7 @@ choose groups from the picker.
 - WHEN the page renders
 - THEN the empty state is shown and the picker is available
 
-### Requirement: Picker with own carrera first (RF-16, RN-21)
+### Requirement: Picker with own carrera first (RF-17, RN-21)
 
 The page MUST offer a picker of offered groups, grouped by asignatura, showing
 code, name, group number and docente name. The groups of the student's own
@@ -167,7 +167,7 @@ NOT offer enrolling again.
 - WHEN the picker renders
 - THEN G is marked as enrolled and offers no enroll action
 
-### Requirement: Enroll in an offered group (RF-16, RN-21, RNF-06)
+### Requirement: Enroll in an offered group (RF-17, RN-21, RNF-06)
 
 Enrolling MUST make the student's `Inscripcion` for the group active, creating
 the row when none exists. The server MUST verify that the group is an offered
@@ -204,7 +204,7 @@ MUST change nothing. There is no limit on the number of groups per student
 - WHEN they enroll in G again
 - THEN the same (`EstudianteId`, `GrupoId`) row is active again and no second row exists
 
-### Requirement: One active group per asignatura and period; replace (RF-16, RNF-12)
+### Requirement: One active group per asignatura and period; replace (RF-17, RNF-12)
 
 A student MUST have at most one active `Inscripcion` per asignatura and period
 (D2). Enrolling in an offered group of an asignatura in which the student is
@@ -246,7 +246,7 @@ the application; it MUST hold when two enrollments of the same student race.
 - WHEN both complete
 - THEN at most one active group of A for the period exists for the student
 
-### Requirement: Drop with confirmation (RF-16, RNF-12, RNF-06)
+### Requirement: Drop with confirmation (RF-17, RNF-12, RNF-06)
 
 Dropping MUST require explicit confirmation in a dialog before execution;
 cancelling MUST change nothing. A confirmed drop MUST set the student's
@@ -286,7 +286,7 @@ unaffected, because they reference the group, not the enrollment.
 - WHEN the student drops G and confirms
 - THEN the request, its subjects and its state are unchanged
 
-### Requirement: Warning for dependent requests (RF-16, D5)
+### Requirement: Warning for dependent requests (RF-17, D5)
 
 When the group being dropped or replaced is named by a dependent request, the
 confirmation dialog MUST warn that the draft or returned request uses it and
@@ -349,7 +349,7 @@ be shown.
 - WHEN the page data and the rendered output are serialized and searched
 - THEN neither any email nor any phone value appears
 
-### Requirement: Degraded read and write failure (RF-16)
+### Requirement: Degraded read and write failure (RF-17)
 
 When the enrollment read fails, the page MUST show the shared degraded alert
 (`role="status"`) in place of the list, the picker and any empty state, and MUST
@@ -386,9 +386,9 @@ text MUST exist in both `i18n/es.json` and `i18n/en.json` with identical keys.
 - WHEN `es.json` and `en.json` are compared
 - THEN both contain the same keys with non-empty values
 
-### Requirement: Requirements documentation is synchronised (RF-16, RN-21, D1)
+### Requirement: Requirements documentation is synchronised (RF-17, RN-21, D1)
 
-`docs/requirements.md` MUST list the new functional requirement RF-16 (the
+`docs/requirements.md` MUST list the new functional requirement RF-17 (the
 student declares, replaces and drops their own enrollment in groups of the
 latest period), carry amended RF-12 (inscripciones are maintained by the
 student's own declaration as well as by the secretaria) and amended RN-21
@@ -402,4 +402,4 @@ work of this change.
 
 - GIVEN the change is applied
 - WHEN `docs/requirements.md` and `docs/roadmap.md` are read
-- THEN RF-16, the amended RF-12 and RN-21, the changelog entry and the roadmap row are present
+- THEN RF-17, the amended RF-12 and RN-21, the changelog entry and the roadmap row are present

@@ -1,8 +1,12 @@
+import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
+import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
+import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { ExtractionSection } from "@/app/(dashboard)/review/[id]/extraction-section";
 import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
 import {
@@ -14,14 +18,17 @@ import {
   StudentSection,
   SubjectsSection,
 } from "@/app/(dashboard)/review/[id]/request-sections";
+import { SignalsSection } from "@/app/(dashboard)/review/[id]/signals-section";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
-import { rolesRevisores } from "@/lib/auth/permissions";
+import { rolesRevisores, signalsAccess } from "@/lib/auth/permissions";
 import { listExtractions, type ExtractionList } from "@/lib/data/extraction";
 import { listRemissions } from "@/lib/data/remision";
 import { recordRequestRead } from "@/lib/data/request-reads";
 import { resolveRequestScope } from "@/lib/data/request-scope";
+import { loadSignals, type SignalsRead } from "@/lib/data/signals";
+import { coordinationAccountsOf } from "@/lib/data/solicitud-escalation";
 import {
   getRequestDetail,
   type DetailRevision,
@@ -32,15 +39,29 @@ import { deadlineStatus } from "@/lib/intake/business-days";
 import { calendar } from "@/lib/intake/calendar";
 import { isCausa } from "@/lib/intake/causes";
 import { managuaToday } from "@/lib/intake/dates";
+import { clockStartOf } from "@/lib/intake/deadline-clock";
 import {
   DECISION_TEMPLATES,
   renderTemplate,
   type DecisionKind,
 } from "@/lib/intake/decision-templates";
 import { diffRevision, type RevisionDiff } from "@/lib/intake/revision-diff";
+import type { RequestScope } from "@/lib/intake/request-scope";
 import { isVisibleState } from "@/lib/intake/states";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
+/** The states that show a short note where the decision panel would be. */
+const STATUS_NOTE_STATES = [
+  "aprobada",
+  "rechazada",
+  "devuelta",
+  "en_revision_coordinacion",
+] as const;
+type StatusNoteState = (typeof STATUS_NOTE_STATES)[number];
+
+function isStatusNoteState(estado: string): estado is StatusNoteState {
+  return (STATUS_NOTE_STATES as readonly string[]).includes(estado);
+}
 /** Approve first, the irreversible reject last. */
 const DECISION_ORDER = ["aprobada", "devuelta", "rechazada"] as const;
 
@@ -105,6 +126,27 @@ async function loadExtractions(solicitudId: number): Promise<ExtractionList> {
 }
 
 /**
+ * The validation-signals read is fail-soft (RF-05): `loadSignals` already turns
+ * a failure into a degraded result, and this guard keeps even an unexpected
+ * throw from taking the rest of the detail down. Only the error name is logged
+ * (RNF-04). It writes nothing and adds no audit row (RNF-06).
+ */
+async function loadSignalsSafely(
+  solicitudId: number,
+  referenceScope: RequestScope,
+): Promise<SignalsRead> {
+  try {
+    return await loadSignals({ solicitudId, referenceScope });
+  } catch (error) {
+    console.error("signals_read_failed", {
+      solicitudId,
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return { data: null, degraded: true };
+  }
+}
+
+/**
  * The staff detail (RF-06, RF-08 b, RNF-01). The audited read is written here,
  * in the page body, after authorisation and after the data loaded and every
  * derived value was built, before the JSX is returned (SR-11). An id the caller
@@ -135,10 +177,15 @@ export default async function ReviewDetailPage({
 
   const now = new Date();
   const pending = detail.estado === "pendiente";
-  const clockStart = detail.reenviadaEn ?? detail.presentadaEn;
+  // The deadline starts at the effective start: a coordination answer moves it
+  // later by the business days spent there (RN-08, ES-5).
   const due =
-    pending && clockStart
-      ? deadlineStatus(managuaToday(clockStart), managuaToday(now), calendar)
+    pending && detail.presentadaEn
+      ? deadlineStatus(
+          managuaToday(clockStartOf(detail)),
+          managuaToday(now),
+          calendar,
+        )
       : null;
   const templatesFor = pending ? renderedTemplates(detail) : null;
   const changes = changesSinceReturn(detail);
@@ -146,9 +193,27 @@ export default async function ReviewDetailPage({
   // loaded with the rest, before the single audited read below.
   const remissions =
     detail.estado === "aprobada" ? await listRemissions(detail.id) : null;
+  // E17: a career without an active coordination account cannot be escalated
+  // to. The email is not required here; a notice without recipient is blocked
+  // later. The student's live career is read, never the snapshot name.
+  const accounts = pending ? await coordinationAccountsOf(detail.id) : null;
+  const unavailableCareer = !pending
+    ? null
+    : accounts && accounts.cuentas > 0
+      ? null
+      : (accounts?.carreraNombre ??
+        detail.estudiante.carrera ??
+        t("detail.notSet"));
   // The extracted data is read with the rest, before the single audited read;
   // showing it writes no audit row of its own (RF-11, RNF-06).
   const extractions = await loadExtractions(detail.id);
+  // The validation signals are read with the rest, before the single audited
+  // read; showing them writes no audit row of their own and decides nothing
+  // (RF-05, RN-15). Only a role with full access gets them.
+  const signals =
+    signalsAccess(user.rol) === "full"
+      ? await loadSignalsSafely(detail.id, scope)
+      : null;
 
   await recordRequestRead(actorId, detail.id, detail.estado);
 
@@ -169,13 +234,26 @@ export default async function ReviewDetailPage({
           date: presented,
         })}
         action={
-          <Link
-            href="/review"
-            prefetch={false}
-            className={buttonVariants({ variant: "ghost", size: "lg" })}
-          >
-            {t("detail.back")}
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {templatesFor ? (
+              // A plain in-page anchor: it fetches nothing and only moves to
+              // the decision panel, whose heading clears the sticky header.
+              <a
+                href="#decision-title"
+                className={buttonVariants({ variant: "default", size: "lg" })}
+              >
+                <ArrowDown aria-hidden="true" />
+                {t("detail.goToDecision")}
+              </a>
+            ) : null}
+            <Link
+              href="/review"
+              prefetch={false}
+              className={buttonVariants({ variant: "ghost", size: "lg" })}
+            >
+              {t("detail.back")}
+            </Link>
+          </div>
         }
       />
 
@@ -213,6 +291,7 @@ export default async function ReviewDetailPage({
               : null
           }
         />
+        <EscalationSection escalations={detail.escalamientos} />
         <StudentSection
           student={detail.estudiante}
           consent={detail.consentimiento}
@@ -224,6 +303,7 @@ export default async function ReviewDetailPage({
           requestState={detail.estado}
           configured={isExtractionConfigured()}
         />
+        {signals ? <SignalsSection signals={signals} /> : null}
         {remissions ? (
           <RemissionSection
             remissions={remissions}
@@ -241,6 +321,16 @@ export default async function ReviewDetailPage({
             }
           />
         ) : null}
+        <AbsenceReportsSection
+          solicitudId={detail.id}
+          reports={detail.reportes}
+          canReport={detail.estado === "aprobada"}
+          teachers={(remissions ?? []).map((r) => ({
+            remisionId: r.id,
+            nombre: r.docenteNombre,
+          }))}
+          maxDate={managuaToday(now)}
+        />
         <HistorySection
           decisions={detail.decisiones}
           revisions={detail.revisiones}
@@ -261,8 +351,17 @@ export default async function ReviewDetailPage({
                   templates={templatesFor(kind)}
                 />
               ))}
+              <EscalateDialog
+                solicitudId={detail.id}
+                unavailableCareer={unavailableCareer}
+              />
             </div>
           </Section>
+        ) : isStatusNoteState(detail.estado) ? (
+          // UX-05: where the decision panel would be, say why there is none.
+          <p className="border-border bg-muted text-foreground rounded-lg border border-l-4 px-4 py-3 text-sm">
+            {t(`detail.statusNote.${detail.estado}`)}
+          </p>
         ) : null}
       </div>
     </div>

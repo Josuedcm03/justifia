@@ -25,9 +25,9 @@ vi.mock("@/db", () => ({
 vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
 import type { Transaction } from "@/lib/data/audit";
+import { CLAIM_LEASE_MS } from "@/lib/data/outbox";
 import {
   authorizeResend,
-  CLAIM_LEASE_MS,
   claimRemission,
   completeBlocked,
   completeFailed,

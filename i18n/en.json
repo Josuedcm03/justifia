@@ -17,7 +17,7 @@
     "newRequest": "New request",
     "enrollment": "Enrollment",
     "review": "Review requests",
-    "reports": "Reports",
+    "coordination": "Escalated requests",
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
     "catalogDocentes": "Teachers",
@@ -26,7 +26,8 @@
     "settings": "Settings",
     "sectionLabel": "Navigation",
     "profile": "My profile",
-    "trailLabel": "Page location"
+    "trailLabel": "Page location",
+    "reports": "Reports"
   },
   "roles": {
     "estudiante": "Student",
@@ -48,7 +49,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Overview of your backoffice",
+    "subtitle": "Where your work in Justifia starts",
     "totalUsers": "Total users",
     "activeUsers": "Active users",
     "degraded": "The figures could not be loaded. Try again later.",
@@ -58,11 +59,16 @@
       "newRequest": "Submit a new justification request.",
       "enrollment": "Declare the groups you are enrolled in.",
       "review": "Review the justification requests of your faculty.",
-      "reports": "See which students, teachers and subjects of your career have the most justified absences.",
+      "coordination": "Handle the requests escalated to the coordination of your career.",
       "catalogAsignaturas": "Browse and manage subjects and their groups.",
       "catalogDocentes": "Browse the registered teachers.",
       "catalogImport": "Load the catalog from an Excel file.",
-      "users": "Manage user accounts."
+      "users": "Manage user accounts.",
+      "reports": "See which students, teachers and subjects of your career have the most justified absences."
+    },
+    "featured": {
+      "description": "Start here: review the pending requests of your faculty.",
+      "action": "See pending requests"
     }
   },
   "shell": {
@@ -600,7 +606,7 @@
   "auth": {
     "login": {
       "title": "Sign in",
-      "subtitle": "Access the backoffice with your institutional account",
+      "subtitle": "Sign in with your institutional account",
       "loginLabel": "Username",
       "passwordLabel": "Password",
       "submit": "Sign in",
@@ -772,7 +778,7 @@
         "pending": "Submitting…"
       },
       "consent": {
-        "label": "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, and that they be sent to the teachers of the affected subjects. <link>View privacy notice</link>",
+        "label": "I agree that UAM may use the data in this request and in my documents, including any health data they contain, only to process it, that they be sent to the teachers of the affected subjects and that, if the request is escalated, my career coordination may consult them. <link>View privacy notice</link>",
         "newTab": "(opens in a new tab)"
       },
       "discard": {
@@ -877,12 +883,100 @@
         "fecha_alterada": "The date on the document is altered",
         "documento_ilegible": "The document is not legible"
       },
-      "corrected": "Your correction was sent. The secretary will review it again."
+      "corrected": "Your correction was sent. The secretary will review it again.",
+      "coordination": "The coordination of your career is reviewing this request. You do not need to do anything for now."
     },
     "notFound": {
       "title": "Request not found",
       "message": "We could not find that request among yours.",
       "back": "Back to my requests"
+    }
+  },
+  "coordination": {
+    "notFound": {
+      "title": "Request not found",
+      "message": "This request does not exist or is not available to you.",
+      "back": "Back to the list"
+    },
+    "list": {
+      "title": "Escalated requests",
+      "description": "Requests the secretary escalated to the coordination of your career, and informational notices from the secretary.",
+      "unnamed": "Unnamed student",
+      "noAccess": {
+        "title": "You cannot handle requests with this account",
+        "message": "Your account has no career assigned or is not active. Ask the administrator to review it."
+      },
+      "result": {
+        "respondida": "Your answer was recorded and the request went back to the secretary."
+      },
+      "open": {
+        "title": "Waiting for your answer",
+        "empty": "There are no escalated requests waiting for an answer in your career.",
+        "caption": "Escalated requests waiting for an answer",
+        "escalated": "Escalated on {date}",
+        "attend": "Handle",
+        "attendNamed": "Handle the request of {name}"
+      },
+      "notices": {
+        "title": "Informational notices",
+        "empty": "There are no notices for your career.",
+        "caption": "Informational notices from the secretary",
+        "teacher": "Teacher: {name}",
+        "communicated": "Communicated on {date}",
+        "view": "View notice",
+        "viewNamed": "View the notice of {name}"
+      }
+    },
+    "detail": {
+      "title": "Request of {name}",
+      "description": "Review the documents and answer the secretary. The secretary decides the request.",
+      "noticeDescription": "Informational notice from the secretary. No answer is needed.",
+      "back": "Back to the list",
+      "unnamed": "Unnamed student",
+      "notSet": "Not set",
+      "noNote": "No note",
+      "period": "{start} to {end}",
+      "sections": {
+        "student": "Student",
+        "request": "Request",
+        "escalation": "Escalation",
+        "notice": "Notice",
+        "answer": "Answer to the secretary"
+      },
+      "fields": {
+        "name": "Name",
+        "cif": "CIF",
+        "career": "Career",
+        "cause": "Cause",
+        "period": "Absence dates",
+        "reason": "Reason",
+        "note": "Secretary note",
+        "escalated": "Escalated",
+        "teacher": "Teacher",
+        "communicated": "Date communicated by the teacher",
+        "reportNote": "Notice note"
+      }
+    },
+    "answer": {
+      "dialog": {
+        "trigger": "Answer the secretary",
+        "title": "Send this answer to the secretary?",
+        "description": "The request goes back to the secretary, who will decide it. The answer cannot be edited afterwards.",
+        "noteLabel": "Answer for the secretary",
+        "noteHint": "State your assessment of the documents. Only the secretary and the coordination of the career can see it.",
+        "counter": "{count} of 1000",
+        "confirm": "Send answer",
+        "pending": "Sending...",
+        "cancel": "Cancel",
+        "backToQueue": "Back to the list"
+      },
+      "errors": {
+        "texto_required": "Write the answer for the secretary.",
+        "texto_too_long": "The answer cannot exceed 1000 characters.",
+        "conflict": "This request was already answered. Go back to the list to see the pending ones.",
+        "not_found": "This request is no longer available to you.",
+        "unexpected": "The answer could not be sent. Please try again."
+      }
     }
   },
   "enrollment": {
@@ -949,6 +1043,33 @@
       "title": "Review queue",
       "description": "Pending requests from your faculty, oldest first.",
       "caption": "Pending requests",
+      "tabs": {
+        "label": "Request status",
+        "pendiente": "Pending",
+        "en_revision_coordinacion": "In coordination",
+        "aprobada": "Approved"
+      },
+      "coordination": {
+        "description": "Requests escalated to the career coordination, oldest first.",
+        "caption": "Requests in coordination",
+        "empty": "There are no requests in coordination in your faculty.",
+        "columns": {
+          "escalated": "Escalated",
+          "reason": "Reason",
+          "notice": "Coordination notice"
+        }
+      },
+      "approved": {
+        "description": "Approved requests from your faculty, newest first.",
+        "caption": "Approved requests",
+        "empty": "There are no approved requests in your faculty.",
+        "latest": "The 50 most recent approved requests are shown.",
+        "columns": {
+          "approved": "Approved",
+          "reports": "Absence reports"
+        },
+        "reportsCount": "{count, plural, =0 {No reports} one {# report} other {# reports}}"
+      },
       "columns": {
         "received": "Received",
         "student": "Student",
@@ -964,7 +1085,8 @@
         "onTime": "On time",
         "dueSoon": "Due within 1 business day",
         "overdue": "Overdue",
-        "due": "Due {date}"
+        "due": "Due {date}",
+        "paused": "Deadline paused"
       },
       "review": "Review",
       "reviewNamed": "Review request from {name}",
@@ -975,9 +1097,10 @@
       },
       "calendarNotLoaded": "The non-working days calendar for this year is not loaded, so deadlines only skip weekends.",
       "result": {
-        "aprobada": "The request was approved.",
+        "aprobada": "The request was approved. The system notifies the teachers by email automatically; the notice status shows in the request detail, under “Notice to teachers”.",
         "rechazada": "The request was rejected.",
-        "devuelta": "The request was returned to the student for correction."
+        "devuelta": "The request was returned to the student for correction.",
+        "escalada": "The request was escalated to the career coordination."
       },
       "search": {
         "label": "Search requests",
@@ -989,12 +1112,120 @@
         "clear": "Clear search"
       }
     },
+    "escalation": {
+      "reasons": {
+        "sospecha_documento": "Suspicion about a document",
+        "caso_especial": "Special case",
+        "exceso_inasistencias": "Excess absences"
+      },
+      "notification": {
+        "pendiente": "Pending send",
+        "pendienteFallido": "Pending send: the last attempt failed",
+        "enviada": "Sent on {date}",
+        "bloqueada": "No coordination recipient for the career",
+        "respondida": "Will not be sent: the coordination already answered"
+      },
+      "section": {
+        "title": "Escalations to coordination",
+        "fields": {
+          "reason": "Reason",
+          "note": "Secretary note",
+          "escalated": "Escalated",
+          "answer": "Coordination answer",
+          "notice": "Coordination notice"
+        },
+        "escalatedBy": "{name}, {date}",
+        "answeredBy": "{name}, {date}",
+        "waiting": "Waiting for the coordination answer. Meanwhile the request cannot be approved, rejected or returned."
+      },
+      "dialog": {
+        "trigger": "Escalate to coordination",
+        "title": "Escalate this request to coordination?",
+        "description": "The request moves to review by the career coordination and cannot be approved, rejected or returned until coordination answers. Coordination receives an email notice.",
+        "motivoLabel": "Escalation reason",
+        "motivo": {
+          "sospecha_documento": "Suspicion about a document",
+          "caso_especial": "Special case (outside the causes of the regulation)"
+        },
+        "noteLabel": "Note for coordination",
+        "noteHint": "Explain why you are escalating the request to coordination. Only staff can see it.",
+        "counter": "{count} of 1000",
+        "confirm": "Escalate request",
+        "pending": "Escalating...",
+        "cancel": "Cancel",
+        "backToQueue": "Back to the queue"
+      },
+      "errors": {
+        "nota_required": "Write the note for coordination.",
+        "nota_too_long": "The note cannot be longer than 1000 characters.",
+        "motivo_invalid": "Select the escalation reason.",
+        "conflict": "This request is no longer pending. Go back to the queue to see its status.",
+        "not_found": "This request is no longer available to you.",
+        "unexpected": "The request could not be escalated. Try again.",
+        "sin_coordinacion": "{carrera} has no registered coordination; ask the administrator to create the account."
+      },
+      "resend": {
+        "action": "Resend",
+        "actionNamed": "Resend the notice to the coordination: {name}",
+        "pending": "Resending...",
+        "result": {
+          "enviada": "The notice was sent to the coordination.",
+          "pendiente": "It could not be sent. It stays pending and will be retried.",
+          "bloqueada": "The notice is still blocked: the career has no coordination recipient with an email. Reload the page to see the status.",
+          "en_curso": "A send is already in progress; reload the page in a few seconds.",
+          "sin_correo": "The career's coordination account has no email on record; ask the administrator to add it.",
+          "sin_configurar": "Email sending is not configured yet. The notice stays pending and will be sent once it is.",
+          "respondida": "The coordination already answered this escalation; the notice will not be sent."
+        },
+        "errors": {
+          "not_found": "This notice is no longer available to you.",
+          "unexpected": "It could not be resent. Try again."
+        }
+      }
+    },
+    "report": {
+      "section": {
+        "title": "Absence reports",
+        "empty": "No report has been recorded yet.",
+        "noTeachers": "This request has no teacher with a recorded notice, so a report cannot be recorded."
+      },
+      "entry": {
+        "communicated": "Communicated by the teacher on {date}",
+        "recordedBy": "Recorded by {name}, {date}",
+        "note": "Note"
+      },
+      "dialog": {
+        "trigger": "Record absence report",
+        "title": "Record this absence report?",
+        "description": "The report stays in the record and cannot be edited or deleted. The career coordination receives an email notice. The request stays approved.",
+        "teacherLabel": "Teacher",
+        "teacherPlaceholder": "Select a teacher",
+        "dateLabel": "Date the teacher communicated it",
+        "noteLabel": "Note (optional)",
+        "noteHint": "Only staff can see it.",
+        "counter": "{count} of 1000",
+        "confirm": "Record report",
+        "pending": "Recording...",
+        "cancel": "Cancel",
+        "backToQueue": "Back to the queue"
+      },
+      "errors": {
+        "date_invalid": "Enter the date the teacher communicated it.",
+        "date_future": "The date cannot be later than today.",
+        "docente_invalid": "Select one of the teachers of this request.",
+        "nota_blank": "The note cannot contain only spaces.",
+        "nota_too_long": "The note cannot be longer than 1000 characters.",
+        "conflict": "This request is no longer approved. Go back to the queue to see its status.",
+        "not_found": "This request is no longer available to you.",
+        "unexpected": "The report could not be recorded. Try again."
+      }
+    },
     "decision": {
       "region": "Decision",
       "approve": {
         "trigger": "Approve",
         "title": "Approve this request?",
-        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
+        "description": "Approval is final: it cannot be undone. The student will see the message below; you can edit it first. On approval, the system emails a notice to the teachers of the subjects; its status shows under “Notice to teachers” on this same page.",
         "confirm": "Approve request",
         "pending": "Approving...",
         "specialFormat": {
@@ -1117,7 +1348,18 @@
         "view": "View",
         "download": "Download",
         "viewNamed": "View {name}",
-        "downloadNamed": "Download {name}"
+        "downloadNamed": "Download {name}",
+        "viewHere": "View here",
+        "hide": "Hide",
+        "viewHereNamed": "View {name} here",
+        "hideNamed": "Hide {name}",
+        "viewerNamed": "Preview of {name}",
+        "openNewTab": "Open in a new tab",
+        "zoomHint": "Click the image to enlarge it or to see it whole again.",
+        "zoomIn": "Enlarge the image",
+        "zoomOut": "See the whole image",
+        "imageAlt": "Document {name}",
+        "pdfTitle": "Document {name}"
       },
       "history": {
         "empty": "This request has no earlier decisions or versions.",
@@ -1133,7 +1375,14 @@
         "replacedOn": "Replaced {date}"
       },
       "decisionPanel": {
-        "description": "Approve, return for correction or reject this request. Each decision asks you to confirm it."
+        "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it."
+      },
+      "goToDecision": "Go to the decision",
+      "statusNote": {
+        "aprobada": "This request has already been approved. No decisions remain.",
+        "rechazada": "This request has already been rejected. No decisions remain.",
+        "devuelta": "It was returned to the student for correction; it will come back to the queue when they resubmit it.",
+        "en_revision_coordinacion": "It is under coordination review. You can decide once the coordination answers."
       }
     },
     "extraction": {
@@ -1154,6 +1403,57 @@
         "notConfigured": "The extraction service needs to be configured. Contact the system administrator."
       },
       "degraded": "The extracted data could not be loaded. The rest of the request is shown in full."
+    },
+    "signals": {
+      "title": "Validation signals",
+      "note": "Automatic suggestion to support your review; it does not change the state of the request or replace your decision.",
+      "coordinationNote": "Automatic suggestion to support your answer; it does not change the state of the request.",
+      "degraded": "The validation signals could not be calculated. The rest of the request is shown in full.",
+      "verdict": {
+        "line": "Suggestion: {verdict}",
+        "review_carefully": "Review carefully",
+        "no_alerts": "No alerts",
+        "inconclusive": "Inconclusive",
+        "lineWithSignals": "Suggestion: {verdict} — {signals}"
+      },
+      "names": {
+        "rn07": "Late presentation",
+        "rn09": "Incoherent dates",
+        "rn10": "Uncovered dates",
+        "rn14": "Recurrence",
+        "rn26": "Repeated document"
+      },
+      "outcomes": {
+        "present": "Signal present",
+        "absent": "No signal",
+        "not_evaluable": "Not evaluable",
+        "not_applicable": "Not applicable"
+      },
+      "notApplicableNote": "The declared cause does not include a rest period.",
+      "notEvaluable": {
+        "title": "Signals not evaluated",
+        "description": "These signals could not be checked, so the suggestion may be incomplete."
+      },
+      "reasons": {
+        "calendar_not_covering_year": "The non-working-day calendar does not cover the year of the deadline.",
+        "extraction_pending": "The automatic reading of a document has not finished yet.",
+        "extraction_failed": "A document could not be read automatically.",
+        "field_missing": "A document lacks a needed field.",
+        "days_only": "The rest period gives only a number of days, with no dates.",
+        "no_period": "The subjects do not belong to a single academic period.",
+        "no_eligible_documents": "The request has no current student documents.",
+        "no_fingerprint": "The current documents were stored before repeated-document detection existed, so they cannot be compared."
+      },
+      "evidence": {
+        "timing": "Presented {presented}; the deadline is {deadline}.",
+        "incoherent": "Issued {issued}; the rest ends {end}.",
+        "uncovered": "Absence: {absence}. Dated rest periods: {covered}.",
+        "uncoveredNone": "Absence: {absence}. No dated rest period.",
+        "recurrence": "Requests from this student with the issuer “{issuer}” in the period: {count} (an alert is raised from {threshold}).",
+        "repeated": "A document is identical to one in an earlier request.",
+        "repeatedSee": "Earlier requests with the same document:",
+        "requestLink": "Request {id}"
+      }
     },
     "remission": {
       "title": "Notice to teachers",
@@ -1213,6 +1513,43 @@
       "title": "Request not found",
       "message": "This request does not exist or is not available to you.",
       "back": "Back to the queue"
+    }
+  },
+  "privacy": {
+    "title": "Privacy notice",
+    "draft": "Draft pending UAM review",
+    "version": "Notice version: <date>{version}</date>",
+    "controller": {
+      "title": "Data controller",
+      "body": "Universidad Americana (UAM) is the controller of the data collected in this system.",
+      "contact": "[UAM address and contact office: to be defined]"
+    },
+    "purpose": {
+      "title": "Purpose",
+      "body": "The data is used only to process your justification request and its corrections. It is not used for any other purpose."
+    },
+    "recipients": {
+      "title": "Recipients",
+      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names. If the request is escalated, the coordination of your career receives a minimal notification by email and consults the request and its documents inside the system."
+    },
+    "data": {
+      "title": "Data we process",
+      "identity": "Identity and academic data from your account.",
+      "request": "Request data: cause, dates and subjects.",
+      "documents": "The supporting documents you attach.",
+      "health": "Health data, which is sensitive data and may appear in those documents."
+    },
+    "mandatory": {
+      "title": "Required data",
+      "body": "To submit a request, the data and documents each step asks for and your consent are required. Without them the request cannot be processed."
+    },
+    "rights": {
+      "title": "Your rights and withdrawing consent",
+      "body": "You may exercise your rights of access, rectification, cancellation and opposition, and withdraw your consent, in writing addressed to the faculty secretary's office. Withdrawal has no retroactive effect."
+    },
+    "retention": {
+      "title": "Retention period",
+      "body": "The data is kept for five years and then cancelled."
     }
   },
   "reports": {
@@ -1291,43 +1628,6 @@
         "title": "No request matches the filters",
         "hint": "Try another period, teacher, student or cause."
       }
-    }
-  },
-  "privacy": {
-    "title": "Privacy notice",
-    "draft": "Draft pending UAM review",
-    "version": "Notice version: <date>{version}</date>",
-    "controller": {
-      "title": "Data controller",
-      "body": "Universidad Americana (UAM) is the controller of the data collected in this system.",
-      "contact": "[UAM address and contact office: to be defined]"
-    },
-    "purpose": {
-      "title": "Purpose",
-      "body": "The data is used only to process your justification request and its corrections. It is not used for any other purpose."
-    },
-    "recipients": {
-      "title": "Recipients",
-      "body": "The request data and the documents you attach are sent by institutional email to the teachers of the subjects your request names."
-    },
-    "data": {
-      "title": "Data we process",
-      "identity": "Identity and academic data from your account.",
-      "request": "Request data: cause, dates and subjects.",
-      "documents": "The supporting documents you attach.",
-      "health": "Health data, which is sensitive data and may appear in those documents."
-    },
-    "mandatory": {
-      "title": "Required data",
-      "body": "To submit a request, the data and documents each step asks for and your consent are required. Without them the request cannot be processed."
-    },
-    "rights": {
-      "title": "Your rights and withdrawing consent",
-      "body": "You may exercise your rights of access, rectification, cancellation and opposition, and withdraw your consent, in writing addressed to the faculty secretary's office. Withdrawal has no retroactive effect."
-    },
-    "retention": {
-      "title": "Retention period",
-      "body": "The data is kept for five years and then cancelled."
     }
   }
 }

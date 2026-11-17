@@ -1,4 +1,9 @@
 import type { Causa } from "@/lib/intake/causes";
+import type {
+  EscalationReason,
+  EscalationNoticeState,
+  EscalationNoticeTrigger,
+} from "@/lib/intake/escalation";
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type {
@@ -49,6 +54,14 @@ export const AUDIT_ACTIONS = [
   "solicitud.ranking.consultado",
   "solicitud.reporte.consultado",
   "solicitud.reporte.descargado",
+  "solicitud.escalada",
+  "solicitud.escalamiento_resuelto",
+  "solicitud.reporte_inasistencias",
+  "escalamiento.notificacion_enviada",
+  "escalamiento.notificacion_fallida",
+  "escalamiento.notificacion_bloqueada",
+  "escalamiento.notificacion_reenviada",
+  "escalamiento.cola.consultada",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -63,6 +76,7 @@ export type AuditEntityType =
   | "Grupo"
   | "Remision"
   | "Inscripcion"
+  | "Escalamiento"
   | "Carrera";
 
 /** Coordination report events (coordination-reports, RF-17 e, RNF-06). The
@@ -187,8 +201,8 @@ type RequestCorrectedPayload = {
 
 type RequestReadPayload = { estado: EstadoSolicitud };
 
-/** Count only: never the list of request ids. */
-type QueueReadPayload = { total: number };
+/** Count and tab code only: never the list of request ids. */
+type QueueReadPayload = { total: number; estado: EstadoSolicitud };
 
 type DocumentRetiredPayload = { solicitudId: number };
 
@@ -210,8 +224,9 @@ type RemissionSentPayload = {
 };
 
 /** Closed reason a send failed; never the provider's own message. */
-export type RemissionFailureCode =
-  "not_configured" | "rejected" | "unavailable" | "documento_no_disponible";
+export type MailFailureCode = "not_configured" | "rejected" | "unavailable";
+
+export type RemissionFailureCode = MailFailureCode | "documento_no_disponible";
 
 type RemissionFailedPayload = {
   solicitudId: number;
@@ -237,6 +252,59 @@ type SpecialFormatPayload = {
   tamanoBytes: number;
   remisionesDesbloqueadas: number;
 };
+
+/** Escalation events (escalation, ES-13). Ids and closed codes only: never the
+ *  secretary note, the coordinator answer, a teacher name or an email (RNF-06,
+ *  RN-02). The entity is the request, not the escalation. */
+type RequestEscalatedPayload = {
+  escalamientoId: number;
+  motivo: EscalationReason;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+};
+
+type EscalationResolvedPayload = {
+  escalamientoId: number;
+  estadoPrevio: EstadoSolicitud;
+  estadoNuevo: EstadoSolicitud;
+};
+
+type AbsenceReportedPayload = {
+  reporteId: number;
+  escalamientoId: number;
+  docenteId: number;
+};
+
+/** Coordination notice events (escalation, ES-13). Ids, counts and closed
+ *  codes only: never an address, the message or the provider's error text. */
+type NoticeSentPayload = {
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  intentos: number;
+  destinatarios: number;
+};
+
+type NoticeFailedPayload = {
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  intentos: number;
+  codigo: MailFailureCode;
+};
+
+type NoticeBlockedPayload = {
+  solicitudId: number;
+  origen: EscalationNoticeTrigger;
+  motivo: "sin_destinatarios";
+};
+
+type NoticeResentPayload = {
+  solicitudId: number;
+  estadoPrevio: EscalationNoticeState;
+};
+
+/** The coordinator's open of the escalation list: the count only, never the
+ *  request ids (RNF-06). */
+type CoordinatorQueueReadPayload = { total: number };
 
 /** Closed lists for the manual catalog events. A field not named here can
  *  never be reported as changed (AL-PAY). */
@@ -442,4 +510,52 @@ export type AuditEvent =
       entidadTipo: "Carrera";
       entidadId: number;
       datos: ReportReadPayload;
+    }
+  | {
+      accion: "solicitud.escalada";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: RequestEscalatedPayload;
+    }
+  | {
+      accion: "solicitud.escalamiento_resuelto";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: EscalationResolvedPayload;
+    }
+  | {
+      accion: "solicitud.reporte_inasistencias";
+      entidadTipo: "Solicitud";
+      entidadId: number;
+      datos: AbsenceReportedPayload;
+    }
+  | {
+      accion: "escalamiento.notificacion_enviada";
+      entidadTipo: "Escalamiento";
+      entidadId: number;
+      datos: NoticeSentPayload;
+    }
+  | {
+      accion: "escalamiento.notificacion_fallida";
+      entidadTipo: "Escalamiento";
+      entidadId: number;
+      datos: NoticeFailedPayload;
+    }
+  | {
+      accion: "escalamiento.notificacion_bloqueada";
+      entidadTipo: "Escalamiento";
+      entidadId: number;
+      datos: NoticeBlockedPayload;
+    }
+  | {
+      accion: "escalamiento.notificacion_reenviada";
+      entidadTipo: "Escalamiento";
+      entidadId: number;
+      datos: NoticeResentPayload;
+    }
+  | {
+      accion: "escalamiento.cola.consultada";
+      entidadTipo: "Carrera";
+      entidadId: number;
+      datos: CoordinatorQueueReadPayload;
     };

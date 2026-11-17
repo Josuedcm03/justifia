@@ -38,6 +38,8 @@ const GUARDED_SECTIONS = [
   "nav.profile",
   "nav.enrollment",
   "nav.trailLabel",
+  // Escalation, S4: the coordinator's menu entry.
+  "nav.coordination",
   "roles",
   // Backoffice shell, slice 1b: route error screen and the role-aware home.
   "shell",
@@ -204,6 +206,7 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
       "catalogAsignaturas",
       "catalogDocentes",
       "catalogImport",
+      "coordination",
       "enrollment",
       "myRequests",
       "newRequest",

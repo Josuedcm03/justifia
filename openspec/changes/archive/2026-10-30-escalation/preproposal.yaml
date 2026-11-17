@@ -1,0 +1,59 @@
+schema: gentle-ai.sdd-preproposal/v1
+change: escalation
+revision: 7
+exploration:
+  outcome: done
+  reference:
+    openspec: openspec/changes/escalation/exploration.md
+    engram: sdd/escalation/explore
+research:
+  selected: false
+  note: Owner skipped research on 2026-10-22. The privacy question (coordination as a new recipient) is deferred to the UAM legal review.
+product_decisions:
+  status: confirmed
+  confirmed:
+    - id: D0
+      decision: Pilot scope is the Facultad de Ingeniería y Arquitectura (FIA) only - Ingeniería Industrial, Ingeniería Civil, Arquitectura, Ingeniería en Sistemas de Información. Other faculties and careers present in the catalog are out of scope. This change does not touch catalog data. In FIA, active coordinators with email exist only for Industrial and Sistemas (read-only query 2026-10-22), so the no-recipient case must be handled visibly.
+    - id: E1
+      decision: Minimal coordinator view. A coordinacion user logs in, sees the requests escalated to the coordination of their career (including the supporting documents), and records the coordination's answer in the system. The answer returns the request to pendiente, where the secretary decides with the existing decision panel. Owner chose this over the secretary-recorded answer; it adds pages, document access for coordinacion and RNF-01 access tests, and overlaps roadmap #7 coordination-reports.
+    - id: E2
+      decision: Only a pendiente request moves to en_revision_coordinacion, with reason sospecha_documento or caso_especial (E18; free manual reason with a required note; no dependency on validation-signals). On an aprobada request, the RF-15 report is recorded and the coordination is notified with reason exceso_inasistencias, but the request stays aprobada (approval stays final). Documented deviation - the excess-absence escalation does not change state, unlike RF-10 (a).
+    - id: E6
+      decision: The coordination email carries minimal data (request number, student name and CIF, career, reason label, secretary note) and a link to the request in the system. No attachments. Documents are visible only in the system, with a session and audited access. The consent label and privacy notice must name the career coordination as a recipient - new CONSENT_VERSION and UAM legal review (joins the pending request-consent task 9.7).
+    - id: E10
+      decision: On an aprobada request, recording the RF-15 report (teacher, date communicated, note) and notifying the coordination is one action. The coordinator view shows it as an informational notice with no required action. The system does not compute the absence percentage.
+    - id: E13
+      decision: The student sees the state and a neutral reason label. The secretary note and the coordination's answer are staff-only.
+    - id: E15
+      decision: The RN-08 deadline is paused while the request is in coordination; time spent there does not count. This changes the deadline computation and the queue index IX_Solicitud_Cola.
+    - id: E17
+      decision: Confirmed by the owner on 2026-10-22. A sospecha_documento or caso_especial escalation (E18) is refused when the student's current career has no active coordinacion account; the refusal is an actionable error naming the career and asking to have the administrator create the account, the request stays pendiente and nothing is written (no audit row). If an active coordinacion account exists but none has an email, the escalation proceeds, its notification is bloqueada with sin_destinatarios, the coordinator still sees and answers it in the coordinator view, and a manual resend follows the fix. The RF-15 report on an aprobada request is always recorded; with zero recipients (no account or no email) its notice is bloqueada with sin_destinatarios.
+    - id: E18
+      decision: Confirmed by the owner on 2026-10-30 after the manual walk (RN-20 correction). A pendiente request can be escalated by the secretaria with motive sospecha_documento OR caso_especial (a case outside the causes of the regulation, for instance the death of a close relative or migration paperwork, valued by the career coordination). Both motives behave identically - state to en_revision_coordinacion, RN-08 pause, notice to the coordination with the same recipients and the E17 rule, the coordinator answers and the request returns to pendiente - and a request has at most one open escalation across both. exceso_inasistencias is unchanged (notice on an aprobada request, no state change). The secretaria chooses the motive in the dialog with no default; the student view stays neutral (E13). Evidence from the thesis interviews - E-02 (secretaria academica) at 03:36, causes outside art. 36 (health or sport), such as the death of a close relative or migration paperwork, "esos casos asi especiales los valora la coordinacion de cada carrera... el coordinador valora en conjunto con el docente si aplica o no"; E-01 (ex-coordinator), "el primer nivel seria la secretaria academica; si el caso lo requiere, escala a la coordinacion". The coordination notice is sent as a branded multipart message (text plus HTML) with the UAM and FIA lockup as an inline image; E6 (no attachments) refers to request documents, not to a brand image. Migration 0012_escalation, never applied to production, is regenerated in place.
+  defaults_from_exploration:
+    - id: E3
+      decision: Leaving coordination returns the request to pendiente (no direct decision from the coordination state).
+    - id: E4
+      decision: Recipients are active users with role coordinacion, CarreraId equal to the student's current career, and an email. Zero recipients is a visible blocked state.
+    - id: E5
+      decision: Own notification outbox on the escalation records, same claim/lease pattern as Remision, drained by the existing remission-retry cron route. Cut line - inline best-effort send with manual resend.
+    - id: E7-E9
+      decision: RF-15 reports live in an append-only table; the teacher is picked from the request's remitted teachers (id + name snapshot); reports are recorded on aprobada requests only.
+    - id: E12
+      decision: Escalations live in a new table (reason, note, state before, answer, outbox columns); SolicitudDecision is not widened. One open escalation per request.
+    - id: E14
+      decision: State tabs on /review (Pendientes, En coordinación, Aprobadas). Search by CIF or name is a cut-line addition.
+    - id: E16
+      decision: Teacher remissions of an approved request are untouched by an excess-absence notice.
+constraints:
+  - Migration must be generated by drizzle-kit, never hand-numbered. document-extraction (teammate) also targets 0011; the second to merge regenerates. Agree merge order with the teammate before the first slice PR.
+  - Any Neon schema or data command needs the owner's explicit yes for that command; never run against the production endpoint without it.
+  - Thesis scope is student and secretary flows; the coordinator view is kept minimal.
+  - Do not edit docs/flow-experience-backlog.md; UX observations are reviewed with the owner first.
+delivery:
+  mode: interactive
+  artifact_store: hybrid
+  delivery_strategy: auto-chain
+  chain_strategy: feature-branch-chain
+  review_budget_lines: 1000
+proposal_ready: true

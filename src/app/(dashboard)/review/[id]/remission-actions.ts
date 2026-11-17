@@ -1,8 +1,8 @@
 "use server";
 
-import { after } from "next/server";
 import { z } from "zod";
 
+import { afterResponse } from "@/app/(dashboard)/review/[id]/after-response";
 import { requireRole } from "@/lib/auth/dal";
 import { rolesRevisores } from "@/lib/auth/permissions";
 import { authorizeResend } from "@/lib/data/remision";
@@ -110,28 +110,14 @@ const attachSchema = z.object({
  * file of up to 10 MiB, so awaiting them could outlast the action. A failure
  * is logged by code only; the retry job and "Reenviar" recover the rows.
  */
-async function dispatchAttached(remisionIds: number[], actorId: number) {
-  try {
-    await dispatchRemissions(
+function scheduleDispatch(remisionIds: number[], actorId: number) {
+  afterResponse("remission_dispatch", () =>
+    dispatchRemissions(
       remisionIds,
       { trigger: "formato_especial", actorId },
       getIntakeDeps(),
-    );
-  } catch (error) {
-    console.error("remission_dispatch_failed", {
-      code: error instanceof Error ? error.name : "unknown",
-    });
-  }
-}
-
-function scheduleDispatch(remisionIds: number[], actorId: number) {
-  try {
-    after(() => dispatchAttached(remisionIds, actorId));
-  } catch (error) {
-    console.error("remission_dispatch_not_scheduled", {
-      code: error instanceof Error ? error.name : "unknown",
-    });
-  }
+    ),
+  );
 }
 
 /**

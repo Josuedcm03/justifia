@@ -7,9 +7,11 @@ import {
   asignatura,
   carrera,
   documentoRespaldo,
+  escalamiento,
   facultad,
   grupo,
   remision,
+  reporteInasistencia,
   rol,
   solicitud,
   solicitudAsignatura,
@@ -60,7 +62,11 @@ async function ensureRole(codigo: RolUsuario, nombre: string): Promise<number> {
 
 export type Student = { id: number; cif: string };
 
+export type StudentInOtherFacultad = Student & { facultadId: number };
+
 export type Secretaria = { id: number; facultadId: number };
+
+export type Coordinator = { id: number; carreraId: number };
 
 export function createFixtures() {
   const run = randomUUID().replaceAll("-", "").slice(0, 12);
@@ -75,9 +81,11 @@ export function createFixtures() {
   const grupoIds: number[] = [];
   const docenteIds: number[] = [];
   const secretariaIds: number[] = [];
+  const coordinatorIds: number[] = [];
 
   let careerId: number | null = null;
   let careerFacultadId: number | null = null;
+  let otherCareer: { carreraId: number; facultadId: number } | null = null;
 
   async function ensureCareer(): Promise<number> {
     if (careerId !== null) return careerId;
@@ -96,26 +104,61 @@ export function createFixtures() {
     return car.id;
   }
 
+  /** A second facultad with its own career, for scope-confinement cases. */
+  async function ensureOtherCareer(): Promise<{
+    carreraId: number;
+    facultadId: number;
+  }> {
+    if (otherCareer !== null) return otherCareer;
+    const [fac] = await db
+      .insert(facultad)
+      .values({ nombre: `IT otra facultad ${run}` })
+      .returning({ id: facultad.id });
+    facultadIds.push(fac.id);
+    const [car] = await db
+      .insert(carrera)
+      .values({ nombre: `IT otra carrera ${run}`, facultadId: fac.id })
+      .returning({ id: carrera.id });
+    carreraIds.push(car.id);
+    otherCareer = { carreraId: car.id, facultadId: fac.id };
+    return otherCareer;
+  }
+
+  async function insertStudent(carreraId: number): Promise<Student> {
+    const tag = next();
+    const [row] = await db
+      .insert(usuario)
+      .values({
+        login: `it-${tag}`,
+        hashClave: "integration-not-a-real-hash",
+        rolId: await ensureRole("estudiante", "Estudiante"),
+        nombreCompleto: `IT Estudiante ${tag}`,
+        correo: `it-${tag}@integration.invalid`,
+        cif: `IT${tag}`.slice(0, 20),
+        carreraId,
+      })
+      .returning({ id: usuario.id, cif: usuario.cif });
+    studentIds.push(row.id);
+    return { id: row.id, cif: row.cif as string };
+  }
+
   return {
     run,
 
     /** A student with the account data a submission snapshots. */
     async addStudent(): Promise<Student> {
-      const tag = next();
-      const [row] = await db
-        .insert(usuario)
-        .values({
-          login: `it-${tag}`,
-          hashClave: "integration-not-a-real-hash",
-          rolId: await ensureRole("estudiante", "Estudiante"),
-          nombreCompleto: `IT Estudiante ${tag}`,
-          correo: `it-${tag}@integration.invalid`,
-          cif: `IT${tag}`.slice(0, 20),
-          carreraId: await ensureCareer(),
-        })
-        .returning({ id: usuario.id, cif: usuario.cif });
-      studentIds.push(row.id);
-      return { id: row.id, cif: row.cif as string };
+      return insertStudent(await ensureCareer());
+    },
+
+    /**
+     * A student whose current career belongs to a SECOND facultad, so a
+     * secretaria of the facultad of `addStudent` / `addSecretaria` sees this
+     * student's requests as out of scope (RN-26 reference, RNF-01).
+     */
+    async addStudentInOtherFacultad(): Promise<StudentInOtherFacultad> {
+      const other = await ensureOtherCareer();
+      const student = await insertStudent(other.carreraId);
+      return { ...student, facultadId: other.facultadId };
     },
 
     /**
@@ -141,10 +184,53 @@ export function createFixtures() {
     },
 
     /**
-     * A group (with its subject and teacher) a draft can point at. Pass the
-     * teacher's `correo` for a remission that can be sent (teacher-remission).
+     * An active `coordinacion` account of the career every student of this run
+     * belongs to: the recipient an escalation needs (escalation, E17).
      */
-    async addGroup(options: { correo?: string } = {}): Promise<number> {
+    async addCoordinator(
+      options: { correo?: string } = {},
+    ): Promise<Coordinator> {
+      const carreraId = await ensureCareer();
+      const tag = next();
+      const [row] = await db
+        .insert(usuario)
+        .values({
+          login: `it-coord-${tag}`,
+          hashClave: "integration-not-a-real-hash",
+          rolId: await ensureRole("coordinacion", "Coordinacion"),
+          nombreCompleto: `IT Coordinacion ${tag}`,
+          carreraId,
+          ...(options.correo ? { correo: options.correo } : {}),
+        })
+        .returning({ id: usuario.id });
+      coordinatorIds.push(row.id);
+      return { id: row.id, carreraId };
+    },
+
+    /** A teacher account, for rows that name one (an absence report). */
+    async addTeacher(): Promise<number> {
+      const tag = next();
+      const [row] = await db
+        .insert(usuario)
+        .values({
+          login: `it-teacher-${tag}`,
+          hashClave: "integration-not-a-real-hash",
+          rolId: await ensureRole("docente", "Docente"),
+          nombreCompleto: `IT Docente ${tag}`,
+        })
+        .returning({ id: usuario.id });
+      docenteIds.push(row.id);
+      return row.id;
+    },
+
+    /**
+     * A group (with its subject and teacher) a draft can point at. Pass the
+     * teacher's `correo` for a remission that can be sent (teacher-remission),
+     * and `periodo` for a period other than the default `IT` (RN-14).
+     */
+    async addGroup(
+      options: { correo?: string; periodo?: string } = {},
+    ): Promise<number> {
       const tag = next();
       const [docente] = await db
         .insert(usuario)
@@ -171,7 +257,7 @@ export function createFixtures() {
         .insert(grupo)
         .values({
           asignaturaId: subject.id,
-          periodo: "IT",
+          periodo: options.periodo ?? "IT",
           numeroGrupo: "1",
           docenteId: docente.id,
         })
@@ -228,6 +314,13 @@ export function createFixtures() {
           .where(inArray(solicitud.estudianteId, owners));
         const requestIds = requests.map((r) => r.id);
         if (requestIds.length > 0) {
+          // Escalations reference their report, so they go first (escalation).
+          await db
+            .delete(escalamiento)
+            .where(inArray(escalamiento.solicitudId, requestIds));
+          await db
+            .delete(reporteInasistencia)
+            .where(inArray(reporteInasistencia.solicitudId, requestIds));
           await db
             .delete(remision)
             .where(inArray(remision.solicitudId, requestIds));
@@ -259,7 +352,7 @@ export function createFixtures() {
           db.delete(usuario).where(inArray(usuario.id, docenteIds)),
         );
       }
-      for (const id of [...studentIds, ...secretariaIds]) {
+      for (const id of [...studentIds, ...secretariaIds, ...coordinatorIds]) {
         await ignoringPinnedRows(() =>
           db.delete(usuario).where(eq(usuario.id, id)),
         );

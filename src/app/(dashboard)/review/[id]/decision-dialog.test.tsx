@@ -83,8 +83,8 @@ afterEach(() => {
 
 describe("DecisionDialog approve finality (SR-17, RNF-12)", () => {
   const FINAL = {
-    en: "Approval is final: it cannot be undone. The student will see the message below; you can edit it first.",
-    es: "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes.",
+    en: "Approval is final: it cannot be undone. The student will see the message below; you can edit it first. On approval, the system emails a notice to the teachers of the subjects; its status shows under “Notice to teachers” on this same page.",
+    es: "La aprobación es definitiva: no se puede deshacer. El estudiante verá el mensaje de abajo; puede editarlo antes. Al aprobar, el sistema envía un aviso por correo a los docentes de las asignaturas; su estado se ve en «Aviso a los docentes» en esta misma página.",
   } as const;
 
   it.each(["en", "es"] as const)(

@@ -21,8 +21,10 @@ const {
   detailMock,
   readMock,
   remissionsMock,
+  accountsMock,
   extractionsMock,
   configuredMock,
+  signalsMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -36,8 +38,10 @@ const {
   detailMock: vi.fn(),
   readMock: vi.fn(),
   remissionsMock: vi.fn(),
+  accountsMock: vi.fn(),
   extractionsMock: vi.fn(),
   configuredMock: vi.fn(),
+  signalsMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -55,7 +59,16 @@ vi.mock("@/lib/data/solicitud-detail", () => ({
 }));
 vi.mock("@/lib/data/request-reads", () => ({ recordRequestRead: readMock }));
 vi.mock("@/lib/data/remision", () => ({ listRemissions: remissionsMock }));
+vi.mock("@/lib/data/solicitud-escalation", () => ({
+  coordinationAccountsOf: accountsMock,
+}));
+vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
+  escalateRequestAction: vi.fn(),
+  recordExcessReportAction: vi.fn(),
+  resendEscalationNoticeAction: vi.fn(),
+}));
 vi.mock("@/lib/data/extraction", () => ({ listExtractions: extractionsMock }));
+vi.mock("@/lib/data/signals", () => ({ loadSignals: signalsMock }));
 vi.mock("@/lib/extraction/configured", () => ({
   isExtractionConfigured: configuredMock,
 }));
@@ -86,6 +99,7 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
     fechaFin: "2026-10-07",
     presentadaEn: new Date("2026-10-08T15:00:00Z"),
     reenviadaEn: null,
+    plazoInicioEn: null,
     estudiante: {
       nombre: "Ana Lopez",
       cif: "2021-0042",
@@ -121,9 +135,34 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
     formato: null,
     decisiones: [],
     revisiones: [],
+    escalamientos: [],
+    reportes: [],
     ...overrides,
   };
 }
+
+const SIGNAL_REPORT = {
+  verdict: "review_carefully",
+  results: [
+    {
+      signal: "rn07",
+      outcome: "present",
+      evidence: {
+        kind: "timing",
+        presented: "2026-10-14",
+        deadline: "2026-10-13",
+      },
+    },
+    { signal: "rn09", outcome: "not_evaluable", reason: "extraction_pending" },
+    { signal: "rn10", outcome: "not_evaluable", reason: "extraction_pending" },
+    { signal: "rn14", outcome: "not_evaluable", reason: "extraction_pending" },
+  ],
+  notEvaluable: [
+    { signal: "rn09", reason: "extraction_pending" },
+    { signal: "rn10", reason: "extraction_pending" },
+    { signal: "rn14", reason: "extraction_pending" },
+  ],
+};
 
 type Props = { params: Promise<{ id: string }> };
 let Page: (props: Props) => Promise<React.ReactNode>;
@@ -165,10 +204,17 @@ beforeEach(() => {
   readMock.mockResolvedValue(undefined);
   remissionsMock.mockReset();
   remissionsMock.mockResolvedValue([]);
+  accountsMock.mockReset();
+  accountsMock.mockResolvedValue({
+    carreraNombre: "Ingenieria de Sistemas",
+    cuentas: 1,
+  });
   extractionsMock.mockReset();
   extractionsMock.mockResolvedValue({ data: [], degraded: false });
   configuredMock.mockReset();
   configuredMock.mockReturnValue(true);
+  signalsMock.mockReset();
+  signalsMock.mockResolvedValue({ data: SIGNAL_REPORT, degraded: false });
 });
 
 describe("ReviewDetailPage access (RNF-01)", () => {
@@ -185,6 +231,7 @@ describe("ReviewDetailPage access (RNF-01)", () => {
       expect(detailMock).not.toHaveBeenCalled();
       expect(readMock).not.toHaveBeenCalled();
       expect(extractionsMock).not.toHaveBeenCalled();
+      expect(signalsMock).not.toHaveBeenCalled();
     },
   );
 
@@ -232,6 +279,7 @@ describe("ReviewDetailPage access (RNF-01)", () => {
 
     await expect(renderPage()).rejects.toThrow("NOT_FOUND");
     expect(readMock).not.toHaveBeenCalled();
+    expect(signalsMock).not.toHaveBeenCalled();
   });
 });
 
@@ -316,17 +364,22 @@ describe("ReviewDetailPage content (RF-06, RF-08 b)", () => {
     expect(items[1]).toHaveTextContent(en.subject.noTeacher);
   });
 
-  it("offers View and Download for each current document through the authenticated route", async () => {
+  it("offers an inline view and Download for each current document through the authenticated route", async () => {
     await renderPage();
 
     const docs = screen.getByRole("region", { name: en.sections.documents });
     expect(docs).toHaveTextContent("constancia.pdf");
-    const view = within(docs).getByRole("link", {
-      name: "View constancia.pdf",
+    const view = within(docs).getByRole("button", {
+      name: "View constancia.pdf here",
     });
-    expect(view).toHaveAttribute("href", "/api/intake/documents/31?modo=ver");
-    expect(view).toHaveAttribute("target", "_blank");
-    expect(view).toHaveAttribute("rel", "noopener noreferrer");
+    expect(view).toHaveAttribute("aria-expanded", "false");
+    // Nothing requests the audited route before the click.
+    expect(docs.querySelector("iframe, img")).toBeNull();
+    await userEvent.click(view);
+    expect(docs.querySelector("iframe")).toHaveAttribute(
+      "src",
+      "/api/intake/documents/31?modo=ver",
+    );
     expect(
       within(docs).getByRole("link", { name: "Download constancia.pdf" }),
     ).toHaveAttribute("href", "/api/intake/documents/31?modo=descarga");
@@ -351,6 +404,39 @@ describe("ReviewDetailPage content (RF-06, RF-08 b)", () => {
     expect(request).toHaveTextContent(
       /On time|Due within 1 business day|Overdue/,
     );
+  });
+
+  it("starts the deadline at the start a coordination answer stored (RN-08)", async () => {
+    // Wednesday 14 October 2026, 09:00 in Managua.
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-14T15:00:00Z"),
+    });
+    try {
+      // Presented Monday 12th: the base deadline is Wednesday 14th, due today.
+      detailMock.mockResolvedValue(
+        detail({ presentadaEn: new Date("2026-10-12T16:00:00Z") }),
+      );
+      const { unmount } = await renderPage();
+      expect(
+        screen.getByRole("region", { name: en.sections.request }),
+      ).toHaveTextContent("Due Oct 14, 2026");
+      unmount();
+
+      // The answer stored Thursday 15th: the deadline moves to Monday 19th.
+      detailMock.mockResolvedValue(
+        detail({
+          presentadaEn: new Date("2026-10-12T16:00:00Z"),
+          plazoInicioEn: new Date("2026-10-15T06:00:00Z"),
+        }),
+      );
+      await renderPage();
+      expect(
+        screen.getByRole("region", { name: en.sections.request }),
+      ).toHaveTextContent("Due Oct 19, 2026");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("marks a resubmitted request with its resubmission date", async () => {
@@ -413,7 +499,13 @@ describe("ReviewDetailPage decision panel (RF-07, RN-16)", () => {
       expect(
         screen.queryByRole("region", { name: en.sections.decision }),
       ).toBeNull();
-      expect(screen.queryByRole("button")).toBeNull();
+      for (const name of [
+        dec.approve.trigger,
+        dec.return.trigger,
+        dec.reject.trigger,
+      ]) {
+        expect(screen.queryByRole("button", { name })).toBeNull();
+      }
       const request = screen.getByRole("region", { name: en.sections.request });
       expect(request).toHaveTextContent(
         en.states[estado as keyof typeof en.states],
@@ -421,6 +513,38 @@ describe("ReviewDetailPage decision panel (RF-07, RN-16)", () => {
       expect(request).not.toHaveTextContent(en.fields.deadline);
     },
   );
+
+  it("links from the header to the decision panel only while pending", async () => {
+    await renderPage();
+
+    const jump = screen.getByRole("link", { name: en.goToDecision });
+    expect(jump).toHaveAttribute("href", "#decision-title");
+    expect(document.getElementById("decision-title")).toHaveTextContent(
+      en.sections.decision,
+    );
+  });
+
+  it.each(["aprobada", "rechazada", "devuelta", "en_revision_coordinacion"])(
+    "shows the status note and no jump link for a %s request (UX-05)",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+
+      await renderPage();
+
+      expect(screen.queryByRole("link", { name: en.goToDecision })).toBeNull();
+      expect(
+        screen.getByText(en.statusNote[estado as keyof typeof en.statusNote]),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("shows no status note for a pending request", async () => {
+    await renderPage();
+
+    for (const note of Object.values(en.statusNote)) {
+      expect(screen.queryByText(note)).toBeNull();
+    }
+  });
 
   it("prefills each dialog with the template rendered for this request", async () => {
     await renderPage();
@@ -562,8 +686,8 @@ describe("ReviewDetailPage history (RF-06, RF-08 b)", () => {
     expect(history).toHaveTextContent("borroso.jpg");
     expect(history).toHaveTextContent("Replaced Oct 10, 2026");
     expect(
-      within(history).getByRole("link", { name: "View borroso.jpg" }),
-    ).toHaveAttribute("href", "/api/intake/documents/30?modo=ver");
+      within(history).getByRole("button", { name: "View borroso.jpg here" }),
+    ).toHaveAttribute("aria-expanded", "false");
     const current = screen.getByRole("region", { name: en.sections.documents });
     expect(current).not.toHaveTextContent("borroso.jpg");
   });
@@ -984,6 +1108,322 @@ describe("ReviewDetailPage special-format mark (RN-19)", () => {
   });
 });
 
+const esc = messages.en.review.escalation;
+const rep = messages.en.review.report;
+
+function escalationRecord(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 61,
+    motivo: "sospecha_documento",
+    nota: "El sello parece alterado.",
+    autorNombre: "Rosa Lopez",
+    creadoEn: new Date("2026-10-08T15:00:00Z"),
+    respuesta: null,
+    respondidaPorNombre: null,
+    respondidaEn: null,
+    notificacionEstado: "pendiente",
+    notificacionMotivo: null,
+    enviadaEn: null,
+    ...overrides,
+  };
+}
+
+function reportRecord(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 71,
+    docenteNombre: "Luis Mora",
+    comunicadoEl: "2026-10-09",
+    nota: "Supera el limite de faltas.",
+    registradoPorNombre: "Rosa Lopez",
+    registradoEn: new Date("2026-10-10T16:00:00Z"),
+    notificacionEstado: "pendiente",
+    notificacionMotivo: null,
+    enviadaEn: null,
+    ...overrides,
+  };
+}
+
+function remission(id: number, docenteNombre: string, estado = "enviada") {
+  return {
+    id,
+    docenteNombre,
+    correo: "docente@uam.edu.ni",
+    clases: [],
+    estado,
+    motivoCodigo: null,
+    enviadaEn: estado === "enviada" ? new Date("2026-10-09T15:00:00Z") : null,
+    intentos: 0,
+  };
+}
+
+describe("ReviewDetailPage escalate action (RF-10 a, E17)", () => {
+  it("offers the escalation beside approve, return and reject while pendiente", async () => {
+    await renderPage();
+
+    const panel = screen.getByRole("region", { name: en.sections.decision });
+    expect(
+      within(panel).getByRole("button", { name: esc.dialog.trigger }),
+    ).toBeInTheDocument();
+    expect(within(panel).getAllByRole("button")).toHaveLength(4);
+    expect(accountsMock).toHaveBeenCalledWith(12);
+  });
+
+  it.each([1, 2])(
+    "still offers it when the career has %i active coordination account(s), email or not",
+    async (cuentas) => {
+      accountsMock.mockResolvedValue({
+        carreraNombre: "Ingenieria de Sistemas",
+        cuentas,
+      });
+
+      await renderPage();
+
+      expect(
+        screen.getByRole("button", { name: esc.dialog.trigger }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("shows it unavailable, naming the career, when there is no coordination account", async () => {
+    accountsMock.mockResolvedValue({
+      carreraNombre: "Ingenieria Civil",
+      cuentas: 0,
+    });
+
+    await renderPage();
+
+    const panel = screen.getByRole("region", { name: en.sections.decision });
+    expect(
+      within(panel).queryByRole("button", { name: esc.dialog.trigger }),
+    ).toBeNull();
+    expect(within(panel).getByRole("note")).toHaveTextContent(
+      "Ingenieria Civil has no registered coordination; ask the administrator to create the account.",
+    );
+    // The three decisions stay available.
+    expect(within(panel).getAllByRole("button")).toHaveLength(3);
+  });
+
+  it("falls back to the snapshot career name when the student has no live career", async () => {
+    accountsMock.mockResolvedValue(null);
+
+    await renderPage();
+
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Ingenieria de Sistemas has no registered coordination",
+    );
+  });
+
+  it.each(["aprobada", "rechazada", "devuelta", "en_revision_coordinacion"])(
+    "offers no escalation and reads no account count for a %s request",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+
+      await renderPage();
+
+      expect(
+        screen.queryByRole("button", { name: esc.dialog.trigger }),
+      ).toBeNull();
+      expect(accountsMock).not.toHaveBeenCalled();
+    },
+  );
+});
+
+/** Every button but the inline document viewers, which decide nothing. */
+function controlsOutsideDocuments() {
+  const docs = screen.getByRole("region", { name: en.sections.documents });
+  return screen
+    .queryAllByRole("button")
+    .filter((button) => !docs.contains(button));
+}
+
+describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
+  it("shows the open escalation, its note and the notification status in coordination, with no decision control", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "en_revision_coordinacion",
+        escalamientos: [escalationRecord()],
+      }),
+    );
+
+    await renderPage();
+
+    const region = screen.getByRole("region", { name: esc.section.title });
+    expect(region).toHaveTextContent("El sello parece alterado.");
+    expect(region).toHaveTextContent(esc.notification.pendiente);
+    expect(region).toHaveTextContent(esc.section.waiting);
+    // Approve, reject, return and escalate are gone; the only control left,
+    // besides the document viewers, is the resend of the notice that is still
+    // pending (RF-10 b).
+    expect(
+      controlsOutsideDocuments().map((button) => button.textContent),
+    ).toEqual([esc.resend.action]);
+  });
+
+  it("offers no control at all once the notice to coordination was sent", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "en_revision_coordinacion",
+        escalamientos: [
+          escalationRecord({
+            notificacionEstado: "enviada",
+            enviadaEn: new Date("2026-10-08T15:05:00Z"),
+          }),
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    expect(controlsOutsideDocuments()).toEqual([]);
+  });
+
+  it("shows the earlier escalation with its answer once the request is pendiente again", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        escalamientos: [
+          escalationRecord({
+            respuesta: "El documento es autentico.",
+            respondidaPorNombre: "Marta Gomez",
+            respondidaEn: new Date("2026-10-09T21:00:00Z"),
+          }),
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    const region = screen.getByRole("region", { name: esc.section.title });
+    expect(region).toHaveTextContent("El documento es autentico.");
+    expect(region).toHaveTextContent("Marta Gomez, Oct 9, 2026, 3:00 PM");
+    // The decision panel is offered again.
+    expect(
+      screen.getByRole("region", { name: en.sections.decision }),
+    ).toBeInTheDocument();
+  });
+
+  it("has no escalation section for a request that was never escalated", async () => {
+    await renderPage();
+
+    expect(
+      screen.queryByRole("region", { name: esc.section.title }),
+    ).toBeNull();
+  });
+
+  it("writes exactly one audited read however many escalations it lists", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        escalamientos: [escalationRecord(), escalationRecord({ id: 62 })],
+      }),
+    );
+
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ReviewDetailPage absence reports (RF-15)", () => {
+  const approved = (overrides: Partial<Record<string, unknown>> = {}) =>
+    detail({ estado: "aprobada", ...overrides });
+
+  it("offers the report action for the remitted teachers only and lists earlier reports", async () => {
+    detailMock.mockResolvedValue(approved({ reportes: [reportRecord()] }));
+    remissionsMock.mockResolvedValue([
+      remission(31, "Luis Mora"),
+      remission(32, "Pedro Ruiz", "pendiente"),
+    ]);
+
+    await renderPage();
+    const region = screen.getByRole("region", { name: rep.section.title });
+    expect(region).toHaveTextContent("Supera el limite de faltas.");
+    await userEvent.click(
+      within(region).getByRole("button", { name: rep.dialog.trigger }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(
+      within(
+        within(dialog).getByRole("combobox", { name: rep.dialog.teacherLabel }),
+      )
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual([rep.dialog.teacherPlaceholder, "Luis Mora", "Pedro Ruiz"]);
+  });
+
+  it("limits the report date to today in Managua", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-15T03:00:00Z"),
+    });
+    try {
+      detailMock.mockResolvedValue(approved());
+      remissionsMock.mockResolvedValue([remission(31, "Luis Mora")]);
+
+      await renderPage();
+      await userEvent.click(
+        screen.getByRole("button", { name: rep.dialog.trigger }),
+      );
+      const dialog = await screen.findByRole("alertdialog");
+
+      // 03:00 UTC on the 15th is still the 14th at 21:00 in Managua.
+      expect(
+        within(dialog).getByLabelText(rep.dialog.dateLabel),
+      ).toHaveAttribute("max", "2026-10-14");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the report list apart from the remission section, which a report does not change", async () => {
+    remissionsMock.mockResolvedValue([remission(31, "Luis Mora")]);
+    detailMock.mockResolvedValue(approved());
+    const { unmount } = await renderPage();
+    const before = screen.getByRole("region", {
+      name: messages.en.review.remission.title,
+    }).textContent;
+    unmount();
+
+    detailMock.mockResolvedValue(approved({ reportes: [reportRecord()] }));
+    await renderPage();
+
+    const remissionSection = screen.getByRole("region", {
+      name: messages.en.review.remission.title,
+    });
+    expect(remissionSection.textContent).toBe(before);
+    expect(remissionSection).not.toContainElement(
+      screen.getByRole("region", { name: rep.section.title }),
+    );
+    expect(remissionSection).not.toHaveTextContent("Supera el limite");
+  });
+
+  it("offers no action, and says why, when no teacher has a remission", async () => {
+    detailMock.mockResolvedValue(approved());
+
+    await renderPage();
+
+    expect(
+      screen.queryByRole("button", { name: rep.dialog.trigger }),
+    ).toBeNull();
+    expect(screen.getByRole("note")).toHaveTextContent(rep.section.noTeachers);
+  });
+
+  it.each(["pendiente", "devuelta", "rechazada", "en_revision_coordinacion"])(
+    "shows no report action or section for a %s request without reports",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+
+      await renderPage();
+
+      expect(
+        screen.queryByRole("region", { name: rep.section.title }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: rep.dialog.trigger }),
+      ).toBeNull();
+    },
+  );
+});
+
 const COMPLETED_ROW = {
   state: "completada",
   studentName: "Maria Perez",
@@ -1170,5 +1610,150 @@ describe("extracted data access (RNF-01)", () => {
         /listExtractions|extraction-section|lib\/data\/extraction|lib\/extraction/,
       );
     }
+  });
+});
+
+describe("ReviewDetailPage validation signals (RF-05, RN-15, RNF-01)", () => {
+  const signalsRegion = () =>
+    screen.getByRole("region", { name: messages.en.review.signals.title });
+
+  it.each([
+    "pendiente",
+    "aprobada",
+    "devuelta",
+    "rechazada",
+    "en_revision_coordinacion",
+  ])(
+    "renders the section after the Extracted data section for a %s request",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+      extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+      await renderPage();
+
+      expect(
+        extractionRegion().compareDocumentPosition(signalsRegion()) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(signalsRegion()).toHaveTextContent("Suggestion: Review carefully");
+    },
+  );
+
+  it("shows the section even when the request has no extracted data section", async () => {
+    await renderPage();
+
+    expect(
+      screen.queryByRole("region", { name: en.sections.extraction }),
+    ).toBeNull();
+    expect(signalsRegion()).toBeInTheDocument();
+  });
+
+  it("loads the signals for the opened request with the resolved scope, before the audited read", async () => {
+    await renderPage();
+
+    expect(signalsMock).toHaveBeenCalledTimes(1);
+    expect(signalsMock).toHaveBeenCalledWith({
+      solicitudId: 12,
+      referenceScope: { kind: "facultad", facultadId: 4 },
+    });
+    expect(signalsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      readMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("offers the decision controls exactly as without the section", async () => {
+    await renderPage();
+
+    const panel = screen.getByRole("region", { name: en.sections.decision });
+    expect(within(panel).getAllByRole("button")).toHaveLength(4);
+    expect(within(signalsRegion()).queryAllByRole("button")).toHaveLength(0);
+    expect(within(signalsRegion()).queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it.each(["no_alerts", "inconclusive"])(
+    "keeps the decision controls for the %s verdict",
+    async (verdict) => {
+      signalsMock.mockResolvedValue({
+        data: { ...SIGNAL_REPORT, verdict },
+        degraded: false,
+      });
+
+      await renderPage();
+
+      expect(
+        within(
+          screen.getByRole("region", { name: en.sections.decision }),
+        ).getAllByRole("button"),
+      ).toHaveLength(4);
+    },
+  );
+
+  it("renders the rest and the decision panel with the degraded notice when the read is degraded", async () => {
+    signalsMock.mockResolvedValue({ data: null, degraded: true });
+
+    await renderPage();
+
+    expect(
+      within(signalsRegion()).getByText(messages.en.review.signals.degraded),
+    ).toBeInTheDocument();
+    expect(signalsRegion()).not.toHaveTextContent("Suggestion");
+    expect(
+      screen.getByRole("region", { name: en.sections.student }),
+    ).toHaveTextContent("Ana Lopez");
+    expect(
+      screen.getByRole("region", { name: en.sections.decision }),
+    ).toBeInTheDocument();
+    expect(readMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the rest and the decision panel with the degraded notice when the read throws", async () => {
+    signalsMock.mockRejectedValue(new Error("connection lost"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await renderPage();
+
+    expect(
+      within(signalsRegion()).getByText(messages.en.review.signals.degraded),
+    ).toBeInTheDocument();
+    expect(signalsRegion()).not.toHaveTextContent("connection lost");
+    expect(
+      screen.getByRole("region", { name: en.sections.decision }),
+    ).toBeInTheDocument();
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledWith("signals_read_failed", {
+      solicitudId: 12,
+      code: "Error",
+    });
+    vi.restoreAllMocks();
+  });
+
+  it("writes exactly one audit row, the existing one", async () => {
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 12, "pendiente");
+  });
+
+  it("renders in Spanish", async () => {
+    state.locale = "es";
+
+    await renderPage();
+
+    expect(
+      screen.getByRole("region", {
+        name: messages.es.review.signals.title,
+      }),
+    ).toHaveTextContent("Sugerencia: Revisar con cuidado");
+  });
+
+  it("decides access through the shared helper, with no role check of its own", async () => {
+    const { readFileSync } = await import("node:fs");
+    const text = readFileSync(
+      "src/app/(dashboard)/review/[id]/page.tsx",
+      "utf8",
+    );
+
+    expect(text).toContain("signalsAccess(");
+    expect(text).not.toMatch(/\.rol\s*[!=]==?|rolesUsuario|isCoordinacion/);
   });
 });

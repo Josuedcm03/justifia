@@ -5,17 +5,27 @@ import { describe, expect, it } from "vitest";
 /**
  * Structural check behind the request-review requirement "Decision data is
  * append-only" (secretary-review, SR-1). `SolicitudDecision` and
- * `SolicitudRevision` keep the history across return cycles, so no production
- * module may update or delete their rows; the foreign keys carry no cascade, so
- * deleting a decided request fails instead of erasing its history. A trigger
- * was rejected (custom SQL outside the snapshot for a table only this code
- * writes), which makes this file scan the guard. Inserts are the only write.
+ * `SolicitudRevision` keep the history across return cycles, and
+ * `ReporteInasistencia` is the append-only RF-15 absence report (escalation,
+ * ES-2), so no production module may update or delete their rows; the foreign
+ * keys carry no cascade, so deleting a decided request fails instead of
+ * erasing its history. A trigger was rejected (custom SQL outside the snapshot
+ * for a table only this code writes), which makes this file scan the guard.
+ * Inserts are the only write.
  */
 
 const SRC = join(process.cwd(), "src");
 
-const TABLES = ["solicitudDecision", "solicitudRevision"] as const;
-const SQL_TABLES = ["SolicitudDecision", "SolicitudRevision"] as const;
+const TABLES = [
+  "solicitudDecision",
+  "solicitudRevision",
+  "reporteInasistencia",
+] as const;
+const SQL_TABLES = [
+  "SolicitudDecision",
+  "SolicitudRevision",
+  "ReporteInasistencia",
+] as const;
 
 /** Drizzle writes (`update(solicitudDecision)`) and raw SQL writes. */
 const WRITE_PATTERNS = [
@@ -69,6 +79,14 @@ describe("append-only decision data", () => {
     ).not.toEqual([]);
   });
 
+  it("pins the RF-15 absence reports as append-only too (ES-2)", () => {
+    expect(TABLES).toContain("reporteInasistencia");
+    expect(SQL_TABLES).toContain("ReporteInasistencia");
+    expect(
+      findAppendOnlyWrites("await tx.insert(reporteInasistencia).values(row)"),
+    ).toEqual([]);
+  });
+
   it("allows inserts and reads, the only operations the history needs", () => {
     expect(
       findAppendOnlyWrites("await tx.insert(solicitudDecision).values(row)"),
@@ -90,6 +108,18 @@ describe("append-only decision data", () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+
+  it("scans the module that writes the absence reports, so the pin is not vacuous", () => {
+    const writer = readFileSync(
+      join(SRC, "lib", "data", "solicitud-escalation.ts"),
+      "utf8",
+    );
+
+    expect(writer).toContain(".insert(reporteInasistencia)");
+    expect(productionSources(SRC)).toContain(
+      join(SRC, "lib", "data", "solicitud-escalation.ts"),
+    );
   });
 
   it("scans the module that writes the history, so the pin is not vacuous", () => {

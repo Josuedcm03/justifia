@@ -37,6 +37,9 @@ const sources = filesUnder(SRC)
 const REVIEW_PAGE = "src/app/(dashboard)/review/page.tsx";
 const DETAIL_PAGE = "src/app/(dashboard)/review/[id]/page.tsx";
 const READS_MODULE = "src/lib/data/request-reads.ts";
+// The coordinator's detail writes the same `solicitud.consultada` row (E1).
+const COORDINATION_DETAIL_PAGE =
+  "src/app/(dashboard)/coordination/[id]/page.tsx";
 
 /** Files whose text calls (or imports) the audited read helper. */
 function usersOf(name: string): string[] {
@@ -75,9 +78,9 @@ describe("review structure: the audit write lives in the page bodies (SR-11, gua
     expect(paths).toContain(READS_MODULE);
   });
 
-  it("calls recordRequestRead only from the detail page", () => {
+  it("calls recordRequestRead only from the staff detail page and the coordinator detail page", () => {
     expect(usersOf("recordRequestRead")).toEqual(
-      [READS_MODULE, DETAIL_PAGE].sort(),
+      [READS_MODULE, DETAIL_PAGE, COORDINATION_DETAIL_PAGE].sort(),
     );
   });
 

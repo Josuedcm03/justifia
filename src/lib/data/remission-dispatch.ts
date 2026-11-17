@@ -1,5 +1,6 @@
 import "server-only";
 
+import { dispatchEach, type DispatchSummary } from "@/lib/data/dispatch-batch";
 import {
   claimRemission,
   completeBlocked,
@@ -49,15 +50,6 @@ export type DispatchResult =
   | { outcome: "blocked"; motivo: string }
   /** The lease was taken over meanwhile; the completion wrote nothing. */
   | { outcome: "lost" };
-
-export type DispatchSummary = {
-  sent: number;
-  failed: number;
-  blocked: number;
-  skipped: number;
-  lost: number;
-  errored: number;
-};
 
 const CONTENT_TYPES = {
   pdf: "application/pdf",
@@ -201,35 +193,14 @@ export async function dispatchRemission(
   return stored ? { outcome: "sent" } : { outcome: "lost" };
 }
 
-/**
- * Dispatches the rows one after another and never throws: a row that blows up
- * is logged by code only (never a message, which could carry an address) and
- * the rest still run (RNF-07 a).
- */
-export async function dispatchRemissions(
+/** Dispatches the rows one after another and never throws (RNF-07 a). */
+export function dispatchRemissions(
   ids: readonly number[],
   options: DispatchOptions,
   deps: DispatchDeps,
 ): Promise<DispatchSummary> {
-  const summary: DispatchSummary = {
-    sent: 0,
-    failed: 0,
-    blocked: 0,
-    skipped: 0,
-    lost: 0,
-    errored: 0,
-  };
-  for (const id of ids) {
-    try {
-      const result = await dispatchRemission(id, options, deps);
-      summary[result.outcome] += 1;
-    } catch (error) {
-      summary.errored += 1;
-      console.error("remission_dispatch_failed", {
-        remisionId: id,
-        code: error instanceof Error ? error.name : "unknown",
-      });
-    }
-  }
-  return summary;
+  return dispatchEach(ids, (id) => dispatchRemission(id, options, deps), {
+    event: "remission_dispatch_failed",
+    idKey: "remisionId",
+  });
 }

@@ -124,7 +124,23 @@ describe.each(["es", "en"] as const)("privacy notice (%s)", (l) => {
     const time = container.querySelector("time");
     expect(time).toHaveAttribute("datetime", CONSENT_VERSION);
     expect(time).toHaveTextContent(CONSENT_VERSION);
-    expect(CONSENT_VERSION).toBe("2026-10-20");
+  });
+
+  it("names the career coordination as a recipient, with a minimal email and in-system consultation", async () => {
+    const { container } = await renderPage(l);
+    const text = container.textContent ?? "";
+    const recipients = CATALOGS[l].privacy.recipients.body;
+
+    expect(text).toContain(recipients);
+    expect(recipients).toMatch(
+      l === "es" ? /coordinación de tu carrera/ : /coordination of your career/,
+    );
+    expect(recipients).toMatch(
+      l === "es" ? /aviso mínimo por correo/ : /minimal notification by email/,
+    );
+    expect(recipients).toMatch(
+      l === "es" ? /dentro del sistema/ : /inside the system/,
+    );
   });
 
   it("never names the mail provider", async () => {
@@ -152,6 +168,13 @@ describe.each(["es", "en"] as const)("privacy notice (%s)", (l) => {
 });
 
 describe("privacy notice contents", () => {
+  it("agrees with the consent label on the career coordination as recipient", () => {
+    expect(esMessages.intake.review.consent.label).toMatch(/coordinación/);
+    expect(esMessages.privacy.recipients.body).toMatch(/coordinación/);
+    expect(enMessages.intake.review.consent.label).toMatch(/coordination/);
+    expect(enMessages.privacy.recipients.body).toMatch(/coordination/);
+  });
+
   it("marks health data as sensitive", () => {
     expect(esMessages.privacy.data.health).toMatch(/sensibles/i);
     expect(enMessages.privacy.data.health).toMatch(/sensitive/i);

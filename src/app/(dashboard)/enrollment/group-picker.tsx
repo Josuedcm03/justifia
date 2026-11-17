@@ -26,7 +26,7 @@ function fold(text: string): string {
 type Replacing = { group: EnrollableGroup; current: MyEnrollment };
 
 /**
- * Picker of the offered groups (RF-16, RN-21). The student chooses an asignatura
+ * Picker of the offered groups (RF-17, RN-21). The student chooses an asignatura
  * in a searchable list, own carrera first and every other carrera reachable by
  * code, name or carrera name; the choice lives in `?asignatura=` so the server
  * page reads that asignatura's groups (SE-6). Enrolling in a group of an

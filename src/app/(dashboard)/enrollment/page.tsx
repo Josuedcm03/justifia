@@ -20,7 +20,7 @@ function parseAsignaturaId(raw: string | string[] | undefined): number | null {
 }
 
 /**
- * The student's own enrollment (RF-16, RF-04). The student comes from the
+ * The student's own enrollment (RF-17, RF-04). The student comes from the
  * session only (RNF-01); the single query parameter is a guarded asignatura id
  * and the read is fail-soft (a failure shows the shared alert and no action).
  * Only the fields the UI shows are handed to the client components, so a docente

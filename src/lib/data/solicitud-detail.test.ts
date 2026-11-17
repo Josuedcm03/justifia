@@ -35,6 +35,7 @@ const requestRow = {
   fechaFin: "2026-10-03",
   presentadaEn: new Date("2026-10-05T16:00:00.000Z"),
   reenviadaEn: null,
+  plazoInicioEn: null,
   estudianteNombre: "Ana Perez",
   estudianteCif: "2020-001",
   estudianteCarrera: "Ingenieria",
@@ -95,6 +96,33 @@ const revisionRow = {
   creadaEn: new Date("2026-10-06T15:00:00.000Z"),
 };
 
+const escalationRow = {
+  id: 61,
+  motivo: "sospecha_documento",
+  nota: "El sello parece alterado.",
+  autorNombre: "Rosa Lopez",
+  creadoEn: new Date("2026-10-08T15:00:00.000Z"),
+  respuesta: null,
+  respondidaPorNombre: null,
+  respondidaEn: null,
+  notificacionEstado: "pendiente",
+  notificacionMotivo: null,
+  enviadaEn: null,
+};
+
+const reportRow = {
+  id: 71,
+  escalamientoId: 81,
+  docenteNombre: "Luis Mora",
+  comunicadoEl: "2026-10-09",
+  nota: "Supera el limite de faltas.",
+  registradoPorNombre: "Rosa Lopez",
+  registradoEn: new Date("2026-10-10T16:00:00.000Z"),
+  notificacionEstado: "enviada",
+  notificacionMotivo: null,
+  enviadaEn: new Date("2026-10-10T16:01:00.000Z"),
+};
+
 function loaded(): Step[] {
   return [
     { kind: "select", rows: [requestRow] },
@@ -108,6 +136,8 @@ function loaded(): Step[] {
     },
     { kind: "select", rows: [decisionRow] },
     { kind: "select", rows: [revisionRow] },
+    { kind: "select", rows: [escalationRow] },
+    { kind: "select", rows: [reportRow] },
   ];
 }
 
@@ -238,6 +268,35 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
     });
   });
 
+  describe("stored clock start (RN-08, ES-5)", () => {
+    function withRequestRow(row: unknown): Step[] {
+      const [, ...rest] = loaded();
+      return [{ kind: "select", rows: [row] }, ...rest];
+    }
+
+    it("returns the start a coordination answer stored, so the deadline can resume from it", async () => {
+      use(
+        withRequestRow({
+          ...requestRow,
+          estado: "pendiente",
+          plazoInicioEn: new Date("2026-10-15T06:00:00.000Z"),
+        }),
+      );
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.plazoInicioEn).toEqual(
+        new Date("2026-10-15T06:00:00.000Z"),
+      );
+    });
+
+    it("returns null for a request that never spent time in coordination", async () => {
+      use(loaded());
+
+      expect((await getRequestDetail(SCOPE, ID))?.plazoInicioEn).toBeNull();
+    });
+  });
+
   it("splits current documents from the ones retired by a correction", async () => {
     use(loaded());
 
@@ -265,7 +324,7 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
   });
 
   it("shows the special format apart from the student's documents (RN-19)", async () => {
-    const [, classes, , decisions, revisions] = loaded();
+    const [, classes, , decisions, revisions, escalations, reports] = loaded();
     use([
       {
         kind: "select",
@@ -291,6 +350,8 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
       },
       decisions,
       revisions,
+      escalations,
+      reports,
     ]);
 
     const detail = await getRequestDetail(SCOPE, ID);
@@ -351,6 +412,8 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
         { kind: "select", rows: [] },
         { kind: "select", rows: [] },
         { kind: "select", rows: [] },
+        { kind: "select", rows: [] },
+        { kind: "select", rows: [] },
       ]);
 
       const detail = await getRequestDetail(SCOPE, ID);
@@ -366,10 +429,14 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
       { kind: "select", rows: [document()] },
       { kind: "select", rows: [] },
       { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
     ]);
 
     const detail = await getRequestDetail(SCOPE, ID);
 
+    expect(detail?.escalamientos).toEqual([]);
+    expect(detail?.reportes).toEqual([]);
     expect(detail?.decisiones).toEqual([]);
     expect(detail?.revisiones).toEqual([]);
     expect(detail?.documentosRetirados).toEqual([]);
@@ -397,5 +464,106 @@ describe("getRequestDetail (RF-06, RF-08 b, SR-6)", () => {
       '"SolicitudDecision"."DecididaEn" asc, "SolicitudDecision"."Id" asc',
     );
     expect(order(4)).toBe('"SolicitudRevision"."Numero" asc');
+  });
+
+  describe("escalation history and absence reports (RF-10, RF-15, ES-12)", () => {
+    it("returns the escalation with its reason, note, author, time and delivery status", async () => {
+      use(loaded());
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.escalamientos).toEqual([escalationRow]);
+    });
+
+    it("returns the answer, the answering user and the time of an answered escalation", async () => {
+      const [first, classes, documents, decisions, revisions, , reports] =
+        loaded();
+      use([
+        first,
+        classes,
+        documents,
+        decisions,
+        revisions,
+        {
+          kind: "select",
+          rows: [
+            {
+              ...escalationRow,
+              respuesta: "El documento es autentico.",
+              respondidaPorNombre: "Marta Gomez",
+              respondidaEn: new Date("2026-10-09T15:00:00.000Z"),
+            },
+          ],
+        },
+        reports,
+      ]);
+
+      const [escalation] =
+        (await getRequestDetail(SCOPE, ID))?.escalamientos ?? [];
+
+      expect(escalation).toMatchObject({
+        respuesta: "El documento es autentico.",
+        respondidaPorNombre: "Marta Gomez",
+        respondidaEn: new Date("2026-10-09T15:00:00.000Z"),
+      });
+    });
+
+    it("returns each report with the teacher snapshot, date, note, author, time and its notice status", async () => {
+      use(loaded());
+
+      const detail = await getRequestDetail(SCOPE, ID);
+
+      expect(detail?.reportes).toEqual([reportRow]);
+    });
+
+    it("reads only the escalation records of either motive of the request for the history (E18)", async () => {
+      const double = use(loaded());
+
+      await getRequestDetail(SCOPE, ID);
+
+      const query = render(double.log[5].where);
+      expect(query.sql).toContain('"Escalamiento"."SolicitudId" = $1');
+      expect(query.sql).toContain('"Escalamiento"."Tipo" in ($2, $3)');
+      expect(query.params).toEqual([ID, "sospecha_documento", "caso_especial"]);
+      const order = render(sql.join(double.log[5].orderBy as never[], sql`, `));
+      expect(order.sql).toBe(
+        '"Escalamiento"."CreadoEn" asc, "Escalamiento"."Id" asc',
+      );
+    });
+
+    it("reads the reports of the request oldest first", async () => {
+      const double = use(loaded());
+
+      await getRequestDetail(SCOPE, ID);
+
+      const query = render(double.log[6].where);
+      expect(query.sql).toContain('"ReporteInasistencia"."SolicitudId" = $1');
+      expect(query.params).toEqual([ID]);
+      const order = render(sql.join(double.log[6].orderBy as never[], sql`, `));
+      expect(order.sql).toBe(
+        '"ReporteInasistencia"."RegistradoEn" asc, "ReporteInasistencia"."Id" asc',
+      );
+    });
+
+    it("adds no audit row: the read is select-only", async () => {
+      const double = use(loaded());
+
+      await getRequestDetail(SCOPE, ID);
+
+      expect(double.log.map((statement) => statement.kind)).toEqual(
+        Array(7).fill("select"),
+      );
+      expect(double.transactions).toBe(0);
+    });
+
+    it("carries no percentage or absence count in a report", async () => {
+      use(loaded());
+
+      const [report] = (await getRequestDetail(SCOPE, ID))?.reportes ?? [];
+
+      expect(Object.keys(report).join(" ")).not.toMatch(
+        /porcentaje|percent|inasistencias|conteo|count/i,
+      );
+    });
   });
 });

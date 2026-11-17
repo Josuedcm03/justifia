@@ -32,7 +32,11 @@ vi.mock("@/db", () => ({
 }));
 vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
-import { recordQueueRead, recordRequestRead } from "@/lib/data/request-reads";
+import {
+  recordEscalationQueueRead,
+  recordQueueRead,
+  recordRequestRead,
+} from "@/lib/data/request-reads";
 
 // Captured at load: the setup file clears mock history between tests.
 const cacheCallsAtLoad = [...cacheMock.mock.calls];
@@ -49,8 +53,8 @@ describe("request reads (SR-11, RNF-06)", () => {
     insertAuditMock.mockResolvedValue(undefined);
   });
 
-  it("wraps both writers in React cache() once, at module load", () => {
-    expect(cacheCallsAtLoad).toHaveLength(2);
+  it("wraps every writer in React cache() once, at module load", () => {
+    expect(cacheCallsAtLoad).toHaveLength(3);
     for (const call of cacheCallsAtLoad) {
       expect(call[0]).toBeTypeOf("function");
     }
@@ -117,10 +121,10 @@ describe("request reads (SR-11, RNF-06)", () => {
   });
 
   describe("recordQueueRead", () => {
-    it("writes one solicitud.cola.consultada row on the facultad, count only", async () => {
+    it("writes one solicitud.cola.consultada row on the facultad, count and tab code only", async () => {
       const double = use();
 
-      await recordQueueRead(20, 3, 3);
+      await recordQueueRead(20, 3, 3, "pendiente");
 
       expect(double.transactions).toBe(1);
       expect(insertAuditMock.mock.calls[0][2]).toEqual([
@@ -128,25 +132,36 @@ describe("request reads (SR-11, RNF-06)", () => {
           accion: "solicitud.cola.consultada",
           entidadTipo: "Facultad",
           entidadId: 3,
-          datos: { total: 3 },
+          datos: { total: 3, estado: "pendiente" },
         },
       ]);
+    });
+
+    it("carries the tab that was opened", async () => {
+      use();
+
+      await recordQueueRead(20, 3, 2, "en_revision_coordinacion");
+      await recordQueueRead(20, 3, 2, "aprobada");
+
+      expect(
+        insertAuditMock.mock.calls.map((call) => call[2][0].datos.estado),
+      ).toEqual(["en_revision_coordinacion", "aprobada"]);
     });
 
     it("never carries the list of request ids", async () => {
       use();
 
-      await recordQueueRead(20, 4, 12);
+      await recordQueueRead(20, 4, 12, "pendiente");
 
       const [event] = insertAuditMock.mock.calls.at(-1)?.[2] ?? [];
-      expect(Object.keys(event.datos)).toEqual(["total"]);
+      expect(Object.keys(event.datos)).toEqual(["total", "estado"]);
     });
 
     it("is a no-op for a second identical call in a render", async () => {
       use();
 
-      await recordQueueRead(20, 5, 7);
-      await recordQueueRead(20, 5, 7);
+      await recordQueueRead(20, 5, 7, "pendiente");
+      await recordQueueRead(20, 5, 7, "pendiente");
 
       expect(
         insertAuditMock.mock.calls.filter((c) => c[2][0].entidadId === 5),
@@ -157,7 +172,49 @@ describe("request reads (SR-11, RNF-06)", () => {
       use();
       insertAuditMock.mockRejectedValue(new Error("audit down"));
 
-      await expect(recordQueueRead(20, 6, 1)).rejects.toThrow("audit down");
+      await expect(recordQueueRead(20, 6, 1, "pendiente")).rejects.toThrow(
+        "audit down",
+      );
+    });
+  });
+
+  describe("recordEscalationQueueRead (coordinator list)", () => {
+    it("writes one escalamiento.cola.consultada row on the career of the caller, count only", async () => {
+      const double = use();
+
+      await recordEscalationQueueRead(30, 9, 4);
+
+      expect(double.transactions).toBe(1);
+      const [, actor, events] = insertAuditMock.mock.calls[0];
+      expect(actor).toBe(30);
+      expect(events).toEqual([
+        {
+          accion: "escalamiento.cola.consultada",
+          entidadTipo: "Carrera",
+          entidadId: 9,
+          datos: { total: 4 },
+        },
+      ]);
+    });
+
+    it("is a no-op for a second identical call in a render, and writes again for another career or actor", async () => {
+      use();
+
+      await recordEscalationQueueRead(30, 91, 2);
+      await recordEscalationQueueRead(30, 91, 2);
+      await recordEscalationQueueRead(30, 92, 2);
+      await recordEscalationQueueRead(31, 91, 2);
+
+      expect(insertAuditMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("rejects when the audit insert fails, so the list shows no data", async () => {
+      use();
+      insertAuditMock.mockRejectedValue(new Error("audit down"));
+
+      await expect(recordEscalationQueueRead(30, 93, 1)).rejects.toThrow(
+        "audit down",
+      );
     });
   });
 });

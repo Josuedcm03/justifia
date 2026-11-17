@@ -2,11 +2,22 @@ import { z } from "zod";
 
 // An unset variable and an empty one (`KEY=` in a dotenv file) both mean
 // "not configured".
+const unsetWhenEmpty = (value: unknown) => (value === "" ? undefined : value);
+
 const optionalSecret = (minLength: number) =>
-  z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().min(minLength).optional(),
-  );
+  z.preprocess(unsetWhenEmpty, z.string().min(minLength).optional());
+
+// The base of the link in a coordination notice: an http(s) URL the path is
+// appended to, so a query or a fragment would end up in the middle of it.
+const baseUrl = z
+  .string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: "must be an http or https URL",
+  })
+  .refine((value) => !/[?#]/.test(value), {
+    message: "must not carry a query or a fragment",
+  });
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -23,6 +34,10 @@ const envSchema = z.object({
   // a missing value leaves the remission `pendiente`.
   RESEND_API_KEY: optionalSecret(1),
   MAIL_FROM: optionalSecret(1),
+  // Absolute origin of the app for the link in the coordination notice
+  // (escalation ES-10). No platform-URL fallback: a preview host would be the
+  // wrong one. Unset leaves the notice `pendiente` (`not_configured`).
+  APP_BASE_URL: z.preprocess(unsetWhenEmpty, baseUrl.optional()),
   // Document extraction (document-extraction DE-12). Optional so builds and
   // tests need no model server; `resolveExtractionConfig` judges the address at
   // use, and an unset one means "not configured", never a boot failure.

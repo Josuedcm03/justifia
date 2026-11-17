@@ -52,21 +52,56 @@ usable at 360 px and its text MUST exist in `es` and `en`.
 - GIVEN a student with a presented request
 - WHEN they open `/requests`
 - THEN the list is shown and the empty state is not
+
 ### Requirement: Own request detail with decision (RF-07 c, RF-08 b, RNF-01)
 
 A student MUST open `/requests/[id]` only for their own non-draft request,
 seeing cause, dates, subjects with group and teacher, documents, current
 state, and the latest decision text and RN-17 reason when the state is
-`devuelta`, `rechazada` or `aprobada`. The detail MUST keep the history of
-earlier states and revisions. Another student's id and an unknown id MUST
-yield identical denials with no data. Reads by the student of their own
-requests MUST NOT be audited.
+`devuelta`, `rechazada` or `aprobada`. While the state is
+`en_revision_coordinacion`, the detail MUST show the state and a short neutral
+reason label (the request is being reviewed by the coordination of the
+student's career); the label MUST NOT contain the words "sospecha" or
+"suspicion", nor "caso especial" or "special case", the note, the answer, the
+author or the identity of any coordinator. The motive of the escalation (E18)
+MUST NOT be shown to the student in any form, so a `sospecha_documento` and a
+`caso_especial` escalation look identical to the owner (E13). A report or notice recorded on an `aprobada` request (the
+excess-absence path) MUST NOT appear in any student view. After a coordination
+answer returns the request to `pendiente`, the student MUST see only that
+state. The detail MUST keep the history of earlier states and revisions.
+Another student's id and an unknown id MUST yield identical denials with no
+data. Reads by the student of their own requests MUST NOT be audited.
 
 #### Scenario: Returned request shows the reason
 
 - GIVEN a request returned with `fecha_incorrecta` and a text
 - WHEN the owner opens the detail
 - THEN the state, the reason and the text are shown
+
+#### Scenario: Escalated request shows a neutral label
+
+- GIVEN a request in `en_revision_coordinacion` with a staff note and no answer
+- WHEN the owner opens the detail
+- THEN the state and the neutral reason label are shown
+- AND neither the note nor any coordinator is shown
+
+#### Scenario: Answer and note never shown
+
+- GIVEN a request returned to `pendiente` by a coordination answer
+- WHEN the owner opens the list and the detail
+- THEN only the state `pendiente` is shown and no note or answer text appears anywhere
+
+#### Scenario: Excess-absence report is invisible
+
+- GIVEN an `aprobada` request with a recorded report and notice
+- WHEN the owner opens the detail
+- THEN the state and the approval decision are shown and nothing about the report, the teacher's communication or the notice
+
+#### Scenario: Neutral wording in both locales
+
+- GIVEN the student-facing label keys
+- WHEN `es.json` and `en.json` are read
+- THEN both exist and neither text contains "sospecha", "suspicion", "caso especial" or "special case"
 
 #### Scenario: Another student's request
 
@@ -85,6 +120,12 @@ requests MUST NOT be audited.
 - GIVEN a draft id owned by the student
 - WHEN they open `/requests/[id]`
 - THEN it is not found (the draft is resumed only through intake)
+
+#### Scenario: Escalated request cannot be corrected
+
+- GIVEN a request in `en_revision_coordinacion`
+- WHEN the owner calls the correction action
+- THEN it is refused and nothing changes
 
 ### Requirement: In-place correction of a returned request (RF-08 a, RF-08 c, RN-16)
 
@@ -248,6 +289,7 @@ be reported together.
 - GIVEN a correction payload carrying a `consentVersion`, a consent timestamp or any other consent key
 - WHEN the correction is processed
 - THEN the value is ignored and the stored consent is unchanged
+
 ### Requirement: Revision history and soft retirement (RF-08 b)
 
 Removing a document of the latest returned revision in a correction MUST
@@ -286,3 +328,43 @@ with no horizontal scrolling, and all user-facing text MUST exist in both
 - GIVEN the student-requests message keys
 - WHEN `es.json` and `en.json` are compared
 - THEN both contain the same keys
+
+### Requirement: Students never see validation signals (RF-05, RN-26, RNF-01, RNF-02, E13)
+
+No student view, response or notification MUST contain a signal, an outcome, a
+reason code, the suggested verdict, a document fingerprint, or any trace that a
+document of the student was matched with another request. This MUST hold for the
+list, the detail, the correction flow, the upload and finalize results, and the
+decision and escalation texts. The student view MUST NOT receive signal data
+from the server. A student whose earlier document was reused by someone else
+MUST NOT learn of it: the signals of the earlier request never change.
+
+#### Scenario: Detail and list carry no signal data
+
+- GIVEN a presented request whose signals include `present` outcomes
+- WHEN its owner opens `/requests` and `/requests/[id]`
+- THEN no signal, outcome, reason, verdict or fingerprint appears in the rendered output or the data sent to the client
+
+#### Scenario: Returned and rejected requests
+
+- GIVEN a `devuelta` or `rechazada` request with RN-07 `present`
+- WHEN the owner opens the detail
+- THEN only the state, the reason and the decision text are shown, and the decision text is whatever the secretary wrote
+
+#### Scenario: Correction and upload results
+
+- GIVEN a student correcting a returned request with a file whose fingerprint matches an earlier request
+- WHEN the file is finalized and the correction is submitted
+- THEN the result messages are those of the existing flow, with no mention of a repeated document
+
+#### Scenario: Owner of the earlier document
+
+- GIVEN a student E whose document was later reused by another student's request
+- WHEN E opens the list and the detail of the earlier request
+- THEN nothing indicates the reuse
+
+#### Scenario: Another student's request
+
+- GIVEN a request of student A with signals
+- WHEN student B opens its id
+- THEN the response equals that of a nonexistent id and no data is returned

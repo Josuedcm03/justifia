@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import {
+  CoordinationCallout,
   DecisionSection,
   DocumentsSection,
   HistorySection,
@@ -73,6 +74,9 @@ export default async function OwnRequestDetailPage({
           <p role="status" className={NOTICE}>
             {t("detail.corrected")}
           </p>
+        ) : null}
+        {detail.estado === "en_revision_coordinacion" ? (
+          <CoordinationCallout />
         ) : null}
         {detail.decision || correctHref ? (
           <DecisionSection

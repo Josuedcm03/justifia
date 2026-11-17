@@ -1,6 +1,9 @@
 import { vi } from "vitest";
 
-import { resolveIntegrationGate } from "@/lib/data/integration/guard";
+import {
+  isProductionEndpoint,
+  resolveIntegrationGate,
+} from "@/lib/data/integration/guard";
 
 // Setup of the opt-in real-Postgres suites (`npm run test:integration`).
 //
@@ -22,4 +25,12 @@ const gate = resolveIntegrationGate(process.env);
 process.env.INTEGRATION_GATE_MODE = gate.mode;
 if (gate.mode === "refuse") process.env.INTEGRATION_GATE_REASON = gate.reason;
 process.env.DATABASE_URL = gate.mode === "run" ? gate.url : PLACEHOLDER;
+
+// Second line behind the gate: whatever the decision above was, the URL the
+// data layer will connect with must never be the production endpoint.
+if (isProductionEndpoint(process.env.DATABASE_URL)) {
+  throw new Error(
+    "Refusing to run the integration suite: DATABASE_URL points at the production Neon endpoint.",
+  );
+}
 process.env.AUTH_SECRET ??= "integration-suite-secret-not-used-0000000000";

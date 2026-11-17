@@ -189,15 +189,27 @@ describe("AppSidebar", () => {
     ]);
   });
 
-  it("orders the top level Panel, Reportes, Administración, Configuración for coordinacion", () => {
+  it("orders the top level Panel, Solicitudes escaladas, Reportes, Administración, Configuración for coordinacion, with no review entry", () => {
     renderSidebar("coordinacion");
 
     expect(topLevelLabels()).toEqual([
       "Panel",
+      "Solicitudes escaladas",
       "Reportes",
       "Administración",
       "Configuración",
     ]);
+    expect(
+      screen.queryByRole("link", { name: "Revisión de solicitudes" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers secretaria no coordinator entry", () => {
+    renderSidebar("secretaria");
+
+    expect(
+      screen.queryByRole("link", { name: "Solicitudes escaladas" }),
+    ).not.toBeInTheDocument();
   });
 
   it("orders the top level Panel, Revisión de solicitudes, Administración, Configuración for secretaria", () => {
@@ -220,6 +232,7 @@ describe("AppSidebar", () => {
       "coordinacion",
       [
         "/",
+        "/coordination",
         "/reports",
         "/catalog/asignaturas",
         "/catalog/docentes",
@@ -832,7 +845,13 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
     ],
     [
       "coordinacion",
-      ["Panel", "Reportes", "Administración", "Configuración"],
+      [
+        "Panel",
+        "Solicitudes escaladas",
+        "Reportes",
+        "Administración",
+        "Configuración",
+      ],
       ["Asignaturas", "Docentes", "Usuarios"],
     ],
     [

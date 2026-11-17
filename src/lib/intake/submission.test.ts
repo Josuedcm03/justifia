@@ -213,7 +213,14 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
       ).toEqual(["consent:consent_required"]);
     });
 
-    it.each(["2025-01-01", "x"])(
+    it("accepts the v2 version of the escalation change", () => {
+      expect(
+        validateSubmission(valid({ consentVersion: "2026-10-22" }), TODAY),
+      ).toEqual({ ok: true });
+    });
+
+    // A review step rendered under v1 and submitted after the v2 deploy (E6).
+    it.each(["2026-10-20", "2025-01-01", "x"])(
       "reports an outdated consent for version %s",
       (consentVersion) => {
         expect(fields(valid({ consentVersion }))).toEqual([

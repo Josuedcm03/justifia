@@ -30,7 +30,8 @@ import {
 // request was edited in place while `devuelta`; the snapshot of the returned
 // version was written by the return itself, so this writes none. One
 // transaction: guarded UPDATE to `pendiente` with `ReenviadaEn` (restarts the
-// RN-08 clock), drift re-checks, one `solicitud.corregida` row. The student
+// RN-08 clock) and `PlazoInicioEn` cleared (a pause served earlier never
+// counts), drift re-checks, one `solicitud.corregida` row. The student
 // snapshot columns (RN-02) are never touched, the filing window (RN-23) is not
 // re-applied, and no `borrador` exists at any point.
 //
@@ -98,7 +99,13 @@ export async function resubmitCorrection(
     return await db.transaction(async (tx): Promise<CorrectionOutcome> => {
       const updated = await tx
         .update(solicitud)
-        .set({ estado: "pendiente", reenviadaEn: now, actualizadoEn: now })
+        .set({
+          estado: "pendiente",
+          reenviadaEn: now,
+          // ES-5: a pause served before the resubmission never counts.
+          plazoInicioEn: null,
+          actualizadoEn: now,
+        })
         .where(
           and(
             ownedWhere(userId, target),

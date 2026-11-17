@@ -20,3 +20,15 @@ export function isCausa(value: unknown): value is Causa {
     typeof value === "string" && (CAUSAS as readonly string[]).includes(value)
   );
 }
+
+// Causes whose document can grant a rest period (RN-09, RN-10 only apply to
+// them). Another code constant, not configuration: the configurable cause to
+// document table is RNF-14 (change normative-parameters).
+export const CAUSAS_CON_REPOSO = [
+  "medica",
+  "maternidad_paternidad",
+] as const satisfies readonly Causa[];
+
+export function admitsRest(causa: Causa): boolean {
+  return (CAUSAS_CON_REPOSO as readonly Causa[]).includes(causa);
+}

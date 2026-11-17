@@ -8,6 +8,10 @@ import {
   decideAction,
   type DecideFailure,
 } from "@/app/(dashboard)/review/[id]/actions";
+import {
+  DIALOG_ALERT,
+  DIALOG_TEXTAREA,
+} from "@/app/(dashboard)/review/[id]/dialog-parts";
 import { templateKey } from "@/app/(dashboard)/review/template-key";
 import {
   AlertDialog,
@@ -51,11 +55,6 @@ const COPY_KEY = {
   devuelta: "return",
   rechazada: "reject",
 } as const satisfies Record<DecisionKind, string>;
-
-const ALERT =
-  "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink flex flex-col gap-2 rounded-lg border border-l-4 px-3 py-2 text-sm";
-const TEXTAREA =
-  "border-input bg-card placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-ring/40 aria-invalid:border-destructive aria-invalid:ring-destructive/30 dark:bg-input/30 min-h-32 w-full rounded-lg border px-3 py-2 text-base transition-colors outline-none focus-visible:ring-3 aria-invalid:ring-3 md:text-sm";
 
 function FieldAlert({
   id,
@@ -219,7 +218,7 @@ export function DecisionDialog({
         </AlertDialogHeader>
 
         {banner ? (
-          <div role="alert" className={ALERT}>
+          <div role="alert" className={DIALOG_ALERT}>
             <p>{t(`errors.${banner}`)}</p>
             {banner === "conflict" || banner === "not_found" ? (
               <Link
@@ -270,7 +269,7 @@ export function DecisionDialog({
             aria-describedby={
               textCodes.length > 0 ? `${ids}-text-error` : `${ids}-text-hint`
             }
-            className={TEXTAREA}
+            className={DIALOG_TEXTAREA}
           />
           <div className="flex items-start justify-between gap-3">
             <p

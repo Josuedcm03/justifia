@@ -1,11 +1,22 @@
 import "server-only";
 
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
+import { QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import {
   carrera,
   documentoRespaldo,
+  escalamiento,
   solicitud,
   solicitudRevision,
   usuario,
@@ -18,6 +29,7 @@ import {
   documentoRetiradoEvent,
 } from "@/lib/audit/events";
 import type { DocumentMode, DocumentRejectionReason } from "@/lib/audit/types";
+import type { ViewableDocument } from "@/lib/auth/permissions";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import {
   DRAFT_TARGET,
@@ -25,6 +37,7 @@ import {
   ownedWhere,
   type EditTarget,
 } from "@/lib/data/solicitudes";
+import { ESCALATION_REASONS } from "@/lib/intake/escalation";
 import {
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS_PER_DRAFT,
@@ -39,6 +52,8 @@ import {
 
 // Persistence of supporting documents (supporting-documents, D3, D12, D13).
 // Security-critical and mutating: every function fails loud, none is fail-soft.
+
+const qb = new QueryBuilder();
 
 const MAX_NAME_LENGTH = 255;
 const FALLBACK_NAME = "documento";
@@ -56,15 +71,9 @@ export type FinalizeResult =
 
 export type UploadContext = { solicitudId: number; documentCount: number };
 
-export type DownloadableDocument = {
+export type DownloadableDocument = ViewableDocument & {
   id: number;
   solicitudId: number;
-  estudianteId: number;
-  /** `Carrera.FacultadId` of the student's current career; null without one. */
-  estudianteFacultadId: number | null;
-  solicitudEstado: string;
-  /** Set when a correction retired the document (still `valido`). */
-  retiradoEn: Date | null;
   pathname: string;
   tipo: TipoDetectado;
   nombreOriginal: string;
@@ -202,12 +211,22 @@ export async function finalizeDocument(
   }
   const claimId = claim.documentId;
 
-  let inspection: StoredFileInspection;
+  let inspection: StoredFileFingerprint;
   try {
-    inspection = await inspectStoredFile(pathname, store);
+    inspection = await fingerprintStoredFile(pathname, store);
   } catch (error) {
-    await db.delete(documentoRespaldo).where(eq(documentoRespaldo.id, claimId));
-    throw error;
+    // The stored content cannot be read for hashing: fail like any refusal
+    // (blob deleted best effort, claim dropped, no fingerprint, a named
+    // reason). The spec names none for this case; `not_found` ("we could not
+    // find the file, try again") is the closest existing one. The error name
+    // only is logged, never its message, which may carry a path.
+    console.error("document_finalize_read_failed", {
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return reject(
+      { userId, solicitudId, pathname, reason: "not_found", claimId },
+      store,
+    );
   }
 
   if (!inspection.ok && inspection.reason === "not_found") {
@@ -220,12 +239,18 @@ export async function finalizeDocument(
       store,
     );
   }
-  const { tipo, size } = inspection;
+  const { tipo, size, sha256 } = inspection;
 
   await db.transaction(async (tx) => {
     await tx
       .update(documentoRespaldo)
-      .set({ estado: "valido", tipoDetectado: tipo, tamanoBytes: size })
+      .set({
+        estado: "valido",
+        tipoDetectado: tipo,
+        tamanoBytes: size,
+        // The only place the fingerprint is ever written (RN-26).
+        huellaSha256: sha256,
+      })
       .where(eq(documentoRespaldo.id, claimId));
     await insertAuditEvents(tx, userId, [
       documentAttachedEvent({
@@ -268,6 +293,43 @@ export async function inspectStoredFile(
     ok: true,
     tipo: detectSignature(head.head) as TipoDetectado,
     size: head.size,
+  };
+}
+
+/** What finalize learns from its single read of a stored file (RN-26, X1). */
+export type StoredFileFingerprint =
+  | { ok: true; tipo: TipoDetectado; size: number; sha256: string }
+  | { ok: false; reason: InspectionRefusal };
+
+/**
+ * The finalize read: ONE pass over the stored bytes feeds the signature check,
+ * the size check (on the counted size, never the blob metadata) and the
+ * SHA-256 stored with the document. A missing file is `not_found`; a store or
+ * stream failure throws, and finalize then rejects the file the same way (the
+ * blob deleted, the claim dropped), so no record is ever created without a
+ * fingerprint.
+ */
+export async function fingerprintStoredFile(
+  pathname: string,
+  store: DocumentStore,
+): Promise<StoredFileFingerprint> {
+  const digest = await store.readDigest(pathname, {
+    headBytes: SIGNATURE_HEAD_BYTES,
+    maxBytes: MAX_DOCUMENT_BYTES,
+  });
+  if (digest === null) return { ok: false, reason: "not_found" };
+
+  const refusal = refusalFor(digest);
+  if (refusal !== null) return { ok: false, reason: refusal };
+  // Inside the cap the store always hashes; anything else is an unreadable file.
+  if (digest.sha256 === null) {
+    throw new Error("Stored file read without a fingerprint");
+  }
+  return {
+    ok: true,
+    tipo: detectSignature(digest.head) as TipoDetectado,
+    size: digest.size,
+    sha256: digest.sha256,
   };
 }
 
@@ -402,10 +464,12 @@ export async function removeDocument(
 }
 
 /**
- * A `valido` document with its owner, the owner's facultad (via the student's
- * current career), the request state and any retirement, or null. Retired
- * documents stay `valido`, so they are returned. Authorization is the caller's
- * job (`canViewDocument`): this only answers "what is this document".
+ * A `valido` document with its owner, the owner's current career and its
+ * facultad, the request state, any retirement and whether an escalation
+ * (either motive) of the request is open (the coordinator's reader rule, ES-9), or
+ * null. Retired documents stay `valido`, so they are returned. Authorization is
+ * the caller's job (`canViewDocument`): this only answers "what is this
+ * document".
  */
 export async function getDocumentForDownload(
   documentId: number,
@@ -416,11 +480,24 @@ export async function getDocumentForDownload(
       solicitudId: documentoRespaldo.solicitudId,
       estudianteId: solicitud.estudianteId,
       estudianteFacultadId: carrera.facultadId,
+      estudianteCarreraId: usuario.carreraId,
       solicitudEstado: solicitud.estado,
       pathname: documentoRespaldo.pathname,
       tipoDetectado: documentoRespaldo.tipoDetectado,
       nombreOriginal: documentoRespaldo.nombreOriginal,
       retiradoEn: documentoRespaldo.retiradoEn,
+      tieneEscalamientoAbierto: sql<boolean>`${exists(
+        qb
+          .select({ one: sql`1` })
+          .from(escalamiento)
+          .where(
+            and(
+              eq(escalamiento.solicitudId, documentoRespaldo.solicitudId),
+              inArray(escalamiento.tipo, [...ESCALATION_REASONS]),
+              isNull(escalamiento.respondidaEn),
+            ),
+          ),
+      )}`,
     })
     .from(documentoRespaldo)
     .innerJoin(solicitud, eq(solicitud.id, documentoRespaldo.solicitudId))
@@ -439,8 +516,10 @@ export async function getDocumentForDownload(
     solicitudId: row.solicitudId,
     estudianteId: row.estudianteId,
     estudianteFacultadId: row.estudianteFacultadId,
+    estudianteCarreraId: row.estudianteCarreraId,
     solicitudEstado: row.solicitudEstado,
     retiradoEn: row.retiradoEn,
+    tieneEscalamientoAbierto: row.tieneEscalamientoAbierto,
     pathname: row.pathname,
     tipo: row.tipoDetectado as TipoDetectado,
     nombreOriginal: row.nombreOriginal,

@@ -261,7 +261,7 @@ describe("ReviewStep: consent checkbox (RF-03 e, RN-25)", () => {
 
     expect(consentBox()).not.toBeChecked();
     expect(consentLabelText()).toHaveTextContent(
-      "incluidos los datos de salud que contengan, solo para tramitarla, y que se envíen a los docentes de las asignaturas afectadas.",
+      "incluidos los datos de salud que contengan, solo para tramitarla, que se envíen a los docentes de las asignaturas afectadas y que, si la solicitud se escala, la coordinación de mi carrera pueda consultarlos.",
     );
     const footer = document.querySelector('[data-slot="card-footer"]');
     expect(footer).not.toBeNull();

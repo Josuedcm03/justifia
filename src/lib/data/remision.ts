@@ -1,9 +1,6 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
-import { and, asc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
+import { and, asc, eq, inArray, isNull, lt } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -22,6 +19,15 @@ import {
 } from "@/lib/audit/events";
 import type { RemissionFailureCode } from "@/lib/audit/types";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
+import {
+  attemptGivenBack,
+  claimRelease,
+  claimStamp,
+  completeHeld,
+  heldBy,
+  leaseFree,
+  sentStamp,
+} from "@/lib/data/outbox";
 import { requestInScope } from "@/lib/data/request-scope-sql";
 import type { Causa } from "@/lib/intake/causes";
 import type { RequestScope } from "@/lib/intake/request-scope";
@@ -39,15 +45,6 @@ import {
 // reads of the outbox. Creation is the one insert elsewhere, inside the
 // approval transaction (`solicitud-decision.ts`); a structural test pins both.
 
-/**
- * How long a claim blocks other attempts (TR-6). Longer than any function
- * duration, so only a crashed or cut-off attempt is ever taken over.
- */
-export const CLAIM_LEASE_MS = 10 * 60 * 1000;
-
-/** Longest provider message id the column holds. */
-const PROVIDER_ID_MAX = 100;
-
 /** A remission as the dispatcher sees it right after winning the claim. */
 export type RemissionClaim = {
   id: number;
@@ -64,10 +61,6 @@ export type RemissionClaim = {
   reclamoId: string;
 };
 
-function leaseCutoff(now: Date): Date {
-  return new Date(now.getTime() - CLAIM_LEASE_MS);
-}
-
 /**
  * Guarded claim of one remission (TR-6): `UPDATE ... WHERE ... RETURNING`.
  * Matches only a state the trigger may start from and a claim that is absent
@@ -81,20 +74,12 @@ export async function claimRemission(
 ): Promise<RemissionClaim | null> {
   const [claimed] = await db
     .update(remision)
-    .set({
-      reclamoId: randomUUID(),
-      reclamadaEn: now,
-      intentos: sql`${remision.intentos} + 1`,
-      actualizadaEn: now,
-    })
+    .set(claimStamp(remision, now))
     .where(
       and(
         eq(remision.id, id),
         inArray(remision.estado, [...claimableStates(trigger)]),
-        or(
-          isNull(remision.reclamadaEn),
-          lt(remision.reclamadaEn, leaseCutoff(now)),
-        ),
+        leaseFree(remision.reclamadaEn, now),
       ),
     )
     .returning({
@@ -112,14 +97,6 @@ export async function claimRemission(
   return (claimed as RemissionClaim | undefined) ?? null;
 }
 
-/** Matches the row only while this attempt still holds its claim. */
-function heldBy(claim: RemissionClaim) {
-  return and(
-    eq(remision.id, claim.id),
-    eq(remision.reclamoId, claim.reclamoId),
-  );
-}
-
 type Completion = {
   now: Date;
   /** Session user, or the approving secretary for the scheduled retry. */
@@ -127,45 +104,20 @@ type Completion = {
   origen: RemissionTrigger;
 };
 
-/**
- * Applies one guarded completion and its audit row in a single transaction.
- * A worker whose lease was taken over matches no row, writes nothing and
- * reports `false`. The claim is always released (TR-6).
- */
-async function complete(
-  claim: RemissionClaim,
-  actorId: number,
-  set: PgUpdateSetSource<typeof remision>,
-  event: Parameters<typeof insertAuditEvents>[2][number],
-): Promise<boolean> {
-  return db.transaction(async (tx) => {
-    const updated = await tx
-      .update(remision)
-      .set(set)
-      .where(heldBy(claim))
-      .returning({ id: remision.id });
-    if (updated.length === 0) return false;
-    await insertAuditEvents(tx, actorId, [event]);
-    return true;
-  });
-}
-
 /** The provider accepted the message (RF-09 c: the send time is recorded). */
 export function completeSent(
   claim: RemissionClaim,
   args: Completion & { providerId: string; adjuntos: number },
 ): Promise<boolean> {
-  return complete(
+  return completeHeld(
+    remision,
     claim,
     args.actorId,
     {
       estado: "enviada",
-      enviadaEn: args.now,
-      proveedorMensajeId: args.providerId.slice(0, PROVIDER_ID_MAX),
       motivoCodigo: null,
-      reclamoId: null,
-      reclamadaEn: null,
-      actualizadaEn: args.now,
+      ...sentStamp(args.providerId, args.now),
+      ...claimRelease(args.now),
     },
     remisionEnviadaEvent({
       remisionId: claim.id,
@@ -177,27 +129,20 @@ export function completeSent(
   );
 }
 
-/**
- * A failed attempt stays `pendiente` with `error_envio` (RNF-07 b). When the
- * mail service is not configured yet the attempt is given back: rows wait for
- * the keys without exhausting the automatic-retry cap before the first send.
- */
+/** A failed attempt stays `pendiente` with `error_envio` (RNF-07 b). */
 export function completeFailed(
   claim: RemissionClaim,
   args: Completion & { codigo: RemissionFailureCode },
 ): Promise<boolean> {
-  return complete(
+  return completeHeld(
+    remision,
     claim,
     args.actorId,
     {
       estado: "pendiente",
       motivoCodigo: "error_envio",
-      ...(args.codigo === "not_configured"
-        ? { intentos: sql`greatest(${remision.intentos} - 1, 0)` }
-        : {}),
-      reclamoId: null,
-      reclamadaEn: null,
-      actualizadaEn: args.now,
+      ...attemptGivenBack(remision, args.codigo),
+      ...claimRelease(args.now),
     },
     remisionFallidaEvent({
       remisionId: claim.id,
@@ -214,15 +159,14 @@ export function completeBlocked(
   claim: RemissionClaim,
   args: Completion & { motivo: PlanBlocker },
 ): Promise<boolean> {
-  return complete(
+  return completeHeld(
+    remision,
     claim,
     args.actorId,
     {
       estado: "bloqueada",
       motivoCodigo: args.motivo,
-      reclamoId: null,
-      reclamadaEn: null,
-      actualizadaEn: args.now,
+      ...claimRelease(args.now),
     },
     remisionBloqueadaEvent({
       remisionId: claim.id,
@@ -245,7 +189,7 @@ export async function refreshRemissionEmail(
   const updated = await db
     .update(remision)
     .set({ correo, actualizadaEn: now })
-    .where(heldBy(claim))
+    .where(heldBy(remision, claim))
     .returning({ id: remision.id });
   return updated.length > 0;
 }
@@ -383,10 +327,7 @@ export async function selectRetryCandidates(
     .where(
       and(
         eq(remision.estado, "pendiente"),
-        or(
-          isNull(remision.reclamadaEn),
-          lt(remision.reclamadaEn, leaseCutoff(now)),
-        ),
+        leaseFree(remision.reclamadaEn, now),
         lt(remision.intentos, MAX_AUTO_ATTEMPTS),
       ),
     )

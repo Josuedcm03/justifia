@@ -12,12 +12,14 @@ const {
   recordDownloadMock,
   getIntakeDepsMock,
   resolveScopeMock,
+  resolveCoordinationMock,
 } = vi.hoisted(() => ({
   getCurrentUserMock: vi.fn(),
   getDocumentMock: vi.fn(),
   recordDownloadMock: vi.fn(),
   getIntakeDepsMock: vi.fn(),
   resolveScopeMock: vi.fn(),
+  resolveCoordinationMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/dal", () => ({ getCurrentUser: getCurrentUserMock }));
@@ -28,6 +30,9 @@ vi.mock("@/lib/data/documentos", () => ({
 vi.mock("@/lib/data/request-scope", () => ({
   resolveRequestScope: resolveScopeMock,
 }));
+vi.mock("@/lib/data/coordination-scope", () => ({
+  resolveCoordinationScope: resolveCoordinationMock,
+}));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: getIntakeDepsMock }));
 
 import { GET } from "@/app/api/intake/documents/[id]/route";
@@ -35,6 +40,8 @@ import { GET } from "@/app/api/intake/documents/[id]/route";
 const OWNER = 7;
 const SECRETARIA = 20;
 const FACULTAD = 3;
+const COORDINADOR = 30;
+const CARRERA = 9;
 const PATH = "intake/4/0b9f6c1e-4f0a-4d57-9a64-2f3f8f1d2c11.pdf";
 const PDF_BYTES = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37];
 
@@ -48,8 +55,10 @@ function doc(overrides: Record<string, unknown> = {}) {
     solicitudId: 4,
     estudianteId: OWNER,
     estudianteFacultadId: FACULTAD,
+    estudianteCarreraId: CARRERA,
     solicitudEstado: "pendiente",
     retiradoEn: null,
+    tieneEscalamientoAbierto: false,
     pathname: PATH,
     tipo: "pdf",
     nombreOriginal: "Dictamen médico.pdf",
@@ -85,6 +94,8 @@ describe("GET /api/intake/documents/[id]", () => {
     getIntakeDepsMock.mockReset();
     resolveScopeMock.mockReset();
     resolveScopeMock.mockResolvedValue({ kind: "none" });
+    resolveCoordinationMock.mockReset();
+    resolveCoordinationMock.mockResolvedValue({ kind: "none" });
     deps = createFakeIntakeDeps();
     deps.store.seed(PATH, PDF_BYTES);
     getIntakeDepsMock.mockReturnValue(deps);
@@ -292,6 +303,51 @@ describe("GET /api/intake/documents/[id]", () => {
     );
   });
 
+  describe("an unknown id does the same work as a document out of scope", () => {
+    it.each([
+      ["a student", () => getCurrentUserMock.mockResolvedValue(session())],
+      ["a secretaria", asSecretaria],
+      [
+        "a coordinacion",
+        () =>
+          getCurrentUserMock.mockResolvedValue(
+            session("coordinacion", String(COORDINADOR)),
+          ),
+      ],
+    ])(
+      "resolves the scope of %s before looking the document up, found or not",
+      async (_label, sessionAs) => {
+        sessionAs();
+        const runs = async (row: ReturnType<typeof doc> | null) => {
+          resolveScopeMock.mockClear();
+          resolveCoordinationMock.mockClear();
+          getDocumentMock.mockReset();
+          getDocumentMock.mockResolvedValue(row);
+          await call("11");
+          return {
+            scope: resolveScopeMock.mock.calls.length,
+            coordination: resolveCoordinationMock.mock.calls.length,
+            // Every scope read finished before the document query started.
+            scopeFirst:
+              resolveScopeMock.mock.invocationCallOrder[0] <
+                getDocumentMock.mock.invocationCallOrder[0] &&
+              (resolveCoordinationMock.mock.calls.length === 0 ||
+                resolveCoordinationMock.mock.invocationCallOrder[0] <
+                  getDocumentMock.mock.invocationCallOrder[0]),
+          };
+        };
+
+        const unknown = await runs(null);
+        const foreign = await runs(
+          doc({ estudianteId: 99, estudianteFacultadId: 99 }),
+        );
+
+        expect(unknown.scopeFirst).toBe(true);
+        expect(unknown).toEqual(foreign);
+      },
+    );
+  });
+
   describe("repeated mode parameters", () => {
     it("answers 404 when the mode is given twice, even with equal values", async () => {
       expect((await call("11", "?modo=ver&modo=ver")).status).toBe(404);
@@ -354,6 +410,130 @@ describe("GET /api/intake/documents/[id]", () => {
       expect(res.status).toBe(200);
       expect(recordDownloadMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  describe("coordinacion of the career (ES-9, RNF-01)", () => {
+    const escalated = (overrides: Record<string, unknown> = {}) =>
+      doc({
+        solicitudEstado: "en_revision_coordinacion",
+        tieneEscalamientoAbierto: true,
+        ...overrides,
+      });
+
+    beforeEach(() => {
+      getCurrentUserMock.mockResolvedValue(
+        session("coordinacion", String(COORDINADOR)),
+      );
+      resolveCoordinationMock.mockResolvedValue({
+        kind: "carrera",
+        carreraId: CARRERA,
+      });
+      getDocumentMock.mockResolvedValue(escalated());
+    });
+
+    it("streams inline with the hardened headers and writes one row with the coordinator as actor and mode ver", async () => {
+      const res = await call("11");
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Disposition")).toMatch(/^inline;/);
+      expect(res.headers.get("Content-Security-Policy")).toBe("sandbox");
+      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+      expect(recordDownloadMock).toHaveBeenCalledTimes(1);
+      expect(recordDownloadMock).toHaveBeenCalledWith(COORDINADOR, {
+        id: 11,
+        solicitudId: 4,
+        tipo: "pdf",
+        modo: "ver",
+      });
+      expect(Array.from(new Uint8Array(await res.arrayBuffer()))).toEqual(
+        PDF_BYTES,
+      );
+    });
+
+    it("downloads as an attachment and records descarga", async () => {
+      const res = await call("11", "?modo=descarga");
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Disposition")).toMatch(/^attachment;/);
+      expect(recordDownloadMock.mock.calls[0][1].modo).toBe("descarga");
+    });
+
+    it("resolves the coordination scope for the session user and role", async () => {
+      await call("11");
+
+      expect(resolveCoordinationMock).toHaveBeenCalledWith(
+        COORDINADOR,
+        "coordinacion",
+      );
+    });
+
+    it("answers 500 with no bytes when the audit insert fails", async () => {
+      recordDownloadMock.mockRejectedValue(new Error("audit down"));
+
+      const res = await call("11");
+
+      expect(res.status).toBe(500);
+      expect(await res.text()).toBe('{"error":"unavailable"}');
+    });
+
+    it.each([
+      [
+        "a request answered and back in pendiente",
+        { solicitudEstado: "pendiente", tieneEscalamientoAbierto: false },
+      ],
+      [
+        "an aprobada request with a notice",
+        { solicitudEstado: "aprobada", tieneEscalamientoAbierto: false },
+      ],
+      [
+        "a retired document of an escalated request",
+        { retiradoEn: new Date("2026-10-07T10:00:00.000Z") },
+      ],
+      ["a request of another career", { estudianteCarreraId: 10 }],
+      ["a student without a career", { estudianteCarreraId: null }],
+    ])(
+      "denies %s in every mode, like an unknown id: no bytes, no audit row",
+      async (_label, overrides) => {
+        getDocumentMock.mockResolvedValueOnce(null);
+        const unknown = await (async () => {
+          const r = await call("404");
+          return { status: r.status, body: await r.text() };
+        })();
+        getDocumentMock.mockResolvedValue(escalated(overrides));
+        const streamSpy = vi.spyOn(deps.store, "stream");
+
+        for (const query of ["", "?modo=ver", "?modo=descarga"]) {
+          const res = await call("11", query);
+          expect({ status: res.status, body: await res.text() }).toEqual(
+            unknown,
+          );
+        }
+        expect(unknown.status).toBe(404);
+        expect(streamSpy).not.toHaveBeenCalled();
+        expect(recordDownloadMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("denies a coordinacion without a career (none scope)", async () => {
+      resolveCoordinationMock.mockResolvedValue({ kind: "none" });
+
+      const res = await call("11");
+
+      expect(res.status).toBe(404);
+      expect(recordDownloadMock).not.toHaveBeenCalled();
+    });
+
+    it.each(["estudiante", "secretaria", "docente", "administrador"] as const)(
+      "never resolves a coordination scope for %s",
+      async (rol) => {
+        getCurrentUserMock.mockResolvedValue(session(rol, "99"));
+
+        await call("11");
+
+        expect(resolveCoordinationMock).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("owner and retired documents", () => {

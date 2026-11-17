@@ -4,7 +4,8 @@ import type { NonWorkingDaysProvider } from "./ports";
 // RN-08 business-day clock (SR-5). Pure: dates are Managua `YYYY-MM-DD` strings
 // (the caller derives them with `managuaToday`) and holidays come from the
 // injected `NonWorkingDaysProvider`. A business day is Monday to Friday that is
-// not a listed non-working day. Computed on read, never stored.
+// not a listed non-working day. The deadline is computed on read; an answer
+// from the career coordination stores the shifted start (ES-5).
 
 /** Business days allowed to remit a request, counted after the start date. */
 const BUSINESS_DAYS_TO_REMIT = 2;
@@ -66,4 +67,31 @@ export function deadlineStatus(
     status: remaining <= 1 ? "por_vencer" : "en_plazo",
     deadline,
   };
+}
+
+/**
+ * Business days `d` with `from <= d < to` (RN-08 pause): the escalation day
+ * counts, the answer day does not. Zero when `to` is not after `from`.
+ */
+export function countBusinessDays(
+  from: string,
+  to: string,
+  calendar: NonWorkingDaysProvider,
+): number {
+  let count = 0;
+  for (let day = from; day < to; day = addDays(day, 1)) {
+    if (isBusinessDay(day, calendar)) count += 1;
+  }
+  return count;
+}
+
+/** The `days`-th business day strictly after `start`; `start` itself for 0. */
+export function addBusinessDays(
+  start: string,
+  days: number,
+  calendar: NonWorkingDaysProvider,
+): string {
+  let day = start;
+  for (let i = 0; i < days; i += 1) day = nextBusinessDay(day, calendar);
+  return day;
 }
