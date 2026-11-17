@@ -162,7 +162,7 @@ export function AppSidebar({
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>{t("sectionLabel")}</SidebarGroupLabel>
+          {/* <SidebarGroupLabel>{t("sectionLabel")}</SidebarGroupLabel> */}
           <SidebarGroupContent>
             <nav aria-label={t("sectionLabel")}>
               <SidebarMenu>
