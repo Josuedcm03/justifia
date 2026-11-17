@@ -978,6 +978,15 @@
         "aprobada": "La solicitud fue aprobada.",
         "rechazada": "La solicitud fue rechazada.",
         "devuelta": "La solicitud fue devuelta al estudiante para su corrección."
+      },
+      "search": {
+        "label": "Buscar solicitudes",
+        "placeholder": "Nombre, CIF o carrera"
+      },
+      "noResults": {
+        "title": "Sin resultados para «{q}»",
+        "hint": "Prueba con otro nombre, CIF o carrera.",
+        "clear": "Limpiar búsqueda"
       }
     },
     "decision": {

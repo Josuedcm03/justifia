@@ -30,7 +30,10 @@ const {
   state: { locale: "en" as Locale },
 }));
 
-vi.mock("next/navigation", () => ({ redirect: redirectMock }));
+vi.mock("next/navigation", () => ({
+  redirect: redirectMock,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 vi.mock("next/link", async () =>
   (await import("@/app/(dashboard)/review/test-support")).linkDouble(),
 );
@@ -280,6 +283,40 @@ describe("ReviewQueuePage list (RF-06)", () => {
   });
 });
 
+describe("ReviewQueuePage search", () => {
+  beforeEach(() => {
+    queueMock.mockResolvedValue({
+      rows: [
+        row(),
+        row({
+          id: 13,
+          estudianteNombre: "Luis Ruiz",
+          estudianteCif: "2021-0099",
+        }),
+      ],
+      calendarLoaded: true,
+    });
+  });
+
+  it("lists only the rows that match the term in the URL", async () => {
+    await renderPage({ q: "ruiz" });
+
+    expect(screen.getByRole("search", { name: en.search.label })).toBeVisible();
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Luis Ruiz")).toBeInTheDocument();
+    expect(within(table).queryByText("Ana Lopez")).toBeNull();
+  });
+
+  it("shows the no-results state with a clear link when nothing matches", async () => {
+    await renderPage({ q: "zzz" });
+
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: en.noResults.clear }),
+    ).toHaveAttribute("href", "/review");
+  });
+});
+
 describe("ReviewQueuePage deadline badges (RN-08, RF-06 b)", () => {
   it.each([
     ["en_plazo", en.deadline.onTime],
@@ -368,15 +405,22 @@ describe("ReviewQueuePage decision result banner", () => {
     async (resultado) => {
       await renderPage({ resultado });
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-        en.result[resultado],
-      );
+      // The search count is a status region too; the banner is the other one.
+      const banners = screen
+        .getAllByRole("status")
+        .filter((el) => el.textContent === en.result[resultado]);
+      expect(banners).toHaveLength(1);
     },
   );
 
   it("ignores an unknown result value", async () => {
     await renderPage({ resultado: "<b>x</b>" });
 
-    expect(screen.queryByRole("status")).toBeNull();
+    const results = Object.values(en.result) as string[];
+    expect(
+      screen
+        .getAllByRole("status")
+        .filter((el) => results.includes(el.textContent ?? "")),
+    ).toHaveLength(0);
   });
 });

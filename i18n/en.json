@@ -978,6 +978,15 @@
         "aprobada": "The request was approved.",
         "rechazada": "The request was rejected.",
         "devuelta": "The request was returned to the student for correction."
+      },
+      "search": {
+        "label": "Search requests",
+        "placeholder": "Name, CIF or career"
+      },
+      "noResults": {
+        "title": "No results for “{q}”",
+        "hint": "Try another name, CIF or career.",
+        "clear": "Clear search"
       }
     },
     "decision": {

@@ -2,10 +2,13 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
+import { filterQueueRows } from "@/app/(dashboard)/review/queue-search";
+import { ReviewQueueSearch } from "@/app/(dashboard)/review/review-queue-search";
 import {
   ReviewQueueTable,
   type ReviewQueueTableRow,
 } from "@/app/(dashboard)/review/review-queue-table";
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/dal";
@@ -15,8 +18,11 @@ import { resolveRequestScope } from "@/lib/data/request-scope";
 import { listReviewQueue, type QueueRow } from "@/lib/data/revision-queue";
 import { calendar } from "@/lib/intake/calendar";
 import { DECISION_KINDS } from "@/lib/intake/decision-templates";
+import { parseQ } from "@/lib/list-params";
 
 const BASE = "/review";
+/** The cap every list applies to `q` (the data-table URL contract). */
+const SEARCH_MAX = 100;
 const BUSINESS_TIME_ZONE = "America/Managua";
 const ALERT =
   "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
@@ -59,8 +65,10 @@ export default async function ReviewQueuePage({
   const queue = await listReviewQueue(scope, new Date(), calendar);
   await recordQueueRead(actorId, scope.facultadId, queue.rows.length);
 
-  const { resultado } = await searchParams;
+  const { resultado, q: rawQ } = await searchParams;
   const decided = DECISION_KINDS.find((kind) => kind === resultado);
+  const q = parseQ(rawQ, SEARCH_MAX);
+  const visibleRows = filterQueueRows(queue.rows, q);
 
   const received = (row: QueueRow) =>
     format.dateTime(row.clockStart, {
@@ -116,7 +124,7 @@ export default async function ReviewQueuePage({
 
   // The desktop table is a client module: it receives plain display values,
   // picked field by field, never the data-layer row and never a function.
-  const tableRows: ReviewQueueTableRow[] = queue.rows.map((row) => ({
+  const tableRows: ReviewQueueTableRow[] = visibleRows.map((row) => ({
     id: row.id,
     receivedText: received(row),
     resubmittedNote: row.reenviada ? t("resubmitted") : null,
@@ -153,31 +161,53 @@ export default async function ReviewQueuePage({
         </div>
       ) : (
         <>
-          <ul
-            aria-label={t("caption")}
-            className="flex flex-col gap-4 md:hidden"
-          >
-            {queue.rows.map((row) => (
-              <li
-                key={row.id}
-                className="border-border bg-card shadow-soft flex flex-col gap-3 rounded-xl border p-4"
-              >
-                {student(row)}
-                <p className="text-muted-foreground text-sm break-words">
-                  {row.estudianteCarrera} · {subjects(row)}
-                </p>
-                <p className="text-sm">
-                  {received(row)} {resubmitted(row)}
-                </p>
-                {deadline(row)}
-                {reviewLink(row)}
-              </li>
-            ))}
-          </ul>
+          <ReviewQueueSearch
+            q={q}
+            total={visibleRows.length}
+            label={t("search.label")}
+            placeholder={t("search.placeholder")}
+          />
 
-          <div className="border-border bg-card shadow-soft hidden overflow-hidden rounded-xl border md:block">
-            <ReviewQueueTable rows={tableRows} caption={t("caption")} />
-          </div>
+          {visibleRows.length === 0 ? (
+            <EmptyState
+              variant="no-results"
+              title={t("noResults.title", { q })}
+              hint={t("noResults.hint")}
+              clear={{
+                href: BASE,
+                label: t("noResults.clear"),
+                prefetch: false,
+              }}
+            />
+          ) : (
+            <>
+              <ul
+                aria-label={t("caption")}
+                className="flex flex-col gap-4 md:hidden"
+              >
+                {visibleRows.map((row) => (
+                  <li
+                    key={row.id}
+                    className="border-border bg-card shadow-soft flex flex-col gap-3 rounded-xl border p-4"
+                  >
+                    {student(row)}
+                    <p className="text-muted-foreground text-sm break-words">
+                      {row.estudianteCarrera} · {subjects(row)}
+                    </p>
+                    <p className="text-sm">
+                      {received(row)} {resubmitted(row)}
+                    </p>
+                    {deadline(row)}
+                    {reviewLink(row)}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="border-border bg-card shadow-soft hidden overflow-hidden rounded-xl border md:block">
+                <ReviewQueueTable rows={tableRows} caption={t("caption")} />
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
