@@ -11,7 +11,7 @@ and every identity outside an entry point's allowed set is denied.
 Traceability: RNF-01 (c) in every requirement.
 
 Vocabulary: *entry point* is a `page.tsx` or `route.ts` under `src/app`, or an
-exported server action of a `"use server"` file. *Identities* are the five roles
+exported server action of a `"use server"` file under `src/app`. *Identities* are the five roles
 (`rolesUsuario`), anonymous and flagged (`debeCambiarClave`): 7 in total. The
 guard is the REAL `src/lib/auth/dal.ts`; only the session source is mocked.
 
@@ -20,12 +20,15 @@ guard is the REAL `src/lib/auth/dal.ts`; only the session source is mocked.
 ### Requirement: RAC-1 Every entry point has a test (RNF-01 c)
 
 Every `page.tsx` and `route.ts` under `src/app` MUST have a sibling test file,
-and every `"use server"` file MUST have an actions test. The check reads the
-tree, so an added entry point without a test MUST fail.
+and every `"use server"` file under `src/app` MUST have an actions test. The
+inventory covers `src/app` only: `src/i18n/locale.ts` (a `"use server"` file that
+reads and writes the locale cookie only, with no protected data) is outside it.
+The check reads the tree, so an added entry point under `src/app` without a test
+MUST fail.
 
 #### Scenario: Missing test
 
-- GIVEN a `page.tsx`, `route.ts` or `"use server"` file with no sibling test and no exemption
+- GIVEN a `page.tsx`, `route.ts` or `"use server"` file under `src/app` with no sibling test and no exemption
 - WHEN the ratchet runs
 - THEN it fails naming the file
 
