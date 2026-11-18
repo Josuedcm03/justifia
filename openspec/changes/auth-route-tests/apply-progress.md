@@ -123,3 +123,83 @@ Measured: 707 authored changed lines (695 added + 12 deleted) against 628 design
 Projection for unit 4 (design estimate ~350: `matrix-table.ts` 130, `harness.ts` 110, three matrix files 110): at the observed 1.13 ratio the unit lands near 395; adding the ratchet table check (task 4.1), which extends a file that already stands at 98 lines against a 95-line design budget, adds about 35 more, so the central projection is about 430 (range 380-500). Projected total about 1140 (range 1090-1210), over the 1000-line budget by roughly 90-210 lines.
 
 Per the option A checkpoint rule, unit 4 is NOT started. The owner decides between a small `size:exception` and splitting unit 4 into a stacked PR (`stacked-to-main`). Tests were not trimmed to fit the budget.
+
+## Checkpoint decision (owner, 2026-11-18)
+
+After unit 3 the authored diff was 707 lines and the unit-4 projection gave about 1140 in total. The owner accepted a `size:exception` (delivery_strategy `exception-ok`) for one PR, with a hard cap of 1250 changed lines (`openspec/` and `.engram/` excluded): if unit 4 would pass 1250, stop and ask again.
+
+## Apply run 2026-11-18 (unit 4: harness, table, matrix, ratchet table check)
+
+Mode: Strict TDD (vitest, `npm test`). Every run used `DATABASE_URL=postgres://u:p@127.0.0.1:9/x`; no migration, no build, no database access, no product file edited (every mutation below was restored with `git restore` or from a backup before the commit).
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Mutation check |
+|------|-----------|-------|------------|-----|-------|-------------|----------------|
+| 4.1-4.2 | `src/app/route-coverage.test.ts` (+ `src/test/access/matrix-table.ts`, test support) | Structural (tree vs table) | 82/82 (unit 3 ratchet) | Suite failed to load: `Cannot find package '@/test/access/matrix-table'` | 85/85 after the table landed (84 plus the printed-figure test) | missing and stale lists; group sanity (page/route/actions keys); N derived from the table | Removed a row: `missing: ["(dashboard)/reports/page.tsx"]`; added a stale row: `stale: ["(dashboard)/gone/page.tsx"]`; added `src/app/zz-bogus/page.tsx`: fails RAC-1 (no sibling test) and the table check (`missing`) |
+| 4.3-4.4 | `src/app/access-matrix.pages.test.tsx` (+ `src/test/access/harness.ts`) | Behavioral (real `dal.ts` and `catalog-access.ts`, tripwires past the guard) | N/A (new) | **Matrix, pass at write**: 175 cases, no behavior changed | 175/175 | 25 pages x 7 identities | See the mutation table below |
+| 4.5 | `src/app/access-matrix.routes.test.ts` | Behavioral | N/A (new) | **Matrix, pass at write** | 49/49 | 7 routes x 7 identities; cron rows deny every identity | See the mutation table below |
+| 4.6 | `src/app/access-matrix.actions.test.ts` | Behavioral | N/A (new) | **Matrix, pass at write** | 211/211 (210 cases plus the exports check) | 30 actions in 12 files x 7 identities | See the mutation table below |
+
+Deviation from the task text (4.3): `vi.doMock` from the harness took effect first time, so the hoisted `vi.mock` fallback was not needed. `import.meta.glob` typechecked only with the fallback `/// <reference types="vite/client" />` at the top of each matrix file (not in the harness, because the glob call lives in the matrix files). Observation: under the non-TTY default reporter of `npm test` the passing-test `console.info` lines are not shown; they print with `--reporter=default` (or `verbose`), which is the command used to record the figure.
+
+### Matrix figure (printed by the run)
+
+Command: `npx vitest run src/app/access-matrix src/app/route-coverage.test.ts --reporter=default`
+
+```
+access matrix total:   62 entry points x 7 identities = 434 cases, 320 denied, 114 admitted
+access matrix pages:   25 entry points x 7 identities = 175 cases, 119 denied, 56 admitted
+access matrix routes:   7 entry points x 7 identities =  49 cases,  40 denied,  9 admitted
+access matrix actions: 30 entry points x 7 identities = 210 cases, 161 denied, 49 admitted
+```
+
+The figure equals the design inventory exactly (62 = 25 + 7 + 30; 434; 320 = 119 + 40 + 161; 114 = 56 + 9 + 49). Each matrix file asserts in `afterAll` that every unauthorized pair was denied (denied count equals the table's denials, and admitted equals the rest), so the 100% result is a failing assertion, not a print. "30 actions" counts exported functions; the table has 12 rows (one per file) with their `exports`, as D10 says. The tree matched the design inventory at base `c7c0c20`; no table correction was needed.
+
+### Mutation checks on the matrix (each temporary, then restored)
+
+| Mutation | Result |
+|----------|--------|
+| `enrollment/page.tsx`: `requireRole(...rolesSolicitantes)` replaced by `requireUser()` (drops the role) | 4 cases failed (administrador, coordinacion, secretaria, docente): `must be denied: expected { threw: 'PAST_GUARD:intl' } to deeply equal { redirect: '/denied' }`; tally failed in `afterAll` (denied 115 of 119) |
+| `requests/page.tsx`: a data read (`listOwnRequests(0)`) before the guard | 6 cases failed, including anonymous and flagged: `expected { threw: 'PAST_GUARD:db' } to deeply equal { redirect: '/login' }`; tally 113 of 119 denied |
+| `enrollment/actions.ts`: guard widened to `requireRole("estudiante", "docente")` | 2 cases failed (`enrollAction` and `dropAction` as docente: `expected { returned: true } to deeply equal { redirect: '/denied' }`); tally 159 of 161 |
+| `intake/upload-token/route.ts`: `canFileRequests` check removed | 4 cases failed (the four non-student roles got `400 bad_request` instead of `403 forbidden`); tally 36 of 40 |
+| `reports/justifications/route.ts`: only `canViewReports` removed | Not caught, by design: the scope check (`resolveReportScope` gives `none` for a non-coordinator) still redirects to `/denied`, so the route is still denied (second layer, equivalent mutant) |
+| Same route: `canViewReports` and the `scope.kind === "none"` redirect both removed | Failed: administrador and secretaria got `500 export_failed` instead of the `/denied` redirect |
+| Table: `users/page.tsx` allows docente | 1 case failed (`docente must be admitted`... the real page denies it) and the admitted tally was 56 instead of 57 |
+| Table: row removed / stale row / `zz-bogus/page.tsx` added | Ratchet lists `missing` / `stale` / the bogus page (see the first table); a stale row also fails the matrix with `no module loader for (dashboard)/gone/page.tsx` |
+| Actions file gains `export async function extraAction() {}` | Exports check failed: `[dropAction, enrollAction, extraAction]` vs `[dropAction, enrollAction]` |
+| Table: `api/cron/intake-sweep` allows administrador (a valid session on a cron route) | Failed: `must be admitted, got {"status":401,"error":"unauthorized"}`; the route still answers 401 to a session |
+
+### Gates (unit 4)
+
+| Gate | Result |
+|------|--------|
+| Focused `npm test -- src/app/access-matrix src/app/route-coverage.test.ts` | 4 files, 520 tests passed; the three matrix files ran in separate workers (pages about 5 s, actions about 2.5 s, routes about 2 s; whole run about 10 s, well inside the 120 s load timeout) |
+| `npm run typecheck` | clean |
+| `npx eslint` on the six touched files | clean (the five new files are LF; `route-coverage.test.ts` was already LF) |
+| `npx prettier --check` on the six touched files | clean (no CRLF noise: none of the six is a CRLF working copy) |
+| Full `npm test` (task 4.10) | `DATABASE_URL=postgres://u:p@127.0.0.1:9/x npm test`, run once: 350 files, 8343 tests, all passed, wall time 263.75 s; no flaky timeout in `src/lib/signals/evaluate.test.ts` this time |
+
+### Work Unit Evidence: unit 4
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npm test -- src/app/access-matrix src/app/route-coverage.test.ts`: exit 0, 4 files, 520 tests |
+| Runtime harness | N/A: tests only; the run prints the figure (reporter note above) |
+| Rollback boundary | Delete `matrix-table.ts`, `harness.ts`, the three matrix files; revert the ratchet table check |
+
+### Size (task 4.11)
+
+Command: `git diff --numstat c7c0c20 -- . ":(exclude)openspec" ":(exclude).engram"` (HEAD plus the unit-4 files).
+
+| File | Added | Deleted | Design estimate |
+|------|-------|---------|-----------------|
+| `src/test/access/matrix-table.ts` | 203 | 0 | 130 |
+| `src/test/access/harness.ts` | 185 | 0 | 110 |
+| `src/app/route-coverage.test.ts` (table check, +61 over unit 3) | 159 total | 0 | 95 total |
+| `src/app/access-matrix.pages.test.tsx` | 15 | 0 | 30 |
+| `src/app/access-matrix.routes.test.ts` | 22 | 0 | 35 |
+| `src/app/access-matrix.actions.test.ts` | 27 | 0 | 45 |
+
+Unit 4 adds 513 changed lines (452 in new files plus 61 in the ratchet) against the ~430 projected. Total for units 1-4: 1208 added + 12 deleted = **1220** changed lines, under the 1250 hard cap (30 lines of margin) and over the 1000 budget by 220, covered by the owner's `size:exception`. Tests were not trimmed to fit; the table, harness and matrix are the compact table-driven form (matrix files are 15-27 lines each). The harness and table grew past their estimates because of the 62-row oracle (one row per entry, prettier line wrapping) and the observation and tripwire code; the three matrix files came in far under.

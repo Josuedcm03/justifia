@@ -8,9 +8,17 @@ import {
   PUBLIC_ENTRY_POINTS,
   listAppEntries,
 } from "@/test/access/inventory";
+import {
+  ACTIONS,
+  IDENTITIES,
+  PAGES,
+  ROUTES,
+  denialsOf,
+} from "@/test/access/matrix-table";
 
 // Source-text ratchet (RAC-1..RAC-3, RNF-01 c): a new entry point cannot land
-// without a test, and a new dashboard page cannot land without a guard.
+// without a test, a new dashboard page cannot land without a guard, and a new
+// protected entry point cannot land outside the access matrix table (RAC-5).
 
 const ENTRIES = listAppEntries();
 
@@ -95,4 +103,57 @@ describe("RAC-3 exemptions are justified and current", () => {
       expect(reason.trim(), `${entry} has no reason`).not.toBe("");
     },
   );
+});
+
+// Entry points counted as the matrix runs them: an actions file contributes one
+// entry per exported function.
+const TABLE_KEYS = [PAGES, ROUTES, ACTIONS].flatMap((rows) =>
+  Object.keys(rows),
+);
+const N =
+  Object.keys(PAGES).length +
+  Object.keys(ROUTES).length +
+  Object.values(ACTIONS).reduce((sum, row) => sum + row.exports.length, 0);
+
+describe(`RAC-5 ${N} entry points x 7 identities`, () => {
+  const protectedEntries = ENTRIES.filter(
+    (entry) => !(entry in PUBLIC_ENTRY_POINTS),
+  );
+
+  it("the table lists every protected entry point and nothing else", () => {
+    expect({
+      missing: protectedEntries.filter((entry) => !TABLE_KEYS.includes(entry)),
+      stale: TABLE_KEYS.filter((key) => !protectedEntries.includes(key)),
+    }).toEqual({ missing: [], stale: [] });
+  });
+
+  it("keeps each row in its own group", () => {
+    expect(Object.keys(PAGES).filter((k) => !k.endsWith("/page.tsx"))).toEqual(
+      [],
+    );
+    expect(Object.keys(ROUTES).filter((k) => !k.endsWith("/route.ts"))).toEqual(
+      [],
+    );
+    expect(
+      Object.keys(ACTIONS).filter((k) => /\/(page\.tsx|route\.ts)$/.test(k)),
+    ).toEqual([]);
+    expect(new Set(TABLE_KEYS).size).toBe(TABLE_KEYS.length);
+  });
+
+  it("states the figure: entry points x identities, denials, admissions", () => {
+    const rows = [
+      ...Object.values(PAGES),
+      ...Object.values(ROUTES),
+      ...Object.values(ACTIONS).flatMap((row) => row.exports.map(() => row)),
+    ];
+    const cases = rows.length * IDENTITIES.length;
+    const denied = rows.reduce((sum, row) => sum + denialsOf(row), 0);
+
+    console.info(
+      `access matrix total: ${N} entry points x ${IDENTITIES.length} identities = ${cases} cases, ${denied} denied, ${cases - denied} admitted`,
+    );
+    expect(rows).toHaveLength(N);
+    expect(IDENTITIES).toHaveLength(7);
+    expect(denied).toBeGreaterThan(0);
+  });
 });
