@@ -34,3 +34,24 @@ Unit 1 test counts: `npm test -- src/lib/auth/safe-next.test.ts "src/app/(auth)/
 | Runtime harness | N/A: pure function and action tests with a mocked session |
 | Rollback boundary | Revert `src/lib/auth/safe-next*` and `src/app/(auth)/login/actions*` |
 
+### Unit 2: login page
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Mutation check |
+|------|-----------|-------|------------|-----|-------|-------------|----------------|
+| 2.1, 2.3 | `src/app/(auth)/login/page.test.tsx` | Integration (real `dal.ts`, mocked `getSession`, throwing `redirect`, form double) | 6/6 (existing login action tests) | 2 failed against the old page: `next=/\evil.com` gave `/\evil.com`; `next=["/a","/b"]` threw `TypeError: next.startsWith is not a function` | 18/18 (24/24 with the action tests) | `next`: root, query, `//`, absolute, missing, array, backslash | Removing the helper call (page passes `next` through) fails 4 cases (`//evil.com`, `https://evil.com`, repeated value, backslash) |
+| 2.2 | same file | Integration | same | **Characterization pins, pass at write**: 5 roles and 5 flagged roles redirect to `/`; anonymous gets the form with no redirect; `next` cases root, query, `//`, absolute, missing | pass at write | n/a | Replacing the signed-in `redirect("/")` with a no-op fails all 10 role and flagged cases (`sends <role> to /`, `sends a flagged <role> to / too`) |
+
+Mutation edits were temporary and reverted (restored from a backup copy, then `git diff --stat` confirmed only the GREEN change remained).
+
+Deviation from `tasks.md` 2.2: the task listed the array `next` case as a characterization pin that passes at write. It did not: the current page crashes on a repeated `next` parameter (`next.startsWith is not a function`), so that case is a real RED fixed by the helper, a second user-visible defect closed by the same change. The `searchParams` type was widened to `{ next?: string | string[] }` to match what Next.js passes.
+
+Unit 2 test counts: `npm test -- "src/app/(auth)/login"`: 2 files, 24 tests passed.
+
+### Work Unit Evidence: unit 2
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npm test -- "src/app/(auth)/login"`: exit 0, 2 files, 24 tests |
+| Runtime harness | N/A: Server Component called as a function with the real `dal.ts` |
+| Rollback boundary | Revert `src/app/(auth)/login/page*`; unit 1 stays harmless |
+

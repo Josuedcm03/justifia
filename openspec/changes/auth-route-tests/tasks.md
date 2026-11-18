@@ -60,15 +60,15 @@ Per-file estimate (design): `safe-next.ts` 22, `safe-next.test.ts` 60, `login/ac
 - [x] 1.4 GREEN `src/lib/auth/safe-next.ts`: `safeNextPath(value: unknown): string` per the design allowlist (non-empty string, starts with "/", not "//", no "<BS>", no control character "[<BS>u0000-<BS>u001F<BS>u007F]"); pure, no `server-only` (D1, D2). Done 2026-11-18: `safeNextPath` created (allowlist, pure, no `server-only`); 15/15 green.
 - [x] 1.5 GREEN `src/app/(auth)/login/actions.ts`: remove the local `safeNext`, call `safeNextPath(formData.get("next"))`; no other change. Done 2026-11-18: local `safeNext` removed, `loginAction` calls `safeNextPath(formData.get("next"))`.
 - [x] 1.6 Gates unit 1 (focused `npm test`, typecheck, eslint and prettier on the four touched files). Done 2026-11-18: focused 2 files, 21 tests green; typecheck clean; eslint clean except CR noise on the two CRLF files; prettier clean with `--end-of-line auto`.
-- [ ] 1.7 Commit unit 1: `fix(auth): reject backslash and non-path values in the login next target`.
+- [x] 1.7 Commit unit 1: `fix(auth): reject backslash and non-path values in the login next target`. Done 2026-11-18: commit `cab684b`.
 
 ## Phase 2: Login page (unit 2; AEA-1, AEA-3, RNF-01 c)
 
-- [ ] 2.1 RED `src/app/(auth)/login/page.test.tsx` (copy the `reports/page.test.tsx` pattern: real `dal.ts`, mocked `getSession`, `redirect` throwing `REDIRECT:<path>`, `await Page(props)`): the case "next=/<BS>evil.com" expects `el.props.next === "/"` and fails against the inline page rule. Run and confirm the failure before 2.3.
-- [ ] 2.2 Same file, pass at write (they pin existing behavior; say so in `apply-progress.md`): each of the five roles and flagged gives `REDIRECT:/`; anonymous gets the form with no redirect; `next` cases ("/", "/requests?x=1", "//evil.com", "https://evil.com", missing, array) give the expected `el.props.next`, no render (scenarios "Signed-in identity", "Anonymous visitor").
-- [ ] 2.3 GREEN `src/app/(auth)/login/page.tsx`: use `safeNextPath` for the `next` search param; remove the inline rule.
-- [ ] 2.4 Mutation check (temporary, then `git restore`): in `src/app/(auth)/login/page.tsx` drop the signed-in redirect; the role table must fail. Record the result.
-- [ ] 2.5 Gates unit 2 (as 1.6 on `login/page.tsx`, `login/page.test.tsx`).
+- [x] 2.1 RED `src/app/(auth)/login/page.test.tsx` (copy the `reports/page.test.tsx` pattern: real `dal.ts`, mocked `getSession`, `redirect` throwing `REDIRECT:<path>`, `await Page(props)`): the case "next=/<BS>evil.com" expects `el.props.next === "/"` and fails against the inline page rule. Run and confirm the failure before 2.3. Done 2026-11-18: RED observed: backslash case got `/\evil.com`; the repeated-value case also failed, because the page crashed with `next.startsWith is not a function` (see deviation in `apply-progress.md`).
+- [x] 2.2 Same file, pass at write (they pin existing behavior; say so in `apply-progress.md`): each of the five roles and flagged gives `REDIRECT:/`; anonymous gets the form with no redirect; `next` cases ("/", "/requests?x=1", "//evil.com", "https://evil.com", missing, array) give the expected `el.props.next`, no render (scenarios "Signed-in identity", "Anonymous visitor"). Done 2026-11-18: 16 cases pass at write (10 role/flagged redirects, 5 `next` cases, anonymous form); the array case was RED, not a pin.
+- [x] 2.3 GREEN `src/app/(auth)/login/page.tsx`: use `safeNextPath` for the `next` search param; remove the inline rule. Done 2026-11-18: page uses `safeNextPath(next)`, inline rule removed; `searchParams` type widened to `string | string[]`.
+- [x] 2.4 Mutation check (temporary, then `git restore`): in `src/app/(auth)/login/page.tsx` drop the signed-in redirect; the role table must fail. Record the result. Done 2026-11-18: mutation checks done, see `apply-progress.md` (10 role cases fail without the redirect; 4 `next` cases fail without the helper).
+- [x] 2.5 Gates unit 2 (as 1.6 on `login/page.tsx`, `login/page.test.tsx`). Done 2026-11-18: `npm test -- "src/app/(auth)/login"` 2 files, 24 tests; typecheck clean; eslint clean except CR noise on `page.tsx`; prettier clean with `--end-of-line auto`.
 - [ ] 2.6 Commit unit 2: `fix(auth): apply the shared next rule on the login page`.
 
 ## Phase 3: Ratchet RED, then characterization (unit 3; AEA-1, AEA-2, AEA-4, RAC-1..RAC-3)
