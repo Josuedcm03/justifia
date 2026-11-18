@@ -55,3 +55,71 @@ Unit 2 test counts: `npm test -- "src/app/(auth)/login"`: 2 files, 24 tests pass
 | Runtime harness | N/A: Server Component called as a function with the real `dal.ts` |
 | Rollback boundary | Revert `src/app/(auth)/login/page*`; unit 1 stays harmless |
 
+### Unit 3: ratchet RED, then characterization
+
+Note on counts: the design says the ratchet lists four missing tests; the login page test landed in unit 2, so it lists three.
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Mutation check |
+|------|-----------|-------|------------|-----|-------|-------------|----------------|
+| 3.1-3.2 | `src/app/route-coverage.test.ts` (+ `src/test/access/inventory.ts`, test support) | Structural (source text and tree) | N/A (new) | 3 failed, 79 passed, naming `(auth)/register/actions.ts`, `(auth)/register/page.tsx`, `(dashboard)/profile/page.tsx` | 82/82 after the three tests below landed (inventory sanity 1, RAC-1 50 entries, RAC-2 24 dashboard pages + 1 checker unit test, RAC-3 6 exemptions) | The guard-first checker is also exercised on synthetic sources (guarded, late guard, no async default export, no await) | See the ratchet mutation table below |
+| 3.3 | `src/app/(auth)/register/page.test.tsx` | Integration (real `dal.ts`, mocked `getSession`, form double) | N/A (new) | **Characterization pins, pass at write** (no new behavior) | 11/11 (5 roles + 5 flagged redirect to `/` without `listCarreras`; anonymous gets `props.carreras`, `getSession` runs before `listCarreras` by `invocationCallOrder`) | 5 roles, 5 flagged, anonymous | `listCarreras` before the session check: 11 failed (all 10 signed-in cases and the order case) |
+| 3.4 | `src/app/(dashboard)/profile/page.test.tsx` | Integration (real `dal.ts`, real catalogs through `serverIntl`, rendered) | N/A (new) | **Characterization pins, pass at write** | 7/7 (anonymous `REDIRECT:/login`, flagged `REDIRECT:/change-password`, both with no reads; 5 roles each render their own name, email and career and call `getUsuarioByLogin` once with `session.login`) | 5 roles with distinct logins | Reading `"someone.else"` instead of `session.login`: 5 failed (all role cases) |
+| 3.5 | `src/app/(auth)/register/actions.test.ts` | Unit (mocked collaborators, forbidden spies) | N/A (new) | **Characterization pins, pass at write**, titled "pins; roadmap 0.6 edits these" | 7/7 (`rol=administrador` still gives `estudiante` in `createUsuario` and `signSession`; no guard, `getSession` never called; CIF stored as posted; mismatch, invalid, unknown career, duplicate keys) | 4 error branches, each with no creation | Taking `rol` from the form (both occurrences): 1 failed (the `rol=administrador` case) |
+
+Ratchet mutation table (each temporary, reverted before the next):
+
+| Mutation | Result |
+|----------|--------|
+| Rename `(dashboard)/reports/page.test.tsx` | 1 failed: `(dashboard)/reports/page.tsx has a sibling test` ("no test next to (dashboard)/reports/page.tsx") |
+| Blank the reason of `privacy/page.tsx` | 1 failed: `privacy/page.tsx exists and says why it is public` ("privacy/page.tsx has no reason") |
+| Point an exemption at a path that does not exist | 1 failed: `privacy/gone/page.tsx ...` ("privacy/gone/page.tsx matches no file") |
+| Await `getTranslations` before `requireUser` in `profile/page.tsx` | 1 failed: `(dashboard)/profile/page.tsx awaits a guard before anything else` (first await was `getTranslations`) |
+| Add `api/zz-new/route.ts` with no test | 1 failed: `api/zz-new/route.ts has a sibling test` |
+
+Product-file mutations (`register/page.tsx`, `profile/page.tsx`, `register/actions.ts`) were restored with `git restore`; the renamed test, the inventory edits and the temporary route were reverted by hand, and `git status` showed only the intended new files before the commit.
+
+Deviations: (1) the sibling-test rule applies to every entry including the public ones, because the RED run must name `register/*`; the exemptions drive the guard check and, from unit 4, the table check. (2) `GUARDS` includes the named helper `requireCatalogAccess` (it calls `requireRole` first), as the task allows "via a named helper".
+
+Unit 3 test counts: `npm test -- src/app/route-coverage.test.ts "src/app/(auth)/register" "src/app/(dashboard)/profile"`: 4 files, 107 tests passed.
+
+### Work Unit Evidence: unit 3
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npm test -- src/app/route-coverage.test.ts "src/app/(auth)/register" "src/app/(dashboard)/profile"`: exit 0, 4 files, 107 tests |
+| Runtime harness | N/A: tests only |
+| Rollback boundary | Delete the four new tests and `src/test/access/inventory.ts` |
+
+### Gates summary (units 1-3)
+
+| Gate | Unit 1 | Unit 2 | Unit 3 |
+|------|--------|--------|--------|
+| Focused `npm test` | 2 files, 21 tests | 2 files, 24 tests | 4 files, 107 tests |
+| `npm run typecheck` | clean | clean | clean |
+| `npx eslint <touched>` | only `Delete ␍` noise on the two CRLF files | only `Delete ␍` noise on `page.tsx` | clean (new files are LF) |
+| `npx prettier --check` | clean with `--end-of-line auto` | clean with `--end-of-line auto` | clean |
+
+### Checkpoint after unit 3 (task 3.8)
+
+Command: `git diff --numstat c7c0c20...HEAD -- . ":(exclude)openspec" ":(exclude).engram"`. The planning commit `5e68ea3` (made before this run) also carries `.engram/manifest.json` (+8) and `.engram/chunks/1e75ff2e.jsonl.gz`; they are not authored work and are excluded here. None of the three unit commits contains `.engram`.
+
+| File | Added | Deleted | Design estimate |
+|------|-------|---------|-----------------|
+| `src/lib/auth/safe-next.ts` | 17 | 0 | 22 |
+| `src/lib/auth/safe-next.test.ts` | 48 | 0 | 60 |
+| `src/app/(auth)/login/actions.ts` | 2 | 7 | 10 |
+| `src/app/(auth)/login/actions.test.ts` | 11 | 0 | 20 |
+| `src/app/(auth)/login/page.tsx` | 3 | 5 | 6 |
+| `src/app/(auth)/login/page.test.tsx` | 96 | 0 | 75 |
+| `src/app/(auth)/register/page.test.tsx` | 90 | 0 | 65 |
+| `src/app/(auth)/register/actions.test.ts` | 141 | 0 | 115 |
+| `src/app/(dashboard)/profile/page.test.tsx` | 130 | 0 | 95 |
+| `src/test/access/inventory.ts` | 59 | 0 | 65 |
+| `src/app/route-coverage.test.ts` | 98 | 0 | 95 |
+| **Total units 1-3** | **695** | **12** | **628** |
+
+Measured: 707 authored changed lines (695 added + 12 deleted) against 628 designed, a ratio of 1.13 (the register, profile and login page tests ran 1.2-1.4x their estimates; the helper, its test and the inventory ran under).
+
+Projection for unit 4 (design estimate ~350: `matrix-table.ts` 130, `harness.ts` 110, three matrix files 110): at the observed 1.13 ratio the unit lands near 395; adding the ratchet table check (task 4.1), which extends a file that already stands at 98 lines against a 95-line design budget, adds about 35 more, so the central projection is about 430 (range 380-500). Projected total about 1140 (range 1090-1210), over the 1000-line budget by roughly 90-210 lines.
+
+Per the option A checkpoint rule, unit 4 is NOT started. The owner decides between a small `size:exception` and splitting unit 4 into a stacked PR (`stacked-to-main`). Tests were not trimmed to fit the budget.
