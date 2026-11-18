@@ -89,6 +89,17 @@ describe("loginAction session payload (FPC)", () => {
     );
   });
 
+  it("redirects to / when the next target starts with a backslash (AEA-3)", async () => {
+    mocks.getUsuarioByLogin.mockResolvedValue(account(false));
+    const f = form();
+    f.set("next", "/\\evil.com");
+
+    await expect(loginAction({ error: null }, f)).rejects.toThrow(
+      /^REDIRECT:\/$/,
+    );
+    expect(mocks.redirect).toHaveBeenCalledWith("/");
+  });
+
   it("calls no guard, so the login screen is reachable while signed out", async () => {
     mocks.getUsuarioByLogin.mockResolvedValue(account(true));
 
