@@ -146,7 +146,9 @@ following reads of personal data: supporting-document reads (`documento.descarga
 introduced by `justification-intake` D13), staff opens of the review queue
 and of a request detail (`solicitud.consultada`, `solicitud.cola.consultada`),
 and the coordinator's opens of the escalation list and of an escalated request
-detail (`escalamiento.cola.consultada`, `solicitud.consultada`). Other reads
+detail (`escalamiento.cola.consultada`, `solicitud.consultada`), and the
+coordination report views and downloads (`solicitud.ranking.consultado`,
+`solicitud.reporte.consultado`, `solicitud.reporte.descargado`). Other reads
 of personal data (viewing, exporting, previewing) MUST NOT be required to
 produce audit records, a student's reads of their own requests MUST NOT be
 audited, and the dry-run preview MUST NOT write any.
@@ -168,6 +170,12 @@ audited, and the dry-run preview MUST NOT write any.
 - GIVEN a coordinator opening the detail of an escalated request of their career
 - WHEN the audit log is read
 - THEN a `solicitud.consultada` row exists with the coordinator as actor
+
+#### Scenario: Coordination report read is in scope
+
+- GIVEN a coordinator opening the dashboard
+- WHEN the audit log is read
+- THEN a `solicitud.ranking.consultado` row exists
 
 #### Scenario: Student own read is out of scope
 
@@ -1044,6 +1052,103 @@ record; the actor MUST never come from request input.
 - GIVEN a `pendiente` notification retried by the scheduled job
 - WHEN its audit row is read
 - THEN the actor is the secretary who escalated or recorded the report
+
+### Requirement: Closed set of report events (RF-17 e, RF-13, RNF-06 a) [S1, S2, S3]
+
+The audit actions MUST gain exactly these three: `solicitud.ranking.consultado`
+(S1), `solicitud.reporte.consultado` (S2) and `solicitud.reporte.descargado`
+(S3). Each event MUST use the entity type `Carrera` (already in the set, added
+by the escalation events) with the coordinator's `carreraId` as entity id.
+Events MUST be built only through the central builders. Existing events and
+payloads MUST be unchanged, and no schema change to the audit log is required.
+
+#### Scenario: Action to entity type (table-driven)
+
+| Action | Entity type | Entity id |
+|---|---|---|
+| `solicitud.ranking.consultado` | `Carrera` | carrera id |
+| `solicitud.reporte.consultado` | `Carrera` | carrera id |
+| `solicitud.reporte.descargado` | `Carrera` | carrera id |
+
+- GIVEN an event of the kind in the row
+- WHEN its audit row is read
+- THEN action, entity type and entity id are as shown and the actor is the session user
+
+#### Scenario: Existing events unchanged
+
+- GIVEN a review decision or a document download
+- WHEN its audit rows are read
+- THEN they are identical in shape to those written before this change
+
+### Requirement: One audit row per report view and download (RNF-06 a) [S1, S2, S3]
+
+Each successful render of the dashboard and of the detail, and each successful
+download, MUST write exactly one row of its action. A denied, `none`-scope,
+unknown or failed operation MUST write no row. A single render MUST write one
+row regardless of prefetch, re-render or navigation caching, and a test MUST
+cover it. The row MUST be written after the data load and, for a download,
+before any bytes are sent. If the insert fails the page or route MUST NOT return
+the data. The actor MUST be the session user, never request input. Repeated
+downloads each write their own row.
+
+#### Scenario: Successful operations (table-driven)
+
+| Operation | Rows added |
+|---|---|
+| open dashboard | 1 `solicitud.ranking.consultado` |
+| open detail | 1 `solicitud.reporte.consultado` |
+| download workbook | 1 `solicitud.reporte.descargado` |
+| download twice | 2 `solicitud.reporte.descargado` |
+
+- GIVEN an in-scope coordinator performing the operation
+- WHEN it succeeds
+- THEN exactly the rows shown exist with the session user as actor
+
+#### Scenario: Operations that leave no row (table-driven)
+
+| Case |
+|---|
+| unauthorized role or anonymous caller |
+| coordinator without a career |
+| the data read fails |
+| the audit insert fails (and no data or bytes are returned) |
+
+- GIVEN the case from the row
+- WHEN the operation runs
+- THEN no audit row exists for it
+
+#### Scenario: Prefetch and re-render do not duplicate
+
+- GIVEN a link to a report page rendered in the sidebar and a re-render of the page
+- WHEN the coordinator has not opened it
+- THEN no report row exists; after one open there is exactly one
+
+### Requirement: Report payloads are codes and counts only (RNF-06, RN-02) [S1, S2, S3]
+
+Report payloads MUST be structured and MAY carry: the period code, a teacher
+id, a cause code, a flag that a student term was used, the total or row count,
+the number of entries shown per ranking, and the page. They MUST NOT carry the
+student search term, any student name, CIF, email, cause of a named student,
+absence dates, request ids, teacher or subject names, the list of entries, nor
+any credential.
+
+#### Scenario: Dashboard payload
+
+- GIVEN a dashboard open for `2026-S2` showing rankings of 10, 4 and 7 entries
+- WHEN the payload is read
+- THEN it holds the period code and the counts and no name, CIF or request id
+
+#### Scenario: Student term never stored
+
+- GIVEN a detail open filtered by the student term "Maria Lopez"
+- WHEN the payload is serialized and searched
+- THEN the term does not appear and a "student term used" flag is true
+
+#### Scenario: Download payload
+
+- GIVEN a download with a period and cause filter returning 12 requests
+- WHEN the payload is read
+- THEN it holds the period code, the cause code and the count 12, and no student data
 
 ## Assumptions and open questions
 

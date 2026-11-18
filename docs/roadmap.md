@@ -11,9 +11,9 @@ remiten a ese archivo.
 | 2   | `secretary-review`         | RF-06 a RF-08; RN-08, RN-15 a RN-17                                                  | Armando     | Sí                   | archivado |
 | 3   | `teacher-remission`        | RF-09; RN-18, RN-19; RNF-07                                                          | Por asignar | Sí                   | archivado |
 | 4   | `document-extraction`      | RF-11; RNF-03                                                                        | Por asignar | Si alcanza el tiempo | archivado |
-| 5   | `validation-signals`       | RF-05 (a) a (d); RN-07, RN-09, RN-10, RN-14, RN-15, RN-26                            | Por asignar | Si alcanza el tiempo | archivado |
+| 5   | `validation-signals`       | RF-05 (a) a (d), RF-13 (c); RN-07, RN-09, RN-10, RN-14, RN-15, RN-26                | Por asignar | Si alcanza el tiempo | archivado |
 | 6   | `escalation`               | RF-10, RF-15; RN-20                                                                  | Por asignar | No                   | archivado |
-| 7   | `coordination-reports`     | RF-18; RF-13 (a), (b), (d)                                                           | Por asignar | No                   | en curso  |
+| 7   | `coordination-reports`     | RF-18; RF-13 (a), (b), (d)                                                           | Por asignar | No                   | archivado |
 | 8   | `normative-parameters`     | RNF-14                                                                               | Por asignar | No                   | pendiente |
 | 9   | `request-consent`          | RF-01 (d), RF-03 (f); RN-25                                                          | Por asignar | Sí                   | archivado |
 | 10  | `secretary-templates`      | Plantillas propias de la secretaría (RF-07)                                          | Por asignar | No                   | pendiente |
@@ -153,3 +153,13 @@ remiten a ese archivo.
   calendario académico de la UAM el 2026-10-12. Debe extenderse cada año antes
   de que empiece: `src/lib/intake/calendar.test.ts` falla cuando el año en
   curso no está cubierto.
+- `coordination-reports` (archivado el 2026-11-18) da a la coordinación de
+  carrera el tablero `/reports` (rankings de estudiantes, docentes y
+  asignaturas por período) y el detalle `/reports/requests`, con filtros por
+  período, docente, estudiante y causa y descarga en Excel cuyo total coincide
+  con el de la pantalla. Cubre RF-18 (RF-17 en su planificación, antes de la renumeración del 2026-11-09) y RF-13 (a), (b) y (d). RF-13 (c), el
+  número de señales de reincidencia de cada estudiante, pasa a
+  `validation-signals` (#5, RN-14): el ranking de estudiantes cuenta
+  solicitudes y no es la reincidencia de RN-14. La descarga real (tarea 4.12)
+  se comprobó el 2026-11-18 sobre `main` b82b359 en una rama de Neon
+  desechable. Pendiente: sincronizar RF-18 con la matriz de la tesis.
