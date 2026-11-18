@@ -22,6 +22,7 @@ remiten a ese archivo.
 | 13  | `flow-experience`          | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md`        | Por asignar | No                   | pendiente |
 | 14  | `student-enrollment`       | RF-17 (antes RF-16), RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12                      | Josué       | No                   | archivado |
 | 15  | `rest-signals-cause-scope` | RF-05 (a), (b); RN-09, RN-10, RN-15                                                  | Armando     | No                   | archivado |
+| 16  | `auth-route-tests`         | RNF-01 (c)                                                                           | Armando     | Si alcanza el tiempo | archivado |
 
 **Notas:**
 
@@ -163,3 +164,15 @@ remiten a ese archivo.
   solicitudes y no es la reincidencia de RN-14. La descarga real (tarea 4.12)
   se comprobó el 2026-11-18 sobre `main` b82b359 en una rama de Neon
   desechable. Pendiente: sincronizar RF-18 con la matriz de la tesis.
+- `auth-route-tests` (archivado el 2026-11-18) entrega pruebas de acceso para
+  RNF-01 (c): las de `/login`, `/register`, `/profile` y la acción de registro;
+  un control que falla cuando un punto de entrada o una acción de servidor
+  bajo `src/app` no tiene prueba, o cuando una página del panel no llama a un
+  guard como primera instrucción; y una matriz de acceso por rol: 62 puntos de
+  entrada (25 páginas, 7 rutas y 30 acciones de servidor) x 7 identidades = 434
+  casos, 320 denegados, cada uno ejecutado a través del guard real (`dal.ts`)
+  y sin leer ningún dato antes de la denegación. También corrige una
+  redirección abierta en el destino `next` del inicio de sesión
+  (`safeNextPath`). Pendientes: cerrar el `/register` abierto (punto 0.6 del
+  plan de la tesis), una prueba de `middleware.ts` y la ventana de la cuenta
+  desactivada dentro de la sesión de 8 horas.

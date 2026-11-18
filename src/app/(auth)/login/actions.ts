@@ -5,17 +5,12 @@ import { redirect } from "next/navigation";
 
 import { clearSessionCookie, setSessionCookie } from "@/lib/auth/cookies";
 import { verifyPassword } from "@/lib/auth/password";
+import { safeNextPath } from "@/lib/auth/safe-next";
 import { signSession } from "@/lib/auth/session";
 import { getUsuarioByLogin } from "@/lib/data/users";
 import { loginSchema } from "@/lib/validations/auth";
 
 export type LoginState = { error: string | null };
-
-function safeNext(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string") return "/";
-  if (!value.startsWith("/") || value.startsWith("//")) return "/";
-  return value;
-}
 
 export async function loginAction(
   _prev: LoginState,
@@ -50,7 +45,7 @@ export async function loginAction(
   });
   await setSessionCookie(token);
 
-  redirect(safeNext(formData.get("next")));
+  redirect(safeNextPath(formData.get("next")));
 }
 
 export async function logoutAction(): Promise<void> {
