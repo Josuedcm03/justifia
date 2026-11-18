@@ -390,3 +390,20 @@ Every commit typechecks and passes its own focused tests. Every prefix is deploy
 ### Remaining
 
 4.12 `[ASK OWNER]` real download; then Phase 5 (archive-time), after verify.
+
+## Task 4.12: real download (2026-11-18)
+
+Run on `main` b82b359 (`next build` + `next start`, port 3001) against a disposable Neon branch `rf13-medicion` (child of `dev-arnia`, deleted afterwards). Before the run, the 11 accounts with real team names or addresses were renamed to fictitious ones on that branch only. Account: the coordinator of Ingeniería de Sistemas. Owner approval was given through Armando.
+
+| Case | Filters | Screen total | Data rows | Summary total | Download audit rows |
+| --- | --- | --- | --- | --- | --- |
+| base | all periods | 101 | 101 | 101 | 1 |
+| period | 2026-S2 | 66 | 66 | 66 | 1 |
+| teacher | all periods, one teacher | 21 | 21 | 21 | 1 |
+| student | all periods, `q` = one CIF | 11 | 11 | 11 | 1 |
+| cause | all periods, medical | 50 | 50 | 50 | 1 |
+| combined | 2026-S2, medical | 32 | 32 | 32 | 1 |
+
+Checklist above: (1) the control is in the page header; (2) `ReporteJustificaciones.xlsx` downloads without navigating; (3) the header row is bold and frozen (`ySplit` 1), seven columns, one row per request across pages (101 rows over several screen pages); (4) dates read `YYYY-MM-DD` and the classes are one cell, one line each; (5) the summary sheet lists period, teacher, student, cause and the numeric total; (7) one download row per click, counted before and after each click. In each filtered case every row matched the filter (teacher name in the classes cell, CIF, cause), and every row of the 2026-S2 case has at least one class of that period.
+
+Not checked: (6) no student name starts with `=`, `+`, `-` or `@` in the data; (7) the audit row's entity and fields; (8) the English download. The files were read back with ExcelJS, not opened in Excel or LibreOffice.

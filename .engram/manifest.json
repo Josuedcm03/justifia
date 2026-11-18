@@ -1024,6 +1024,14 @@
       "sessions": 0,
       "memories": 3,
       "prompts": 0
+    },
+    {
+      "id": "b9860376",
+      "created_by": "Arnia",
+      "created_at": "2026-11-18T06:46:18Z",
+      "sessions": 1,
+      "memories": 16,
+      "prompts": 0
     }
   ]
 }
