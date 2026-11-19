@@ -23,6 +23,7 @@ remiten a ese archivo.
 | 14  | `student-enrollment`       | RF-17 (antes RF-16), RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12                      | Josué       | No                   | archivado |
 | 15  | `rest-signals-cause-scope` | RF-05 (a), (b); RN-09, RN-10, RN-15                                                  | Armando     | No                   | archivado |
 | 16  | `auth-route-tests`         | RNF-01 (c)                                                                           | Armando     | Si alcanza el tiempo | archivado |
+| 17  | `data-retention`           | RNF-04, RN-27                                                                        | Armando     | No                   | archivado |
 
 **Notas:**
 
@@ -36,8 +37,10 @@ remiten a ese archivo.
   parcial, según `openspec/changes/archive/2026-10-25-student-enrollment/tasks.md`.
 - RF-12 y RNF-13 (mantenimiento e importación de catálogos) los cubren los
   changes en curso de Josué: `catalog-excel-import` y `catalog-management`.
-- RNF-04, RNF-08, RNF-09 y RNF-10 se verifican en el piloto o en la operación,
-  no en un change.
+- RNF-08, RNF-09 y RNF-10 se verifican en el piloto o en la operación, no en un
+  change. RNF-04 queda cubierto por `data-retention` (fila 17) y se verificó con la
+  corrida de integración del 2026-11-19 sobre una rama desechable de Neon (9 de 9
+  pruebas, commit 653d761).
 - Cada change se planifica con el flujo SDD del proyecto, uno por vez, y se
   archiva antes de abrir el siguiente.
 - El despliegue de `justification-intake` en Vercel está en producción: el
@@ -176,3 +179,18 @@ remiten a ese archivo.
   (`safeNextPath`). Pendientes: cerrar el `/register` abierto (punto 0.6 del
   plan de la tesis), una prueba de `middleware.ts` y la ventana de la cuenta
   desactivada dentro de la sesión de 8 horas.
+- `data-retention` (archivado el 2026-11-19) cancela a cada estudiante cinco años
+  después de su última actividad, salvo que siga inscrito (RNF-04, RN-27). Una tarea
+  diaria, a las 11:00 UTC, cancela por anonimización en el lugar: la cuenta conserva
+  su fila, pero no puede iniciar sesión; sus datos personales se reemplazan por
+  marcadores y se eliminan los documentos de respaldo y sus archivos. Se conservan
+  el estado de las solicitudes, las fechas, las asignaturas, la versión del
+  consentimiento y la auditoría. Cada cancelación deja una fila de auditoría
+  `usuario.cancelado`, registrada por la cuenta del sistema.
+  La cuenta del sistema (`sistema`, rol administrador) está inactiva y su clave no
+  coincide con ninguna contraseña: solo sirve como actor de esas filas. Las
+  particiones de la auditoría cubren de 2031 a 2035; la partición de 2036 es una
+  tarea de mantenimiento que debe crearse antes del 1 de enero de 2036.
+  Supuesto: se considera que la anonimización equivale a la «cancelación» que
+  exige la Ley 787 (arts. 19 f y 24). Es un supuesto del change, no una revisión
+  jurídica; la revisión de la UAM sigue pendiente.
