@@ -233,3 +233,5 @@ Commit: "test(data): pin the active-enrollment exclusion of the due rule".
 
 - 6.2 (2026-11-19 12:44 Managua, read-only): production has no user with login "sistema"; 14 migrations applied (0000-0013); no retention columns or 2031+ partitions yet.
 - 6.3 (2026-11-19 12:49 Managua): disposable branch "retention-it" (child of "dev-arnia") created and 0014 applied there only. Read-only verification: sentinel inactive with an unusable 18-character hash; both marker columns nullable; partitions 2031-2035 attached with the same triggers as 2030 and no public TRUNCATE; "CK_Usuario_Cancelado" present. The branch stays for the RNF-04 integration run (Phase 12).
+
+- 6.6 (2026-11-19 12:54 Managua, owner yes): 0014 applied to production; the read-only verification matches the disposable branch (15 migrations, sentinel inactive, marker columns, partitions 2031-2035, "CK_Usuario_Cancelado").
