@@ -178,3 +178,35 @@ describe("env extraction settings (document-extraction DE-12)", () => {
     expect(env.EXTRACTION_API_KEY).toBe("k".repeat(16));
   });
 });
+
+describe("env REGISTRATION_OPEN (student self-registration switch)", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("opens registration only for the exact value true", async () => {
+    const env = await loadEnv({ REGISTRATION_OPEN: "true" });
+    expect(env.REGISTRATION_OPEN).toBe(true);
+  });
+
+  it("keeps registration closed when the variable is unset or empty", async () => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("REGISTRATION_OPEN", undefined);
+    const unset = await loadEnv({});
+    expect(unset.REGISTRATION_OPEN).toBe(false);
+
+    const empty = await loadEnv({ REGISTRATION_OPEN: "" });
+    expect(empty.REGISTRATION_OPEN).toBe(false);
+  });
+
+  it.each(["TRUE", "True", "1", "yes", "on", " true", "true ", "false"])(
+    "keeps registration closed for %j",
+    async (value) => {
+      const env = await loadEnv({ REGISTRATION_OPEN: value });
+      expect(env.REGISTRATION_OPEN).toBe(false);
+    },
+  );
+});

@@ -634,12 +634,18 @@
         "invalid": "Check the entered data",
         "invalidCarrera": "The selected career is not valid",
         "duplicate": "The username or CIF already exists",
-        "passwordMismatch": "Passwords do not match"
+        "passwordMismatch": "Passwords do not match",
+        "closed": "Student registration is not open at this time."
       },
       "sections": {
         "identity": "Your details",
         "access": "Access",
         "contact": "Contact"
+      },
+      "closed": {
+        "title": "Registration unavailable",
+        "body": "Student registration is not open at this time. If you need an account, please contact the academic secretariat.",
+        "backToLogin": "Back to sign in"
       }
     },
     "errors": {

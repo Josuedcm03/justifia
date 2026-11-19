@@ -13,7 +13,14 @@ import { Label } from "@/components/ui/label";
 
 const initialState: LoginState = { error: null };
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({
+  next,
+  registrationOpen,
+}: {
+  next: string;
+  /** Whether student self-registration is open (`REGISTRATION_OPEN`). */
+  registrationOpen: boolean;
+}) {
   const t = useTranslations("auth.login");
   const tCommon = useTranslations("common");
   const [state, formAction, isPending] = useActionState(
@@ -76,18 +83,20 @@ export function LoginForm({ next }: { next: string }) {
         </Button>
       </form>
 
-      <div className="border-border flex flex-col gap-4 border-t pt-6 text-center">
-        <p className="text-muted-foreground text-sm">{t("isStudent")}</p>
-        <Link
-          href="/register"
-          className={buttonVariants({
-            variant: "outline",
-            className: "w-full",
-          })}
-        >
-          {t("registerLink")}
-        </Link>
-      </div>
+      {registrationOpen ? (
+        <div className="border-border flex flex-col gap-4 border-t pt-6 text-center">
+          <p className="text-muted-foreground text-sm">{t("isStudent")}</p>
+          <Link
+            href="/register"
+            className={buttonVariants({
+              variant: "outline",
+              className: "w-full",
+            })}
+          >
+            {t("registerLink")}
+          </Link>
+        </div>
+      ) : null}
     </AuthCard>
   );
 }

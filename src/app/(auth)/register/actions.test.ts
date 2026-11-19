@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
   requireRole: vi.fn(),
   requireUserAllowingPasswordChange: vi.fn(),
+  // The parsed env; each test sets the REGISTRATION_OPEN switch.
+  env: { REGISTRATION_OPEN: true },
 }));
 
 vi.mock("next-intl/server", () => ({
@@ -28,6 +30,7 @@ vi.mock("@/lib/auth/password", () => ({ hashPassword: mocks.hashPassword }));
 vi.mock("@/lib/auth/session", () => ({ signSession: mocks.signSession }));
 vi.mock("@/lib/data/carreras", () => ({ listCarreras: mocks.listCarreras }));
 vi.mock("@/lib/data/users", () => ({ createUsuario: mocks.createUsuario }));
+vi.mock("@/env", () => ({ env: mocks.env }));
 vi.mock("@/lib/auth/dal", () => ({
   requireUser: mocks.requireUser,
   requireRole: mocks.requireRole,
@@ -59,6 +62,7 @@ function submit(overrides: Record<string, string> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.env.REGISTRATION_OPEN = true;
   mocks.listCarreras.mockResolvedValue([
     { id: 1, nombre: "Ingenieria" },
     { id: 2, nombre: "Derecho" },
@@ -66,9 +70,38 @@ beforeEach(() => {
   mocks.createUsuario.mockResolvedValue({ id: 41 });
 });
 
-// Characterization pins (AEA-4): they record what `registerAction` does today
-// and pass at write. Roadmap 0.6 closes /register and edits these on purpose.
-describe("registerAction pins; roadmap 0.6 edits these (AEA-4)", () => {
+describe("registerAction with registration closed (REGISTRATION_OPEN)", () => {
+  beforeEach(() => {
+    mocks.env.REGISTRATION_OPEN = false;
+  });
+
+  it("refuses a complete, valid form and creates nothing", async () => {
+    await expect(submit()).resolves.toEqual({ error: "errors.closed" });
+
+    expect(mocks.createUsuario).not.toHaveBeenCalled();
+    expect(mocks.hashPassword).not.toHaveBeenCalled();
+    expect(mocks.signSession).not.toHaveBeenCalled();
+    expect(mocks.setSessionCookie).not.toHaveBeenCalled();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
+  it("refuses before reading the form or the database", async () => {
+    const posted = form();
+    const read = vi.spyOn(posted, "get");
+
+    await expect(registerAction({ error: null }, posted)).resolves.toEqual({
+      error: "errors.closed",
+    });
+
+    expect(read).not.toHaveBeenCalled();
+    expect(mocks.listCarreras).not.toHaveBeenCalled();
+    expect(mocks.createUsuario).not.toHaveBeenCalled();
+  });
+});
+
+// Characterization pins (AEA-4): what `registerAction` does while the switch
+// is open, unchanged by REGISTRATION_OPEN (the default setup opens it).
+describe("registerAction pins with registration open (AEA-4)", () => {
   it("creates an estudiante even when the form posts rol=administrador", async () => {
     await expect(submit({ rol: "administrador" })).rejects.toThrow(
       "REDIRECT:/",

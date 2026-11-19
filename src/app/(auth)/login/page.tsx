@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/app/(auth)/login/login-form";
+import { env } from "@/env";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { safeNextPath } from "@/lib/auth/safe-next";
 
@@ -13,5 +14,10 @@ export default async function LoginPage({
   if (user) redirect("/");
 
   const { next } = await searchParams;
-  return <LoginForm next={safeNextPath(next)} />;
+  return (
+    <LoginForm
+      next={safeNextPath(next)}
+      registrationOpen={env.REGISTRATION_OPEN}
+    />
+  );
 }
