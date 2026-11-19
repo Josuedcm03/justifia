@@ -284,3 +284,33 @@ Work Unit Evidence:
 | Rollback boundary | Revert `vercel.json` and `src/lib/intake/vercel-config.test.ts` |
 
 Commit: "feat(cron): schedule retention daily at 11:00 UTC".
+
+## Unit 8: column inventory, cut cases, login pins and the RNF-04 integration test (DR-4, DR-5, DR-12; verify PR 1 W1 and W2)
+
+Mode: Strict TDD. Layer: unit (transaction double, static schema reads) plus one owner-run integration suite. Safety net: `src/lib/data/retention.test.ts` (15 tests) and `src/app/(auth)/login/actions.test.ts` (6 tests) were green before any edit.
+
+All the unit tests of this unit pin behavior that PR 1 already built, so they pass at write and have no RED step. Each carries revert-only mutation checks (a temporary edit, then "git restore <file>", "git status" clean of it before the commit).
+
+| Task | Pass-at-write evidence | Mutation checks (each killed) |
+|------|------------------------|-------------------------------|
+| 9.1 | `src/lib/data/retention-inventory.test.ts`, "column inventory of the tables retention touches (DR-4, DR-5)": 7 cases, one per table (Usuario, Solicitud, SolicitudDecision, Remision, ReporteInasistencia, Escalamiento, DocumentoRespaldo); every column of "getTableColumns" is classified exactly once as rewritten, kept or deleted | IM1: a fake personal column "telefonoContacto" added to Solicitud in `src/db/schema.ts` made "solicitud: every column is classified exactly once" fail (1 failed, 14 passed); restored |
+| 9.2 cut cases | same file: "binds the student role and the cutoff five years before now" (params "estudiante", cutoff, cutoff), "uses the same rule to count, to select and to guard the write", "reads in ascending id order and resumes after the last id of the batch", "carries the closed code and the two counts, and nothing else" | IM2 cutoff of the account-age clause moved one day: 1 failed. IM3 role "docente": 1 failed. IM8 "lastId = id" removed (keyset advance): 1 failed. IM9 guarded write without the due rule: 1 failed. IM10 keyset read without the id bound: 1 failed. IM11 "orderBy(asc(usuario.id))" removed: 1 failed. IM12 extra key in the audit payload (`src/lib/audit/events.ts`): 1 failed |
+| 9.2 W2 | same file, 4 clause cases ("requires the student role only", "accounts not yet cancelled", "an account old enough", "no request presented or resubmitted after the cutoff", the last pinning "greatest(PresentadaEn, ReenviadaEn) > cutoff" on the student's own requests) | IM4 "CanceladoEn IS NULL" dropped: 1 failed (its own case). IM5 the whole "greatest" clause dropped: 2 failed. IM6 "ReenviadaEn" dropped from the "greatest": 1 failed. IM7 role subselect dropped: 4 failed. IM13 "CreadoEn <= cutoff" dropped: 3 failed |
+| 9.2 W1 | `src/app/(auth)/login/actions.test.ts`, "loginAction on retention accounts (DR-3)": 4 cases. The sentinel account and a cancelled student (inactive rows with their hashes) get the invalid error with a verifier that accepts everything, no session, no cookie; and with the real bcrypt, neither hash is well formed and no password (including the hash text itself) verifies | LM1 "!user.activo" dropped from `src/app/(auth)/login/actions.ts`: 2 failed (the two turn-away cases). LM2 SYSTEM_HASH replaced by a well-formed bcrypt string in `src/lib/retention/policy.ts`: 1 failed. LM3 the same for CANCELLED_HASH: 1 failed |
+| 9.3 | "npm test -- src/lib/data/integration/guard.test.ts" green (21 tests with the integration folder) | n/a |
+| 9.4 | `src/lib/data/integration/retention.integration.test.ts` written and typechecked, NOT run against any database. Skip mode ("vitest run --config vitest.integration.config.mts" with INTEGRATION_DATABASE_URL unset): 1 file skipped, 9 tests skipped. "npm test" does not collect it (the default config excludes "src/**/*.integration.test.ts") | n/a: owner-run, Phase 12 |
+| 9.5 | gates: focused "npm test -- src/lib/data/retention-inventory.test.ts src/app/(auth)/login/actions.test.ts src/lib/data/integration/guard.test.ts src/lib/data/retention.test.ts": 4 files, 61 tests passed; "npm run typecheck" clean; "npx eslint" on the four files: only the known CRLF noise after renaming a helper that eslint read as a React hook (rule "react-hooks/rules-of-hooks" on a function named "use"); "npx prettier --check --end-of-line auto" clean | n/a |
+
+Integration test design (what the owner will run): it enters through "GET /api/cron/retention" with the scheduler bearer; "@/lib/intake/deps" is mocked to a fake document store; a dry run in "beforeAll" must report exactly "due: 1" or the suite aborts before the real run (so leftovers or real aged accounts on the branch stop it; "afterAll" still removes its fixtures). Fixture A is aged (rejected request with decision text and one document with an extraction row and a seeded file; approved request with a remission, an absence report, an escalation note and its answer; phone set and password-change flag set), B has an aged account and a request presented two years ago, C is aged with an active enrollment. Aging is one UPDATE per request (consent and presentation at six years ago, no resubmission, no deadline start) plus Usuario.CreadoEn; "now" is never shifted. It asserts the account columns (DR-3), every other table as "before with only the redacted columns changed" (DR-4, DR-5), zero document and extraction rows and the file gone, one audit row by the sentinel with no name, CIF or email, B and C byte-equal to before, a second run that cancels none and adds no audit row, and an UPDATE on the audit table rejected with 42501. Risk: it was never executed, so a CHECK or fixture mistake can only show on the owner's run.
+
+Decision: the verify W2 clause pins sit in `src/lib/data/retention-inventory.test.ts` next to the cut cases (same helper, same double) rather than in `src/lib/data/retention.test.ts`, so PR 1 files are not edited.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/lib/data/retention-inventory.test.ts src/app/(auth)/login/actions.test.ts src/lib/data/integration/guard.test.ts src/lib/data/retention.test.ts" with the dummy DB: 4 files, 61 tests passed |
+| Runtime harness | Owner-run: "npm run test:integration" against the disposable branch (task 12.2); here only the skip-mode run (9 skipped) |
+| Rollback boundary | Delete `src/lib/data/retention-inventory.test.ts` and `src/lib/data/integration/retention.integration.test.ts`, revert the four login cases and the setup line |
+
+Commit: "test(retention): prove RNF-04 through the scheduled route".
