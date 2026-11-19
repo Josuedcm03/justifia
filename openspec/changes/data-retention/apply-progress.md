@@ -165,3 +165,52 @@ Work Unit Evidence:
 | Rollback boundary | Revert the RN-27 row and the change-table row in `docs/requirements.md` |
 
 Commit: "docs(requirements): add RN-27".
+
+## Checkpoint 6.1: PR 1 size after unit 5 (STOP: over the 1000-line budget)
+
+"git diff --numstat bf91506...HEAD" (bf91506 is origin/main; the local "main" ref is stale) taken on the five unit commits plus the staged RN-27 row, excluding "openspec/", ".engram/" and `drizzle/meta/0014_snapshot.json`:
+
+| File | Added | Deleted |
+|------|-------|---------|
+| `docs/requirements.md` | 2 | 0 |
+| `drizzle/0014_data_retention.sql` | 56 | 0 |
+| `drizzle/meta/_journal.json` | 7 | 0 |
+| `src/db/migration-data-retention.test.ts` | 171 | 0 |
+| `src/db/schema.ts` | 11 | 0 |
+| `src/lib/audit/events.test.ts` | 64 | 5 |
+| `src/lib/audit/events.ts` | 22 | 0 |
+| `src/lib/audit/types.test.ts` | 2 | 1 |
+| `src/lib/audit/types.ts` | 18 | 0 |
+| `src/lib/data/append-only.test.ts` | 43 | 2 |
+| `src/lib/data/audit.ts` | 4 | 3 |
+| `src/lib/data/escalamiento-writes.test.ts` | 2 | 0 |
+| `src/lib/data/remision-writes.test.ts` | 2 | 0 |
+| `src/lib/data/retention.test.ts` | 397 | 0 |
+| `src/lib/data/retention.ts` | 256 | 0 |
+| `src/lib/data/users.ts` | 6 | 2 |
+| `src/lib/retention/policy.test.ts` | 83 | 0 |
+| `src/lib/retention/policy.ts` | 34 | 0 |
+| Total | 1180 | 13 |
+
+Total: 1193 changed lines, 193 over the 1000 budget (target was ~949). Snapshot, reported separately: `drizzle/meta/0014_snapshot.json` is 2343 added lines (generated, untouched, excluded). Per the checkpoint rule, apply STOPS here and reports to the owner; no test was trimmed and no exception was assumed.
+
+Where the overage comes from, against the design's raw estimate:
+
+| File | Design raw | Measured | Over |
+|------|-----------|----------|------|
+| `src/lib/data/retention.test.ts` | 165 (215 weighed) | 397 | +232 (+182 weighed) |
+| `src/lib/data/retention.ts` | 210 | 256 | +46 |
+| `src/db/migration-data-retention.test.ts` | 120 (156 weighed) | 171 | +15 |
+| `src/lib/data/append-only.test.ts` and the two other carve-outs | 30 (39 weighed) | 49 | +10 |
+| `src/lib/audit/events.test.ts` and `types.test.ts` | 40 (52 weighed) | 72 | +20 |
+| `src/lib/data/users.ts` (unplanned type fix) | 0 | 8 | +8 |
+
+`src/lib/data/retention.test.ts` is the driver: prettier expands each scripted-double call to one argument per line, and the file holds 12 behavior cases plus 2 structural cases. By content, the separable blocks of the file are: the structural describe (36 lines), the bounded-run case (23 lines, it builds 10 batches of 50) and the blobs-after-commit describe (50 lines, three cases). Moving all three to PR 2 would remove about 109 lines and leave PR 1 at about 1084, still over, so either a size exception or a deeper cut is needed. That cut would also drop the mutation-verified blob-ordering and system-account pin evidence from PR 1. The owner decides; nothing was moved.
+
+## Task 6.4: full run for PR 1
+
+"npm test" with the dummy DATABASE_URL, at commit 63a067a: 353 files, 8381 tests, all passed, no failure, wall time 4 min 1 s (vitest duration 239 s). The baseline of unit 0 covered a subset (106 files, 2054 tests); this run is the whole suite.
+
+## Status at the end of this apply batch (PR 1)
+
+Units 1 to 5 are implemented and committed: dde46a4, bddf278, acca573, 25215a9, 63a067a (unit 0 is 8544bcc). Tasks 6.2, 6.3, 6.5, 6.6 and 6.7 are not done (owner-run database steps, push and PR, merge gate). Task 6.1 found PR 1 over the 1000-line budget (1193), so apply stops for the owner's decision before 6.5 (push and PR).
