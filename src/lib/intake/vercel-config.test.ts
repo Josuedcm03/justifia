@@ -28,11 +28,20 @@ describe("vercel.json (task 5.5)", () => {
     });
   });
 
-  it("registers exactly the two scheduled jobs, each once", () => {
+  it("runs data retention daily at 11:00 UTC (05:00 Managua, DR-11)", () => {
+    const config = JSON.parse(readFileSync(CONFIG, "utf8"));
+    expect(config.crons).toContainEqual({
+      path: "/api/cron/retention",
+      schedule: "0 11 * * *",
+    });
+  });
+
+  it("registers exactly the three scheduled jobs, each once", () => {
     const config = JSON.parse(readFileSync(CONFIG, "utf8"));
     expect(config.crons.map((c: { path: string }) => c.path).sort()).toEqual([
       "/api/cron/intake-sweep",
       "/api/cron/remission-retry",
+      "/api/cron/retention",
     ]);
   });
 

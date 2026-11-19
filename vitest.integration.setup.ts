@@ -34,3 +34,5 @@ if (isProductionEndpoint(process.env.DATABASE_URL)) {
   );
 }
 process.env.AUTH_SECRET ??= "integration-suite-secret-not-used-0000000000";
+// The retention suite enters through the scheduled route, which needs a secret.
+process.env.CRON_SECRET ??= "integration-cron-secret-000000";

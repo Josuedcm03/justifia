@@ -36,6 +36,12 @@ vi.mock("@/lib/auth/dal", () => ({
 }));
 
 import { loginAction, logoutAction } from "@/app/(auth)/login/actions";
+import {
+  CANCELLED_HASH,
+  SYSTEM_HASH,
+  SYSTEM_LOGIN,
+  cancelledLogin,
+} from "@/lib/retention/policy";
 
 function account(debeCambiarClave: boolean) {
   return {
@@ -109,6 +115,59 @@ describe("loginAction session payload (FPC)", () => {
     expect(mocks.requireRole).not.toHaveBeenCalled();
     expect(mocks.requireUserAllowingPasswordChange).not.toHaveBeenCalled();
   });
+});
+
+// Retention accounts (data-retention, DR-3; audit-log "System actor is not
+// usable"). The sentinel and a cancelled student are inactive rows with a hash
+// no password can match, so neither can sign in: the inactive check stops them
+// first, and the hash alone would stop them if that check ever went missing.
+describe("loginAction on retention accounts (DR-3)", () => {
+  const accounts = [
+    ["the system account", SYSTEM_LOGIN, SYSTEM_HASH, "administrador"],
+    ["a cancelled student", cancelledLogin(7), CANCELLED_HASH, "estudiante"],
+  ] as const;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Even a verifier that accepts everything must not let them in.
+    mocks.verifyPassword.mockResolvedValue(true);
+  });
+
+  it.each(accounts)(
+    "turns %s away as invalid and opens no session",
+    async (_label, loginName, hash, rol) => {
+      mocks.getUsuarioByLogin.mockResolvedValue({
+        ...account(false),
+        login: loginName,
+        hashClave: hash,
+        rol,
+        activo: false,
+      });
+      const f = form();
+      f.set("login", loginName);
+
+      await expect(loginAction({ error: null }, f)).resolves.toEqual({
+        error: "errors.invalid",
+      });
+      expect(mocks.verifyPassword).not.toHaveBeenCalled();
+      expect(mocks.signSession).not.toHaveBeenCalled();
+      expect(mocks.setSessionCookie).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(accounts)(
+    "keeps the hash of %s out of reach of any password",
+    async (_label, _loginName, hash) => {
+      const { verifyPassword } = await vi.importActual<
+        typeof import("@/lib/auth/password")
+      >("@/lib/auth/password");
+
+      expect(hash).not.toMatch(/^\$2[aby]\$\d{2}\$.{53}$/);
+      for (const attempt of ["temporary-pass", hash, "!".repeat(8)]) {
+        expect(await verifyPassword(attempt, hash)).toBe(false);
+      }
+    },
+  );
 });
 
 // Characterization pin (FPC: Logout remains reachable). `logoutAction` calls no

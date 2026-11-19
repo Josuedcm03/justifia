@@ -235,3 +235,154 @@ Commit: "test(data): pin the active-enrollment exclusion of the due rule".
 - 6.3 (2026-11-19 12:49 Managua): disposable branch "retention-it" (child of "dev-arnia") created and 0014 applied there only. Read-only verification: sentinel inactive with an unusable 18-character hash; both marker columns nullable; partitions 2031-2035 attached with the same triggers as 2030 and no public TRUNCATE; "CK_Usuario_Cancelado" present. The branch stays for the RNF-04 integration run (Phase 12).
 
 - 6.6 (2026-11-19 12:54 Managua, owner yes): 0014 applied to production; the read-only verification matches the disposable branch (15 migrations, sentinel inactive, marker columns, partitions 2031-2035, "CK_Usuario_Cancelado").
+
+# PR 2 (branch "feat/data-retention-2", from origin/main 7533b98)
+
+PR 1 merged as #88, so PR 2 is based on "main" directly (no stacking, no retarget). Every PR 2 diff is measured against 7533b98, excluding "openspec/" and ".engram/".
+
+## Unit 6: retention route and matrix row (DR-9, DR-10, RNF-01)
+
+Mode: Strict TDD. Layer: unit (route called as a function with a plain Request). Safety net: `src/app/route-coverage.test.ts` and `src/app/access-matrix.routes.test.ts` were green in the PR 1 full run.
+
+Docs check (7.0): "node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/" lists "maxDuration" as a number set by the deployment platform, and "dynamic" is removed under Cache Components. The route therefore exports a literal "maxDuration = 300" and no "dynamic", as the design says. No drift.
+
+| Task | RED evidence | GREEN evidence |
+|------|--------------|----------------|
+| 7.1 | "npm test -- src/app/api/cron/retention": suite failed to load, "Cannot find package '@/app/api/cron/retention/route'" (0 tests). 20 cases written: 7 bad bearers, unset secret, a dry run without the bearer, GET only, literal ceiling 300, real run options, "?dry=1" forwarded, "?dry=0", "?dry=" and "?other=1" stay real runs, counts-only body, one "retention.run" log line, failures in the counts, generic 500 | n/a |
+| 7.2 | "npm test -- src/app/api/cron/retention src/app/route-coverage.test.ts" with the route and no matrix row: 1 failed, "the table lists every protected entry point and nothing else: missing [ 'api/cron/retention/route.ts' ]" | n/a |
+| 7.3 | n/a | `src/app/api/cron/retention/route.ts`: 20 of 20 in the route test |
+| 7.4 | n/a | `src/test/access/matrix-table.ts` row added: "npm test -- src/app/api/cron/retention src/app/route-coverage.test.ts src/app/access-matrix.routes.test.ts": 3 files, 162 tests passed |
+| 7.5 | n/a | gates: "npm run typecheck" clean; "npx eslint" on the three touched paths: only the known CRLF noise; "npx prettier --check --end-of-line auto" clean |
+
+Decision: only the literal value "1" asks for a dry run, as the spec says ("?dry=1"). "?dry=0", an empty value and unrelated keys run for real, and two cases pin that so a "has('dry')" shortcut would fail.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/app/api/cron/retention src/app/route-coverage.test.ts src/app/access-matrix.routes.test.ts" with the dummy DB: 3 files, 162 tests passed |
+| Runtime harness | N/A: the route is called as a function with a plain Request; the real database run is the owner-run integration test (Phase 12) |
+| Rollback boundary | Revert the route folder and the matrix row |
+
+Commit: "feat(cron): add the retention route".
+
+## Unit 7: daily schedule (DR-11)
+
+Mode: Strict TDD. Layer: unit (static JSON parse). Safety net: `src/lib/intake/vercel-config.test.ts` 4 of 4 passed before the edit.
+
+| Task | RED evidence | GREEN evidence |
+|------|--------------|----------------|
+| 8.1 | "npm test -- src/lib/intake/vercel-config.test.ts": 2 failed, 3 passed. "runs data retention daily at 11:00 UTC (05:00 Managua, DR-11)": the crons array does not contain the retention entry; "registers exactly the three scheduled jobs, each once": two paths instead of three. The two existing job tests untouched and green | n/a |
+| 8.2 | n/a | `vercel.json` gains `{ "path": "/api/cron/retention", "schedule": "0 11 * * *" }`: 5 of 5 passed. Gates: "npm run typecheck" clean; "npx eslint" only the known CRLF noise (52 "Delete" lines, nothing else); "npx prettier --check --end-of-line auto" clean on both files |
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/lib/intake/vercel-config.test.ts" with the dummy DB: 1 file, 5 tests passed |
+| Runtime harness | N/A: static JSON parse; the scheduler registers the entry on the deploy of PR 2 (task 13.4 checks it) |
+| Rollback boundary | Revert `vercel.json` and `src/lib/intake/vercel-config.test.ts` |
+
+Commit: "feat(cron): schedule retention daily at 11:00 UTC".
+
+## Unit 8: column inventory, cut cases, login pins and the RNF-04 integration test (DR-4, DR-5, DR-12; verify PR 1 W1 and W2)
+
+Mode: Strict TDD. Layer: unit (transaction double, static schema reads) plus one owner-run integration suite. Safety net: `src/lib/data/retention.test.ts` (15 tests) and `src/app/(auth)/login/actions.test.ts` (6 tests) were green before any edit.
+
+All the unit tests of this unit pin behavior that PR 1 already built, so they pass at write and have no RED step. Each carries revert-only mutation checks (a temporary edit, then "git restore <file>", "git status" clean of it before the commit).
+
+| Task | Pass-at-write evidence | Mutation checks (each killed) |
+|------|------------------------|-------------------------------|
+| 9.1 | `src/lib/data/retention-inventory.test.ts`, "column inventory of the tables retention touches (DR-4, DR-5)": 7 cases, one per table (Usuario, Solicitud, SolicitudDecision, Remision, ReporteInasistencia, Escalamiento, DocumentoRespaldo); every column of "getTableColumns" is classified exactly once as rewritten, kept or deleted | IM1: a fake personal column "telefonoContacto" added to Solicitud in `src/db/schema.ts` made "solicitud: every column is classified exactly once" fail (1 failed, 14 passed); restored |
+| 9.2 cut cases | same file: "binds the student role and the cutoff five years before now" (params "estudiante", cutoff, cutoff), "uses the same rule to count, to select and to guard the write", "reads in ascending id order and resumes after the last id of the batch", "carries the closed code and the two counts, and nothing else" | IM2 cutoff of the account-age clause moved one day: 1 failed. IM3 role "docente": 1 failed. IM8 "lastId = id" removed (keyset advance): 1 failed. IM9 guarded write without the due rule: 1 failed. IM10 keyset read without the id bound: 1 failed. IM11 "orderBy(asc(usuario.id))" removed: 1 failed. IM12 extra key in the audit payload (`src/lib/audit/events.ts`): 1 failed |
+| 9.2 W2 | same file, 4 clause cases ("requires the student role only", "accounts not yet cancelled", "an account old enough", "no request presented or resubmitted after the cutoff", the last pinning "greatest(PresentadaEn, ReenviadaEn) > cutoff" on the student's own requests) | IM4 "CanceladoEn IS NULL" dropped: 1 failed (its own case). IM5 the whole "greatest" clause dropped: 2 failed. IM6 "ReenviadaEn" dropped from the "greatest": 1 failed. IM7 role subselect dropped: 4 failed. IM13 "CreadoEn <= cutoff" dropped: 3 failed |
+| 9.2 W1 | `src/app/(auth)/login/actions.test.ts`, "loginAction on retention accounts (DR-3)": 4 cases. The sentinel account and a cancelled student (inactive rows with their hashes) get the invalid error with a verifier that accepts everything, no session, no cookie; and with the real bcrypt, neither hash is well formed and no password (including the hash text itself) verifies | LM1 "!user.activo" dropped from `src/app/(auth)/login/actions.ts`: 2 failed (the two turn-away cases). LM2 SYSTEM_HASH replaced by a well-formed bcrypt string in `src/lib/retention/policy.ts`: 1 failed. LM3 the same for CANCELLED_HASH: 1 failed |
+| 9.3 | "npm test -- src/lib/data/integration/guard.test.ts" green (21 tests with the integration folder) | n/a |
+| 9.4 | `src/lib/data/integration/retention.integration.test.ts` written and typechecked, NOT run against any database. Skip mode ("vitest run --config vitest.integration.config.mts" with INTEGRATION_DATABASE_URL unset): 1 file skipped, 9 tests skipped. "npm test" does not collect it (the default config excludes "src/**/*.integration.test.ts") | n/a: owner-run, Phase 12 |
+| 9.5 | gates: focused "npm test -- src/lib/data/retention-inventory.test.ts src/app/(auth)/login/actions.test.ts src/lib/data/integration/guard.test.ts src/lib/data/retention.test.ts": 4 files, 61 tests passed; "npm run typecheck" clean; "npx eslint" on the four files: only the known CRLF noise after renaming a helper that eslint read as a React hook (rule "react-hooks/rules-of-hooks" on a function named "use"); "npx prettier --check --end-of-line auto" clean | n/a |
+
+Integration test design (what the owner will run): it enters through "GET /api/cron/retention" with the scheduler bearer; "@/lib/intake/deps" is mocked to a fake document store; a dry run in "beforeAll" must report exactly "due: 1" or the suite aborts before the real run (so leftovers or real aged accounts on the branch stop it; "afterAll" still removes its fixtures). Fixture A is aged (rejected request with decision text and one document with an extraction row and a seeded file; approved request with a remission, an absence report, an escalation note and its answer; phone set and password-change flag set), B has an aged account and a request presented two years ago, C is aged with an active enrollment. Aging is one UPDATE per request (consent and presentation at six years ago, no resubmission, no deadline start) plus Usuario.CreadoEn; "now" is never shifted. It asserts the account columns (DR-3), every other table as "before with only the redacted columns changed" (DR-4, DR-5), zero document and extraction rows and the file gone, one audit row by the sentinel with no name, CIF or email, B and C byte-equal to before, a second run that cancels none and adds no audit row, and an UPDATE on the audit table rejected with 42501. Risk: it was never executed, so a CHECK or fixture mistake can only show on the owner's run.
+
+Decision: the verify W2 clause pins sit in `src/lib/data/retention-inventory.test.ts` next to the cut cases (same helper, same double) rather than in `src/lib/data/retention.test.ts`, so PR 1 files are not edited.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/lib/data/retention-inventory.test.ts src/app/(auth)/login/actions.test.ts src/lib/data/integration/guard.test.ts src/lib/data/retention.test.ts" with the dummy DB: 4 files, 61 tests passed |
+| Runtime harness | Owner-run: "npm run test:integration" against the disposable branch (task 12.2); here only the skip-mode run (9 skipped) |
+| Rollback boundary | Delete `src/lib/data/retention-inventory.test.ts` and `src/lib/data/integration/retention.integration.test.ts`, revert the four login cases and the setup line |
+
+Commit: "test(retention): prove RNF-04 through the scheduled route".
+
+## Unit 9: partition window note (D8)
+
+Mode: documents only, structural readback (no behavior, no test).
+
+- 10.1 (2026-11-19): `modelo_datos_sql.md` note 13 now says the yearly partitions run 2026..2035 (2031 to 2035 come from migration 0014), the window ends 2035-12-31 and the 2036 partition must be created before 2036 begins; the partition comment above the audit table says 2026..2035. The file keeps its CRLF line endings and its Spanish text. Readback: "git diff --stat modelo_datos_sql.md" shows 2 insertions and 2 deletions. No test or other document pins the old window.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | N/A: documents only |
+| Runtime harness | N/A: no runtime boundary |
+| Rollback boundary | Revert the note in `modelo_datos_sql.md` |
+
+Commit: "docs: note the 2036 audit partition window".
+
+## Checkpoint 11.1: PR 2 size after unit 9 (STOP: over the 1000-line budget)
+
+"git diff --numstat 7533b98...HEAD" (7533b98 is origin/main with PR 1 merged, so it is also the base of PR 2) taken on the four PR 2 unit commits, excluding "openspec/" and ".engram/":
+
+| File | Added | Deleted |
+|------|-------|---------|
+| `modelo_datos_sql.md` | 2 | 2 |
+| `src/app/(auth)/login/actions.test.ts` | 59 | 0 |
+| `src/app/api/cron/retention/route.test.ts` | 175 | 0 |
+| `src/app/api/cron/retention/route.ts` | 41 | 0 |
+| `src/lib/data/integration/retention.integration.test.ts` | 516 | 0 |
+| `src/lib/data/retention-inventory.test.ts` | 319 | 0 |
+| `src/lib/intake/vercel-config.test.ts` | 10 | 1 |
+| `src/test/access/matrix-table.ts` | 8 | 0 |
+| `vercel.json` | 2 | 1 |
+| `vitest.integration.setup.ts` | 2 | 0 |
+| Total | 1134 | 4 |
+
+Total: 1138 changed lines, 138 over the 1000 budget (the weighed forecast was ~847). No generated snapshot is part of PR 2. Per the checkpoint rule, apply STOPS here and reports to the owner; no test was trimmed and no exception was assumed. Task 11.2 (the full "npm test" run) is not done: it follows the owner decision, as 6.4 did for PR 1.
+
+Where the overage comes from, against the design's raw estimate and the tasks weighed figure:
+
+| File | Design raw (weighed) | Measured | Over (weighed) |
+|------|----------------------|----------|----------------|
+| `src/lib/data/integration/retention.integration.test.ts` | 300 (390) | 516 | +216 (+126) |
+| `src/lib/data/retention-inventory.test.ts` | 140 (182) | 319 | +179 (+137) |
+| `src/app/api/cron/retention/route.test.ts` | 145 (189) | 175 | +30 (-14) |
+| `src/app/(auth)/login/actions.test.ts` (verify W1, not in the design) | 0 | 59 | +59 |
+| `src/app/api/cron/retention/route.ts` | 50 | 41 | -9 |
+| the five small files (`vercel.json`, its test, the matrix row, the setup line, `modelo_datos_sql.md`) | 29 | 28 | -1 |
+
+Prettier expands every object literal and call to one item per line, which is the driver again. By content, the separable blocks are: the reviewed column list of `src/lib/data/retention-inventory.test.ts` (137 lines of arrays, lines 46 to 182), the W1 login cases (59 lines), and in the integration test the fixture setup of `beforeAll` (about 115 lines). Dropping the W1 cases and compacting nothing else would still leave ~1079. The owner decides; nothing was moved or cut.
+
+## Size exception for PR 2 and task 11.2: full run
+
+- Owner decision (2026-11-19): a size exception is granted for PR 2 at 1138 changed lines against 7533b98, excluding "openspec/" and ".engram/" (precedents: PR 1 at 1204 and auth-route-tests at 1220). Checkpoint 11.1 stays as measured; nothing was trimmed.
+- 11.2 (2026-11-19): "npm test" once with the dummy DATABASE_URL at the checkpoint commit: 355 files, 8430 tests, all passed, none failed or skipped, wall time 237 s (vitest duration 235.66 s). PR 1's full run was 353 files and 8382 tests; the difference is the two new test files and 48 new tests of PR 2. No database was contacted.
+
+## Phase 12: RNF-04 integration run (evidence for the thesis)
+
+- Date: 2026-11-19, green run 13:33:57-13:34:29 Managua (19:33:57 UTC), rerun after the mutation check 13:35:32 Managua.
+- Commit: 653d761 on "feat/data-retention-2" (base main 7533b98).
+- Database: disposable Neon branch "retention-it", child of "dev-arnia", with migration 0014; never production or "validacion-secretaria". Guarded by INTEGRATION_ALLOW_WRITES=1 and the production-endpoint refusal.
+- Entry point: "GET /api/cron/retention" with the scheduler bearer, as thesis 4.9 describes (simulated age over five years; scheduled task; cancellation and audit log).
+- Result: 9 of 9 tests passed.
+  - Dry run: due 1, nothing written (DR-9).
+  - Real run: due 1, cancelled 1, documents deleted 1, stored files deleted 1, failures 0.
+  - Account anonymized in place (DR-3); request snapshots and free text redacted, residue kept (DR-4, DR-5).
+  - Document row, extraction row and stored file gone (DR-4, DR-7).
+  - Exactly one "usuario.cancelado" audit row, by the system account, without personal data (DR-6).
+  - Younger student and enrolled student untouched (DR-1, DR-2).
+  - Second run: due 0, cancelled 0, no new audit row (DR-8).
+  - UPDATE on the audit table rejected with 42501 (RNF-06).
+- First run (13:32 Managua) failed 1 of 9 on a test bug: JavaScript's default sort placed null after "[cancelado]". The stored values were right. Fixed in 653d761 by comparing the decisions row by row, like the other tables.
+- Mutation check (12.4): with the active-enrollment clause removed, the dry run reported due 2 and the suite aborted before the real run (exit 1, nobody cancelled). Restored with "git restore"; the rerun passed 9 of 9.
