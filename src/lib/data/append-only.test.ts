@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -42,6 +42,23 @@ function findAppendOnlyWrites(source: string): string[] {
     return match ? [match[0]] : [];
   });
 }
+
+/**
+ * The retention run redacts embedded personal text in place (data-retention,
+ * DR-4), so it is the one module allowed to update `SolicitudDecision` and
+ * `ReporteInasistencia`. It is not scanned like the rest: its hits are listed
+ * in full and must be exactly those two updates, so a delete there, or any
+ * write to `SolicitudRevision`, still fails.
+ */
+const RETENTION_EXEMPT = "lib/data/retention.ts";
+
+function everyAppendOnlyWrite(source: string): string[] {
+  return WRITE_PATTERNS.flatMap((pattern) => [
+    ...source.matchAll(new RegExp(pattern.source, `${pattern.flags}g`)),
+  ]).map((match) => match[0]);
+}
+
+const relativeName = (file: string) => relative(SRC, file).split(sep).join("/");
 
 /**
  * Not production code: `__fixtures__`, and the fixtures of the opt-in
@@ -98,7 +115,9 @@ describe("append-only decision data", () => {
   });
 
   it("has no production module under src that updates or deletes either table", () => {
-    const files = productionSources(SRC);
+    const files = productionSources(SRC).filter(
+      (file) => relativeName(file) !== RETENTION_EXEMPT,
+    );
     expect(files.length).toBeGreaterThan(0);
 
     const offenders = files.flatMap((file) =>
@@ -108,6 +127,28 @@ describe("append-only decision data", () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+
+  it("lets the retention module update exactly SolicitudDecision and ReporteInasistencia, never delete (DR-4)", () => {
+    expect(
+      everyAppendOnlyWrite(
+        "tx.update(solicitudDecision); tx.delete(solicitudDecision); tx.update(solicitudRevision)",
+      ),
+    ).toEqual([
+      ".update(solicitudDecision",
+      ".delete(solicitudDecision",
+      ".update(solicitudRevision",
+    ]);
+
+    const source = readFileSync(join(SRC, RETENTION_EXEMPT), "utf8");
+
+    expect(everyAppendOnlyWrite(source)).toEqual([
+      ".update(solicitudDecision",
+      ".update(reporteInasistencia",
+    ]);
+    expect(productionSources(SRC).map(relativeName)).toContain(
+      RETENTION_EXEMPT,
+    );
   });
 
   it("scans the module that writes the absence reports, so the pin is not vacuous", () => {

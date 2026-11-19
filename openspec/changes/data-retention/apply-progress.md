@@ -105,3 +105,46 @@ Commit: "feat(audit): add the usuario.cancelado event".
 | Total | 478 | 11 |
 
 Cumulative: 489 changed lines. Snapshot reported separately: `drizzle/meta/0014_snapshot.json` 2342 lines. The threshold of 520 is not exceeded (31 lines of margin), so apply continues with unit 4. Unit 4 plus unit 5 project at ~474 (file lines only: retention.ts ~210, retention.test.ts ~165 raw plus carve-outs ~30 raw plus RN-27 ~10), giving ~960 against the 1000 budget.
+
+## Unit 4: data module and structural carve-outs (DR-1 to DR-9, audit-log "Audit record content")
+
+Mode: Strict TDD. Layer: unit (transaction double, no database). Safety net: the three carve-out test files and the structural tests were green in the unit 0 baseline (106 files, 2054 tests).
+
+| Task | RED evidence | GREEN evidence |
+|------|--------------|----------------|
+| 4.1 | "npm test -- src/lib/data/retention.test.ts": suite failed to load, "Cannot find module '/src/lib/data/retention' imported from src/lib/data/retention.test.ts" (0 tests). 12 behavior cases written: dry run reads only, missing actor throws (also on a dry run), full cancellation order and audit on the transaction handle, DR-3 and DR-4 written values, one audit row per student with the actor id, guarded zero-row skip, failing student rolled back while the others finish, second run, blobs after the audit row, audit failure keeps the files, failed file delete counted, bounded run (50 by 10) | n/a |
+| 4.2 | same run (same file): two structural cases, only the retention module and the policy name the system account; the module names no extraction or fingerprint column and writes no enrollment | n/a |
+| 4.3 | "npm test -- src/lib/data/append-only.test.ts src/lib/data/remision-writes.test.ts src/lib/data/escalamiento-writes.test.ts": 3 failed, 19 passed. "append-only: lets the retention module update exactly SolicitudDecision and ReporteInasistencia, never delete (DR-4)", "remision-writes: finds both allowed writers, so the pin is not vacuous", "escalamiento-writes: finds every allowed writer, so the pin is not vacuous", all with "ENOENT: no such file or directory, open src/lib/data/retention.ts" | n/a |
+| 4.4, 4.5, 4.6 | n/a | `src/lib/data/retention.ts` written as one module (findSystemActor, the single due predicate, countDue, dueAfter, cancelStudent, runRetention). First run after writing: 36 of 36 passed in the four files. The three parts were not run separately: the tests above exercise them together, so part-by-part GREEN is not separately evidenced |
+| 4.7 | n/a | "npm test -- src/lib/data/retention.test.ts src/lib/data/append-only.test.ts src/lib/data/remision-writes.test.ts src/lib/data/escalamiento-writes.test.ts": 4 files, 36 tests passed |
+| 4.8 | pass at write: "npm test -- src/lib/data/extraction.test.ts src/lib/signals/fingerprint-exposure.test.ts src/lib/data/inscripcion-writes.test.ts": 3 files, 56 tests passed with no edit | Mutation check M1 (temporary, restored): a comment naming huellaSha256 appended to `src/lib/data/retention.ts` made "fingerprint-exposure: names the fingerprint only in the schema, the finalize path and the Q5 reader" fail (1 failed, 7 passed); restored |
+| 4.9 | see the mutation table below | see the mutation table below |
+| 4.10 | n/a | gates: "npm run typecheck" clean; "npx eslint" on the five files clean (CRLF noise filtered); "npx prettier --check --end-of-line auto" clean |
+
+Mutation checks (each applied to the staged `src/lib/data/retention.ts` with "git restore" afterwards; "git status" showed no unstaged change before the commit):
+
+| Id | Temporary edit | Result |
+|----|----------------|--------|
+| M1 | name huellaSha256 in a comment | fingerprint test fails (1 failed) |
+| M2 | call store.delete inside the transaction, before the audit row | 3 failed: "deletes the files only after the audit row, never before", "keeps the files of a student whose transaction fails at the audit row", "counts a failed file delete and leaves the student cancelled" |
+| M3 | drop the NOT EXISTS active-enrollment clause from the due predicate | SURVIVED: 14 of 14 passed. The scripted double never inspects the predicate, so no PR 1 test pins it. The clause is pinned by the SQL-shape cases moved to PR 2 (option A) and by integration fixture C with the revert-only check of task 12.4. Reported as a risk |
+| M4 | add a delete of solicitudDecision to the module | append-only "lets the retention module update exactly SolicitudDecision and ReporteInasistencia, never delete (DR-4)" fails (the transaction cases fail too, on the unscripted statement) |
+| M5 | drop the zero-row guard | 2 failed: "skips a student whose guarded update matches no row ..." and "pins the batch size and the batch count ..." |
+| M6 | never stop on a short batch | 8 or more failed (every case that ends on a short batch hits an unscripted read) |
+| M7 | MAX_BATCHES 11 | 1 failed: "pins the batch size and the batch count, and stops after the last full batch" |
+
+Rendered SQL check (temporary scratch test, deleted, not committed): the due predicate renders as expected for the count, the keyset read and the guarded write: the role subselect on "Rol"."Codigo" = $1, "CanceladoEn" is null, "CreadoEn" <= $2, the two NOT EXISTS clauses with "greatest(...) > $3::timestamptz" (an ISO string with a cast, so no raw Date reaches the driver), and "Id" > $4 on the keyset read.
+
+Deviations from the design: none in behavior or order of the writes (select documents before the redactions, delete after, one audit row last). Notes: (a) the module logs nothing, so a failing student is visible only as the failures count; (b) the redact helper casts the placeholder with "::text" so the CASE branch types are known to the server; (c) `RetentionCounts.failures` is one counter for both a rolled-back student and a failed file delete, as the interface in the design has no second counter.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/lib/data/retention.test.ts src/lib/data/append-only.test.ts src/lib/data/remision-writes.test.ts src/lib/data/escalamiento-writes.test.ts" with the dummy DB: 4 files, 36 tests passed (14 in `src/lib/data/retention.test.ts`) |
+| Runtime harness | N/A: transaction double; the real database runs only in PR 2 (integration, owner-run) |
+| Rollback boundary | Revert `src/lib/data/retention.ts` and the carve-outs (`src/lib/data/append-only.test.ts`, `src/lib/data/remision-writes.test.ts`, `src/lib/data/escalamiento-writes.test.ts`) together with `src/lib/data/retention.test.ts` |
+
+Size note: `src/lib/data/retention.test.ts` is 397 lines and `src/lib/data/retention.ts` 256 (design raw 165 and 210; weighed 215 and 210). The test is far over its estimate. See checkpoint 6.1.
+
+Commit: "feat(data): cancel due students one transaction each".
