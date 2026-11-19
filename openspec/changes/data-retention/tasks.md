@@ -187,8 +187,8 @@ Chain strategy: stacked-to-main
 
 ## Phase 13: PR 2 delivery
 
-- [ ] 13.1 Push "feat/data-retention-2" and open PR 2 with base "feat/data-retention"; body states "PR 2 of 2, stacked on PR 1; retargeted to main after PR 1 merges", the forecast, the gates, the measured size, the integration outcome from 12.3 and the rollback (remove the cron entry, then revert).
-- [ ] 13.2 After PR 1 merges, retarget PR 2 to "main" ("gh pr edit <number> --base main"); if the diff shows PR 1 changes, rebase "feat/data-retention-2" until the diff holds only PR 2 files. Do not delete either change branch.
+- [x] 13.1 Push "feat/data-retention-2" and open PR 2 with base "feat/data-retention"; body states "PR 2 of 2, stacked on PR 1; retargeted to main after PR 1 merges", the forecast, the gates, the measured size, the integration outcome from 12.3 and the rollback (remove the cron entry, then revert). (Done 2026-11-19: PR 1 had already merged, so PR 2 was opened directly against main from origin/main 7533b98.)
+- [x] 13.2 After PR 1 merges, retarget PR 2 to "main" ("gh pr edit <number> --base main"); if the diff shows PR 1 changes, rebase "feat/data-retention-2" until the diff holds only PR 2 files. Do not delete either change branch. (Not needed 2026-11-19: PR 2 was branched from main after PR 1 merged; its diff holds only PR 2 files.)
 - [ ] 13.3 Merge gate PR 2 (see "Merge gate"); the merge deploys and registers the cron.
 - [ ] 13.4 After that deploy, [ASK OWNER] [READ-ONLY] Production dry run: "curl -H 'Authorization: Bearer <CRON_SECRET>' '<production URL>/api/cron/retention?dry=1'" must answer 200 with due 0 (this proves the actor lookup in production). Record the result.
 
