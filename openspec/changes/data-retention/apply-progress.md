@@ -363,3 +363,8 @@ Where the overage comes from, against the design's raw estimate and the tasks we
 | the five small files (`vercel.json`, its test, the matrix row, the setup line, `modelo_datos_sql.md`) | 29 | 28 | -1 |
 
 Prettier expands every object literal and call to one item per line, which is the driver again. By content, the separable blocks are: the reviewed column list of `src/lib/data/retention-inventory.test.ts` (137 lines of arrays, lines 46 to 182), the W1 login cases (59 lines), and in the integration test the fixture setup of `beforeAll` (about 115 lines). Dropping the W1 cases and compacting nothing else would still leave ~1079. The owner decides; nothing was moved or cut.
+
+## Size exception for PR 2 and task 11.2: full run
+
+- Owner decision (2026-11-19): a size exception is granted for PR 2 at 1138 changed lines against 7533b98, excluding "openspec/" and ".engram/" (precedents: PR 1 at 1204 and auth-route-tests at 1220). Checkpoint 11.1 stays as measured; nothing was trimmed.
+- 11.2 (2026-11-19): "npm test" once with the dummy DATABASE_URL at the checkpoint commit: 355 files, 8430 tests, all passed, none failed or skipped, wall time 237 s (vitest duration 235.66 s). PR 1's full run was 353 files and 8382 tests; the difference is the two new test files and 48 new tests of PR 2. No database was contacted.
