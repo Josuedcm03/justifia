@@ -413,10 +413,9 @@ describe.skipIf(gate.mode !== "run")(
         false,
         true,
       ]);
-      expect(after.decisions.map((d) => d.texto).sort()).toEqual([
-        null,
-        PLACEHOLDER,
-      ]);
+      expect(after.decisions).toEqual(
+        before.decisions.map((row) => redacted(row, ["texto"])),
+      );
     });
 
     it("deletes the documents, the extraction row and the stored file (DR-4, DR-7)", async () => {
