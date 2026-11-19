@@ -174,7 +174,7 @@ Chain strategy: stacked-to-main
 
 ## Phase 11: PR 2 checkpoint
 
-- [ ] 11.1 Measure "git diff --numstat feat/data-retention...HEAD" (the PR 2 diff against its stacked base) excluding "openspec/" and ".engram/" (target ~847, or ~737 under option B). If PR 2 passes 1000, STOP and report; do not assume an exception. Record the figure.
+- [x] 11.1 Measure "git diff --numstat feat/data-retention...HEAD" (the PR 2 diff against its stacked base) excluding "openspec/" and ".engram/" (target ~847, or ~737 under option B). If PR 2 passes 1000, STOP and report; do not assume an exception. Record the figure. (Done 2026-11-19: measured against 7533b98 (PR 1 already merged, so the stacked base is main), 1138 changed lines (1134 added, 4 deleted) against the 1000 budget, over by 138. STOPPED for the owner: no test trimmed, no exception assumed. Task 11.2 (full run) waits for the owner decision. See apply-progress.)
 - [ ] 11.2 Run the full "npm test" once with the dummy DB for PR 2; record file and test counts and wall time.
 
 ## Phase 12: RNF-04 integration run (owner-run, disposable branch)

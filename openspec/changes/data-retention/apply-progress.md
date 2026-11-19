@@ -330,3 +330,36 @@ Work Unit Evidence:
 | Rollback boundary | Revert the note in `modelo_datos_sql.md` |
 
 Commit: "docs: note the 2036 audit partition window".
+
+## Checkpoint 11.1: PR 2 size after unit 9 (STOP: over the 1000-line budget)
+
+"git diff --numstat 7533b98...HEAD" (7533b98 is origin/main with PR 1 merged, so it is also the base of PR 2) taken on the four PR 2 unit commits, excluding "openspec/" and ".engram/":
+
+| File | Added | Deleted |
+|------|-------|---------|
+| `modelo_datos_sql.md` | 2 | 2 |
+| `src/app/(auth)/login/actions.test.ts` | 59 | 0 |
+| `src/app/api/cron/retention/route.test.ts` | 175 | 0 |
+| `src/app/api/cron/retention/route.ts` | 41 | 0 |
+| `src/lib/data/integration/retention.integration.test.ts` | 516 | 0 |
+| `src/lib/data/retention-inventory.test.ts` | 319 | 0 |
+| `src/lib/intake/vercel-config.test.ts` | 10 | 1 |
+| `src/test/access/matrix-table.ts` | 8 | 0 |
+| `vercel.json` | 2 | 1 |
+| `vitest.integration.setup.ts` | 2 | 0 |
+| Total | 1134 | 4 |
+
+Total: 1138 changed lines, 138 over the 1000 budget (the weighed forecast was ~847). No generated snapshot is part of PR 2. Per the checkpoint rule, apply STOPS here and reports to the owner; no test was trimmed and no exception was assumed. Task 11.2 (the full "npm test" run) is not done: it follows the owner decision, as 6.4 did for PR 1.
+
+Where the overage comes from, against the design's raw estimate and the tasks weighed figure:
+
+| File | Design raw (weighed) | Measured | Over (weighed) |
+|------|----------------------|----------|----------------|
+| `src/lib/data/integration/retention.integration.test.ts` | 300 (390) | 516 | +216 (+126) |
+| `src/lib/data/retention-inventory.test.ts` | 140 (182) | 319 | +179 (+137) |
+| `src/app/api/cron/retention/route.test.ts` | 145 (189) | 175 | +30 (-14) |
+| `src/app/(auth)/login/actions.test.ts` (verify W1, not in the design) | 0 | 59 | +59 |
+| `src/app/api/cron/retention/route.ts` | 50 | 41 | -9 |
+| the five small files (`vercel.json`, its test, the matrix row, the setup line, `modelo_datos_sql.md`) | 29 | 28 | -1 |
+
+Prettier expands every object literal and call to one item per line, which is the driver again. By content, the separable blocks are: the reviewed column list of `src/lib/data/retention-inventory.test.ts` (137 lines of arrays, lines 46 to 182), the W1 login cases (59 lines), and in the integration test the fixture setup of `beforeAll` (about 115 lines). Dropping the W1 cases and compacting nothing else would still leave ~1079. The owner decides; nothing was moved or cut.
