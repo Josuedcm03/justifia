@@ -314,3 +314,19 @@ Work Unit Evidence:
 | Rollback boundary | Delete `src/lib/data/retention-inventory.test.ts` and `src/lib/data/integration/retention.integration.test.ts`, revert the four login cases and the setup line |
 
 Commit: "test(retention): prove RNF-04 through the scheduled route".
+
+## Unit 9: partition window note (D8)
+
+Mode: documents only, structural readback (no behavior, no test).
+
+- 10.1 (2026-11-19): `modelo_datos_sql.md` note 13 now says the yearly partitions run 2026..2035 (2031 to 2035 come from migration 0014), the window ends 2035-12-31 and the 2036 partition must be created before 2036 begins; the partition comment above the audit table says 2026..2035. The file keeps its CRLF line endings and its Spanish text. Readback: "git diff --stat modelo_datos_sql.md" shows 2 insertions and 2 deletions. No test or other document pins the old window.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | N/A: documents only |
+| Runtime harness | N/A: no runtime boundary |
+| Rollback boundary | Revert the note in `modelo_datos_sql.md` |
+
+Commit: "docs: note the 2036 audit partition window".

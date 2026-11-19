@@ -170,7 +170,7 @@ Chain strategy: stacked-to-main
 
 ## Phase 10: Documentation (unit 9, PR 2)
 
-- [ ] 10.1 `modelo_datos_sql.md`: note the audit partition window 2031 to 2035 and that a partition for 2036 must be created before 2036 begins (D8). Structural readback; commit unit 9: "docs: note the 2036 audit partition window".
+- [x] 10.1 `modelo_datos_sql.md`: note the audit partition window 2031 to 2035 and that a partition for 2036 must be created before 2036 begins (D8). Structural readback; commit unit 9: "docs: note the 2036 audit partition window". (Done 2026-11-19: note 13 and the partition comment of `modelo_datos_sql.md` now state 2026..2035, the window end 2035-12-31 and the 2036 partition; structural readback, 2 insertions and 2 deletions.)
 
 ## Phase 11: PR 2 checkpoint
 
