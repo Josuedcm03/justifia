@@ -228,3 +228,8 @@ New test in `src/lib/data/retention.test.ts`: "builds a due rule that excludes s
 Re-measured total against bf91506, excluding "openspec/", ".engram/" and the snapshot: 1204 changed lines (1191 added, 13 deleted); `src/lib/data/retention.test.ts` is now 408 lines. Snapshot, separate: 2343 lines. Within the accepted exception (about 1205).
 
 Commit: "test(data): pin the active-enrollment exclusion of the due rule".
+
+## Phase 6 database steps (owner-run with explicit yes)
+
+- 6.2 (2026-11-19 12:44 Managua, read-only): production has no user with login "sistema"; 14 migrations applied (0000-0013); no retention columns or 2031+ partitions yet.
+- 6.3 (2026-11-19 12:49 Managua): disposable branch "retention-it" (child of "dev-arnia") created and 0014 applied there only. Read-only verification: sentinel inactive with an unusable 18-character hash; both marker columns nullable; partitions 2031-2035 attached with the same triggers as 2030 and no public TRUNCATE; "CK_Usuario_Cancelado" present. The branch stays for the RNF-04 integration run (Phase 12).
