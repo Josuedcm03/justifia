@@ -31,6 +31,8 @@ function remisionWrites(source: string): Verb[] {
 const ALLOWED: Record<string, readonly Verb[]> = {
   "lib/data/remision.ts": ["insert", "update", "delete"],
   "lib/data/solicitud-decision.ts": ["insert"],
+  // The retention run redacts the teacher snapshot in place (data-retention).
+  "lib/data/retention.ts": ["update"],
   // Cleanup of the opt-in real-Postgres suite on a disposable branch only.
   "lib/data/integration/fixtures.ts": ["delete"],
 };

@@ -11,6 +11,7 @@ import type { EntityCounts, ImportSummary } from "../import/types";
 import type { DropResult, EnrollResult } from "../enrollment/types";
 import { changedFields } from "./diff";
 import {
+  accountCancelledEvent,
   accountCreatedEvent,
   accountUpdatedEvent,
   asignaturaActiveChangedEvent,
@@ -147,7 +148,8 @@ describe("accountCreatedEvent", () => {
     expect(event.accion).toBe("usuario.creado");
     expect(event.entidadTipo).toBe("Usuario");
     expect(event.entidadId).toBe(42);
-    if (event.entidadTipo !== "Usuario") throw new Error("expected Usuario");
+    if (event.accion !== "usuario.creado")
+      throw new Error("expected usuario.creado");
     expect(event.datos.rol).toBe("docente");
     expect(event.datos.origen).toBe("importacion");
     expect(event.datos.importacionSha256).toBe("b".repeat(64));
@@ -164,7 +166,8 @@ describe("accountUpdatedEvent", () => {
       importacionSha256: "c".repeat(64),
     });
     expect(event.accion).toBe("usuario.actualizado");
-    if (event.entidadTipo !== "Usuario") throw new Error("expected Usuario");
+    if (event.accion !== "usuario.actualizado")
+      throw new Error("expected usuario.actualizado");
     expect(event.datos.campos).toEqual(["nombreCompleto", "telefono"]);
     for (const field of event.datos.campos) {
       expect(AUDITABLE_USER_FIELDS).toContain(field);
@@ -241,8 +244,8 @@ describe("buildAuditEvents", () => {
       { usuarioId: 5, rol: "docente", kind: "creado", campos: [] },
     ]);
     const accountEvent = events[1];
-    if (accountEvent.entidadTipo !== "Usuario")
-      throw new Error("expected Usuario");
+    if (accountEvent.accion !== "usuario.creado")
+      throw new Error("expected usuario.creado");
     expect(accountEvent.datos.importacionSha256).toBe("d".repeat(64));
   });
 });
@@ -258,7 +261,8 @@ describe("AUDITABLE_USER_FIELDS includes facultadId (SR-16)", () => {
       rol: "secretaria",
       importacionSha256: "e".repeat(64),
     });
-    if (event.entidadTipo !== "Usuario") throw new Error("expected Usuario");
+    if (event.accion !== "usuario.creado")
+      throw new Error("expected usuario.creado");
     expect(event.datos.campos).toContain("facultadId");
     expect(JSON.stringify(event.datos)).not.toMatch(/facultadId"\s*:/);
   });
@@ -1921,5 +1925,60 @@ describe("coordinator queue read event (RF-10, RNF-06, E1)", () => {
     } as Parameters<typeof escalamientoColaConsultadaEvent>[0]);
 
     expect(JSON.stringify(event)).not.toMatch(/41|42|Perez|Diagnostico/);
+  });
+});
+
+describe("account cancelled event (RNF-04, RN-27, RNF-06, audit-log delta)", () => {
+  it("maps to usuario.cancelado on the student", () => {
+    const event = accountCancelledEvent({
+      usuarioId: 42,
+      solicitudes: 2,
+      documentos: 3,
+    });
+
+    expect(event.accion).toBe("usuario.cancelado");
+    expect(event.entidadTipo).toBe("Usuario");
+    expect(event.entidadId).toBe(42);
+    expect(AUDIT_ACTIONS).toContain("usuario.cancelado");
+  });
+
+  it("carries exactly the closed code and the two counts, whatever the student", () => {
+    const event = accountCancelledEvent({
+      usuarioId: 42,
+      solicitudes: 2,
+      documentos: 3,
+    });
+    expect(Object.keys(event.datos).sort()).toEqual([
+      "documentos",
+      "motivo",
+      "solicitudes",
+    ]);
+    expect(event.datos).toEqual({
+      motivo: "retencion_5_anios",
+      solicitudes: 2,
+      documentos: 3,
+    });
+    expect(
+      accountCancelledEvent({ usuarioId: 9, solicitudes: 0, documentos: 0 })
+        .datos,
+    ).toEqual({ motivo: "retencion_5_anios", solicitudes: 0, documentos: 0 });
+  });
+
+  it("drops a name, email, CIF, free text or request ids smuggled into the call", () => {
+    const event = accountCancelledEvent({
+      usuarioId: 42,
+      solicitudes: 2,
+      documentos: 3,
+      nombre: "Ana Perez",
+      correo: "ana.perez@uam.edu.ni",
+      cif: "20260701",
+      nota: "Diagnostico: depresion severa",
+      solicitudIds: [701, 702],
+      hashClave: "$2b$10$secret",
+    } as Parameters<typeof accountCancelledEvent>[0]);
+
+    expect(JSON.stringify(event)).not.toMatch(
+      /Ana|Perez|@|20260701|Diagnostico|701|702|secret/,
+    );
   });
 });

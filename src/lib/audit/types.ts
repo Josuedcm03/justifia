@@ -62,6 +62,7 @@ export const AUDIT_ACTIONS = [
   "escalamiento.notificacion_bloqueada",
   "escalamiento.notificacion_reenviada",
   "escalamiento.cola.consultada",
+  "usuario.cancelado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -305,6 +306,15 @@ type NoticeResentPayload = {
 /** The coordinator's open of the escalation list: the count only, never the
  *  request ids (RNF-06). */
 type CoordinatorQueueReadPayload = { total: number };
+
+/** Retention event (data-retention, RNF-04, RN-27, RNF-06). Counts and the
+ *  closed reason code only: never a name, email, CIF, free text, request id
+ *  or credential of the cancelled student. */
+type AccountCancelledPayload = {
+  motivo: "retencion_5_anios";
+  solicitudes: number;
+  documentos: number;
+};
 
 /** Closed lists for the manual catalog events. A field not named here can
  *  never be reported as changed (AL-PAY). */
@@ -558,4 +568,12 @@ export type AuditEvent =
       entidadTipo: "Carrera";
       entidadId: number;
       datos: CoordinatorQueueReadPayload;
+    }
+  | {
+      // The entity is the cancelled student. Written only by the retention run,
+      // under the system actor.
+      accion: "usuario.cancelado";
+      entidadTipo: "Usuario";
+      entidadId: number;
+      datos: AccountCancelledPayload;
     };

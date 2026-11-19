@@ -25,6 +25,7 @@ import type {
   RemissionState,
   RemissionTrigger,
 } from "@/lib/remission/states";
+import { RETENTION_REASON } from "@/lib/retention/policy";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 import type { ImportSummary } from "../import/types";
@@ -854,4 +855,25 @@ export function enrollmentWriteEvents(
       grupoId: result.grupoId,
     }),
   ];
+}
+
+/** The retention run cancelled a student (RNF-04, RN-27, DR-6). The entity is
+ *  the student. Counts and the closed reason only: each field is copied by
+ *  name, so a name, CIF, email or request id passed in cannot reach the
+ *  payload. */
+export function accountCancelledEvent(args: {
+  usuarioId: number;
+  solicitudes: number;
+  documentos: number;
+}): AuditEvent {
+  return {
+    accion: "usuario.cancelado",
+    entidadTipo: "Usuario",
+    entidadId: args.usuarioId,
+    datos: {
+      motivo: RETENTION_REASON,
+      solicitudes: args.solicitudes,
+      documentos: args.documentos,
+    },
+  };
 }
