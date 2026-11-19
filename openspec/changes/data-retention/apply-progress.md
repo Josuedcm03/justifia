@@ -214,3 +214,17 @@ Where the overage comes from, against the design's raw estimate:
 ## Status at the end of this apply batch (PR 1)
 
 Units 1 to 5 are implemented and committed: dde46a4, bddf278, acca573, 25215a9, 63a067a (unit 0 is 8544bcc). Tasks 6.2, 6.3, 6.5, 6.6 and 6.7 are not done (owner-run database steps, push and PR, merge gate). Task 6.1 found PR 1 over the 1000-line budget (1193), so apply stops for the owner's decision before 6.5 (push and PR).
+
+## Follow-up (2026-11-19): size exception granted and the M3 pin
+
+Owner decisions: the owner granted a size exception for PR 1 on 2026-11-19 (precedent: auth-route-tests, 1220 lines) and asked for one small test that kills the M3 survivor.
+
+New test in `src/lib/data/retention.test.ts`: "builds a due rule that excludes students with an active enrollment (DR-2)". It runs a dry run against the scripted double and renders the where clause of the count read, which is the predicate exactly as `src/lib/data/retention.ts` built it from its drizzle chunks, then asserts it contains the NOT EXISTS clause on "Inscripcion" with the active flag.
+
+- Pass at write: it pins already-built behavior, so there was no RED step. Run: "npm test -- src/lib/data/retention.test.ts": 1 file, 15 tests passed.
+- Revert-only mutation check (temporary, restored with "git restore src/lib/data/retention.ts", "git status" showed only the staged test): dropping the NOT EXISTS enrollment clause from the due predicate made the new test fail ("builds a due rule that excludes students with an active enrollment (DR-2)", 1 failed, 14 passed). This closes the M3 survivor.
+- Gates: "npm run typecheck" clean; "npx eslint" clean (CRLF noise filtered); "npx prettier --check --end-of-line auto" clean.
+
+Re-measured total against bf91506, excluding "openspec/", ".engram/" and the snapshot: 1204 changed lines (1191 added, 13 deleted); `src/lib/data/retention.test.ts` is now 408 lines. Snapshot, separate: 2343 lines. Within the accepted exception (about 1205).
+
+Commit: "test(data): pin the active-enrollment exclusion of the due rule".

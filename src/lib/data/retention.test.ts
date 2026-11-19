@@ -112,6 +112,17 @@ describe("runRetention: dry run and actor (DR-9, D2)", () => {
     expect(store.has("intake/1/a.pdf")).toBe(true);
   });
 
+  it("builds a due rule that excludes students with an active enrollment (DR-2)", async () => {
+    const double = use([actor, due(0)]);
+
+    await runRetention(NOW, storeWith(), { dryRun: true });
+
+    // The count read carries the due predicate exactly as the module built it.
+    expect(render(double.log[1].where).sql).toContain(
+      'NOT EXISTS (SELECT 1 FROM "Inscripcion" WHERE "Inscripcion"."EstudianteId" = "Usuario"."Id" AND "Inscripcion"."Activo")',
+    );
+  });
+
   it("throws when the system actor is missing, so the run fails closed", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
