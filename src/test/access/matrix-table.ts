@@ -119,6 +119,14 @@ export const ROUTES: Record<string, Row & { method: "GET" | "POST" }> = {
       role: unauthorized,
     }),
   },
+  "api/cron/retention/route.ts": {
+    method: "GET",
+    ...row([], {
+      anonymous: unauthorized,
+      flagged: unauthorized,
+      role: unauthorized,
+    }),
+  },
 };
 
 const actions = (allowed: Identity[], ...exports: string[]) => ({

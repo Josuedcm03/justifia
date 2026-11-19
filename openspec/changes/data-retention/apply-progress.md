@@ -235,3 +235,33 @@ Commit: "test(data): pin the active-enrollment exclusion of the due rule".
 - 6.3 (2026-11-19 12:49 Managua): disposable branch "retention-it" (child of "dev-arnia") created and 0014 applied there only. Read-only verification: sentinel inactive with an unusable 18-character hash; both marker columns nullable; partitions 2031-2035 attached with the same triggers as 2030 and no public TRUNCATE; "CK_Usuario_Cancelado" present. The branch stays for the RNF-04 integration run (Phase 12).
 
 - 6.6 (2026-11-19 12:54 Managua, owner yes): 0014 applied to production; the read-only verification matches the disposable branch (15 migrations, sentinel inactive, marker columns, partitions 2031-2035, "CK_Usuario_Cancelado").
+
+# PR 2 (branch "feat/data-retention-2", from origin/main 7533b98)
+
+PR 1 merged as #88, so PR 2 is based on "main" directly (no stacking, no retarget). Every PR 2 diff is measured against 7533b98, excluding "openspec/" and ".engram/".
+
+## Unit 6: retention route and matrix row (DR-9, DR-10, RNF-01)
+
+Mode: Strict TDD. Layer: unit (route called as a function with a plain Request). Safety net: `src/app/route-coverage.test.ts` and `src/app/access-matrix.routes.test.ts` were green in the PR 1 full run.
+
+Docs check (7.0): "node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/" lists "maxDuration" as a number set by the deployment platform, and "dynamic" is removed under Cache Components. The route therefore exports a literal "maxDuration = 300" and no "dynamic", as the design says. No drift.
+
+| Task | RED evidence | GREEN evidence |
+|------|--------------|----------------|
+| 7.1 | "npm test -- src/app/api/cron/retention": suite failed to load, "Cannot find package '@/app/api/cron/retention/route'" (0 tests). 20 cases written: 7 bad bearers, unset secret, a dry run without the bearer, GET only, literal ceiling 300, real run options, "?dry=1" forwarded, "?dry=0", "?dry=" and "?other=1" stay real runs, counts-only body, one "retention.run" log line, failures in the counts, generic 500 | n/a |
+| 7.2 | "npm test -- src/app/api/cron/retention src/app/route-coverage.test.ts" with the route and no matrix row: 1 failed, "the table lists every protected entry point and nothing else: missing [ 'api/cron/retention/route.ts' ]" | n/a |
+| 7.3 | n/a | `src/app/api/cron/retention/route.ts`: 20 of 20 in the route test |
+| 7.4 | n/a | `src/test/access/matrix-table.ts` row added: "npm test -- src/app/api/cron/retention src/app/route-coverage.test.ts src/app/access-matrix.routes.test.ts": 3 files, 162 tests passed |
+| 7.5 | n/a | gates: "npm run typecheck" clean; "npx eslint" on the three touched paths: only the known CRLF noise; "npx prettier --check --end-of-line auto" clean |
+
+Decision: only the literal value "1" asks for a dry run, as the spec says ("?dry=1"). "?dry=0", an empty value and unrelated keys run for real, and two cases pin that so a "has('dry')" shortcut would fail.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/app/api/cron/retention src/app/route-coverage.test.ts src/app/access-matrix.routes.test.ts" with the dummy DB: 3 files, 162 tests passed |
+| Runtime harness | N/A: the route is called as a function with a plain Request; the real database run is the owner-run integration test (Phase 12) |
+| Rollback boundary | Revert the route folder and the matrix row |
+
+Commit: "feat(cron): add the retention route".
