@@ -144,7 +144,7 @@ Chain strategy: stacked-to-main
 - [x] 6.4 Run the full "npm test" once with the dummy DB for PR 1; record file and test counts and wall time in `openspec/changes/data-retention/apply-progress.md`. (Done 2026-11-19: 353 files, 8381 tests passed, 4 min 1 s wall.)
 - [x] 6.5 Push "feat/data-retention" and open PR 1 with base "main"; body states "PR 1 of 2, base main; PR 2 (feat/data-retention-2) stacks on this branch", the forecast, the gates, the measured size, the snapshot figure, and that the PR code is inert (no route calls it). (Done 2026-11-19: PR #88 opened against main.)
 - [x] 6.6 [ASK OWNER] [CONFIRM] Apply 0014 to PRODUCTION BEFORE PR 1 merges, only with the owner's explicit "yes" for this exact command: "$env:DATABASE_URL='<production direct non-pooler URL from the Neon CLI>'; npm run db:migrate". Then read-only verify the sentinel and the partitions as in 6.3; record the date and the journal row. (Done 2026-11-19 12:54 Managua with the owner explicit yes: 0014 applied to production. Read-only: 15 migrations, last "when" 1795111590732; sentinel inactive with an unusable hash; both marker columns; partitions 2031-2035 with their triggers; "CK_Usuario_Cancelado" present. Production /login answers 200.)
-- [ ] 6.7 Merge gate PR 1 (see "Merge gate"): "sdd-verify" passes and the owner gives the OK. Keep the change branch.
+- [x] 6.7 Merge gate PR 1 (see "Merge gate"): "sdd-verify" passes and the owner gives the OK. Keep the change branch. (Done 2026-11-19: owner OK; PR #88 merged as 7533b98, Vercel production deploy success, /login 200; branch kept.)
 
 ## Phase 7: Retention route (unit 6, PR 2; DR-9, DR-10, RNF-01)
 
