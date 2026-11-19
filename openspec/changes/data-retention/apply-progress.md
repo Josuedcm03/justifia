@@ -32,3 +32,28 @@ Work Unit Evidence:
 | Rollback boundary | Revert `src/lib/retention/` |
 
 Commit: "feat(retention): add the five-year cutoff policy".
+
+## Unit 2: migration 0014 and schema (DR-2, DR-3, DR-6, D1, D3, D7, D8)
+
+Mode: Strict TDD. Layer: unit (static migration text). Safety net: "npm test -- src/db" before touching `src/db/schema.ts`: covered by the unit 0 baseline (106 files, 2054 tests green, which includes `src/db`).
+
+| Task | RED evidence | GREEN evidence |
+|------|--------------|----------------|
+| 2.1 | "npm test -- src/db/migration-data-retention.test.ts": 9 failed of 9. "is registered once in the journal, later than the last applied migration: expected [] to have a length of 1 but got +0" and the other eight fail on "expected [] to have a length of 1 but got +0" (migration located by name, missing) | n/a |
+| 2.2 | n/a | `src/db/schema.ts`: Usuario.canceladoEn, Solicitud.canceladaEn (nullable timestamptz, no default) and the CK_Usuario_Cancelado check with the sibling check pattern |
+| 2.3 | n/a | "npx drizzle-kit generate --name data_retention" with the dummy DATABASE_URL (no connection): wrote `drizzle/0014_data_retention.sql`, the journal entry (idx 14, when 1795111590732, later than 1793660241921) and `drizzle/meta/0014_snapshot.json` (2342 lines, generated, untouched). Generated statements: 2 ADD COLUMN and the CHECK (drizzle emitted the check, so no hand-appended CHECK) |
+| 2.4 | n/a | hand-appended: the sentinel INSERT, then per year 2031 to 2035 the partition, its truncate trigger and its REVOKE; every statement after a breakpoint marker; the partition comment is attached to the first partition statement so no breakpoint chunk is comment-only |
+| 2.5 | n/a | "npm test -- src/db": 17 files, 232 tests passed (includes `src/db/schema.test.ts`; no pin needed adjusting); migration test 9 of 9 |
+| 2.6 | n/a | gates: "npm run typecheck" clean after one fix (below); "npx eslint" clean (CRLF noise filtered); "npx prettier --check --end-of-line auto" clean |
+
+Unplanned edit (deviation): the new `Usuario.CanceladoEn` column made "npm run typecheck" fail in `src/lib/data/users.ts` (4 errors, property canceladoEn missing from `UsuarioConRol` in the projections). Smallest fix: `UsuarioConRol` is now `Omit<Usuario, "rolId" | "canceladoEn">` with a comment, so no SQL projection or pinned query changed. After the fix: "npm test -- src/db src/lib/data/users": 20 files, 337 tests passed.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/db" with the dummy DB: 17 files, 232 tests passed |
+| Runtime harness | Owner-run: disposable Neon branch rehearsal (tasks 6.2-6.3). Nothing was applied to any database here |
+| Rollback boundary | Revert `drizzle/0014_data_retention.sql`, its journal entry and snapshot, `src/db/schema.ts`, the test and the `UsuarioConRol` type edit |
+
+Commit: "feat(db): add retention markers, system account and 2031-2035 audit partitions".

@@ -51,9 +51,13 @@ import type { RolUsuario } from "@/lib/validations/auth";
 /**
  * Read DTO: the field is still named `rol` and still carries the CODE, via
  * `innerJoin` (design.md decision 3). Every existing consumer of `.rol`
- * (login, users list, profile) keeps working unchanged.
+ * (login, users list, profile) keeps working unchanged. `canceladoEn` is not
+ * part of it: the retention marker (data-retention) is read only by the
+ * retention run, and a cancelled account cannot match any identity lookup.
  */
-export type UsuarioConRol = Omit<Usuario, "rolId"> & { rol: RolUsuario };
+export type UsuarioConRol = Omit<Usuario, "rolId" | "canceladoEn"> & {
+  rol: RolUsuario;
+};
 
 /**
  * Write DTO: callers pass the CODE; `createUsuario` resolves it to the

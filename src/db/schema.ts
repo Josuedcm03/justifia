@@ -140,11 +140,19 @@ export const usuario = pgTable(
     creadoEn: timestamp("CreadoEn", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // RNF-04, RN-27: the instant the retention run anonymized the account;
+    // NULL while the account is live (data-retention, DR-3).
+    canceladoEn: timestamp("CanceladoEn", { withTimezone: true }),
   },
   (t) => [
     check(
       "CK_Usuario_Ambito",
       sql`${t.facultadId} IS NULL OR ${t.carreraId} IS NULL`,
+    ),
+    // A cancelled account is inactive and holds no unique personal value (D7).
+    check(
+      "CK_Usuario_Cancelado",
+      sql`${t.canceladoEn} IS NULL OR (NOT ${t.activo} AND ${t.correo} IS NULL AND ${t.telefono} IS NULL AND ${t.cif} IS NULL)`,
     ),
   ],
 );
@@ -294,6 +302,9 @@ export const solicitud = pgTable(
     estudianteCif: varchar("EstudianteCif", { length: 20 }),
     estudianteCarrera: varchar("EstudianteCarrera", { length: 160 }),
     estudianteCorreo: varchar("EstudianteCorreo", { length: 160 }),
+    // RNF-04, RN-27: set when the student's account is cancelled and this
+    // snapshot is redacted (data-retention, DR-4); NULL otherwise.
+    canceladaEn: timestamp("CanceladaEn", { withTimezone: true }),
     creadoEn: timestamp("CreadoEn", { withTimezone: true })
       .notNull()
       .defaultNow(),
