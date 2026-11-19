@@ -265,3 +265,22 @@ Work Unit Evidence:
 | Rollback boundary | Revert the route folder and the matrix row |
 
 Commit: "feat(cron): add the retention route".
+
+## Unit 7: daily schedule (DR-11)
+
+Mode: Strict TDD. Layer: unit (static JSON parse). Safety net: `src/lib/intake/vercel-config.test.ts` 4 of 4 passed before the edit.
+
+| Task | RED evidence | GREEN evidence |
+|------|--------------|----------------|
+| 8.1 | "npm test -- src/lib/intake/vercel-config.test.ts": 2 failed, 3 passed. "runs data retention daily at 11:00 UTC (05:00 Managua, DR-11)": the crons array does not contain the retention entry; "registers exactly the three scheduled jobs, each once": two paths instead of three. The two existing job tests untouched and green | n/a |
+| 8.2 | n/a | `vercel.json` gains `{ "path": "/api/cron/retention", "schedule": "0 11 * * *" }`: 5 of 5 passed. Gates: "npm run typecheck" clean; "npx eslint" only the known CRLF noise (52 "Delete" lines, nothing else); "npx prettier --check --end-of-line auto" clean on both files |
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/lib/intake/vercel-config.test.ts" with the dummy DB: 1 file, 5 tests passed |
+| Runtime harness | N/A: static JSON parse; the scheduler registers the entry on the deploy of PR 2 (task 13.4 checks it) |
+| Rollback boundary | Revert `vercel.json` and `src/lib/intake/vercel-config.test.ts` |
+
+Commit: "feat(cron): schedule retention daily at 11:00 UTC".

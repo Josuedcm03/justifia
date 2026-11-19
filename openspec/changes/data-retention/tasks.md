@@ -157,8 +157,8 @@ Chain strategy: stacked-to-main
 
 ## Phase 8: Daily schedule (unit 7, PR 2; DR-11)
 
-- [ ] 8.1 RED `src/lib/intake/vercel-config.test.ts`: exactly three jobs and retention at "0 11 * * *" on path "/api/cron/retention", the two existing jobs unchanged. Run and confirm the failure (two jobs today).
-- [ ] 8.2 GREEN `vercel.json`: add the retention entry. Gates G; commit unit 7: "feat(cron): schedule retention daily at 11:00 UTC".
+- [x] 8.1 RED `src/lib/intake/vercel-config.test.ts`: exactly three jobs and retention at "0 11 * * *" on path "/api/cron/retention", the two existing jobs unchanged. Run and confirm the failure (two jobs today). (Done 2026-11-19: 2 failed, 3 passed: no retention entry and two jobs today.)
+- [x] 8.2 GREEN `vercel.json`: add the retention entry. Gates G; commit unit 7: "feat(cron): schedule retention daily at 11:00 UTC". (Done 2026-11-19: 5 of 5 passed.)
 
 ## Phase 9: Inventory, cut cases and RNF-04 proof (unit 8, PR 2; DR-4, DR-5, DR-12)
 
