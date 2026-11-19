@@ -91,15 +91,15 @@ Chain strategy: stacked-to-main
 
 - [x] 0.1 [ASK OWNER] Record in `openspec/changes/data-retention/apply-progress.md` the owner's answer on option A or B (forecast block) and on excluding the generated snapshot from the count; update the forecast above. Do not start unit 1 before the answer.
 - [x] 0.2 [ASK OWNER] Close the two open questions of the design: (a) edit DR-4 in `openspec/changes/data-retention/specs/data-retention/spec.md` to drop the "SolicitudRevision free text" item and word the snapshot rule as "redact: a non-NULL value becomes the placeholder, NULL stays NULL"; (b) owner confirms "EstudianteCarrera" is redacted, not kept as residue. Record the answers.
-- [ ] 0.3 [READ-ONLY] Confirm branch "feat/data-retention" is on main bf91506; run "npm test -- src/lib/data src/db src/lib/audit src/lib/intake" with the dummy DB for a green baseline; record file and test counts.
-- [ ] 0.4 Commit only "openspec/changes/data-retention/" as unit 0: "docs(data-retention): add the SDD planning documents".
+- [x] 0.3 [READ-ONLY] Confirm branch "feat/data-retention" is on main bf91506; run "npm test -- src/lib/data src/db src/lib/audit src/lib/intake" with the dummy DB for a green baseline; record file and test counts. (Done 2026-11-19: baseline 106 files, 2054 tests green; the local "main" ref is stale, diffs use bf91506.)
+- [x] 0.4 Commit only "openspec/changes/data-retention/" as unit 0: "docs(data-retention): add the SDD planning documents". (Done: committed as 8544bcc.)
 
 ## Phase 1: Cutoff policy (unit 1; DR-1, DR-3, DR-6)
 
-- [ ] 1.1 RED `src/lib/retention/policy.test.ts`: it imports a module that does not exist, so it fails first. Run and confirm the failure.
-- [ ] 1.2 RED same file, table-driven DR-1 boundary: anchor "2026-03-10T09:00Z" with now "2031-03-10T09:00Z" is due, "2031-03-09T09:00Z" is not; leap rows "2028-02-29" with "2033-02-28" not due and "2033-03-01" due; exact 5 years due, 1 ms less not due, 1 day less not due; the Feb 29 cutoff clamps to Feb 28 at the same time of day (D10). Also pin the constants RETENTION_YEARS 5, "[cancelado]", "!cancelado", "sistema", "!sistema-sin-clave", "retencion_5_anios" and cancelledLogin(7) equal to "cancelado-7".
-- [ ] 1.3 GREEN `src/lib/retention/policy.ts`: the six constants, retentionCutoff(now: Date) in UTC (year minus 5, due means anchor <= cutoff), cancelledLogin(id). Pure, no "server-only".
-- [ ] 1.4 Gates G on both files; commit unit 1: "feat(retention): add the five-year cutoff policy".
+- [x] 1.1 RED `src/lib/retention/policy.test.ts`: it imports a module that does not exist, so it fails first. Run and confirm the failure. (Done 2026-11-19.)
+- [x] 1.2 RED same file, table-driven DR-1 boundary: anchor "2026-03-10T09:00Z" with now "2031-03-10T09:00Z" is due, "2031-03-09T09:00Z" is not; leap rows "2028-02-29" with "2033-02-28" not due and "2033-03-01" due; exact 5 years due, 1 ms less not due, 1 day less not due; the Feb 29 cutoff clamps to Feb 28 at the same time of day (D10). Also pin the constants RETENTION_YEARS 5, "[cancelado]", "!cancelado", "sistema", "!sistema-sin-clave", "retencion_5_anios" and cancelledLogin(7) equal to "cancelado-7". (Done 2026-11-19.)
+- [x] 1.3 GREEN `src/lib/retention/policy.ts`: the six constants, retentionCutoff(now: Date) in UTC (year minus 5, due means anchor <= cutoff), cancelledLogin(id). Pure, no "server-only". (Done 2026-11-19.)
+- [x] 1.4 Gates G on both files; commit unit 1: "feat(retention): add the five-year cutoff policy". (Done 2026-11-19.)
 
 ## Phase 2: Migration 0014 and schema (unit 2; DR-2, DR-3, DR-6, audit-log "Audit record content", D1, D3, D7, D8)
 
