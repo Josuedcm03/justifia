@@ -368,3 +368,21 @@ Prettier expands every object literal and call to one item per line, which is th
 
 - Owner decision (2026-11-19): a size exception is granted for PR 2 at 1138 changed lines against 7533b98, excluding "openspec/" and ".engram/" (precedents: PR 1 at 1204 and auth-route-tests at 1220). Checkpoint 11.1 stays as measured; nothing was trimmed.
 - 11.2 (2026-11-19): "npm test" once with the dummy DATABASE_URL at the checkpoint commit: 355 files, 8430 tests, all passed, none failed or skipped, wall time 237 s (vitest duration 235.66 s). PR 1's full run was 353 files and 8382 tests; the difference is the two new test files and 48 new tests of PR 2. No database was contacted.
+
+## Phase 12: RNF-04 integration run (evidence for the thesis)
+
+- Date: 2026-11-19, green run 13:33:57-13:34:29 Managua (19:33:57 UTC), rerun after the mutation check 13:35:32 Managua.
+- Commit: 653d761 on "feat/data-retention-2" (base main 7533b98).
+- Database: disposable Neon branch "retention-it", child of "dev-arnia", with migration 0014; never production or "validacion-secretaria". Guarded by INTEGRATION_ALLOW_WRITES=1 and the production-endpoint refusal.
+- Entry point: "GET /api/cron/retention" with the scheduler bearer, as thesis 4.9 describes (simulated age over five years; scheduled task; cancellation and audit log).
+- Result: 9 of 9 tests passed.
+  - Dry run: due 1, nothing written (DR-9).
+  - Real run: due 1, cancelled 1, documents deleted 1, stored files deleted 1, failures 0.
+  - Account anonymized in place (DR-3); request snapshots and free text redacted, residue kept (DR-4, DR-5).
+  - Document row, extraction row and stored file gone (DR-4, DR-7).
+  - Exactly one "usuario.cancelado" audit row, by the system account, without personal data (DR-6).
+  - Younger student and enrolled student untouched (DR-1, DR-2).
+  - Second run: due 0, cancelled 0, no new audit row (DR-8).
+  - UPDATE on the audit table rejected with 42501 (RNF-06).
+- First run (13:32 Managua) failed 1 of 9 on a test bug: JavaScript's default sort placed null after "[cancelado]". The stored values were right. Fixed in 653d761 by comparing the decisions row by row, like the other tables.
+- Mutation check (12.4): with the active-enrollment clause removed, the dry run reported due 2 and the suite aborted before the real run (exit 1, nobody cancelled). Restored with "git restore"; the rerun passed 9 of 9.
