@@ -134,7 +134,7 @@ Chain strategy: stacked-to-main
 
 ## Phase 5: RN-27 (unit 5; RN-27, DR-1)
 
-- [ ] 5.1 `docs/requirements.md`: add RN-27 in Spanish after RN-26 in the table format of its neighbors: subject (students), anchor (latest of CreadoEn and newest PresentadaEn or ReenviadaEn), five years, no active enrollment, meaning of cancellation (anonymization in place, documents deleted, one audit row), covers RNF-04. Structural readback only; commit unit 5: "docs(requirements): add RN-27".
+- [x] 5.1 `docs/requirements.md`: add RN-27 in Spanish after RN-26 in the table format of its neighbors: subject (students), anchor (latest of CreadoEn and newest PresentadaEn or ReenviadaEn), five years, no active enrollment, meaning of cancellation (anonymization in place, documents deleted, one audit row), covers RNF-04. Structural readback only; commit unit 5: "docs(requirements): add RN-27". (Done 2026-11-19: RN-27 row after RN-26 plus one change-table row; structural readback, 2 insertions.)
 
 ## Phase 6: PR 1 checkpoint, database steps and merge gate
 

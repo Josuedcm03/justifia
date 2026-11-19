@@ -148,3 +148,20 @@ Work Unit Evidence:
 Size note: `src/lib/data/retention.test.ts` is 397 lines and `src/lib/data/retention.ts` 256 (design raw 165 and 210; weighed 215 and 210). The test is far over its estimate. See checkpoint 6.1.
 
 Commit: "feat(data): cancel due students one transaction each".
+
+## Unit 5: RN-27 (RN-27, DR-1)
+
+Mode: documents only, structural readback (no behavior, no test).
+
+- 5.1 (2026-11-19): `docs/requirements.md` gains RN-27 after RN-26, in the format of its neighbors (ID, rule, applies to RNF-04), column widths aligned. It states the subject (students), the anchor (the latest of the account creation and the newest presentation or resubmission), five calendar years, the exclusion of an active enrollment, and the meaning of cancellation (anonymization in place, documents deleted, one audit row, irreversible). Readback: "git diff --stat docs/requirements.md" shows 2 insertions and 0 deletions, and the file keeps its CRLF line endings.
+- One addition beyond the task text: the change table of the same file ("Todo cambio se hace en los dos a la vez y se anota aquí") gets a row dated 2026-11-19 recording RN-27, the new count (18 RF, 14 RNF, 27 RN), the pending sync with the thesis matrix, and the legal-sufficiency limitation (Ley 787, arts. 19 f y 24) as an assumption. This follows the file's own convention; it is one line.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | N/A: documents only |
+| Runtime harness | N/A: no runtime boundary |
+| Rollback boundary | Revert the RN-27 row and the change-table row in `docs/requirements.md` |
+
+Commit: "docs(requirements): add RN-27".
