@@ -103,7 +103,7 @@ handoff:
     because Usuario.Rol no longer exists. Merge WU2 to main promptly.
   db_apply_record:
     applied_at_utc: "2026-09-20T18:33Z"
-    target: "Neon project damp-recipe-21839554, branch production (br-restless-hat-ayjwtjqw), endpoint ep-orange-math-ay4rhpc0, DIRECT URL via env only"
+    target: "Neon project damp-recipe-21839554, branch production (br-restless-hat-ayjwtjqw), endpoint <neon-endpoint>, DIRECT URL via env only"
     restore_point: "Neon branch backup-before-0002-roles (br-tiny-bread-aypqu93y) cloned from production at 2026-09-20T18:30:05Z; instant-restore timestamp 2026-09-20T18:30:05Z"
     rehearsal_branch: "rehearsal-0002-roles (br-rough-band-ayu3kv9t): 5.19-5.22 all passed, incl. temp '%' row inserted and deleted"
     post_apply_counts_5_26: { administrador: 2, docente: 1, estudiante: 1, secretaria: 1, coordinacion: 0 }   # equals 5.1; 0 NULL RolId; FK present; Usuario.Rol gone; 3 rows in __drizzle_migrations
