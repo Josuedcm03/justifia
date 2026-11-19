@@ -84,6 +84,7 @@ Copy-Item .env.example .env
 | `EXTRACTION_API_KEY`          | no                              | vacía en local                                             |
 | `CRON_SECRET`                 | para probar el barrido          | 16 caracteres o más, aleatorio                             |
 | `RESEND_API_KEY`, `MAIL_FROM` | no                              | solo para el correo de remisión a docentes                 |
+| `REGISTRATION_OPEN`           | no                              | vacía: el registro de estudiantes queda cerrado            |
 
 Para generar un valor aleatorio:
 
@@ -103,6 +104,13 @@ Reglas de `EXTRACTION_API_URL` (las valida `src/lib/extraction/config.ts`):
 `EXTRACTION_API_KEY` solo se usa cuando el servidor del modelo se levanta con
 `--api-key` (como en producción). Si la completas, tiene que tener 16
 caracteres o más y ser la misma que recibe el servidor.
+
+`REGISTRATION_OPEN` abre el autorregistro de estudiantes en `/register`. Está
+cerrado por defecto: solo el valor exacto `true` lo abre; vacía, ausente o con
+cualquier otro valor, `/register` muestra un aviso en lugar del formulario,
+el inicio de sesión oculta el enlace para registrarse y el servidor rechaza
+cualquier alta. Ponla en `true` solo durante una sesión piloto, porque las
+cuentas así creadas llevan un CIF sin verificar, y no la definas en producción.
 
 ### 2.4 Comprobar que la aplicación funciona
 

@@ -43,6 +43,14 @@ const envSchema = z.object({
   // use, and an unset one means "not configured", never a boot failure.
   EXTRACTION_API_URL: optionalSecret(1),
   EXTRACTION_API_KEY: optionalSecret(16),
+  // Student self-registration at /register. Closed by default: only the exact
+  // value "true" opens it (for a pilot session), because a self-registered
+  // account carries an unverified CIF and there is no email verification yet.
+  // Server-only; the register action enforces it.
+  REGISTRATION_OPEN: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
 });
 
 export const env = envSchema.parse(process.env);

@@ -6,17 +6,22 @@ import { rolesUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
 
-const { redirectMock, getSessionMock, formDouble } = vi.hoisted(() => ({
-  redirectMock: vi.fn((path: string) => {
-    throw new Error(`REDIRECT:${path}`);
+const { redirectMock, getSessionMock, formDouble, envMock } = vi.hoisted(
+  () => ({
+    redirectMock: vi.fn((path: string) => {
+      throw new Error(`REDIRECT:${path}`);
+    }),
+    getSessionMock: vi.fn(),
+    // The page only passes `next` to the form. A double keeps the tree light
+    // (the real form pulls in the login action and the data layer).
+    formDouble: () => null,
+    // The parsed env; each test sets the REGISTRATION_OPEN switch.
+    envMock: { REGISTRATION_OPEN: false },
   }),
-  getSessionMock: vi.fn(),
-  // The page only passes `next` to the form. A double keeps the tree light
-  // (the real form pulls in the login action and the data layer).
-  formDouble: () => null,
-}));
+);
 
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
+vi.mock("@/env", () => ({ env: envMock }));
 // The REAL dal runs on a mocked session source (same pattern as the reports
 // page test).
 vi.mock("@/lib/auth/cookies", () => ({ getSession: getSessionMock }));
@@ -26,12 +31,10 @@ type SearchParams = { next?: string | string[] };
 
 let Page: (props: {
   searchParams: Promise<SearchParams>;
-}) => Promise<ReactElement<{ next: string }>>;
+}) => Promise<ReactElement<{ next: string; registrationOpen: boolean }>>;
 
 async function visit(params: SearchParams = {}) {
-  return Page({ searchParams: Promise.resolve(params) }) as Promise<
-    ReactElement<{ next: string }>
-  >;
+  return Page({ searchParams: Promise.resolve(params) });
 }
 
 beforeAll(async () => {
@@ -43,6 +46,7 @@ beforeEach(() => {
   redirectMock.mockClear();
   getSessionMock.mockReset();
   getSessionMock.mockResolvedValue(null);
+  envMock.REGISTRATION_OPEN = false;
 });
 
 describe("LoginPage signed-in identity (AEA-1, RNF-01 c)", () => {
@@ -92,5 +96,21 @@ describe("LoginPage anonymous visitor (AEA-1, AEA-3)", () => {
     const el = await visit({ next: "/\\evil.com" });
 
     expect(el.props.next).toBe("/");
+  });
+});
+
+describe("LoginPage registration switch (REGISTRATION_OPEN)", () => {
+  it("tells the form registration is closed by default", async () => {
+    const el = await visit();
+
+    expect(el.props.registrationOpen).toBe(false);
+  });
+
+  it("tells the form registration is open when the switch is on", async () => {
+    envMock.REGISTRATION_OPEN = true;
+
+    const el = await visit();
+
+    expect(el.props.registrationOpen).toBe(true);
   });
 });

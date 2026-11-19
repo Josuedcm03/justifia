@@ -634,12 +634,18 @@
         "invalid": "Revisa los datos ingresados",
         "invalidCarrera": "La carrera seleccionada no es válida",
         "duplicate": "El usuario o CIF ya existe",
-        "passwordMismatch": "Las contraseñas no coinciden"
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "closed": "El registro de estudiantes no está habilitado en este momento."
       },
       "sections": {
         "identity": "Tus datos",
         "access": "Acceso",
         "contact": "Contacto"
+      },
+      "closed": {
+        "title": "Registro no disponible",
+        "body": "El registro de estudiantes no está habilitado en este momento. Si necesita una cuenta, comuníquese con la secretaría académica.",
+        "backToLogin": "Volver a iniciar sesión"
       }
     },
     "errors": {

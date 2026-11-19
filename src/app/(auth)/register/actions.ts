@@ -3,6 +3,7 @@
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
+import { env } from "@/env";
 import { setSessionCookie } from "@/lib/auth/cookies";
 import { hashPassword } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/session";
@@ -17,6 +18,12 @@ export async function registerAction(
   formData: FormData,
 ): Promise<RegisterState> {
   const t = await getTranslations("auth.register");
+
+  // The real control behind REGISTRATION_OPEN: refuse before reading the form
+  // or the database, so a closed switch can never create an account.
+  if (!env.REGISTRATION_OPEN) {
+    return { error: t("errors.closed") };
+  }
 
   if (formData.get("password") !== formData.get("confirmPassword")) {
     return { error: t("errors.passwordMismatch") };

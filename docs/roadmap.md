@@ -176,8 +176,9 @@ remiten a ese archivo.
   casos, 320 denegados, cada uno ejecutado a través del guard real (`dal.ts`)
   y sin leer ningún dato antes de la denegación. También corrige una
   redirección abierta en el destino `next` del inicio de sesión
-  (`safeNextPath`). Pendientes: cerrar el `/register` abierto (punto 0.6 del
-  plan de la tesis), una prueba de `middleware.ts` y la ventana de la cuenta
+  (`safeNextPath`). El `/register` abierto (punto 0.6 del plan de la tesis) se
+  cerró después con `REGISTRATION_OPEN`, cerrado por defecto. Pendientes: una
+  prueba de `middleware.ts` y la ventana de la cuenta
   desactivada dentro de la sesión de 8 horas.
 - `data-retention` (archivado el 2026-11-19) cancela a cada estudiante cinco años
   después de su última actividad, salvo que siga inscrito (RNF-04, RN-27). Una tarea
