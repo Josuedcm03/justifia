@@ -231,3 +231,12 @@ equipo), `resuelta` (cubierta por un change).
   extraídos y las señales, sin salir de la pantalla. «Descargar» se mantiene.
 - **Requisitos:** RF-05, RF-11; specs `request-review`,
   `coordination-escalation` y `supporting-documents`.
+
+### UX-19. Ocultar las cuentas del sistema y las canceladas en el listado de usuarios
+
+- **Estado:** abierta.
+- **Origen:** diseño de `data-retention` (D9), 2026-11-19.
+- **Pantalla:** listado de usuarios del administrador (`/users`).
+- **Hoy:** el listado muestra la cuenta del sistema «Sistema (tarea programada)» y las cuentas de estudiantes canceladas por la retención como usuarios inactivos, sin distinguirlas de las demás.
+- **Esperado:** un filtro que oculte esas cuentas del listado.
+- **Requisitos:** RNF-04; spec `data-retention`.
