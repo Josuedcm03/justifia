@@ -14,9 +14,10 @@ export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Appends audit rows on the caller's transaction, chunked at
- * `WRITE_CHUNK_ROWS`. `actorId` comes from the session, never from an event;
- * `OcurridoEn` and `Id` are never set (column default / identity), so a
- * builder cannot forge the clock.
+ * `WRITE_CHUNK_ROWS`. `actorId` comes from the session, never from an event,
+ * or the system account, retention only (data-retention); `OcurridoEn` and
+ * `Id` are never set (column default / identity), so a builder cannot forge
+ * the clock.
  */
 export async function insertAuditEvents(
   tx: Transaction,

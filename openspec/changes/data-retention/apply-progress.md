@@ -57,3 +57,51 @@ Work Unit Evidence:
 | Rollback boundary | Revert `drizzle/0014_data_retention.sql`, its journal entry and snapshot, `src/db/schema.ts`, the test and the `UsuarioConRol` type edit |
 
 Commit: "feat(db): add retention markers, system account and 2031-2035 audit partitions".
+
+## Unit 3: audit event "usuario.cancelado" (audit-log "Closed set of retention events", DR-6)
+
+Mode: Strict TDD. Layer: unit (pure builder). Safety net: "npm test -- src/lib/audit": 3 files, 119 tests passed before the edits (the 123 after the new cases is 119 plus 4 new or changed).
+
+| Task | RED evidence | GREEN evidence |
+|------|--------------|----------------|
+| 3.1 | "npm test -- src/lib/audit": `src/lib/audit/types.test.ts` "AUDIT_ACTIONS > keeps the existing codes unchanged and adds exactly the ... and one retention one: expected [ 'asignatura.actualizada', ...(42) ] to deeply equal [ 'asignatura.actualizada', ...(43) ]" | `src/lib/audit/types.ts`: the action, the payload type and the union member (entity "Usuario"); list test green |
+| 3.2 | same run, three failures in `src/lib/audit/events.test.ts` "account cancelled event": "TypeError: accountCancelledEvent is not a function" (maps to usuario.cancelado on the student; carries exactly the closed code and the two counts; drops a name, email, CIF, free text or request ids smuggled into the call). Total 4 failed, 119 passed | n/a |
+| 3.3 | n/a | `src/lib/audit/events.ts`: accountCancelledEvent copies the three fields by name and takes the code from RETENTION_REASON. "npm test -- src/lib/audit": 3 files, 123 tests passed |
+| 3.4 | n/a (comment only) | `src/lib/data/audit.ts` doc comment of insertAuditEvents: "or the system account, retention only"; no signature change |
+| 3.5 | n/a | gates: "npm test -- src/lib/audit src/lib/data/audit.test.ts": 4 files, 130 tests passed; "npm run typecheck" clean; "npx eslint" clean (CRLF noise filtered); "npx prettier --check --end-of-line auto" clean |
+
+Triangulation: the payload is asserted for two different students and counts (2 and 3, then 0 and 0), plus a smuggling case with six extra fields. Refactor: none needed.
+
+Deviation (type fallout): a second audit event on entity type "Usuario" stopped `entidadTipo !== "Usuario"` from narrowing the payload, so "npm run typecheck" reported 8 errors in `src/lib/audit/events.test.ts` (campos and importacionSha256 missing on the union). The four existing narrowing guards now test `accion` ("usuario.creado" or "usuario.actualizado") instead of `entidadTipo`. Test-only edit, no assertion changed.
+
+Work Unit Evidence:
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | "npm test -- src/lib/audit" with the dummy DB: 3 files, 123 tests passed |
+| Runtime harness | N/A: pure builder tests, no runtime boundary |
+| Rollback boundary | Revert the two audit files, their tests and the comment in `src/lib/data/audit.ts` |
+
+Commit: "feat(audit): add the usuario.cancelado event".
+
+### Interim checkpoint 3.6 (after unit 3)
+
+"git diff --numstat bf91506...HEAD" (bf91506 is origin/main; the local "main" ref is stale) excluding "openspec/", ".engram/" and `drizzle/meta/0014_snapshot.json`:
+
+| File | Added | Deleted |
+|------|-------|---------|
+| `drizzle/0014_data_retention.sql` | 56 | 0 |
+| `drizzle/meta/_journal.json` | 7 | 0 |
+| `src/db/migration-data-retention.test.ts` | 171 | 0 |
+| `src/db/schema.ts` | 11 | 0 |
+| `src/lib/audit/events.test.ts` | 64 | 5 |
+| `src/lib/audit/events.ts` | 22 | 0 |
+| `src/lib/audit/types.test.ts` | 2 | 1 |
+| `src/lib/audit/types.ts` | 18 | 0 |
+| `src/lib/data/audit.ts` | 4 | 3 |
+| `src/lib/data/users.ts` | 6 | 2 |
+| `src/lib/retention/policy.test.ts` | 83 | 0 |
+| `src/lib/retention/policy.ts` | 34 | 0 |
+| Total | 478 | 11 |
+
+Cumulative: 489 changed lines. Snapshot reported separately: `drizzle/meta/0014_snapshot.json` 2342 lines. The threshold of 520 is not exceeded (31 lines of margin), so apply continues with unit 4. Unit 4 plus unit 5 project at ~474 (file lines only: retention.ts ~210, retention.test.ts ~165 raw plus carve-outs ~30 raw plus RN-27 ~10), giving ~960 against the 1000 budget.

@@ -112,12 +112,12 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: Audit event (unit 3; audit-log "Closed set of retention events", DR-6)
 
-- [ ] 3.1 RED `src/lib/audit/types.test.ts`: the closed action set gains exactly "usuario.cancelado", entity type "Usuario"; existing actions unchanged (scenarios "Action to entity type", "Existing events unchanged").
-- [ ] 3.2 RED `src/lib/audit/events.test.ts`: accountCancelledEvent({usuarioId, solicitudes, documentos}) gives entity "Usuario", entity id the student id, payload keys exactly "motivo", "solicitudes", "documentos" with motivo "retencion_5_anios"; the serialized payload contains no name, email, CIF, free text or request ids (scenario "Payload has counts and a code"). Run and confirm both fail.
-- [ ] 3.3 GREEN `src/lib/audit/types.ts` and `src/lib/audit/events.ts`: add the action, the AccountCancelledPayload type and the builder.
-- [ ] 3.4 `src/lib/data/audit.ts`: doc comment of insertAuditEvents adds "or the system account, retention only"; no signature change.
-- [ ] 3.5 Gates G on the five files; commit unit 3: "feat(audit): add the usuario.cancelado event".
-- [ ] 3.6 Interim checkpoint (after unit 3): measure "git diff --numstat main...HEAD" excluding "openspec/", ".engram/" and the snapshot; record it. Unit 4 plus unit 5 are projected at ~474; if the cumulative figure is above 520, STOP and report to the owner before unit 4 (do not trim tests).
+- [x] 3.1 RED `src/lib/audit/types.test.ts`: the closed action set gains exactly "usuario.cancelado", entity type "Usuario"; existing actions unchanged (scenarios "Action to entity type", "Existing events unchanged"). (Done 2026-11-19.)
+- [x] 3.2 RED `src/lib/audit/events.test.ts`: accountCancelledEvent({usuarioId, solicitudes, documentos}) gives entity "Usuario", entity id the student id, payload keys exactly "motivo", "solicitudes", "documentos" with motivo "retencion_5_anios"; the serialized payload contains no name, email, CIF, free text or request ids (scenario "Payload has counts and a code"). Run and confirm both fail. (Done 2026-11-19: 4 failed first.)
+- [x] 3.3 GREEN `src/lib/audit/types.ts` and `src/lib/audit/events.ts`: add the action, the AccountCancelledPayload type and the builder. (Done 2026-11-19.)
+- [x] 3.4 `src/lib/data/audit.ts`: doc comment of insertAuditEvents adds "or the system account, retention only"; no signature change. (Done 2026-11-19.)
+- [x] 3.5 Gates G on the five files; commit unit 3: "feat(audit): add the usuario.cancelado event". (Done 2026-11-19: also four narrowing guards in `src/lib/audit/events.test.ts` now test the action, see apply-progress.)
+- [x] 3.6 Interim checkpoint (after unit 3): measure "git diff --numstat main...HEAD" excluding "openspec/", ".engram/" and the snapshot; record it. Unit 4 plus unit 5 are projected at ~474; if the cumulative figure is above 520, STOP and report to the owner before unit 4 (do not trim tests). (Done 2026-11-19: cumulative 489 changed lines, 31 under the 520 stop line, snapshot 2342 lines separate; continuing.)
 
 ## Phase 4: Data module and carve-outs (unit 4; DR-1..DR-9, audit-log "Audit record content")
 
