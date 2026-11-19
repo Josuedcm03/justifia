@@ -4,8 +4,18 @@ import { db, schema } from "@/db";
 import { hashPassword } from "@/lib/auth/password";
 import { getRolIdByCodigo } from "@/lib/data/roles";
 
+/** The staff password comes from the environment, never from the source or
+ *  the console: a missing or short value stops the seed before any write. */
+function seedPassword(): string {
+  const value = process.env.SEED_PASSWORD;
+  if (!value || value.length < 8) {
+    throw new Error("SEED_PASSWORD must be set (8 characters or more).");
+  }
+  return value;
+}
+
 async function main() {
-  const hash = await hashPassword("Cambiar123");
+  const hash = await hashPassword(seedPassword());
   // Roles must be seeded first (db:seed chains db:seed:roles before this
   // script); resolve the codes to catalog ids before inserting users.
   const [administradorId, secretariaId] = await Promise.all([
@@ -40,9 +50,7 @@ async function main() {
     ])
     .onConflictDoNothing();
 
-  console.log(
-    'Seed completado. Contraseña de todos los usuarios: "Cambiar123"',
-  );
+  console.log("Seed completado. Contraseña: la de SEED_PASSWORD.");
   process.exit(0);
 }
 

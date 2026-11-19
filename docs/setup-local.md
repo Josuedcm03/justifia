@@ -63,8 +63,9 @@ rama se creó desde producción ya las trae. Si no, se aplican con:
 npm run db:migrate
 ```
 
-`npm run db:seed` crea los roles y tres usuarios de personal. Las contraseñas
-se piden al responsable del proyecto; no están en esta guía.
+`npm run db:seed` crea los roles y tres usuarios de personal. Su contraseña se
+toma de la variable `SEED_PASSWORD` (8 caracteres o más); sin ella, el seed se
+detiene antes de escribir. La contraseña no está en el código ni en esta guía.
 
 ### 2.3 Variables de entorno
 

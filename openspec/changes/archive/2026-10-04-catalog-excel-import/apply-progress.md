@@ -701,7 +701,7 @@ Phase 8 (WU3a, forced password change) or Phase 9 / WU3b (the server action that
 
 # Phase 6 (Gate G-DB): pre-apply checks, 2026-10-03. Read-only only; nothing written to any database.
 
-Target verified as the shared instance: Neon project `damp-recipe-21839554`, default branch `production` (`br-restless-hat-ayjwtjqw`), endpoint `ep-orange-math-ay4rhpc0`. The `.env` `DATABASE_URL` host is that endpoint's pooled host (`ep-orange-math-ay4rhpc0-pooler...`), host part inspected only.
+Target verified as the shared instance: Neon project `damp-recipe-21839554`, default branch `production` (`br-restless-hat-ayjwtjqw`), endpoint `<neon-endpoint>`. The `.env` `DATABASE_URL` host is that endpoint's pooled host (`<neon-endpoint>-pooler...`), host part inspected only.
 
 ## Completed
 
@@ -1173,7 +1173,7 @@ Read-only checks on 2026-10-04 showed that Neon `production` already held an app
 
 ## Rehearsal on a Neon branch
 
-Branch `rehearsal-import-smoke` (`br-polished-tree-ayn6sdxx`, endpoint `ep-dark-boat-ayryl3im`), created from `production` with the user's confirmation. Dev server started with a process-scoped `DATABASE_URL` on the branch's **pooled** host (`.env` untouched; `src/db/index.ts` unchanged, no `prepare: false`).
+Branch `rehearsal-import-smoke` (`br-polished-tree-ayn6sdxx`, endpoint `<neon-endpoint>`), created from `production` with the user's confirmation. Dev server started with a process-scoped `DATABASE_URL` on the branch's **pooled** host (`.env` untouched; `src/db/index.ts` unchanged, no `prepare: false`).
 
 - [x] 9.25 Preview smoke, run by the user as `jdkno` (secretaria): server log shows `loginAction`, `GET /catalog/import 200`, and two `previewAction` calls (1.1 s and 0.2 s), each with previous state `{"kind":"idle"}`.
 - [x] 9.26 First apply on the rehearsal branch, run by the user at `2026-10-04T16:56:26Z` with a modified workbook (sha256 `b99b7966...11ad`): `applyAction` 2.2 s. Verified read-only on the branch afterwards:
