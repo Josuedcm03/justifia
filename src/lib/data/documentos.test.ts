@@ -812,7 +812,7 @@ describe("documentos data layer", () => {
       expect(doc?.estudianteCarreraId).toBe(12);
     });
 
-    it("asks for an open escalation of either motive of the request: no answer yet, never a notice (E18)", async () => {
+    it("asks for an open escalation of any motive of the request: no answer yet, never a notice (E18)", async () => {
       const double = use([{ kind: "select", rows: [] }]);
 
       await getDocumentForDownload(11);
@@ -823,9 +823,13 @@ describe("documentos data layer", () => {
       expect(query.sql).toContain(
         '"Escalamiento"."SolicitudId" = "DocumentoRespaldo"."SolicitudId"',
       );
-      expect(query.sql).toContain('"Escalamiento"."Tipo" in ($1, $2)');
+      expect(query.sql).toContain('"Escalamiento"."Tipo" in ($1, $2, $3)');
       expect(query.sql).toContain('"Escalamiento"."RespondidaEn" is null');
-      expect(query.params).toEqual(["sospecha_documento", "caso_especial"]);
+      expect(query.params).toEqual([
+        "sospecha_documento",
+        "caso_especial",
+        "otro",
+      ]);
     });
 
     it("reads the career of the student from the user row and the facultad from the career row", async () => {

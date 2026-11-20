@@ -14,9 +14,11 @@ import { oneLine } from "@/lib/mail/one-line";
 // image, which is not a document and holds no personal data. The link needs a
 // session of an authorized coordinator and holds no token.
 
+/** `otro` reads "Otro" (FE-9); its note, always sent, is the description. */
 export const REASON_LABELS: Record<EscalationKind, string> = {
   sospecha_documento: "Sospecha sobre un documento",
   caso_especial: "Caso especial",
+  otro: "Otro",
   exceso_inasistencias: "Exceso de inasistencias",
 };
 
@@ -26,6 +28,7 @@ const ESCALATION_SUBJECT = (solicitudId: number) =>
 const SUBJECTS: Record<EscalationKind, (solicitudId: number) => string> = {
   sospecha_documento: ESCALATION_SUBJECT,
   caso_especial: ESCALATION_SUBJECT,
+  otro: ESCALATION_SUBJECT,
   exceso_inasistencias: (id) => `Justifia: aviso sobre la solicitud ${id}`,
 };
 
@@ -35,6 +38,7 @@ const ESCALATION_INTRO =
 const INTROS: Record<EscalationKind, string> = {
   sospecha_documento: ESCALATION_INTRO,
   caso_especial: ESCALATION_INTRO,
+  otro: ESCALATION_INTRO,
   exceso_inasistencias:
     "La secretaría registró un aviso informativo sobre una solicitud de justificación aprobada.",
 };
@@ -43,12 +47,14 @@ const INTROS: Record<EscalationKind, string> = {
 const HTML_TITLES: Record<EscalationKind, string> = {
   sospecha_documento: "Solicitud escalada a coordinación",
   caso_especial: "Solicitud escalada a coordinación",
+  otro: "Solicitud escalada a coordinación",
   exceso_inasistencias: "Aviso de exceso de inasistencias",
 };
 
 const HTML_BUTTONS: Record<EscalationKind, string> = {
   sospecha_documento: "Revisar solicitud",
   caso_especial: "Revisar solicitud",
+  otro: "Revisar solicitud",
   exceso_inasistencias: "Ver aviso",
 };
 

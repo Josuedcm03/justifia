@@ -243,6 +243,46 @@ describe("escalateRequest (RF-10 a, ES-6, E17)", () => {
       ]);
     });
 
+    it("escalates the motive otro exactly like the other two, with its own code (FE-9)", async () => {
+      const double = use(success());
+
+      const result = await escalateRequest(input({ motivo: "otro" }));
+
+      expect(result).toEqual({ ok: true, escalamientoId: 9 });
+      expect(double.log.map((s) => s.kind)).toEqual([
+        "update",
+        "select",
+        "select",
+        "insert",
+      ]);
+      expect(double.log[0].set).toEqual({
+        estado: "en_revision_coordinacion",
+        actualizadoEn: NOW,
+      });
+      expect(double.log[3].values).toMatchObject({
+        tipo: "otro",
+        estadoPrevio: "pendiente",
+        nota: NOTE,
+        notificacionEstado: "pendiente",
+      });
+      expect(insertAuditMock.mock.calls[0][2]).toEqual([
+        {
+          accion: "solicitud.escalada",
+          entidadTipo: "Solicitud",
+          entidadId: ID,
+          datos: {
+            escalamientoId: 9,
+            motivo: "otro",
+            estadoPrevio: "pendiente",
+            estadoNuevo: "en_revision_coordinacion",
+          },
+        },
+      ]);
+      expect(JSON.stringify(insertAuditMock.mock.calls[0][2])).not.toContain(
+        NOTE,
+      );
+    });
+
     it("stores the trimmed note and takes the author from the call only", async () => {
       const double = use(success());
 
@@ -423,7 +463,7 @@ describe("escalateRequest (RF-10 a, ES-6, E17)", () => {
       },
     );
 
-    it.each([["exceso_inasistencias"], ["otro"], [""], [undefined], [null]])(
+    it.each([["exceso_inasistencias"], ["Otro"], [""], [undefined], [null]])(
       "refuses the motive %j before touching the database (E18)",
       async (motivo) => {
         const double = use([]);
@@ -439,6 +479,22 @@ describe("escalateRequest (RF-10 a, ES-6, E17)", () => {
         expect(double.log).toHaveLength(0);
       },
     );
+
+    it("refuses the motive otro without a note before touching the database (FE-9)", async () => {
+      const double = use([]);
+
+      const result = await escalateRequest(
+        input({ motivo: "otro", nota: "   " }),
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        reason: "invalid",
+        errors: [{ field: "nota", code: "nota_required" }],
+      });
+      expect(double.transactions).toBe(0);
+      expect(double.log).toHaveLength(0);
+    });
 
     it("accepts a note of exactly 1000 characters", async () => {
       use(success());

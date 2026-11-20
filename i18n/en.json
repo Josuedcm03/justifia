@@ -1163,6 +1163,7 @@
       "reasons": {
         "sospecha_documento": "Suspicion about a document",
         "caso_especial": "Special case",
+        "otro": "Other",
         "exceso_inasistencias": "Excess absences"
       },
       "notification": {
@@ -1192,7 +1193,8 @@
         "motivoLabel": "Escalation reason",
         "motivo": {
           "sospecha_documento": "Suspicion about a document",
-          "caso_especial": "Special case (outside the causes of the regulation)"
+          "caso_especial": "Special case (outside the causes of the regulation)",
+          "otro": "Other"
         },
         "noteLabel": "Note for coordination (required)",
         "noteHint": "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it.",

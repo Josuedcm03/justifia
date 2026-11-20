@@ -712,12 +712,14 @@ export type NuevoReporteInasistencia = typeof reporteInasistencia.$inferInsert;
 
 /**
  * Escalamiento — one escalation to the career coordination and its own
- * notification outbox (escalation, ES-1). Two escalation motives and one
- * notice kind share the table: a `sospecha_documento` or a `caso_especial` (E18)
- * moves the request to `en_revision_coordinacion` and is answered by the
- * coordination; an `exceso_inasistencias` is informational and leaves the
- * request `aprobada`. The career is never stored: it is the
- * student's live `CarreraId` (ES-3). The outbox columns mirror `Remision`; after
+ * notification outbox (escalation, ES-1). Three escalation motives and one
+ * notice kind share the table: a `sospecha_documento`, a `caso_especial` or an
+ * `otro` (E18, FE-9) moves the request to `en_revision_coordinacion` and is
+ * answered by the coordination; an `exceso_inasistencias` is informational and
+ * leaves the request `aprobada`. The CHECKs and the open-escalation index
+ * render from `ESCALATION_KINDS` and `ESCALATION_REASONS`, so adding a motive
+ * there needs a migration that recreates them. The career is never stored: it
+ * is the student's live `CarreraId` (ES-3). The outbox columns mirror `Remision`; after
  * creation only `src/lib/data/escalamiento.ts` writes them (structural test).
  * No cascade: a decided request is never deleted.
  */

@@ -28,7 +28,7 @@ async function open() {
   return screen.findByRole("alertdialog");
 }
 
-/** Picks one of the two motives by its visible label. */
+/** Picks one of the motives by its visible label. */
 async function pick(dialog: HTMLElement, label: string) {
   await userEvent.click(within(dialog).getByRole("radio", { name: label }));
 }
@@ -100,7 +100,7 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
     expect(counter).not.toHaveClass("text-destructive-ink");
   });
 
-  it("offers the two motives as a labelled radio group with none chosen (E18)", async () => {
+  it("offers the three motives as a labelled radio group with none chosen (E18, FE-9)", async () => {
     renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
 
     const dialog = await open();
@@ -112,6 +112,12 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
     expect(radios.map((r) => r.getAttribute("aria-checked"))).toEqual([
       "false",
       "false",
+      "false",
+    ]);
+    expect(radios.map((r) => r.closest("label")?.textContent)).toEqual([
+      en.dialog.motivo.sospecha_documento,
+      en.dialog.motivo.caso_especial,
+      en.dialog.motivo.otro,
     ]);
     expect(
       within(group).getByRole("radio", {
@@ -123,10 +129,13 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
         name: en.dialog.motivo.caso_especial,
       }),
     ).toBeInTheDocument();
+    expect(
+      within(group).getByRole("radio", { name: en.dialog.motivo.otro }),
+    ).toBeInTheDocument();
     expect(actionMock).not.toHaveBeenCalled();
   });
 
-  it("words both motives in neutral Spanish for the secretary", async () => {
+  it("words the three motives in Spanish for the secretary", async () => {
     renderIntl(
       <EscalateDialog solicitudId={12} unavailableCareer={null} />,
       "es",
@@ -152,11 +161,15 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
         name: "Caso especial (fuera de las causas del reglamento)",
       }),
     ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("radio", { name: "Otro" }),
+    ).toBeInTheDocument();
   });
 
   it.each([
     ["sospecha_documento", en.dialog.motivo.sospecha_documento],
     ["caso_especial", en.dialog.motivo.caso_especial],
+    ["otro", en.dialog.motivo.otro],
   ])(
     "sends the request id, the chosen motive %s and the typed note when confirmed",
     async (motivo, label) => {
@@ -225,7 +238,7 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
       within(dialog)
         .getAllByRole("radio")
         .map((r) => r.getAttribute("aria-checked")),
-    ).toEqual(["false", "false"]);
+    ).toEqual(["false", "false", "false"]);
   });
 
   it("closes on Escape without calling the action", async () => {

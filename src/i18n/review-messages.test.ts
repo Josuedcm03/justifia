@@ -294,6 +294,7 @@ describe("review messages", () => {
         e.dialog.motivoLabel,
         e.dialog.motivo.sospecha_documento,
         e.dialog.motivo.caso_especial,
+        e.dialog.motivo.otro,
         e.dialog.noteLabel,
         e.dialog.noteHint,
         e.dialog.counter,
@@ -303,6 +304,7 @@ describe("review messages", () => {
         e.dialog.backToQueue,
         e.reasons.sospecha_documento,
         e.reasons.caso_especial,
+        e.reasons.otro,
         e.reasons.exceso_inasistencias,
         m.review.queue.result.escalada,
       ]) {
@@ -331,12 +333,22 @@ describe("review messages", () => {
     expect(e.dialog.motivo).toEqual({
       sospecha_documento: "Sospecha sobre un documento",
       caso_especial: "Caso especial (fuera de las causas del reglamento)",
+      otro: "Otro",
     });
     expect(e.errors.motivo_invalid).toBe(
       "Seleccione el motivo del escalamiento.",
     );
     expect(e.reasons.caso_especial).toBe("Caso especial");
+    expect(e.reasons.otro).toBe("Otro");
     expect(JSON.stringify(e)).not.toMatch(/escalación/i);
+  });
+
+  // FE-9: the English twins of the third motive.
+  it("words the third motive in English", () => {
+    const e = en.review.escalation;
+
+    expect(e.dialog.motivo.otro).toBe("Other");
+    expect(e.reasons.otro).toBe("Other");
   });
 
   it.each(catalogs)(

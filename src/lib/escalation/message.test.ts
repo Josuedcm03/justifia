@@ -121,8 +121,43 @@ describe("buildEscalationMessage (ES-10, E6)", () => {
     expect(REASON_LABELS).toEqual({
       sospecha_documento: "Sospecha sobre un documento",
       caso_especial: "Caso especial",
+      otro: "Otro",
       exceso_inasistencias: "Exceso de inasistencias",
     });
+  });
+
+  it("names the motive otro in the reason line and keeps the note as the description (FE-9)", () => {
+    const message = buildEscalationMessage(
+      input({
+        tipo: "otro",
+        nota: "Situación familiar que el reglamento no prevé.",
+      }),
+    );
+    expect(message.text).toContain("Motivo: Otro");
+    expect(message.text).toContain(
+      "Nota: Situación familiar que el reglamento no prevé.",
+    );
+    expect(message.text).not.toContain("Motivo: Otro motivo");
+  });
+
+  it("gives otro the subject, introduction, title, button and recipients of the other escalations (FE-9)", () => {
+    const recipients = { to: "coord1@uam.edu.ni", cc: ["coord2@uam.edu.ni"] };
+    const reference = buildEscalationMessage(
+      input({ ...recipients, tipo: "sospecha_documento" }),
+    );
+    for (const tipo of ["caso_especial", "otro"] as const) {
+      const message = buildEscalationMessage(input({ ...recipients, tipo }));
+      expect(message.subject).toBe(reference.subject);
+      expect(message.to).toBe(reference.to);
+      expect(message.cc).toEqual(reference.cc);
+      // The text and the HTML differ from the reference only in the reason.
+      expect(message.text.replace(REASON_LABELS[tipo], "R")).toBe(
+        reference.text.replace(REASON_LABELS.sospecha_documento, "R"),
+      );
+      expect(message.html.replace(REASON_LABELS[tipo], "R")).toBe(
+        reference.html.replace(REASON_LABELS.sospecha_documento, "R"),
+      );
+    }
   });
 
   it("names a special case in the reason line and keeps the escalation subject (E18)", () => {
@@ -205,6 +240,16 @@ describe("buildEscalationMessage HTML part (E6, E18)", () => {
     const doc = html({ tipo: "caso_especial", nota: null });
     expect(doc).toContain(">Caso especial</td>");
     expect(doc).not.toContain(">Nota</td>");
+  });
+
+  it("shows Otro in the reason row of the summary table for the motive otro (FE-9)", () => {
+    const doc = html({ tipo: "otro", nota: "Descripción del motivo." });
+    expect(doc).toMatch(/>Motivo<\/td>\s*<td[^>]*>Otro<\/td>/);
+    expect(doc).toMatch(
+      />Nota<\/td>\s*<td[^>]*>Descripción del motivo\.<\/td>/,
+    );
+    expect(doc).toContain("Solicitud escalada a coordinación");
+    expect(doc).toMatch(/<a [^>]*>Revisar solicitud<\/a>/);
   });
 
   it("escapes every value that comes from data", () => {
