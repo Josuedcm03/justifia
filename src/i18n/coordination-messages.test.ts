@@ -138,3 +138,48 @@ describe("coordination messages", () => {
     }
   });
 });
+
+// MD-30: the read-only block of the coordination detail words the document
+// type and the marks exactly as the secretary's extraction section does, so a
+// coordinator reads the same text the secretary registered.
+describe("coordination detail: document type and marks (MD-30)", () => {
+  it.each(catalogs)(
+    "%s words the types, the mark values and the labels as the review section",
+    (_l, m) => {
+      const detail = m.coordination.detail;
+      const review = m.review.extraction;
+
+      expect(detail.types).toEqual(review.types);
+      expect(detail.markValues).toEqual(review.markValues);
+      expect(detail.marks.type).toBe(review.marks.type);
+      expect(detail.marks.signature).toBe(review.marks.signature);
+      expect(detail.marks.seal).toBe(review.marks.seal);
+    },
+  );
+
+  it.each(catalogs)(
+    "%s names the block, its note and its degraded notice",
+    (_l, m) => {
+      const detail = m.coordination.detail;
+
+      expect(detail.sections.marks).toBeTruthy();
+      expect(detail.marks.note).toBeTruthy();
+      expect(detail.marksDegraded).toBeTruthy();
+    },
+  );
+
+  it("has no key that holds a value of the document or a control", () => {
+    for (const catalog of [es, en]) {
+      const keys = leaves(catalog.coordination.detail)
+        .map(([key]) => key)
+        .filter((key) => /^(marks|markValues|types)|marksDegraded/.test(key));
+
+      expect(keys.length).toBeGreaterThan(0);
+      for (const key of keys) {
+        expect(key, key).not.toMatch(
+          /issuer|emisor|studentName|restPeriod|issueDate|save|form/i,
+        );
+      }
+    }
+  });
+});

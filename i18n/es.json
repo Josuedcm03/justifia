@@ -947,6 +947,7 @@
         "request": "Solicitud",
         "escalation": "Escalamiento",
         "notice": "Aviso",
+        "marks": "Tipo y marcas de los documentos",
         "answer": "Respuesta a la secretaría"
       },
       "fields": {
@@ -961,7 +962,24 @@
         "teacher": "Docente",
         "communicated": "Fecha comunicada por el docente",
         "reportNote": "Nota del aviso"
-      }
+      },
+      "marks": {
+        "note": "Solo lectura. La secretaría registra el tipo de documento, la firma y el sello.",
+        "type": "Tipo de documento",
+        "signature": "Firma",
+        "seal": "Sello"
+      },
+      "markValues": {
+        "yes": "Sí",
+        "no": "No",
+        "unregistered": "Sin registrar"
+      },
+      "types": {
+        "constancia_medica": "Constancia médica",
+        "constancia_institucional": "Constancia institucional",
+        "otro": "Otro"
+      },
+      "marksDegraded": "No se pudieron cargar el tipo y las marcas de los documentos. El resto de la solicitud se muestra completo."
     },
     "answer": {
       "dialog": {
