@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { solicitud } from "@/db/schema";
+import { inscripcion, solicitud, usuario } from "@/db/schema";
 import {
+  enrollmentInScope,
   requestInScope,
   requestRowInScope,
+  studentRowInScope,
 } from "@/lib/data/request-scope-sql";
 import type { RequestScope } from "@/lib/intake/request-scope";
 
@@ -67,6 +69,108 @@ describe("requestInScope (SR-6: facultad of the student's current career)", () =
 
   it("throws on an unknown scope kind instead of failing open", () => {
     expect(() => requestInScope(BOGUS)).toThrow();
+  });
+});
+
+describe("enrollmentInScope (EA-SCOPE-1, CS-5: the student's CURRENT carrera)", () => {
+  function enrollmentWhere(scope: RequestScope) {
+    const { sql, params } = qb
+      .select()
+      .from(inscripcion)
+      .where(enrollmentInScope(scope))
+      .toSQL();
+    return {
+      where: sql.slice(sql.indexOf(" where ") + " where ".length),
+      params,
+    };
+  }
+
+  it("is an EXISTS on the student's career facultad keyed on Inscripcion.EstudianteId", () => {
+    const { where, params } = enrollmentWhere(FACULTAD);
+
+    expect(where).toMatch(/^exists \(select 1 from "Usuario" "e"/);
+    expect(where).toContain(
+      'inner join "Carrera" "c" on "c"."Id" = "e"."CarreraId"',
+    );
+    expect(where).toContain('"e"."Id" = "Inscripcion"."EstudianteId"');
+    expect(where).toContain('"c"."FacultadId" = $1');
+    expect(params).toEqual([7]);
+  });
+
+  it("binds the facultad of the scope, not a constant", () => {
+    const { params } = enrollmentWhere({ kind: "facultad", facultadId: 12 });
+
+    expect(params).toEqual([12]);
+  });
+
+  it("needs a carrera: a student without one is invisible (inner join)", () => {
+    const { where } = enrollmentWhere(FACULTAD);
+
+    expect(where).toContain("inner join");
+    expect(where).not.toContain("left join");
+    expect(where).not.toContain("EstudianteCarrera");
+  });
+
+  it("is a literal false for none", () => {
+    const { where, params } = enrollmentWhere(NONE);
+
+    expect(where).toBe("false");
+    expect(params).toEqual([]);
+  });
+
+  it("throws on an unknown scope kind instead of failing open", () => {
+    expect(() => enrollmentInScope(BOGUS)).toThrow();
+  });
+});
+
+describe("studentRowInScope (EA-SCOPE-1, CS-5: the student search)", () => {
+  function studentWhere(scope: RequestScope) {
+    const { sql, params } = qb
+      .select()
+      .from(usuario)
+      .where(studentRowInScope(scope))
+      .toSQL();
+    return {
+      where: sql.slice(sql.indexOf(" where ") + " where ".length),
+      params,
+    };
+  }
+
+  it("is an EXISTS on the student's career facultad keyed on Usuario.Id", () => {
+    const { where, params } = studentWhere(FACULTAD);
+
+    expect(where).toMatch(/^exists \(select 1 from "Usuario" "e"/);
+    expect(where).toContain(
+      'inner join "Carrera" "c" on "c"."Id" = "e"."CarreraId"',
+    );
+    expect(where).toContain('"e"."Id" = "Usuario"."Id"');
+    expect(where).not.toContain("EstudianteId");
+    expect(where).toContain('"c"."FacultadId" = $1');
+    expect(params).toEqual([7]);
+  });
+
+  it("binds the facultad of the scope, not a constant", () => {
+    const { params } = studentWhere({ kind: "facultad", facultadId: 12 });
+
+    expect(params).toEqual([12]);
+  });
+
+  it("needs a carrera: a student without one is invisible (inner join)", () => {
+    const { where } = studentWhere(FACULTAD);
+
+    expect(where).toContain("inner join");
+    expect(where).not.toContain("left join");
+  });
+
+  it("is a literal false for none", () => {
+    const { where, params } = studentWhere(NONE);
+
+    expect(where).toBe("false");
+    expect(params).toEqual([]);
+  });
+
+  it("throws on an unknown scope kind", () => {
+    expect(() => studentRowInScope(BOGUS)).toThrow();
   });
 });
 
