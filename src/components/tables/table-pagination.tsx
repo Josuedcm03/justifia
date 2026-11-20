@@ -36,6 +36,9 @@ const ICON = "size-5 shrink-0";
  *
  * Every href comes from the caller (`hrefFor`, `sizeHrefFor`), which keeps the
  * other parameters and resets the page where the contract says so (N5).
+ *
+ * The links prefetch by default. A list whose page writes an audit row on each
+ * render passes `prefetch={false}` so no page link can trigger that render.
  */
 export function TablePagination({
   page,
@@ -43,6 +46,7 @@ export function TablePagination({
   total,
   hrefFor,
   sizeHrefFor,
+  prefetch,
 }: {
   page: number;
   pageSize: PageSize;
@@ -51,6 +55,8 @@ export function TablePagination({
   hrefFor: (page: number) => string;
   /** The href of a page size: page 1, everything else kept. */
   sizeHrefFor: (size: PageSize) => string;
+  /** `false` stops Next from prefetching the page links (EmptyState's shape). */
+  prefetch?: false;
 }) {
   const t = useTranslations("tables");
   const { navigate } = useListNavigation();
@@ -68,6 +74,7 @@ export function TablePagination({
     available ? (
       <Link
         href={hrefFor(target)}
+        prefetch={prefetch}
         scroll={false}
         onNavigate={(event) => {
           event.preventDefault();

@@ -79,6 +79,25 @@ describe("navigation mock: next/link stand-in", () => {
     );
   });
 
+  it("exposes the prefetch flag only when the caller sets it", () => {
+    render(
+      <>
+        <Link href="/a" prefetch={false}>
+          off
+        </Link>
+        <Link href="/b">default</Link>
+      </>,
+    );
+
+    expect(screen.getByRole("link", { name: "off" })).toHaveAttribute(
+      "data-prefetch",
+      "false",
+    );
+    expect(screen.getByRole("link", { name: "default" })).not.toHaveAttribute(
+      "data-prefetch",
+    );
+  });
+
   it("calls onNavigate on a plain click and honours preventDefault", async () => {
     const onNavigate = vi.fn((event: { preventDefault: () => void }) =>
       event.preventDefault(),
