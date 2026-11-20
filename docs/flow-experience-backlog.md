@@ -256,7 +256,7 @@ equipo), `resuelta` (cubierta por un change).
 - **Esperado:** «Mi perfil» ofrece «Cambiar contraseña», que lleva a
   `/change-password`; opcionalmente, la misma entrada en el menú de usuario.
 - **Requisitos:** RNF-01 (la matriz de acceso ya cubre `/change-password`);
-  spec `auth`.
+  spec `auth-entry-access`.
 
 ### UX-21. Ingresar con el CIF o el correo institucional, no con «Usuario»
 
@@ -273,5 +273,5 @@ equipo), `resuelta` (cubierta por un change).
   deja de mostrarse y de pedirse en el alta, la importación y el perfil. El
   personal no tiene CIF, así que ingresa con el correo institucional.
 - **Requisitos:** RN-02 (el CIF y el correo provienen de la cuenta), RNF-01;
-  specs `auth` y `user-management`. Afecta el Anexo E de la tesis, que hoy
+  specs `auth-entry-access`, `user-roles` y `users-listing`. Afecta el Anexo E de la tesis, que hoy
   indica ingresar con «Usuario» y «Contraseña».
