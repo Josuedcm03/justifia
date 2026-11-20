@@ -629,3 +629,105 @@ English twins: "Absence dates: {period}"; "Subjects: {codes}"; "{codes} and {cou
 - Pitfalls met in S4: the Write tool turns a typed backslash-u escape into the real character; shell heredocs lose backslashes, and a heredoc with an apostrophe in a quoted body can end the command early, so write scripts and long text with the Write tool and run them with node. A shell count of carriage returns with rg and a dollar-quote was unreliable; count them with a node one-liner. "npx prettier --write <file> --end-of-line lf" converts a CRLF file to LF without changing the index content.
 - Still true from S3: resolve the promise of a mocked server action at the end of the test, because React entangles async actions across roots.
 - Tooling: only "rg" is installed (no "fd", "bat", "eza", "sd"); the catalog insert helper "i18n-set.cjs" and the "fixengram.sh" script are in the scratchpad.
+## Phase 5 (PR 5): S5 RF-08, the local preview and the marked file names
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-5-local-preview", cut from the tip of "feat/flow-experience-4b-request-card" (78b3d80, the S4 tip, #115). Size exception per the owner decision of 2026-11-20 (see Phase 1). Units 9 and 10 (the preview) measured 772 changed lines, over the 460 stop line, so the slice is cut at the plan's cut point, after unit 10:
+
+- **PR 5**, branch "feat/flow-experience-5-local-preview": unit 9 (the preview component) and unit 10 (the documents step offers it). It stacks on #115.
+- **PR 5b**, branch "feat/flow-experience-5b-file-marks", cut from the tip of PR 5: unit 11 (the "Nuevo" and "Anterior" marks in the correction flow, FE-16).
+
+### Owner decisions of 2026-11-20 applied here (final)
+
+- The RF-08 preview is client-side only, with browser object URLs (the pattern of `src/app/(dashboard)/catalog/import/credentials-download.tsx`). It writes no audit row and makes no server read.
+- It covers the files attached during the current visit to step 3. Older files keep the audited "Ver".
+- The resubmit dialog and steps 3 and 4 mark each file "Nuevo" or "Anterior" (PR 5b).
+
+### Commits (PR 5)
+
+| Unit | Hash    | Message                                                            |
+| ---- | ------- | ------------------------------------------------------------------ |
+| 9    | 033de53 | feat(requests): add the client-side file preview                   |
+| 10   | 94310a8 | feat(requests): offer the preview for files attached in this visit |
+| docs | (tip)   | docs(flow-experience): record the Phase 5 apply progress for PR 5  |
+
+### TDD cycle evidence (PR 5)
+
+| Task        | Test file                                                       | Layer              | Safety net                            | RED                                                                                                                                                                                                                                                                                        | GREEN             | Triangulation                                                                                                                                                                                                                                                                                                                                                                                                                                    | Refactor                                                        |
+| ----------- | --------------------------------------------------------------- | ------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| 5.1 and 5.2 | `src/app/(dashboard)/requests/new/local-preview.test.tsx` (new) | Unit and component | N/A (new file)                        | The file failed to load (module missing)                                                                                                                                                                                                                                                   | 1 file, 19 passed | previewKind for 8 types (pdf, png, jpeg, gif, svg, html, exe, empty); iframe for a PDF and img for png and jpeg, with the name as title or alt and a blob URL; name and size in es and en; a file the browser cannot render shows name and size only and creates no URL; unmount revokes the exact URL; a StrictMode double mount leaves none unrevoked; a changed file revokes the old URL; no fetch and no route URL; no fixed width at 360 px | The test helper got StrictMode and rerender options (see below) |
+| 5.4 and 5.5 | `src/app/(dashboard)/requests/new/documents-step.test.tsx`      | Component          | 28 existing cases of the file passing | 13 cases failed first (closed toggle, open iframe, img, close revokes, two rows, no route, removal revokes and drops, failed removal keeps, unmount revokes, stored document keeps Ver, English, correction flow, 360 px); the "finalize rejects" and "no document id" cases pass at write | 43 passed         | PDF and PNG; closed then open then closed; each row on its own; no fetch and no route URL in the markup; removal revokes and drops, a failed removal keeps; step unmount revokes; a document stored before the visit keeps "Ver" and offers no preview, next to one attached now; a rejected file offers none even if a row with its name appeared; no document id gives none; English; the correction flow; no fixed width                      | None needed                                                     |
+| 5.4 and 5.5 | `src/i18n/intake-messages.test.ts`                              | Unit               | Existing cases passing                | 4 cases failed first (exact copy es and en, the informal address, the visible label inside each accessible name in es and en)                                                                                                                                                              | Pass              | Exact copy of the five keys in es and en; no formal "Compruebe"; "{name}" present in both accessible names                                                                                                                                                                                                                                                                                                                                       | None needed                                                     |
+
+### Mutation checks (revert-only; files restored from byte-identical backup copies and checked with "cmp", because the GREEN was not committed yet)
+
+| Pass-at-write test or guard                                                                   | Temporary edit                                                                                             | Result                                                                                                                |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| local-preview "mounts an iframe", the img cases, the StrictMode case, the route case (5.6)    | In `src/app/(dashboard)/requests/new/local-preview.tsx`: the src is a document-route URL                   | 5 local-preview cases failed, and 4 documents-step cases failed, including "reads nothing from the server to preview" |
+| local-preview unmount, StrictMode and changed-file cases                                      | In `src/app/(dashboard)/requests/new/local-preview.tsx`: the cleanup does not revoke                       | 3 failed, as expected                                                                                                 |
+| documents-step "offers no preview when finalize returns no document id"                       | In `src/app/(dashboard)/requests/new/documents-step.tsx`: a missing id falls back to 9                     | Failed                                                                                                                |
+| documents-step "offers no preview, and shows the rejection, for a file that finalize rejects" | In `src/app/(dashboard)/requests/new/documents-step.tsx`: the file is held before the ok check             | Failed (the case was first strengthened to show a row with the rejected name, because the first version passed)       |
+| documents-step "keeps Ver, and offers no preview, for a document stored before this visit"    | In `src/app/(dashboard)/requests/new/documents-step.tsx`: a fallback file for every row                    | 4 failed, including it                                                                                                |
+| documents-step "keeps the preview when the removal fails"                                     | In `src/app/(dashboard)/requests/new/documents-step.tsx`: the entry is dropped even when the removal fails | Failed                                                                                                                |
+
+### Checkpoint (task 5.12): measured size of PR 5
+
+Measure: "git diff --numstat feat/flow-experience-4b-request-card...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                     | Changed lines |
+| ------------------------------------------------------------------------- | ------------- |
+| Unit 9 (component 64, its test 181, shared test helper 55)                | 300           |
+| Unit 10 (documents step 157, its test 261, copy test 44, two catalogs 10) | 472           |
+| All of PR 5 (725 added, 47 deleted; production 231 and tests 541)         | 772           |
+
+The design forecast for all of S5 was about 240. Units 9 and 10 alone are 3.2 times that. Tests are 70 percent of the lines and were not trimmed. Unit 10 alone is over the 460 stop line, and unit 9 and unit 10 have no seam that would bring either under it, so the slice is cut after unit 10, as the plan says. Size exception.
+
+### Work unit evidence (PR 5)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- src/app/(dashboard)/requests src/i18n": 32 files, 974 tests, all passed                                                                                                                             |
+| Runtime harness                       | N/A in this run: the owner-run RF-08 regression on "flow-it" (task 12.2) is not part of Phase 5, and no database or Neon command was run (the dummy DB URL only). The preview never reaches a server, so there is no audit row to compare                    |
+| Rollback boundary                     | Revert the PR: `src/app/(dashboard)/requests/new/local-preview.tsx` is removed, `src/app/(dashboard)/requests/new/documents-step.tsx` returns to its audited "Ver" link for every row, and the five catalog keys go. No data, no schema, no audit event type |
+
+### Gates (task 5.13), tip of "-5-local-preview", dummy DB
+
+- Full "npm test": 372 files, 9174 tests, all passed, 255.2 s vitest duration (4 m 17 s wall). The S4 tip was 371 files and 9136 tests; PR 5 adds one test file (local-preview) and 38 tests.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (142135 findings counted with it), the only findings are the same three in files S5 does not touch: the unused `SidebarGroupLabel` warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on the touched files alone is clean, and "npx prettier --check" passes on every touched file and on both catalogs.
+
+### Files (PR 5; all LF in the working tree, the index was already LF)
+
+| File                                                       | Action                                                                                                                               |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/app/(dashboard)/requests/new/local-preview.tsx`       | Created: previewKind and LocalPreview (object URL assigned in an effect, revoked in the cleanup)                                     |
+| `src/app/(dashboard)/requests/new/local-preview.test.tsx`  | Created: 19 cases                                                                                                                    |
+| `src/app/(dashboard)/requests/new/documents-step.tsx`      | Modified: files held by document id, the "Vista previa" toggle and panel for a file attached in this visit, entry dropped on removal |
+| `src/app/(dashboard)/requests/new/documents-step.test.tsx` | Modified: 15 new cases                                                                                                               |
+| `src/app/(dashboard)/requests/new/test-support.tsx`        | Modified: stubObjectUrls, and renderIntl keeps the provider on rerender and takes a StrictMode flag                                  |
+| `src/i18n/intake-messages.test.ts`                         | Modified: exact copy of the preview keys                                                                                             |
+| `i18n/es.json`, `i18n/en.json`                             | Modified: "intake.documents.preview", "previewNamed", "hidePreview", "hidePreviewNamed" and "previewHint"                            |
+
+### Final Spanish UI copy added in PR 5 (student screen "intake", "tú"; the labels have no verb, so neutral)
+
+- "intake.documents.preview": "Vista previa"
+- "intake.documents.previewNamed": "Vista previa de {name}" (the accessible name of the toggle)
+- "intake.documents.hidePreview": "Ocultar vista previa"
+- "intake.documents.hidePreviewNamed": "Ocultar vista previa de {name}"
+- "intake.documents.previewHint": "Comprueba que este es el documento correcto antes de continuar."
+
+English twins: "Preview"; "Preview of {name}"; "Hide preview"; "Hide preview of {name}"; "Check that this is the right document before you continue."
+
+### Deviations (PR 5)
+
+1. **Cut after unit 10.** The preview measured 772 lines; PR 5b carries unit 11. Size exception.
+2. **Base.** Task 5.0 says "from the PR 4 branch" and tasks 5.12 and 5.14 name "feat/flow-experience-4-request-cards"; the real base is the tip of "feat/flow-experience-4b-request-card" (#115). The PR targets that branch.
+3. **Unit 9 lists three files, not two.** The object-URL spies and the StrictMode and rerender options are shared by the preview and documents-step tests, so they live in `src/app/(dashboard)/requests/new/test-support.tsx`. StrictMode only double-runs effects at the root of the tree, so `renderIntl` takes a flag instead of letting each test wrap its own element.
+4. **No "previewImageAlt" or "previewPdfTitle" keys.** FE-17 says the preview has the file name as its text alternative, so the image alt and the frame title are the name itself; a "Documento {name}" wrapper would only add a key.
+5. **Accessible names.** The design words them "Ver la vista previa de {name}" and "Ocultar la vista previa de {name}"; the visible labels are "Vista previa" and "Ocultar vista previa", and the second accessible name did not contain its visible label (WCAG 2.5.3). The names are now "Vista previa de {name}" and "Ocultar vista previa de {name}". Task 5.4 leaves the exact copy open.
+6. **Informal address.** The hint is "Comprueba..." (student screen, owner resolution 1), not the design's "Compruebe...".
+7. **Name and size twice.** The preview caption repeats the name and size the row already shows, because FE-17 requires them with the preview and the component also serves a file the browser cannot render.
+8. **The preview applies to files attached in this visit only.** A file attached, then a navigation to step 4 and back, has no local copy and shows "Ver" (owner decision 4). The held files live in the step's state and go with it.
+9. **Task 5.6.** The documents-step mutation is made in `src/app/(dashboard)/requests/new/local-preview.tsx` because the documents step builds no URL itself.
+10. **Mutation checks with an uncommitted GREEN.** As in S1 to S4: byte-identical backup copies, checked with "cmp".
+11. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF without changing the index content. "git status" still lists some as modified (a line-ending artifact only).
+12. **Tasks 5.12 to 5.14.** They close when PR 5b is done, over both PRs.

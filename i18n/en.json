@@ -729,6 +729,11 @@
       "uploading": "Uploading {name}…",
       "view": "View",
       "viewNamed": "View {name}",
+      "preview": "Preview",
+      "previewNamed": "Preview of {name}",
+      "hidePreview": "Hide preview",
+      "hidePreviewNamed": "Hide preview of {name}",
+      "previewHint": "Check that this is the right document before you continue.",
       "remove": "Remove {name}",
       "removing": "Removing…"
     },

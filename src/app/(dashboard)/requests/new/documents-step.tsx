@@ -18,6 +18,7 @@ import {
   StepShell,
 } from "@/app/(dashboard)/requests/new/form-field";
 import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
+import { LocalPreview } from "@/app/(dashboard)/requests/new/local-preview";
 import { FLOW_PATH, stepHref } from "@/app/(dashboard)/requests/new/steps";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -57,6 +58,19 @@ type AttachedDocument = {
   tamanoBytes: number;
 };
 
+// State is never mutated: each update works on a copy.
+function droppedFile(held: ReadonlyMap<number, File>, id: number) {
+  const next = new Map(held);
+  next.delete(id);
+  return next;
+}
+
+function droppedId(held: ReadonlySet<number>, id: number) {
+  const next = new Set(held);
+  next.delete(id);
+  return next;
+}
+
 type DocumentsFlow = StepFlow<"finalizeDocument" | "removeDocument">;
 
 const NEW_FLOW: DocumentsFlow = {
@@ -94,6 +108,14 @@ export function DocumentsStep({
   const [uploading, setUploading] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The files attached during this visit, by the id finalize returned (D8). A
+  // document stored before the visit is not here and keeps its audited "Ver".
+  const [localFiles, setLocalFiles] = useState<ReadonlyMap<number, File>>(
+    () => new Map(),
+  );
+  const [previewing, setPreviewing] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
 
   const full = documents.length >= MAX_DOCUMENTS_PER_DRAFT;
   const busy = uploading !== null || removing;
@@ -121,6 +143,9 @@ export function DocumentsStep({
       });
       if (!result.ok) {
         setError(result.errors[0]?.key ?? errorKey("upload_failed"));
+      } else if (result.documentId !== undefined) {
+        const documentId = result.documentId;
+        setLocalFiles((held) => new Map(held).set(documentId, file));
       }
     } catch {
       // The SDK hides why the token route refused (it throws a generic error),
@@ -137,11 +162,25 @@ export function DocumentsStep({
     setRemoving(true);
     try {
       const result = await flow.actions.removeDocument(documentId);
-      if (!result.ok) setError(result.errors[0].key);
+      if (!result.ok) {
+        setError(result.errors[0].key);
+      } else {
+        // Dropping the entry unmounts its preview, whose cleanup revokes the URL.
+        setLocalFiles((held) => droppedFile(held, documentId));
+        setPreviewing((open) => droppedId(open, documentId));
+      }
     } finally {
       setRemoving(false);
       router.refresh();
     }
+  }
+
+  function togglePreview(documentId: number) {
+    setPreviewing((open) =>
+      open.has(documentId)
+        ? droppedId(open, documentId)
+        : new Set(open).add(documentId),
+    );
   }
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -182,45 +221,85 @@ export function DocumentsStep({
           </p>
         ) : (
           <ul className="flex flex-col">
-            {documents.map((doc) => (
-              <li
-                key={doc.id}
-                className="border-border flex items-center gap-3 border-b py-2 last:border-b-0"
-              >
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm" title={doc.nombreOriginal}>
-                    {doc.nombreOriginal}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {formatFileSize(doc.tamanoBytes, locale)}
-                  </span>
-                </span>
-                <a
-                  href={`/api/intake/documents/${doc.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={t("documents.viewNamed", {
-                    name: doc.nombreOriginal,
-                  })}
-                  className={`${buttonVariants({ variant: "ghost", size: "lg" })} shrink-0`}
+            {documents.map((doc) => {
+              const local = localFiles.get(doc.id);
+              const open = local !== undefined && previewing.has(doc.id);
+              const panelId = `documents-preview-${doc.id}`;
+              return (
+                <li
+                  key={doc.id}
+                  className="border-border flex flex-col border-b last:border-b-0"
                 >
-                  {t("documents.view")}
-                </a>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-11"
-                  disabled={busy}
-                  aria-label={t("documents.remove", {
-                    name: doc.nombreOriginal,
-                  })}
-                  onClick={() => void remove(doc.id)}
-                >
-                  <Trash2Icon />
-                </Button>
-              </li>
-            ))}
+                  <div className="flex items-center gap-3 py-2">
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span
+                        className="truncate text-sm"
+                        title={doc.nombreOriginal}
+                      >
+                        {doc.nombreOriginal}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {formatFileSize(doc.tamanoBytes, locale)}
+                      </span>
+                    </span>
+                    {local ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="lg"
+                        className="shrink-0"
+                        aria-expanded={open}
+                        aria-controls={open ? panelId : undefined}
+                        aria-label={t(
+                          open
+                            ? "documents.hidePreviewNamed"
+                            : "documents.previewNamed",
+                          { name: doc.nombreOriginal },
+                        )}
+                        onClick={() => togglePreview(doc.id)}
+                      >
+                        {t(
+                          open ? "documents.hidePreview" : "documents.preview",
+                        )}
+                      </Button>
+                    ) : (
+                      <a
+                        href={`/api/intake/documents/${doc.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={t("documents.viewNamed", {
+                          name: doc.nombreOriginal,
+                        })}
+                        className={`${buttonVariants({ variant: "ghost", size: "lg" })} shrink-0`}
+                      >
+                        {t("documents.view")}
+                      </a>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-11"
+                      disabled={busy}
+                      aria-label={t("documents.remove", {
+                        name: doc.nombreOriginal,
+                      })}
+                      onClick={() => void remove(doc.id)}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </div>
+                  {open ? (
+                    <div id={panelId} className="flex flex-col gap-2 pb-3">
+                      <p className="text-muted-foreground text-sm">
+                        {t("documents.previewHint")}
+                      </p>
+                      <LocalPreview file={local} name={doc.nombreOriginal} />
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

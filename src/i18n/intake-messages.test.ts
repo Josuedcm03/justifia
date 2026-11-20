@@ -164,3 +164,47 @@ describe("intake messages", () => {
     expect(en.nav.newRequest).toEqual(expect.any(String));
   });
 });
+
+// FE-17 (RF-08 a): the preview copy of the documents step. The student screens
+// address the student as "tú"; the labels with no verb are neutral. The
+// accessible names keep the visible label inside them (WCAG 2.5.3).
+describe("intake messages: the local preview (FE-17)", () => {
+  it("words the preview controls and the hint in Spanish, in the informal address", () => {
+    expect(es.intake.documents).toMatchObject({
+      preview: "Vista previa",
+      previewNamed: "Vista previa de {name}",
+      hidePreview: "Ocultar vista previa",
+      hidePreviewNamed: "Ocultar vista previa de {name}",
+      previewHint:
+        "Comprueba que este es el documento correcto antes de continuar.",
+    });
+    expect(es.intake.documents.previewHint).not.toMatch(/Compruebe/);
+  });
+
+  it("words the preview controls and the hint in English", () => {
+    expect(en.intake.documents).toMatchObject({
+      preview: "Preview",
+      previewNamed: "Preview of {name}",
+      hidePreview: "Hide preview",
+      hidePreviewNamed: "Hide preview of {name}",
+      previewHint: "Check that this is the right document before you continue.",
+    });
+  });
+
+  it.each([
+    ["es", es],
+    ["en", en],
+  ] as const)(
+    "%s keeps the visible label inside each accessible name",
+    (_l, m) => {
+      const { preview, previewNamed, hidePreview, hidePreviewNamed } =
+        m.intake.documents;
+      expect(previewNamed.toLowerCase()).toContain(preview.toLowerCase());
+      expect(hidePreviewNamed.toLowerCase()).toContain(
+        hidePreview.toLowerCase(),
+      );
+      expect(previewNamed).toContain("{name}");
+      expect(hidePreviewNamed).toContain("{name}");
+    },
+  );
+});

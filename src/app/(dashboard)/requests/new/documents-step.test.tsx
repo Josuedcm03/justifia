@@ -1,8 +1,11 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderIntl } from "@/app/(dashboard)/requests/new/test-support";
+import {
+  renderIntl,
+  stubObjectUrls,
+} from "@/app/(dashboard)/requests/new/test-support";
 import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 
 const { upload, finalizeDocumentAction, removeDocumentAction, refresh } =
@@ -376,5 +379,259 @@ describe("DocumentsStep inside another flow (the correction)", () => {
       "href",
       "/requests/31/correct?step=4",
     );
+  });
+});
+
+// FE-17, RF-08 (a): a file attached during this visit can be previewed from
+// the copy the browser holds. Nothing here may read the document route.
+describe("DocumentsStep: local preview of a file attached in this visit (FE-17)", () => {
+  const PNG = new File(["png"], "foto.png", { type: "image/png" });
+  const view = (name: string) => screen.queryByRole("link", { name });
+  const previewButton = (name: string, open = false) =>
+    screen.getByRole("button", {
+      name: `${open ? "Ocultar vista previa de" : "Vista previa de"} ${name}`,
+    });
+  // The row's name also has the file name as its title, so pick the iframe.
+  const maybeFrame = () =>
+    screen
+      .queryAllByTitle("justificante.pdf")
+      .find((element) => element.tagName === "IFRAME") ?? null;
+  const frame = () => {
+    const found = maybeFrame();
+    if (!found) throw new Error("no preview iframe is mounted");
+    return found;
+  };
+  let urls: ReturnType<typeof stubObjectUrls>;
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    urls = stubObjectUrls();
+    fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Attach `file` as document 9, then show the list the refresh would bring. */
+  async function attached(file = PDF, extra: ReturnType<typeof DOC>[] = []) {
+    const shown = renderIntl(ui(extra));
+    await user().upload(input(), file);
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    shown.rerender(ui([...extra, DOC(9, file.name)]));
+    return shown;
+  }
+
+  it("offers the preview, closed, instead of Ver for the file just attached", async () => {
+    await attached();
+
+    const toggle = previewButton("justificante.pdf");
+    expect(toggle).toHaveTextContent("Vista previa");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(view("Ver justificante.pdf")).toBeNull();
+    expect(maybeFrame()).toBeNull();
+    expect(urls.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("opens an iframe for a PDF from the chosen file, with the hint", async () => {
+    await attached();
+    await userEvent.click(previewButton("justificante.pdf"));
+
+    const toggle = previewButton("justificante.pdf", true);
+    expect(toggle).toHaveTextContent("Ocultar vista previa");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const preview = frame();
+    expect(preview.getAttribute("src")).toBe("blob:preview-1");
+    expect(urls.createObjectURL).toHaveBeenCalledWith(PDF);
+    const panel = document.getElementById(
+      toggle.getAttribute("aria-controls") ?? "",
+    );
+    expect(panel).toContainElement(preview);
+    expect(
+      screen.getByText(
+        "Comprueba que este es el documento correcto antes de continuar.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("opens an img for a PNG", async () => {
+    await attached(PNG);
+    await userEvent.click(previewButton("foto.png"));
+
+    expect(screen.getByRole("img", { name: "foto.png" })).toHaveAttribute(
+      "src",
+      "blob:preview-1",
+    );
+  });
+
+  it("unmounts the panel and revokes the URL when it is closed", async () => {
+    await attached();
+    await userEvent.click(previewButton("justificante.pdf"));
+    await userEvent.click(previewButton("justificante.pdf", true));
+
+    expect(maybeFrame()).toBeNull();
+    expect(previewButton("justificante.pdf")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(urls.revokeObjectURL.mock.calls).toEqual([["blob:preview-1"]]);
+  });
+
+  it("opens each row on its own", async () => {
+    const shown = await attached(PDF);
+    await userEvent.click(previewButton("justificante.pdf"));
+    finalizeDocumentAction.mockResolvedValue({ ok: true, documentId: 10 });
+    await user().upload(input(), PNG);
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+    shown.rerender(ui([DOC(9, "justificante.pdf"), DOC(10, "foto.png")]));
+
+    expect(previewButton("justificante.pdf", true)).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(previewButton("foto.png")).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("reads nothing from the server to preview: no fetch, no document route", async () => {
+    const { container } = await attached();
+    await userEvent.click(previewButton("justificante.pdf"));
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(container.innerHTML).not.toContain("/api/intake/documents/9");
+  });
+
+  it("revokes the URL and drops the file when the document is removed", async () => {
+    const { rerender } = await attached();
+    await userEvent.click(previewButton("justificante.pdf"));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Quitar justificante.pdf" }),
+    );
+    await waitFor(() => expect(removeDocumentAction).toHaveBeenCalledWith(9));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+
+    expect(urls.revokeObjectURL).toHaveBeenCalledWith("blob:preview-1");
+    // The entry is gone: the same id, shown again, has no local file to preview.
+    rerender(ui([DOC(9, "justificante.pdf")]));
+    expect(screen.queryByRole("button", { name: /vista previa/i })).toBeNull();
+    expect(view("Ver justificante.pdf")).toHaveAttribute(
+      "href",
+      "/api/intake/documents/9",
+    );
+  });
+
+  it("keeps the preview when the removal fails", async () => {
+    removeDocumentAction.mockResolvedValue({
+      ok: false,
+      errors: [{ field: "documents", key: "intake.errors.not_found" }],
+    });
+    await attached();
+    await userEvent.click(previewButton("justificante.pdf"));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Quitar justificante.pdf" }),
+    );
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(frame()).toBeInTheDocument();
+    expect(urls.revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("revokes the open URL when the step unmounts", async () => {
+    const { unmount } = await attached();
+    await userEvent.click(previewButton("justificante.pdf"));
+
+    unmount();
+
+    expect(urls.revokeObjectURL).toHaveBeenCalledWith("blob:preview-1");
+  });
+
+  it("keeps Ver, and offers no preview, for a document stored before this visit", async () => {
+    await attached(PDF, [DOC(5, "receta.pdf")]);
+
+    expect(view("Ver receta.pdf")).toHaveAttribute(
+      "href",
+      "/api/intake/documents/5",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Vista previa de receta.pdf" }),
+    ).toBeNull();
+    expect(previewButton("justificante.pdf")).toBeInTheDocument();
+  });
+
+  it("offers no preview, and shows the rejection, for a file that finalize rejects", async () => {
+    finalizeDocumentAction.mockResolvedValue({
+      ok: false,
+      errors: [{ field: "documents", key: "intake.errors.unsupported_format" }],
+    });
+    const exe = new File(["MZ"], "scan.pdf", { type: "application/pdf" });
+    const { rerender } = renderIntl(ui());
+    await user().upload(input(), exe);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Formato no admitido. Sube un PDF, PNG o JPEG.",
+    );
+    // Even if a row with the id finalize never returned showed up, no file is held.
+    rerender(ui([DOC(9, "scan.pdf")]));
+    expect(screen.queryByRole("button", { name: /vista previa/i })).toBeNull();
+    expect(urls.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("offers no preview when finalize returns no document id", async () => {
+    finalizeDocumentAction.mockResolvedValue({ ok: true });
+    const { rerender } = renderIntl(ui());
+    await user().upload(input(), PDF);
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    rerender(ui([DOC(9, "justificante.pdf")]));
+
+    expect(screen.queryByRole("button", { name: /vista previa/i })).toBeNull();
+    expect(view("Ver justificante.pdf")).toBeInTheDocument();
+  });
+
+  it("labels the controls in English", async () => {
+    const { rerender } = renderIntl(ui(), "en");
+    await user().upload(screen.getByLabelText("Attach document"), PDF);
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    rerender(ui([DOC(9, "justificante.pdf")]));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Preview of justificante.pdf" }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Hide preview of justificante.pdf" }),
+    ).toHaveTextContent("Hide preview");
+    expect(
+      screen.getByText(
+        "Check that this is the right document before you continue.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("previews a file attached through the correction flow too", async () => {
+    const finalizeDocument = vi
+      .fn()
+      .mockResolvedValue({ ok: true, documentId: 9 });
+    const flow = {
+      basePath: "/requests/31/correct",
+      actions: { finalizeDocument, removeDocument: vi.fn() },
+    };
+    const correction = (documents: ReturnType<typeof DOC>[] = []) => (
+      <DocumentsStep draftId={31} documents={documents} flow={flow} />
+    );
+    const { rerender } = renderIntl(correction());
+    await user().upload(input(), PDF);
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    rerender(correction([DOC(9, "justificante.pdf")]));
+
+    await userEvent.click(previewButton("justificante.pdf"));
+
+    expect(frame().getAttribute("src")).toBe("blob:preview-1");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("sets no fixed width on the open panel (360 px)", async () => {
+    const { container } = await attached();
+    await userEvent.click(previewButton("justificante.pdf"));
+
+    expect(container.innerHTML).not.toMatch(/\b(?:min-)?w-\[\d+(?:px|rem)\]/);
   });
 });
