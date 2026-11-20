@@ -529,3 +529,103 @@ No Spanish UI copy is added in PR 4 (the card copy is PR 4b).
 5. **Mutation checks with an uncommitted GREEN.** As in S1 to S3: byte-identical backup copy restored and checked with "cmp".
 6. **Cut at unit 7, size exception.** See the cut decision.
 7. **Tasks 4.11 to 4.13.** They close when PR 4b is done, over both PRs.
+
+### PR 4b: the card (unit 8)
+
+Branch "feat/flow-experience-4b-request-card", cut from the tip of PR 4 ("feat/flow-experience-4-card-reasons", 7f8c018). It targets that branch. Together with PR 4 it closes S4. Pull requests: PR 4 is #114 ("https://github.com/Josuedcm03/justifia/pull/114", base "feat/flow-experience-3b-report-answer-errors", stacked on #113) and PR 4b is #115 ("https://github.com/Josuedcm03/justifia/pull/115", base "feat/flow-experience-4-card-reasons").
+
+#### Commits (PR 4b)
+
+| Unit | Hash    | Message                                                                  |
+| ---- | ------- | ------------------------------------------------------------------------ |
+| 8    | 6f8fd63 | feat(requests): label the dates and show subjects and reasons on the cards |
+| docs | (tip)   | docs(flow-experience): record the Phase 4 apply progress for PR 4b       |
+
+#### TDD cycle evidence (PR 4b)
+
+| Task        | Test file                                                  | Layer     | Safety net                                   | RED                                                                                                                                                                                     | GREEN                                       | Triangulation                                                                                                                                                                                                                                                                                                                                                                                                                    | Refactor    |
+| ----------- | ---------------------------------------------------------- | --------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 4.8 and 4.9 | `src/app/(dashboard)/requests/request-card.test.tsx` (new) | Component | N/A (new file); existing requests cases passing    | 16 cases failed first (the labelled absence line en, es, one day; subjects 1, 3, 5 and 4 codes and es; the five reasons; the clamp; es reason; 360 px); the negative cases pass at write | requests directory and i18n: 31 files, 936 passed | Range, one day, Spanish, missing dates; 1, 3, 5, 4 subjects and Spanish and none; returned with code, with the date code, without a known code; rejected short and cut; no line for a returned request with nothing, a rejected one without a decision, a pending one with a stray decision, one in coordination; approved with text, with a long text, without a decision; props with signals, an outcome, a verdict and an escalation note; link; 360 px | None needed |
+| 4.8 and 4.9 | `src/app/(dashboard)/requests/page.test.tsx`               | Component | Existing cases passing                       | 2 cases failed first (items passed through to their own cards; the label on every card); the approved stray-decision case passes at write                                               | Pass                                        | Returned, rejected and approved items in one list; labelled dates; approved card with a carried decision                                                                                                                                                                                                                                                                                                                          | None needed |
+| 4.8 and 4.9 | `src/app/(dashboard)/requests/design-system.test.tsx`      | Component | Existing suites green                        | 2 cases failed first (muted ink for the labelled lines and body ink with the clamp for the reason; five long codes inside 360 px)                                                      | Pass                                        | Class-level pins: muted ink, line-clamp-2, break-words, no fixed width above the viewport                                                                                                                                                                                                                                                                                                                                         | None needed |
+| 4.8 and 4.9 | `src/i18n/requests-messages.test.ts`                       | Unit      | Existing cases passing                       | 3 cases failed first (exact copy es and en; the reason label equals the detail's label)                                                                                                  | Pass                                        | Exact copy of the four keys in es and en; no form of address in either; same "Motivo" and "Reason" label as the detail                                                                                                                                                                                                                                                                                                            | None needed |
+| 4.8         | `src/app/(dashboard)/requests/no-signals.test.ts`          | Component | Existing cases passing                       | Pass at write (its list rows now carry subjects and a decision, and the page shows them); mutation check below                                                                         | Pass                                        | Four states in both locales with no signal word                                                                                                                                                                                                                                                                                                                                                                                   | None needed |
+
+#### Mutation checks (revert-only; files restored from byte-identical backup copies and checked with "cmp", because the GREEN was not committed yet)
+
+| Pass-at-write test                                                                                        | Temporary edit                                                                              | Result                                                                                |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| no reason line (returned with nothing, pending, coordination) and the three approved cases, page approved | In `src/app/(dashboard)/requests/request-card.tsx`: drop the state gate of the reason       | 5 failed, including the pending, coordination and approved cases                       |
+| the reason cases and no-signals list                                                                      | A signal word and a verdict word added to the reason line                                   | The reason cases failed, and so did the no-signals list case "renders every visible state without a signal, outcome, verdict or fingerprint" |
+| the state labels, the neutral label                                                                       | The state pill always receives "pendiente"                                                  | Failed, including the coordination and every state-label case                         |
+| "shows no absence line when the dates are missing", "shows no subject line for a request without subjects" | The dates line and the subjects line always render                                         | 2 failed, as expected                                                                 |
+| "links to the detail of its own request" and the page link case                                           | The link target is the next id                                                              | 2 failed, as expected                                                                 |
+| "renders no signal, outcome, verdict, motive, note or answer even when the props carry them"              | The serialized props are rendered inside the card                                           | 6 failed, including it                                                                |
+| "keeps the card labels free of any form of address" and the exact-copy case                                | In `i18n/es.json`: "Revisa tus fechas de ausencia: {period}" instead of the absence label  | 2 failed, as expected                                                                 |
+
+#### Checkpoint (task 4.11): measured size of PR 4b
+
+Measure: "git diff --numstat feat/flow-experience-4-card-reasons...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                                                       | Changed lines |
+| ----------------------------------------------------------------------------------------------------------- | ------------- |
+| Production (card 56, two catalogs 8)                                                                        | 64            |
+| Tests (card 307, page 56, design system 42, copy 46, no-signals 5)                                          | 456           |
+| All of PR 4b (514 added, 6 deleted)                                                                         | 520           |
+| PR 4 (unit 7)                                                                                               | 606           |
+| All of S4                                                                                                   | 1126          |
+
+The design forecast for S4 was about 250; S4 is 4.5 times that. Tests are 88 percent of PR 4b. Both parts are over the 460 stop line; PR 4 is the plan's cut after unit 7, and unit 8 has no seam (the card, the page pin and the copy are one behaviour). Size exception per the owner decision of 2026-11-20. Tests were not trimmed.
+
+#### Work unit evidence (PR 4b)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- src/app/(dashboard)/requests src/i18n": 31 files, 936 tests, all passed                                                                                                                                                            |
+| Runtime harness                       | N/A in this run: the owner-run capture "RF-07_c" on "flow-it" (task 12.8) is not part of Phase 4, and no database or Neon command was run                                                                                                                                                  |
+| Rollback boundary                     | Revert the PR: `src/app/(dashboard)/requests/request-card.tsx` returns to its old three lines and the four catalog keys go. The list reader of PR 4 keeps returning the new fields, which nothing renders. No data, no schema, no audit event type                                          |
+
+#### Gates (task 4.12), tip of "-4b-request-card" (the S4 tip), dummy DB
+
+- Full "npm test": 371 files, 9136 tests, all passed, 262.3 s vitest duration. PR 4 was 370 files and 9097 tests; PR 4b adds one test file (request-card) and 39 tests. Against PR 3b (369 files, 9061 tests) all of S4 adds two files and 75 tests.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (143072 lines), the only findings are the same three in files S4 does not touch: the unused `SidebarGroupLabel` warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on the touched files alone is clean, and "npx prettier --check" passes on all of them and on both catalogs.
+- "npm test -- src/app/(dashboard)/requests src/i18n": 31 files, 936 tests, all passed.
+
+#### Files (PR 4b; all LF in the working tree, the index was already LF)
+
+| File                                                                                                                                                                                                                  | Action                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `src/app/(dashboard)/requests/request-card.tsx`                                                                                                                                                                       | Modified: absence label, subjects line, reason line gated on the state; takes the list item |
+| `src/app/(dashboard)/requests/request-card.test.tsx`                                                                                                                                                                  | Created: 29 cases                                                                           |
+| `src/app/(dashboard)/requests/page.test.tsx`, `src/app/(dashboard)/requests/design-system.test.tsx`, `src/app/(dashboard)/requests/no-signals.test.ts`, `src/i18n/requests-messages.test.ts`                            | Modified: new cases and fuller fixtures                                                     |
+| `i18n/es.json`, `i18n/en.json`                                                                                                                                                                                        | Modified: "requests.list.absence", "subjects", "moreSubjects" and "reason"                  |
+
+#### Final Spanish UI copy added in S4 (student screen "requests", "tú"; labels with no verb, so neutral)
+
+- "requests.list.absence": "Fechas de ausencia: {period}" (the period keeps the existing "{start} al {end}" with the month name, for example "1 nov 2026 al 3 nov 2026")
+- "requests.list.subjects": "Asignaturas: {codes}"
+- "requests.list.moreSubjects": "{codes} y {count} más"
+- "requests.list.reason": "Motivo: {reason}" (the same label as "requests.detail.decision.reason"; the reason is the RN-17 label of a returned request, for example "El documento no es legible", or the excerpt of a rejection)
+
+English twins: "Absence dates: {period}"; "Subjects: {codes}"; "{codes} and {count} more"; "Reason: {reason}". The state labels, the title and the other list keys are unchanged.
+
+#### Deviations (all of S4)
+
+1. **`src/app/(dashboard)/requests/page.tsx` not edited.** Task 4.9 lists it, but the page already passes each list item to the card; `src/app/(dashboard)/requests/page.test.tsx` pins the pass-through.
+2. **Branch names.** See the PR 4 deviations: "-4-card-reasons" and "-4b-request-card" instead of "-4-request-cards".
+3. **Cut at unit 7; both parts over the stop line.** PR 4 606 and PR 4b 520 changed lines. Size exception.
+4. **Approved cards (owner decision of 2026-11-20).** The spec, design D7 and tasks 4.1, 4.4 and 4.8 were edited first; the reader never reads an approved decision and the card gates on the state as well.
+5. **Reason fallback.** A returned request whose code is not in the catalog shows the excerpt of its text (D7), which the spec's "label of its RN-17 reason code" does not cover; with a known code the label is shown.
+6. **Reason line clamp.** The excerpt is at most 140 characters and the card clamps it to 2 lines (owner resolution 3). At 360 px a line holds about 40 characters, so a long excerpt is visually cut by the clamp before the ellipsis the server added; the complete text is on the detail.
+7. **Mutation checks with an uncommitted GREEN.** Byte-identical backup copies, checked with "cmp".
+
+### Notes for S5 (RF-08, local preview and file names)
+
+- Base: S5 stacks on "feat/flow-experience-4b-request-card" (the S4 tip, #115).
+- Overlap with S4: `src/lib/data/student-requests.ts` (S5 adds `getReturnedDocumentIds` after `getCorrectionReason`, so no conflict with the list reader) and `src/lib/data/student-requests.test.ts` (S4 rewrote only the listOwnRequests block; append a new describe at the end). The helpers `listClass` and `listDecision` in that file serve only the list block.
+- `src/app/(dashboard)/requests/design-system.test.tsx` and `src/app/(dashboard)/requests/no-signals.test.ts` skip or scan the "new" and "correct" folders differently: the design pins skip "new" and "correct" (they have their own pins), while the signals scan walks every file under the requests directory, so a new module under "new" must name no signal word.
+- Size: S4 ran 4.5 times its forecast and tests were 81 to 88 percent of the lines. S5's forecast is about 240, so expect 700 to 1000; the plan's cut is after unit 10 (the preview component, then the documents step, then the review and resubmit marks). Measure after each unit.
+- Pitfalls met in S4: the Write tool turns a typed backslash-u escape into the real character; shell heredocs lose backslashes, and a heredoc with an apostrophe in a quoted body can end the command early, so write scripts and long text with the Write tool and run them with node. A shell count of carriage returns with rg and a dollar-quote was unreliable; count them with a node one-liner. "npx prettier --write <file> --end-of-line lf" converts a CRLF file to LF without changing the index content.
+- Still true from S3: resolve the promise of a mocked server action at the end of the test, because React entangles async actions across roots.
+- Tooling: only "rg" is installed (no "fd", "bat", "eza", "sd"); the catalog insert helper "i18n-set.cjs" and the "fixengram.sh" script are in the scratchpad.
