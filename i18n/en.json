@@ -654,6 +654,7 @@
     "userMenu": {
       "signedInAs": "{login} · {rol}",
       "viewProfile": "View profile",
+      "changePassword": "Change password",
       "logout": "Sign out"
     }
   },
@@ -666,7 +667,8 @@
     "phoneLabel": "Phone",
     "cifLabel": "CIF",
     "careerLabel": "Career",
-    "memberSinceLabel": "Member since"
+    "memberSinceLabel": "Member since",
+    "changePassword": "Change password"
   },
   "intake": {
     "title": "New justification request",

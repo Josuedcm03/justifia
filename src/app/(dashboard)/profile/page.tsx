@@ -1,9 +1,12 @@
 import { getFormatter, getTranslations } from "next-intl/server";
+import Link from "next/link";
 import { cn } from "cn";
 
 import { PageHeader } from "@/components/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/dal";
+import { PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
 import { listCarreras } from "@/lib/data/carreras";
 import { getUsuarioByLogin } from "@/lib/data/users";
 
@@ -79,6 +82,16 @@ export default async function ProfilePage() {
           </dl>
         </CardContent>
       </Card>
+
+      <Link
+        href={PASSWORD_CHANGE_PATH}
+        className={cn(
+          buttonVariants({ variant: "outline", size: "lg" }),
+          "w-full sm:w-auto sm:self-start",
+        )}
+      >
+        {t("changePassword")}
+      </Link>
     </div>
   );
 }
