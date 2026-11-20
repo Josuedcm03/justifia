@@ -182,7 +182,14 @@ describe("ReportDialog confirmation (RNF-12)", () => {
   });
 
   it("sends nothing twice while the first confirm is still running", async () => {
-    actionMock.mockReturnValue(new Promise(() => {}));
+    // React entangles async actions across roots, so a promise that never
+    // settles would keep every later test in this file pending: release it.
+    let release: (value?: unknown) => void = () => {};
+    actionMock.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
     show();
     const dialog = await open();
     const confirm = within(dialog).getByRole("button", {
@@ -198,6 +205,9 @@ describe("ReportDialog confirmation (RNF-12)", () => {
     expect(
       within(dialog).getByRole("button", { name: en.dialog.pending }),
     ).toBeDisabled();
+
+    release(undefined);
+    await within(dialog).findByRole("button", { name: en.dialog.confirm });
   });
 
   it("keeps the dialog open and the draft after a refusal", async () => {
@@ -237,5 +247,145 @@ describe("ReportDialog confirmation (RNF-12)", () => {
     expect(
       within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
     ).toHaveValue("");
+  });
+});
+
+// flow-experience S3 (FE-11, RNF-12): the report dialog drops a field's message
+// as soon as that field is edited, like the escalate dialog.
+describe("ReportDialog stale messages (FE-11, RNF-12)", () => {
+  const DOCENTE = { field: "docente", code: "docente_invalid" };
+  const FECHA = { field: "comunicadoEl", code: "date_future" };
+  const NOTA = { field: "nota", code: "nota_blank" };
+
+  function invalid(...errors: unknown[]) {
+    return { ok: false, reason: "invalid", errors };
+  }
+
+  async function confirmed(...errors: unknown[]) {
+    actionMock.mockResolvedValueOnce(invalid(...errors));
+    show();
+    const dialog = await open();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+    await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(1));
+    return dialog;
+  }
+
+  it("clears the teacher error when a teacher is chosen and keeps the date error", async () => {
+    const dialog = await confirmed(DOCENTE, FECHA);
+    expect(
+      await within(dialog).findByText(en.errors.docente_invalid),
+    ).toBeVisible();
+
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
+      "31",
+    );
+
+    expect(within(dialog).queryByText(en.errors.docente_invalid)).toBeNull();
+    expect(
+      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
+    ).not.toHaveAttribute("aria-invalid");
+    expect(within(dialog).getByText(en.errors.date_future)).toBeVisible();
+  });
+
+  it("clears the date error when the date changes and keeps the teacher error", async () => {
+    const dialog = await confirmed(DOCENTE, FECHA);
+    expect(
+      await within(dialog).findByText(en.errors.date_future),
+    ).toBeVisible();
+
+    await userEvent.type(
+      within(dialog).getByLabelText(en.dialog.dateLabel),
+      "2026-10-13",
+    );
+
+    expect(within(dialog).queryByText(en.errors.date_future)).toBeNull();
+    expect(
+      within(dialog).getByLabelText(en.dialog.dateLabel),
+    ).not.toHaveAttribute("aria-invalid");
+    expect(within(dialog).getByText(en.errors.docente_invalid)).toBeVisible();
+  });
+
+  it("clears the note error when the note is edited and keeps the date error", async () => {
+    const dialog = await confirmed(FECHA, NOTA);
+    expect(await within(dialog).findByText(en.errors.nota_blank)).toBeVisible();
+
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+      "x",
+    );
+
+    expect(within(dialog).queryByText(en.errors.nota_blank)).toBeNull();
+    expect(within(dialog).getByText(en.errors.date_future)).toBeVisible();
+  });
+
+  it("leaves no refusal banner behind once every field error is cleared", async () => {
+    const dialog = await confirmed(DOCENTE, FECHA);
+    await within(dialog).findByText(en.errors.docente_invalid);
+
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
+      "32",
+    );
+    await userEvent.type(
+      within(dialog).getByLabelText(en.dialog.dateLabel),
+      "2026-10-13",
+    );
+
+    expect(within(dialog).queryByRole("alert")).toBeNull();
+    expect(within(dialog).queryByText(en.errors.unexpected)).toBeNull();
+  });
+
+  it("fails again when the form is still invalid", async () => {
+    const dialog = await confirmed(DOCENTE, FECHA);
+    await within(dialog).findByText(en.errors.docente_invalid);
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
+      "31",
+    );
+
+    actionMock.mockResolvedValueOnce(invalid(FECHA));
+    // The first confirmation has settled once the button reads "confirm" again.
+    await userEvent.click(
+      await within(dialog).findByRole("button", { name: en.dialog.confirm }),
+    );
+
+    expect(
+      await within(dialog).findByText(en.errors.date_future),
+    ).toBeVisible();
+    expect(within(dialog).queryByText(en.errors.docente_invalid)).toBeNull();
+    expect(actionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the form-level message while the fields are edited", async () => {
+    actionMock.mockResolvedValueOnce({ ok: false, reason: "conflict" });
+    show();
+    const dialog = await open();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+    expect(await within(dialog).findByText(en.errors.conflict)).toBeVisible();
+
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: en.dialog.teacherLabel }),
+      "31",
+    );
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+      "x",
+    );
+
+    expect(within(dialog).getByText(en.errors.conflict)).toBeVisible();
+  });
+
+  it("does not mark the optional note as required", async () => {
+    show();
+    const dialog = await open();
+
+    expect(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+    ).not.toHaveAttribute("aria-required");
   });
 });

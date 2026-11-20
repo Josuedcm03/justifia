@@ -8,6 +8,7 @@ import {
   FieldMessages,
   NoteField,
   useEscalationAction,
+  withoutFieldErrors,
 } from "@/app/(dashboard)/review/[id]/dialog-parts";
 import { recordExcessReportAction } from "@/app/(dashboard)/review/[id]/escalation-actions";
 import { Input } from "@/components/ui/input";
@@ -101,7 +102,10 @@ export function ReportDialog({
         <select
           id={`${ids}-teacher`}
           value={remisionId}
-          onChange={(event) => setRemisionId(event.target.value)}
+          onChange={(event) => {
+            setRemisionId(event.target.value);
+            setFailure((current) => withoutFieldErrors(current, "docente"));
+          }}
           aria-invalid={teacherMessages.length > 0 || undefined}
           aria-describedby={
             teacherMessages.length > 0 ? `${ids}-teacher-error` : undefined
@@ -125,7 +129,12 @@ export function ReportDialog({
           type="date"
           max={maxDate}
           value={fecha}
-          onChange={(event) => setFecha(event.target.value)}
+          onChange={(event) => {
+            setFecha(event.target.value);
+            setFailure((current) =>
+              withoutFieldErrors(current, "comunicadoEl"),
+            );
+          }}
           aria-invalid={dateMessages.length > 0 || undefined}
           aria-describedby={
             dateMessages.length > 0 ? `${ids}-date-error` : undefined
@@ -139,7 +148,10 @@ export function ReportDialog({
         id={`${ids}-note`}
         copy={t}
         value={nota}
-        onChange={setNota}
+        onChange={(value) => {
+          setNota(value);
+          setFailure((current) => withoutFieldErrors(current, "nota"));
+        }}
         messages={messagesFor("nota")}
       />
     </EscalationFormDialog>

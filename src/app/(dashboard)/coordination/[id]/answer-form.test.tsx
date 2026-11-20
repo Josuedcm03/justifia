@@ -174,3 +174,88 @@ describe("AnswerForm server refusals", () => {
     expect(within(dialog).queryByRole("link")).toBeNull();
   });
 });
+
+// flow-experience S3 (FE-11, RNF-12): the coordinator's answer drops its error
+// as soon as the text is edited, with the same helper as the staff dialogs.
+describe("AnswerForm stale messages (FE-11, RNF-12)", () => {
+  const REQUIRED = {
+    ok: false,
+    reason: "invalid",
+    errors: [{ field: "texto", code: "texto_required" }],
+  };
+
+  async function confirmedEmpty() {
+    actionMock.mockResolvedValueOnce(REQUIRED);
+    renderIntl(<AnswerForm escalamientoId={9} />);
+    const dialog = await open();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+    await within(dialog).findByText(en.errors.texto_required);
+    return dialog;
+  }
+
+  it("clears the text error when the text is edited", async () => {
+    const dialog = await confirmedEmpty();
+    const field = within(dialog).getByRole("textbox", {
+      name: en.dialog.noteLabel,
+    });
+    expect(field).toHaveAttribute("aria-invalid", "true");
+
+    await userEvent.type(field, "x");
+
+    expect(within(dialog).queryByText(en.errors.texto_required)).toBeNull();
+    expect(field).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("leaves no refusal banner behind once the error is cleared", async () => {
+    const dialog = await confirmedEmpty();
+
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+      ANSWER,
+    );
+
+    expect(within(dialog).queryByRole("alert")).toBeNull();
+    expect(within(dialog).queryByText(en.errors.unexpected)).toBeNull();
+  });
+
+  it("fails again when the text is still empty on the next confirmation", async () => {
+    const dialog = await confirmedEmpty();
+    const field = within(dialog).getByRole("textbox", {
+      name: en.dialog.noteLabel,
+    });
+    await userEvent.type(field, "x");
+    await userEvent.clear(field);
+
+    actionMock.mockResolvedValueOnce(REQUIRED);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+
+    expect(
+      await within(dialog).findByText(en.errors.texto_required),
+    ).toBeVisible();
+    expect(actionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["conflict", "unexpected"] as const)(
+    "keeps the %s message while the text is edited",
+    async (reason) => {
+      actionMock.mockResolvedValueOnce({ ok: false, reason });
+      renderIntl(<AnswerForm escalamientoId={9} />);
+      const dialog = await open();
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: en.dialog.confirm }),
+      );
+      expect(await within(dialog).findByText(en.errors[reason])).toBeVisible();
+
+      await userEvent.type(
+        within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+        "x",
+      );
+
+      expect(within(dialog).getByText(en.errors[reason])).toBeVisible();
+    },
+  );
+});
