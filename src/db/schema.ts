@@ -20,6 +20,7 @@ import {
 
 import { effectiveClockStart } from "@/db/clock-start";
 import type { GrupoOrigen } from "@/lib/catalog/origen";
+import { TIPOS_DOCUMENTO, type TipoDocumento } from "@/lib/document-data/types";
 import {
   EXTRACTION_ERRORS,
   EXTRACTION_STATES,
@@ -422,11 +423,24 @@ export const documentoRespaldo = pgTable(
     // (validation-signals, RN-26). Internal: never shown, never updated, kept
     // on retirement. NULL for staff uploads and documents from before 0013.
     huellaSha256: char("HuellaSha256", { length: 64 }),
+    // The three marks a secretary records by hand (manual-document-data, RF-14
+    // b, d; Anexo D, D11). NULL means "not registered yet", which the RN-11,
+    // RN-12 and RN-13 signals tell apart from "No". Written only by
+    // `src/lib/data/document-data.ts`.
+    tipoDocumento: varchar("TipoDocumento", {
+      length: 40,
+    }).$type<TipoDocumento>(),
+    tieneFirma: boolean("TieneFirma"),
+    tieneSello: boolean("TieneSello"),
     creadoEn: timestamp("CreadoEn", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => [
+    check(
+      "CK_Documento_TipoDocumento",
+      sql`${t.tipoDocumento} IS NULL OR ${t.tipoDocumento} IN (${inList(TIPOS_DOCUMENTO)})`,
+    ),
     check(
       "CK_Documento_Retiro",
       sql`${t.retiradoEn} IS NULL OR ${t.estado} = 'valido'`,
@@ -889,3 +903,57 @@ export const extraccionDocumento = pgTable(
 
 export type ExtraccionDocumento = typeof extraccionDocumento.$inferSelect;
 export type NuevaExtraccionDocumento = typeof extraccionDocumento.$inferInsert;
+
+/**
+ * DocumentoDatoManual — the data a secretary typed for one supporting document
+ * (manual-document-data, RF-14 a; A2): name, issuer, issue date and rest
+ * period. One row per document, created only when some value was entered and
+ * deleted when the last one is cleared, so a non-null column always means
+ * "entered manually" and wins over the extracted value at read time (RN-24).
+ * It is a separate table because `ExtraccionDocumento` may have no row for a
+ * document and `CK_Extraccion_Datos` forbids data outside `completada`.
+ * The rest period holds dates only; the days are derived in code. Not
+ * append-only, so every write goes through `src/lib/data/document-data.ts`
+ * (pinned by a structural test). The row follows its document on delete, so
+ * the retention run never names this table (RNF-04, RN-27).
+ */
+export const documentoDatoManual = pgTable(
+  "DocumentoDatoManual",
+  {
+    documentoId: bigint("DocumentoId", { mode: "number" })
+      .primaryKey()
+      .references(() => documentoRespaldo.id, { onDelete: "cascade" }),
+    nombreEstudiante: varchar("NombreEstudiante", { length: 160 }),
+    emisor: varchar("Emisor", { length: 200 }),
+    fechaEmision: date("FechaEmision", { mode: "string" }),
+    reposoDesde: date("ReposoDesde", { mode: "string" }),
+    reposoHasta: date("ReposoHasta", { mode: "string" }),
+    registradoPorId: bigint("RegistradoPorId", { mode: "number" })
+      .notNull()
+      .references(() => usuario.id),
+    actualizadoEn: timestamp("ActualizadoEn", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // Both dates or neither, and from <= to.
+    check(
+      "CK_DatoManual_Reposo",
+      sql`(${t.reposoDesde} IS NULL) = (${t.reposoHasta} IS NULL) AND (${t.reposoHasta} IS NULL OR ${t.reposoHasta} >= ${t.reposoDesde})`,
+    ),
+    // No blank text: an empty entry is stored as no value (D8).
+    check(
+      "CK_DatoManual_Texto",
+      sql`(${t.nombreEstudiante} IS NULL OR btrim(${t.nombreEstudiante}) <> '') AND (${t.emisor} IS NULL OR btrim(${t.emisor}) <> '')`,
+    ),
+    // A row exists only while some value is entered. The rest period counts
+    // through its start, because CK_DatoManual_Reposo ties the two dates.
+    check(
+      "CK_DatoManual_NoVacio",
+      sql`${t.nombreEstudiante} IS NOT NULL OR ${t.emisor} IS NOT NULL OR ${t.fechaEmision} IS NOT NULL OR ${t.reposoDesde} IS NOT NULL`,
+    ),
+  ],
+);
+
+export type DocumentoDatoManual = typeof documentoDatoManual.$inferSelect;
+export type NuevoDocumentoDatoManual = typeof documentoDatoManual.$inferInsert;

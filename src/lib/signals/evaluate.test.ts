@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type { DocumentMarks, TipoDocumento } from "@/lib/document-data/types";
 import { constantCalendar } from "@/lib/intake/adapters/constant-calendar";
 import { CAUSAS, type Causa } from "@/lib/intake/causes";
 import type { ExtractionRowView } from "@/lib/extraction/display";
 
+import { DOCUMENT_TYPE_CAUSES } from "./document-type-causes";
 import { evaluateSignals } from "./evaluate";
-import { DEFAULT_SIGNAL_PARAMS } from "./params";
+import { DEFAULT_SIGNAL_PARAMS, type SignalParams } from "./params";
 import type { RepeatedDocumentInput } from "./repeated-document";
 import {
   ALLOWED_REASONS,
@@ -32,14 +34,49 @@ const COMPLETE: ExtractionRowView = {
   restDays: 5,
 };
 
-function input(overrides: Partial<SignalInput> = {}): SignalInput {
+// The type that corresponds to each cause, written out here rather than read
+// from the map under test, so a fixture never restates the code.
+const MATCHING_TYPE: Record<Causa, TipoDocumento> = {
+  medica: "constancia_medica",
+  maternidad_paternidad: "constancia_medica",
+  actividad_representativa: "constancia_institucional",
+  intercambio_academico: "constancia_institucional",
+  fuerza_mayor: "constancia_institucional",
+};
+
+/** Firma, sello and a type that corresponds to the cause: no signal. */
+const registered = (causa: Causa): DocumentMarks => ({
+  type: MATCHING_TYPE[causa],
+  hasSignature: true,
+  hasSeal: true,
+});
+
+const UNREGISTERED: DocumentMarks = {
+  type: null,
+  hasSignature: null,
+  hasSeal: null,
+};
+
+// A fixture document may leave its marks out: they default to registered ones
+// that raise nothing for the declared cause, so the tests that look at the
+// other signals keep their expected verdicts.
+type FixtureDocument = Omit<SignalDocument, "marks"> & {
+  marks?: DocumentMarks;
+};
+type FixtureInput = Omit<Partial<SignalInput>, "documents"> & {
+  documents?: readonly FixtureDocument[];
+};
+
+function input(overrides: FixtureInput = {}): SignalInput {
+  const causa = overrides.causa ?? "medica";
+  const documents = overrides.documents ?? [
+    { documentId: 1, extraction: COMPLETE },
+  ];
   return {
     solicitudId: 40,
     presentedAt: new Date("2026-10-13T15:00:00Z"),
     absenceFrom: "2026-10-05",
     absenceTo: "2026-10-09",
-    causa: "medica",
-    documents: [{ documentId: 1, extraction: COMPLETE }],
     periods: ["2026-S2"],
     issuerHistory: [],
     repeated: {
@@ -47,25 +84,47 @@ function input(overrides: Partial<SignalInput> = {}): SignalInput {
       matches: [],
     },
     ...overrides,
+    causa,
+    documents: documents.map((document) => ({
+      ...document,
+      marks: document.marks ?? registered(causa),
+    })),
   };
 }
 
+const evaluateWith = (value: SignalInput, params: Partial<SignalParams>) =>
+  evaluateSignals(value, { ...DEFAULT_SIGNAL_PARAMS, ...params }, calendar);
+
 const evaluate = (value: SignalInput, threshold?: number) =>
-  evaluateSignals(
+  evaluateWith(
     value,
-    threshold === undefined
-      ? DEFAULT_SIGNAL_PARAMS
-      : { issuerRecurrenceThreshold: threshold },
-    calendar,
+    threshold === undefined ? {} : { issuerRecurrenceThreshold: threshold },
   );
 
+const ALL_CODES = [
+  "rn07",
+  "rn09",
+  "rn10",
+  "rn11",
+  "rn12",
+  "rn13",
+  "rn14",
+  "rn26",
+] as const;
+
+const result = (report: ReturnType<typeof evaluate>, signal: string) =>
+  report.results.find((r) => r.signal === signal);
+
 describe("evaluateSignals", () => {
-  it("returns the five results in order, with the verdict", () => {
+  it("returns the eight results in order, with the verdict", () => {
     const report = evaluate(input());
 
     expect(report.results.map((r) => r.signal)).toEqual(SIGNAL_CODES);
-    expect(SIGNAL_CODES).toEqual(["rn07", "rn09", "rn10", "rn14", "rn26"]);
+    expect(SIGNAL_CODES).toEqual(ALL_CODES);
     expect(report.results.map((r) => r.outcome)).toEqual([
+      "absent",
+      "absent",
+      "absent",
       "absent",
       "absent",
       "absent",
@@ -103,7 +162,7 @@ describe("evaluateSignals", () => {
       }),
     );
 
-    expect(report.results[4]).toEqual({
+    expect(result(report, "rn26")).toEqual({
       signal: "rn26",
       outcome: "present",
       evidence: { kind: "repeated", references: [41] },
@@ -121,7 +180,7 @@ describe("evaluateSignals", () => {
       }),
     );
 
-    expect(report.results[4]).toMatchObject({
+    expect(result(report, "rn26")).toMatchObject({
       outcome: "not_evaluable",
       reason: "no_fingerprint",
     });
@@ -136,8 +195,8 @@ describe("evaluateSignals", () => {
       issuerHistory: [{ solicitudId: 10, issuer: "Clinica Central" }],
     };
 
-    expect(evaluate(input(rows), 3).results[3].outcome).toBe("absent");
-    expect(evaluate(input(rows), 2).results[3].outcome).toBe("present");
+    expect(result(evaluate(input(rows), 3), "rn14")?.outcome).toBe("absent");
+    expect(result(evaluate(input(rows), 2), "rn14")?.outcome).toBe("present");
   });
 
   it("gives extraction_failed, not days_only, for a failed plus a days-only document", () => {
@@ -196,7 +255,7 @@ describe("evaluateSignals cause scope (RN-09, RN-10)", () => {
     outcome: "not_applicable",
   });
   // The rest period ends before the document was issued (E-02, SC-02).
-  const incoherent: SignalDocument[] = [
+  const incoherent: FixtureDocument[] = [
     {
       documentId: 1,
       extraction: {
@@ -300,15 +359,17 @@ describe("evaluateSignals cause scope (RN-09, RN-10)", () => {
     };
     const reference = evaluate(input({ causa: "medica", ...rows })).results;
 
-    expect(reference[0].outcome).toBe("present");
-    expect(reference[3].outcome).toBe("present");
-    expect(reference[4].outcome).toBe("present");
+    const pick = (results: typeof reference, signal: string) =>
+      results.find((r) => r.signal === signal);
+    expect(pick(reference, "rn07")?.outcome).toBe("present");
+    expect(pick(reference, "rn14")?.outcome).toBe("present");
+    expect(pick(reference, "rn26")?.outcome).toBe("present");
     for (const causa of CAUSAS) {
       const { results } = evaluate(input({ causa, ...rows }));
 
-      expect(results[0]).toEqual(reference[0]);
-      expect(results[3]).toEqual(reference[3]);
-      expect(results[4]).toEqual(reference[4]);
+      for (const signal of ["rn07", "rn14", "rn26"]) {
+        expect(pick(results, signal)).toEqual(pick(reference, signal));
+      }
     }
   });
 
@@ -347,11 +408,14 @@ describe("evaluateSignals cause scope (RN-09, RN-10)", () => {
     ]);
   });
 
-  it.each(CAUSAS)("returns the five results in fixed order for %s", (causa) => {
-    const report = evaluate(input({ causa }));
+  it.each(CAUSAS)(
+    "returns the eight results in fixed order for %s",
+    (causa) => {
+      const report = evaluate(input({ causa }));
 
-    expect(report.results.map((r) => r.signal)).toEqual(SIGNAL_CODES);
-  });
+      expect(report.results.map((r) => r.signal)).toEqual(SIGNAL_CODES);
+    },
+  );
 });
 
 describe("pickReason precedence", () => {
@@ -366,7 +430,7 @@ describe("pickReason precedence", () => {
     }
   });
 
-  it("runs no_period, no_eligible_documents, pending, failed, days_only, field_missing, no_fingerprint", () => {
+  it("runs no_period, no_eligible_documents, pending, failed, days_only, field_missing, no_fingerprint, not_registered", () => {
     expect(REASON_PRECEDENCE).toEqual([
       "no_period",
       "no_eligible_documents",
@@ -375,7 +439,17 @@ describe("pickReason precedence", () => {
       "days_only",
       "field_missing",
       "no_fingerprint",
+      "not_registered",
     ]);
+  });
+
+  it("ends with not_registered, which is also a not evaluable reason", () => {
+    expect(REASON_PRECEDENCE.at(-1)).toBe("not_registered");
+    expect(NOT_EVALUABLE_REASONS).toContain("not_registered");
+    expect(pickReason(["not_registered", "no_fingerprint"])).toBe(
+      "no_fingerprint",
+    );
+    expect(pickReason(["not_registered"])).toBe("not_registered");
   });
 
   it("refuses an empty list", () => {
@@ -395,7 +469,7 @@ describe("evaluateSignals reasons are always from the closed set", () => {
     { ...COMPLETE, issueDate: null, issuer: null },
     { ...COMPLETE, restFrom: null, restTo: null, restDays: null },
   ];
-  const documentSets: SignalDocument[][] = [
+  const documentSets: FixtureDocument[][] = [
     [],
     ...rows.map((extraction, i) => [{ documentId: i, extraction }]),
     ...rows.flatMap((a, i) =>
@@ -513,6 +587,213 @@ describe("evaluateSignals reasons are always from the closed set", () => {
       expect(outcomes.some((o) => o === "not_applicable")).toBe(
         withoutRest.includes(causa),
       );
+    }
+  });
+});
+
+// validation-signals: "Four outcomes with a closed set of reasons" (MD-17),
+// "Rest signals apply only to causes that admit rest" (MD-20) and "Type-to-cause
+// correspondence is one table behind an injectable seam" (MD-15). RN-11, RN-12
+// and RN-13 read the marks the secretary registered, never the extraction.
+describe("evaluateSignals marks (RN-11, RN-12, RN-13)", () => {
+  const MARK_CODES = ["rn11", "rn12", "rn13"] as const;
+  const noMarks = [
+    { documentId: 1, extraction: COMPLETE, marks: UNREGISTERED },
+  ];
+
+  it("allows only no_eligible_documents and not_registered for the three codes", () => {
+    for (const signal of MARK_CODES) {
+      expect(ALLOWED_REASONS[signal]).toEqual([
+        "no_eligible_documents",
+        "not_registered",
+      ]);
+    }
+  });
+
+  it("does not allow not_registered to any other signal", () => {
+    expect(SIGNAL_CODES).toHaveLength(8);
+    for (const signal of SIGNAL_CODES) {
+      expect(ALLOWED_REASONS[signal].includes("not_registered")).toBe(
+        (MARK_CODES as readonly string[]).includes(signal),
+      );
+    }
+  });
+
+  it.each(CAUSAS)(
+    "gives not_registered to rn11, rn12 and rn13 alone over unregistered marks (%s)",
+    (causa) => {
+      const report = evaluate(input({ causa, documents: noMarks }));
+
+      for (const signal of MARK_CODES) {
+        expect(result(report, signal)).toEqual({
+          signal,
+          outcome: "not_evaluable",
+          reason: "not_registered",
+        });
+      }
+      expect(
+        report.notEvaluable
+          .filter((entry) => entry.reason === "not_registered")
+          .map((entry) => entry.signal),
+      ).toEqual(MARK_CODES);
+      expect(report.verdict).toBe("inconclusive");
+    },
+  );
+
+  it("gives no_eligible_documents to the three codes when there are no documents", () => {
+    const report = evaluate(input({ documents: [] }));
+
+    for (const signal of MARK_CODES) {
+      expect(result(report, signal)).toEqual({
+        signal,
+        outcome: "not_evaluable",
+        reason: "no_eligible_documents",
+      });
+    }
+  });
+
+  // MD-20: the cause cut touches RN-09 and RN-10 only.
+  it("raises the three signals for a fuerza_mayor request with firma No, sello No and type constancia_medica, while RN-09 and RN-10 are not applicable", () => {
+    const report = evaluate(
+      input({
+        causa: "fuerza_mayor",
+        documents: [
+          {
+            documentId: 1,
+            extraction: COMPLETE,
+            marks: {
+              type: "constancia_medica",
+              hasSignature: false,
+              hasSeal: false,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(report.results.map((r) => r.outcome)).toEqual([
+      "absent",
+      "not_applicable",
+      "not_applicable",
+      "present",
+      "present",
+      "present",
+      "absent",
+      "absent",
+    ]);
+    for (const signal of MARK_CODES) {
+      expect(result(report, signal)).toMatchObject({
+        outcome: "present",
+        evidence: { kind: "documents", documentIds: [1] },
+      });
+    }
+    expect(report.verdict).toBe("review_carefully");
+  });
+
+  it.each(CAUSAS)(
+    "never makes the three codes not applicable (%s)",
+    (causa) => {
+      const report = evaluate(input({ causa, documents: noMarks }));
+
+      for (const signal of MARK_CODES) {
+        expect(result(report, signal)).toBeDefined();
+        expect(result(report, signal)?.outcome).not.toBe("not_applicable");
+      }
+    },
+  );
+
+  it("reads no extraction: the three codes ignore its state", () => {
+    const states = [null, ...(["pendiente", "fallida"] as const)].map((state) =>
+      evaluate(
+        input({
+          documents: [
+            {
+              documentId: 1,
+              extraction: state === null ? null : { ...COMPLETE, state },
+              marks: { type: "otro", hasSignature: false, hasSeal: true },
+            },
+          ],
+        }),
+      ),
+    );
+
+    for (const report of states) {
+      expect(result(report, "rn11")?.outcome).toBe("present");
+      expect(result(report, "rn12")?.outcome).toBe("absent");
+      expect(result(report, "rn13")?.outcome).toBe("present");
+    }
+  });
+
+  it("takes the type-to-cause map from the params", () => {
+    const wider = {
+      ...DOCUMENT_TYPE_CAUSES,
+      constancia_medica: [
+        ...DOCUMENT_TYPE_CAUSES.constancia_medica,
+        "fuerza_mayor",
+      ],
+    } as SignalParams["documentTypeCauses"];
+    const request = input({
+      causa: "fuerza_mayor",
+      documents: [
+        {
+          documentId: 1,
+          extraction: COMPLETE,
+          marks: {
+            type: "constancia_medica",
+            hasSignature: true,
+            hasSeal: true,
+          },
+        },
+      ],
+    });
+
+    expect(result(evaluate(request), "rn13")?.outcome).toBe("present");
+    expect(
+      result(evaluateWith(request, { documentTypeCauses: wider }), "rn13")
+        ?.outcome,
+    ).toBe("absent");
+  });
+
+  it("defaults the map to the code constant", () => {
+    expect(DEFAULT_SIGNAL_PARAMS.documentTypeCauses).toBe(DOCUMENT_TYPE_CAUSES);
+  });
+
+  it("keeps every reason of the three codes in their allowed pair over a sweep of marks", () => {
+    const sets: DocumentMarks[] = [
+      UNREGISTERED,
+      registered("medica"),
+      { type: "otro", hasSignature: false, hasSeal: false },
+      { type: "constancia_medica", hasSignature: null, hasSeal: true },
+      { type: null, hasSignature: true, hasSeal: false },
+    ];
+    const documentSets: FixtureDocument[][] = [
+      [],
+      ...sets.map((marks, i) => [
+        { documentId: i, extraction: COMPLETE, marks },
+      ]),
+      ...sets.flatMap((a, i) =>
+        sets.map((b, j) => [
+          { documentId: 10 + i, extraction: COMPLETE, marks: a },
+          { documentId: 20 + j, extraction: COMPLETE, marks: b },
+        ]),
+      ),
+    ];
+
+    for (const causa of CAUSAS) {
+      for (const documents of documentSets) {
+        const report = evaluate(input({ causa, documents }));
+
+        for (const signal of MARK_CODES) {
+          const outcome = result(report, signal);
+          expect(outcome).toBeDefined();
+          expect(outcome?.outcome).not.toBe("not_applicable");
+          if (outcome?.outcome === "not_evaluable") {
+            expect(ALLOWED_REASONS[signal]).toContain(outcome.reason);
+          } else {
+            expect(outcome && "reason" in outcome).toBe(false);
+          }
+        }
+      }
     }
   });
 });
