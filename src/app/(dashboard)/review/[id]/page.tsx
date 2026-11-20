@@ -151,8 +151,10 @@ async function loadSignalsSafely(
  * in the page body, after authorisation and after the data loaded and every
  * derived value was built, before the JSX is returned (SR-11). An id the caller
  * may not see, a draft and an unknown id are the same `notFound()`. The
- * sections are a stack of labelled cards, so the RF-14 document signals are one
- * more entry.
+ * sections are a stack of labelled cards. While the request is `pendiente` the
+ * extracted-data section carries one manual data form per current document
+ * (RF-14 a-d, MD-23); the save redirects back here, so this read runs once per
+ * render (SR-11), and a decided request shows the same values read-only.
  */
 export default async function ReviewDetailPage({
   params,
@@ -299,9 +301,11 @@ export default async function ReviewDetailPage({
         <SubjectsSection classes={detail.clases} />
         <DocumentsSection documents={detail.documentos} />
         <ExtractionSection
+          solicitudId={detail.id}
           extractions={extractions}
           requestState={detail.estado}
           configured={isExtractionConfigured()}
+          editable={pending}
         />
         {signals ? (
           <SignalsSection
