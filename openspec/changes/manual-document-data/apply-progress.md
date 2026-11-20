@@ -662,3 +662,16 @@ The new data and section files were staged before their mutations, so "git resto
   - M2 (23:47) no promotion to completada: 3 failed, SC-12, the pending-row A4 case and the full-cover RN-10 absent case.
   - M3 (23:50) readIssuerHistory reads only the extracted issuer: 1 failed, the MD-18 manual issuer case.
   - Green rerun (23:53): 29/29. Working tree clean under src afterwards.
+
+## Phase 10 (RF-14 system case, local server on "manual-it", owner yes 2026-11-19)
+
+Commit 1f4f121, branch "manual-it", extraction off, all writes through the UI, no direct SQL write. Evidence in the thesis workspace, "bitacora/evidencia_p1_2026-11-18/rf14/" (uncommitted), with rf14-resultados.json. Captures are cropped to the relevant sections; the secretary's real name in the sidebar and in escalation blocks stays out of frame.
+
+| Inciso | Desenlace | Observado |
+|---|---|---|
+| a | Cumple | Request 145 (medica): name, issuer, issue date and rest registered; after saving, the four data show "Ingresado manualmente". DocumentoDatoManual has 1 row; 1 "documento.datos_registrados" audit row with field names only. RF-14_a.png |
+| b | Cumple | Same document: firma No, sello Si; both marks show and "Firma ausente" is present with "Revisar con cuidado". RF-14_b.png |
+| c | Cumple | Request 138 (medica) with extraction off: data, type and marks registered, "Sin alertas", approved through the UI; it shows "Aprobada" with the registered data. RF-14_c.png, RF-14_c-resuelta.png |
+| d | Cumple | Request 146 (actividad_representativa): "Constancia medica" registered; "Formato no corresponde a la causa" present with "Revisar con cuidado". RF-14_d.png, RF-14_d-causa.png |
+
+Deviations: (c) used an existing pending request instead of a new one (no Blob upload); its document kept an earlier extraction row that the manual data override, while SC-12 in rf-14-c covers the fallida case on real Postgres. The optional MD-30 coordination capture was skipped: the coordination accounts on the branch are real people and enabling one needs direct SQL writes; MD-30 is covered by unit tests. In (b) and (d) "Documento repetido" also shows, because the seed reuses one file across requests 140 to 145.
