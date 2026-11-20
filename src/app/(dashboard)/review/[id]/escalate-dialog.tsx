@@ -8,6 +8,7 @@ import {
   FieldMessages,
   NoteField,
   useEscalationAction,
+  withoutFieldErrors,
 } from "@/app/(dashboard)/review/[id]/dialog-parts";
 import { escalateRequestAction } from "@/app/(dashboard)/review/[id]/escalation-actions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -134,7 +135,10 @@ function EscalateForm({
         </span>
         <RadioGroup
           value={motivo}
-          onValueChange={(value) => setMotivo(String(value))}
+          onValueChange={(value) => {
+            setMotivo(String(value));
+            setFailure((current) => withoutFieldErrors(current, "motivo"));
+          }}
           aria-labelledby={motivoLabelId}
           aria-invalid={motivoMessages.length > 0 || undefined}
           aria-describedby={
@@ -157,8 +161,12 @@ function EscalateForm({
         id={`${ids}-note`}
         copy={t}
         value={nota}
-        onChange={setNota}
+        onChange={(value) => {
+          setNota(value);
+          setFailure((current) => withoutFieldErrors(current, "nota"));
+        }}
         messages={noteMessages}
+        required
       />
     </EscalationFormDialog>
   );

@@ -1172,8 +1172,8 @@
           "sospecha_documento": "Suspicion about a document",
           "caso_especial": "Special case (outside the causes of the regulation)"
         },
-        "noteLabel": "Note for coordination",
-        "noteHint": "Explain why you are escalating the request to coordination. Only staff can see it.",
+        "noteLabel": "Note for coordination (required)",
+        "noteHint": "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it.",
         "previousAnswer": {
           "title": "Coordination already answered this request ({byline}):",
           "hint": "If you escalate it again, it goes back to coordination and you cannot decide until it answers."

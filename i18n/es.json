@@ -1172,8 +1172,8 @@
           "sospecha_documento": "Sospecha sobre un documento",
           "caso_especial": "Caso especial (fuera de las causas del reglamento)"
         },
-        "noteLabel": "Nota para coordinación",
-        "noteHint": "Explique por qué escala la solicitud a coordinación. Solo la ve el personal.",
+        "noteLabel": "Nota para coordinación (obligatoria)",
+        "noteHint": "Explique por qué escala la solicitud; por ejemplo, qué dato del documento no coincide o qué situación no prevé el reglamento. Solo la ve el personal.",
         "previousAnswer": {
           "title": "La coordinación ya respondió esta solicitud ({byline}):",
           "hint": "Si la escala de nuevo, vuelve a coordinación y no podrá decidir hasta que responda."

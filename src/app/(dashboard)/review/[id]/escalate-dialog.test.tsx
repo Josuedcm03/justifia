@@ -461,3 +461,215 @@ describe("EscalateDialog server refusals", () => {
     ).toBeVisible();
   });
 });
+
+// flow-experience S3 (RF-10 a, b; FE-10, FE-11): the note is announced as
+// required, and a field message never outlives the input it describes. The
+// literals pin the copy, not just the catalog keys.
+describe("EscalateDialog required note and stale messages (FE-10, FE-11)", () => {
+  const MOTIVO_ERROR = { field: "motivo", code: "motivo_invalid" };
+  const NOTA_ERROR = { field: "nota", code: "nota_required" };
+  const BOTH = {
+    ok: false,
+    reason: "invalid",
+    errors: [MOTIVO_ERROR, NOTA_ERROR],
+  };
+  const NOTE_ONLY = { ok: false, reason: "invalid", errors: [NOTA_ERROR] };
+
+  async function confirm(dialog: HTMLElement) {
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+  }
+
+  /** Opens the dialog and confirms it empty; the server names both errors. */
+  async function confirmedEmpty() {
+    actionMock.mockResolvedValueOnce(BOTH);
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+    const dialog = await open();
+    await confirm(dialog);
+    await within(dialog).findByText(en.errors.motivo_invalid);
+    return dialog;
+  }
+
+  const noteBox = (dialog: HTMLElement) =>
+    within(dialog).getByRole("textbox", { name: en.dialog.noteLabel });
+  const motiveGroup = (dialog: HTMLElement) =>
+    within(dialog).getByRole("radiogroup", { name: en.dialog.motivoLabel });
+
+  describe("the note is announced as required (FE-10)", () => {
+    it("labels it as required, with the example and the staff-only statement, and shows no error", async () => {
+      renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+      const dialog = await open();
+
+      const note = within(dialog).getByRole("textbox", {
+        name: "Note for coordination (required)",
+      });
+      expect(note).toHaveAttribute("aria-required", "true");
+      expect(note).not.toHaveAttribute("aria-invalid");
+      expect(note).toHaveAccessibleDescription(
+        "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it.",
+      );
+      expect(within(dialog).queryByRole("alert")).toBeNull();
+    });
+
+    it("words the label and the hint in Spanish for the secretary", async () => {
+      renderIntl(
+        <EscalateDialog solicitudId={12} unavailableCareer={null} />,
+        "es",
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Escalar a coordinación" }),
+      );
+      const dialog = await screen.findByRole("alertdialog");
+
+      const note = within(dialog).getByRole("textbox", {
+        name: "Nota para coordinación (obligatoria)",
+      });
+      expect(note).toHaveAccessibleDescription(
+        "Explique por qué escala la solicitud; por ejemplo, qué dato del documento no coincide o qué situación no prevé el reglamento. Solo la ve el personal.",
+      );
+    });
+
+    it("does not turn on the browser's validation: the server stays the authority", async () => {
+      renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+      const dialog = await open();
+
+      expect(noteBox(dialog)).not.toHaveAttribute("required");
+    });
+  });
+
+  describe("messages follow the input (FE-11)", () => {
+    it("shows both errors after confirming with nothing filled", async () => {
+      const dialog = await confirmedEmpty();
+
+      expect(within(dialog).getByText(en.errors.motivo_invalid)).toBeVisible();
+      expect(within(dialog).getByText(en.errors.nota_required)).toBeVisible();
+      expect(motiveGroup(dialog)).toHaveAttribute("aria-invalid", "true");
+      expect(noteBox(dialog)).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("clears only the motive error when a motive is chosen", async () => {
+      const dialog = await confirmedEmpty();
+
+      await pick(dialog, en.dialog.motivo.caso_especial);
+
+      expect(within(dialog).queryByText(en.errors.motivo_invalid)).toBeNull();
+      expect(motiveGroup(dialog)).not.toHaveAttribute("aria-invalid");
+      expect(within(dialog).getByText(en.errors.nota_required)).toBeVisible();
+      expect(noteBox(dialog)).toHaveAttribute("aria-invalid", "true");
+      expect(noteBox(dialog)).toHaveAccessibleDescription(
+        en.errors.nota_required,
+      );
+    });
+
+    it("clears only the note error when the note is typed in", async () => {
+      const dialog = await confirmedEmpty();
+
+      await userEvent.type(noteBox(dialog), "x");
+
+      expect(within(dialog).queryByText(en.errors.nota_required)).toBeNull();
+      expect(noteBox(dialog)).not.toHaveAttribute("aria-invalid");
+      expect(within(dialog).getByText(en.errors.motivo_invalid)).toBeVisible();
+      expect(motiveGroup(dialog)).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("leaves no refusal banner behind once both are cleared", async () => {
+      const dialog = await confirmedEmpty();
+
+      await pick(dialog, en.dialog.motivo.sospecha_documento);
+      await userEvent.type(noteBox(dialog), NOTE);
+
+      expect(within(dialog).queryByRole("alert")).toBeNull();
+      expect(within(dialog).queryByText(en.errors.unexpected)).toBeNull();
+      expect(within(dialog).queryByText(en.errors.motivo_invalid)).toBeNull();
+      expect(within(dialog).queryByText(en.errors.nota_required)).toBeNull();
+    });
+
+    it("leaves no refusal banner behind in the other order either", async () => {
+      const dialog = await confirmedEmpty();
+
+      await userEvent.type(noteBox(dialog), NOTE);
+      await pick(dialog, en.dialog.motivo.caso_especial);
+
+      expect(within(dialog).queryByRole("alert")).toBeNull();
+      expect(within(dialog).queryByText(en.errors.unexpected)).toBeNull();
+    });
+
+    it("fails again when the form is still invalid: the note error comes back", async () => {
+      const dialog = await confirmedEmpty();
+      await userEvent.type(noteBox(dialog), "x");
+      await userEvent.clear(noteBox(dialog));
+      await pick(dialog, en.dialog.motivo.caso_especial);
+      expect(within(dialog).queryByText(en.errors.nota_required)).toBeNull();
+
+      actionMock.mockResolvedValueOnce(NOTE_ONLY);
+      await confirm(dialog);
+
+      expect(
+        await within(dialog).findByText(en.errors.nota_required),
+      ).toBeVisible();
+      expect(within(dialog).queryByText(en.errors.motivo_invalid)).toBeNull();
+      expect(actionMock).toHaveBeenCalledTimes(2);
+      expect(actionMock).toHaveBeenLastCalledWith({
+        solicitudId: 12,
+        motivo: "caso_especial",
+        nota: "",
+      });
+      expect(screen.getByRole("alertdialog")).toBe(dialog);
+    });
+
+    it.each([
+      ["conflict", { ok: false, reason: "conflict" }, en.errors.conflict],
+      ["not_found", { ok: false, reason: "not_found" }, en.errors.not_found],
+      ["unexpected", { ok: false, reason: "unexpected" }, en.errors.unexpected],
+      [
+        "sin_coordinacion",
+        {
+          ok: false,
+          reason: "sin_coordinacion",
+          carreraNombre: "Ingenieria Civil",
+        },
+        "Ingenieria Civil has no registered coordination; ask the administrator to create the account.",
+      ],
+    ])(
+      "keeps the %s message while the fields are edited, until the next confirmation",
+      async (_reason, failure, text) => {
+        actionMock.mockResolvedValueOnce(failure);
+        renderIntl(
+          <EscalateDialog solicitudId={12} unavailableCareer={null} />,
+        );
+        const dialog = await open();
+        await confirm(dialog);
+        expect(await within(dialog).findByText(text)).toBeVisible();
+
+        await pick(dialog, en.dialog.motivo.caso_especial);
+        await userEvent.type(noteBox(dialog), NOTE);
+
+        expect(within(dialog).getByText(text)).toBeVisible();
+        expect(within(dialog).getByRole("alert")).toHaveTextContent(text);
+
+        // The next confirmation replaces it.
+        await confirm(dialog);
+        await waitFor(() =>
+          expect(within(dialog).queryByRole("alert")).toBeNull(),
+        );
+        expect(actionMock).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it("starts with no message when the dialog is reopened", async () => {
+      const dialog = await confirmedEmpty();
+
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: en.dialog.cancel }),
+      );
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+      const reopened = await open();
+
+      expect(within(reopened).queryByRole("alert")).toBeNull();
+      expect(within(reopened).queryByText(en.errors.motivo_invalid)).toBeNull();
+      expect(within(reopened).queryByText(en.errors.nota_required)).toBeNull();
+      expect(noteBox(reopened)).not.toHaveAttribute("aria-invalid");
+    });
+  });
+});

@@ -262,3 +262,94 @@ English twins: "Pending requests of your faculty, ordered by deadline: the one d
 4. **Mutation checks with an uncommitted GREEN.** As in S1: byte-identical backup copies restored, checked with "cmp".
 5. **Task 2.7 is marked in Phase 3.** The PR number does not exist until the PR is opened, so the S3 docs commit records it.
 6. **Line endings.** Five production and test files were CRLF in the working tree (index LF); converted to LF without changing the index content.
+
+## Phase 3 (PR 3): S3 RF-10, required note and stale errors
+
+Mode: Strict TDD. Date: 2026-11-20. Size exception per the owner decision of 2026-11-20 (see Phase 1). The slice measured 690 changed lines before any cut (unit 5: 151, unit 6: 539), so it is cut at its natural unit boundary into two PRs, as S1 was:
+
+- **PR 3a**, branch "feat/flow-experience-3-dialog-errors", cut from the tip of "feat/flow-experience-2-first-due" (7a38971): unit 5 (the helper and the required mark) and unit 6a (the escalate dialog adopts both, plus its copy). 429 changed lines.
+- **PR 3b**, branch "feat/flow-experience-3b-report-answer-errors", cut from the tip of PR 3a: unit 6b (the report dialog and the coordinator answer adopt the same helper, RNF-12).
+
+The motive "otro" is NOT part of this slice (S8).
+
+### Commits (PR 3a)
+
+| Unit | Hash    | Message                                                                              |
+| ---- | ------- | ------------------------------------------------------------------------------------ |
+| 5    | 12c920a | feat(review): add the helper that clears stale dialog errors                         |
+| 6a   | 53d7cd1 | fix(review): clear escalate dialog field errors on change and mark the note required |
+| docs | (tip)   | docs(flow-experience): record the Phase 3 apply progress for PR 3a                   |
+
+### TDD cycle evidence (PR 3a)
+
+| Task        | Test file                                                     | Layer              | Safety net                       | RED                                                                                                                                                           | GREEN                                                                    | Triangulation                                                                                                                                                                                                                                                                                               | Refactor    |
+| ----------- | ------------------------------------------------------------- | ------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 3.1 and 3.2 | `src/app/(dashboard)/review/[id]/dialog-parts.test.tsx` (new) | Unit and component | N/A (new file)                   | 11 of 14 cases failed first (the export was missing, and the required mark was absent); the three pass-at-write cases pin the unchanged optional behaviour    | 14 passed                                                                | Truth table of withoutFieldErrors: null in, four failures that name no field (same reference back), one field removed, several errors of one field, last error gives null, field with no error (same reference), frozen input never mutated; required mark on, undefined, false, never the native attribute | None needed |
+| 3.4 and 3.5 | `src/app/(dashboard)/review/[id]/escalate-dialog.test.tsx`    | Component          | Existing cases of the file green | 7 cases failed first: label and hint en, label and hint es, motive error clears, note error clears, no banner in either order, still-invalid form fails again | review directory, coordination directory and i18n: 43 files, 1523 passed | Label and hint en and es, no native required; both errors; motive clears only itself; note clears only itself; no banner in two orders; a second confirmation brings the note error back; conflict, not_found, unexpected and no-coordination persist while editing (4 cases); reopening starts clean       | None needed |
+| 3.4 and 3.5 | `src/i18n/review-messages.test.ts`                            | Unit               | Existing cases green             | 2 cases failed first (exact label and hint, es and en); the staff-only statement and the other note labels pass at write                                      | Pass                                                                     | Exact copy es and en; hint keeps the staff-only statement and no informal address; the report and answer labels pinned unchanged                                                                                                                                                                            | None needed |
+
+### Mutation checks (revert-only; files restored from byte-identical backup copies, checked with "cmp", because the GREEN was not committed yet)
+
+| Pass-at-write test                                                                                                                     | Temporary edit                                                                                             | Result                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| dialog-parts "announces nothing when required is undefined or false" and "never turns on the browser's own validation"                 | In `src/app/(dashboard)/review/[id]/dialog-parts.tsx`: the mark always on, plus the native attribute       | 3 failed                                                   |
+| escalate-dialog "keeps the %s message while the fields are edited" (4 cases)                                                           | In `src/app/(dashboard)/review/[id]/escalate-dialog.tsx`: a motive change clears the whole failure         | 5 failed, the 4 persistence cases and the motive-only case |
+| escalate-dialog "starts with no message when the dialog is reopened"                                                                   | In `src/app/(dashboard)/review/[id]/escalate-dialog.tsx`: the discard keeps the failure                    | Failed                                                     |
+| escalate-dialog "shows both errors after confirming with nothing filled"                                                               | In `src/app/(dashboard)/review/[id]/escalate-dialog.tsx`: the motive messages are never read               | 8 failed, including it                                     |
+| escalate-dialog "does not turn on the browser's validation"                                                                            | In `src/app/(dashboard)/review/[id]/dialog-parts.tsx`: add the native "required" next to the aria mark     | Failed                                                     |
+| review-messages "keeps the staff-only statement and no informal address" and "leaves the labels of the other note fields as they were" | In `i18n/en.json` and `i18n/es.json`: the report label shortened, the Spanish hint in the informal address | 3 failed, including both                                   |
+
+### Checkpoint (task 3.8): measured size of PR 3a
+
+Measure: "git diff --numstat feat/flow-experience-2-first-due...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                   | Changed lines |
+| ----------------------------------------------------------------------- | ------------- |
+| Unit 5 (helper, required mark, their tests)                             | 151           |
+| Unit 6a (escalate dialog, its tests, the two catalogs, the i18n pin)    | 278           |
+| All of PR 3a (422 added, 7 deleted; production 50 and tests 379)        | 429           |
+| Unit 6b (report dialog, coordinator answer, their tests) before the cut | 261           |
+| All of S3 before the cut                                                | 690           |
+
+The design forecast for S3 was about 110; the slice is 6.3 times that. Unit 6 alone is 539, so the cut is inside unit 6, at the seam the design draws: the escalate dialog (FE-10 and FE-11 for the dialog the requirement names) against the two dialogs that adopt the helper only for consistency (RNF-12). Tests are 88 percent of the lines and were not trimmed.
+
+### Work unit evidence (PR 3a)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                           |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "$env:DATABASE_URL='postgres://u:p@127.0.0.1:9/x'; npm test -- src/app/(dashboard)/review src/app/(dashboard)/coordination src/i18n": 43 files, 1523 tests, all passed                                                                                          |
+| Runtime harness                       | N/A in this run: the owner-run capture "RF-10_b" on "flow-it" (task 12.7) is not part of Phase 3, and no database or Neon command was run                                                                                                                       |
+| Rollback boundary                     | Revert the PR: `src/app/(dashboard)/review/[id]/dialog-parts.tsx` loses the helper and the mark, `src/app/(dashboard)/review/[id]/escalate-dialog.tsx` returns to its old behaviour, and the two catalog labels return. No data, no schema, no audit event type |
+
+### Gates (PR 3a), tip of "-3-dialog-errors", dummy DB
+
+- Full "npm test": 369 files, 9049 tests, all passed, 257.5 s vitest duration (4 m 20 s wall). PR 2 was 368 files and 9016 tests; PR 3a adds one test file (dialog-parts) and 33 tests.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (145008 lines), the only findings are the same three in files PR 3a does not touch: the unused `SidebarGroupLabel` warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on the touched files alone is clean, and "npx prettier --check" passes on every touched file and on both catalogs.
+- "npm test -- src/app/(dashboard)/review src/app/(dashboard)/coordination src/i18n": 43 files, 1523 tests, all passed.
+
+### Files (PR 3a; all LF in the working tree, the index was already LF)
+
+| File                                                                                           | Action                                                                              |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `src/app/(dashboard)/review/[id]/dialog-parts.tsx`                                             | Modified: withoutFieldErrors, optional "required" of NoteField (aria-required only) |
+| `src/app/(dashboard)/review/[id]/dialog-parts.test.tsx`                                        | Created: 14 cases                                                                   |
+| `src/app/(dashboard)/review/[id]/escalate-dialog.tsx`                                          | Modified: field errors cleared on change, NoteField required                        |
+| `src/app/(dashboard)/review/[id]/escalate-dialog.test.tsx`, `src/i18n/review-messages.test.ts` | Modified: new cases                                                                 |
+| `i18n/es.json`, `i18n/en.json`                                                                 | Modified: "review.escalation.dialog.noteLabel" and "noteHint" (replaced)            |
+
+### Final Spanish UI copy added so far (staff screen "review", "usted")
+
+- "review.escalation.dialog.noteLabel" (replaces "Nota para coordinación"): "Nota para coordinación (obligatoria)"
+- "review.escalation.dialog.noteHint" (replaces "Explique por qué escala la solicitud a coordinación. Solo la ve el personal."): "Explique por qué escala la solicitud; por ejemplo, qué dato del documento no coincide o qué situación no prevé el reglamento. Solo la ve el personal."
+
+English twins: "Note for coordination (required)"; "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it." The labels of the report dialog ("Nota (opcional)") and of the coordinator answer ("Respuesta para la secretaría") are unchanged.
+
+### Deviations (PR 3a)
+
+1. **Branch names.** Task 3.0 says "feat/flow-experience-3-note-errors"; the owner's run order says "feat/flow-experience-3-dialog-errors", which is used. The cut branch is "feat/flow-experience-3b-report-answer-errors".
+2. **Cut inside unit 6.** Tasks 3.4 and 3.5 name one commit for the escalate dialog, the report dialog and the answer form; the 539-line unit is split in two commits, one per PR (6a and 6b), because it is over the stop line on its own.
+3. **Branch base.** The PR targets "feat/flow-experience-2-first-due" (stacked on PR 2), as planned.
+4. **Mutation checks with an uncommitted GREEN.** As in S1 and S2: byte-identical backup copies restored and checked with "cmp".
+5. **Task 3.6.** The planned mutation (drop the motive clear in the escalate dialog, the motive case must fail) is done in a stronger form: the clear is replaced by clearing the whole failure, and five cases fail, including the motive-only case.
+6. **Line endings.** Four production and test files were CRLF in the working tree (index LF); converted to LF without changing the index content.

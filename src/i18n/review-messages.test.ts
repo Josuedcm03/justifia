@@ -1126,3 +1126,49 @@ describe("queue order messages (FE-1, FE-2, RF-06 a)", () => {
     expect(en.review.queue.firstDue).toBe("Due first");
   });
 });
+
+// flow-experience S3 (RF-10 a, b; FE-10): the escalate dialog marks the note as
+// required. Staff screens address the secretary as "usted". The report dialog
+// (optional note) and the coordinator answer keep their own labels.
+describe("escalate dialog note messages (FE-10, RF-10 a, b)", () => {
+  it("words the required note and its example hint in Spanish with usted", () => {
+    expect(es.review.escalation.dialog.noteLabel).toBe(
+      "Nota para coordinación (obligatoria)",
+    );
+    expect(es.review.escalation.dialog.noteHint).toBe(
+      "Explique por qué escala la solicitud; por ejemplo, qué dato del documento no coincide o qué situación no prevé el reglamento. Solo la ve el personal.",
+    );
+  });
+
+  it("words the required note and its example hint in English", () => {
+    expect(en.review.escalation.dialog.noteLabel).toBe(
+      "Note for coordination (required)",
+    );
+    expect(en.review.escalation.dialog.noteHint).toBe(
+      "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it.",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s keeps the staff-only statement and no informal address in the hint",
+    (_l, m) => {
+      expect(m.review.escalation.dialog.noteHint).toMatch(
+        /only staff|solo la ve el personal/i,
+      );
+      expect(m.review.escalation.dialog.noteHint).not.toMatch(
+        /\b(tu|tus|tienes|puedes|vos|tené|explica)\b/i,
+      );
+    },
+  );
+
+  it("leaves the labels of the other note fields as they were", () => {
+    expect(es.review.report.dialog.noteLabel).toBe("Nota (opcional)");
+    expect(en.review.report.dialog.noteLabel).toBe("Note (optional)");
+    expect(es.coordination.answer.dialog.noteLabel).toBe(
+      "Respuesta para la secretaría",
+    );
+    expect(en.coordination.answer.dialog.noteLabel).toBe(
+      "Answer for the secretary",
+    );
+  });
+});
