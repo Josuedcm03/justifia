@@ -5,6 +5,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
 import {
+  ANSWER_DATE_OPTIONS,
   AnswerBanner,
   latestAnswer,
 } from "@/app/(dashboard)/review/[id]/answer-banner";
@@ -355,6 +356,7 @@ export default async function ReviewDetailPage({
           decisions={detail.decisiones}
           revisions={detail.revisiones}
           retired={detail.documentosRetirados}
+          escalations={detail.escalamientos.length}
         />
         {templatesFor ? (
           <Section id="decision" title={t("detail.sections.decision")}>
@@ -376,6 +378,20 @@ export default async function ReviewDetailPage({
               <EscalateDialog
                 solicitudId={detail.id}
                 unavailableCareer={unavailableCareer}
+                previousAnswer={
+                  answer
+                    ? {
+                        text: answer.text,
+                        byline: t("detail.answerBanner.byline", {
+                          name: answer.authorName,
+                          date: format.dateTime(
+                            answer.answeredAt,
+                            ANSWER_DATE_OPTIONS,
+                          ),
+                        }),
+                      }
+                    : null
+                }
               />
             </div>
           </Section>

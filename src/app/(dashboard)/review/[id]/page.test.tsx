@@ -1473,6 +1473,42 @@ describe("ReviewDetailPage coordination answer banner (FE-3, FE-4, RF-16 c)", ()
     ]);
   });
 
+  it("shows the earlier answer in the escalate dialog, with its author and date", async () => {
+    detailMock.mockResolvedValue(
+      detail({ escalamientos: [escalationRecord(ANSWER)] }),
+    );
+
+    await renderPage();
+    await userEvent.click(
+      screen.getByRole("button", { name: esc.dialog.trigger }),
+    );
+
+    const note = within(await screen.findByRole("alertdialog")).getByRole(
+      "note",
+    );
+    expect(note).toHaveTextContent(ANSWER.respuesta);
+    expect(note).toHaveTextContent("Marta Gomez, Oct 9, 2026, 3:00 PM");
+  });
+
+  it("points the history to the escalations with the number of records", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        escalamientos: [
+          escalationRecord({ ...ANSWER }),
+          escalationRecord({ ...ANSWER, id: 62 }),
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    const history = screen.getByRole("region", { name: en.sections.history });
+    expect(history).toHaveTextContent("This request has 2 escalations");
+    expect(
+      within(history).getByRole("link", { name: en.history.escalationsLink }),
+    ).toHaveAttribute("href", "#escalation-title");
+  });
+
   it("writes exactly one audited read and no other row", async () => {
     detailMock.mockResolvedValue(
       detail({ escalamientos: [escalationRecord(ANSWER)] }),

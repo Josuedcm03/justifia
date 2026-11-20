@@ -239,6 +239,148 @@ describe("EscalateDialog confirmation (RF-10 a, RNF-12)", () => {
   });
 });
 
+describe("EscalateDialog earlier answer notice (FE-12, RF-16 c)", () => {
+  const PREVIOUS = {
+    text: "Verified with the teacher; the document is valid.",
+    byline: "Marta Gomez, Oct 9, 2026, 3:00 PM",
+  };
+
+  it("shows the earlier answer, its author and date above the motive, as a note", async () => {
+    renderIntl(
+      <EscalateDialog
+        solicitudId={12}
+        unavailableCareer={null}
+        previousAnswer={PREVIOUS}
+      />,
+    );
+    const dialog = await open();
+
+    const note = within(dialog).getByRole("note");
+    expect(note).toHaveTextContent(PREVIOUS.text);
+    expect(note).toHaveTextContent(
+      "Coordination already answered this request (Marta Gomez, Oct 9, 2026, 3:00 PM):",
+    );
+    expect(note).toHaveTextContent(en.dialog.previousAnswer.hint);
+    const motive = within(dialog).getByRole("radiogroup", {
+      name: en.dialog.motivoLabel,
+    });
+    expect(
+      note.compareDocumentPosition(motive) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("is informational: no alert, no error styling and confirm stays enabled", async () => {
+    renderIntl(
+      <EscalateDialog
+        solicitudId={12}
+        unavailableCareer={null}
+        previousAnswer={PREVIOUS}
+      />,
+    );
+    const dialog = await open();
+
+    const note = within(dialog).getByRole("note");
+    expect(within(dialog).queryByRole("alert")).toBeNull();
+    expect(note.className).not.toMatch(/destructive/);
+    expect(note.querySelector("[class*=destructive]")).toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    ).toBeEnabled();
+  });
+
+  it("still escalates a second time with one confirmation and one action call", async () => {
+    renderIntl(
+      <EscalateDialog
+        solicitudId={12}
+        unavailableCareer={null}
+        previousAnswer={PREVIOUS}
+      />,
+    );
+    const dialog = await open();
+
+    await pick(dialog, en.dialog.motivo.caso_especial);
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: en.dialog.noteLabel }),
+      NOTE,
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+
+    await waitFor(() => expect(actionMock).toHaveBeenCalledTimes(1));
+    expect(actionMock).toHaveBeenCalledWith({
+      solicitudId: 12,
+      motivo: "caso_especial",
+      nota: NOTE,
+    });
+  });
+
+  it.each([
+    ["omitted", undefined],
+    ["null", null],
+  ])(
+    "shows no notice when the earlier answer is %s",
+    async (_name, previous) => {
+      renderIntl(
+        <EscalateDialog
+          solicitudId={12}
+          unavailableCareer={null}
+          previousAnswer={previous}
+        />,
+      );
+      const dialog = await open();
+
+      expect(within(dialog).queryByRole("note")).toBeNull();
+      expect(within(dialog).queryByText(/already answered/)).toBeNull();
+    },
+  );
+
+  it("keeps a long answer inside a scrollable box that wraps", async () => {
+    const long = "respuesta-larga-".repeat(60);
+    renderIntl(
+      <EscalateDialog
+        solicitudId={12}
+        unavailableCareer={null}
+        previousAnswer={{ ...PREVIOUS, text: long }}
+      />,
+    );
+    const dialog = await open();
+
+    expect(within(dialog).getByText(long)).toHaveClass(
+      "max-h-32",
+      "overflow-y-auto",
+      "break-words",
+      "whitespace-pre-wrap",
+    );
+  });
+
+  it("words the notice in Spanish for the secretary", async () => {
+    renderIntl(
+      <EscalateDialog
+        solicitudId={12}
+        unavailableCareer={null}
+        previousAnswer={{
+          text: "El documento es válido.",
+          byline: "Marta Gomez, 9 oct 2026, 15:00",
+        }}
+      />,
+      "es",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Escalar a coordinación" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    const note = within(dialog).getByRole("note");
+    expect(note).toHaveTextContent(
+      "La coordinación ya respondió esta solicitud (Marta Gomez, 9 oct 2026, 15:00):",
+    );
+    expect(note).toHaveTextContent(
+      "Si la escala de nuevo, vuelve a coordinación y no podrá decidir hasta que responda.",
+    );
+  });
+});
+
 describe("EscalateDialog server refusals", () => {
   async function confirmWith(result: unknown) {
     actionMock.mockResolvedValue(result);

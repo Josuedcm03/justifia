@@ -287,6 +287,32 @@ describe("dialogs at 360 px", () => {
     },
   );
 
+  it("opens the escalate dialog with a long earlier answer inside the viewport and with no axe violation", async () => {
+    renderIntl(
+      <EscalateDialog
+        solicitudId={12}
+        unavailableCareer={null}
+        previousAnswer={{
+          text: LONG_NOTE,
+          byline: "Marta Gomez, Oct 9, 2026, 3:00 PM",
+        }}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: messages.en.review.escalation.dialog.trigger,
+      }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(tooWide(document.body)).toEqual([]);
+    expect(within(dialog).getByText(LONG_NOTE)).toHaveClass(
+      "break-words",
+      "whitespace-pre-wrap",
+    );
+    expect(await violations(dialog)).toEqual([]);
+  });
+
   it("flags a fixed width above the viewport (guard self-test)", () => {
     const { container } = render(
       <div>

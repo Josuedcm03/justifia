@@ -422,6 +422,7 @@ describe("design system: 360px (RNF-11, §4.3)", () => {
         ]}
         revisions={[]}
         retired={[]}
+        escalations={0}
       />,
     );
 

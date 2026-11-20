@@ -1173,6 +1173,10 @@
         },
         "noteLabel": "Nota para coordinación",
         "noteHint": "Explique por qué escala la solicitud a coordinación. Solo la ve el personal.",
+        "previousAnswer": {
+          "title": "La coordinación ya respondió esta solicitud ({byline}):",
+          "hint": "Si la escala de nuevo, vuelve a coordinación y no podrá decidir hasta que responda."
+        },
         "counter": "{count} de 1000",
         "confirm": "Escalar solicitud",
         "pending": "Escalando...",
@@ -1396,7 +1400,9 @@
         "noText": "Sin mensaje",
         "revision": "Versión {number}",
         "revisionDocuments": "{count, plural, one {# documento} other {# documentos}}",
-        "replacedOn": "Reemplazado el {date}"
+        "replacedOn": "Reemplazado el {date}",
+        "escalations": "{count, plural, one {Esta solicitud tiene # escalamiento a coordinación.} other {Esta solicitud tiene # escalamientos a coordinación.}} Los detalles y las respuestas están en la sección «Escalamientos a coordinación».",
+        "escalationsLink": "Ir a los escalamientos"
       },
       "answerBanner": {
         "title": "Respuesta de coordinación",
