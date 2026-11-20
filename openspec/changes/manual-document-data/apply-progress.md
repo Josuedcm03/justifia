@@ -94,3 +94,9 @@ Tasks 1.10 to 1.13 (all database work) were NOT run: they are owner-run and need
 - `DOCUMENT_TYPE_CAUSES` is declared "as const satisfies ...", so consumers get literal types and the "satisfies" check of task 2.2 still holds.
 - No pin of `src/db/schema.test.ts` needed adjusting (task 1.7).
 - The migration number stayed 0015: origin/main (fetched 2026-11-19) still ends at 0014_data_retention.
+
+## Phase 1 database steps (owner yes per command)
+
+- 1.10 (2026-11-19 18:42 Managua, read-only): production has 15 migrations (0000 to 0014) and no 0015 objects. "dev-arnia" has 14 (no 0014).
+- 1.11 (18:49): "manual-it" created as a child of "dev-arnia".
+- 1.12 (18:50): 0014 and 0015 applied to "manual-it" only. Read-only verification: three nullable columns without default, the new table, four CHECKs, and the cascade FK. Production untouched; 1.13 waits for the owner's yes before the tracker reaches main.
