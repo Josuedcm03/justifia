@@ -675,3 +675,9 @@ Commit 1f4f121, branch "manual-it", extraction off, all writes through the UI, n
 | d | Cumple | Request 146 (actividad_representativa): "Constancia medica" registered; "Formato no corresponde a la causa" present with "Revisar con cuidado". RF-14_d.png, RF-14_d-causa.png |
 
 Deviations: (c) used an existing pending request instead of a new one (no Blob upload); its document kept an earlier extraction row that the manual data override, while SC-12 in rf-14-c covers the fallida case on real Postgres. The optional MD-30 coordination capture was skipped: the coordination accounts on the branch are real people and enabling one needs direct SQL writes; MD-30 is covered by unit tests. In (b) and (d) "Documento repetido" also shows, because the seed reuses one file across requests 140 to 145.
+
+## Phase 11 (tracker delivery)
+
+- 11.1 (2026-11-20): the seven slice PRs merged into "feat/manual-document-data" in order; tip 485f7a1, which already contains origin/main 172e9e0. No open PR from another branch carries a migration (PRs 98 to 101 checked), so 0015 stays this change's number.
+- 11.2 (2026-11-20): whole-change gates green on 485f7a1 (8926 tests, typecheck clean, eslint known noise only). sdd-verify: PASS WITH WARNINGS (0 CRITICAL, 5 WARNING, 7 SUGGESTION), 35/35 requirements, 173/173 scenarios. Source under src, drizzle and i18n is identical between d0dfe3f (Phase 9) and the tip, so the Postgres runs hold.
+- Pending before main: 1.13 (0015 in production, owner yes), then 11.3 gate check and 11.4 (owner OK).
