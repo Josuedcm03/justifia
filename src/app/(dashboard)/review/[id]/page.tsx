@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
+import {
+  AnswerBanner,
+  latestAnswer,
+} from "@/app/(dashboard)/review/[id]/answer-banner";
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
 import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
@@ -179,6 +183,10 @@ export default async function ReviewDetailPage({
 
   const now = new Date();
   const pending = detail.estado === "pendiente";
+  // The coordination answer that sent the request back to the secretary: it
+  // shows first and changes the decision copy (FE-3, FE-4). Only a pending
+  // request can carry it; an open or decided request shows none.
+  const answer = pending ? latestAnswer(detail.escalamientos) : null;
   // The deadline starts at the effective start: a coordination answer moves it
   // later by the business days spent there (RN-08, ES-5).
   const due =
@@ -260,6 +268,7 @@ export default async function ReviewDetailPage({
       />
 
       <div className="flex flex-col gap-6">
+        {answer ? <AnswerBanner answer={answer} /> : null}
         {changes ? (
           <ChangesSection
             diff={changes}
@@ -350,7 +359,9 @@ export default async function ReviewDetailPage({
         {templatesFor ? (
           <Section id="decision" title={t("detail.sections.decision")}>
             <p className="text-muted-foreground max-w-prose text-sm">
-              {t("detail.decisionPanel.description")}
+              {answer
+                ? t("detail.decisionPanel.descriptionAnswered")
+                : t("detail.decisionPanel.description")}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               {DECISION_ORDER.map((kind) => (

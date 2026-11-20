@@ -1405,7 +1405,8 @@
         "link": "Ver el escalamiento completo"
       },
       "decisionPanel": {
-        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Si necesita la opinión de la coordinación, use «Escalar a coordinación». Cada decisión le pide confirmarla."
+        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Si necesita la opinión de la coordinación, use «Escalar a coordinación». Cada decisión le pide confirmarla.",
+        "descriptionAnswered": "La coordinación ya respondió esta solicitud (vea la respuesta al inicio de esta página) y la decisión ahora es suya. Apruebe, devuelva para corrección o rechace la solicitud. Cada decisión le pide confirmarla."
       },
       "goToDecision": "Ir a la decisión",
       "statusNote": {

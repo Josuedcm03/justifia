@@ -1339,6 +1339,152 @@ describe("ReviewDetailPage escalation history (RF-10, RN-16)", () => {
   });
 });
 
+describe("ReviewDetailPage coordination answer banner (FE-3, FE-4, RF-16 c)", () => {
+  const ANSWER = {
+    respuesta: "Verified with the teacher; the document is valid.",
+    respondidaPorNombre: "Marta Gomez",
+    // 15:00 on 9 October 2026 in America/Managua.
+    respondidaEn: new Date("2026-10-09T21:00:00Z"),
+  };
+  const banner = () =>
+    screen.queryByRole("region", { name: en.answerBanner.title });
+
+  it.each([
+    ["pendiente", "an answered escalation", true, [escalationRecord(ANSWER)]],
+    ["pendiente", "no escalation", false, []],
+    [
+      "en_revision_coordinacion",
+      "an answered one and an open one",
+      false,
+      [escalationRecord(ANSWER), escalationRecord({ id: 62 })],
+    ],
+    ["aprobada", "an answered escalation", false, [escalationRecord(ANSWER)]],
+    ["rechazada", "an answered escalation", false, [escalationRecord(ANSWER)]],
+    ["devuelta", "an answered escalation", false, [escalationRecord(ANSWER)]],
+  ])(
+    "for a %s request with %s the banner is shown: %s",
+    async (estado, _records, shown, escalamientos) => {
+      detailMock.mockResolvedValue(detail({ estado, escalamientos }));
+
+      await renderPage();
+
+      expect(banner() !== null).toBe(shown);
+    },
+  );
+
+  it("shows the answer, its author and its date and time in Managua", async () => {
+    detailMock.mockResolvedValue(
+      detail({ escalamientos: [escalationRecord(ANSWER)] }),
+    );
+
+    await renderPage();
+
+    expect(banner()).toHaveTextContent(ANSWER.respuesta);
+    expect(banner()).toHaveTextContent("Marta Gomez, Oct 9, 2026, 3:00 PM");
+  });
+
+  it("comes before the request, the escalations and the decision panel", async () => {
+    detailMock.mockResolvedValue(
+      detail({ escalamientos: [escalationRecord(ANSWER)] }),
+    );
+
+    await renderPage();
+
+    for (const name of [
+      en.sections.request,
+      esc.section.title,
+      en.sections.decision,
+    ]) {
+      const later = screen.getByRole("region", { name });
+      expect(
+        banner()!.compareDocumentPosition(later) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+        name,
+      ).toBeTruthy();
+    }
+  });
+
+  it("quotes the later answer when two escalations were answered", async () => {
+    detailMock.mockResolvedValue(
+      detail({
+        escalamientos: [
+          escalationRecord({ ...ANSWER, respuesta: "First answer." }),
+          escalationRecord({
+            ...ANSWER,
+            id: 62,
+            respuesta: "Second answer.",
+            respondidaPorNombre: "Pablo Cruz",
+            respondidaEn: new Date("2026-10-12T16:30:00Z"),
+          }),
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    expect(banner()).toHaveTextContent("Second answer.");
+    expect(banner()).toHaveTextContent("Pablo Cruz");
+    expect(banner()).not.toHaveTextContent("First answer.");
+  });
+
+  it("words the decision panel after the answer and no longer sends the secretary to escalate for an opinion", async () => {
+    detailMock.mockResolvedValue(
+      detail({ escalamientos: [escalationRecord(ANSWER)] }),
+    );
+
+    await renderPage();
+
+    const description = screen.getByText(en.decisionPanel.descriptionAnswered);
+    expect(description).toHaveTextContent("Coordination has already answered");
+    expect(description.textContent).not.toMatch(/escalat/i);
+    expect(screen.queryByText(en.decisionPanel.description)).toBeNull();
+  });
+
+  it.each([
+    ["never escalated", []],
+    ["escalated with no answer yet", [escalationRecord()]],
+  ])("keeps today's decision copy for a request %s", async (_name, records) => {
+    detailMock.mockResolvedValue(detail({ escalamientos: records }));
+
+    await renderPage();
+
+    const description = screen.getByText(en.decisionPanel.description);
+    expect(description.textContent).toContain(esc.dialog.trigger);
+    expect(screen.queryByText(en.decisionPanel.descriptionAnswered)).toBeNull();
+  });
+
+  it("offers approve, return, reject and escalate unchanged", async () => {
+    detailMock.mockResolvedValue(
+      detail({ escalamientos: [escalationRecord(ANSWER)] }),
+    );
+
+    await renderPage();
+
+    const panel = screen.getByRole("region", { name: en.sections.decision });
+    expect(
+      within(panel)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual([
+      dec.approve.trigger,
+      dec.return.trigger,
+      dec.reject.trigger,
+      esc.dialog.trigger,
+    ]);
+  });
+
+  it("writes exactly one audited read and no other row", async () => {
+    detailMock.mockResolvedValue(
+      detail({ escalamientos: [escalationRecord(ANSWER)] }),
+    );
+
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 12, "pendiente");
+  });
+});
+
 describe("ReviewDetailPage absence reports (RF-15)", () => {
   const approved = (overrides: Partial<Record<string, unknown>> = {}) =>
     detail({ estado: "aprobada", ...overrides });

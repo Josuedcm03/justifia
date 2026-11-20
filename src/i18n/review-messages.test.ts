@@ -1019,3 +1019,24 @@ describe("coordination answer banner messages (FE-3, RF-16 c)", () => {
     expect(text).not.toMatch(/\b(tu|tus|tienes|puedes|ten|vos|tené)\b/i);
   });
 });
+
+describe("decision panel copy after a coordination answer (FE-4, RF-16 c)", () => {
+  it("words it in Spanish with usted and without sending the secretary to escalate", () => {
+    const text = es.review.detail.decisionPanel.descriptionAnswered;
+
+    expect(text).toBe(
+      "La coordinación ya respondió esta solicitud (vea la respuesta al inicio de esta página) y la decisión ahora es suya. Apruebe, devuelva para corrección o rechace la solicitud. Cada decisión le pide confirmarla.",
+    );
+    expect(text).not.toContain(es.review.escalation.dialog.trigger);
+    expect(text).not.toMatch(/escal/i);
+  });
+
+  it("words it in English without sending the secretary to escalate", () => {
+    const text = en.review.detail.decisionPanel.descriptionAnswered;
+
+    expect(text).toBe(
+      "Coordination has already answered this request (see the answer at the top of this page) and the decision is now yours. Approve, return for correction or reject the request. Each decision asks you to confirm it.",
+    );
+    expect(text).not.toMatch(/escalat/i);
+  });
+});
