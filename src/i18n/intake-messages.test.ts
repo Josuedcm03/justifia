@@ -224,3 +224,35 @@ describe("intake messages: the file origin marks (FE-16)", () => {
     expect(filesTitle.trim().length).toBeGreaterThan(0);
   });
 });
+
+// FE-18 and FE-19 (RF-01): the dates recap and the future-start notice. Student
+// screen: the notice speaks to the student as "tú"; the other lines are labels.
+describe("intake messages: the dates recap (FE-18, FE-19)", () => {
+  it("words the recap and the notice in Spanish, in the informal address", () => {
+    expect(es.intake.datesRecap).toEqual({
+      label: "Fechas de ausencia",
+      range: "Del {start} al {end}",
+      edit: "Editar fechas",
+      futureStart:
+        "La fecha de inicio es posterior a hoy. Si la ausencia ya ocurrió, corrige las fechas; si es una ausencia prevista, puedes continuar.",
+    });
+    expect(es.intake.datesRecap.futureStart).not.toMatch(/corrija|puede /);
+  });
+
+  it("words the recap and the notice in English", () => {
+    expect(en.intake.datesRecap).toEqual({
+      label: "Absence dates",
+      range: "From {start} to {end}",
+      edit: "Edit dates",
+      futureStart:
+        "The start date is later than today. If the absence already happened, correct the dates; if it is a planned absence, you can continue.",
+    });
+  });
+
+  it("uses the label of the request card, not the design's older wording", () => {
+    expect(
+      es.requests.list.absence.startsWith(es.intake.datesRecap.label),
+    ).toBe(true);
+    expect(es.intake.datesRecap.label).not.toBe("Fechas de la ausencia");
+  });
+});

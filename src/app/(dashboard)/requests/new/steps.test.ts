@@ -8,6 +8,7 @@ import {
   parseFromReview,
   parseStep,
   reviewEditHref,
+  startsAfterToday,
   stepHref,
 } from "@/app/(dashboard)/requests/new/steps";
 
@@ -129,5 +130,41 @@ describe("correctionStartStep (RN-17, SR-17)", () => {
 
   it("opens at step 1 when the reason is unknown", () => {
     expect(correctionStartStep(null)).toBe(1);
+  });
+});
+
+describe("startsAfterToday (FE-19: a future start gets a notice, never a block)", () => {
+  const TODAY = "2026-11-02";
+  const range = (from: string) => ({ from, to: "2026-12-31" });
+
+  it.each([
+    ["tomorrow", "2026-11-03", true],
+    ["today", "2026-11-02", false],
+    ["yesterday", "2026-11-01", false],
+    ["far in the past", "2025-01-15", false],
+    ["far in the future", "2027-06-30", true],
+  ])("gives the right answer for a start %s", (_label, from, expected) => {
+    expect(startsAfterToday(range(from), TODAY)).toBe(expected);
+  });
+
+  it("compares calendar days across a month and a year boundary", () => {
+    expect(startsAfterToday(range("2026-12-01"), "2026-11-30")).toBe(true);
+    expect(startsAfterToday(range("2027-01-01"), "2026-12-31")).toBe(true);
+    expect(startsAfterToday(range("2026-11-30"), "2026-12-01")).toBe(false);
+  });
+
+  it.each([null, { from: "" }, { from: "2026-13-45" }, { from: "tomorrow" }])(
+    "is false for an invalid range %j",
+    (invalid) => {
+      expect(startsAfterToday(invalid, TODAY)).toBe(false);
+    },
+  );
+
+  it("needs only the start: a draft whose end is not typed yet still gets the notice", () => {
+    expect(startsAfterToday({ from: "2026-11-10" }, TODAY)).toBe(true);
+  });
+
+  it("is false when today is not a real date, instead of guessing", () => {
+    expect(startsAfterToday(range("2026-11-10"), "")).toBe(false);
   });
 });
