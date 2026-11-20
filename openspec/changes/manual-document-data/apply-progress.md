@@ -177,3 +177,84 @@ The mutation checks ran on new files, so the files were staged first and "git re
 - The form key of PR 6 (design: keyed on the document id plus "ActualizadoEn" and the marks) needs "ActualizadoEn" in the read item. PR 2 does not select it: PR 6 either adds "DocumentoDatoManual"."ActualizadoEn" to listExtractions (a small SQL pin change) or keys the form on the manual values and marks only.
 - `loadSignals` still passes "item.row" (now the effective row) as the document extraction and does not pass the marks yet; task 6.3 widens SignalDocument and the wiring.
 - The existing "no_aplica" filter of listExtractions is unchanged: a document whose extraction row is "no_aplica" stays out of the staff list even if manual data were stored for it. The writer of PR 3 only accepts current student documents, so this matters only if "no_aplica" rows can exist for them.
+
+## Phase 4 (PR 3)
+
+Mode: Strict TDD. Branch "feat/manual-document-data-3-write" from the PR 2 branch (75288f3). PR 3: "https://github.com/Josuedcm03/justifia/pull/95", base "feat/manual-document-data-2-effective-read". Size exception accepted by the owner (0.1 a); the slice is not split.
+
+No database was touched: every run used the dummy DB. The retention integration test (task 4.12) was written and not run; the owner runs it in Phase 9.
+
+### Commits
+
+| Unit | Hash    | Message                                                          |
+| ---- | ------- | ---------------------------------------------------------------- |
+| 6    | f185134 | feat(audit): add the documento.datos_registrados event           |
+| 7    | 617442a | feat(data): save manual document data in one audited transaction |
+| 8    | 609433f | test(retention): prove the manual data cascade                   |
+
+### Files
+
+| File                                                     | Action                                                                                                           |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `src/lib/audit/types.ts`                                 | Modified: the action in AUDIT_ACTIONS, the payload type, the union member (entity DocumentoRespaldo)             |
+| `src/lib/audit/events.ts`                                | Modified: documentDataRecordedEvent (names only, takes no value)                                                 |
+| `src/lib/audit/types.test.ts`                            | Modified: the new action in the closed set, a compile-time mapping pin, a compile-time "no new entity type" pin  |
+| `src/lib/audit/events.test.ts`                           | Modified: 5 cases for the new builder                                                                            |
+| `src/lib/data/document-data.ts`                          | Created: saveDocumentData, DocumentDataInput, SaveDocumentDataResult (204 lines)                                 |
+| `src/lib/data/document-data.test.ts`                     | Created (34 cases: guards, writes, rollback, logs, write-surface pins)                                           |
+| `src/lib/data/integration/retention.integration.test.ts` | Modified: manual record and marks for the aged and the younger student, one new case, wider personal-data search |
+
+### TDD cycle evidence
+
+| Task                | RED                                                                                                          | GREEN                                                                                                                  | Refactor                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 4.1 audit types     | 2 failed (action missing from the closed set, mapping case); the entity-type pin passes at write (see below) | 11 of 11 pass in `src/lib/audit/types.test.ts`                                                                         | none                                   |
+| 4.2 audit builder   | 5 of 5 new cases failed: "documentDataRecordedEvent is not a function"                                       | `src/lib/audit` 3 files, 130 tests pass                                                                                | a cast in one case fixed for typecheck |
+| 4.1 entity-type pin | n/a (passes at write, compile-time)                                                                          | mutation: a temporary extra entity type made "npm run typecheck" fail in `src/lib/audit/types.test.ts`; restored       | none                                   |
+| 4.5 to 4.7 writer   | run failed: module "@/lib/data/document-data" missing (no test collected)                                    | 4.8 skeleton: guard cases 12 of 12 pass, 15 write cases still failing; 4.9: 34 of 34 pass                              | prettier reflow of the test file       |
+| 4.10 mutation 1     | n/a (revert-only check)                                                                                      | "FOR UPDATE" removed: 1 failed (the lock case), 33 passed; restored                                                    | none                                   |
+| 4.10 mutation 2     | n/a (revert-only check)                                                                                      | audit insert on the db handle instead of the transaction: 2 failed (one transaction, audit-failure rollback); restored | none                                   |
+| 4.10 mutation 3     | n/a (revert-only check)                                                                                      | no-op early return removed: 2 failed (both no-op cases); restored                                                      | none                                   |
+| 4.12 integration    | n/a (owner-run, not collected by "npm test")                                                                 | "npm run typecheck" passes; the file is excluded from "npm test" (no test files found)                                 | none                                   |
+
+The writer files were new, so they were staged before each mutation and "git restore" restored them from the index; "git status" was clean of the mutation each time. Triangulation: the guards and the writes each have several inputs (five refused states against pendiente; insert against update against delete; manual-only against marks-only saves).
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | "npm test -- src/lib/audit src/lib/data/document-data.test.ts": 4 files, 164 tests passed                                                                                                                     |
+| Runtime harness      | N/A for this run: the owner-run suite is "npm run test:integration" on "manual-it" (retention proof of task 4.12, Phase 9). The unit tests use the DB double, which cannot prove row locks or a real rollback |
+| Rollback boundary    | Revert the PR; nothing calls the writer yet, so no behavior changes. The audit action is additive                                                                                                             |
+
+### Gates
+
+- Full "npm test" with the dummy DB: 360 files, 8560 tests, all passed, 220 s (vitest duration). PR 2 was 359 files and 8519 tests: one new file, 41 new tests (writer 34, builder 5, audit types 2).
+- "npm run typecheck": clean (run before each commit and at the end).
+- "npx eslint src": the known CRLF "Delete the carriage return" messages (135059 of them in the worktree), two CRLF-quoted lines in `src/test/access/inventory.ts` and one unused-import warning in `src/components/app-sidebar.tsx`, all in untouched files, as in PR 1 and PR 2. ESLint and "npx prettier --check" on the seven touched files: clean.
+
+### Measured size (task 4.14)
+
+"git diff --numstat feat/manual-document-data-2-effective-read...HEAD" excluding "openspec/" and ".engram/": 1367 additions and 5 deletions, 1372 changed lines (242 production lines, 1130 test lines). Target was about 360 and the stop line 460; the owner's size exception covers it. Unit 6 is 175 lines, unit 7 is 1061 (204 production, 857 test), unit 8 is 136.
+
+### Deviations and findings
+
+- The writer picks insert or update from the manual row it reads under the request lock, instead of the design's "INSERT ... ON CONFLICT DO UPDATE". The DB double does not record the arguments of a conflict clause, so the update branch (the "correct a registered value" scenarios) would not have been observable in a unit test. The read was already needed for the changed-field computation; every writer of the table takes the request "FOR UPDATE" lock and a structural pin keeps one writer, so no other save can create or remove the row between the read and the write. The behavior in the design sequence is unchanged.
+- saveDocumentData takes an optional second parameter "now", by the repository convention ("now: Date = new Date()"), and sets "ActualizadoEn" from it on both insert and update. The design interface has only the input.
+- A scope of none answers "not_found" with no transaction and no query, like getSpecialFormatContext.
+- When any mark or the type changes, the UPDATE writes all three (the complete submitted state), not only the changed ones; the audit "campos" still names only the changed fields.
+- DocumentDataInput (ManualFields plus DocumentMarks) is exported from `src/lib/data/document-data.ts`; `src/lib/document-data/types.ts` is untouched. The input is the complete submitted state of the eight values: a manual value that is null is cleared, a mark that is null is not registered.
+- Task 4.1's mapping case is a compile-time assignment (the types test file is type-level for entity types); the runtime mapping from action to entity to id is pinned in `src/lib/audit/events.test.ts`. The "adds no audit entity type" case is also compile-time, so vitest cannot fail it; its mutation check ran through "npm run typecheck".
+- Task 4.12: readStudentRows in the retention integration suite now also reads each student's documents (with the three marks) and manual records, so the existing "leaves the younger and the enrolled students untouched" case also covers the younger student's record and marks by whole-object comparison. The dry-run guard and the counts of the route ("documentsDeleted: 1") are unchanged because only the aged student's one document is deleted. The suite header now says the branch needs 0014 and 0015.
+- Line endings: the seven touched source and test files, `openspec/changes/manual-document-data/tasks.md` and `openspec/changes/manual-document-data/apply-progress.md` were CRLF in the worktree and were converted to LF; the "git restore" calls of the mutation checks wrote CRLF into the new files, which were converted to LF again. Git stores LF, so the diff shows no line-ending change.
+- The repo hook staged `.engram/` files on each of the three commits. Each commit was amended: "git rm --cached" for the chunks, "git checkout HEAD~1 --" for the manifest, then "git commit --amend --no-edit --no-verify". The local manifest was backed up first and put back; the manifest is still modified and the chunks untracked.
+- CodeGraph has no index for this worktree, so the code was read with Read and Grep.
+
+### Plan notes for PR 6
+
+- **"no_aplica" documents.** The read in listExtractions excludes documents whose extraction row is "no_aplica", and the writer cannot save manual data for such a document today. A row becomes "no_aplica" only for a retired document (registerPendingExtractions creates it for a retired document and moves the open rows of documents retired meanwhile there), retirement is one-way (nothing sets "RetiradoEn" back to null), and the writer requires "RetiradoEn" to be null. So the two sets never intersect for a write. The only way to reach "manual row plus no_aplica" is by order: manual data saved while the extraction row was "pendiente" or "procesando", then the student retires the document in a correction. That document is retired, hence not a current document and not listed; the signals ignore it too. No read change is needed, and none was made.
+- **Form key.** The writer returns only "ok" and "changed". Returning "ActualizadoEn" from it would not help: the action redirects on success, so the page remounts from a fresh read, and the form key must come from that read, which does not select "ActualizadoEn". "ActualizadoEn" moves only when the manual row is written (a marks-only save leaves it alone and a no-op writes nothing), so keying on the document id plus the manual values and the marks is equivalent to the design key and needs no read change. Recommended for PR 6: key on those. The alternative is adding "DocumentoDatoManual"."ActualizadoEn" to listExtractions (a SQL pin change in `src/lib/data/extraction-sql.test.ts` and one more field on ExtractionListItem).
+- **Never log the raw error.** The writer rethrows database errors as they are, and a Postgres error message or detail can embed row values (a CHECK violation prints "Failing row contains (...)"). The action of PR 6 must map any throw to "unexpected" and log at most a code and the ids, never the message, stack or cause (MD-11).
+- **Payload shape.** The action calls saveDocumentData with actorId, scope, solicitudId, documentoId and data, where data is the complete state: studentName, issuer, issueDate, restFrom, restTo, type, hasSignature and hasSeal, each null when empty. The validation of PR 4 must trim, turn empty into null and give both rest dates or neither; the writer takes "restFrom" alone to decide whether any manual value remains, which is safe only under that rule and under "CK_DatoManual_Reposo". actorId is the session user and scope is the resolved scope, never request input.
+- **Outcomes.** "not_found" and "not_editable" are the two refusals; "ok" with "changed" false is a success (no write, no audit row), so the action redirects in both success cases.
+- **Phase 9.** The unit tests cannot prove the row lock or a real rollback; the PR 7 acceptance suite and the retention suite run on "manual-it". The retention suite needs 0014 and 0015 on the branch, which are applied.
