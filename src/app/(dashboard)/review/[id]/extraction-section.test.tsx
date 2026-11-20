@@ -30,7 +30,14 @@ function item(
   row: ExtractionRowView | null,
   nombreOriginal = `doc-${id}.pdf`,
 ): ExtractionListItem {
-  return { documentoId: id, nombreOriginal, row };
+  return {
+    documentoId: id,
+    nombreOriginal,
+    row,
+    ocr: row,
+    manual: null,
+    marks: { type: null, hasSignature: null, hasSeal: null },
+  };
 }
 
 function list(...items: ExtractionListItem[]): ExtractionList {
