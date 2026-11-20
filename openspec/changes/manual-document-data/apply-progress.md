@@ -334,3 +334,107 @@ The mutation checks that touch new files were run after "git add", so "git resto
 - **The strict rule is already inside the evaluators.** Nothing in `src/lib/signals/verdict.ts` needs to change: not_registered is a not_evaluable reason, so the verdict stays "inconclusive" while any mark is unregistered (task 6.2 pins it with a mutation check).
 - **`loadSignals` and the marks.** ExtractionListItem already carries "marks" (PR 2); map them into SignalDocument as "marks". Documents must stay the current student documents only (the item list is already filtered); the evaluators do no filtering.
 - **For PR 6.** validateDocumentData takes the payload of the eight values and returns "data" (the same eight, trimmed, empty as null, both rest dates or neither) or "errors" keyed by field with one of six codes; pass "data" to saveDocumentData as is. The action must give text and dates as string or null (a FormData entry can be a File: coerce first, because a non-string throws a TypeError) and the radios as true, false or null; map any throw to "unexpected" and never log its message. The i18n keys "errors.{6 codes}" are keyed by code, but the form shows each under its field key, so "rest" shows under the rest inputs. NAME_MAX_LENGTH and ISSUER_MAX_LENGTH are exported for the maxLength of the inputs.
+
+## Phase 6 (PR 5)
+
+Mode: Strict TDD. Branch "feat/manual-document-data-5-wiring" from the PR 4 branch (368b6cb). PR 5: "https://github.com/Josuedcm03/justifia/pull/97", base "feat/manual-document-data-4-domain". Size exception accepted by the owner (0.1 a); the slice is not split.
+
+No database was touched: no migrate, no neon command, no SQL. Every run used the dummy DB. The integration file `src/lib/data/integration/validation-signals.integration.test.ts` was edited and typechecks; it was not run (owner-run, Phase 9).
+
+### Commits
+
+| Unit | Hash    | Message                                                 |
+| ---- | ------- | ------------------------------------------------------- |
+| 11   | 975eb3a | feat(signals): wire rn11, rn12 and rn13 into the report |
+| 12   | 03d9afa | feat(review): show the manual signals                   |
+| 13   | d5a5b9d | test(signals): RF-05 (e) tipo discordante               |
+
+### Files
+
+| File                                                                   | Action                                                                                                                                                                      |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/signals/types.ts`                                             | Modified: eight codes, "not_registered" last in the precedence, the allowed pair of rn11 to rn13, evidence kind "documents", the mark result types, marks on SignalDocument |
+| `src/lib/signals/params.ts`                                            | Modified: documentTypeCauses (default DOCUMENT_TYPE_CAUSES)                                                                                                                 |
+| `src/lib/signals/evaluate.ts`                                          | Modified: the three results between rn10 and rn14, outside the cause cut                                                                                                    |
+| `src/lib/signals/document-marks.ts`                                    | Modified: the local result types removed (they live in types.ts); MarkedDocument and DocumentTypeCauses stay                                                                |
+| `src/lib/data/signals.ts`                                              | Modified: one line, the marks of the effective read go into the documents                                                                                                   |
+| `src/app/(dashboard)/review/[id]/signals-section.tsx`                  | Modified: the documents evidence line, documentNames prop, labels for the secretary audience only                                                                           |
+| `src/app/(dashboard)/review/[id]/page.tsx`                             | Modified: passes the labels (file names) of the current documents                                                                                                           |
+| `i18n/es.json`, `i18n/en.json`                                         | Modified: names of rn11 to rn13, the "not_registered" reason, the plural documents line                                                                                     |
+| `src/lib/signals/evaluate.test.ts`                                     | Modified: eight-result order, precedence, closed reasons, MD-20, the map as a param, a sweep of marks                                                                       |
+| `src/lib/signals/verdict.test.ts`                                      | Modified: five cases for the manual signals (pass at write)                                                                                                                 |
+| `src/lib/signals/rf-05-e.test.ts`                                      | Created (16 cases, the thesis acceptance)                                                                                                                                   |
+| `src/lib/signals/coordination-view.test.ts`                            | Modified: eight-result report, the manual signals project to outcome and reason label                                                                                       |
+| `src/lib/signals/issuer.test.ts`, `src/lib/signals/rest-dates.test.ts` | Modified: fixtures only, the marks and the params the types now require                                                                                                     |
+| `src/lib/data/signals.test.ts`                                         | Modified: eight signals, a marks block of five cases                                                                                                                        |
+| `src/lib/data/integration/validation-signals.integration.test.ts`      | Modified: marks option on the document fixture, the "no_alerts" case registers them, one new "inconclusive" case                                                            |
+| `src/app/(dashboard)/requests/no-signals.test.ts`                      | Modified: eight codes in the report, three new names among the revealing words                                                                                              |
+| `src/app/(dashboard)/review/[id]/signals-section.test.tsx`             | Modified: show() takes labels and audience; eleven cases for the manual signals                                                                                             |
+| `src/app/(dashboard)/review/[id]/page.test.tsx`                        | Modified: eight-result fixture, one case for the labels                                                                                                                     |
+| `src/app/(dashboard)/coordination/[id]/page.test.tsx`                  | Modified: fixture with rn11 to rn13; the not_registered label is shown, no document id                                                                                      |
+| `src/i18n/review-messages.test.ts`                                     | Modified: names, reason and the plural line of the documents evidence                                                                                                       |
+
+### TDD cycle evidence
+
+| Task           | RED                                                                                                                         | GREEN                                                                                                       | Refactor                                            |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 6.1 evaluate   | 15 of 49 failed in `src/lib/signals/evaluate.test.ts` (eight results, precedence, allowed pair, not_registered, MD-20, map) | 113 of 113 pass with `src/lib/signals/document-marks.test.ts` after types, params and evaluate              | two weak cases tightened to require the eight codes |
+| 6.2 verdict    | passes at write (22 tests, verdict.ts is generic)                                                                           | mutation: not_evaluable counted as absent failed 10 (3 new); restored with "git restore"                    | none                                                |
+| 6.5 loader     | 17 of 35 failed in `src/lib/data/signals.test.ts` (no marks make the evaluators throw, the loader degrades)                 | 35 of 35 pass after one line in `src/lib/data/signals.ts`                                                   | none                                                |
+| 6.6 fixtures   | n/a: fixtures of already-built behavior, they pass at write                                                                 | coordination view (14), no-signals, integration file typechecks                                             | none                                                |
+| 6.8 section    | 2 of 11 new failed (raising documents by label, plural and singular); the other nine pass at write                          | 59 of 59 in `src/app/(dashboard)/review/[id]/signals-section.test.tsx`                                      | prettier                                            |
+| 6.8 page       | 1 failed (the label of the raising document)                                                                                | 124 of 124 in `src/app/(dashboard)/review/[id]/page.test.tsx` after the page passes the labels              | none                                                |
+| 6.9 i18n       | 5 failed (the documents line: placeholders, both numbers, no ids); names and reason pass at write                           | 134 of 134 with the section file                                                                            | none                                                |
+| 6.8 mutation   | n/a (revert-only check)                                                                                                     | audience guard dropped: 1 failed (the coordination case); restored from a copy                              | none                                                |
+| 6.9 mutation   | n/a (revert-only check)                                                                                                     | Spanish name of rn13 shortened: 2 failed (the name pin, the Spanish order case); restored from a copy       | none                                                |
+| 6.12 RF-05 (e) | passes at write (pins units 9 and 11), 16 tests                                                                             | mutation: actividad_representativa added to constancia_medica failed 1 (SC-05); restored with "git restore" | none                                                |
+
+The two mutations of unit 12 ran while the GREEN edits of tracked files were still uncommitted, so they were restored from a copy made first (a "git restore" would also have dropped the GREEN edit). The other two ran on committed files and used "git restore", then "git diff --quiet" confirmed the tree clean. Triangulation: the eight-result order runs for the five causes, the not_registered cases for the five causes, rn13 over the 15 pairs through units 9 and 13 and a sweep of 5 mark sets and their pairs for the allowed reasons.
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                                                                                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | "npm test -- src/lib/signals src/i18n src/lib/data/signals.test.ts": green. "npm test -- src/lib/signals src/lib/data src/app src/i18n": 210 files, 5654 tests passed after unit 11. "npm test -- src/lib/signals src/i18n src/app/(dashboard)/review src/app/(dashboard)/coordination": 55 files, 1608 tests passed after unit 12 |
+| Runtime harness      | N/A: the report is computed in memory from plain data; the real database proof is Phase 9 (owner-run on "manual-it", `src/lib/data/integration/validation-signals.integration.test.ts` edited, not run)                                                                                                                            |
+| Rollback boundary    | Revert the PR; the five-signal behavior returns and nothing else depends on the three new signals. Units 12 and 13 can be reverted alone (display and acceptance test)                                                                                                                                                             |
+
+### Gates
+
+- Full "npm test" with the dummy DB: 363 files, 8750 tests, all passed, 219.87 s (vitest duration). PR 4 was 362 files and 8684 tests: one new file, 66 new tests.
+- "npm run typecheck": clean (run before each commit and at the end).
+- "npx eslint" on the touched files: clean, no CRLF noise because every touched file was converted to LF first. "npx eslint src": 126466 problems, all in untouched files: 126463 CRLF "Delete the carriage return" messages (worktree line endings), two CRLF-quoted lines in `src/test/access/inventory.ts` and one unused-import warning in `src/components/app-sidebar.tsx`. The total is lower than PR 4 (135062) because the 20 files touched here are now LF.
+- "npx prettier --check" on the touched files: clean.
+
+### Measured size (task 6.14)
+
+"git diff --numstat feat/manual-document-data-4-domain...HEAD" excluding "openspec/" and ".engram/": 1330 additions and 99 deletions, 1429 changed lines (198 production lines, 1231 test lines). Target was about 320 and the stop line 460; the owner's size exception covers it. Unit 11 is 876 lines, unit 12 is 378, unit 13 is 179.
+
+### Deviations and findings
+
+- **Unit 11 and 12 boundary.** Unit 11 also holds the three names and the "not_registered" reason in `i18n/es.json` and `i18n/en.json` and a no-op "documents" case in `src/app/(dashboard)/review/[id]/signals-section.tsx`. The typecheck gate fails without the case (a new evidence kind), and the existing key-parity test of `src/i18n/review-messages.test.ts` walks SIGNAL_CODES, so it went red the moment task 6.3 landed. The name and reason cases of task 6.9 therefore pass at write; the RED of unit 12 is the documents evidence line and the section cases.
+- **Fixture moved between units.** The eight-result fixture of `src/app/(dashboard)/review/[id]/page.test.tsx` (task 6.6) is in unit 12 with the test of the labels, because it only makes sense with the page wiring.
+- **Files beyond the task lists.** Unit 11 touches `src/lib/signals/issuer.test.ts`, `src/lib/signals/rest-dates.test.ts` and `src/lib/signals/evaluate.test.ts` (fixtures: the marks and params the types now require) and `src/lib/signals/document-marks.ts` (the local result types removed). Unit 12 lists eight files, not four: the page and its test, the section and its test, the i18n test, both catalogs and `src/app/(dashboard)/coordination/[id]/page.test.tsx`.
+- **What moved into `src/lib/signals/types.ts`.** The result model (MarkSignalCode, MarkNotEvaluableReason, MarkEvidence, MarkSignalResult), as the PR 4 notes asked. MarkedDocument and DocumentTypeCauses stay in `src/lib/signals/document-marks.ts` because they are evaluator inputs, and `src/lib/signals/params.ts` imports the map type from there. SignalResult lists MarkSignalResult as a member next to the generic one; the generic member already admits it, so the member only documents the typed pairing.
+- **Evidence is ids only, as the spec says; the labels come from the page.** The section takes an optional documentNames record (id to file name, the label the documents section shows) from the secretary's page only. The coordination page passes none and the section ignores the labels for that audience, so a stray evidence field cannot name a file (RNF-01). An id with no label shows nothing.
+- **One reason text for the three signals.** "reasons.not_registered" is keyed by reason, not by signal, so it says "this datum" ("La secretaría aún no registró este dato en uno o más documentos vigentes."); the entry name beside it says which datum. The documents line is a plural message.
+- **Evidence line keys.** The design's keys "evidence.mark" and "evidence.documentType" do not exist; there is one key, "review.signals.evidence.documents", for the three signals, as the PR 4 notes anticipated.
+- **D1 is visible.** A request whose documents have no marks reads "No concluyente" with rn11, rn12 and rn13 listed apart, as the spec says. Every request that exists today has no marks, so after this change reaches production each of them reads "No concluyente" until the secretary registers the marks in PR 6. Nothing reads the verdict to decide anything (RN-15).
+- **The thesis case.** `src/lib/signals/rf-05-e.test.ts` is named after the inciso. SC-05 (actividad_representativa with a constancia_medica) is checked through evaluateSignals with the default params: rn13 present with the document id, the verdict "review carefully" and the other seven signals equal to the same request typed institutional or untyped.
+- Line endings: the 20 existing files touched were CRLF in the worktree and were converted to LF before editing; the "git restore" of two mutation checks wrote CRLF back and was converted again. Git stores LF, so the diff shows no line-ending change. The three units were committed after the conversion.
+- The repo hook staged `.engram/` files on each of the three commits. Each commit was amended with the helper `fixengram.sh` (chunks "git rm --cached", manifest "git checkout HEAD~1 --", then "git commit --amend --no-edit --no-verify"); the local manifest was put back, so it is still modified and the chunks untracked.
+- CodeGraph was not queried: every file was named in the tasks or the PR 4 notes, and was read directly.
+
+### Plan notes for PR 6
+
+- **The section already takes labels.** `src/app/(dashboard)/review/[id]/signals-section.tsx` needs nothing more. The per-document form of PR 6 can reuse the same label (nombreOriginal) its section header shows.
+- **The data is read through ExtractionListItem.** loadSignals maps "item.marks" (PR 2) into the documents, so a save followed by the redirect re-reads the marks with no other wiring. The action must not revalidate; the page is dynamic and reads on every request.
+- **The i18n namespace "review.signals" is done** (names, reasons, the documents line). PR 6 adds the form keys (task 7.x) and must keep the same keys in "es" and "en"; `src/i18n/review-messages.test.ts` walks "review.signals" only, so the form keys need their own parity case.
+- **The verdict will read "No concluyente" for every existing request** until marks are registered (see above). The owner may want to know before the tracker reaches main: the first secretary to open an old request sees three signals listed apart. It is the D1 behavior, not a bug.
+- **Closed-list of fixtures.** `src/app/(dashboard)/review/[id]/page.test.tsx` now builds the eight-result report; a new test that needs a report should copy it.
+
+### Plan notes for PR 7
+
+- The coordination read-only block of MD-30 is separate from the signals section. The coordination signals section already shows rn11 to rn13 as outcome and reason label only (covered in `src/app/(dashboard)/coordination/[id]/page.test.tsx` and `src/lib/signals/coordination-view.test.ts`); the block adds the type and the marks, never the four values.
+- The acceptance suite (task 9.x) can lean on `src/lib/signals/rf-05-e.test.ts` for the unit-level thesis case and on the integration fixture of `src/lib/data/integration/validation-signals.integration.test.ts`, whose document helper now takes the three marks. SC-08 (rn12) and SC-14 (rn11) are not yet covered anywhere: only the evaluator tables and the loader cases run them.
+- The design's "rf-14.integration.test.ts" (d) case reads "SC-05 gives rn13 and review_carefully". A present signal beats not registered (MD-19), so the verdict is "review carefully" whether or not the firma and the sello are registered; register them anyway if the case also reads the other signals.
