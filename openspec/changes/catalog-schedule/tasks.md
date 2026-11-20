@@ -34,7 +34,7 @@ Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S
 | S1b-1 audit reads | `-s1b1-audit-reads` | S1a | none functional (stacked) | ~210 |
 | S1b-2 list read | `-s1b2-list-read` | S1b-1 | S1a | ~380 |
 | S1c-1 table | `-s1c1-table` | S1b-2 | S1b-2 | 1064 measured; `size:exception` accepted by the owner (2026-11-19) |
-| S1c-2 page | `-s1c2-page` | S1c-1 | S1a, S1b-1, S1b-2, S1c-1 | ~360 (read at ~3x) |
+| S1c-2 page | `-s1c2-page` | S1c-1 | S1a, S1b-1, S1b-2, S1c-1 | 852 measured; `size:exception` accepted by the owner (2026-11-20) |
 | S1c-3 nav + docs | `-s1c3-nav` | S1c-2 | S1a, S1c-2 | ~190 |
 | S2a-1 writer actor | `-s2a1-writer-actor` | S1c-3 | S1a | ~230 |
 | S2a-2 staff reactivate | `-s2a2-staff-enroll` | S2a-1 | S2a-1 | ~200 |
