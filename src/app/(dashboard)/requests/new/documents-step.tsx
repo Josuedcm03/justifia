@@ -17,6 +17,7 @@ import {
   FieldErrors,
   StepShell,
 } from "@/app/(dashboard)/requests/new/form-field";
+import { FileOriginMark } from "@/app/(dashboard)/requests/new/file-origin-mark";
 import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
 import { LocalPreview } from "@/app/(dashboard)/requests/new/local-preview";
 import { FLOW_PATH, stepHref } from "@/app/(dashboard)/requests/new/steps";
@@ -93,12 +94,19 @@ export function DocumentsStep({
   documents,
   fromReview = false,
   flow = NEW_FLOW,
+  previousDocumentIds,
 }: {
   /** The id the files are stored under: the draft's, or the returned request's. */
   draftId: number;
   documents: readonly AttachedDocument[];
   fromReview?: boolean;
   flow?: DocumentsFlow;
+  /**
+   * In a correction, the ids of the returned version, so each file is marked
+   * "Anterior" or "Nuevo" (FE-16); null when it could not be read, and absent
+   * for a new request. Either way no mark is shown.
+   */
+  previousDocumentIds?: readonly number[] | null;
 }) {
   const t = useTranslations("intake");
   const tErrors = useTranslations();
@@ -238,8 +246,14 @@ export function DocumentsStep({
                       >
                         {doc.nombreOriginal}
                       </span>
-                      <span className="text-muted-foreground text-xs">
-                        {formatFileSize(doc.tamanoBytes, locale)}
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-muted-foreground text-xs">
+                          {formatFileSize(doc.tamanoBytes, locale)}
+                        </span>
+                        <FileOriginMark
+                          documentId={doc.id}
+                          previousIds={previousDocumentIds}
+                        />
                       </span>
                     </span>
                     {local ? (

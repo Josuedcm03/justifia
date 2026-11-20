@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 
 import { formatFileSize } from "@/app/(dashboard)/catalog/import/file-dropzone";
 import { DiscardDialog } from "@/app/(dashboard)/requests/new/discard-dialog";
+import { FileOriginMark } from "@/app/(dashboard)/requests/new/file-origin-mark";
 import {
   BackLink,
   FieldErrors,
@@ -103,6 +104,7 @@ export function ReviewStep({
   documents,
   degraded,
   flow,
+  previousDocumentIds,
 }: {
   /** Set by the correction: resubmit replaces submit and discard of a draft. */
   flow?: StepFlow<"resubmit">;
@@ -111,6 +113,12 @@ export function ReviewStep({
   groups: readonly EnrollmentGroup[];
   documents: readonly ReviewDocument[];
   degraded: boolean;
+  /**
+   * In a correction, the ids of the returned version, so each file is marked
+   * "Anterior" or "Nuevo" (FE-16); null when it could not be read, and absent
+   * for a new request. Either way no mark is shown.
+   */
+  previousDocumentIds?: readonly number[] | null;
 }) {
   const t = useTranslations("intake");
   const format = useFormatter();
@@ -140,6 +148,8 @@ export function ReviewStep({
             <ResubmitDialog
               action={flow.actions.resubmit}
               onErrors={setErrors}
+              documents={documents}
+              previousDocumentIds={previousDocumentIds}
             />
           ) : (
             <>
@@ -237,8 +247,14 @@ export function ReviewStep({
                   <span className="truncate text-sm" title={doc.nombreOriginal}>
                     {doc.nombreOriginal}
                   </span>
-                  <span className="text-muted-foreground text-xs">
-                    {formatFileSize(doc.tamanoBytes, locale)}
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-muted-foreground text-xs">
+                      {formatFileSize(doc.tamanoBytes, locale)}
+                    </span>
+                    <FileOriginMark
+                      documentId={doc.id}
+                      previousIds={previousDocumentIds}
+                    />
                   </span>
                 </span>
                 <a

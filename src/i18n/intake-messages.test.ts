@@ -208,3 +208,19 @@ describe("intake messages: the local preview (FE-17)", () => {
     },
   );
 });
+
+// FE-16: a student tells a kept file from an added one by the word, so the two
+// marks must differ and exist in both locales.
+describe("intake messages: the file origin marks (FE-16)", () => {
+  it.each([
+    ["es", es],
+    ["en", en],
+  ] as const)("%s has two different mark words and a list title", (_l, m) => {
+    const { filesTitle, marks } = m.intake.correction.resubmit;
+
+    expect(marks.new.trim().length).toBeGreaterThan(0);
+    expect(marks.previous.trim().length).toBeGreaterThan(0);
+    expect(marks.new).not.toBe(marks.previous);
+    expect(filesTitle.trim().length).toBeGreaterThan(0);
+  });
+});

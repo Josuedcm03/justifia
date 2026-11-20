@@ -22,6 +22,7 @@ export function FlowSteps({
   enrollment,
   fromReview,
   flow,
+  previousDocumentIds,
 }: {
   step: StepNumber;
   draft: Draft;
@@ -32,6 +33,8 @@ export function FlowSteps({
   };
   fromReview: boolean;
   flow?: Flow;
+  /** The ids of the version just returned; set by the correction (FE-16). */
+  previousDocumentIds?: readonly number[] | null;
 }) {
   const validDocuments = draft.documents.filter((d) => d.estado === "valido");
   const heldGroups = new Set(draft.subjects.map((s) => s.grupoId));
@@ -67,6 +70,7 @@ export function FlowSteps({
           documents={validDocuments}
           fromReview={fromReview}
           flow={flow}
+          previousDocumentIds={previousDocumentIds}
         />
       ) : null}
       {step === 4 ? (
@@ -76,6 +80,7 @@ export function FlowSteps({
           documents={validDocuments}
           degraded={enrollment.degraded}
           flow={flow}
+          previousDocumentIds={previousDocumentIds}
         />
       ) : null}
     </>

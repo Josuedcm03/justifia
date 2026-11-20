@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createTranslator } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,12 +15,14 @@ const {
   getLiveDraft,
   openDraft,
   getCorrectionReason,
+  getReturnedDocumentIds,
   listEnrollmentFailSoft,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   getLiveDraft: vi.fn(),
   openDraft: vi.fn(),
   getCorrectionReason: vi.fn(),
+  getReturnedDocumentIds: vi.fn(),
   listEnrollmentFailSoft: vi.fn(),
 }));
 const deps = vi.hoisted(() => ({
@@ -29,7 +32,10 @@ const deps = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/dal", () => ({ requireRole }));
 vi.mock("@/lib/data/solicitudes", () => ({ getLiveDraft, openDraft }));
-vi.mock("@/lib/data/student-requests", () => ({ getCorrectionReason }));
+vi.mock("@/lib/data/student-requests", () => ({
+  getCorrectionReason,
+  getReturnedDocumentIds,
+}));
 vi.mock("@/lib/data/enrollment", () => ({ listEnrollmentFailSoft }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => deps }));
 vi.mock("next-intl/server", () => ({
@@ -118,6 +124,7 @@ beforeEach(() => {
   getLiveDraft.mockReset().mockResolvedValue(RETURNED);
   openDraft.mockReset();
   getCorrectionReason.mockReset().mockResolvedValue(null);
+  getReturnedDocumentIds.mockReset().mockResolvedValue([]);
   listEnrollmentFailSoft
     .mockReset()
     .mockResolvedValue({ data: [GROUP], degraded: false });
@@ -375,5 +382,114 @@ describe("CorrectRequestPage guided start (RN-17, SR-17)", () => {
     }
     expect(links).not.toContain("/requests/31/correct?step=3");
     expect(screen.getByText("Paso 3 de 4")).toBeInTheDocument();
+  });
+});
+
+// FE-16 (RF-08 a, c, D9): the page reads the ids of the version just returned
+// next to the draft and the reason, and the steps use them to mark each file.
+describe("CorrectRequestPage file marks (FE-16)", () => {
+  const WITH_ADDED: Draft = {
+    ...RETURNED,
+    documents: [
+      ...RETURNED.documents,
+      {
+        id: 3,
+        nombreOriginal: "nuevo.png",
+        tipo: "png",
+        tamanoBytes: 5,
+        estado: "valido",
+      },
+    ],
+  };
+  const rowOf = (name: string) =>
+    screen
+      .getAllByText(name)
+      .map((element) => element.closest("li"))
+      .find((item): item is HTMLLIElement => item !== null) as HTMLElement;
+
+  it("reads the returned ids of the session user's own request, by id", async () => {
+    await renderPage();
+
+    expect(getReturnedDocumentIds).toHaveBeenCalledTimes(1);
+    expect(getReturnedDocumentIds).toHaveBeenCalledWith(7, 31);
+  });
+
+  it("starts the read together with the draft and the reason, not after them", async () => {
+    let release: (value: Draft) => void = () => {};
+    getLiveDraft.mockReturnValue(
+      new Promise<Draft>((resolve) => {
+        release = resolve;
+      }),
+    );
+    const rendered = CorrectRequestPage({
+      params: Promise.resolve({ id: "31" }),
+      searchParams: Promise.resolve({}),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(getReturnedDocumentIds).toHaveBeenCalledWith(7, 31);
+    expect(getCorrectionReason).toHaveBeenCalledWith(7, 31);
+
+    release(RETURNED);
+    renderIntl(await rendered);
+  });
+
+  it("marks the kept file Anterior and the added file Nuevo on step 3", async () => {
+    getLiveDraft.mockResolvedValue(WITH_ADDED);
+    getReturnedDocumentIds.mockResolvedValue([1]);
+
+    await renderPage("31", { step: "3" });
+
+    expect(rowOf("listo.pdf")).toHaveTextContent("Anterior");
+    expect(rowOf("nuevo.png")).toHaveTextContent("Nuevo");
+  });
+
+  it("marks them on the review step and in the resubmit dialog too", async () => {
+    getLiveDraft.mockResolvedValue(WITH_ADDED);
+    getReturnedDocumentIds.mockResolvedValue([1]);
+
+    await renderPage("31", { step: "4" });
+
+    expect(rowOf("listo.pdf")).toHaveTextContent("Anterior");
+    expect(rowOf("nuevo.png")).toHaveTextContent("Nuevo");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    expect(
+      within(dialog)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["listo.pdfAnterior", "nuevo.pngNuevo"]);
+  });
+
+  it("marks every file Nuevo when the returned version listed none", async () => {
+    getReturnedDocumentIds.mockResolvedValue([]);
+
+    await renderPage("31", { step: "3" });
+
+    expect(rowOf("listo.pdf")).toHaveTextContent("Nuevo");
+  });
+
+  it("shows the names with no mark, and still renders, when the ids cannot be read", async () => {
+    getReturnedDocumentIds.mockRejectedValue(new Error("db down"));
+
+    await renderPage("31", { step: "3" });
+
+    expect(heading("Documentos de respaldo")).toBeInTheDocument();
+    expect(screen.getByText("listo.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("Nuevo")).toBeNull();
+    expect(screen.queryByText("Anterior")).toBeNull();
+  });
+
+  it("reads nothing from the document route to name the files", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    getReturnedDocumentIds.mockResolvedValue([1]);
+
+    await renderPage("31", { step: "4" });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });

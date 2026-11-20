@@ -107,3 +107,45 @@ describe("correction messages", () => {
     expect(es.requests.detail.corrected).not.toBe(en.requests.detail.corrected);
   });
 });
+
+// FE-16 (RF-08 a, c): the file list of the resubmit dialog and the marks of the
+// correction flow. Student screens use "tú"; a mark and a title are labels with
+// no verb, so neutral. The marks are words: colour never carries them.
+describe("correction messages: the files and their origin (FE-16)", () => {
+  it("words the list title and the two marks in Spanish", () => {
+    expect(es.intake.correction.resubmit.filesTitle).toBe(
+      "Documentos que se enviarán",
+    );
+    expect(es.intake.correction.resubmit.marks).toEqual({
+      new: "Nuevo",
+      previous: "Anterior",
+    });
+  });
+
+  it("words the list title and the two marks in English", () => {
+    expect(en.intake.correction.resubmit.filesTitle).toBe(
+      "Documents that will be sent",
+    );
+    expect(en.intake.correction.resubmit.marks).toEqual({
+      new: "New",
+      previous: "Previous",
+    });
+  });
+
+  it.each(catalogs)(
+    "%s keeps the confirmation copy it had next to the list",
+    (_l, m) => {
+      const { resubmit } = m.intake.correction;
+
+      for (const text of [
+        resubmit.button,
+        resubmit.title,
+        resubmit.description,
+        resubmit.confirm,
+        resubmit.pending,
+      ]) {
+        expect(text.trim().length).toBeGreaterThan(0);
+      }
+    },
+  );
+});
