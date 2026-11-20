@@ -353,3 +353,84 @@ English twins: "Note for coordination (required)"; "Explain why you are escalati
 4. **Mutation checks with an uncommitted GREEN.** As in S1 and S2: byte-identical backup copies restored and checked with "cmp".
 5. **Task 3.6.** The planned mutation (drop the motive clear in the escalate dialog, the motive case must fail) is done in a stronger form: the clear is replaced by clearing the whole failure, and five cases fail, including the motive-only case.
 6. **Line endings.** Four production and test files were CRLF in the working tree (index LF); converted to LF without changing the index content.
+
+### PR 3b: the report dialog and the coordinator answer adopt the helper (unit 6b)
+
+Branch "feat/flow-experience-3b-report-answer-errors", cut from the tip of PR 3a ("feat/flow-experience-3-dialog-errors", a251e2d). It targets that branch. The motive "otro" is still not part of S3 (S8).
+
+#### Commits (PR 3b)
+
+| Unit | Hash    | Message                                                            |
+| ---- | ------- | ------------------------------------------------------------------ |
+| 6b   | 33a3f7f | fix(review): clear report and answer dialog field errors on change |
+| docs | (tip)   | docs(flow-experience): record the Phase 3 apply progress for PR 3b |
+
+#### TDD cycle evidence (PR 3b)
+
+| Task        | Test file                                                    | Layer     | Safety net                       | RED                                                                                                                                                                          | GREEN                                                                    | Triangulation                                                                                                                                                                                                             | Refactor                                                                |
+| ----------- | ------------------------------------------------------------ | --------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 3.4 and 3.5 | `src/app/(dashboard)/review/[id]/report-dialog.test.tsx`     | Component | Existing cases of the file green | 5 cases failed first: teacher clears, date clears, note clears, no banner once cleared, still-invalid form fails again; the form-level and optional-note cases pass at write | review directory, coordination directory and i18n: 43 files, 1535 passed | Each of the three fields clears only itself; no banner once every field error is cleared; a still-invalid confirmation brings the error back; a conflict persists while editing; the optional note is not marked required | One existing test edited (see deviation 2): it now releases its promise |
+| 3.4 and 3.5 | `src/app/(dashboard)/coordination/[id]/answer-form.test.tsx` | Component | Existing cases of the file green | 2 cases failed first: the text error clears, no banner once cleared; the still-empty confirmation and the two persistence cases pass at write                                | Pass                                                                     | The text error clears and the field loses aria-invalid; no banner; a second confirmation with the text still empty shows the error again; conflict and unexpected persist while editing                                   | None needed                                                             |
+
+#### Mutation checks (revert-only; files restored from byte-identical backup copies, checked with "cmp")
+
+| Pass-at-write test                                                                | Temporary edit                                                                                                | Result                                                                     |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| report-dialog "keeps the form-level message while the fields are edited"          | In `src/app/(dashboard)/review/[id]/report-dialog.tsx`: the teacher and note changes clear the whole failure  | 3 failed, including it                                                     |
+| report-dialog "does not mark the optional note as required"                       | In `src/app/(dashboard)/review/[id]/report-dialog.tsx`: pass "required" to the note                           | Failed                                                                     |
+| answer-form "keeps the conflict and unexpected messages while the text is edited" | In `src/app/(dashboard)/coordination/[id]/answer-form.tsx`: a change clears the whole failure                 | 2 failed, both persistence cases                                           |
+| answer-form "fails again when the text is still empty on the next confirmation"   | In `src/app/(dashboard)/coordination/[id]/answer-form.tsx`: only the first result of the action is ever shown | 12 failed, including it (a global counter, so every later case also fails) |
+
+#### Checkpoint (task 3.8): measured size of PR 3b
+
+Measure: "git diff --numstat feat/flow-experience-3-dialog-errors...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                        | Changed lines |
+| -------------------------------------------- | ------------- |
+| Production (report dialog 18, answer form 6) | 24            |
+| Tests (report dialog 152, answer form 85)    | 237           |
+| All of PR 3b (256 added, 5 deleted)          | 261           |
+| PR 3a (units 5 and 6a)                       | 429           |
+| All of S3 (units 5, 6a and 6b)               | 690           |
+
+Both parts are under the 460 stop line. Tests were not trimmed.
+
+#### Work unit evidence (PR 3b)
+
+| Evidence                              | Value                                                                                                                                                                                                                                    |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "$env:DATABASE_URL='postgres://u:p@127.0.0.1:9/x'; npm test -- src/app/(dashboard)/review src/app/(dashboard)/coordination src/i18n": 43 files, 1535 tests, all passed                                                                   |
+| Runtime harness                       | N/A in this run: the owner-run capture "RF-10_b" on "flow-it" (task 12.7) is not part of Phase 3, and no database or Neon command was run                                                                                                |
+| Rollback boundary                     | Revert the PR: `src/app/(dashboard)/review/[id]/report-dialog.tsx` and `src/app/(dashboard)/coordination/[id]/answer-form.tsx` return to keeping their field errors until the next confirmation. No data, no schema, no audit event type |
+
+#### Gates (task 3.9), tip of "-3b-report-answer-errors", dummy DB
+
+- Full "npm test": 369 files, 9061 tests, all passed, 249.9 s vitest duration (4 m 12 s wall). PR 3a was 369 files and 9049 tests; PR 3b adds 12 tests and no file. Against PR 2 (368 files, 9016 tests) all of S3 adds one file and 45 tests.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (145008 lines), the only findings are the same three in files S3 does not touch: the unused `SidebarGroupLabel` warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on all the S3 files (and S2) is clean, and "npx prettier --check" passes on every touched file and on both catalogs.
+- "npm test -- src/app/(dashboard)/review src/app/(dashboard)/coordination src/i18n": 43 files, 1535 tests, all passed.
+
+#### Files (PR 3b; all LF in the working tree, the index was already LF)
+
+| File                                                                                                                   | Action                                                                |
+| ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `src/app/(dashboard)/review/[id]/report-dialog.tsx`                                                                    | Modified: teacher, date and note changes clear their own field errors |
+| `src/app/(dashboard)/coordination/[id]/answer-form.tsx`                                                                | Modified: a text change clears its field error                        |
+| `src/app/(dashboard)/review/[id]/report-dialog.test.tsx`, `src/app/(dashboard)/coordination/[id]/answer-form.test.tsx` | Modified: new cases                                                   |
+
+No Spanish UI copy is added in PR 3b: the report dialog and the coordinator answer keep their labels. The final Spanish copy of all of S3 is the two keys listed under PR 3a ("review.escalation.dialog.noteLabel" and "review.escalation.dialog.noteHint").
+
+#### Deviations (PR 3b)
+
+1. **Cut.** PR 3b exists only because S3 measured 690 lines (see PR 3a). The report dialog and the coordinator answer adopt the helper exactly as task 3.5 lists.
+2. **One existing test edited.** In `src/app/(dashboard)/review/[id]/report-dialog.test.tsx`, "sends nothing twice while the first confirm is still running" used a promise that never settles. React entangles async actions across roots, so every later test of the file kept its confirm button pending. The test now holds the promise and releases it at the end; its assertions are unchanged.
+3. **Task 3.6 and the answer form.** The report dialog and the answer form have no "otro" and no motive; the mutation checks above stand in for task 3.6 on those two files.
+
+### Notes for S4 (RF-07, cards that tell requests apart)
+
+- Base: S4 stacks on "feat/flow-experience-3b-report-answer-errors", the tip with all of S3.
+- Task 4.1 is an [ASK OWNER] confirmation of two defaults. Owner resolution 3 of 2026-11-20 already fixes (b), at most 140 characters in up to 2 lines; (a), the excerpt on an "aprobada" card, is only in the spec (FE-15) and the design did not list it, so it still needs the owner's go-ahead before unit 7 starts.
+- S4 does not overlap S3 files: it touches `src/lib/data/student-requests.ts`, `src/lib/data/decision-excerpt.ts` (new), `src/app/(dashboard)/requests/request-card.tsx`, `src/app/(dashboard)/requests/page.tsx`, their tests, `src/i18n/requests-messages.test.ts` and the "requests.list" keys of both catalogs. The student screens use "tú".
+- Size: tests are 88 percent of S2 and S3 lines; the forecast of about 250 will run 2 to 3 times higher, so plan the cut the tasks name (after unit 7: the data layer and its excerpt helper, 4.2 to 4.7; then the card, 4.8 to 4.10) and measure at each unit.
+- React async transitions: a test that leaves a never-settling server action pending keeps every later "isPending" in the same file true (React entangles async actions across roots). Resolve promises of mocked actions at the end of the test.
+- Tooling: write patch scripts as files; the helpers in the scratchpad ("i18n-set.cjs", the append and the line-ending scripts) work as before. the owner's rules ask for "rg", "fd", "bat", "eza" and "sd"; only "rg" is installed here, so use "rg", Node scripts and the Read and Edit tools. After "git show HEAD:<path> > <path>" the file is LF, which is what the index holds.
