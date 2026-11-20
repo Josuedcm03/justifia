@@ -2,6 +2,8 @@ import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import { templateKey } from "@/app/(dashboard)/review/template-key";
+import { TIPOS_DOCUMENTO } from "@/lib/document-data/types";
+import { DOCUMENT_DATA_ERROR_CODES } from "@/lib/document-data/validation";
 import { DECISION_TEMPLATES } from "@/lib/intake/decision-templates";
 import { ESCALATION_KINDS } from "@/lib/intake/escalation";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
@@ -764,4 +766,214 @@ describe("review signals messages (validation-signals, RNF-12)", () => {
       );
     },
   );
+});
+
+// request-review: "Manual data UI i18n" (MD-25) for the signal names, the reason
+// and the evidence line of RN-11, RN-12 and RN-13.
+describe("review signals messages of the manual signals (RN-11, RN-12, RN-13)", () => {
+  it("words the three names as the owner specified", () => {
+    expect(es.review.signals.names.rn11).toBe("Firma ausente");
+    expect(es.review.signals.names.rn12).toBe("Sello ausente");
+    expect(es.review.signals.names.rn13).toBe(
+      "Formato no corresponde a la causa",
+    );
+    expect(en.review.signals.names.rn11).toBe("Signature missing");
+    expect(en.review.signals.names.rn12).toBe("Seal missing");
+    expect(en.review.signals.names.rn13).toBe(
+      "Format does not match the cause",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s words the not registered reason as the secretary not having registered the datum",
+    (_l, m) => {
+      expect(m.review.signals.reasons.not_registered).toMatch(/secretar/i);
+      expect(m.review.signals.reasons.not_registered).toMatch(/regist/i);
+    },
+  );
+
+  it.each(catalogs)(
+    "%s words the documents evidence line with its placeholders",
+    (_l, m) => {
+      const line = m.review.signals.evidence.documents;
+
+      expect(line).toContain("{count");
+      expect(line).toContain("{documents}");
+      expect(line).toContain("plural");
+    },
+  );
+
+  it.each([
+    [
+      "es",
+      es,
+      {
+        one: "Documento que activa la señal: a.pdf",
+        other: "Documentos que activan la señal: a.pdf",
+      },
+    ],
+    [
+      "en",
+      en,
+      {
+        one: "Document that raises the signal: a.pdf",
+        other: "Documents that raise the signal: a.pdf",
+      },
+    ],
+  ] as const)(
+    "%s words the documents line in both numbers",
+    (locale, m, expected) => {
+      const t = createTranslator({
+        locale,
+        messages: m,
+        namespace: "review.signals.evidence",
+      });
+
+      expect(t("documents", { count: 1, documents: "a.pdf" })).toBe(
+        expected.one,
+      );
+      expect(t("documents", { count: 2, documents: "a.pdf" })).toBe(
+        expected.other,
+      );
+    },
+  );
+
+  it("keeps the evidence line free of ids, types and mark values", () => {
+    for (const m of [es, en]) {
+      expect(m.review.signals.evidence.documents).not.toMatch(
+        /\{id\}|\{type\}|constancia_|tieneFirma|hasSignature/,
+      );
+    }
+  });
+});
+
+describe("review manual document data messages (manual-document-data, MD-25, RNF-12)", () => {
+  // The form and the section keys by name, so deleting a key from both
+  // catalogs fails here even though the two would still be equal.
+  const FORM_KEYS = [
+    "manualBadge",
+    "marks.type",
+    "marks.signature",
+    "marks.seal",
+    "markValues.yes",
+    "markValues.no",
+    "markValues.unregistered",
+    "types.constancia_medica",
+    "types.constancia_institucional",
+    "types.otro",
+    "form.open",
+    "form.formLabel",
+    "form.intro",
+    "form.save",
+    "form.saving",
+    "form.ocrHint",
+    "form.fields.studentName",
+    "form.fields.restFrom",
+    "form.fields.restTo",
+    "form.errors.text_too_long",
+    "form.errors.date_invalid",
+    "form.errors.rest_incomplete",
+    "form.errors.rest_order",
+    "form.errors.type_invalid",
+    "form.errors.mark_invalid",
+    "form.failures.not_found",
+    "form.failures.not_editable",
+    "form.failures.unexpected",
+  ];
+
+  const keysOf = (m: typeof es) =>
+    leaves(m.review.extraction, "review.extraction").map(([key]) =>
+      key.replace("review.extraction.", ""),
+    );
+
+  it.each(catalogs)(
+    "%s has every form and section key, with a text",
+    (_l, m) => {
+      const found = new Map(
+        leaves(m.review.extraction, "review.extraction").map(([key, text]) => [
+          key.replace("review.extraction.", ""),
+          text,
+        ]),
+      );
+
+      for (const key of FORM_KEYS) {
+        expect(typeof found.get(key), key).toBe("string");
+        expect(String(found.get(key)).trim().length, key).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  it("has the same review.extraction keys in both locales", () => {
+    expect(keysOf(es).length).toBeGreaterThan(FORM_KEYS.length);
+    expect(keysOf(en).sort()).toEqual(keysOf(es).sort());
+  });
+
+  it("has one refusal text for each validation error code and each failure", () => {
+    for (const m of [es, en]) {
+      const errors = Object.keys(m.review.extraction.form.errors).sort();
+      expect(errors).toEqual([...DOCUMENT_DATA_ERROR_CODES].sort());
+      expect(Object.keys(m.review.extraction.form.failures).sort()).toEqual([
+        "not_editable",
+        "not_found",
+        "unexpected",
+      ]);
+    }
+  });
+
+  it("has one type text for each document type", () => {
+    for (const m of [es, en]) {
+      expect(Object.keys(m.review.extraction.types).sort()).toEqual(
+        [...TIPOS_DOCUMENTO].sort(),
+      );
+    }
+  });
+
+  it("words the manual mark, the three mark states and the three types as the spec says", () => {
+    expect(es.review.extraction.manualBadge).toBe("Ingresado manualmente");
+    expect(en.review.extraction.manualBadge).toBe("Entered manually");
+    expect(es.review.extraction.markValues).toEqual({
+      yes: "Sí",
+      no: "No",
+      unregistered: "Sin registrar",
+    });
+    expect(en.review.extraction.markValues).toEqual({
+      yes: "Yes",
+      no: "No",
+      unregistered: "Not registered",
+    });
+    expect(es.review.extraction.types).toEqual({
+      constancia_medica: "Constancia médica",
+      constancia_institucional: "Constancia institucional",
+      otro: "Otro",
+    });
+    expect(en.review.extraction.types).toEqual({
+      constancia_medica: "Medical certificate",
+      constancia_institucional: "Institutional certificate",
+      otro: "Other",
+    });
+  });
+
+  it.each(catalogs)("%s keeps the placeholders of the form", (_l, m) => {
+    expect(m.review.extraction.form.formLabel).toContain("{name}");
+    expect(m.review.extraction.form.ocrHint).toContain("{value}");
+  });
+
+  it("is neutral professional Spanish with the formal address, with no voseo", () => {
+    const text = leaves(es.review.extraction)
+      .map(([, value]) => String(value))
+      .join(" ");
+
+    expect(text).not.toMatch(
+      /(vos|tenés|podés|querés|sabés|sos|mirá|revisá|fijate|hacé|verificá|contactá|escribí|seleccioná|indicá|ingresá|guardá)/i,
+    );
+    expect(text).not.toMatch(/che/i);
+    // The review screens address the secretary as "usted": the imperative of
+    // the form is the formal one, never the informal "tú".
+    expect(es.review.extraction.form.errors.date_invalid).toBe(
+      "Indique una fecha válida.",
+    );
+    expect(text).not.toMatch(
+      /\b(tu|tus|tienes|puedes|escribe|selecciona|indica)\b/i,
+    );
+  });
 });

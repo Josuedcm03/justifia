@@ -302,6 +302,12 @@ describe.skipIf(gate.mode !== "run")(
       retired?: boolean;
       staff?: boolean;
       estado?: "valido" | "pendiente";
+      /** The marks of RF-14 (b) and (d); left out, they are not registered. */
+      marks?: {
+        type: "constancia_medica" | "constancia_institucional" | "otro";
+        signature: boolean;
+        seal: boolean;
+      };
     };
 
     let groupA: number;
@@ -398,6 +404,9 @@ describe.skipIf(gate.mode !== "run")(
           // format document.
           subidoPorId: options.staff ? staffId : null,
           formatoEspecial: options.staff === true,
+          tipoDocumento: options.marks?.type ?? null,
+          tieneFirma: options.marks?.signature ?? null,
+          tieneSello: options.marks?.seal ?? null,
         })
         .returning({ id: documentoRespaldo.id });
       return row.id;
@@ -998,8 +1007,19 @@ describe.skipIf(gate.mode !== "run")(
           causa,
           groupId: groupA,
         });
+        // Firma, sello and a type that corresponds to the cause (RN-11 to
+        // RN-13 are evaluated for every cause), so the verdict can read
+        // "no alerts" (D1).
         const documentId = await addDocument(id, {
           huella: hashFor(label),
+          marks: {
+            type:
+              causa === "medica"
+                ? "constancia_medica"
+                : "constancia_institucional",
+            signature: true,
+            seal: true,
+          },
         });
         // The invented rest ends before the issue date: RN-09 for a medical
         // request.
@@ -1023,11 +1043,41 @@ describe.skipIf(gate.mode !== "run")(
           ["rn07", "absent"],
           ["rn09", "not_applicable"],
           ["rn10", "not_applicable"],
+          ["rn11", "absent"],
+          ["rn12", "absent"],
+          ["rn13", "absent"],
           ["rn14", "absent"],
           ["rn26", "absent"],
         ]);
         expect(read.data?.verdict).toBe("no_alerts");
         expect(read.data?.notEvaluable).toEqual([]);
+      });
+
+      it("keeps the verdict inconclusive while the marks are not registered (D1)", async () => {
+        const student = await fixtures.addStudent();
+        const id = await addPresented(student.id, ON_TIME, {
+          causa: "fuerza_mayor",
+          groupId: groupA,
+        });
+        const documentId = await addDocument(id, {
+          huella: hashFor("cause-scope-unregistered"),
+        });
+        await addExtraction(documentId, "completada", ISSUER, {
+          issueDate: "2026-08-27",
+          restTo: "2026-08-26",
+        });
+
+        const read = await loadSignals({
+          solicitudId: id,
+          referenceScope: scope,
+        });
+
+        expect(read.data?.verdict).toBe("inconclusive");
+        expect(read.data?.notEvaluable).toEqual([
+          { signal: "rn11", reason: "not_registered" },
+          { signal: "rn12", reason: "not_registered" },
+          { signal: "rn13", reason: "not_registered" },
+        ]);
       });
 
       it("still raises RN-09 for the same extraction on a medical request", async () => {

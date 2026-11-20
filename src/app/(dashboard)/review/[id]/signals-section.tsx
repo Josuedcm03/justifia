@@ -20,7 +20,9 @@ import type {
 // given, which is computed on every read and never stored. The verdict and
 // every outcome are conveyed as text; the tones only reinforce them. The
 // coordination view passes the same shape without evidence, so a result with no
-// evidence simply shows its outcome.
+// evidence simply shows its outcome. RN-11, RN-12 and RN-13 name the documents
+// that raise them by the label the documents section uses (the file name); the
+// secretary's page supplies those labels and the coordination page does not.
 
 const VERDICT_TONES: Record<Verdict, string> = {
   review_carefully:
@@ -30,8 +32,11 @@ const VERDICT_TONES: Record<Verdict, string> = {
   inconclusive: "border-border border-l-border bg-muted text-foreground",
 };
 
+/** Label of each current document by id: the name the documents section shows. */
+type DocumentNames = Readonly<Record<number, string>>;
+
 /** The evidence lines of one result, in the shared date format. */
-function useEvidenceLines() {
+function useEvidenceLines(documentNames?: DocumentNames) {
   const t = useTranslations("review.signals.evidence");
   const dates = useDates();
 
@@ -75,6 +80,20 @@ function useEvidenceLines() {
       case "repeated":
         // Rendered by `RepeatedEvidence`: the references are links.
         return [];
+      case "documents": {
+        // Only the ids the page knows a label for; an id alone is never shown.
+        const names = evidence.documentIds.flatMap((id) =>
+          documentNames?.[id] === undefined ? [] : [documentNames[id]],
+        );
+        return names.length === 0
+          ? []
+          : [
+              t("documents", {
+                count: names.length,
+                documents: names.join(", "),
+              }),
+            ];
+      }
     }
   };
 }
@@ -111,9 +130,15 @@ function RepeatedEvidence({ references }: { references: number[] }) {
   );
 }
 
-function SignalFact({ result }: { result: SignalViewResult }) {
+function SignalFact({
+  result,
+  documentNames,
+}: {
+  result: SignalViewResult;
+  documentNames?: DocumentNames;
+}) {
   const t = useTranslations("review.signals");
-  const lines = useEvidenceLines();
+  const lines = useEvidenceLines(documentNames);
   // Evidence belongs to `present` and `absent` alone: a not evaluable or not
   // applicable entry carries none, whatever reaches this component.
   const evidence =
@@ -195,10 +220,13 @@ function NotEvaluableList({
 export function SignalsSection({
   signals,
   audience = "secretary",
+  documentNames,
 }: {
   signals: { data: SignalView | null; degraded: boolean };
   /** The coordinator answers an escalation; only the secretary decides. */
   audience?: "secretary" | "coordination";
+  /** Labels of the current documents, for the secretary's view only. */
+  documentNames?: DocumentNames;
 }) {
   const t = useTranslations("review.signals");
   const { data } = signals;
@@ -236,7 +264,13 @@ export function SignalsSection({
           </p>
           <dl className="grid gap-4 sm:grid-cols-2">
             {data.results.map((result) => (
-              <SignalFact key={result.signal} result={result} />
+              <SignalFact
+                key={result.signal}
+                result={result}
+                documentNames={
+                  audience === "secretary" ? documentNames : undefined
+                }
+              />
             ))}
           </dl>
           <NotEvaluableList entries={data.notEvaluable} />

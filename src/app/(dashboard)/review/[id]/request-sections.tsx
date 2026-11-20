@@ -16,9 +16,11 @@ import type { DeadlineStatus } from "@/lib/intake/business-days";
 import type { RevisionDiff, SectionMark } from "@/lib/intake/revision-diff";
 
 // The sections of the staff detail (RF-06, RF-08 b). Each one is a labelled
-// card, so a later section (the RF-14 document signals) is one more entry in
-// the page's stack. Sync components: next-intl resolves text and dates on the
-// server, and dates are shown in the business zone, not the server's.
+// card, stacked by the page. The extracted-data section (RF-11, RF-14) is in
+// its own file because it also carries the manual data form of each document
+// while the request is pending. Sync components: next-intl resolves text and
+// dates on the server, and dates are shown in the business zone, not the
+// server's.
 
 const BUSINESS_TIME_ZONE = "America/Managua";
 

@@ -179,6 +179,10 @@ export const ACTIONS: Record<string, Row & { exports: readonly string[] }> = {
     "resubmitCorrectionAction",
   ),
   [`${REVIEW}/[id]/actions.ts`]: actions(SECRETARIA, "decideAction"),
+  [`${REVIEW}/[id]/document-data-actions.ts`]: actions(
+    SECRETARIA,
+    "saveDocumentDataAction",
+  ),
   [`${REVIEW}/[id]/escalation-actions.ts`]: actions(
     SECRETARIA,
     "escalateRequestAction",
