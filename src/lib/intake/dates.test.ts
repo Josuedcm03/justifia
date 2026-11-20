@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   earliestAllowedEndDate,
+  inclusiveDays,
   isEndWithinWindow,
   isIsoDate,
   managuaToday,
@@ -62,5 +63,18 @@ describe("isIsoDate", () => {
     expect(isIsoDate("31/10/2026")).toBe(false);
     expect(isIsoDate("")).toBe(false);
     expect(isIsoDate(null)).toBe(false);
+  });
+});
+
+describe("inclusiveDays (RF-14 a, RN-10)", () => {
+  const rows: [string, string, number][] = [
+    ["2026-11-09", "2026-11-09", 1],
+    ["2026-11-05", "2026-11-07", 3],
+    ["2026-10-30", "2026-11-02", 4],
+    ["2028-02-28", "2028-03-01", 3],
+    ["2026-02-27", "2026-03-01", 3],
+  ];
+  it.each(rows)("%s to %s is %i days", (from, to, expected) => {
+    expect(inclusiveDays(from, to)).toBe(expected);
   });
 });
