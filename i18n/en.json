@@ -947,6 +947,7 @@
         "request": "Request",
         "escalation": "Escalation",
         "notice": "Notice",
+        "marks": "Document type and marks",
         "answer": "Answer to the secretary"
       },
       "fields": {
@@ -961,7 +962,24 @@
         "teacher": "Teacher",
         "communicated": "Date communicated by the teacher",
         "reportNote": "Notice note"
-      }
+      },
+      "marks": {
+        "note": "Read only. The secretary registers the document type, the signature and the seal.",
+        "type": "Document type",
+        "signature": "Signature",
+        "seal": "Seal"
+      },
+      "markValues": {
+        "yes": "Yes",
+        "no": "No",
+        "unregistered": "Not registered"
+      },
+      "types": {
+        "constancia_medica": "Medical certificate",
+        "constancia_institucional": "Institutional certificate",
+        "otro": "Other"
+      },
+      "marksDegraded": "The document type and marks could not be loaded. The rest of the request is shown in full."
     },
     "answer": {
       "dialog": {

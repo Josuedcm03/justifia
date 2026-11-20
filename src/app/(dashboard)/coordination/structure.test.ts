@@ -48,6 +48,8 @@ const ALLOWED_DATA = [
   "@/lib/data/request-reads",
   // Validation signals, outcomes only (RF-05 a, RN-26): see the dedicated pin.
   "@/lib/data/signals",
+  // The type and marks of each document, read-only (MD-30): see the pin.
+  "@/lib/data/document-marks-read",
 ];
 
 function importsOf(text: string): string[] {
@@ -115,6 +117,29 @@ describe("coordination structure: no secretary data module (RNF-01)", () => {
     expect(text).toMatch(/referenceScope:\s*\{\s*kind:\s*"none"\s*\}/);
     expect(text).toContain("toCoordinationView(");
     expect(importsOf(text)).toContain("@/lib/signals/coordination-view");
+  });
+
+  it("reads the type and marks only from the detail page, through the narrow read and never the staff extraction read (MD-30)", () => {
+    // The section names the result type only; a type import is erased, so the
+    // read itself is imported (and called) from the page alone.
+    const valueImportsOf = (text: string) =>
+      [
+        ...text.matchAll(/import\s+(?!type\s)[^;]*?\sfrom\s+["']([^"']+)["']/g),
+      ].map((m) => m[1]);
+    const importers = sources
+      .filter((s) =>
+        valueImportsOf(s.text).includes("@/lib/data/document-marks-read"),
+      )
+      .map((s) => s.path);
+    expect(importers).toEqual([DETAIL_PAGE]);
+
+    const text = textOf(DETAIL_PAGE);
+    expect(text).toContain("listDocumentMarks(");
+    for (const { path, text: source } of sources) {
+      expect(importsOf(source), path).not.toContain("@/lib/data/extraction");
+      expect(importsOf(source), path).not.toContain("@/lib/data/document-data");
+      expect(source, path).not.toMatch(/listExtractions|saveDocumentData/);
+    }
   });
 
   it("never reaches the facultad request scope", () => {
