@@ -539,6 +539,60 @@
         "placeholder": "Name or email"
       },
       "tableCaption": "Teachers list"
+    },
+    "inscripciones": {
+      "title": "Enrollments",
+      "subtitle": "Review the enrollments of the students in your faculty.",
+      "tableCaption": "Enrollments list",
+      "columns": {
+        "student": "Student",
+        "subject": "Subject",
+        "period": "Period",
+        "group": "Group",
+        "state": "Status"
+      },
+      "state": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "effective": "In effect",
+        "notEffective": "Not in effect"
+      },
+      "filters": {
+        "label": "Filter enrollments",
+        "student": {
+          "label": "Student",
+          "placeholder": "Name or CIF"
+        },
+        "asignatura": {
+          "label": "Subject",
+          "placeholder": "Code or name"
+        },
+        "grupo": {
+          "label": "Group",
+          "placeholder": "Number"
+        },
+        "periodo": {
+          "label": "Period",
+          "latest": "Latest period"
+        },
+        "status": {
+          "label": "Status",
+          "active": "Active",
+          "inactive": "Inactive"
+        },
+        "apply": "Apply filters"
+      },
+      "empty": "There are no active enrollments to show.",
+      "noResults": {
+        "title": "No results for “{q}”",
+        "titleFilters": "There are no enrollments with these filters.",
+        "hint": "Try other filters, or clear them to go back to the default view."
+      },
+      "degraded": "Could not load the enrollments. Try again in a few minutes.",
+      "noFacultad": {
+        "title": "Your account has no faculty assigned",
+        "message": "Ask whoever administers the system to assign a faculty to your account before you review enrollments."
+      }
     }
   },
   "denied": {

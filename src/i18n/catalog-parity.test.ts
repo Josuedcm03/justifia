@@ -32,6 +32,8 @@ const GUARDED_SECTIONS = [
   "catalog.grupos",
   "nav.catalogDocentes",
   "catalog.docentes",
+  // Enrollment administration (EA-UI-1 "Key parity"): the staff list copy.
+  "catalog.inscripciones",
   // Backoffice shell (backoffice-ui-refresh): the top-bar trail reuses the
   // sidebar's `nav.*` labels and adds its landmark label and the profile page;
   // `roles` labels the sidebar identity block.
