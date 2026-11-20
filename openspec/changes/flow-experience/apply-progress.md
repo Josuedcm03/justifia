@@ -434,3 +434,16 @@ No Spanish UI copy is added in PR 3b: the report dialog and the coordinator answ
 - Size: tests are 88 percent of S2 and S3 lines; the forecast of about 250 will run 2 to 3 times higher, so plan the cut the tasks name (after unit 7: the data layer and its excerpt helper, 4.2 to 4.7; then the card, 4.8 to 4.10) and measure at each unit.
 - React async transitions: a test that leaves a never-settling server action pending keeps every later "isPending" in the same file true (React entangles async actions across roots). Resolve promises of mocked actions at the end of the test.
 - Tooling: write patch scripts as files; the helpers in the scratchpad ("i18n-set.cjs", the append and the line-ending scripts) work as before. the owner's rules ask for "rg", "fd", "bat", "eza" and "sd"; only "rg" is installed here, so use "rg", Node scripts and the Read and Edit tools. After "git show HEAD:<path> > <path>" the file is LF, which is what the index holds.
+
+## Phase 4 (PR 4): S4 RF-07, cards that tell requests apart
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-4-card-reasons", cut from the tip of "feat/flow-experience-3b-report-answer-errors" (67cf703, all of S3). Size exception per the owner decision of 2026-11-20 (see Phase 1); if the slice goes over the stop line it is cut after unit 7 into "-4-card-reasons" (data and excerpt helper) and "-4b-..." (the card), as the plan says.
+
+### Owner decision of 2026-11-20 on task 4.1
+
+- **(a) No excerpt on "aprobada" cards.** The decision excerpt shows ONLY on "devuelta" and "rechazada" cards, never on "aprobada" cards. Reason: approval text is template boilerplate and approved students do not ask why, so the excerpt would add noise; the student already sees the full text in the detail. This reverses the spec default (FE-15 listed "aprobada"). Edited to match: spec FE-15 in `openspec/changes/flow-experience/specs/student-requests/spec.md` (requirement text, header note, the table-driven scenario split in two, and a new scenario "Approved card shows no excerpt"), design D7 in `openspec/changes/flow-experience/design.md`, and the tasks 4.1, 4.4 and 4.8 text and the convention line about known spec differences in `openspec/changes/flow-experience/tasks.md`.
+- **(b) Excerpt rule.** At most 140 characters with an ellipsis when cut, shown in up to 2 lines (owner resolution 3, 2026-11-20).
+
+### PR #98 merged (2026-11-20): unblocks S8
+
+"gh pr view 98": MERGED at 2026-11-20T17:57:26Z as 27abd8c on "main" ("Merge pull request #98 from Josuedcm03/docs/thesis-sync-p3-2"). After "git fetch origin main", "drizzle/" on "origin/main" still ends at 0015, so 0016 is still free. This satisfies the precondition of task 8.0 (the entry itself is recorded when S8 starts). Main was NOT merged into the tracker or into any slice now; it is merged into the tracker only when the plan says (before S8).
