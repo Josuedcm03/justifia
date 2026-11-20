@@ -26,7 +26,8 @@ Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S
 
 | Slice | Branch (`feat/catalog-schedule-...`) | Created from / PR base | Depends on | Est. lines |
 |-------|------|------|------|-----|
-| S1a scope | `-s1a-scope` | `main` | none | ~380 |
+| S1a-1 guard + scope SQL | `-s1a1-guard` | `main` | none | 363 measured |
+| S1a-2 list params | `-s1a2-list-params` | S1a-1 | S1a-1 | 269 measured |
 | S1b-1 audit reads | `-s1b1-audit-reads` | S1a | none functional (stacked) | ~210 |
 | S1b-2 list read | `-s1b2-list-read` | S1b-1 | S1a | ~380 |
 | S1c-1 table | `-s1c1-table` | S1b-2 | S1b-2 | ~310 |
@@ -66,22 +67,23 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 0: Planning commit and prerequisites
 
-- [ ] 0.1 On `feat/catalog-schedule-s1a-scope` (created from `main`, task 1.1), commit only `openspec/changes/catalog-schedule` as its first commit: `docs(catalog-schedule): add the SDD planning documents`. The docs of P3.2 and the catalog-management closeout already went in PR #98, so the index holds nothing else.
+- [x] 0.1 On `feat/catalog-schedule-s1a-scope` (created from `main`, task 1.1), commit only `openspec/changes/catalog-schedule` as its first commit: `docs(catalog-schedule): add the SDD planning documents`. The docs of P3.2 and the catalog-management closeout already went in PR #98, so the index holds nothing else. Done: commit `d859249`.
 - [x] 0.2 `[USER]` Chain strategy decided by the owner on 2026-11-19: stacked-to-main, no tracker PR.
-- [ ] 0.3 `[READ-ONLY]` Read the Next 16 guides in `node_modules/next/dist/docs/` for server components, server actions (`forms.md`: bound arguments are client-visible), `searchParams`, `notFound` and `revalidatePath` before S1c-2 (`AGENTS.md`).
+- [x] 0.3 `[READ-ONLY]` Read the Next 16 guides in `node_modules/next/dist/docs/` for server components, server actions (`forms.md`: bound arguments are client-visible), `searchParams`, `notFound` and `revalidatePath` before S1c-2 (`AGENTS.md`).
 
 ## Phase 1: S1a scope (CS-4, CS-5, list params)
 
-- [ ] 1.1 Branch `feat/catalog-schedule-s1a-scope` from an up-to-date `main` (then task 0.1).
-- [ ] 1.2 [P] RED `src/lib/auth/permissions.test.ts`: `canManageEnrollments` true only for `secretaria`, false for the other four roles and `undefined`; `rolesQueGestionanInscripciones` equals `["secretaria"]`; `canManageCatalog` still true for `administrador` and `coordinacion` (EA-ACC-1 "Catalog predicate unchanged").
-- [ ] 1.3 GREEN `src/lib/auth/permissions.ts`: `rolesQueGestionanInscripciones = ["secretaria"] as const satisfies readonly RolUsuario[]` and `canManageEnrollments`, shaped like `rolesRevisores`. Verify: `npx vitest run src/lib/auth/permissions.test.ts`.
-- [ ] 1.4 RED `src/lib/auth/enrollment-access.test.ts` (model: `catalog-access.test.ts`): table `estudiante`, `docente`, `coordinacion`, `administrador`, anonymous, `secretaria` with pending password change -> denied, no `Usuario` read; invalid `session.sub` throws; secretaria with facultad -> `{ session, actorId, scope: { kind: "facultad", facultadId } }`; no facultad -> scope `none`; facultad read from the database on every call, never from the session (EA-ACC-1, EA-SCOPE-1, RNF-01).
-- [ ] 1.5 GREEN `src/lib/auth/enrollment-access.ts`: `requireEnrollmentAccess()` = `requireRole(...rolesQueGestionanInscripciones)` + `requestScopeFor`; fail loud. Verify: `npx vitest run src/lib/auth/enrollment-access.test.ts`.
-- [ ] 1.6 [P] RED `src/lib/data/request-scope-sql.test.ts` (`PgDialect` render): `enrollmentInScope(facultad)` is an exists over the student's CURRENT carrera keyed on `Inscripcion.EstudianteId`; `studentRowInScope(facultad)` keyed on `Usuario.Id`; `none` renders `false` for both; student without carrera invisible (inner join); the existing `requestInScope` assertions pass untouched (EA-SCOPE-1, CS-5).
-- [ ] 1.7 GREEN `src/lib/data/request-scope-sql.ts`: private `studentOfFacultad(column, facultadId)` plus the two exports; `requestInScope` keeps its rendered SQL. Verify: `npx vitest run src/lib/data/request-scope-sql.test.ts`.
-- [ ] 1.8 [P] RED `src/lib/catalog/list-params.test.ts`: `parseInscripcionesListParams` defaults (page 1, empty `q`/`asignatura`/`grupo`, `periodo` unset = latest, `status` `active`, default sort `student` asc, size 10); `status=all` and unknown values fall back (EA-FILT-1 allows `active`/`inactive` only); `INSCRIPCIONES_SORT_KEYS = ["student","subject","group"]`; `catalogListHref("/catalog/inscripciones", ...)` omits defaults and writes `periodo`, `asignatura`, `grupo` through an `extra` map; page resets when a filter changes; the two existing bases keep their hrefs.
-- [ ] 1.9 GREEN `src/lib/catalog/list-params.ts`: `CatalogListBase` adds `"/catalog/inscripciones"`, sort keys, parser, `extra`. Verify: `npx vitest run src/lib/catalog/list-params.test.ts`.
-- [ ] 1.10 Gates G + measure (target ~380; cut point: 1.6-1.9 move to a second PR). Open PR. Commits: `feat(auth): add the enrollment management predicate and guard`, `feat(enrollment): add the enrollment scope SQL`, `feat(catalog): add the inscripciones list params`.
+- [x] 1.1 Branch `feat/catalog-schedule-s1a-scope` from an up-to-date `main` (then task 0.1).
+- [x] 1.2 [P] RED `src/lib/auth/permissions.test.ts`: `canManageEnrollments` true only for `secretaria`, false for the other four roles and `undefined`; `rolesQueGestionanInscripciones` equals `["secretaria"]`; `canManageCatalog` still true for `administrador` and `coordinacion` (EA-ACC-1 "Catalog predicate unchanged").
+- [x] 1.3 GREEN `src/lib/auth/permissions.ts`: `rolesQueGestionanInscripciones = ["secretaria"] as const satisfies readonly RolUsuario[]` and `canManageEnrollments`, shaped like `rolesRevisores`. Verify: `npx vitest run src/lib/auth/permissions.test.ts`.
+- [x] 1.4 RED `src/lib/auth/enrollment-access.test.ts` (model: `catalog-access.test.ts`): table `estudiante`, `docente`, `coordinacion`, `administrador`, anonymous, `secretaria` with pending password change -> denied, no `Usuario` read; invalid `session.sub` throws; secretaria with facultad -> `{ session, actorId, scope: { kind: "facultad", facultadId } }`; no facultad -> scope `none`; facultad read from the database on every call, never from the session (EA-ACC-1, EA-SCOPE-1, RNF-01).
+- [x] 1.5 GREEN `src/lib/auth/enrollment-access.ts`: `requireEnrollmentAccess()` = `requireRole(...rolesQueGestionanInscripciones)` + `requestScopeFor`; fail loud. Verify: `npx vitest run src/lib/auth/enrollment-access.test.ts`.
+- [x] 1.6 [P] RED `src/lib/data/request-scope-sql.test.ts` (`PgDialect` render): `enrollmentInScope(facultad)` is an exists over the student's CURRENT carrera keyed on `Inscripcion.EstudianteId`; `studentRowInScope(facultad)` keyed on `Usuario.Id`; `none` renders `false` for both; student without carrera invisible (inner join); the existing `requestInScope` assertions pass untouched (EA-SCOPE-1, CS-5).
+- [x] 1.7 GREEN `src/lib/data/request-scope-sql.ts`: private `studentOfFacultad(column, facultadId)` plus the two exports; `requestInScope` keeps its rendered SQL. Verify: `npx vitest run src/lib/data/request-scope-sql.test.ts`.
+- [x] 1.8 [P] RED `src/lib/catalog/list-params.test.ts`: `parseInscripcionesListParams` defaults (page 1, empty `q`/`asignatura`/`grupo`, `periodo` unset = latest, `status` `active`, default sort `student` asc, size 10); `status=all` and unknown values fall back (EA-FILT-1 allows `active`/`inactive` only); `INSCRIPCIONES_SORT_KEYS = ["student","subject","group"]`; `catalogListHref("/catalog/inscripciones", ...)` omits defaults and writes `periodo`, `asignatura`, `grupo` through an `extra` map; page resets when a filter changes; the two existing bases keep their hrefs.
+- [x] 1.9 GREEN `src/lib/catalog/list-params.ts`: `CatalogListBase` adds `"/catalog/inscripciones"`, sort keys, parser, `extra`. Verify: `npx vitest run src/lib/catalog/list-params.test.ts`.
+- [x] 1.10 Gates G + measure. **Measured 632 authored lines (forecast ~380), over budget. Owner decision 2026-11-19: two stacked PRs cut at `f860476`: S1a-1 `feat/catalog-schedule-s1a1-guard` (`c776de8` + `f860476`, 363 lines, base `main`) and S1a-2 `feat/catalog-schedule-s1a2-list-params` (`08d0ba1`, 269 lines, base S1a-1). Later slices measure after each commit, and their forecasts are read at about 1.7x.** Open PR. Commits: `feat(auth): add the enrollment management predicate and guard`, `feat(enrollment): add the enrollment scope SQL`, `feat(catalog): add the inscripciones list params`.
+  - Apply result (2026-11-19): gates G green and measured, PR NOT opened. Measured authored diff is 632 lines (609 added, 23 removed), over the 400 budget (forecast ~380): commits `c776de8` (189), `f860476` (174), `08d0ba1` (269). Stop rule applies: cut into PR A = `c776de8` + `f860476` (363 lines, tasks 1.2-1.7) and PR B = `08d0ba1` (269 lines, tasks 1.8-1.9). See `apply-progress.md`.
 
 ## Phase 2: S1b-1 audited read plumbing (CS-6b, D10)
 

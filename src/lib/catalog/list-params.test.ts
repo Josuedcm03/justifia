@@ -4,9 +4,11 @@ import {
   ASIGNATURAS_SORT_KEYS,
   CATALOG_OPTIONS_MAX,
   DOCENTES_SORT_KEYS,
+  INSCRIPCIONES_SORT_KEYS,
   catalogListHref,
   parseAsignaturasListParams,
   parseDocentesListParams,
+  parseInscripcionesListParams,
 } from "@/lib/catalog/list-params";
 
 describe("constants", () => {
@@ -310,5 +312,180 @@ describe("catalogListHref — sort and size", () => {
       // @ts-expect-error `login` is a docentes column, not an asignaturas one.
       sort: { key: "login", dir: "asc" },
     });
+  });
+});
+
+describe("parseInscripcionesListParams (EA-FILT-1)", () => {
+  it("defaults: page 1, empty filters, period unset, active, student ascending, size 10", () => {
+    const expected = {
+      page: 1,
+      q: "",
+      asignatura: "",
+      grupo: "",
+      periodo: "",
+      status: "active",
+      sort: { key: "student", dir: "asc" },
+      size: 10,
+    };
+    expect(parseInscripcionesListParams(undefined)).toEqual(expected);
+    expect(parseInscripcionesListParams({})).toEqual(expected);
+  });
+
+  it("lists the whitelisted sort columns", () => {
+    expect([...INSCRIPCIONES_SORT_KEYS]).toEqual([
+      "student",
+      "subject",
+      "group",
+    ]);
+  });
+
+  it("parses every filter, trimming and collapsing whitespace", () => {
+    expect(
+      parseInscripcionesListParams({
+        page: "3",
+        q: "  ana  perez ",
+        asignatura: " mat  101 ",
+        grupo: " 2 ",
+        periodo: "2026-S1",
+        status: "inactive",
+        sort: "subject",
+        dir: "desc",
+        size: "25",
+      }),
+    ).toEqual({
+      page: 3,
+      q: "ana perez",
+      asignatura: "mat 101",
+      grupo: "2",
+      periodo: "2026-S1",
+      status: "inactive",
+      sort: { key: "subject", dir: "desc" },
+      size: 25,
+    });
+  });
+
+  it.each([
+    ["all", "all"],
+    ["unknown", "archived"],
+    ["empty", ""],
+    ["wrong case", "INACTIVE"],
+    ["array", ["inactive", "active"]],
+  ])("a %s status falls back to active", (_label, status) => {
+    expect(parseInscripcionesListParams({ status }).status).toBe("active");
+  });
+
+  it.each([
+    ["groups", "groups"],
+    ["actions", "actions"],
+    ["state", "state"],
+    ["wrong case", "Student"],
+    ["repeated", ["student", "group"]],
+  ])("a %s sort key falls back to student ascending", (_label, sort) => {
+    expect(parseInscripcionesListParams({ sort, dir: "desc" }).sort).toEqual({
+      key: "student",
+      dir: "asc",
+    });
+  });
+
+  it.each(INSCRIPCIONES_SORT_KEYS)("accepts the sort key %s", (key) => {
+    expect(
+      parseInscripcionesListParams({ sort: key, dir: "desc" }).sort,
+    ).toEqual({ key, dir: "desc" });
+  });
+
+  it("treats a repeated or oversized filter as unset or capped", () => {
+    expect(
+      parseInscripcionesListParams({
+        asignatura: ["a", "b"],
+        grupo: ["1", "2"],
+        periodo: ["2026-S1", "2026-S2"],
+      }),
+    ).toMatchObject({ asignatura: "", grupo: "", periodo: "" });
+    const parsed = parseInscripcionesListParams({
+      asignatura: "x".repeat(500),
+      grupo: "9".repeat(50),
+      periodo: "2026-S1".repeat(10),
+    });
+    expect(parsed.asignatura).toHaveLength(100);
+    expect(parsed.grupo).toHaveLength(12);
+    expect(parsed.periodo).toHaveLength(12);
+  });
+});
+
+describe("catalogListHref — /catalog/inscripciones", () => {
+  const base = "/catalog/inscripciones";
+
+  it("omits every default", () => {
+    expect(
+      catalogListHref(base, {
+        page: 1,
+        q: "",
+        asignatura: "",
+        grupo: "",
+        periodo: "",
+        status: "active",
+        sort: { key: "student", dir: "asc" },
+        size: 10,
+      }),
+    ).toBe(base);
+  });
+
+  it("writes the three extra filters through the extra map", () => {
+    expect(
+      catalogListHref(base, {
+        asignatura: "mat",
+        grupo: "2",
+        periodo: "2026-S1",
+      }),
+    ).toBe(`${base}?asignatura=mat&grupo=2&periodo=2026-S1`);
+  });
+
+  it("writes q, asignatura, grupo, periodo, status, sort, dir, size and page in canonical order", () => {
+    expect(
+      catalogListHref(base, {
+        q: "ana",
+        asignatura: "mat",
+        grupo: "2",
+        periodo: "2026-S1",
+        status: "inactive",
+        sort: { key: "group", dir: "desc" },
+        size: 50,
+        page: 2,
+      }),
+    ).toBe(
+      `${base}?q=ana&asignatura=mat&grupo=2&periodo=2026-S1&status=inactive&sort=group&dir=desc&size=50&page=2`,
+    );
+  });
+
+  it("round-trips through parseInscripcionesListParams", () => {
+    const state = {
+      page: 3,
+      q: "ana perez",
+      asignatura: "mat 101",
+      grupo: "2",
+      periodo: "2026-S1",
+      status: "inactive" as const,
+      sort: { key: "subject" as const, dir: "desc" as const },
+      size: 25 as const,
+    };
+    const href = catalogListHref(base, state);
+    const sp = Object.fromEntries(new URLSearchParams(href.split("?")[1]));
+    expect(parseInscripcionesListParams(sp)).toEqual(state);
+  });
+
+  it("a link built from the filters carries no page, so the page resets", () => {
+    expect(
+      catalogListHref(base, { q: "x", grupo: "1", status: "inactive" }),
+    ).not.toContain("page");
+  });
+
+  it("keeps the other two bases' hrefs and rejects inscripciones-only input there", () => {
+    expect(catalogListHref("/catalog/docentes", { q: "ana" })).toBe(
+      "/catalog/docentes?q=ana",
+    );
+    // @ts-expect-error `periodo` is an inscripciones filter, not a docentes one.
+    catalogListHref("/catalog/docentes", { periodo: "2026-S1" });
+    // @ts-expect-error `all` is not an inscripciones status.
+    catalogListHref(base, { status: "all" });
   });
 });
