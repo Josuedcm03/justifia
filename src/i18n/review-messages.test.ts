@@ -977,3 +977,45 @@ describe("review manual document data messages (manual-document-data, MD-25, RNF
     );
   });
 });
+
+// flow-experience S1 (RF-16 c, FE-3): the answer banner of the staff detail.
+// Staff screens address the secretary as "usted"; the labels carry no verb.
+describe("coordination answer banner messages (FE-3, RF-16 c)", () => {
+  it("words the banner in neutral Spanish with the label of the requirement", () => {
+    expect(es.review.detail.answerBanner).toEqual({
+      title: "Respuesta de coordinación",
+      byline: "{name}, {date}",
+      hint: "Tenga en cuenta esta respuesta al decidir.",
+      link: "Ver el escalamiento completo",
+    });
+  });
+
+  it("words the banner in English with the label of the requirement", () => {
+    expect(en.review.detail.answerBanner).toEqual({
+      title: "Coordination answer",
+      byline: "{name}, {date}",
+      hint: "Take this answer into account when you decide.",
+      link: "See the full escalation",
+    });
+  });
+
+  it("uses the same label as the escalation section's answer", () => {
+    expect(es.review.detail.answerBanner.title).toBe(
+      es.review.escalation.section.fields.answer,
+    );
+    expect(en.review.detail.answerBanner.title).toBe(
+      en.review.escalation.section.fields.answer,
+    );
+  });
+
+  it.each(catalogs)("%s keeps the placeholders of the byline", (_l, m) => {
+    expect(m.review.detail.answerBanner.byline).toContain("{name}");
+    expect(m.review.detail.answerBanner.byline).toContain("{date}");
+  });
+
+  it("never words the banner with the informal address or the legacy voseo", () => {
+    const text = JSON.stringify(es.review.detail.answerBanner);
+
+    expect(text).not.toMatch(/\b(tu|tus|tienes|puedes|ten|vos|tené)\b/i);
+  });
+});

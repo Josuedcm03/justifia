@@ -1398,6 +1398,12 @@
         "revisionDocuments": "{count, plural, one {# documento} other {# documentos}}",
         "replacedOn": "Reemplazado el {date}"
       },
+      "answerBanner": {
+        "title": "Respuesta de coordinación",
+        "byline": "{name}, {date}",
+        "hint": "Tenga en cuenta esta respuesta al decidir.",
+        "link": "Ver el escalamiento completo"
+      },
       "decisionPanel": {
         "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Si necesita la opinión de la coordinación, use «Escalar a coordinación». Cada decisión le pide confirmarla."
       },

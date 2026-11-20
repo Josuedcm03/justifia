@@ -1398,6 +1398,12 @@
         "revisionDocuments": "{count, plural, one {# document} other {# documents}}",
         "replacedOn": "Replaced {date}"
       },
+      "answerBanner": {
+        "title": "Coordination answer",
+        "byline": "{name}, {date}",
+        "hint": "Take this answer into account when you decide.",
+        "link": "See the full escalation"
+      },
       "decisionPanel": {
         "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it."
       },
