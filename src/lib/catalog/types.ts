@@ -87,6 +87,8 @@ export type InscripcionListItem = {
   activo: boolean;
   effective: boolean;
   writable: boolean;
+  hasActiveSibling: boolean;
+  dependentRequests: number;
 };
 
 /** One Grupo as the list and the edit page see it. `dias` is the decoded set in

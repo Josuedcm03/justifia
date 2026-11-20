@@ -4,6 +4,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usuario } from "@/db/schema";
+import { VISIBLE_STATES } from "@/lib/intake/states";
 import type { RequestScope } from "@/lib/intake/request-scope";
 
 import { createDbDouble, type Step } from "./test-support/db-double";
@@ -23,6 +24,7 @@ vi.mock("@/db", () => ({
 }));
 
 import {
+  listInscripcionPeriods,
   listInscripciones,
   type ListInscripcionesParams,
 } from "@/lib/data/inscripciones";
@@ -55,6 +57,8 @@ const row = {
   activo: true,
   grupoActivo: true,
   asignaturaActivo: true,
+  hasActiveSibling: false,
+  dependentRequests: 0,
 };
 
 const latest = (periodo: string | null = LATEST): Step => ({
@@ -194,6 +198,8 @@ describe("listInscripciones core (EA-SCOPE-1, EA-LIST-1, EA-PII-1, EA-DEG-1)", (
           activo: raw,
           effective,
           writable,
+          hasActiveSibling: false,
+          dependentRequests: 0,
         },
       ]);
     },
@@ -407,4 +413,105 @@ describe("listInscripciones order and paging (stable total order)", () => {
       expect(double.log[2].offset).toBe(offset);
     },
   );
+});
+
+describe("listInscripciones sibling flag and request count (EA-SIB-1, EA-DEACT-1)", () => {
+  const read = async (patch: Record<string, unknown> = {}) => {
+    const double = scripted([latest(), count(1), page({ ...row, ...patch })]);
+    const { data } = await listInscripciones(params);
+    return { item: data[0], fields: double.log[2].selection as never };
+  };
+
+  it.each([
+    [true, 2],
+    [false, 0],
+  ])("carries sibling %s and %i requests of the row", async (sibling, n) => {
+    const flags = { hasActiveSibling: sibling, dependentRequests: n };
+    const { item } = await read(flags);
+
+    expect(item).toMatchObject(flags);
+  });
+
+  it("finds a sibling in the same asignatura and period, never elsewhere", async () => {
+    const { fields } = await read();
+    const { sql: text } = render(fields["hasActiveSibling"]);
+
+    for (const part of [
+      'exists (select 1 from "Inscripcion" "sib" inner join "Grupo" "sibg"',
+      '"sib"."EstudianteId" = "Inscripcion"."EstudianteId"',
+      '"sib"."Activo"',
+      '"sib"."GrupoId" <> "Inscripcion"."GrupoId"',
+      '"sibg"."AsignaturaId" = "Grupo"."AsignaturaId"',
+      '"sibg"."Periodo" = "Grupo"."Periodo"',
+    ]) {
+      expect(text).toContain(part);
+    }
+  });
+
+  it("counts this student's requests that name this group", async () => {
+    const { fields } = await read();
+    const { sql: text } = render(fields["dependentRequests"]);
+
+    for (const part of [
+      '"SolicitudAsignatura"."GrupoId" = "Inscripcion"."GrupoId"',
+      '"Solicitud"."EstudianteId" = "Inscripcion"."EstudianteId"',
+      "count(*)",
+    ]) {
+      expect(text).toContain(part);
+    }
+  });
+
+  it("filters by every visible state and never names a draft", async () => {
+    const { fields } = await read();
+    const query = render(fields["dependentRequests"]);
+
+    expect(query.params).toEqual([...VISIBLE_STATES]);
+    expect(query.sql).not.toContain("borrador");
+    expect(query.params).not.toContain("borrador");
+  });
+
+  it.each([
+    [["pendiente", "devuelta"], 2],
+    [["aprobada", "rechazada"], 2],
+    [["borrador"], 0],
+    [["pendiente", "borrador"], 1],
+  ])("counts %j as %i (EA-DEACT-1 table)", async (states, expected) => {
+    const { fields } = await read();
+    const { params: counted } = render(fields["dependentRequests"]);
+
+    expect(states.filter((s) => counted.includes(s))).toHaveLength(expected);
+  });
+});
+
+describe("listInscripcionPeriods (EA-FILT-1 period select, EA-SCOPE-1)", () => {
+  const periods = (...values: string[]): Step => ({
+    kind: "select",
+    rows: values.map((periodo) => ({ periodo })),
+  });
+
+  it("lists the distinct periods of the in-scope rows, newest first", async () => {
+    const double = scripted([periods("2026-S2", "2026-S1")]);
+
+    expect(
+      await listInscripcionPeriods({ kind: "facultad", facultadId: 9 }),
+    ).toEqual(["2026-S2", "2026-S1"]);
+    const [read] = double.log;
+    expect(render(read.where).params).toContain(9);
+    expect(render(sql.join(read.orderBy as never[], sql`, `)).sql).toBe(
+      '"Grupo"."Periodo" desc',
+    );
+  });
+
+  it("reads nothing for a secretaria without a facultad", async () => {
+    const double = scripted([]);
+
+    expect(await listInscripcionPeriods(NONE)).toEqual([]);
+    expect(double.log).toHaveLength(0);
+  });
+
+  it("returns no period, without throwing, when the read fails", async () => {
+    scripted([{ kind: "select", error: new Error("down") }]);
+
+    expect(await listInscripcionPeriods(FAC)).toEqual([]);
+  });
 });

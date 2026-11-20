@@ -1,9 +1,28 @@
 import "server-only";
 
-import { and, asc, desc, eq, ilike, not, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  not,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
-import { asignatura, grupo, inscripcion, usuario } from "@/db/schema";
+import {
+  asignatura,
+  grupo,
+  inscripcion,
+  solicitud,
+  solicitudAsignatura,
+  usuario,
+} from "@/db/schema";
 import type {
   CatalogListResult,
   InscripcionListItem,
@@ -25,6 +44,7 @@ import { containsPattern } from "@/lib/data/sql-like";
 import { clampPage } from "@/lib/data/users";
 import type { ListSort } from "@/lib/list-params";
 import type { RequestScope } from "@/lib/intake/request-scope";
+import { VISIBLE_STATES } from "@/lib/intake/states";
 
 export type ListInscripcionesParams = {
   /** From the SESSION only, via `requireEnrollmentAccess`. */
@@ -49,6 +69,18 @@ const INSCRIPCIONES_SORT_MAP = {
   subject: collatedText(asignatura.nombre),
   group: plainColumn(grupo.numeroGrupo),
 } satisfies Record<InscripcionesSortKey, SortExpr>;
+
+const sibling = alias(inscripcion, "sib");
+const siblingGroup = alias(grupo, "sibg");
+
+/** Another raw-active row of the same student, asignatura and period. */
+const HAS_ACTIVE_SIBLING = sql<boolean>`exists (select 1 from ${inscripcion} ${sibling} inner join ${grupo} ${siblingGroup} on ${siblingGroup.id} = ${sibling.grupoId} where ${sibling.estudianteId} = ${inscripcion.estudianteId} and ${sibling.activo} and ${sibling.grupoId} <> ${inscripcion.grupoId} and ${siblingGroup.asignaturaId} = ${grupo.asignaturaId} and ${siblingGroup.periodo} = ${grupo.periodo})`;
+
+/** CS-7: the student's requests naming the group, by `VISIBLE_STATES` (no draft). */
+const DEPENDENT_REQUESTS =
+  sql<number>`(select count(*) from ${solicitudAsignatura} inner join ${solicitud} on ${solicitud.id} = ${solicitudAsignatura.solicitudId} where ${solicitudAsignatura.grupoId} = ${inscripcion.grupoId} and ${solicitud.estudianteId} = ${inscripcion.estudianteId} and ${inArray(solicitud.estado, [...VISIBLE_STATES])})`.mapWith(
+    Number,
+  );
 
 /** The chosen key, the default key, then the composite primary key, so the
  *  order is total and no row is skipped or repeated across pages. */
@@ -160,6 +192,8 @@ export async function listInscripciones(
         activo: inscripcion.activo,
         grupoActivo: grupo.activo,
         asignaturaActivo: asignatura.activo,
+        hasActiveSibling: HAS_ACTIVE_SIBLING,
+        dependentRequests: DEPENDENT_REQUESTS,
       })
       .from(inscripcion)
       .innerJoin(usuario, eq(usuario.id, inscripcion.estudianteId))
@@ -185,6 +219,8 @@ export async function listInscripciones(
           activo: r.activo,
           effective: r.activo && offered,
           writable: r.periodo === latest && offered,
+          hasActiveSibling: r.hasActiveSibling,
+          dependentRequests: r.dependentRequests,
         };
       }),
       total: count,
@@ -194,5 +230,23 @@ export async function listInscripciones(
     };
   } catch {
     return emptyPage(p.pageSize, true);
+  }
+}
+
+/** In-scope periods, newest first, for the period select; fail-soft (`[]`). */
+export async function listInscripcionPeriods(
+  scope: RequestScope,
+): Promise<string[]> {
+  if (scope.kind === "none") return [];
+  try {
+    const rows = await db
+      .selectDistinct({ periodo: grupo.periodo })
+      .from(inscripcion)
+      .innerJoin(grupo, eq(grupo.id, inscripcion.grupoId))
+      .where(enrollmentInScope(scope))
+      .orderBy(desc(grupo.periodo));
+    return rows.map((r) => r.periodo);
+  } catch {
+    return [];
   }
 }
