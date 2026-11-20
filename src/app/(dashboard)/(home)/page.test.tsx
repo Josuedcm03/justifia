@@ -124,6 +124,7 @@ const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
       "/review",
       "/catalog/asignaturas",
       "/catalog/docentes",
+      "/catalog/inscripciones",
       "/catalog/import",
       "/users",
     ],
@@ -243,6 +244,29 @@ describe("DashboardPage (BS-HOME-1)", () => {
     expect(within(card).getByText("shortcuts.reports")).toBeInTheDocument();
     expect(shortcutHrefs().slice(0, 2)).toEqual(["/coordination", "/reports"]);
   });
+
+  it("offers secretaria the Inscripciones shortcut after Docentes, not prefetched (BS-NAV-4)", async () => {
+    await renderHome("secretaria");
+
+    const card = screen.getByRole("link", { name: /catalogInscripciones/ });
+
+    expect(card).toHaveAttribute("href", "/catalog/inscripciones");
+    expect(card).toHaveAttribute("data-prefetch", "false");
+    expect(
+      within(card).getByText("shortcuts.catalogInscripciones"),
+    ).toBeInTheDocument();
+  });
+
+  it.each(["estudiante", "docente", "coordinacion", "administrador"] as const)(
+    "shows %s no Inscripciones card and no link to /catalog/inscripciones",
+    async (rol) => {
+      await renderHome(rol);
+
+      expect(
+        document.querySelector('a[href="/catalog/inscripciones"]'),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it.each(["administrador", "secretaria", "docente", "estudiante"] as const)(
     "shows %s no Reports card and no link to /reports",
@@ -410,7 +434,13 @@ describe("DashboardPage (BS-HOME-1)", () => {
 
       const { homeHrefs, sidebarHrefs } = await homeAndSidebar("secretaria");
 
-      expect(homeHrefs).toEqual(["/review", "/catalog/import", "/users"]);
+      // Inscripciones reads `canManageEnrollments`, not the catalog predicate.
+      expect(homeHrefs).toEqual([
+        "/review",
+        "/catalog/inscripciones",
+        "/catalog/import",
+        "/users",
+      ]);
       expect([...sidebarHrefs].sort()).toEqual([...homeHrefs].sort());
     });
   });
@@ -433,6 +463,7 @@ describe("DashboardPage copy", () => {
         "reports",
         "catalogAsignaturas",
         "catalogDocentes",
+        "catalogInscripciones",
         "catalogImport",
         "users",
       ]) {
