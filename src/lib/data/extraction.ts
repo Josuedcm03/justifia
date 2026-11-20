@@ -20,7 +20,18 @@ import {
 import { QueryBuilder, type PgUpdateSetSource } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
-import { documentoRespaldo, extraccionDocumento, solicitud } from "@/db/schema";
+import {
+  documentoDatoManual,
+  documentoRespaldo,
+  extraccionDocumento,
+  solicitud,
+} from "@/db/schema";
+import { toEffectiveRow } from "@/lib/document-data/effective";
+import type {
+  DocumentMarks,
+  ManualFields,
+  TipoDocumento,
+} from "@/lib/document-data/types";
 import type { ExtractionRowView } from "@/lib/extraction/display";
 import { CLAIM_LEASE_MS, MAX_ATTEMPTS } from "@/lib/extraction/limits";
 import { failureOutcome, type ExtractionError } from "@/lib/extraction/states";
@@ -364,8 +375,17 @@ export async function selectExtractionCandidates(
 export type ExtractionListItem = {
   documentoId: number;
   nombreOriginal: string;
-  /** Null when the document has no row yet. */
+  /**
+   * The effective row (MD-21, RN-24): manual values over the extracted ones.
+   * Null when the document has no extraction row and no manual value.
+   */
   row: ExtractionRowView | null;
+  /** The extraction row as stored, for the "extracted" hint. Null when none. */
+  ocr: ExtractionRowView | null;
+  /** The manual values, or null when the document has no manual row. */
+  manual: ManualFields | null;
+  /** The type, firma and sello of the document; null is "not registered". */
+  marks: DocumentMarks;
 };
 
 export type ExtractionList = {
@@ -377,9 +397,11 @@ export type ExtractionList = {
 /**
  * The staff read model (DE-13): one entry per current, finalized student
  * document of a request. A document without a row appears (left join); retired
- * documents and `no_aplica` rows do not. Fail-soft: a failed query is an empty,
- * degraded result so the rest of the detail still renders. The caller has
- * already proven the request is in scope.
+ * documents and `no_aplica` rows do not. Each entry carries the effective row
+ * (manual data over extraction, MD-21) next to its two sources and the marks.
+ * Fail-soft: a failed query is an empty, degraded result so the rest of the
+ * detail still renders; it logs ids and codes only. The caller has already
+ * proven the request is in scope.
  */
 export async function listExtractions(
   solicitudId: number,
@@ -396,11 +418,23 @@ export async function listExtractions(
         reposoDesde: extraccionDocumento.reposoDesde,
         reposoHasta: extraccionDocumento.reposoHasta,
         reposoDias: extraccionDocumento.reposoDias,
+        manualNombreEstudiante: documentoDatoManual.nombreEstudiante,
+        manualEmisor: documentoDatoManual.emisor,
+        manualFechaEmision: documentoDatoManual.fechaEmision,
+        manualReposoDesde: documentoDatoManual.reposoDesde,
+        manualReposoHasta: documentoDatoManual.reposoHasta,
+        tipoDocumento: documentoRespaldo.tipoDocumento,
+        tieneFirma: documentoRespaldo.tieneFirma,
+        tieneSello: documentoRespaldo.tieneSello,
       })
       .from(documentoRespaldo)
       .leftJoin(
         extraccionDocumento,
         eq(extraccionDocumento.documentoId, documentoRespaldo.id),
+      )
+      .leftJoin(
+        documentoDatoManual,
+        eq(documentoDatoManual.documentoId, documentoRespaldo.id),
       )
       .where(
         and(
@@ -417,10 +451,8 @@ export async function listExtractions(
       .orderBy(asc(documentoRespaldo.id));
     return {
       degraded: false,
-      data: rows.map((r) => ({
-        documentoId: r.documentoId,
-        nombreOriginal: r.nombreOriginal,
-        row:
+      data: rows.map((r) => {
+        const ocr: ExtractionRowView | null =
           r.estado === null
             ? null
             : {
@@ -431,8 +463,32 @@ export async function listExtractions(
                 restFrom: r.reposoDesde,
                 restTo: r.reposoHasta,
                 restDays: r.reposoDias,
-              },
-      })),
+              };
+        // The left join gives all-null columns when there is no manual row,
+        // and a stored row always holds a value (CK_DatoManual_NoVacio).
+        const manualValues: ManualFields = {
+          studentName: r.manualNombreEstudiante,
+          issuer: r.manualEmisor,
+          issueDate: r.manualFechaEmision,
+          restFrom: r.manualReposoDesde,
+          restTo: r.manualReposoHasta,
+        };
+        const manual = Object.values(manualValues).some((v) => v !== null)
+          ? manualValues
+          : null;
+        return {
+          documentoId: r.documentoId,
+          nombreOriginal: r.nombreOriginal,
+          row: toEffectiveRow(ocr, manual),
+          ocr,
+          manual,
+          marks: {
+            type: r.tipoDocumento as TipoDocumento | null,
+            hasSignature: r.tieneFirma,
+            hasSeal: r.tieneSello,
+          },
+        };
+      }),
     };
   } catch (error) {
     console.error("extraction_read_failed", {

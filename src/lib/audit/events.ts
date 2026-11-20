@@ -10,6 +10,7 @@ import type {
   GrupoActiveResult,
   GrupoWriteResult,
 } from "@/lib/catalog/types";
+import type { DocumentDataField } from "@/lib/document-data/types";
 import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
 import type { Causa } from "@/lib/intake/causes";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
@@ -652,6 +653,25 @@ export function documentoFormatoEspecialEvent(args: {
       tamanoBytes: args.tamanoBytes,
       remisionesDesbloqueadas: args.remisionesDesbloqueadas,
     },
+  };
+}
+
+/**
+ * A secretary recorded manual data, the type or a mark of one document
+ * (RF-14, MD-32, MD-33). One event per save that changed something. `campos`
+ * lists the changed field names only: no value is accepted here, so no name,
+ * issuer, date, type code or mark can reach the audit row (RNF-06).
+ */
+export function documentDataRecordedEvent(args: {
+  documentoId: number;
+  solicitudId: number;
+  campos: readonly DocumentDataField[];
+}): AuditEvent {
+  return {
+    accion: "documento.datos_registrados",
+    entidadTipo: "DocumentoRespaldo",
+    entidadId: args.documentoId,
+    datos: { solicitudId: args.solicitudId, campos: args.campos },
   };
 }
 

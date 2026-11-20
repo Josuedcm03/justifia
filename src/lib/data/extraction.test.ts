@@ -589,7 +589,17 @@ describe("selectExtractionCandidates (RF-11, DE-11)", () => {
   });
 });
 
-describe("listExtractions (RF-11, DE-13)", () => {
+describe("listExtractions (RF-11, RF-14, DE-13, MD-21)", () => {
+  // The columns the read selects: the extraction row, the manual row and the
+  // three marks. A document with no manual row or marks has them all null.
+  const NO_MANUAL = {
+    manualNombreEstudiante: null,
+    manualEmisor: null,
+    manualFechaEmision: null,
+    manualReposoDesde: null,
+    manualReposoHasta: null,
+  };
+  const NO_MARKS = { tipoDocumento: null, tieneFirma: null, tieneSello: null };
   const completed = {
     documentoId: 11,
     nombreOriginal: "constancia.pdf",
@@ -600,6 +610,8 @@ describe("listExtractions (RF-11, DE-13)", () => {
     reposoDesde: "2026-10-19",
     reposoHasta: "2026-10-23",
     reposoDias: 5,
+    ...NO_MANUAL,
+    ...NO_MARKS,
   };
   const unregistered = {
     documentoId: 12,
@@ -611,9 +623,28 @@ describe("listExtractions (RF-11, DE-13)", () => {
     reposoDesde: null,
     reposoHasta: null,
     reposoDias: null,
+    ...NO_MANUAL,
+    ...NO_MARKS,
+  };
+  const COMPLETED_VIEW = {
+    state: "completada",
+    studentName: "Ana Perez",
+    issuer: "Clinica Central",
+    issueDate: "2026-10-19",
+    restFrom: "2026-10-19",
+    restTo: "2026-10-23",
+    restDays: 5,
+  };
+  const NULL_MARKS = { type: null, hasSignature: null, hasSeal: null };
+  const NULL_MANUAL = {
+    studentName: null,
+    issuer: null,
+    issueDate: null,
+    restFrom: null,
+    restTo: null,
   };
 
-  it("returns one entry per current student document, with its row or none", async () => {
+  it("returns one entry per current student document, with its effective row, the extracted row, the manual data and the marks", async () => {
     use([{ kind: "select", rows: [completed, unregistered] }]);
 
     await expect(listExtractions(REQUEST)).resolves.toEqual({
@@ -622,19 +653,154 @@ describe("listExtractions (RF-11, DE-13)", () => {
         {
           documentoId: 11,
           nombreOriginal: "constancia.pdf",
-          row: {
-            state: "completada",
-            studentName: "Ana Perez",
-            issuer: "Clinica Central",
-            issueDate: "2026-10-19",
-            restFrom: "2026-10-19",
-            restTo: "2026-10-23",
-            restDays: 5,
-          },
+          row: COMPLETED_VIEW,
+          ocr: COMPLETED_VIEW,
+          manual: null,
+          marks: NULL_MARKS,
         },
-        { documentoId: 12, nombreOriginal: "foto.jpg", row: null },
+        {
+          documentoId: 12,
+          nombreOriginal: "foto.jpg",
+          row: null,
+          ocr: null,
+          manual: null,
+          marks: NULL_MARKS,
+        },
       ],
     });
+  });
+
+  it("gives a row equal to the extracted one when there is no manual row", async () => {
+    use([{ kind: "select", rows: [completed] }]);
+
+    const { data } = await listExtractions(REQUEST);
+
+    expect(data[0].row).toEqual(data[0].ocr);
+    expect(data[0].manual).toBeNull();
+  });
+
+  it("lets a manual issuer win over a completed row and keeps the extracted one in ocr", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [{ ...completed, manualEmisor: "Hospital Nuevo" }],
+      },
+    ]);
+
+    const { data } = await listExtractions(REQUEST);
+
+    expect(data[0].row).toEqual({
+      ...COMPLETED_VIEW,
+      issuer: "Hospital Nuevo",
+    });
+    expect(data[0].ocr).toEqual(COMPLETED_VIEW);
+    expect(data[0].manual).toEqual({
+      ...NULL_MANUAL,
+      issuer: "Hospital Nuevo",
+    });
+  });
+
+  it("resolves a document with no extraction row and a manual issue date as completada (RF-14 c)", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [{ ...unregistered, manualFechaEmision: "2026-11-09" }],
+      },
+    ]);
+
+    const { data } = await listExtractions(REQUEST);
+
+    expect(data[0].ocr).toBeNull();
+    expect(data[0].row).toEqual({
+      state: "completada",
+      studentName: null,
+      issuer: null,
+      issueDate: "2026-11-09",
+      restFrom: null,
+      restTo: null,
+      restDays: null,
+    });
+  });
+
+  it("derives the days of a manual rest period over a failed row", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          {
+            ...unregistered,
+            estado: "fallida",
+            manualReposoDesde: "2026-11-09",
+            manualReposoHasta: "2026-11-09",
+          },
+        ],
+      },
+    ]);
+
+    const { data } = await listExtractions(REQUEST);
+
+    expect(data[0].row).toMatchObject({
+      state: "completada",
+      restFrom: "2026-11-09",
+      restTo: "2026-11-09",
+      restDays: 1,
+    });
+    expect(data[0].ocr?.state).toBe("fallida");
+  });
+
+  it("passes the marks through as null, true or false and never promotes on them", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          { ...unregistered, estado: "fallida" },
+          {
+            ...unregistered,
+            documentoId: 13,
+            estado: "fallida",
+            tipoDocumento: "otro",
+            tieneFirma: false,
+            tieneSello: true,
+          },
+        ],
+      },
+    ]);
+
+    const { data } = await listExtractions(REQUEST);
+
+    expect(data[0].marks).toEqual(NULL_MARKS);
+    expect(data[1].marks).toEqual({
+      type: "otro",
+      hasSignature: false,
+      hasSeal: true,
+    });
+    expect(data[1].row?.state).toBe("fallida");
+  });
+
+  it("selects the extraction columns, the manual columns and the three marks", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+
+    await listExtractions(REQUEST);
+
+    expect(Object.keys(double.log[0].selection as object)).toEqual([
+      "documentoId",
+      "nombreOriginal",
+      "estado",
+      "nombreEstudiante",
+      "emisor",
+      "fechaEmision",
+      "reposoDesde",
+      "reposoHasta",
+      "reposoDias",
+      "manualNombreEstudiante",
+      "manualEmisor",
+      "manualFechaEmision",
+      "manualReposoDesde",
+      "manualReposoHasta",
+      "tipoDocumento",
+      "tieneFirma",
+      "tieneSello",
+    ]);
   });
 
   it("keeps a document that has no row (left join) and drops no_aplica and retired ones", async () => {

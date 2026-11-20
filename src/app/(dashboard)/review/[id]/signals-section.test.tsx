@@ -52,10 +52,19 @@ const REPORT: SignalView = {
 
 function show(
   data: SignalView | null,
-  options: { degraded?: boolean; locale?: "es" | "en" } = {},
+  options: {
+    degraded?: boolean;
+    locale?: "es" | "en";
+    documentNames?: Record<number, string>;
+    audience?: "secretary" | "coordination";
+  } = {},
 ) {
   return renderIntl(
-    <SignalsSection signals={{ data, degraded: options.degraded ?? false }} />,
+    <SignalsSection
+      signals={{ data, degraded: options.degraded ?? false }}
+      documentNames={options.documentNames}
+      audience={options.audience}
+    />,
     options.locale ?? "en",
   );
 }
@@ -766,6 +775,182 @@ describe("SignalsSection RN-26 (Reference to an earlier request)", () => {
 
   it("reports no accessibility violation with links", async () => {
     const { container } = show(rn26([41, 55]));
+
+    const results = await axe.run(container, {
+      runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+      rules: { "color-contrast": { enabled: false } },
+    });
+
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    expect(results.passes.length).toBeGreaterThan(0);
+  });
+});
+
+// request-review: "Signals section and suggested verdict on the staff detail"
+// (MD-28, MD-29): the entries of RN-11, RN-12 and RN-13, their names and order,
+// the documents that raise them and the not registered reason.
+describe("SignalsSection manual signals (RN-11, RN-12, RN-13)", () => {
+  const ALL: SignalView = {
+    verdict: "review_carefully",
+    results: [
+      { signal: "rn07", outcome: "absent" },
+      { signal: "rn09", outcome: "absent" },
+      { signal: "rn10", outcome: "absent" },
+      {
+        signal: "rn11",
+        outcome: "present",
+        evidence: { kind: "documents", documentIds: [41, 43] },
+      },
+      {
+        signal: "rn12",
+        outcome: "absent",
+        evidence: { kind: "documents", documentIds: [] },
+      },
+      { signal: "rn13", outcome: "not_evaluable", reason: "not_registered" },
+      { signal: "rn14", outcome: "absent" },
+      { signal: "rn26", outcome: "absent" },
+    ],
+    notEvaluable: [{ signal: "rn13", reason: "not_registered" }],
+  };
+  const NAMES = { 41: "constancia.pdf", 42: "otro.pdf", 43: "carta.png" };
+
+  it("lists the eight entries in the fixed order", () => {
+    show(ALL);
+
+    expect(
+      [...section().querySelectorAll("dt")].map((term) => term.textContent),
+    ).toEqual(
+      ["rn07", "rn09", "rn10", "rn11", "rn12", "rn13", "rn14", "rn26"].map(
+        (code) =>
+          en.signals.names[code as keyof typeof en.signals.names] as string,
+      ),
+    );
+  });
+
+  it("names the three new entries in Spanish after rn10 and before the recurrence entry", () => {
+    show(ALL, { locale: "es" });
+
+    const terms = [
+      ...screen
+        .getByRole("region", { name: es.signals.title })
+        .querySelectorAll("dt"),
+    ].map((term) => term.textContent);
+    expect(terms.slice(2, 7)).toEqual([
+      "Fechas no cubiertas",
+      "Firma ausente",
+      "Sello ausente",
+      "Formato no corresponde a la causa",
+      "Reincidencia",
+    ]);
+  });
+
+  it("names the raising documents by the label the documents section uses, and nothing else", () => {
+    show(ALL, { documentNames: NAMES });
+
+    const entry = fact(en.signals.names.rn11);
+    expect(entry.textContent).toBe(
+      `${en.signals.outcomes.present}Documents that raise the signal: constancia.pdf, carta.png`,
+    );
+    expect(section()).not.toHaveTextContent("otro.pdf");
+  });
+
+  it("words a single raising document in the singular, in Spanish", () => {
+    show(
+      {
+        verdict: "review_carefully",
+        results: [
+          {
+            signal: "rn12",
+            outcome: "present",
+            evidence: { kind: "documents", documentIds: [41] },
+          },
+        ],
+        notEvaluable: [],
+      },
+      { locale: "es", documentNames: NAMES },
+    );
+
+    const root = screen.getByRole("region", { name: es.signals.title });
+    expect(fact(es.signals.names.rn12, root).textContent).toBe(
+      "Señal presenteDocumento que activa la señal: constancia.pdf",
+    );
+  });
+
+  it("shows only the outcome when no document label is available, never an id", () => {
+    show(ALL);
+
+    expect(fact(en.signals.names.rn11).textContent).toBe(
+      en.signals.outcomes.present,
+    );
+    expect(section().textContent).not.toMatch(/41|43/);
+  });
+
+  it("shows no document line for an absent entry", () => {
+    show(ALL, { documentNames: NAMES });
+
+    expect(fact(en.signals.names.rn12).textContent).toBe(
+      en.signals.outcomes.absent,
+    );
+  });
+
+  it("shows no document label to the coordination audience", () => {
+    show(ALL, { documentNames: NAMES, audience: "coordination" });
+
+    expect(fact(en.signals.names.rn11).textContent).toBe(
+      en.signals.outcomes.present,
+    );
+    expect(section()).not.toHaveTextContent(/constancia\.pdf|carta\.png/);
+  });
+
+  it("lists a not registered signal apart with text saying the secretary has not registered the datum", () => {
+    show(ALL);
+
+    const items = within(
+      screen.getByRole("list", { name: en.signals.notEvaluable.title }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent(en.signals.names.rn13);
+    expect(items[0]).toHaveTextContent(
+      "The secretary has not yet registered this datum for one or more current documents.",
+    );
+    expect(fact(en.signals.names.rn13)).toHaveTextContent(
+      en.signals.outcomes.not_evaluable,
+    );
+  });
+
+  it("words the not registered reason in Spanish", () => {
+    show(ALL, { locale: "es" });
+
+    expect(
+      within(
+        screen.getByRole("list", { name: es.signals.notEvaluable.title }),
+      ).getByRole("listitem"),
+    ).toHaveTextContent(
+      "La secretaría aún no registró este dato en uno o más documentos vigentes.",
+    );
+  });
+
+  it("shows the not registered reason to the coordination audience as a label", () => {
+    show(
+      {
+        verdict: "inconclusive",
+        results: [
+          {
+            signal: "rn11",
+            outcome: "not_evaluable",
+            reason: "not_registered",
+          },
+        ],
+        notEvaluable: [{ signal: "rn11", reason: "not_registered" }],
+      },
+      { audience: "coordination" },
+    );
+
+    expect(section()).toHaveTextContent(en.signals.reasons.not_registered);
+  });
+
+  it("reports no accessibility violation with the eight entries", async () => {
+    const { container } = show(ALL, { documentNames: NAMES });
 
     const results = await axe.run(container, {
       runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AuditEntityType } from "./types";
+import type { AuditEntityType, AuditEvent } from "./types";
 import {
   AUDIT_ACTIONS,
   AUDITABLE_ASIGNATURA_FIELDS,
@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, two inscripcion read, three escalation, four escalation notice one coordinator read three report ones and one retention one", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, two inscripcion read, three escalation, four escalation notice one coordinator read three report ones, one retention one and one manual document data one", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -81,6 +81,7 @@ describe("AUDIT_ACTIONS", () => {
         "escalamiento.notificacion_reenviada",
         "escalamiento.cola.consultada",
         "usuario.cancelado",
+        "documento.datos_registrados",
       ].sort(),
     );
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([
@@ -149,5 +150,37 @@ describe("AuditEntityType (escalation)", () => {
   it("includes Escalamiento and Carrera next to the existing types", () => {
     const types: AuditEntityType[] = ["Escalamiento", "Carrera", "Solicitud"];
     expect(types).toEqual(["Escalamiento", "Carrera", "Solicitud"]);
+  });
+});
+
+describe("AuditEvent (manual document data, MD-31)", () => {
+  it("maps documento.datos_registrados to the existing DocumentoRespaldo entity type", () => {
+    // Compile-time pin: the assignment fails typecheck if the union changes
+    // the entity type of this action.
+    const entity: Extract<
+      AuditEvent,
+      { accion: "documento.datos_registrados" }
+    >["entidadTipo"] = "DocumentoRespaldo";
+    expect(AUDIT_ACTIONS).toContain("documento.datos_registrados");
+    expect(entity).toBe("DocumentoRespaldo");
+  });
+
+  it("adds no audit entity type", () => {
+    // `satisfies Record<AuditEntityType, true>` fails typecheck when a type is
+    // added to or removed from the union without this list changing.
+    const entityTypes = {
+      Importacion: true,
+      Usuario: true,
+      Solicitud: true,
+      DocumentoRespaldo: true,
+      Facultad: true,
+      Asignatura: true,
+      Grupo: true,
+      Remision: true,
+      Inscripcion: true,
+      Escalamiento: true,
+      Carrera: true,
+    } satisfies Record<AuditEntityType, true>;
+    expect(Object.keys(entityTypes)).toHaveLength(11);
   });
 });

@@ -24,6 +24,7 @@ remiten a ese archivo.
 | 15  | `rest-signals-cause-scope` | RF-05 (a), (b); RN-09, RN-10, RN-15                                                  | Armando     | No                   | archivado |
 | 16  | `auth-route-tests`         | RNF-01 (c)                                                                           | Armando     | Si alcanza el tiempo | archivado |
 | 17  | `data-retention`           | RNF-04, RN-27                                                                        | Armando     | No                   | archivado |
+| 18  | `manual-document-data`     | RF-14 (a) a (d); RF-05 (e); RN-11, RN-12, RN-13, RN-24; RNF-14 (solo el mapa tipo-causa) | Armando | No                | archivado |
 
 **Notas:**
 
@@ -76,8 +77,7 @@ remiten a ese archivo.
   serverless) queda fuera de alcance. `MAX_IMAGE_TOKENS` (6144) está atado al
   contexto de 8192 tokens del servidor (`-c 8192`): si se cambia el servidor,
   revisar ese límite, porque una solicitud que no entra agota los 3 intentos.
-  Los documentos que terminan `fallida` no tienen carga manual; la carga manual (RF-14) no está construida y queda fuera de
-  `validation-signals`. Nota para el equipo (`escalation`): su migración
+  Los documentos que terminan `fallida` no tienen carga manual en la lectura de extracción; la carga manual (RF-14) la entrega `manual-document-data` (fila 18), que sobrescribe el valor extraído campo por campo sin modificarlo (RN-24). Nota para el equipo (`escalation`): su migración
   también es `0011`; debe regenerarla con el número siguiente (no numerar a
   mano).
 - `escalation` (archivado el 2026-10-30) permite a la secretaría escalar a la
@@ -102,9 +102,9 @@ remiten a ese archivo.
   (a) a (d)), que se calculan en cada lectura, no se guardan y no cambian la
   solicitud (RN-15). La secretaría ve el detalle completo; la coordinación ve
   solo resultados y veredicto, sin valores extraídos ni número de otra
-  solicitud; el estudiante no ve nada. Quedan fuera de esta entrega: RF-05 (e),
+  solicitud; el estudiante no ve nada. Quedaron fuera de esta entrega: RF-05 (e),
   RN-11, RN-12, RN-13 y RN-24 con RF-14 (la carga manual de datos del
-  documento), y NS-12. El umbral de RN-14 es una constante de código hasta
+  documento), que entrega `manual-document-data` (fila 18), y NS-12. El umbral de RN-14 es una constante de código hasta
   `normative-parameters` (RNF-14). La migración `0013_validation_signals`
   (huella del archivo) se aplicó en la base de producción el 2026-11-02. La
   revisión jurídica de la UAM (tarea 10.8 del change) quedó diferida por
@@ -195,3 +195,18 @@ remiten a ese archivo.
   Supuesto: se considera que la anonimización equivale a la «cancelación» que
   exige la Ley 787 (arts. 19 f y 24). Es un supuesto del change, no una revisión
   jurídica; la revisión de la UAM sigue pendiente.
+- `manual-document-data` (archivado el 2026-11-20) permite a la secretaría
+  registrar a mano, por documento de respaldo, el nombre del estudiante, el
+  emisor, la fecha de emisión, el reposo (solo fechas desde y hasta; los días
+  se calculan), el tipo de documento y las marcas de firma y sello (RF-14 (a)
+  a (d); RF-05 (e)). El valor manual prevalece, campo por campo, sobre el
+  extraído, y la extracción no se modifica (RN-24). Las señales RN-11, RN-12 y
+  RN-13 se calculan en cada lectura. La migración `0015_manual_document_data`
+  se aplicó en la base de producción el 2026-11-20 a las 00:34 (hora de
+  Managua). Regla estricta: mientras una marca siga «Sin registrar», la señal
+  queda sin resolver («La secretaría aún no registró este dato») y el
+  veredicto sigue «No concluyente». Supuesto del
+  change, no verificado: la correspondencia tipo-causa de
+  `src/lib/signals/document-type-causes.ts` asigna la constancia médica a
+  maternidad y paternidad. RNF-14 en su conjunto sigue «No cumple» hasta que
+  `normative-parameters` (fila 8) cierre la constante de umbrales.
