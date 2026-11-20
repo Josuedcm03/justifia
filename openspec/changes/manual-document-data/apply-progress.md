@@ -258,3 +258,79 @@ The writer files were new, so they were staged before each mutation and "git res
 - **Payload shape.** The action calls saveDocumentData with actorId, scope, solicitudId, documentoId and data, where data is the complete state: studentName, issuer, issueDate, restFrom, restTo, type, hasSignature and hasSeal, each null when empty. The validation of PR 4 must trim, turn empty into null and give both rest dates or neither; the writer takes "restFrom" alone to decide whether any manual value remains, which is safe only under that rule and under "CK_DatoManual_Reposo". actorId is the session user and scope is the resolved scope, never request input.
 - **Outcomes.** "not_found" and "not_editable" are the two refusals; "ok" with "changed" false is a success (no write, no audit row), so the action redirects in both success cases.
 - **Phase 9.** The unit tests cannot prove the row lock or a real rollback; the PR 7 acceptance suite and the retention suite run on "manual-it". The retention suite needs 0014 and 0015 on the branch, which are applied.
+
+## Phase 5 (PR 4)
+
+Mode: Strict TDD. Branch "feat/manual-document-data-4-domain" from the PR 3 branch (395840e). PR 4: "https://github.com/Josuedcm03/justifia/pull/96", base "feat/manual-document-data-3-write". Size exception accepted by the owner (0.1 a); the slice is not split.
+
+No database was touched: no migrate, no neon command, no SQL. Every run used the dummy DB. Both modules are pure and unwired: nothing imports them yet.
+
+### Commits
+
+| Unit | Hash    | Message                                               |
+| ---- | ------- | ----------------------------------------------------- |
+| 9    | a1c0a63 | feat(signals): add the rn11, rn12 and rn13 evaluators |
+| 10   | 34cfa5f | feat(document-data): validate manual document data    |
+
+### Files
+
+| File                                       | Action                                                                                                                |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/signals/document-marks.ts`        | Created: evaluateMissingSignature, evaluateMissingSeal, evaluateTypeMismatch and their local types (127 lines)        |
+| `src/lib/signals/document-marks.test.ts`   | Created (64 cases: per-document marks, the strict table for the three signals, 15 type and cause pairs, the map seam) |
+| `src/lib/document-data/validation.ts`      | Created: validateDocumentData, the six error codes, the payload and result types (166 lines)                          |
+| `src/lib/document-data/validation.test.ts` | Created (60 cases: bounds, trimming, dates, rest period, type, marks, whole-save behavior)                            |
+
+### TDD cycle evidence
+
+| Task              | RED                                                                                        | GREEN                                                                        | Refactor                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 5.1 and 5.2 marks | run failed: "./document-marks" missing (no test collected; both parts were written first)  | 64 of 64 pass in `src/lib/signals/document-marks.test.ts`; typecheck clean   | test titles reordered so "%s" prints the outcome, prettier |
+| 5.4 mutation 1    | n/a (revert-only check)                                                                    | lenient aggregation ("some" absent): 5 failed, 59 passed; restored           | none                                                       |
+| 5.4 mutation 2    | n/a (revert-only check)                                                                    | "otro" made to correspond: 7 failed, 57 passed; restored                     | none                                                       |
+| 5.6 validation    | run failed: "./validation" missing (no test collected)                                     | 60 of 60 pass in `src/lib/document-data/validation.test.ts`; typecheck clean | prettier reflow                                            |
+| 5.7 mutation 3    | n/a: the throw case was added after the first GREEN draft, so this check is its RED proof  | non-string text read as null: 5 failed, 55 passed; restored                  | none                                                       |
+| 5.7 mutation 4    | n/a (revert-only check)                                                                    | lone rest date allowed: 3 failed, 57 passed; restored                        | none                                                       |
+| 5.7 mutation 5    | n/a (revert-only check)                                                                    | length in UTF-16 units: 1 failed, 59 passed; restored                        | none                                                       |
+
+The mutation checks that touch new files were run after "git add", so "git restore" restored them from the index; "git status" was clean of the mutation each time. Triangulation: the aggregation table runs for firma, sello and type (three signals through one table), the 15 type and cause pairs are written out, and the validation bounds run on both sides of each limit.
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                              |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | "npm test -- src/lib/document-data src/lib/signals": 14 files, 345 tests passed (includes the structural pins `src/lib/signals/display-only.test.ts` and `src/lib/signals/no-persistence.test.ts`) |
+| Runtime harness      | N/A: pure functions, unwired; there is no runtime boundary to cross until PR 5 (signals) and PR 6 (action)                                                                                         |
+| Rollback boundary    | Revert the PR; nothing imports the two modules, so no behavior changes                                                                                                                             |
+
+### Gates
+
+- Full "npm test" with the dummy DB: 362 files, 8684 tests, all passed, 225 s (vitest duration 224.79 s). PR 3 was 360 files and 8560 tests: two new files, 124 new tests (evaluators 64, validation 60).
+- "npm run typecheck": clean (run before each commit and at the end).
+- "npx eslint src": the known CRLF "Delete the carriage return" messages, two CRLF-quoted lines in `src/test/access/inventory.ts` and one unused-import warning in `src/components/app-sidebar.tsx`, all in untouched files; 135062 problems, the same total as PR 3. ESLint and "npx prettier --check" on the four touched files: clean.
+
+### Measured size (task 5.9)
+
+"git diff --numstat feat/manual-document-data-3-write...HEAD" excluding "openspec/" and ".engram/": 1104 additions and 0 deletions, 1104 changed lines (293 production lines, 811 test lines). Target was about 400 and the stop line 460; the owner's size exception covers it. Unit 9 is 530 lines (127 production, 403 test), unit 10 is 574 (166 production, 408 test).
+
+### Deviations and findings
+
+- Evidence kind. The evaluators return one local evidence kind, "documents" with "documentIds", for the three signals, and an absent outcome carries an empty list (like RN-09's absent). The design interface listed two kinds ("mark" and "documentType") with counts and type codes; the spec (MD-16, MD-28) and task 0.1 (c) settled ids only, so the two collapse into one. Task 6.3 folds this kind into SignalEvidence and PR 5 needs one evidence line per signal code instead of per kind.
+- Input shape. The evaluators take MarkedDocument, which is the document id plus a DocumentMarks, exactly the "marks" field that task 6.3 adds to SignalDocument. A SignalDocument array will therefore pass to them unchanged, and the evaluators cannot see the extraction row, the name, the issuer or the dates.
+- Map type. DocumentTypeCauses is declared in `src/lib/signals/document-marks.ts` as the readonly record of types to causes; the constant of `src/lib/signals/document-type-causes.ts` satisfies it. "otro" is handled only through the map (it is in no list), not by a hard rule in the evaluator, so an injected map decides everything (MD-15).
+- Validation error keys. One key per field: "studentName", "issuer", "issueDate", "rest", "type", "hasSignature", "hasSeal". The two rest dates share "rest" (the spec reads "error on rest period"), with "date_invalid" over "rest_incomplete" over "rest_order" when several apply. The task named the codes, not the keys.
+- Lengths are counted in code points, as varchar(n) counts characters, not in UTF-16 units; a case with 160 emoji pins it. Trimming happens before the length check.
+- The type accepts null or an empty string as "not registered" and refuses anything else, including a padded " otro". The marks accept only true, false or null; the action of PR 6 maps the radio values.
+- validateDocumentData throws a TypeError when a text or date field is neither a string nor null (the message holds no value). The task did not ask for it; without it such a value would have read as empty and cleared a stored one. The type and the marks come in as "unknown" and are checked, not trusted.
+- The result type is ManualFields plus DocumentMarks from `src/lib/document-data/types.ts`, structurally the same as DocumentDataInput of the writer; the validation does not import the writer (it has "server-only").
+- Line endings: the "git restore" calls of the mutation checks wrote CRLF into the new files, which were converted to LF again; Git stores LF.
+- The repo hook staged `.engram/` files on both commits. Each was amended with the helper script (chunks "git rm --cached", manifest "git checkout HEAD~1 --", then "git commit --amend --no-edit --no-verify"), and the local manifest was put back; the manifest is still modified and the chunks untracked.
+- CodeGraph has no index for this worktree and the four files are new and self-contained, so the surrounding code (signals types, rest-dates, dates) was read directly.
+
+### Plan notes for PR 5
+
+- **Fold the local types into `src/lib/signals/types.ts` (task 6.3).** MarkSignalResult becomes members of SignalResult, MarkEvidence becomes one member of SignalEvidence (kind "documents", ids only), and "not_registered" joins REASON_PRECEDENCE and NOT_EVALUABLE_REASONS; MarkNotEvaluableReason is then a subset of NotEvaluableReason, and ALLOWED_REASONS for rn11, rn12 and rn13 is the same two codes. Delete the local copies from `src/lib/signals/document-marks.ts` and import from types, so nothing is declared twice. The design's evidence kinds "mark" and "documentType" and the i18n keys "evidence.mark" and "evidence.documentType" do not exist in this model: the evidence line of the three signals is keyed by signal code, so decide the keys of "review.signals.evidence" when writing the evidence lines.
+- **Wiring (task 6.4).** The evaluators take a readonly list of MarkedDocument; pass `input.documents` as it is once SignalDocument carries "marks". evaluateTypeMismatch needs the declared cause and "params.documentTypeCauses" (default DOCUMENT_TYPE_CAUSES, typed DocumentTypeCauses). The three results go between rn10 and rn14, outside the cause cut, in that order; none of them can be not_applicable, which the result type already enforces.
+- **The strict rule is already inside the evaluators.** Nothing in `src/lib/signals/verdict.ts` needs to change: not_registered is a not_evaluable reason, so the verdict stays "inconclusive" while any mark is unregistered (task 6.2 pins it with a mutation check).
+- **`loadSignals` and the marks.** ExtractionListItem already carries "marks" (PR 2); map them into SignalDocument as "marks". Documents must stay the current student documents only (the item list is already filtered); the evaluators do no filtering.
+- **For PR 6.** validateDocumentData takes the payload of the eight values and returns "data" (the same eight, trimmed, empty as null, both rest dates or neither) or "errors" keyed by field with one of six codes; pass "data" to saveDocumentData as is. The action must give text and dates as string or null (a FormData entry can be a File: coerce first, because a non-string throws a TypeError) and the radios as true, false or null; map any throw to "unexpected" and never log its message. The i18n keys "errors.{6 codes}" are keyed by code, but the form shows each under its field key, so "rest" shows under the rest inputs. NAME_MAX_LENGTH and ISSUER_MAX_LENGTH are exported for the maxLength of the inputs.
