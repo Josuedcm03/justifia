@@ -1,11 +1,12 @@
 # Delta for Auth Entry Access
 
 Change: `flow-experience` (roadmap row 13), backlog entries UX-20 (link to
-"Cambiar contraseña") and UX-21 (sign in with the CIF or the institutional
-email). Owner decision 2026-11-20: UX-21 is its own late slice; the `Login`
-column of `Usuario` is kept, so reverting restores sign-in by "Usuario" with no
-data loss. The change affects thesis Anexo E line 3 ("Todos ingresan con
-«Usuario» y «Contraseña»"), listed for the thesis session.
+"Cambiar contraseña"), UX-21 (sign in with the CIF or the institutional
+email) and UX-22 (keep the session signed in). Owner decision 2026-11-20: UX-21
+is its own late slice; the `Login` column of `Usuario` is kept, so reverting
+restores sign-in by "Usuario" with no data loss. The change affects thesis
+Anexo E line 3 ("Todos ingresan con «Usuario» y «Contraseña»"), listed for the
+thesis session.
 
 Terms: "identifier" = the single value typed in the sign-in field. "Institutional
 email" = the `Usuario.Correo` of the account; it is validated as an email
@@ -61,13 +62,19 @@ still applies. An anonymous visitor MUST see no link and MUST NOT reach
 
 The sign-in form MUST have one identifier field, labelled "CIF o correo
 institucional" (`en`: "CIF or institutional email"), and the password. It MUST
-NOT show, name or ask for a "Usuario". The identifier MUST be trimmed and
-classified: a value that contains `@` is an email and MUST be matched against
-`Usuario.Correo` of any role; a value that does not is a CIF and MUST be matched
-against `Usuario.Cif`, which only students hold. Students MAY use either
-identifier; every other role MUST use its email. A value that is neither the
-email nor the CIF of an active account, including a former "Usuario" that is
-neither, MUST fail. The identifier MUST be at most 160 characters. After a
+NOT show, name or ask for a "Usuario". The identifier MUST be classified by its
+content: an identifier that contains `@` is an email, and MUST be trimmed and
+matched, ignoring case, against `Usuario.Correo` of any role; any other
+identifier is a CIF, and MUST be trimmed, MUST have its spaces and hyphens
+removed, and MUST then be matched exactly against the stored `Usuario.Cif`,
+which keeps its 20-character limit. No CIF format or digit count is assumed: a
+student's CIF is digits only, but the staff CIF has another, unknown format and
+is not stored today. The CIF is matched against accounts that have a CIF, which
+today means students only. Students MAY use either identifier; every other role
+MUST use its email. A value that is neither the email nor the CIF of an active
+account MUST fail, except the transitional `Login` fallback of FE-25, which
+covers only accounts that would otherwise be locked out. The identifier MUST be
+at most 160 characters. After a
 successful match the session, the role code, the forced password change and the
 safe `next` redirect (AEA-3) MUST behave exactly as before. All texts MUST exist
 in `es` and `en`.
@@ -79,13 +86,27 @@ in `es` and `en`.
 | the student's CIF | active `estudiante` | signed in |
 | the student's email | active `estudiante` | signed in |
 | the email | active `docente`, `coordinacion`, `secretaria` or `administrador` | signed in |
-| a CIF-shaped value | any staff account | fails |
-| a former "Usuario" that is neither the email nor the CIF | any account | fails |
+| a CIF-shaped value | any staff account (unless it is the legacy `Login` of an account without email, FE-25) | fails |
+| a former "Usuario" | an account that has an email, or a student that has a CIF | fails |
+| a former "Usuario" | an active account with no email and no CIF (FE-25 fallback) | signed in |
 | the CIF or the email | inactive account | fails |
 
 - GIVEN the account in the row and the correct password
 - WHEN the identifier in the row is submitted
 - THEN the outcome is as shown
+
+#### Scenario: CIF matching is exact after cleaning, with no assumed format (table-driven)
+
+| Stored `Cif` of an active student | Typed identifier | Result |
+|---|---|---|
+| `26001234` | `26001234` | signed in |
+| `26001234` | `  26-00 1234 ` | signed in |
+| `26001234` | `2600123` | fails |
+| `2600123456` (10 digits) | `2600123456` | signed in |
+
+- GIVEN the student in the row and the correct password
+- WHEN the identifier in the row is submitted
+- THEN the outcome is as shown, because the CIF is cleaned of spaces and hyphens and compared exactly, with no digit count assumed
 
 #### Scenario: Student without an email signs in by CIF
 
@@ -123,8 +144,9 @@ An email identifier MUST be compared with `Usuario.Correo` ignoring case and
 surrounding whitespace, so that " Ana.Perez@UNI.edu " matches a stored
 "ana.perez@uni.edu" and the reverse. When the identifier matches more than one
 account (for instance two legacy emails that differ only by case), the sign-in
-MUST fail and MUST NOT pick one. A CIF identifier MUST be compared after
-trimming. Every account written after this change MUST store its email
+MUST fail and MUST NOT pick one. A CIF identifier MUST be compared exactly after
+trimming and removing spaces and hyphens, as in FE-21. Every account written
+after this change MUST store its email
 normalized, so that the stored value never differs from another only by case.
 No creation path MUST create a second account whose normalized email equals
 that of an existing account: the staff form and self-registration refuse it, and
@@ -236,7 +258,12 @@ collide ignoring case; (2) the count and the ids of the affected accounts, with
 no names or emails, MUST be recorded in the merge gate of the change; (3) while
 the count is not zero the slice MUST NOT be released unless each listed account
 has gained an identifier or the fallback fixed by the design covers it. The
-count MUST write nothing. The system account and the accounts cancelled by
+fallback (owner decision 2026-11-20) is transitional: an active account that has
+no `Correo` and is not a student with a `Cif` MAY sign in with its stored `Login`
+as the identifier, trimmed. It MUST NOT reach any other account: the `Login` of
+an account that has an email, or of a student that has a CIF, MUST fail. It MUST
+be removed once the read-only count of such accounts is zero. The count MUST
+write nothing. The system account and the accounts cancelled by
 retention are excluded because they cannot sign in before or after the change.
 No account creation path MUST produce an account with neither identifier.
 
@@ -259,11 +286,25 @@ No account creation path MUST produce an account with neither identifier.
 - WHEN the count runs
 - THEN neither is counted, and neither can sign in before or after the change
 
-#### Scenario: Such an account cannot sign in after the change
+#### Scenario: Such an account signs in only through the fallback
 
 - GIVEN an active account with neither identifier, left as it is, and the change released
-- WHEN anyone submits its former "Usuario" or any other value with its former password
-- THEN the sign-in fails with the generic message of FE-23 and no session is issued
+- WHEN its stored `Login` is submitted with its former password
+- THEN it is signed in through the transitional fallback
+- AND any other value submitted for it fails with the generic message of FE-23 and no session is issued
+
+#### Scenario: The fallback reaches only accounts without an identifier (table-driven)
+
+| `Login` typed belongs to | Result |
+|---|---|
+| an active staff account that has an email | fails |
+| an active student that has a CIF and no email | fails |
+| an active account with no email that is not a student with a CIF | signed in |
+| an inactive account with no email | fails |
+
+- GIVEN the account in the row and the correct password
+- WHEN its `Login` is submitted as the identifier
+- THEN the outcome is as shown, and the failures use the generic message of FE-23
 
 #### Scenario: Case collisions are counted
 
@@ -288,6 +329,59 @@ No account creation path MUST produce an account with neither identifier.
 - GIVEN a creation with the data in the row
 - WHEN it is processed
 - THEN the outcome is as shown and no account is created
+
+### Requirement: FE-32 The session can be kept signed in for 30 days (UX-22; RNF-01)
+
+The sign-in form MUST offer a checkbox labelled "Mantener la sesión iniciada"
+(`en`: "Keep me signed in"), unchecked by default. When it is checked at a
+successful sign-in, the session token and the session cookie MUST last 30 days;
+when it is not, they MUST last 8 hours, as today. The choice MUST travel with the
+session itself, so that every re-issue of the session (the forced and the
+voluntary password change) keeps the duration the user chose. Signing out MUST
+clear the session cookie whether or not the box was checked. A failed sign-in
+MUST issue no session and set no cookie, whatever the box says. A session
+created by self-registration keeps the 8-hour duration. The checkbox MUST NOT
+change what any role can reach, the forced password change, the safe `next`
+redirect or the generic failure of FE-23: the access matrix is unchanged. A
+token issued before this change, which carries no such choice, MUST stay valid
+and read as unchecked. Its texts MUST exist in `es` and `en`.
+
+#### Scenario: Checked lasts 30 days
+
+- GIVEN valid credentials and the box checked
+- WHEN the sign-in succeeds
+- THEN the token expires 30 days after it was issued and the cookie `maxAge` is 30 days
+
+#### Scenario: Unchecked lasts 8 hours
+
+- GIVEN valid credentials and the box unchecked or absent
+- WHEN the sign-in succeeds
+- THEN the token expires 8 hours after it was issued and the cookie `maxAge` is 8 hours
+
+#### Scenario: Sign-out clears it
+
+- GIVEN a session started with the box checked
+- WHEN the user signs out
+- THEN the session cookie is cleared and `/login` is shown on the next request, as for an 8-hour session
+
+#### Scenario: The forced password change still applies
+
+- GIVEN an account flagged for a password change that signs in with the box checked
+- WHEN the sign-in succeeds
+- THEN the user is sent to the forced password change and reaches nothing else until it is done
+- AND after the change the re-issued session keeps the 30-day duration and no longer carries the flag
+
+#### Scenario: Access matrix unchanged
+
+- GIVEN the access matrix of the five roles
+- WHEN the entry points are exercised with a session issued with the box checked and one issued without it
+- THEN every outcome is identical and no row is added to or changed in the matrix
+
+#### Scenario: Old tokens and failed attempts
+
+- GIVEN a token issued before this change, and a failed sign-in with the box checked
+- WHEN each is used or inspected
+- THEN the old token is valid and reads as an 8-hour session, and the failure sets no cookie
 
 ## MODIFIED Requirements
 

@@ -381,3 +381,47 @@ No slice merges to `main` on its own. The evidence runs locally, so no early pro
 - [ ] Confirm that the legacy `Login` fallback ships and is removed once the S9 count is 0.
 - [ ] Confirm that a `rechazada` card shows a 2-line excerpt of the decision text.
 - [ ] Confirm that the RF-08 preview covers only files attached during the current visit to step 3.
+
+## UX-22 addendum (owner, 2026-11-20): keep the session signed in
+
+Spec: `auth-entry-access` FE-32. Backlog UX-22. Slice S9c, after S9b, about 180 lines. It stays out of S9a so that slice keeps its budget.
+
+### Approach: a session claim, not only a cookie age
+
+The session JWT lasts 8 h (`src/lib/auth/session.ts:34`, `SESSION_MAX_AGE` at `:6`) and the cookie uses the same constant (`src/lib/auth/cookies.ts:25`). Three places issue a session: `login/actions.ts:39`, `register/actions.ts:70` and `change-password/actions.ts:75`. The last one re-signs from the old session claims, so a cookie-age-only design would silently turn a 30-day session into an 8-hour one at the forced password change. The choice therefore travels as an optional claim.
+
+| Piece | Decision |
+|---|---|
+| Claim | `SessionPayload.mantenerSesion?: boolean`. `isSessionPayload` accepts it undefined or boolean only. A token without it (every token issued before this change) stays valid and reads as unchecked |
+| Durations | `SESSION_MAX_AGE` (8 h) stays. New `SESSION_MAX_AGE_KEPT = 60 * 60 * 24 * 30`. One pure helper `sessionMaxAge(keep: boolean)` returns the right one, so the token and the cookie cannot disagree |
+| Token | `signSession` sets `setExpirationTime("30d")` when `payload.mantenerSesion` is true, otherwise `"8h"`. A string is used on purpose: a number given to `jose` is an absolute timestamp |
+| Cookie | `setSessionCookie(token, keep = false)` uses `sessionMaxAge(keep)`. Flags (`httpOnly`, `secure`, `sameSite`, `path`) do not change |
+| Login | `loginAction` reads `formData.get("mantener") === "on"`. The claim is added to the payload only when true, so an unchecked token is byte-identical in shape to today's. Failures return before any session work |
+| Re-issue | `change-password/actions.ts` carries `mantenerSesion: session.mantenerSesion` into the new payload and passes it to `setSessionCookie`. The flag `debeCambiarClave` flow is untouched |
+| Register | No checkbox on `/register`. It keeps the 8-hour default |
+| Logout | `clearSessionCookie` already deletes the cookie. No change; a test pins it for a kept session |
+| Form | `login-form.tsx` adds the native `Checkbox` (`src/components/ui/checkbox.tsx`, which posts `on`) with a `Label`, unchecked by default |
+
+The forced change is unaffected. A flagged user who checks the box is still redirected to `/change-password`, and the re-issued session keeps 30 days and drops the flag. The access matrix needs no row because no route, Server Action or audit event is added.
+
+Trade-off: a 30-day token cannot be revoked server-side before it expires, as for the 8-hour token today (there is no session table). Deactivating an account still blocks the next sign-in but not an issued token. This is recorded as a backlog entry in S10, not solved here.
+
+### Files
+
+| File | Action |
+|---|---|
+| `src/lib/auth/session.ts` (+test) | Claim, constant, `sessionMaxAge`, expiry, payload guard |
+| `src/lib/auth/cookies.ts` (+new test) | `setSessionCookie(token, keep)` |
+| `src/app/(auth)/login/actions.ts` (+test) | Read the box, pass the claim and the cookie flag |
+| `src/app/(auth)/login/login-form.tsx` (+test) | Checkbox and label |
+| `src/app/change-password/actions.ts` (+test) | Carry the claim and the cookie flag |
+| `i18n/es.json`, `i18n/en.json` | `auth.login.keepSession` "Mantener la sesión iniciada" / "Keep me signed in" |
+
+### Tests (RED first)
+
+- `session.test.ts`: `exp - iat` is 30 days with the claim and 8 hours without it. An old token without the claim verifies. A non-boolean claim is refused.
+- `cookies.test.ts`: `maxAge` is 30 days when kept and 8 hours otherwise, and the flags are unchanged.
+- `login/actions.test.ts`: `mantener=on` signs with the claim and sets the 30-day cookie. Absent gives today's payload and 8 hours. A failed attempt with the box checked sets no cookie. A flagged account with the box checked still redirects to the forced change.
+- `change-password/actions.test.ts`: the claim and the cookie flag survive the re-issue, both for a kept and for an unchecked session.
+- `login-form.test.tsx`: the label, unchecked by default, and the field posts `mantener` when checked.
+- The access matrix suites stay green with no new row.
