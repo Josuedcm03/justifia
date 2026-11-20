@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getUserLocale } from "@/i18n/locale";
+import { PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
 import type { SessionPayload } from "@/lib/auth/session";
 import { initials } from "@/lib/initials";
 
@@ -63,6 +64,11 @@ export async function DashboardHeader({ user }: { user: SessionPayload }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               render={<Link href="/profile">{t("viewProfile")}</Link>}
+            />
+            <DropdownMenuItem
+              render={
+                <Link href={PASSWORD_CHANGE_PATH}>{t("changePassword")}</Link>
+              }
             />
             <DropdownMenuItem
               render={

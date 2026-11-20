@@ -128,3 +128,56 @@ describe("ProfilePage own data per role (AEA-2)", () => {
     },
   );
 });
+
+// FE-20 (UX-20): the profile offers the voluntary password change to every role
+// that can see it. The flagged and anonymous redirects above are unchanged and
+// render nothing, so no link can appear for them.
+describe("ProfilePage: the Change password link (FE-20)", () => {
+  it.each(rolesUsuario)(
+    "offers 'Change password' to %s, pointing to the existing change screen",
+    async (rol) => {
+      getSessionMock.mockResolvedValue(sessionFor(rol));
+
+      await renderPage();
+
+      const link = screen.getByRole("link", { name: "Change password" });
+      expect(link).toHaveAttribute("href", PASSWORD_CHANGE_PATH);
+      expect(PASSWORD_CHANGE_PATH).toBe("/change-password");
+    },
+  );
+
+  it("says 'Cambiar contraseña' in Spanish", async () => {
+    state.locale = "es";
+    getSessionMock.mockResolvedValue(sessionFor("estudiante"));
+
+    await renderPage();
+
+    expect(
+      screen.getByRole("link", { name: "Cambiar contraseña" }),
+    ).toHaveAttribute("href", "/change-password");
+  });
+
+  it("is an outline large link, a 44 px target like the other secondary actions", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+
+    await renderPage();
+
+    const link = screen.getByRole("link", { name: "Change password" });
+    expect(link).toHaveClass("h-11", "border-primary");
+  });
+
+  it("is the only link on the page and leaves the account rows as they were", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("estudiante"));
+
+    await renderPage();
+
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByText("caller@example.test")).toBeInTheDocument();
+    expect(screen.getByText("2021-0042")).toBeInTheDocument();
+  });
+
+  it("has the label in both catalogs", () => {
+    expect(messages.es.profile.changePassword).toBe("Cambiar contraseña");
+    expect(messages.en.profile.changePassword).toBe("Change password");
+  });
+});

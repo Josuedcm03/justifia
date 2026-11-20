@@ -654,6 +654,7 @@
     "userMenu": {
       "signedInAs": "{login} · {rol}",
       "viewProfile": "Ver perfil",
+      "changePassword": "Cambiar contraseña",
       "logout": "Cerrar sesión"
     }
   },
@@ -666,7 +667,8 @@
     "phoneLabel": "Teléfono",
     "cifLabel": "CIF",
     "careerLabel": "Carrera",
-    "memberSinceLabel": "Miembro desde"
+    "memberSinceLabel": "Miembro desde",
+    "changePassword": "Cambiar contraseña"
   },
   "intake": {
     "title": "Nueva solicitud de justificación",
