@@ -1173,6 +1173,10 @@
         },
         "noteLabel": "Note for coordination",
         "noteHint": "Explain why you are escalating the request to coordination. Only staff can see it.",
+        "previousAnswer": {
+          "title": "Coordination already answered this request ({byline}):",
+          "hint": "If you escalate it again, it goes back to coordination and you cannot decide until it answers."
+        },
         "counter": "{count} of 1000",
         "confirm": "Escalate request",
         "pending": "Escalating...",
@@ -1396,7 +1400,9 @@
         "noText": "No message",
         "revision": "Version {number}",
         "revisionDocuments": "{count, plural, one {# document} other {# documents}}",
-        "replacedOn": "Replaced {date}"
+        "replacedOn": "Replaced {date}",
+        "escalations": "{count, plural, one {This request has # escalation to coordination.} other {This request has # escalations to coordination.}} The details and answers are in the “Escalations to coordination” section.",
+        "escalationsLink": "Go to the escalations"
       },
       "answerBanner": {
         "title": "Coordination answer",

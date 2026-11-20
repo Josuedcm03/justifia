@@ -1040,3 +1040,43 @@ describe("decision panel copy after a coordination answer (FE-4, RF-16 c)", () =
     expect(text).not.toMatch(/escalat/i);
   });
 });
+
+describe("escalate dialog notice and history pointer messages (FE-5, FE-12, RF-16 c)", () => {
+  it("words the earlier-answer notice in Spanish with usted", () => {
+    expect(es.review.escalation.dialog.previousAnswer).toEqual({
+      title: "La coordinación ya respondió esta solicitud ({byline}):",
+      hint: "Si la escala de nuevo, vuelve a coordinación y no podrá decidir hasta que responda.",
+    });
+  });
+
+  it("words the earlier-answer notice in English", () => {
+    expect(en.review.escalation.dialog.previousAnswer).toEqual({
+      title: "Coordination already answered this request ({byline}):",
+      hint: "If you escalate it again, it goes back to coordination and you cannot decide until it answers.",
+    });
+  });
+
+  it("words the history pointer in Spanish, naming the escalations section", () => {
+    const history = es.review.detail.history;
+
+    expect(history.escalations).toBe(
+      "{count, plural, one {Esta solicitud tiene # escalamiento a coordinación.} other {Esta solicitud tiene # escalamientos a coordinación.}} Los detalles y las respuestas están en la sección «Escalamientos a coordinación».",
+    );
+    expect(history.escalations).toContain(
+      `«${es.review.escalation.section.title}»`,
+    );
+    expect(history.escalationsLink).toBe("Ir a los escalamientos");
+  });
+
+  it("words the history pointer in English, naming the escalations section", () => {
+    const history = en.review.detail.history;
+
+    expect(history.escalations).toBe(
+      "{count, plural, one {This request has # escalation to coordination.} other {This request has # escalations to coordination.}} The details and answers are in the “Escalations to coordination” section.",
+    );
+    expect(history.escalations).toContain(
+      `“${en.review.escalation.section.title}”`,
+    );
+    expect(history.escalationsLink).toBe("Go to the escalations");
+  });
+});

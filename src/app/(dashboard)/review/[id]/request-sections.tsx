@@ -323,10 +323,13 @@ export function HistorySection({
   decisions,
   revisions,
   retired,
+  escalations,
 }: {
   decisions: readonly DetailDecision[];
   revisions: readonly DetailRevision[];
   retired: readonly RetiredDocument[];
+  /** How many escalation records the request has; they list in their section. */
+  escalations: number;
 }) {
   const t = useTranslations("review.detail");
   const dates = useDates();
@@ -372,6 +375,21 @@ export function HistorySection({
               />
             ))}
           </ul>
+        </div>
+      ) : null}
+      {escalations > 0 ? (
+        // The escalations have their own section; this only points to it and
+        // carries no note or answer text (FE-5).
+        <div className="flex flex-col gap-1">
+          <p className="text-muted-foreground max-w-prose text-sm">
+            {t("history.escalations", { count: escalations })}
+          </p>
+          <a
+            href="#escalation-title"
+            className="text-primary inline-flex min-h-11 w-fit items-center font-medium underline underline-offset-4"
+          >
+            {t("history.escalationsLink")}
+          </a>
         </div>
       ) : null}
     </Section>

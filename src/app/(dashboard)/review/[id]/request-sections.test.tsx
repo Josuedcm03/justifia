@@ -2,7 +2,10 @@ import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
-import { StudentSection } from "@/app/(dashboard)/review/[id]/request-sections";
+import {
+  HistorySection,
+  StudentSection,
+} from "@/app/(dashboard)/review/[id]/request-sections";
 
 // RC-9, request-review "Consent shown on the staff detail": the consent state is
 // one text fact of the student section, in the business time zone, and a request
@@ -106,5 +109,74 @@ describe("StudentSection consent fact (RF-01 d, RN-25)", () => {
     expect(fact(en.fields.cif)).toHaveTextContent("2021-0042");
     expect(fact(en.fields.career)).toHaveTextContent("Ingenieria de Sistemas");
     expect(fact(en.fields.email)).toHaveTextContent("ana@uam.edu.ni");
+  });
+});
+
+describe("HistorySection escalation pointer (FE-5, RF-16 c)", () => {
+  const history = (escalations: number, lang: "en" | "es" = "en") =>
+    renderIntl(
+      <HistorySection
+        decisions={[]}
+        revisions={[]}
+        retired={[]}
+        escalations={escalations}
+      />,
+      lang,
+    );
+
+  it("points to the escalations section with the number of records", () => {
+    history(2);
+
+    const section = screen.getByRole("region", { name: en.sections.history });
+    expect(section).toHaveTextContent(
+      "This request has 2 escalations to coordination. The details and answers are in the “Escalations to coordination” section.",
+    );
+    expect(
+      within(section).getByRole("link", { name: en.history.escalationsLink }),
+    ).toHaveAttribute("href", "#escalation-title");
+  });
+
+  it("uses the singular for one record", () => {
+    history(1);
+
+    expect(
+      screen.getByRole("region", { name: en.sections.history }),
+    ).toHaveTextContent("This request has 1 escalation to coordination.");
+  });
+
+  it("shows no pointer when the request was never escalated", () => {
+    history(0);
+
+    const section = screen.getByRole("region", { name: en.sections.history });
+    expect(within(section).queryByRole("link")).toBeNull();
+    expect(section).not.toHaveTextContent("escalation");
+    expect(section).toHaveTextContent(en.history.empty);
+  });
+
+  it("carries no note or answer text, only the count and the link", () => {
+    history(2);
+
+    const section = screen.getByRole("region", { name: en.sections.history });
+    expect(section.textContent).toBe(
+      [
+        en.sections.history,
+        en.history.empty,
+        "This request has 2 escalations to coordination. The details and answers are in the “Escalations to coordination” section.",
+        en.history.escalationsLink,
+      ].join(""),
+    );
+  });
+
+  it("speaks Spanish with the name of the section", () => {
+    history(2, "es");
+
+    expect(
+      screen.getByRole("region", { name: es.sections.history }),
+    ).toHaveTextContent(
+      "Esta solicitud tiene 2 escalamientos a coordinación. Los detalles y las respuestas están en la sección «Escalamientos a coordinación».",
+    );
+    expect(
+      screen.getByRole("link", { name: "Ir a los escalamientos" }),
+    ).toHaveAttribute("href", "#escalation-title");
   });
 });

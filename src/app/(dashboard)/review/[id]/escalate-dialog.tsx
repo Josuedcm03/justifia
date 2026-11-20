@@ -13,6 +13,9 @@ import { escalateRequestAction } from "@/app/(dashboard)/review/[id]/escalation-
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ESCALATION_REASONS } from "@/lib/intake/escalation";
 
+/** The earlier coordination answer the dialog quotes (FE-12). */
+export type PreviousAnswer = { text: string; byline: string };
+
 /**
  * "Escalar a coordinación" (RF-10 a, RN-20, RNF-12, E18). Nothing is sent until
  * the secretary confirms; cancelling or Escape changes nothing and discards the
@@ -21,15 +24,20 @@ import { ESCALATION_REASONS } from "@/lib/intake/escalation";
  * server validates the motive against the same closed set. When the student's
  * career has no coordination account the action is not offered and the text
  * names the career (E17); the server refuses the same way. A success redirects,
- * so this component only ever receives refusals.
+ * so this component only ever receives refusals. When coordination already
+ * answered, a soft notice above the motive quotes that answer (FE-12); it is
+ * informational, so escalating again stays one confirmation away.
  */
 export function EscalateDialog({
   solicitudId,
   unavailableCareer,
+  previousAnswer = null,
 }: {
   solicitudId: number;
   /** The career name when it has no active coordination account, else null. */
   unavailableCareer: string | null;
+  /** The answer that returned the request, quoted for the secretary. */
+  previousAnswer?: PreviousAnswer | null;
 }) {
   const t = useTranslations("review.escalation");
 
@@ -40,10 +48,18 @@ export function EscalateDialog({
       </p>
     );
   }
-  return <EscalateForm solicitudId={solicitudId} />;
+  return (
+    <EscalateForm solicitudId={solicitudId} previousAnswer={previousAnswer} />
+  );
 }
 
-function EscalateForm({ solicitudId }: { solicitudId: number }) {
+function EscalateForm({
+  solicitudId,
+  previousAnswer,
+}: {
+  solicitudId: number;
+  previousAnswer: PreviousAnswer | null;
+}) {
   const t = useTranslations("review.escalation");
   const ids = useId();
   const [motivo, setMotivo] = useState("");
@@ -91,6 +107,27 @@ function EscalateForm({ solicitudId }: { solicitudId: number }) {
         setFailure(null);
       }}
     >
+      {previousAnswer ? (
+        <div
+          role="note"
+          className="border-border bg-muted flex flex-col gap-2 rounded-lg border px-3 py-2 text-sm"
+        >
+          <p className="text-foreground font-medium">
+            {t("dialog.previousAnswer.title", {
+              byline: previousAnswer.byline,
+            })}
+          </p>
+          <p
+            tabIndex={0}
+            className="max-h-32 overflow-y-auto break-words whitespace-pre-wrap"
+          >
+            {previousAnswer.text}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {t("dialog.previousAnswer.hint")}
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-col gap-2">
         <span id={motivoLabelId} className="text-label text-foreground">
           {t("dialog.motivoLabel")}

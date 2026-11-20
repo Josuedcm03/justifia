@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join, relative } from "node:path";
+
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -169,5 +172,30 @@ describe("AnswerBanner (FE-3)", () => {
 
     expect(screen.queryByRole("button")).toBeNull();
     expect(container.querySelector("form, button, input, textarea")).toBeNull();
+  });
+});
+
+// FE-3 "Not for other viewers", RNF-01: the answer text stays on the staff
+// detail. A structural pin, because a banner imported by a student, queue or
+// coordination file would leak the answer to a viewer that must not see it.
+describe("AnswerBanner reach (FE-3, RNF-01)", () => {
+  const ROOT = process.cwd();
+
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      return entry.isDirectory() ? sourceFiles(path) : [path];
+    });
+  }
+
+  it("is imported by the staff detail page and by no other module", () => {
+    const importers = sourceFiles(join(ROOT, "src"))
+      .filter((path) => /\.(ts|tsx)$/.test(path))
+      .filter((path) => !/\.test\.(ts|tsx)$/.test(path))
+      .filter((path) => !path.endsWith("answer-banner.tsx"))
+      .filter((path) => /\/answer-banner["']/.test(readFileSync(path, "utf8")))
+      .map((path) => relative(ROOT, path).replace(/\\/g, "/"));
+
+    expect(importers).toEqual(["src/app/(dashboard)/review/[id]/page.tsx"]);
   });
 });
