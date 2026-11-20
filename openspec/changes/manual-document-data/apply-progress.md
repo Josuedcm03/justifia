@@ -438,3 +438,112 @@ The two mutations of unit 12 ran while the GREEN edits of tracked files were sti
 - The coordination read-only block of MD-30 is separate from the signals section. The coordination signals section already shows rn11 to rn13 as outcome and reason label only (covered in `src/app/(dashboard)/coordination/[id]/page.test.tsx` and `src/lib/signals/coordination-view.test.ts`); the block adds the type and the marks, never the four values.
 - The acceptance suite (task 9.x) can lean on `src/lib/signals/rf-05-e.test.ts` for the unit-level thesis case and on the integration fixture of `src/lib/data/integration/validation-signals.integration.test.ts`, whose document helper now takes the three marks. SC-08 (rn12) and SC-14 (rn11) are not yet covered anywhere: only the evaluator tables and the loader cases run them.
 - The design's "rf-14.integration.test.ts" (d) case reads "SC-05 gives rn13 and review_carefully". A present signal beats not registered (MD-19), so the verdict is "review carefully" whether or not the firma and the sello are registered; register them anyway if the case also reads the other signals.
+
+## Phase 7 (PR 6)
+
+Mode: Strict TDD. Branch "feat/manual-document-data-6-form" from the PR 5 branch (a04213e). PR 6: "https://github.com/Josuedcm03/justifia/pull/102", base "feat/manual-document-data-5-wiring". Size exception accepted by the owner (0.1 a); the slice is not split.
+
+No database was touched: no migrate, no neon command, no SQL. Every run used the dummy DB. The two files `src/lib/signals/document-type-causes.ts` and `src/lib/signals/verdict.ts`, which showed as modified for line endings only, were restored with "git checkout" and never committed.
+
+### Task 7.0: Next.js guides re-read
+
+The Server Actions, forms and redirect guides of Next 16.3.4 under "node_modules/next/dist/docs/" (mutating data, forms, redirect) were re-read. No drift from what the action and the form assume:
+
+- "redirect" throws NEXT_REDIRECT and is called outside the try block; in a Server Action it navigates on the client when JavaScript is available.
+- A form action receives the FormData; "useActionState" gives the pending flag; a hand dispatch inside "startTransition" is the documented way to call the action from an event handler.
+- "refresh" and "revalidatePath" are the tools the review structure guard forbids, so the action ends in "redirect" only.
+
+### Commits
+
+| Unit | Hash    | Message                                      |
+| ---- | ------- | -------------------------------------------- |
+| 14   | 65bc812 | feat(review): add the document data action   |
+| 15   | 3bfcc64 | feat(review): add the document data form     |
+| 16   | 47b7041 | feat(review): show manual data and its marks |
+
+### Files
+
+| File                                                          | Action                                                                                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/(dashboard)/review/[id]/document-data-actions.ts`    | Created: saveDocumentDataAction ("use server", 126 lines)                                                                                               |
+| `src/app/(dashboard)/review/[id]/document-data-actions.test.ts` | Created (50 cases)                                                                                                                                    |
+| `src/test/access/matrix-table.ts`                             | Modified: the row of the action (64 entry points x 7 identities)                                                                                        |
+| `src/app/(dashboard)/review/[id]/document-data-form.tsx`      | Created: the client form of one document (433 lines)                                                                                                    |
+| `src/app/(dashboard)/review/[id]/document-data-form.test.tsx` | Created (27 cases)                                                                                                                                      |
+| `src/i18n/review-messages.test.ts`                            | Modified: a describe for the manual data keys (9 cases)                                                                                                 |
+| `i18n/es.json`, `i18n/en.json`                                | Modified: the "review.extraction" keys of the manual mark, the marks, the types and the form                                                            |
+| `src/app/(dashboard)/review/[id]/extraction-section.tsx`      | Modified: manual mark per datum, type and marks facts, the form per document, "editable" and "solicitudId" props, a document waiting for the setting listed with its form |
+| `src/app/(dashboard)/review/[id]/extraction-section.test.tsx` | Modified: 22 new cases, the layout case now counts one list per entry, the helper takes "editable" and "solicitudId"                                    |
+| `src/app/(dashboard)/review/[id]/page.tsx`                    | Modified: passes "solicitudId" and "editable={pending}", the placeholder comment replaced                                                               |
+| `src/app/(dashboard)/review/[id]/page.test.tsx`               | Modified: the actions module mock, the extraction fixture with ocr, manual and marks, 8 new cases                                                       |
+| `src/app/(dashboard)/review/[id]/request-sections.tsx`        | Modified: the placeholder comment replaced                                                                                                              |
+
+### TDD cycle evidence
+
+| Task                  | RED                                                                                                                  | GREEN                                                                                                                  | Refactor                                                              |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 7.1 action            | run failed: module "document-data-actions" missing (no test collected)                                               | 50 of 50 pass in `src/app/(dashboard)/review/[id]/document-data-actions.test.ts`                                        | prettier reflow; the log spies restored in "afterEach"                 |
+| 7.2 mutation 1        | n/a (revert-only check)                                                                                              | the error message added to the log: 3 failed, 47 passed; restored with "git restore"                                   | none                                                                  |
+| 7.2 mutation 2        | n/a (revert-only check)                                                                                              | an unknown mark text read as null: 3 failed (firma, sello, all at once); restored                                      | none                                                                  |
+| 7.2 mutation 3        | n/a (revert-only check)                                                                                              | a file entry left uncoerced: 1 failed; restored                                                                        | none                                                                  |
+| 7.3 matrix            | `src/app/route-coverage.test.ts` RAC-5: the table lacked "(dashboard)/review/[id]/document-data-actions.ts"          | 143 of 143 pass in the two suites after the row                                                                        | none                                                                  |
+| 7.6, 7.7 form, i18n   | form run failed: module missing (no test collected); 9 cases failed in `src/i18n/review-messages.test.ts`            | 110 of 110 pass in the form file and the messages file after the component and the keys                                | prettier; "gap-5" to "gap-6" for the spacing guard                    |
+| 7.8 mutation 1        | n/a (revert-only check)                                                                                              | the extracted issuer as a default: it passed first (the case had a manual issuer), so the case "prefills nothing" was added, then 1 failed; restored | none                                                  |
+| 7.8 mutation 2        | n/a (revert-only check)                                                                                              | "maxLength" of the name removed: 1 failed; restored                                                                    | none                                                                  |
+| 7.8 mutation 3        | n/a (revert-only check)                                                                                              | the last refusal kept while the next save runs: 3 failed; restored                                                     | none                                                                  |
+| 7.8 mutation 4        | n/a (revert-only check)                                                                                              | the "pending" guard of the submit removed: it passed first (the button is disabled), so the case now submits with "fireEvent" and counts the calls after the first one settles, then 1 failed; restored | none                               |
+| 7.10 section          | 26 of 52 failed in `src/app/(dashboard)/review/[id]/extraction-section.test.tsx`                                      | 52 of 52 pass                                                                                                          | none                                                                  |
+| 7.11 mutations        | n/a (revert-only checks)                                                                                             | mark on every datum: 3 failed; a waiting document always listed: 1; a key without the marks: 1; rest marked as the issuer: 2; each restored from a copy | none                                                |
+| 7.12 page             | 2 failed in `src/app/(dashboard)/review/[id]/page.test.tsx` (the form per document, the form with no extraction)      | 132 of 132 pass after the page passes "editable" and "solicitudId"                                                      | none                                                                  |
+| 7.12 mutation         | n/a (revert-only check)                                                                                              | "editable" always true: 4 failed (the four decided states); restored from a copy                                       | none                                                                  |
+
+The new action and form files were staged before their mutations, so "git restore" restored them from the index; the section and the page were uncommitted tracked files, so they were restored from a copy made first. Triangulation: the action runs the callers over six roles, anonymous and no facultad, the validation over eight refusals, and the logs over three kinds of thrown value; the section runs the manual mark over the four data, the rest as one datum, and the marks over null, true and false.
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | "npm test -- src/app src/i18n": 143 files and 4145 tests passed before the last commit. "npm test -- src/app/(dashboard)/review src/app/access-matrix.routes.test.ts src/app/route-coverage.test.ts": the review directory 28 files and 887 tests, the two matrix suites 143 tests, all passed |
+| Runtime harness      | N/A: the unit tests stub the Server Action and the data module; the real save, the redirect and the captures RF-14 (a) to (d) are Phase 10 (owner-run locally on "manual-it")                                                                                                                |
+| Rollback boundary    | Revert the PR; the saved rows stay readable and unused, and the section returns to its read-only shape. Unit 14 (the action and its row) and units 15 and 16 can be reverted in reverse order                                                                                              |
+
+### Gates
+
+- Full "npm test" with the dummy DB: 365 files, 8880 tests, all passed, 212.9 s (vitest duration). PR 5 was 363 files and 8750 tests: two new files, 130 new tests.
+- "npm run typecheck": clean (run before each commit and at the end).
+- "npx eslint" on the 11 touched files: clean. "npx eslint src": 125667 problems, all in untouched files: 125664 CRLF "Delete the carriage return" messages (worktree line endings), two CRLF-quoted lines in `src/test/access/inventory.ts` and one unused-import warning in `src/components/app-sidebar.tsx`. The total is lower than PR 5 (126466) because three more files are now LF.
+- "npx prettier --check" on the touched files and both catalogs: clean.
+- Thesis figure (task 12.3): the access matrix is now 64 entry points x 7 identities (63 before), 100 percent denied.
+
+### Measured size (task 7.15)
+
+"git diff --numstat feat/manual-document-data-5-wiring...HEAD" excluding "openspec/" and ".engram/": 2702 additions and 46 deletions, 2748 changed lines (853 production lines, 1895 test lines). Target was about 410 and the stop line 460; the owner's size exception covers it. Unit 14 is 642 lines (130 production, 512 test), unit 15 is 1308 as committed (523 production, 785 test) and unit 16 is 812 (the later removal of one catalog key from unit 15 is counted in unit 16).
+
+### Deviations and findings
+
+- **No per-document text for a document waiting for the setting.** The design lists the key "states.notExtracted" and a line for that entry. The spec (MD-27) says such an entry carries its form and no per-document state text, and task 0.1 keeps the spec as the default, so the line and the key were dropped (the key had been added in unit 15 and was removed in unit 16).
+- **The shipped Spanish title is not «Datos extraídos».** The spec and the task text call the section «Datos extraídos»; the catalog says "Datos leídos del documento" (English "Extracted data"). Decision 0.1 (b) keeps the shipped title, so nothing changed and the section test pins the shipped one. The spec wording should be reconciled at archive.
+- **The action takes FormData, not an object.** The escalation actions take a plain object; this one takes FormData as the brief asked, and the form submits "new FormData(form)" by hand (React resets the fields of a form "action" once it settles, which would drop what was typed after a refusal, as `src/app/(dashboard)/catalog/asignaturas/asignatura-form.tsx` documents). "unregistered" is the value of "Sin registrar" in the radios and in the type select; the action maps it to null. A file or a missing entry reads as empty. An unknown mark text is not mapped to null: it passes through and the validation refuses it with "mark_invalid", so a bad value never clears a stored mark.
+- **Logging.** On any throw the action logs the fixed code "document_data_save_failed" and the two ids; it does not log even the error name (the escalation actions log "error.name"). The guard (session, role, scope, ids) runs outside the try block, so the denial redirect of "requireRole" is never turned into "unexpected".
+- **The refusal is hidden while the next save runs.** "useActionState" keeps the previous result while a new action is pending, so the form shows the last refusal only when no save is pending.
+- **The form key is computed in the section.** It is the JSON of the document id, the manual values and the marks, as PR 3 recommended; no read change and no "ActualizadoEn". A save that changes nothing redirects too, but the key is the same, so that form stays open; a save that changes a stored value remounts it closed.
+- **The section also takes "solicitudId".** The design lists only "editable"; the form needs the request id. The page passes "detail.id".
+- **The marks are shown in every listed entry.** In an entry with data they share its list; in the other entries (extracting, unavailable, waiting for the setting) they are a list of their own, so the layout case of the section now counts one list per entry instead of one in total.
+- **A document waiting for the setting is listed only when editable.** The configuration notice shows whenever one waits; the entry shows only with its form (spec MD-27).
+- **Keys beyond the design list.** "form.formLabel" (the accessible name of each form, so several forms on a page can be told apart) and "form.intro" (one sentence that a manual value wins and that an empty field shows the extracted value again, D8). The existing catalog test already compares every "review" key between the locales; the new case pins the form keys by name.
+- **Spacing guard.** `src/app/(dashboard)/review/design-system.test.tsx` rejects "gap-5"; the form stack uses "gap-6".
+- **A red test was committed once.** Unit 15 was first committed with the spacing guard failing, because the broader run and the commit were in one command. It was fixed and amended before any push, so no pushed commit is red; from then on the broader run is read before each commit.
+- **The page test fixture.** The extraction fixture of `src/app/(dashboard)/review/[id]/page.test.tsx` gained ocr, manual and marks, and the test mocks the new actions module, because the page now renders the form.
+- Line endings: `src/app/(dashboard)/review/[id]/extraction-section.tsx`, `src/app/(dashboard)/review/[id]/request-sections.tsx` and `src/test/access/matrix-table.ts` were CRLF in the worktree and were converted to LF before editing; the "git restore" of the mutation checks wrote CRLF into the new files, which were converted to LF again. Git stores LF, so the diff shows no line-ending change.
+- The repo hook staged `.engram/` files on each commit. Each commit was amended with the helper `fixengram.sh` (chunks "git rm --cached", manifest "git checkout HEAD~1 --", then "git commit --amend --no-edit --no-verify"); the local manifest was put back, so it is still modified and the chunks untracked.
+- CodeGraph was not queried: every file was named in the tasks or the earlier notes, and was read directly.
+
+### Plan notes for PR 7
+
+- **The coordination block must not use the extraction read.** `listExtractions` carries the four values; the block needs the narrow read of task 8.1 (document id, name, type, firma, sello). The wording already exists in the catalogs ("review.extraction.types.*" and "markValues.*": «Constancia médica», «Sí», «No», «Sin registrar»); the new keys go under "coordination.detail" as task 8.5 says, with the same text.
+- **Acceptance suite and the sentinel.** The "unregistered" value exists only between the form and the action; the data layer, the signals and the integration suite deal in null, true and false. The acceptance suite calls "saveDocumentData" directly with null for "not registered".
+- **The form stays open after a no-op save.** The key changes only when a stored value changes. For the RF-14 captures, a save that changes nothing shows the same open form after the redirect; this is not a failure.
+- **Phase 10 captures.** The form opens from "Registrar o corregir datos", one per document, under the section «Datos leídos del documento»; each datum shows «Ingresado manualmente» after a save; the type and marks read «Sin registrar» until saved.
+- **Task 12.3 figure.** The access matrix is 64 entry points x 7 identities.
+- **The requirements edit (task 8.12).** Rebase first (decision 0.2) and keep it to line 153.
+- **Before the tracker reaches main.** Task 1.13 (migration 0015 in production, owner's "yes" for that exact command) is still open, and every existing request reads «No concluyente» until the marks are registered (D1).
