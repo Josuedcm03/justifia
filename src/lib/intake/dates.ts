@@ -30,6 +30,14 @@ export function addDays(iso: string, days: number): string {
   return new Date(toUtcMs(iso) + days * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
+/**
+ * Days of an inclusive calendar range: the same day is 1 (RN-10). `from` and
+ * `to` are real ISO dates with `from <= to`; the caller has validated them.
+ */
+export function inclusiveDays(from: string, to: string): number {
+  return Math.round((toUtcMs(to) - toUtcMs(from)) / MS_PER_DAY) + 1;
+}
+
 /** RN-23: earliest end date a submission made on `today` may carry. */
 export function earliestAllowedEndDate(today: string): string {
   return addDays(today, -LATE_WINDOW_DAYS);

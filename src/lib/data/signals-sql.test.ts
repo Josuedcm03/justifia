@@ -66,11 +66,11 @@ describe("RN-14 history statement (Q4)", () => {
       }),
     );
 
-  it("selects the request id and the raw issuer of earlier presented requests of the same student", async () => {
+  it("selects the request id and the effective issuer, manual over extracted, of earlier presented requests of the same student (MD-18)", async () => {
     const { sql, params } = await query();
 
     expect(sql).toMatch(
-      /^select "Solicitud"\."Id", "ExtraccionDocumento"\."Emisor" from "Solicitud" inner join "DocumentoRespaldo" on .* inner join "ExtraccionDocumento" on .* where /,
+      /^select "Solicitud"\."Id", coalesce\("DocumentoDatoManual"\."Emisor", "ExtraccionDocumento"\."Emisor"\) from "Solicitud" inner join "DocumentoRespaldo" on .* left join "ExtraccionDocumento" on "ExtraccionDocumento"\."DocumentoId" = "DocumentoRespaldo"\."Id" left join "DocumentoDatoManual" on "DocumentoDatoManual"\."DocumentoId" = "DocumentoRespaldo"\."Id" where /,
     );
     expect(sql).toContain('"Solicitud"."EstudianteId" = $');
     expect(sql).toContain('"Solicitud"."Id" <> $');
@@ -107,12 +107,15 @@ describe("RN-14 history statement (Q4)", () => {
     expect(params).toContain(false);
   });
 
-  it("needs a completed extraction with a non-null issuer", async () => {
+  it("needs a non-null effective issuer and no extraction state, so a manual issuer counts when the extraction did not complete (MD-18)", async () => {
     const { sql, params } = await query();
 
-    expect(sql).toContain('"ExtraccionDocumento"."Estado" = $');
-    expect(sql).toContain('"ExtraccionDocumento"."Emisor" is not null');
-    expect(params).toContain("completada");
+    expect(sql).toContain(
+      'coalesce("DocumentoDatoManual"."Emisor", "ExtraccionDocumento"."Emisor") is not null',
+    );
+    // CK_Extraccion_Datos already nulls the issuer of a row that is not completada.
+    expect(sql).not.toContain('"ExtraccionDocumento"."Estado"');
+    expect(params).not.toContain("completada");
   });
 
   it("has no state filter, so rejected and returned requests count", async () => {

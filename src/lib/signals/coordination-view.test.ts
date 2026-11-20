@@ -40,6 +40,17 @@ const FULL_REPORT: SignalReport = {
         covered: [{ from: "2026-10-05", to: "2026-10-06" }],
       },
     },
+    {
+      signal: "rn11",
+      outcome: "present",
+      evidence: { kind: "documents", documentIds: [31] },
+    },
+    {
+      signal: "rn12",
+      outcome: "absent",
+      evidence: { kind: "documents", documentIds: [] },
+    },
+    { signal: "rn13", outcome: "not_evaluable", reason: "not_registered" },
     { signal: "rn14", outcome: "not_evaluable", reason: "no_period" },
     {
       signal: "rn26",
@@ -47,7 +58,10 @@ const FULL_REPORT: SignalReport = {
       evidence: { kind: "repeated", references: [41, 55] },
     },
   ],
-  notEvaluable: [{ signal: "rn14", reason: "no_period" }],
+  notEvaluable: [
+    { signal: "rn13", reason: "not_registered" },
+    { signal: "rn14", reason: "no_period" },
+  ],
 };
 
 describe("toCoordinationView keeps outcomes, reasons and the verdict", () => {
@@ -58,12 +72,27 @@ describe("toCoordinationView keeps outcomes, reasons and the verdict", () => {
       { signal: "rn07", outcome: "present" },
       { signal: "rn09", outcome: "absent" },
       { signal: "rn10", outcome: "present" },
+      { signal: "rn11", outcome: "present" },
+      { signal: "rn12", outcome: "absent" },
+      { signal: "rn13", outcome: "not_evaluable", reason: "not_registered" },
       { signal: "rn14", outcome: "not_evaluable", reason: "no_period" },
       { signal: "rn26", outcome: "present" },
     ]);
     expect(view.notEvaluable).toEqual([
+      { signal: "rn13", reason: "not_registered" },
       { signal: "rn14", reason: "no_period" },
     ]);
+  });
+
+  it("gives the manual signals the outcome and the reason label only", () => {
+    const text = JSON.stringify(
+      toCoordinationView(FULL_REPORT).results.filter((result) =>
+        ["rn11", "rn12", "rn13"].includes(result.signal),
+      ),
+    );
+
+    expect(text).toContain("not_registered");
+    expect(text).not.toMatch(/documentIds|documents|31/);
   });
 
   it.each(["review_carefully", "no_alerts", "inconclusive"] as const)(
@@ -172,7 +201,7 @@ describe("toCoordinationView drops every evidence field", () => {
   it("carries no evidence key on any result", () => {
     const view = toCoordinationView(FULL_REPORT);
 
-    expect(view.results).toHaveLength(5);
+    expect(view.results).toHaveLength(8);
     for (const result of view.results) {
       expect(result).not.toHaveProperty("evidence");
     }

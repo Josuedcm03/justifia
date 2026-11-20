@@ -23,7 +23,8 @@ export function isCausa(value: unknown): value is Causa {
 
 // Causes whose document can grant a rest period (RN-09, RN-10 only apply to
 // them). Another code constant, not configuration: the configurable cause to
-// document table is RNF-14 (change normative-parameters).
+// document table is RNF-14 (change normative-parameters); the type to cause map
+// that RN-13 reads lives in `src/lib/signals/document-type-causes.ts`.
 export const CAUSAS_CON_REPOSO = [
   "medica",
   "maternidad_paternidad",

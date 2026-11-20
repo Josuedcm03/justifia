@@ -947,6 +947,7 @@
         "request": "Request",
         "escalation": "Escalation",
         "notice": "Notice",
+        "marks": "Document type and marks",
         "answer": "Answer to the secretary"
       },
       "fields": {
@@ -961,7 +962,24 @@
         "teacher": "Teacher",
         "communicated": "Date communicated by the teacher",
         "reportNote": "Notice note"
-      }
+      },
+      "marks": {
+        "note": "Read only. The secretary registers the document type, the signature and the seal.",
+        "type": "Document type",
+        "signature": "Signature",
+        "seal": "Seal"
+      },
+      "markValues": {
+        "yes": "Yes",
+        "no": "No",
+        "unregistered": "Not registered"
+      },
+      "types": {
+        "constancia_medica": "Medical certificate",
+        "constancia_institucional": "Institutional certificate",
+        "otro": "Other"
+      },
+      "marksDegraded": "The document type and marks could not be loaded. The rest of the request is shown in full."
     },
     "answer": {
       "dialog": {
@@ -1408,6 +1426,48 @@
         "unavailable": "Data unavailable. Review the document yourself.",
         "notConfigured": "The extraction service needs to be configured. Contact the system administrator."
       },
+      "manualBadge": "Entered manually",
+      "marks": {
+        "type": "Document type",
+        "signature": "Signature",
+        "seal": "Seal"
+      },
+      "markValues": {
+        "yes": "Yes",
+        "no": "No",
+        "unregistered": "Not registered"
+      },
+      "types": {
+        "constancia_medica": "Medical certificate",
+        "constancia_institucional": "Institutional certificate",
+        "otro": "Other"
+      },
+      "form": {
+        "open": "Enter or correct data",
+        "formLabel": "Data of {name}",
+        "intro": "The values you enter take precedence over the extracted ones. If you leave a field empty, the extracted value is shown again.",
+        "save": "Save data",
+        "saving": "Saving...",
+        "ocrHint": "Extracted value: {value}",
+        "fields": {
+          "studentName": "Student name in the document",
+          "restFrom": "From",
+          "restTo": "To"
+        },
+        "errors": {
+          "text_too_long": "The text is longer than allowed.",
+          "date_invalid": "Enter a valid date.",
+          "rest_incomplete": "Enter both the start and the end date of the rest period, or leave both empty.",
+          "rest_order": "The end of the rest period cannot be before its start.",
+          "type_invalid": "Select a document type from the list.",
+          "mark_invalid": "Select Yes, No or Not registered."
+        },
+        "failures": {
+          "not_found": "This document is no longer available to you.",
+          "not_editable": "This request is no longer pending, so its data cannot be changed. Reload the page.",
+          "unexpected": "The data could not be saved. Try again."
+        }
+      },
       "degraded": "The extracted data could not be loaded. The rest of the request is shown in full."
     },
     "signals": {
@@ -1426,6 +1486,9 @@
         "rn07": "Late presentation",
         "rn09": "Incoherent dates",
         "rn10": "Uncovered dates",
+        "rn11": "Signature missing",
+        "rn12": "Seal missing",
+        "rn13": "Format does not match the cause",
         "rn14": "Recurrence",
         "rn26": "Repeated document"
       },
@@ -1448,7 +1511,8 @@
         "days_only": "The rest period gives only a number of days, with no dates.",
         "no_period": "The subjects do not belong to a single academic period.",
         "no_eligible_documents": "The request has no current student documents.",
-        "no_fingerprint": "The current documents were stored before repeated-document detection existed, so they cannot be compared."
+        "no_fingerprint": "The current documents were stored before repeated-document detection existed, so they cannot be compared.",
+        "not_registered": "The secretary has not yet registered this datum for one or more current documents."
       },
       "evidence": {
         "timing": "Presented {presented}; the deadline is {deadline}.",
@@ -1458,7 +1522,8 @@
         "recurrence": "Requests from this student with the issuer “{issuer}” in the period: {count} (an alert is raised from {threshold}).",
         "repeated": "A document is identical to one in an earlier request.",
         "repeatedSee": "Earlier requests with the same document:",
-        "requestLink": "Request {id}"
+        "requestLink": "Request {id}",
+        "documents": "{count, plural, one {Document that raises the signal: {documents}} other {Documents that raise the signal: {documents}}}"
       }
     },
     "remission": {
