@@ -829,6 +829,10 @@
       "enrollment": "Go to my enrollment",
       "number": "Request {id}",
       "presented": "Presented {date}",
+      "absence": "Absence dates: {period}",
+      "subjects": "Subjects: {codes}",
+      "moreSubjects": "{codes} and {count} more",
+      "reason": "Reason: {reason}",
       "view": "View request",
       "viewNamed": "View request {id}"
     },

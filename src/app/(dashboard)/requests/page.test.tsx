@@ -50,6 +50,8 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
     fechaFin: "2026-10-07",
     presentadaEn: new Date("2026-10-08T15:00:00Z"),
     reenviadaEn: null,
+    asignaturas: [{ codigo: "MAT101", nombre: "Matematica I" }],
+    decision: null,
     ...overrides,
   };
 }
@@ -187,6 +189,60 @@ describe("OwnRequestsPage list (RF-07 c)", () => {
     expect(item).toHaveTextContent("Oct 5, 2026 to Oct 7, 2026");
     expect(item).toHaveTextContent("Presented Oct 8, 2026");
     expect(item).toHaveTextContent("Request 12");
+  });
+
+  it("passes the subjects and the reason of each item through to its own card", async () => {
+    listMock.mockResolvedValue([
+      row({
+        id: 31,
+        estado: "devuelta",
+        asignaturas: [
+          { codigo: "FIS201", nombre: "Fisica II" },
+          { codigo: "QUI110", nombre: "Quimica" },
+        ],
+        decision: { motivoCodigo: "documento_ilegible", texto: "Copia." },
+      }),
+      row({
+        id: 30,
+        estado: "rechazada",
+        asignaturas: [{ codigo: "BIO100", nombre: "Biologia" }],
+        decision: { motivoCodigo: null, texto: "No corresponde." },
+      }),
+      row({ id: 29, estado: "aprobada", decision: null }),
+    ]);
+
+    await renderPage();
+
+    const [returned, rejected, approved] = screen.getAllByRole("listitem");
+    expect(returned).toHaveTextContent("Subjects: FIS201, QUI110");
+    expect(returned).toHaveTextContent("Reason: The document is not legible");
+    expect(rejected).toHaveTextContent("Subjects: BIO100");
+    expect(rejected).toHaveTextContent("Reason: No corresponde.");
+    expect(approved).toHaveTextContent("Subjects: MAT101");
+    expect(approved).not.toHaveTextContent("Reason:");
+  });
+
+  it("labels the absence dates of every card", async () => {
+    await renderPage();
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(
+      "Absence dates: Oct 5, 2026 to Oct 7, 2026",
+    );
+  });
+
+  it("shows no reason on an approved card even if its item carried one", async () => {
+    listMock.mockResolvedValue([
+      row({
+        estado: "aprobada",
+        decision: { motivoCodigo: null, texto: "Su solicitud fue aprobada." },
+      }),
+    ]);
+
+    await renderPage();
+
+    expect(screen.getByRole("listitem")).not.toHaveTextContent(
+      "Su solicitud fue aprobada.",
+    );
   });
 
   it("writes a one-day request as a single date", async () => {
