@@ -28,6 +28,7 @@ import {
   getCorrectionReason,
   getReturnedDocumentIds,
 } from "@/lib/data/student-requests";
+import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
 import { isReturnReason } from "@/lib/intake/return-reasons";
 
@@ -114,6 +115,9 @@ export default async function CorrectRequestPage({
       ? await listEnrollmentFailSoft(userId, range, getIntakeDeps().schedule)
       : { data: [], degraded: false, enrolled: true };
 
+  // The Managua calendar day, decided here and not in the browser (FE-19).
+  const today = managuaToday(new Date());
+
   const flow: Flow = {
     basePath: `/requests/${id}/correct`,
     actions: {
@@ -138,6 +142,7 @@ export default async function CorrectRequestPage({
         fromReview={parseFromReview(query.from)}
         flow={flow}
         previousDocumentIds={previousDocumentIds}
+        today={today}
       />
     </div>
   );

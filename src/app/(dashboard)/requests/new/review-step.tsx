@@ -6,6 +6,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
 import { formatFileSize } from "@/app/(dashboard)/catalog/import/file-dropzone";
+import { FutureStartNotice } from "@/app/(dashboard)/requests/new/dates-recap";
 import { DiscardDialog } from "@/app/(dashboard)/requests/new/discard-dialog";
 import { FileOriginMark } from "@/app/(dashboard)/requests/new/file-origin-mark";
 import {
@@ -20,6 +21,7 @@ import { ResubmitDialog } from "@/app/(dashboard)/requests/new/resubmit-dialog";
 import {
   FLOW_PATH,
   reviewEditHref,
+  startsAfterToday,
   stepHref,
 } from "@/app/(dashboard)/requests/new/steps";
 import { SubmitDialog } from "@/app/(dashboard)/requests/new/submit-dialog";
@@ -105,6 +107,7 @@ export function ReviewStep({
   degraded,
   flow,
   previousDocumentIds,
+  today,
 }: {
   /** Set by the correction: resubmit replaces submit and discard of a draft. */
   flow?: StepFlow<"resubmit">;
@@ -119,6 +122,8 @@ export function ReviewStep({
    * for a new request. Either way no mark is shown.
    */
   previousDocumentIds?: readonly number[] | null;
+  /** The Managua calendar day from the server; absent means no notice. */
+  today?: string;
 }) {
   const t = useTranslations("intake");
   const format = useFormatter();
@@ -183,6 +188,12 @@ export function ReviewStep({
               })
             : notSet}
         </p>
+        {fechaInicio &&
+        fechaFin &&
+        today !== undefined &&
+        startsAfterToday({ from: fechaInicio }, today) ? (
+          <FutureStartNotice />
+        ) : null}
       </Section>
 
       <Section

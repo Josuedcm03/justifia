@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -247,5 +247,125 @@ describe("CauseDatesStep inside another flow (the correction)", () => {
       "La fecha de fin no puede ser anterior a la de inicio.",
     );
     expect(push).not.toHaveBeenCalled();
+  });
+});
+
+// FE-19 (RF-01, RF-03): a start date that is still ahead gets a note on this
+// step. It is informational: it blocks nothing, is no field error and goes away
+// as soon as the start is no longer in the future.
+describe("CauseDatesStep: the future-start notice (FE-19)", () => {
+  const TODAY = "2026-11-02";
+  const FUTURE = {
+    causa: "medica",
+    fechaInicio: "2026-11-10",
+    fechaFin: "2026-11-12",
+  };
+  const NOTICE =
+    "La fecha de inicio es posterior a hoy. Si la ausencia ya ocurrió, corrige las fechas; si es una ausencia prevista, puedes continuar.";
+  const notice = () => screen.queryByRole("note");
+
+  it("shows the notice for a saved start after today", () => {
+    renderIntl(<CauseDatesStep initial={FUTURE} today={TODAY} />);
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+  });
+
+  it("says it in English too", () => {
+    renderIntl(<CauseDatesStep initial={FUTURE} today={TODAY} />, "en");
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "The start date is later than today. If the absence already happened, correct the dates; if it is a planned absence, you can continue.",
+    );
+  });
+
+  it.each([
+    ["tomorrow", "2026-11-03", true],
+    ["today", "2026-11-02", false],
+    ["yesterday", "2026-11-01", false],
+  ])(
+    "for a saved start %s the notice is shown: %s",
+    (_l, fechaInicio, shown) => {
+      renderIntl(
+        <CauseDatesStep
+          initial={{ ...FUTURE, fechaInicio, fechaFin: "2026-11-20" }}
+          today={TODAY}
+        />,
+      );
+      expect(notice() !== null).toBe(shown);
+    },
+  );
+
+  it("shows no notice on an empty draft or when today is not given", () => {
+    const { unmount } = renderIntl(
+      <CauseDatesStep initial={EMPTY} today={TODAY} />,
+    );
+    expect(notice()).toBeNull();
+    unmount();
+
+    renderIntl(<CauseDatesStep initial={FUTURE} />);
+    expect(notice()).toBeNull();
+  });
+
+  it("appears when a future start is typed and clears when the start becomes today", () => {
+    renderIntl(<CauseDatesStep initial={EMPTY} today={TODAY} />);
+    expect(notice()).toBeNull();
+
+    fireEvent.change(start(), { target: { value: "2026-11-10" } });
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+
+    fireEvent.change(start(), { target: { value: "2026-11-02" } });
+    expect(notice()).toBeNull();
+  });
+
+  it("goes away when the start is cleared", () => {
+    renderIntl(<CauseDatesStep initial={FUTURE} today={TODAY} />);
+    fireEvent.change(start(), { target: { value: "" } });
+    expect(notice()).toBeNull();
+  });
+
+  it("follows the start only: changing the end does not move it", () => {
+    renderIntl(<CauseDatesStep initial={FUTURE} today={TODAY} />);
+    fireEvent.change(end(), { target: { value: "2026-11-30" } });
+    expect(notice()).not.toBeNull();
+  });
+
+  it("is not an invalid field: no aria-invalid, no alert, not tied to a field", () => {
+    renderIntl(<CauseDatesStep initial={FUTURE} today={TODAY} />);
+    expect(start()).not.toHaveAttribute("aria-invalid");
+    expect(start()).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(notice()?.className).not.toMatch(/destructive/);
+  });
+
+  it("disables nothing and still saves the future dates", async () => {
+    saveDetailsAction.mockResolvedValue({ ok: true });
+    renderIntl(<CauseDatesStep initial={FUTURE} today={TODAY} />);
+
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    expect(start()).toBeEnabled();
+    expect(end()).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/requests/new?step=2"),
+    );
+    expect(saveDetailsAction).toHaveBeenCalledWith(FUTURE);
+  });
+
+  it("is not among the invalid fields the server reports: the alert lists the cause only", async () => {
+    saveDetailsAction.mockResolvedValue({
+      ok: false,
+      errors: [{ field: "causa", key: "intake.errors.causa_required" }],
+    });
+    renderIntl(
+      <CauseDatesStep initial={{ ...FUTURE, causa: null }} today={TODAY} />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Elige la causa de tu ausencia.");
+    expect(alert).not.toHaveTextContent(NOTICE);
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+    expect(start()).not.toHaveAttribute("aria-invalid");
   });
 });

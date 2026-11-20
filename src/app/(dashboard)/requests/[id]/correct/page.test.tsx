@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createTranslator } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   messages,
@@ -491,5 +491,117 @@ describe("CorrectRequestPage file marks (FE-16)", () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+});
+
+// FE-18 and FE-19 (RF-01): the correction reuses the four steps, so it gets the
+// same recap and notice, with the dates of the returned request and the
+// server's Managua "today".
+describe("CorrectRequestPage dates recap and future-start notice (FE-18, FE-19)", () => {
+  const NOTICE = /posterior a hoy/;
+  const RECAP_LABEL = "Fechas de ausencia";
+  const FUTURE = {
+    ...RETURNED,
+    fechaInicio: "2026-11-10",
+    fechaFin: "2026-11-12",
+  };
+
+  function at(instant: string) {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(instant));
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("takes today in Managua: 2026-11-20 05:30 UTC is still 2026-11-19, so a start of 2026-11-20 is ahead", async () => {
+    at("2026-11-20T05:30:00Z");
+    getLiveDraft.mockResolvedValue({
+      ...RETURNED,
+      fechaInicio: "2026-11-20",
+      fechaFin: "2026-11-21",
+    });
+    await renderPage("31", { step: "1" });
+
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+  });
+
+  it("shows the notice at 2026-11-02 02:00 UTC for a start of 2026-11-02", async () => {
+    at("2026-11-02T02:00:00Z");
+    getLiveDraft.mockResolvedValue({
+      ...RETURNED,
+      fechaInicio: "2026-11-02",
+      fechaFin: "2026-11-03",
+    });
+    await renderPage("31", { step: "1" });
+
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+  });
+
+  it("shows no notice for a start that is today in Managua", async () => {
+    at("2026-11-20T05:30:00Z");
+    getLiveDraft.mockResolvedValue({
+      ...RETURNED,
+      fechaInicio: "2026-11-19",
+      fechaFin: "2026-11-21",
+    });
+    await renderPage("31", { step: "1" });
+
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it.each(["2", "3"])(
+    "shows the request's current dates in the recap at step %s, with the way back inside the correction",
+    async (step) => {
+      at("2026-11-02T18:00:00Z");
+      await renderPage("31", { step });
+
+      expect(screen.getByText(RECAP_LABEL)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Del jueves, 1 de octubre de 2026 al sábado, 3 de octubre de 2026",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "Editar fechas" }),
+      ).toHaveAttribute("href", "/requests/31/correct?step=1");
+      expect(screen.queryByRole("note")).toBeNull();
+    },
+  );
+
+  it.each(["2", "3"])(
+    "carries the notice in the recap at step %s for a future start",
+    async (step) => {
+      at("2026-11-02T18:00:00Z");
+      getLiveDraft.mockResolvedValue(FUTURE);
+      await renderPage("31", { step });
+
+      expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+    },
+  );
+
+  it("repeats the notice under the period on the review and keeps the resubmit enabled", async () => {
+    at("2026-11-02T18:00:00Z");
+    getLiveDraft.mockResolvedValue(FUTURE);
+    await renderPage("31", { step: "4" });
+
+    const details = within(
+      screen.getByRole("region", { name: "Causa y fechas" }),
+    );
+    expect(details.getByRole("note")).toHaveTextContent(NOTICE);
+    expect(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    ).toBeEnabled();
+  });
+
+  it("keeps step 1 usable with the notice shown", async () => {
+    at("2026-11-02T18:00:00Z");
+    getLiveDraft.mockResolvedValue(FUTURE);
+    await renderPage("31", { step: "1" });
+
+    expect(screen.getByRole("note")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

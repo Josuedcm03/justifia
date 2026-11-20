@@ -710,3 +710,107 @@ describe("DocumentsStep: where each file comes from, in the correction (FE-16)",
     expect(urls.createObjectURL).toHaveBeenCalledWith(PDF);
   });
 });
+
+// FE-18 and FE-19 (RF-01, RF-02): the documents step shows the same recap as the
+// subjects step once the dates are valid, with the notice for a future start.
+describe("DocumentsStep: the dates recap (FE-18)", () => {
+  const RANGE = { from: "2026-10-29", to: "2026-10-30" };
+  const RECAP = "Fechas de ausencia";
+
+  function withRecap(props: Partial<Parameters<typeof DocumentsStep>[0]> = {}) {
+    return (
+      <DocumentsStep
+        draftId={42}
+        documents={[DOC(1, "constancia.pdf")]}
+        range={RANGE}
+        today="2026-11-02"
+        {...props}
+      />
+    );
+  }
+
+  it("shows the dates with weekday and month name, and a link back to step 1", () => {
+    renderIntl(withRecap());
+
+    expect(screen.getByText(RECAP)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Del jueves, 29 de octubre de 2026 al viernes, 30 de octubre de 2026",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Editar fechas" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=1",
+    );
+  });
+
+  it("sits above the document list", () => {
+    renderIntl(withRecap());
+    expect(
+      screen
+        .getByText(RECAP)
+        .compareDocumentPosition(screen.getByText("constancia.pdf")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows one date with its weekday for a one-day absence, and says it in English", () => {
+    renderIntl(
+      withRecap({ range: { from: "2026-10-29", to: "2026-10-29" } }),
+      "en",
+    );
+    expect(screen.getByText("Absence dates")).toBeInTheDocument();
+    expect(screen.getByText("Thursday, October 29, 2026")).toBeInTheDocument();
+  });
+
+  it("carries the future-start notice for a start after today, and no other", () => {
+    const { unmount } = renderIntl(
+      withRecap({ range: { from: "2026-11-10", to: "2026-11-12" } }),
+    );
+    expect(screen.getByRole("note")).toHaveTextContent(/posterior a hoy/);
+    unmount();
+
+    renderIntl(withRecap());
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("keeps the step usable with the notice shown", async () => {
+    renderIntl(withRecap({ range: { from: "2026-11-10", to: "2026-11-12" } }));
+
+    expect(screen.getByRole("link", { name: "Continuar" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=4",
+    );
+    expect(input()).toBeEnabled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows no recap without valid dates or when the caller gives no range", () => {
+    const { unmount } = renderIntl(withRecap({ range: null }));
+    expect(screen.queryByText(RECAP)).toBeNull();
+    unmount();
+
+    renderIntl(
+      <DocumentsStep draftId={42} documents={[DOC(1, "constancia.pdf")]} />,
+    );
+    expect(screen.queryByText(RECAP)).toBeNull();
+  });
+
+  it("points the edit link inside the correction flow", () => {
+    renderIntl(
+      withRecap({
+        flow: {
+          basePath: "/requests/31/correct",
+          actions: {
+            finalizeDocument: vi.fn(),
+            removeDocument: vi.fn(),
+          },
+        },
+      }),
+    );
+    expect(screen.getByRole("link", { name: "Editar fechas" })).toHaveAttribute(
+      "href",
+      "/requests/31/correct?step=1",
+    );
+  });
+});
