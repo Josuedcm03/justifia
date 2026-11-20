@@ -73,3 +73,19 @@ export function draftRange(draft: {
   const { fechaInicio: from, fechaFin: to } = draft;
   return isIsoDate(from) && isIsoDate(to) && from <= to ? { from, to } : null;
 }
+
+/**
+ * True when the start of the absence is a real date after `today` (the Managua
+ * calendar day, FE-19). Only the start matters, so the step that is still being
+ * typed can ask with a start alone. It is a hint for a notice, never a rule:
+ * future dates stay valid (RN-05, RN-23), so nothing here blocks anything.
+ */
+export function startsAfterToday(
+  range: { from: string } | null,
+  today: string,
+): boolean {
+  if (range === null || !isIsoDate(range.from) || !isIsoDate(today)) {
+    return false;
+  }
+  return range.from > today;
+}

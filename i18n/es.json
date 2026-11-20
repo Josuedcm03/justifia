@@ -701,6 +701,12 @@
       "startLabel": "Fecha de inicio",
       "endLabel": "Fecha de fin"
     },
+    "datesRecap": {
+      "label": "Fechas de ausencia",
+      "range": "Del {start} al {end}",
+      "edit": "Editar fechas",
+      "futureStart": "La fecha de inicio es posterior a hoy. Si la ausencia ya ocurrió, corrige las fechas; si es una ausencia prevista, puedes continuar."
+    },
     "enrollmentNotice": {
       "text": "Las asignaturas de tu solicitud salen de tus inscripciones y todavía no tienes ninguna.",
       "link": "Declarar mis inscripciones"

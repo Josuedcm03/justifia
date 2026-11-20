@@ -847,3 +847,98 @@ English twins: "Documents that will be sent"; "New"; "Previous". The dialog titl
 - Size: S5 ran 6.4 times its forecast (1546 lines for about 240) and tests were 70 to 75 percent. S6's forecast is about 140, so expect 600 to 900; the plan has no cut inside S6, so cut at unit 12 (the pure helper and the recap component, tasks 6.1 to 6.4) and unit 13 (the wiring, tasks 6.5 to 6.8), as the owner's size exception allows. Measure after each unit.
 - Pitfalls met in S5: "getByTitle" has no "selector" option, and the name span of a document row carries the file name as its title, so find an iframe by tag; "getByText" with a name finds the row span and the preview caption, so use a "selector" or the row; React async actions entangle across roots, so resolve every mocked promise of a server action before the test ends; Write and heredocs mangle some backslashes and quotes, so write scripts as files and run them with node.
 - Tooling: only "rg" is installed (no "fd", "bat", "eza", "sd"). The scratchpad helpers still work: "i18n-set.cjs" (catalog insert, now also takes object values), "mark-p1.cjs" (task marks with a "_date" key), "p5-append.cjs" (append a file as LF), "p5-lf.sh" (restore unmodified files from HEAD as LF) and "fixengram.sh". "git status" lists LF-converted files as modified; that is a line-ending artifact only.
+## Phase 6 (PR 6): S6 RF-01, the dates recap and the future-start check
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-6-dates-recap", cut from the tip of "feat/flow-experience-5b-file-marks" (1aca0ed, the S5 tip, #117). Size exception per the owner decision of 2026-11-20 (see Phase 1). The plan has one cut inside S6, between unit 12 (the pure helper and the recap component) and unit 13 (the wiring into the steps and pages), so the slice is cut there as the owner's size rule allows:
+
+- **PR 6**, branch "feat/flow-experience-6-dates-recap": unit 12, the helper `startsAfterToday`, the `DatesRecap` and `FutureStartNotice` components and the four catalog keys. Nothing renders them yet, so no screen changes in this PR. It stacks on #117.
+- **PR 6b**, branch "feat/flow-experience-6b-dates-wiring", cut from the tip of PR 6: unit 13 (today from the server in Managua, the recap on steps 2 and 3, the notice on steps 1 and 4).
+
+### Owner decisions of 2026-11-20 applied here (final)
+
+- The future-start notice never blocks: no control is disabled, no field error is raised and no validation changes.
+- "Today" is computed on the server, in the Managua time zone, and passed down to the steps.
+
+### Commits (PR 6)
+
+| Unit | Hash    | Message                                                           |
+| ---- | ------- | ----------------------------------------------------------------- |
+| 12   | df0f688 | feat(requests): add the dates recap and the future-start check    |
+| docs | (tip)   | docs(flow-experience): record the Phase 6 apply progress for PR 6 |
+
+### TDD cycle evidence (PR 6)
+
+| Task        | Test file                                                     | Layer              | Safety net                            | RED                                                                             | GREEN     | Triangulation                                                                                                                                                                                                                                                                                                                                                                                                            | Refactor    |
+| ----------- | ------------------------------------------------------------- | ------------------ | ------------------------------------- | ------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| 6.1 and 6.3 | `src/app/(dashboard)/requests/new/steps.test.ts`              | Unit               | 35 existing cases of the file passing | 12 cases failed first (export missing)                                          | 47 passed | Start tomorrow, today, yesterday, far past and far future; a month boundary and a year boundary in both directions; null, an empty start, an impossible date and a word; a start alone with no end; a today that is not a real date                                                                                                                                                                                      | None needed |
+| 6.2 and 6.3 | `src/app/(dashboard)/requests/new/dates-recap.test.tsx` (new) | Unit and component | N/A (new file)                        | The file failed to load (module missing)                                        | 24 passed | Label and range with weekday and month name in es and en; one day with its weekday in es and en; the same days under three host zones (UTC-11, UTC+14, Managua); read only, one link only; long text wraps; the edit link in es and en with its 44 px target; the notice as a note for a start after today in es and en; tomorrow, today and yesterday; a past start; no today given; no alert role and no error styling | None needed |
+| 6.2 and 6.3 | `src/i18n/intake-messages.test.ts`                            | Unit               | Existing cases passing                | 3 cases failed first (exact copy es and en; the label matches the request card) | Pass      | Exact copy of the four keys in es and en; no formal "corrija" or "puede " in the notice; the label is the start of the S4 card line                                                                                                                                                                                                                                                                                      | None needed |
+
+### Mutation checks (revert-only; the file was restored from a byte-identical backup copy and checked with "cmp", because the GREEN was not committed yet)
+
+Every case of this unit failed first (the module or the export was missing), so there is no pass-at-write case. Two checks confirm that the two rules with a subtle failure are really pinned.
+
+| Rule pinned                          | Temporary edit                                                                                      | Result                                                             |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| No time-zone shift of a calendar day | In `src/app/(dashboard)/requests/new/dates-recap.tsx`: format in "America/Managua" instead of "UTC" | 8 failed (every date case, in es and en, and the three host zones) |
+| The start day itself gets no notice  | In `src/app/(dashboard)/requests/new/steps.ts`: compare with ">=" instead of ">"                    | 2 failed (the helper's "today" case and the recap's "today" case)  |
+
+### Checkpoint (task 6.9): measured size of PR 6
+
+Measure: "git diff --numstat feat/flow-experience-5b-file-marks...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                        | Changed lines |
+| ------------------------------------------------------------ | ------------- |
+| Production (recap and notice 81, helper 16, two catalogs 12) | 109           |
+| Tests (recap 194, helper 37, copy 32)                        | 263           |
+| All of PR 6 (372 added, 0 deleted)                           | 372           |
+
+The design forecast for all of S6 was about 140. Unit 12 alone is 2.7 times that and under the 460 stop line; the wiring is the rest of the slice (see PR 6b). Tests are 71 percent of the lines and were not trimmed.
+
+### Work unit evidence (PR 6)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- steps.test dates-recap src/i18n": 11 files, 515 tests, all passed                                                                                                                                                              |
+| Runtime harness                       | N/A in this run: the owner-run capture "RF-01" on "flow-it" (task 12.9) belongs to PR 6b, where the recap first renders. No database or Neon command was run (the dummy DB URL only)                                                                                                    |
+| Rollback boundary                     | Revert the PR: `src/app/(dashboard)/requests/new/dates-recap.tsx` is removed, `src/app/(dashboard)/requests/new/steps.ts` loses `startsAfterToday`, and the four "intake.datesRecap" keys go. Nothing renders them yet, so no screen, no data, no schema and no audit event type change |
+
+### Gates (task 6.10), tip of "-6-dates-recap", dummy DB
+
+- Full "npm test": 374 files, 9255 tests, all passed, 251.9 s vitest duration. The S5 tip was 373 files and 9216 tests; PR 6 adds one test file (dates-recap) and 39 tests.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (140040 findings counted with it), the only findings are the same three in files S6 does not touch: the unused "SidebarGroupLabel" warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on the touched files alone is clean, and "npx prettier --check" passes on every touched file and on both catalogs.
+
+### Files (PR 6; all LF in the working tree, the index was already LF)
+
+| File                                                    | Action                                                                                                                 |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `src/app/(dashboard)/requests/new/steps.ts`             | Modified: startsAfterToday (the start alone, a real date after today)                                                  |
+| `src/app/(dashboard)/requests/new/dates-recap.tsx`      | Created: DatesRecap (label, range with weekday and month, "Editar fechas" link, notice) and FutureStartNotice (a note) |
+| `src/app/(dashboard)/requests/new/steps.test.ts`        | Modified: 12 new cases                                                                                                 |
+| `src/app/(dashboard)/requests/new/dates-recap.test.tsx` | Created: 24 cases                                                                                                      |
+| `src/i18n/intake-messages.test.ts`                      | Modified: exact copy of the recap keys                                                                                 |
+| `i18n/es.json`, `i18n/en.json`                          | Modified: "intake.datesRecap.label", "range", "edit" and "futureStart"                                                 |
+
+### Final Spanish UI copy added in PR 6 (student screen "intake", "tú"; the label, range and link have no verb, so neutral)
+
+- "intake.datesRecap.label": "Fechas de ausencia"
+- "intake.datesRecap.range": "Del {start} al {end}"
+- "intake.datesRecap.edit": "Editar fechas"
+- "intake.datesRecap.futureStart": "La fecha de inicio es posterior a hoy. Si la ausencia ya ocurrió, corrige las fechas; si es una ausencia prevista, puedes continuar."
+
+English twins: "Absence dates"; "From {start} to {end}"; "Edit dates"; "The start date is later than today. If the absence already happened, correct the dates; if it is a planned absence, you can continue."
+
+### Deviations (PR 6)
+
+1. **Cut after unit 12.** The plan has no cut inside S6; the owner's size rule allows one at the seam between the helper and recap (unit 12) and the wiring (unit 13). PR 6 renders nothing on its own.
+2. **Base.** Tasks 6.0, 6.9 and 6.11 name "feat/flow-experience-5-local-preview" as the base; the real base is the tip of "feat/flow-experience-5b-file-marks" (#117), which holds all of S5. The PR targets that branch.
+3. **Helper signature.** The design writes `startsAfterToday(range, today)` with a full range. The parameter is typed `{ from: string } | null`, so step 1, where the end date may still be empty, can ask with the start alone; a full range passes unchanged. Only the start decides, and an impossible date, an empty start or an invalid today give false.
+4. **Extra export.** `FutureStartNotice` is exported from `src/app/(dashboard)/requests/new/dates-recap.tsx`, which the tasks do not list: steps 1 and 4 show the same note without the recap, so the text and the styling live in one place.
+5. **Label.** "Fechas de ausencia" (FE-18, the spec governs) replaces the design's "Fechas de la ausencia", the same words as the S4 card line "requests.list.absence".
+6. **Copy register.** The notice is worded in "tú" ("corrige", "puedes"), as the student screens do; the design's "corrija" and "puede" are not used.
+7. **Touch target.** The edit link is a text link with "min-h-11" (44 px), not a ghost button: a full button would take a whole row at 360 px for a secondary action.
+8. **`today` is optional on the recap.** Without it no notice shows, so the recap never guesses a date; PR 6b passes the server's value.
+9. **Host zone test.** The three-zone case sets "process.env.TZ" for the run and restores it afterwards. The Managua-zone mutation shows it fails when the recap formats in the wrong zone.
+10. **Mutation checks with an uncommitted GREEN.** Byte-identical backup copies, checked with "cmp".
+11. **Line endings.** `src/app/(dashboard)/requests/new/steps.ts` and `src/app/(dashboard)/requests/new/steps.test.ts` were CRLF in the working tree (index LF); they were converted to LF without changing the index content.
