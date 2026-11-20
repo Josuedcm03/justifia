@@ -68,6 +68,27 @@ export type DocenteListItem = {
   activo: boolean;
 };
 
+/**
+ * One row of the staff inscripciones list (EA-LIST-1). The student carries the
+ * name and the CIF only (EA-PII-1). `activo` is the RAW state of the row,
+ * `effective` also needs the group and the asignatura active, and `writable`
+ * means the group is offered now (latest period, group and asignatura active).
+ */
+export type InscripcionListItem = {
+  estudianteId: number;
+  grupoId: number;
+  estudianteNombre: string;
+  estudianteCif: string | null;
+  asignaturaId: number;
+  asignaturaCodigo: string;
+  asignaturaNombre: string;
+  periodo: string;
+  numeroGrupo: string;
+  activo: boolean;
+  effective: boolean;
+  writable: boolean;
+};
+
 /** One Grupo as the list and the edit page see it. `dias` is the decoded set in
  *  week order (empty = days not recorded); the stored mask never leaves the
  *  data layer (amendment A-9). */
