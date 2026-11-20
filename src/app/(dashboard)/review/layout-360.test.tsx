@@ -19,6 +19,7 @@ vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
 }));
 
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
+import { AnswerBanner } from "@/app/(dashboard)/review/[id]/answer-banner";
 import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { ApprovedTab } from "@/app/(dashboard)/review/approved-tab";
@@ -109,6 +110,12 @@ const REPORT = {
 
 const TEACHERS = [{ remisionId: 31, nombre: "Luis Mora" }];
 
+const ANSWER = {
+  text: LONG_NOTE,
+  authorName: "Marta Gomez",
+  answeredAt: new Date("2026-10-09T21:00:00Z"),
+};
+
 describe.each([
   ["the state tabs", () => <ReviewTabs current="en_revision_coordinacion" />],
   [
@@ -120,6 +127,7 @@ describe.each([
     "the escalation section",
     () => <EscalationSection escalations={[ESCALATION]} />,
   ],
+  ["the answer banner", () => <AnswerBanner answer={ANSWER} />],
   [
     "the absence reports section",
     () => (
@@ -213,6 +221,15 @@ describe("long notes at 360 px", () => {
     for (const text of screen.getAllByText(LONG_NOTE)) {
       expect(text).toHaveClass("break-words", "whitespace-pre-wrap");
     }
+  });
+
+  it("wraps the long answer of the banner instead of widening the page", () => {
+    renderIntl(<AnswerBanner answer={ANSWER} />);
+
+    expect(screen.getByText(LONG_NOTE)).toHaveClass(
+      "break-words",
+      "whitespace-pre-wrap",
+    );
   });
 
   it("wraps the report note and stacks the facts on one column", () => {

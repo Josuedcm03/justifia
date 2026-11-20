@@ -37,6 +37,7 @@ import {
 import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
 import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
+import { AnswerBanner } from "@/app/(dashboard)/review/[id]/answer-banner";
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { ReviewTabs } from "@/app/(dashboard)/review/review-tabs";
 
@@ -779,6 +780,37 @@ describe("design system: escalation and report screens (§2.5, §5 Badge, Dialog
     expect(
       screen.getByRole("heading", { level: 2, name: esc.section.title }),
     ).toHaveClass("text-headline");
+  });
+
+  it("frames the answer banner as a card with the callout tokens, the headline title and a 44px link", () => {
+    renderIntl(
+      <AnswerBanner
+        answer={{
+          text: "Verified.",
+          authorName: "Marta Gomez",
+          answeredAt: new Date("2026-10-09T21:00:00Z"),
+        }}
+      />,
+    );
+
+    const banner = screen.getByRole("region", {
+      name: messages.en.review.detail.answerBanner.title,
+    });
+    expect(banner).toHaveClass(
+      "bg-primary/5",
+      "border-l-primary",
+      "shadow-soft",
+      "rounded-xl",
+      "p-6",
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Coordination answer" }),
+    ).toHaveClass("text-headline");
+    expect(
+      screen.getByRole("link", {
+        name: messages.en.review.detail.answerBanner.link,
+      }),
+    ).toHaveClass("min-h-11");
   });
 
   it("draws the escalate trigger as a 44px outline button and the confirm as the primary action", async () => {

@@ -1398,8 +1398,15 @@
         "revisionDocuments": "{count, plural, one {# document} other {# documents}}",
         "replacedOn": "Replaced {date}"
       },
+      "answerBanner": {
+        "title": "Coordination answer",
+        "byline": "{name}, {date}",
+        "hint": "Take this answer into account when you decide.",
+        "link": "See the full escalation"
+      },
       "decisionPanel": {
-        "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it."
+        "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it.",
+        "descriptionAnswered": "Coordination has already answered this request (see the answer at the top of this page) and the decision is now yours. Approve, return for correction or reject the request. Each decision asks you to confirm it."
       },
       "goToDecision": "Go to the decision",
       "statusNote": {
