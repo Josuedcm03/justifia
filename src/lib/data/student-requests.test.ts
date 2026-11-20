@@ -27,6 +27,7 @@ vi.mock("@/db", () => ({
 import {
   getCorrectionReason,
   getOwnRequestDetail,
+  getReturnedDocumentIds,
   listOwnRequests,
 } from "@/lib/data/student-requests";
 
@@ -793,4 +794,57 @@ describe("the student's own detail carries no consent (C11)", () => {
       expect(readFileSync(path, "utf8")).not.toMatch(/consent/i);
     },
   );
+});
+
+// RF-08 (b), D9: the version just returned is the latest revision snapshot.
+// A correction marks a document "Anterior" when it is listed there, "Nuevo"
+// when it is not (FE-16).
+describe("getReturnedDocumentIds (RF-08 b, FE-16)", () => {
+  beforeEach(() => {
+    holder.current = null;
+  });
+
+  it("returns the document ids of the latest revision of an own returned request", async () => {
+    use([{ kind: "select", rows: [{ documentoIds: [4, 7, 9] }] }]);
+
+    expect(await getReturnedDocumentIds(USER, ID)).toEqual([4, 7, 9]);
+  });
+
+  it("returns an empty list when the revision lists no document", async () => {
+    use([{ kind: "select", rows: [{ documentoIds: [] }] }]);
+
+    expect(await getReturnedDocumentIds(USER, ID)).toEqual([]);
+  });
+
+  it("is an empty list for another student's id, a request in another state and an unknown id", async () => {
+    // The owner and `devuelta` filters are in the query, so the three reach the
+    // same empty result, with one select.
+    const double = use([{ kind: "select", rows: [] }]);
+
+    expect(await getReturnedDocumentIds(USER, ID)).toEqual([]);
+    expect(double.log).toHaveLength(1);
+  });
+
+  it("filters by request id, owner and the returned state, and takes the newest revision", async () => {
+    const double = use([{ kind: "select", rows: [{ documentoIds: [1] }] }]);
+
+    await getReturnedDocumentIds(USER, ID);
+
+    const query = render(double.log[0].where);
+    expect(query.sql).toContain('"SolicitudRevision"."SolicitudId" = $1');
+    expect(query.sql).toContain('"Solicitud"."EstudianteId" = $2');
+    expect(query.sql).toContain('"Solicitud"."Estado" = $3');
+    expect(query.params).toEqual([ID, USER, "devuelta"]);
+    expect(
+      render(sql.join(double.log[0].orderBy as never[], sql`, `)).sql,
+    ).toBe('"SolicitudRevision"."Numero" desc');
+  });
+
+  it("only reads: one select, no audit row and no write", async () => {
+    const double = use([{ kind: "select", rows: [{ documentoIds: [1] }] }]);
+
+    await getReturnedDocumentIds(USER, ID);
+
+    expect(double.log.map((s) => s.kind)).toEqual(["select"]);
+  });
 });

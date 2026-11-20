@@ -635,3 +635,78 @@ describe("DocumentsStep: local preview of a file attached in this visit (FE-17)"
     expect(container.innerHTML).not.toMatch(/\b(?:min-)?w-\[\d+(?:px|rem)\]/);
   });
 });
+
+// FE-16 (RF-08 a, c): in the correction the list names each file with where it
+// comes from. "Anterior" is a file the returned version listed; every other
+// file was attached during this correction.
+describe("DocumentsStep: where each file comes from, in the correction (FE-16)", () => {
+  const row = (name: string) =>
+    screen.getByText(name, { selector: "span" }).closest("li") as HTMLElement;
+  const withMarks = (
+    previous: readonly number[] | null | undefined,
+    documents: ReturnType<typeof DOC>[],
+  ) => (
+    <DocumentsStep
+      draftId={31}
+      documents={documents}
+      previousDocumentIds={previous}
+    />
+  );
+
+  it("marks the kept file Anterior and the added file Nuevo", () => {
+    renderIntl(
+      withMarks([1, 2], [DOC(2, "constancia.pdf"), DOC(3, "foto-nueva.png")]),
+    );
+
+    expect(row("constancia.pdf")).toHaveTextContent("Anterior");
+    expect(row("constancia.pdf")).not.toHaveTextContent("Nuevo");
+    expect(row("foto-nueva.png")).toHaveTextContent("Nuevo");
+    expect(row("foto-nueva.png")).not.toHaveTextContent("Anterior");
+  });
+
+  it("marks every file Nuevo when the returned version listed none", () => {
+    renderIntl(withMarks([], [DOC(2, "constancia.pdf")]));
+    expect(row("constancia.pdf")).toHaveTextContent("Nuevo");
+  });
+
+  it.each([
+    ["could not be read", null],
+    ["do not apply (a new request)", undefined],
+  ])("shows no mark when the returned ids %s", (_why, previous) => {
+    renderIntl(withMarks(previous, [DOC(2, "constancia.pdf")]));
+
+    expect(screen.queryByText("Nuevo")).toBeNull();
+    expect(screen.queryByText("Anterior")).toBeNull();
+  });
+
+  it("says Previous and New in English", () => {
+    renderIntl(
+      withMarks([1], [DOC(1, "constancia.pdf"), DOC(2, "foto.png")]),
+      "en",
+    );
+
+    expect(row("constancia.pdf")).toHaveTextContent("Previous");
+    expect(row("foto.png")).toHaveTextContent("New");
+  });
+
+  it("marks a file attached now Nuevo and still offers its preview", async () => {
+    const urls = stubObjectUrls();
+    const { rerender } = renderIntl(withMarks([1], [DOC(1, "constancia.pdf")]));
+    await user().upload(input(), PDF);
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    rerender(
+      withMarks([1], [DOC(1, "constancia.pdf"), DOC(9, "justificante.pdf")]),
+    );
+
+    expect(row("justificante.pdf")).toHaveTextContent("Nuevo");
+    expect(row("constancia.pdf")).toHaveTextContent("Anterior");
+    // The kept file is stored, so it keeps "Ver"; the new one is previewed.
+    expect(
+      screen.getByRole("link", { name: "Ver constancia.pdf" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Vista previa de justificante.pdf" }),
+    );
+    expect(urls.createObjectURL).toHaveBeenCalledWith(PDF);
+  });
+});

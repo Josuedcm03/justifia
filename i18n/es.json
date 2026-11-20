@@ -812,8 +812,13 @@
         "button": "Reenviar solicitud",
         "title": "¿Reenviar la solicitud corregida?",
         "description": "La secretaría la revisará de nuevo y el plazo de revisión vuelve a empezar. No podrás editarla mientras esté en revisión.",
+        "filesTitle": "Documentos que se enviarán",
         "confirm": "Sí, reenviar",
-        "pending": "Reenviando…"
+        "pending": "Reenviando…",
+        "marks": {
+          "new": "Nuevo",
+          "previous": "Anterior"
+        }
       },
       "degraded": "No pudimos cargar tu solicitud. Inténtalo de nuevo en unos minutos."
     },

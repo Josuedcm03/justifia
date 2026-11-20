@@ -812,8 +812,13 @@
         "button": "Resubmit request",
         "title": "Resubmit the corrected request?",
         "description": "The secretary will review it again and the review period starts over. You will not be able to edit it while it is under review.",
+        "filesTitle": "Documents that will be sent",
         "confirm": "Yes, resubmit",
-        "pending": "Resubmitting…"
+        "pending": "Resubmitting…",
+        "marks": {
+          "new": "New",
+          "previous": "Previous"
+        }
       },
       "degraded": "We could not load your request. Try again in a few minutes."
     },

@@ -503,3 +503,79 @@ describe("ReviewStep inside the correction flow", () => {
     ).toBeInTheDocument();
   });
 });
+
+// FE-16 (RF-08 a, c): the review step and the resubmit dialog name each file
+// with where it comes from.
+describe("ReviewStep: where each document comes from, in the correction (FE-16)", () => {
+  const flow = {
+    basePath: "/requests/31/correct",
+    actions: { resubmit: vi.fn() },
+  };
+  const KEPT = { id: 5, nombreOriginal: "constancia.pdf", tamanoBytes: 2048 };
+  const ADDED = { id: 6, nombreOriginal: "foto-nueva.png", tamanoBytes: 4096 };
+  const documentRow = (name: string) =>
+    within(section("Documentos")).getByText(name).closest("li") as HTMLElement;
+
+  it("marks the kept document Anterior and the added one Nuevo", () => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: [5, 9] }),
+    );
+
+    expect(documentRow("constancia.pdf")).toHaveTextContent("Anterior");
+    expect(documentRow("foto-nueva.png")).toHaveTextContent("Nuevo");
+  });
+
+  it("keeps the audited Ver link on both", () => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: [5] }),
+    );
+
+    expect(
+      within(section("Documentos")).getByRole("link", {
+        name: "Ver foto-nueva.png",
+      }),
+    ).toHaveAttribute("href", "/api/intake/documents/6");
+  });
+
+  it.each([
+    ["could not be read", null],
+    ["do not apply (a new request)", undefined],
+  ])("shows no mark when the returned ids %s", (_why, previous) => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: previous }),
+    );
+
+    expect(screen.queryByText("Nuevo")).toBeNull();
+    expect(screen.queryByText("Anterior")).toBeNull();
+  });
+
+  it("passes the same names and marks to the resubmit dialog", async () => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: [5] }),
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    const items = within(dialog).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("constancia.pdf");
+    expect(items[0]).toHaveTextContent("Anterior");
+    expect(items[1]).toHaveTextContent("foto-nueva.png");
+    expect(items[1]).toHaveTextContent("Nuevo");
+  });
+
+  it("lists no files in the submit dialog of a new request", async () => {
+    submitRequestAction.mockResolvedValue({ ok: true });
+    renderIntl(ui({ documents: [KEPT, ADDED] }));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Presentar solicitud" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(within(dialog).queryByRole("list")).toBeNull();
+    expect(screen.queryByText("Documentos que se enviarán")).toBeNull();
+  });
+});

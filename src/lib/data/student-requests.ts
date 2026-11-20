@@ -283,3 +283,31 @@ export async function getCorrectionReason(
     .limit(1);
   return row ?? null;
 }
+
+/**
+ * The document ids listed by the latest revision of the caller's own returned
+ * request: the version just returned (SR-17), which a correction compares with
+ * its current documents to mark each one "Anterior" or "Nuevo" (RF-08 b, D9,
+ * FE-16). One owner-scoped select; another student's id, a request in any other
+ * state and an unknown id are the same empty list. Not audited, like every own
+ * read, and it never reads a document.
+ */
+export async function getReturnedDocumentIds(
+  userId: number,
+  id: number,
+): Promise<number[]> {
+  const [row] = await db
+    .select({ documentoIds: solicitudRevision.documentoIds })
+    .from(solicitudRevision)
+    .innerJoin(solicitud, eq(solicitud.id, solicitudRevision.solicitudId))
+    .where(
+      and(
+        eq(solicitudRevision.solicitudId, id),
+        eq(solicitud.estudianteId, userId),
+        eq(solicitud.estado, "devuelta"),
+      ),
+    )
+    .orderBy(desc(solicitudRevision.numero))
+    .limit(1);
+  return row?.documentoIds ?? [];
+}

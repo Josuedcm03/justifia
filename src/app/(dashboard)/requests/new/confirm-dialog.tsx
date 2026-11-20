@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 
 import {
   AlertDialog,
@@ -37,11 +37,14 @@ export function ConfirmDialog({
   destructive = false,
   action,
   onErrors,
+  children,
 }: {
   texts: ConfirmTexts;
   destructive?: boolean;
   action: () => Promise<ActionResult>;
   onErrors: (errors: FieldError[]) => void;
+  /** An optional body between the description and the buttons. */
+  children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -80,6 +83,7 @@ export function ConfirmDialog({
           <AlertDialogTitle>{texts.title}</AlertDialogTitle>
           <AlertDialogDescription>{texts.description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel
             disabled={pending}
