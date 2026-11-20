@@ -25,7 +25,10 @@ vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   attachSpecialFormatAction: vi.fn(),
 }));
 
-import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
+import {
+  DeadlineBadge,
+  FirstDueBadge,
+} from "@/app/(dashboard)/review/deadline-badge";
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
 import {
   ChangesSection,
@@ -138,6 +141,43 @@ describe("design system: status pills (§2.5, §5 Badge, §7)", () => {
       expect(pill).toHaveClass("rounded-full", tint, ink);
     },
   );
+});
+
+describe("design system: first-due mark (FE-2, §2.5, §5 Badge, §7)", () => {
+  it("draws the mark as a neutral pill with the foreground ink, and always with text", () => {
+    renderIntl(<FirstDueBadge label="Due first" />);
+
+    const pill = screen.getByText("Due first");
+    expect(pill).toHaveClass(
+      "rounded-full",
+      "bg-muted",
+      "text-foreground",
+      "text-xs",
+      "font-semibold",
+      "px-3",
+      "py-1",
+    );
+    // Neutral: it is not a state, so it never takes a warning or alarm tint.
+    expect(pill.className).not.toMatch(/warning|destructive|success/);
+  });
+
+  it("is told apart from the muted on-time state by weight and ink, not by colour alone", () => {
+    renderIntl(
+      <>
+        <DeadlineBadge status="en_plazo" label="On time" />
+        <FirstDueBadge label="Due first" />
+      </>,
+    );
+
+    expect(screen.getByText("On time")).toHaveClass(
+      "font-medium",
+      "text-muted-foreground",
+    );
+    expect(screen.getByText("Due first")).toHaveClass(
+      "font-semibold",
+      "text-foreground",
+    );
+  });
 });
 
 describe("design system: cards and sections (§4.1, §5 Card)", () => {

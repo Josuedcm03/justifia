@@ -858,3 +858,289 @@ describe("ReviewQueuePage carries no signal (RN-15)", () => {
     expect(signalsMock).not.toHaveBeenCalled();
   });
 });
+
+// flow-experience S2 (RF-06 a, b; FE-1, FE-2): the queue states how it is
+// ordered and marks the request that is due first. The literals are on purpose:
+// they pin the copy, not just the catalog key.
+describe("ReviewQueuePage order and first-due mark (FE-1, FE-2, RF-06)", () => {
+  const FIRST_DUE = { en: "Due first", es: "Vence primero" } as const;
+
+  function layouts() {
+    return {
+      table: screen.queryByRole("table"),
+      cards: screen.queryByRole("list", { name: en.caption }),
+    };
+  }
+
+  function marksIn(root: HTMLElement | null) {
+    return root ? within(root).queryAllByText(FIRST_DUE[state.locale]) : [];
+  }
+
+  function threeRows() {
+    return [
+      row({ id: 12 }),
+      row({
+        id: 13,
+        estudianteNombre: "Luis Ruiz",
+        estudianteCif: "2021-0099",
+      }),
+      row({
+        id: 14,
+        estudianteNombre: "Rosa Mena",
+        estudianteCif: "2021-0100",
+      }),
+    ];
+  }
+
+  describe("the description of the tab", () => {
+    it("names the deadline, soonest first, and no presentation age (en)", async () => {
+      await renderPage();
+
+      expect(
+        screen.getByText(
+          "Pending requests of your faculty, ordered by deadline: the one due first comes first.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/oldest|newest/i)).toBeNull();
+    });
+
+    it("names the deadline, soonest first, and no presentation age (es)", async () => {
+      state.locale = "es";
+
+      await renderPage();
+
+      expect(
+        screen.getByText(
+          "Solicitudes pendientes de su facultad, ordenadas por vencimiento del plazo: primero la que vence antes.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/más antigua|más reciente/i)).toBeNull();
+    });
+
+    it("keeps the descriptions of the other two tabs", async () => {
+      queueMock.mockResolvedValue({ rows: [], calendarLoaded: true });
+      coordinationMock.mockResolvedValue({ rows: [coordinationRow()] });
+      approvedMock.mockResolvedValue({ rows: [approvedRow()] });
+
+      const first = await renderPage({ estado: "en_revision_coordinacion" });
+      expect(
+        screen.getByText(
+          "Requests escalated to the career coordination, oldest first.",
+        ),
+      ).toBeInTheDocument();
+      first.unmount();
+
+      await renderPage({ estado: "aprobada" });
+      expect(
+        screen.getByText("Approved requests from your faculty, newest first."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("the mark", () => {
+    it("is on row 1 only, once in the table and once in the cards", async () => {
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage();
+
+      const { table, cards } = layouts();
+      expect(marksIn(table)).toHaveLength(1);
+      expect(marksIn(cards)).toHaveLength(1);
+      const tableRows = within(table as HTMLElement)
+        .getAllByRole("row")
+        .slice(1);
+      expect(tableRows[0]).toHaveTextContent(FIRST_DUE.en);
+      expect(tableRows[1]).not.toHaveTextContent(FIRST_DUE.en);
+      expect(tableRows[2]).not.toHaveTextContent(FIRST_DUE.en);
+      const items = within(cards as HTMLElement).getAllByRole("listitem");
+      expect(items[0]).toHaveTextContent(FIRST_DUE.en);
+      expect(items[1]).not.toHaveTextContent(FIRST_DUE.en);
+      expect(items[2]).not.toHaveTextContent(FIRST_DUE.en);
+    });
+
+    it("is text in the accessible name of the row of the table", async () => {
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage();
+
+      const marked = within(screen.getByRole("table")).getAllByRole("row", {
+        name: /Due first/,
+      });
+      expect(marked).toHaveLength(1);
+      expect(marked[0]).toHaveTextContent("Ana Lopez");
+    });
+
+    it("keeps the overdue and due-soon marks next to it", async () => {
+      queueMock.mockResolvedValue({
+        rows: [
+          row({ status: "vencida" }),
+          row({ id: 13, status: "por_vencer" }),
+        ],
+        calendarLoaded: true,
+      });
+
+      await renderPage();
+
+      const rows = within(screen.getByRole("table")).getAllByRole("row");
+      expect(rows[1]).toHaveTextContent(FIRST_DUE.en);
+      expect(rows[1]).toHaveTextContent(en.deadline.overdue);
+      expect(rows[2]).toHaveTextContent(en.deadline.dueSoon);
+      expect(rows[2]).not.toHaveTextContent(FIRST_DUE.en);
+    });
+
+    it("goes to id 4 alone when two overdue requests share the deadline (4.9 RF-06)", async () => {
+      const same = { deadline: "2026-10-09", status: "vencida" };
+      queueMock.mockResolvedValue({
+        rows: [row({ id: 4, ...same }), row({ id: 7, ...same })],
+        calendarLoaded: true,
+      });
+
+      await renderPage();
+
+      const { table, cards } = layouts();
+      const tableRows = within(table as HTMLElement)
+        .getAllByRole("row")
+        .slice(1);
+      expect(within(tableRows[0]).getByRole("link")).toHaveAttribute(
+        "href",
+        "/review/4",
+      );
+      expect(tableRows[0]).toHaveTextContent(FIRST_DUE.en);
+      expect(tableRows[1]).not.toHaveTextContent(FIRST_DUE.en);
+      expect(tableRows[0]).toHaveTextContent(en.deadline.overdue);
+      expect(tableRows[1]).toHaveTextContent(en.deadline.overdue);
+      expect(marksIn(cards)).toHaveLength(1);
+      expect(marksIn(table)).toHaveLength(1);
+    });
+
+    it("follows the position the queue gave, not the date of presentation", async () => {
+      // A was presented first but its paused days push the deadline later; the
+      // queue read already lists B first, so B is the one due first.
+      queueMock.mockResolvedValue({
+        rows: [
+          row({
+            id: 2,
+            clockStart: new Date("2026-10-13T15:00:00Z"),
+            deadline: "2026-10-16",
+          }),
+          row({
+            id: 1,
+            clockStart: new Date("2026-10-12T15:00:00Z"),
+            deadline: "2026-10-19",
+          }),
+        ],
+        calendarLoaded: true,
+      });
+
+      await renderPage();
+
+      const tableRows = within(screen.getByRole("table"))
+        .getAllByRole("row")
+        .slice(1);
+      expect(within(tableRows[0]).getByRole("link")).toHaveAttribute(
+        "href",
+        "/review/2",
+      );
+      expect(tableRows[0]).toHaveTextContent(FIRST_DUE.en);
+      expect(tableRows[1]).not.toHaveTextContent(FIRST_DUE.en);
+    });
+
+    it("is written in Spanish with the Spanish catalog", async () => {
+      state.locale = "es";
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage();
+
+      expect(screen.getAllByText("Vence primero")).toHaveLength(2);
+      expect(screen.queryByText(FIRST_DUE.en)).toBeNull();
+    });
+  });
+
+  describe("search", () => {
+    it("shows no mark and does not move it when the term hides row 1", async () => {
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage({ q: "ruiz" });
+
+      const { table, cards } = layouts();
+      expect(within(table as HTMLElement).getByText("Luis Ruiz")).toBeVisible();
+      expect(marksIn(table)).toHaveLength(0);
+      expect(marksIn(cards)).toHaveLength(0);
+      expect(screen.queryByText(FIRST_DUE.en)).toBeNull();
+    });
+
+    it("shows the mark when the term matches row 1", async () => {
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage({ q: "lopez" });
+
+      const { table, cards } = layouts();
+      expect(marksIn(table)).toHaveLength(1);
+      expect(marksIn(cards)).toHaveLength(1);
+      expect(
+        within(table as HTMLElement).getAllByRole("row", { name: /Due first/ }),
+      ).toHaveLength(1);
+    });
+
+    it("keeps the mark on row 1 when a term matches several rows", async () => {
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage({ q: "2021-" });
+
+      const tableRows = within(screen.getByRole("table"))
+        .getAllByRole("row")
+        .slice(1);
+      expect(tableRows).toHaveLength(3);
+      expect(tableRows[0]).toHaveTextContent(FIRST_DUE.en);
+      expect(marksIn(layouts().table)).toHaveLength(1);
+    });
+
+    it("shows no mark when nothing matches", async () => {
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage({ q: "zzz" });
+
+      expect(screen.queryByText(FIRST_DUE.en)).toBeNull();
+    });
+  });
+
+  describe("where it does not appear", () => {
+    it("is absent from an empty queue", async () => {
+      queueMock.mockResolvedValue({ rows: [], calendarLoaded: true });
+
+      await renderPage();
+
+      expect(screen.queryByText(FIRST_DUE.en)).toBeNull();
+    });
+
+    it("is absent from the En coordinacion and Aprobadas tabs", async () => {
+      coordinationMock.mockResolvedValue({
+        rows: [coordinationRow(), coordinationRow({ id: 22 })],
+      });
+      approvedMock.mockResolvedValue({
+        rows: [approvedRow(), approvedRow({ id: 32 })],
+      });
+
+      const first = await renderPage({ estado: "en_revision_coordinacion" });
+      expect(screen.queryByText(FIRST_DUE.en)).toBeNull();
+      first.unmount();
+
+      await renderPage({ estado: "aprobada" });
+      expect(screen.queryByText(FIRST_DUE.en)).toBeNull();
+    });
+  });
+
+  describe("audit", () => {
+    it("writes one queue-read row with the whole count and nothing else, whatever the search hides", async () => {
+      queueMock.mockResolvedValue({ rows: threeRows(), calendarLoaded: true });
+
+      await renderPage({ q: "ruiz" });
+
+      expect(queueReadMock).toHaveBeenCalledTimes(1);
+      expect(queueReadMock).toHaveBeenCalledWith(7, 4, 3, "pendiente");
+      expect(queueMock).toHaveBeenCalledTimes(1);
+      expect(coordinationMock).not.toHaveBeenCalled();
+      expect(approvedMock).not.toHaveBeenCalled();
+    });
+  });
+});

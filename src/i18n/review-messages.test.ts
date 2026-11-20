@@ -1080,3 +1080,49 @@ describe("escalate dialog notice and history pointer messages (FE-5, FE-12, RF-1
     expect(history.escalationsLink).toBe("Go to the escalations");
   });
 });
+
+// flow-experience S2 (RF-06 a, FE-1, FE-2): the order of the Pendientes queue
+// and its "Vence primero" mark. Staff screens address the secretary as
+// "usted"; the mark is a label with no verb.
+describe("queue order messages (FE-1, FE-2, RF-06 a)", () => {
+  it("words the Pendientes description in Spanish by the deadline, soonest first", () => {
+    expect(es.review.queue.description).toBe(
+      "Solicitudes pendientes de su facultad, ordenadas por vencimiento del plazo: primero la que vence antes.",
+    );
+  });
+
+  it("words the Pendientes description in English by the deadline, soonest first", () => {
+    expect(en.review.queue.description).toBe(
+      "Pending requests of your faculty, ordered by deadline: the one due first comes first.",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s never describes the Pendientes order by presentation age",
+    (_l, m) => {
+      expect(m.review.queue.description).not.toMatch(
+        /antigua|reciente|oldest|newest|latest|earliest/i,
+      );
+    },
+  );
+
+  it("keeps the descriptions of the other two tabs as they were", () => {
+    expect(es.review.queue.coordination.description).toBe(
+      "Solicitudes escaladas a la coordinación de la carrera, de la más antigua a la más reciente.",
+    );
+    expect(en.review.queue.coordination.description).toBe(
+      "Requests escalated to the career coordination, oldest first.",
+    );
+    expect(es.review.queue.approved.description).toBe(
+      "Solicitudes aprobadas de su facultad, de la más reciente a la más antigua.",
+    );
+    expect(en.review.queue.approved.description).toBe(
+      "Approved requests from your faculty, newest first.",
+    );
+  });
+
+  it("words the first-due mark in both languages", () => {
+    expect(es.review.queue.firstDue).toBe("Vence primero");
+    expect(en.review.queue.firstDue).toBe("Due first");
+  });
+});
