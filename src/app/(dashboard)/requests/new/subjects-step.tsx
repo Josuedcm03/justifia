@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState, useTransition } from "react";
 
 import { saveSubjectsAction } from "@/app/(dashboard)/requests/new/actions";
+import { DatesRecap } from "@/app/(dashboard)/requests/new/dates-recap";
 import {
   BackLink,
   FieldErrors,
@@ -51,12 +52,15 @@ const NEW_FLOW: StepFlow<"saveSubjects"> = {
  * Step 2: affected subjects (RF-04). The student ticks subjects from their own
  * enrollment; the group and teacher are shown without any search. Only when the
  * enrollment leaves several groups does a radio list ask for the choice, with
- * none preselected (RF-04 c). The action re-checks everything (RN-21).
+ * none preselected (RF-04 c). The action re-checks everything (RN-21). With
+ * valid dates it opens with a read-only recap of them (FE-18).
  */
 export function SubjectsStep({
   groups,
   selected,
   hasDates,
+  range = null,
+  today,
   degraded,
   enrolled = true,
   fromReview = false,
@@ -65,6 +69,10 @@ export function SubjectsStep({
   groups: readonly EnrollmentGroup[];
   selected: readonly { asignaturaId: number; grupoId: number }[];
   hasDates: boolean;
+  /** The draft's valid dates, for the recap; null or absent shows none. */
+  range?: { from: string; to: string } | null;
+  /** The Managua calendar day from the server; absent means no notice. */
+  today?: string;
   degraded: boolean;
   /** Any effective enrollment, judged without the dates (SE-11). */
   enrolled?: boolean;
@@ -81,6 +89,15 @@ export function SubjectsStep({
   const [pending, startTransition] = useTransition();
 
   const back = <BackLink href={stepHref(fromReview ? 4 : 1, flow.basePath)} />;
+
+  const recap =
+    hasDates && range ? (
+      <DatesRecap
+        range={range}
+        today={today}
+        editHref={stepHref(1, flow.basePath)}
+      />
+    ) : null;
 
   const notice = !hasDates
     ? t("subjects.datesRequired")
@@ -99,6 +116,7 @@ export function SubjectsStep({
         description={t("subjects.description")}
         footer={back}
       >
+        {recap}
         <p
           role={degraded ? "status" : undefined}
           className={
@@ -175,6 +193,7 @@ export function SubjectsStep({
           </>
         }
       >
+        {recap}
         <FieldErrors
           id="subjects"
           errors={errors.filter(

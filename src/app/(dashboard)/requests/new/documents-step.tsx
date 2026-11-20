@@ -11,6 +11,7 @@ import {
   removeDocumentAction,
 } from "@/app/(dashboard)/requests/new/actions";
 import { formatFileSize } from "@/app/(dashboard)/catalog/import/file-dropzone";
+import { DatesRecap } from "@/app/(dashboard)/requests/new/dates-recap";
 import {
   BackLink,
   ContinueLink,
@@ -87,7 +88,8 @@ const NEW_FLOW: DocumentsFlow = {
  * the browser straight to the private store with a short-lived token and never
  * crosses a Next function (D2); then the server finalizes it by reading the
  * stored bytes. The list comes from the draft, so after every change the page
- * is re-read instead of keeping a second copy here.
+ * is re-read instead of keeping a second copy here. With valid dates it opens
+ * with a read-only recap of them (FE-18).
  */
 export function DocumentsStep({
   draftId,
@@ -95,6 +97,8 @@ export function DocumentsStep({
   fromReview = false,
   flow = NEW_FLOW,
   previousDocumentIds,
+  range = null,
+  today,
 }: {
   /** The id the files are stored under: the draft's, or the returned request's. */
   draftId: number;
@@ -107,6 +111,10 @@ export function DocumentsStep({
    * for a new request. Either way no mark is shown.
    */
   previousDocumentIds?: readonly number[] | null;
+  /** The draft's valid dates, for the recap; null or absent shows none. */
+  range?: { from: string; to: string } | null;
+  /** The Managua calendar day from the server; absent means no notice. */
+  today?: string;
 }) {
   const t = useTranslations("intake");
   const tErrors = useTranslations();
@@ -209,6 +217,14 @@ export function DocumentsStep({
         </>
       }
     >
+      {range ? (
+        <DatesRecap
+          range={range}
+          today={today}
+          editHref={stepHref(1, flow.basePath)}
+        />
+      ) : null}
+
       <p className="text-muted-foreground text-sm">
         {t("documents.hint", {
           size: MAX_DOCUMENT_BYTES / BYTES_PER_MB,

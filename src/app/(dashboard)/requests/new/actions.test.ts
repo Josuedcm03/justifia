@@ -256,6 +256,39 @@ describe("intake actions", () => {
       });
     });
 
+    // FE-19 (RN-05, RN-23): the notice for a future start is only a screen hint.
+    // The server does not look at it: future dates are valid as they always were.
+    it("accepts a future start as before: the notice is no rule", async () => {
+      h.saveDraftDetails.mockResolvedValue(true);
+      const future = {
+        causa: "medica",
+        fechaInicio: "2026-10-20",
+        fechaFin: "2026-10-22",
+      };
+
+      expect(await saveDetailsAction(future)).toEqual({ ok: true });
+      expect(h.saveDraftDetails).toHaveBeenCalledWith(
+        USER,
+        NOW,
+        future,
+        TARGET,
+      );
+    });
+
+    it("reports the cause only for a future start with no cause: the notice is no field error", async () => {
+      const result = await saveDetailsAction({
+        causa: "",
+        fechaInicio: "2026-10-20",
+        fechaFin: "2026-10-22",
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        errors: [{ field: "causa", key: "intake.errors.causa_required" }],
+      });
+      expect(h.saveDraftDetails).not.toHaveBeenCalled();
+    });
+
     it("reports no draft when the student has none live", async () => {
       h.saveDraftDetails.mockResolvedValue(false);
 
@@ -743,6 +776,41 @@ describe("intake actions", () => {
         ok: false,
         errors: [{ field: "fechaFin", key: "intake.errors.end_too_old" }],
       });
+    });
+
+    // FE-19 (RN-05, RN-23): a future start is submitted as before, and a missing
+    // cause is the only error it can come with.
+    it("submits a complete draft with a future start exactly as without the notice", async () => {
+      h.getLiveDraft.mockResolvedValue(
+        draft({ fechaInicio: "2026-10-20", fechaFin: "2026-10-22" }),
+      );
+      h.submitDraft.mockResolvedValue({ ok: true });
+
+      await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+        "REDIRECT:/requests/new/confirmation",
+      );
+
+      expect(h.submitDraft).toHaveBeenCalledWith({
+        ...expectedInput,
+        fechaInicio: "2026-10-20",
+        fechaFin: "2026-10-22",
+      });
+    });
+
+    it("reports the cause error only for a future start with no cause", async () => {
+      h.getLiveDraft.mockResolvedValue(
+        draft({
+          causa: null,
+          fechaInicio: "2026-10-20",
+          fechaFin: "2026-10-22",
+        }),
+      );
+
+      expect(await submitRequestAction(CONSENTED)).toEqual({
+        ok: false,
+        errors: [{ field: "causa", key: "intake.errors.causa_required" }],
+      });
+      expect(h.submitDraft).not.toHaveBeenCalled();
     });
 
     it("a double submit loses cleanly: conflict error, no redirect", async () => {
