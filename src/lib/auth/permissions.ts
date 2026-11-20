@@ -137,6 +137,23 @@ export function canReviewRequests(rol: RolUsuario | undefined): boolean {
 }
 
 /**
+ * Roles that maintain the inscripciones of their facultad (enrollment-
+ * administration, EA-ACC-1, RF-12 a). Its own predicate, distinct from
+ * `canManageCatalog`: administrador and coordinacion do not maintain
+ * enrollments. Typed against `RolUsuario` so a renamed role is a compile error.
+ */
+export const rolesQueGestionanInscripciones = [
+  "secretaria",
+] as const satisfies readonly RolUsuario[];
+
+export function canManageEnrollments(rol: RolUsuario | undefined): boolean {
+  return (
+    rol !== undefined &&
+    (rolesQueGestionanInscripciones as readonly string[]).includes(rol)
+  );
+}
+
+/**
  * Roles that see the coordination reports (coordination-reports, CR-ACC-1,
  * RF-17 a). Typed against `RolUsuario` so a renamed role is a compile error.
  */
