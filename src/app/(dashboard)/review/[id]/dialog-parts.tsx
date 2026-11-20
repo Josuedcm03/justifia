@@ -17,7 +17,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { ESCALATION_NOTE_MAX } from "@/lib/intake/escalation";
+import {
+  ESCALATION_NOTE_MAX,
+  type EscalationError,
+} from "@/lib/intake/escalation";
 
 // Pieces the staff dialogs share (docs/design-system.md §5 Form, Alert,
 // Dialog), so the decision, escalation, absence-report and coordinator answer
@@ -96,6 +99,27 @@ export function useEscalationAction<
   }
 
   return { failure, setFailure, pending, run };
+}
+
+/**
+ * The failure without the messages of one field (FE-11). A dialog calls it when
+ * the user edits that field, so a message never outlives the input it
+ * describes. A failure that names no field (a conflict, an unexpected refusal,
+ * the career without a coordination account) comes back as it is, and so does
+ * one with no error on the field; when the last field error goes the result is
+ * `null`, so no refusal banner is left behind. The server stays the authority:
+ * confirming a form that is still invalid brings the error back.
+ */
+export function withoutFieldErrors<F extends { reason: string }>(
+  failure: F | null,
+  field: EscalationError["field"],
+): F | null {
+  if (failure === null || failure.reason !== "invalid") return failure;
+  const errors = (failure as { errors?: readonly EscalationError[] }).errors;
+  if (!errors) return failure;
+  const kept = errors.filter((error) => error.field !== field);
+  if (kept.length === errors.length) return failure;
+  return kept.length === 0 ? null : { ...failure, errors: kept };
 }
 
 /**
@@ -196,12 +220,15 @@ export function NoteField({
   value,
   onChange,
   messages,
+  required = false,
 }: {
   id: string;
   copy: DialogCopy;
   value: string;
   onChange: (value: string) => void;
   messages: readonly string[];
+  /** Announces the field as required; the server still does the validating. */
+  required?: boolean;
 }) {
   // The server limit applies to the trimmed text, so the counter does too.
   const length = value.trim().length;
@@ -212,6 +239,7 @@ export function NoteField({
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        aria-required={required || undefined}
         aria-invalid={messages.length > 0 || undefined}
         aria-describedby={messages.length > 0 ? `${id}-error` : `${id}-hint`}
         className={DIALOG_TEXTAREA}
