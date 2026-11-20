@@ -26,7 +26,8 @@ Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S
 
 | Slice | Branch (`feat/catalog-schedule-...`) | Created from / PR base | Depends on | Est. lines |
 |-------|------|------|------|-----|
-| S1a scope | `-s1a-scope` | `main` | none | ~380 |
+| S1a-1 guard + scope SQL | `-s1a1-guard` | `main` | none | 363 measured |
+| S1a-2 list params | `-s1a2-list-params` | S1a-1 | S1a-1 | 269 measured |
 | S1b-1 audit reads | `-s1b1-audit-reads` | S1a | none functional (stacked) | ~210 |
 | S1b-2 list read | `-s1b2-list-read` | S1b-1 | S1a | ~380 |
 | S1c-1 table | `-s1c1-table` | S1b-2 | S1b-2 | ~310 |
@@ -81,7 +82,7 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 - [x] 1.7 GREEN `src/lib/data/request-scope-sql.ts`: private `studentOfFacultad(column, facultadId)` plus the two exports; `requestInScope` keeps its rendered SQL. Verify: `npx vitest run src/lib/data/request-scope-sql.test.ts`.
 - [x] 1.8 [P] RED `src/lib/catalog/list-params.test.ts`: `parseInscripcionesListParams` defaults (page 1, empty `q`/`asignatura`/`grupo`, `periodo` unset = latest, `status` `active`, default sort `student` asc, size 10); `status=all` and unknown values fall back (EA-FILT-1 allows `active`/`inactive` only); `INSCRIPCIONES_SORT_KEYS = ["student","subject","group"]`; `catalogListHref("/catalog/inscripciones", ...)` omits defaults and writes `periodo`, `asignatura`, `grupo` through an `extra` map; page resets when a filter changes; the two existing bases keep their hrefs.
 - [x] 1.9 GREEN `src/lib/catalog/list-params.ts`: `CatalogListBase` adds `"/catalog/inscripciones"`, sort keys, parser, `extra`. Verify: `npx vitest run src/lib/catalog/list-params.test.ts`.
-- [ ] 1.10 Gates G + measure (target ~380; cut point: 1.6-1.9 move to a second PR). Open PR. Commits: `feat(auth): add the enrollment management predicate and guard`, `feat(enrollment): add the enrollment scope SQL`, `feat(catalog): add the inscripciones list params`.
+- [x] 1.10 Gates G + measure. **Measured 632 authored lines (forecast ~380), over budget. Owner decision 2026-11-19: two stacked PRs cut at `f860476`: S1a-1 `feat/catalog-schedule-s1a1-guard` (`c776de8` + `f860476`, 363 lines, base `main`) and S1a-2 `feat/catalog-schedule-s1a2-list-params` (`08d0ba1`, 269 lines, base S1a-1). Later slices measure after each commit, and their forecasts are read at about 1.7x.** Open PR. Commits: `feat(auth): add the enrollment management predicate and guard`, `feat(enrollment): add the enrollment scope SQL`, `feat(catalog): add the inscripciones list params`.
   - Apply result (2026-11-19): gates G green and measured, PR NOT opened. Measured authored diff is 632 lines (609 added, 23 removed), over the 400 budget (forecast ~380): commits `c776de8` (189), `f860476` (174), `08d0ba1` (269). Stop rule applies: cut into PR A = `c776de8` + `f860476` (363 lines, tasks 1.2-1.7) and PR B = `08d0ba1` (269 lines, tasks 1.8-1.9). See `apply-progress.md`.
 
 ## Phase 2: S1b-1 audited read plumbing (CS-6b, D10)
