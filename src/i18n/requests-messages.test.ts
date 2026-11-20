@@ -63,3 +63,49 @@ describe("requests messages", () => {
     }
   });
 });
+
+// FE-14, FE-15: the labels of the request card. The student screens use "tu",
+// and these lines are labels with no verb, so they stay neutral in both
+// locales (owner resolution 1, 2026-11-20).
+describe("requests card copy (FE-14, FE-15)", () => {
+  const card = {
+    es: {
+      absence: "Fechas de ausencia: {period}",
+      subjects: "Asignaturas: {codes}",
+      moreSubjects: "{codes} y {count} más",
+      reason: "Motivo: {reason}",
+    },
+    en: {
+      absence: "Absence dates: {period}",
+      subjects: "Subjects: {codes}",
+      moreSubjects: "{codes} and {count} more",
+      reason: "Reason: {reason}",
+    },
+  } as const;
+
+  it.each(catalogs)("%s words the four card lines exactly", (locale, m) => {
+    const list = m.requests.list as Record<string, string>;
+
+    for (const [key, text] of Object.entries(card[locale])) {
+      expect(list[key], key).toBe(text);
+    }
+  });
+
+  it.each(catalogs)(
+    "%s keeps the card labels free of any form of address",
+    (locale, m) => {
+      const list = m.requests.list as Record<string, string>;
+
+      for (const key of Object.keys(card[locale])) {
+        expect(list[key], key).not.toMatch(
+          /\b(usted|ustedes|tu|tus|su|sus|your)\b/i,
+        );
+      }
+    },
+  );
+
+  it("matches the label of the detail's reason line", () => {
+    expect(es.requests.list.reason).toBe(es.requests.detail.decision.reason);
+    expect(en.requests.list.reason).toBe(en.requests.detail.decision.reason);
+  });
+});

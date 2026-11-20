@@ -829,6 +829,10 @@
       "enrollment": "Ir a mis inscripciones",
       "number": "Solicitud {id}",
       "presented": "Presentada el {date}",
+      "absence": "Fechas de ausencia: {period}",
+      "subjects": "Asignaturas: {codes}",
+      "moreSubjects": "{codes} y {count} más",
+      "reason": "Motivo: {reason}",
       "view": "Ver solicitud",
       "viewNamed": "Ver la solicitud {id}"
     },

@@ -427,6 +427,11 @@ describe("the own list shows no signal (Detail and list carry no signal data)", 
         fechaFin: "2026-10-07",
         presentadaEn: new Date("2026-10-08T15:00:00Z"),
         reenviadaEn: null,
+        asignaturas: [{ codigo: "MAT-101", nombre: "Calculo" }],
+        decision:
+          estado === "devuelta" || estado === "rechazada"
+            ? { motivoCodigo: null, texto: DECISION_TEXT }
+            : null,
       })),
     );
 
