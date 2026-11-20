@@ -24,3 +24,79 @@
 - "whole number": no match in specs/manual-document-data/spec.md (dates only).
 - "tieneFirma": present in specs/audit-log/spec.md (the closed list).
 - "STRICT": present in specs/validation-signals/spec.md (the MD-16 rule).
+
+### 0.3 Baseline on the tracker (2026-11-19)
+
+- "npm test -- src/lib/data src/lib/signals src/db src/lib/audit src/app" with the dummy DB: 218 files, 5469 tests, all passed, 138 s.
+
+## Phase 1-2 (PR 1)
+
+Mode: Strict TDD. Branch "feat/manual-document-data-1-schema" from the tracker (a84893f). PR 1: "https://github.com/Josuedcm03/justifia/pull/93", base "feat/manual-document-data". Size exception accepted by the owner (0.1 a); the slice is not split.
+
+Tasks 1.10 to 1.13 (all database work) were NOT run: they are owner-run and need explicit confirmation per command. 0.5 is untouched by this run.
+
+### Commits
+
+| Unit | Hash    | Message                                              |
+| ---- | ------- | ---------------------------------------------------- |
+| 1    | fc41c9a | feat(db): add manual document data columns and table |
+| 2    | 5c5dded | feat(signals): add the document type to cause map    |
+
+### Files
+
+| File                                            | Action                                                                                                |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `drizzle/0015_manual_document_data.sql`         | Created (generated, 20 lines)                                                                         |
+| `drizzle/meta/_journal.json`                    | Modified (generated, 7 lines; when 1795134628842)                                                     |
+| `drizzle/meta/0015_snapshot.json`               | Created (generated, 2467 lines, not counted)                                                          |
+| `src/db/schema.ts`                              | Modified: three columns and one CHECK on DocumentoRespaldo; new documentoDatoManual with three CHECKs |
+| `src/db/migration-manual-document-data.test.ts` | Created (11 cases)                                                                                    |
+| `src/lib/document-data/types.ts`                | Created (pure)                                                                                        |
+| `src/lib/data/retention-inventory.test.ts`      | Modified: three columns and the new table entry                                                       |
+| `src/lib/data/retention.test.ts`                | Modified: structural regex names documentoDatoManual                                                  |
+| `src/lib/signals/document-type-causes.ts`       | Created                                                                                               |
+| `src/lib/signals/document-type-causes.test.ts`  | Created (23 cases)                                                                                    |
+| `src/lib/intake/causes.ts`                      | Modified: comment only                                                                                |
+
+### TDD cycle evidence
+
+| Task              | RED                                                 | GREEN                                                                                                                                                  | Refactor                                                  |
+| ----------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| 1.2 inventory     | 2 tests failed (table undefined, columns missing)   | 16 of 16 pass after schema                                                                                                                             | none                                                      |
+| 1.3 migration     | 11 of 11 cases failed: 0015 not found               | 11 of 11 pass after generate                                                                                                                           | none                                                      |
+| 1.8 retention pin | passes at write (pins existing behavior), 15 tests  | mutation check: a comment naming documentoDatoManual in `src/lib/data/retention.ts` failed the case (1 failed, 14 passed); restored with "git restore" | none                                                      |
+| 2.1 map           | run failed: module "./document-type-causes" missing | 23 of 23 pass                                                                                                                                          | removed an unused destructured variable flagged by eslint |
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | "npm test -- src/db src/lib/data/retention-inventory.test.ts src/lib/data/retention.test.ts": 20 files, 274 tests passed. "npm test -- src/lib/intake src/lib/signals/document-type-causes.test.ts": 34 files, 444 tests passed |
+| Runtime harness      | N/A for this run: the owner-run rehearsal on the disposable branch "manual-it" is tasks 1.10 to 1.12, not executed here                                                                                                         |
+| Rollback boundary    | Revert the PR; the columns and the table may stay if applied (additive, nullable)                                                                                                                                               |
+
+### Gates
+
+- Full "npm test" with the dummy DB: 358 files, 8487 tests, all passed, 204 s (vitest duration; about 3.5 min wall).
+- "npm run typecheck": clean.
+- "npx eslint src": only the known CRLF noise ("Delete the carriage return" and two CRLF-quoted lines in `src/test/access/inventory.ts`, untouched) and one old unused-import warning in `src/components/app-sidebar.tsx` (untouched). Touched files: eslint and prettier clean.
+
+### Measured size (task 2.5)
+
+"git diff --numstat feat/manual-document-data...HEAD" excluding "openspec/", ".engram/" and "drizzle/meta/0015_snapshot.json": 497 additions and 3 deletions, 500 changed lines. Without the generated SQL (20) and journal (7) lines: 473. The snapshot adds 2467 lines, reported separately. Target was about 330 and the stop line 460; the owner's size exception covers it.
+
+### Deviations and findings
+
+- The test title of the retention structural pin (task 1.8) now also names the manual-data table, so the title matches the regex.
+- The generated SQL puts the new CHECK on DocumentoRespaldo (CK_Documento_TipoDocumento) last, after the foreign keys, in drizzle-kit's own order. Nothing was reordered by hand.
+- `src/db/schema.ts` and `src/lib/intake/causes.ts` were CRLF in the worktree; both were converted to LF before editing, so lint passes. Git stores LF, so the diff shows no line-ending change.
+- "CK_DatoManual_NoVacio" tests only the rest start with the other three fields, because "CK_DatoManual_Reposo" ties the two dates. Matches the design text "at least one of the four fields".
+- `DOCUMENT_TYPE_CAUSES` is declared "as const satisfies ...", so consumers get literal types and the "satisfies" check of task 2.2 still holds.
+- No pin of `src/db/schema.test.ts` needed adjusting (task 1.7).
+- The migration number stayed 0015: origin/main (fetched 2026-11-19) still ends at 0014_data_retention.
+
+## Phase 1 database steps (owner yes per command)
+
+- 1.10 (2026-11-19 18:42 Managua, read-only): production has 15 migrations (0000 to 0014) and no 0015 objects. "dev-arnia" has 14 (no 0014).
+- 1.11 (18:49): "manual-it" created as a child of "dev-arnia".
+- 1.12 (18:50): 0014 and 0015 applied to "manual-it" only. Read-only verification: three nullable columns without default, the new table, four CHECKs, and the cascade FK. Production untouched; 1.13 waits for the owner's yes before the tracker reaches main.
