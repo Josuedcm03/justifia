@@ -240,3 +240,38 @@ equipo), `resuelta` (cubierta por un change).
 - **Hoy:** el listado muestra la cuenta del sistema «Sistema (tarea programada)» y las cuentas de estudiantes canceladas por la retención como usuarios inactivos, sin distinguirlas de las demás.
 - **Esperado:** un filtro que oculte esas cuentas del listado.
 - **Requisitos:** RNF-04; spec `data-retention`.
+
+### UX-20. Enlace a «Cambiar contraseña» desde el perfil
+
+- **Estado:** abierta.
+- **Origen:** cambio de contraseña de las cuatro cuentas de producción que
+  conservaban la clave de la semilla (punto 0.2 del plan de cierre de
+  brechas), 2026-11-20.
+- **Pantalla:** «Mi perfil» (`/profile`) y el menú de usuario de la barra
+  lateral.
+- **Hoy:** la pantalla `/change-password` admite el cambio voluntario, pero
+  ninguna pantalla enlaza a ella. Solo se llega escribiendo la dirección o
+  cuando la cuenta está obligada a cambiar la contraseña. El usuario buscó la
+  opción en el perfil y en una ruta de ajustes inexistente (404).
+- **Esperado:** «Mi perfil» ofrece «Cambiar contraseña», que lleva a
+  `/change-password`; opcionalmente, la misma entrada en el menú de usuario.
+- **Requisitos:** RNF-01 (la matriz de acceso ya cubre `/change-password`);
+  spec `auth`.
+
+### UX-21. Ingresar con el CIF o el correo institucional, no con «Usuario»
+
+- **Estado:** abierta.
+- **Origen:** observación del dueño del proyecto, 2026-11-20.
+- **Pantalla:** inicio de sesión (`/login`); también el alta e importación
+  de cuentas del administrador (`/users`) y «Mi perfil».
+- **Hoy:** se ingresa con un «Usuario» propio del sistema (columna `Login`)
+  y la contraseña. Ninguna plataforma de la UAM identifica así a las
+  personas: el campo obliga a recordar un identificador que solo existe en
+  este sistema.
+- **Esperado:** el campo de ingreso acepta el CIF (estudiantes) o el correo
+  institucional (todos los roles), junto con la contraseña. El «Usuario»
+  deja de mostrarse y de pedirse en el alta, la importación y el perfil. El
+  personal no tiene CIF, así que ingresa con el correo institucional.
+- **Requisitos:** RN-02 (el CIF y el correo provienen de la cuenta), RNF-01;
+  specs `auth` y `user-management`. Afecta el Anexo E de la tesis, que hoy
+  indica ingresar con «Usuario» y «Contraseña».
