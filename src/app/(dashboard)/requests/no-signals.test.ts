@@ -298,17 +298,19 @@ function detail(overrides: Partial<Record<string, unknown>> = {}) {
 
 const PRESENT_REPORT = {
   verdict: "review_carefully",
-  results: ["rn07", "rn09", "rn10", "rn14", "rn26"].map((signal) => ({
-    signal,
-    outcome: "present",
-    evidence: { kind: "repeated", references: [3] },
-  })),
+  results: ["rn07", "rn09", "rn10", "rn11", "rn12", "rn13", "rn14", "rn26"].map(
+    (signal) => ({
+      signal,
+      outcome: "present",
+      evidence: { kind: "repeated", references: [3] },
+    }),
+  ),
   notEvaluable: [],
 };
 
 /** Words that would reveal a signal, an outcome, a verdict or a fingerprint. */
 const REVEALING =
-  /signal|señal|outcome|verdict|veredicto|suggestion|sugerencia|review carefully|revisar con cuidado|repeated document|documento repetido|not evaluable|no evaluable|fingerprint|huella|[0-9a-f]{64}/i;
+  /signal|señal|outcome|verdict|veredicto|suggestion|sugerencia|review carefully|revisar con cuidado|repeated document|documento repetido|not evaluable|no evaluable|signature missing|firma ausente|seal missing|sello ausente|format does not match|formato no corresponde|fingerprint|huella|[0-9a-f]{64}/i;
 
 type DetailPage = (props: {
   params: Promise<{ id: string }>;

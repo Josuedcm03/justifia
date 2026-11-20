@@ -93,7 +93,26 @@ describe("statements emitted by the extraction data module", () => {
     const { sql } = await emitted(() => listExtractions(42));
 
     expect(sql).toMatch(
-      /^select .* from "DocumentoRespaldo" left join "ExtraccionDocumento" on "ExtraccionDocumento"\."DocumentoId" = "DocumentoRespaldo"\."Id" where .* order by "DocumentoRespaldo"\."Id" asc$/,
+      /^select .* from "DocumentoRespaldo" left join "ExtraccionDocumento" on "ExtraccionDocumento"\."DocumentoId" = "DocumentoRespaldo"\."Id" left join "DocumentoDatoManual" on "DocumentoDatoManual"\."DocumentoId" = "DocumentoRespaldo"\."Id" where .* order by "DocumentoRespaldo"\."Id" asc$/,
     );
+  });
+
+  it("selects the manual columns and the three marks in the same read (MD-21)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { sql } = await emitted(() => listExtractions(42));
+    const selected = sql.slice(0, sql.indexOf(' from "DocumentoRespaldo"'));
+
+    for (const column of [
+      '"DocumentoDatoManual"."NombreEstudiante"',
+      '"DocumentoDatoManual"."Emisor"',
+      '"DocumentoDatoManual"."FechaEmision"',
+      '"DocumentoDatoManual"."ReposoDesde"',
+      '"DocumentoDatoManual"."ReposoHasta"',
+      '"DocumentoRespaldo"."TipoDocumento"',
+      '"DocumentoRespaldo"."TieneFirma"',
+      '"DocumentoRespaldo"."TieneSello"',
+    ]) {
+      expect(selected).toContain(column);
+    }
   });
 });

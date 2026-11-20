@@ -14,6 +14,7 @@ import { QueryBuilder, alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import {
+  documentoDatoManual,
   documentoRespaldo,
   extraccionDocumento,
   grupo,
@@ -121,8 +122,12 @@ const subquery = new QueryBuilder();
  * that have a subject in the period (RN-14). Earlier means `(PresentadaEn, Id)`
  * below R's, so a later request never changes an earlier result. There is no
  * state filter: `rechazada` and `devuelta` requests count, a draft has no
- * `PresentadaEn`. Only current student documents with a completed extraction
- * and an issuer count. Normalization happens in TypeScript.
+ * `PresentadaEn`. Only current student documents with an effective issuer
+ * count: the manual issuer when registered, otherwise the extracted one (RN-24,
+ * MD-18). There is no extraction state filter either, because
+ * `CK_Extraccion_Datos` already leaves the issuer of a row that is not
+ * `completada` null, and a manual issuer counts whatever the row state is.
+ * Normalization happens in TypeScript.
  */
 export async function readIssuerHistory(input: {
   solicitudId: number;
@@ -139,19 +144,26 @@ export async function readIssuerHistory(input: {
         eq(grupo.periodo, input.period),
       ),
     );
+  const issuer = sql<
+    string | null
+  >`coalesce(${documentoDatoManual.emisor}, ${extraccionDocumento.emisor})`;
   const rows = await db
     .select({
       solicitudId: solicitud.id,
-      emisor: extraccionDocumento.emisor,
+      emisor: issuer,
     })
     .from(solicitud)
     .innerJoin(
       documentoRespaldo,
       eq(documentoRespaldo.solicitudId, solicitud.id),
     )
-    .innerJoin(
+    .leftJoin(
       extraccionDocumento,
       eq(extraccionDocumento.documentoId, documentoRespaldo.id),
+    )
+    .leftJoin(
+      documentoDatoManual,
+      eq(documentoDatoManual.documentoId, documentoRespaldo.id),
     )
     .where(
       and(
@@ -167,8 +179,7 @@ export async function readIssuerHistory(input: {
         isNull(documentoRespaldo.retiradoEn),
         isNull(documentoRespaldo.subidoPorId),
         eq(documentoRespaldo.formatoEspecial, false),
-        eq(extraccionDocumento.estado, "completada"),
-        isNotNull(extraccionDocumento.emisor),
+        isNotNull(issuer),
       ),
     );
   return rows.flatMap((r) =>
@@ -297,6 +308,7 @@ export async function loadSignals({
           documents: extractions.data.map((item) => ({
             documentId: item.documentoId,
             extraction: item.row,
+            marks: item.marks,
           })),
           periods,
           issuerHistory,

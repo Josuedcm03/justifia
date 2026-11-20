@@ -396,10 +396,12 @@ describe("retention write surface (D1, design carve-out note)", () => {
     expect(named).toEqual([MODULE, "lib/retention/policy.ts"]);
   });
 
-  it("names no extraction or fingerprint column and writes no enrollment, comments included", () => {
+  it("names no extraction, manual-data or fingerprint column and writes no enrollment, comments included", () => {
     const source = read(MODULE);
 
-    expect(source).not.toMatch(/extraccionDocumento|huellaSha256/i);
+    expect(source).not.toMatch(
+      /extraccionDocumento|documentoDatoManual|huellaSha256/i,
+    );
     expect(source).not.toMatch(/\.(insert|update|delete)\(\s*inscripcion\b/);
     expect(source).not.toMatch(
       /\b(insert\s+into|update|delete\s+from)\s+"?Inscripcion"?/i,
