@@ -681,3 +681,8 @@ Deviations: (c) used an existing pending request instead of a new one (no Blob u
 - 11.1 (2026-11-20): the seven slice PRs merged into "feat/manual-document-data" in order; tip 485f7a1, which already contains origin/main 172e9e0. No open PR from another branch carries a migration (PRs 98 to 101 checked), so 0015 stays this change's number.
 - 11.2 (2026-11-20): whole-change gates green on 485f7a1 (8926 tests, typecheck clean, eslint known noise only). sdd-verify: PASS WITH WARNINGS (0 CRITICAL, 5 WARNING, 7 SUGGESTION), 35/35 requirements, 173/173 scenarios. Source under src, drizzle and i18n is identical between d0dfe3f (Phase 9) and the tip, so the Postgres runs hold.
 - Pending before main: 1.13 (0015 in production, owner yes), then 11.3 gate check and 11.4 (owner OK).
+
+## Task 1.13 and merge gate (2026-11-20)
+
+- 1.13 (00:34 Managua, owner yes for this exact command): 0015 applied to production, exit 0. Read-only re-run of the 1.12 checks at 00:35: 16 migrations (journal row 0015, "when" 1795134628842), TipoDocumento, TieneFirma and TieneSello nullable without default, DocumentoDatoManual, the four CHECKs, cascade FK; 2 documents untouched; "/login" 200 on the deploy still running the old code.
+- 11.3: every prerequisite of the merge gate (1.13, 9.5, 10.7, 11.2) is recorded. Only 11.4, the owner's OK to merge the tracker to main, remains.
