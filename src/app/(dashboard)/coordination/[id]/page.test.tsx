@@ -21,6 +21,7 @@ const {
   detailMock,
   readMock,
   signalsMock,
+  marksMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -34,6 +35,7 @@ const {
   detailMock: vi.fn(),
   readMock: vi.fn(),
   signalsMock: vi.fn(),
+  marksMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -53,6 +55,9 @@ vi.mock("@/lib/data/coordination-queue", () => ({
 }));
 vi.mock("@/lib/data/request-reads", () => ({ recordRequestRead: readMock }));
 vi.mock("@/lib/data/signals", () => ({ loadSignals: signalsMock }));
+vi.mock("@/lib/data/document-marks-read", () => ({
+  listDocumentMarks: marksMock,
+}));
 vi.mock("@/app/(dashboard)/coordination/[id]/actions", () => ({
   answerEscalationAction: vi.fn(),
 }));
@@ -144,6 +149,17 @@ const SIGNAL_REPORT = {
     },
     { signal: "rn10", outcome: "not_evaluable", reason: "extraction_pending" },
     {
+      signal: "rn11",
+      outcome: "present",
+      evidence: { kind: "documents", documentIds: [31] },
+    },
+    {
+      signal: "rn12",
+      outcome: "absent",
+      evidence: { kind: "documents", documentIds: [] },
+    },
+    { signal: "rn13", outcome: "not_evaluable", reason: "not_registered" },
+    {
       signal: "rn14",
       outcome: "not_evaluable",
       reason: "no_period",
@@ -156,7 +172,22 @@ const SIGNAL_REPORT = {
   ],
   notEvaluable: [
     { signal: "rn10", reason: "extraction_pending" },
+    { signal: "rn13", reason: "not_registered" },
     { signal: "rn14", reason: "no_period" },
+  ],
+};
+
+// What the narrow read hands the page: the type and marks only.
+const MARKS = {
+  degraded: false,
+  data: [
+    {
+      documentoId: 31,
+      nombreOriginal: "constancia.pdf",
+      type: "constancia_medica",
+      hasSignature: false,
+      hasSeal: true,
+    },
   ],
 };
 
@@ -200,6 +231,8 @@ beforeEach(() => {
   readMock.mockResolvedValue(undefined);
   signalsMock.mockReset();
   signalsMock.mockResolvedValue({ data: SIGNAL_REPORT, degraded: false });
+  marksMock.mockReset();
+  marksMock.mockResolvedValue(MARKS);
 });
 
 describe("CoordinationDetailPage access (RNF-01, ES-9)", () => {
@@ -544,6 +577,8 @@ describe("CoordinationDetailPage validation signals (RF-05, RN-15, RN-26, RNF-01
     for (const [signal, outcome] of [
       ["rn07", "present"],
       ["rn09", "absent"],
+      ["rn11", "present"],
+      ["rn12", "absent"],
       ["rn26", "present"],
     ] as const) {
       const term = within(region).getByText(sig.names[signal], {
@@ -553,6 +588,7 @@ describe("CoordinationDetailPage validation signals (RF-05, RN-15, RN-26, RNF-01
     }
     expect(region).toHaveTextContent(sig.reasons.extraction_pending);
     expect(region).toHaveTextContent(sig.reasons.no_period);
+    expect(region).toHaveTextContent(sig.reasons.not_registered);
     expect(region).toHaveTextContent(sig.coordinationNote);
   });
 
@@ -688,6 +724,177 @@ describe("CoordinationDetailPage validation signals (RF-05, RN-15, RN-26, RNF-01
 
     expect(text).toContain("signalsAccess(");
     expect(text).toContain("toCoordinationView(");
+    expect(text).not.toMatch(/\.rol\s*[!=]==?|rolesUsuario|isCoordinacion/);
+  });
+});
+
+describe("CoordinationDetailPage document type and marks (MD-30, RF-10 c, RNF-01, RNF-02)", () => {
+  const marksRegion = () =>
+    screen.getByRole("region", { name: en.sections.marks });
+  const noMarks = () =>
+    expect(
+      screen.queryByRole("region", { name: en.sections.marks }),
+    ).not.toBeInTheDocument();
+
+  it("reads the marks of an open escalation by its request, before the audited read (Type and marks shown read-only)", async () => {
+    await renderPage();
+
+    expect(marksMock).toHaveBeenCalledTimes(1);
+    expect(marksMock).toHaveBeenCalledWith(41);
+    expect(marksMock.mock.invocationCallOrder[0]).toBeLessThan(
+      readMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("shows the type, the firma and the sello as text, with no control", async () => {
+    await renderPage();
+
+    const region = marksRegion();
+    const read = (label: string) =>
+      within(region).getByText(label, { selector: "dt" }).nextElementSibling;
+    expect(read(en.marks.type)).toHaveTextContent("Medical certificate");
+    expect(read(en.marks.signature)).toHaveTextContent("No");
+    expect(read(en.marks.seal)).toHaveTextContent("Yes");
+    expect(within(region).queryAllByRole("button")).toHaveLength(0);
+    expect(within(region).queryAllByRole("link")).toHaveLength(0);
+    expect(within(region).queryAllByRole("textbox")).toHaveLength(0);
+  });
+
+  it("renders the block after the signals and before the answer form", async () => {
+    await renderPage();
+
+    const signals = screen.getByRole("region", {
+      name: messages.en.review.signals.title,
+    });
+    const answer = screen.getByRole("region", { name: en.sections.answer });
+    expect(
+      signals.compareDocumentPosition(marksRegion()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      marksRegion().compareDocumentPosition(answer) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("reads Sin registrar for a type and marks not registered, in neutral Spanish (Unregistered data reads as such)", async () => {
+    state.locale = "es";
+    marksMock.mockResolvedValue({
+      degraded: false,
+      data: [
+        {
+          documentoId: 31,
+          nombreOriginal: "constancia.pdf",
+          type: null,
+          hasSignature: null,
+          hasSeal: null,
+        },
+      ],
+    });
+
+    await renderPage();
+
+    const es = messages.es.coordination.detail;
+    const region = screen.getByRole("region", { name: es.sections.marks });
+    for (const label of [es.marks.type, es.marks.signature, es.marks.seal]) {
+      expect(
+        within(region).getByText(label, { selector: "dt" }).nextElementSibling,
+      ).toHaveTextContent("Sin registrar");
+    }
+  });
+
+  it("shows no name, issuer, date or rest, and the block holds none (Registered values stay hidden)", async () => {
+    marksMock.mockResolvedValue({
+      degraded: false,
+      data: [
+        {
+          ...MARKS.data[0],
+          studentName: "Ana Lopez",
+          issuer: "Clinica Central",
+          issueDate: "2026-10-19",
+          restFrom: "2026-10-19",
+          restTo: "2026-10-23",
+        },
+      ],
+    });
+
+    await renderPage();
+
+    const text = marksRegion().textContent ?? "";
+    expect(text).not.toMatch(/Ana Lopez|Clinica Central|Oct|2026/);
+    expect(text).not.toMatch(/issuer|rest|issue date/i);
+  });
+
+  it("renders the rest, the answer form and the degraded notice when the read is degraded (fail-soft)", async () => {
+    marksMock.mockResolvedValue({ data: [], degraded: true });
+
+    await renderPage();
+
+    expect(
+      within(marksRegion()).getByText(en.marksDegraded),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: en.sections.student }),
+    ).toHaveTextContent("Ana Lopez");
+    expect(
+      screen.getByRole("region", { name: en.sections.answer }),
+    ).toBeInTheDocument();
+    expect(readMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("neither reads nor renders the block on a notice, whose request has no documents (Notices and the list carry none)", async () => {
+    detailMock.mockResolvedValue(notice());
+
+    await renderPage("12");
+
+    expect(marksMock).not.toHaveBeenCalled();
+    noMarks();
+  });
+
+  it.each([
+    ["another career, an answered suspicion or an unknown id", null],
+    ["a draft", escalation({ estado: "borrador" })],
+  ])(
+    "answers notFound and never reads the marks for %s (the same access as the signals)",
+    async (_label, found) => {
+      detailMock.mockResolvedValue(found);
+
+      await expect(renderPage("404")).rejects.toThrow("NOT_FOUND");
+
+      expect(marksMock).not.toHaveBeenCalled();
+      expect(readMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("never reads the marks for a coordinator without a career, a malformed id or another role", async () => {
+    scopeMock.mockResolvedValue({ kind: "none" });
+    await expect(renderPage()).rejects.toThrow("NOT_FOUND");
+    scopeMock.mockResolvedValue({ kind: "carrera", carreraId: 4 });
+    await expect(renderPage("abc")).rejects.toThrow("NOT_FOUND");
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+    await expect(renderPage()).rejects.toThrow(
+      `REDIRECT:${ACCESS_DENIED_PATH}`,
+    );
+
+    expect(marksMock).not.toHaveBeenCalled();
+  });
+
+  it("adds no audit row: the only read is the existing one (No audit row)", async () => {
+    await renderPage();
+
+    expect(readMock).toHaveBeenCalledTimes(1);
+    expect(readMock).toHaveBeenCalledWith(7, 41, "en_revision_coordinacion");
+  });
+
+  it("decides the block through the one access helper of the signals", async () => {
+    const { readFileSync } = await import("node:fs");
+    const text = readFileSync(
+      "src/app/(dashboard)/coordination/[id]/page.tsx",
+      "utf8",
+    );
+
+    expect(text.match(/signalsAccess\(/g)).toHaveLength(1);
+    expect(text).toContain("listDocumentMarks(");
     expect(text).not.toMatch(/\.rol\s*[!=]==?|rolesUsuario|isCoordinacion/);
   });
 });

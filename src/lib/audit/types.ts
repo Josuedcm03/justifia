@@ -1,4 +1,5 @@
 import type { InscripcionStatusFilter } from "@/lib/catalog/types";
+import type { DocumentDataField } from "@/lib/document-data/types";
 import type { Causa } from "@/lib/intake/causes";
 import type {
   EscalationReason,
@@ -66,6 +67,7 @@ export const AUDIT_ACTIONS = [
   "escalamiento.notificacion_reenviada",
   "escalamiento.cola.consultada",
   "usuario.cancelado",
+  "documento.datos_registrados",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -317,6 +319,16 @@ type AccountCancelledPayload = {
   motivo: "retencion_5_anios";
   solicitudes: number;
   documentos: number;
+};
+
+/** Manual document data event (manual-document-data, MD-33, RNF-06). The
+ *  document is the entity; the payload holds the request id and the NAMES of
+ *  the fields that changed, from the closed list. Never a value: the name,
+ *  issuer and dates are personal data, and a cleared value is named like any
+ *  other change. */
+type DocumentDataRecordedPayload = {
+  solicitudId: number;
+  campos: readonly DocumentDataField[];
 };
 
 /** Closed lists for the manual catalog events. A field not named here can
@@ -601,4 +613,10 @@ export type AuditEvent =
       entidadTipo: "Usuario";
       entidadId: number;
       datos: AccountCancelledPayload;
+    }
+  | {
+      accion: "documento.datos_registrados";
+      entidadTipo: "DocumentoRespaldo";
+      entidadId: number;
+      datos: DocumentDataRecordedPayload;
     };

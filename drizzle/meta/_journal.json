@@ -106,6 +106,13 @@
       "when": 1795111590732,
       "tag": "0014_data_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795134628842,
+      "tag": "0015_manual_document_data",
+      "breakpoints": true
     }
   ]
 }

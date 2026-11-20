@@ -1,9 +1,10 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { db } from "@/db";
 import { eventoAuditoria } from "@/db/audit-schema";
 import {
+  documentoDatoManual,
   documentoRespaldo,
   escalamiento,
   extraccionDocumento,
@@ -37,7 +38,8 @@ import { SYSTEM_LOGIN } from "@/lib/retention/policy";
 //   INTEGRATION_DATABASE_URL=<disposable branch url> \
 //   INTEGRATION_ALLOW_WRITES=1 npm run test:integration -- \
 //     src/lib/data/integration/retention.integration.test.ts
-// The branch needs migration `0014_data_retention` applied. Without
+// The branch needs migrations `0014_data_retention` and
+// `0015_manual_document_data` applied. Without
 // INTEGRATION_DATABASE_URL the suite is skipped; the opt-in guard is the one of
 // `intake-concurrency.integration.test.ts`. The audit row and the sentinel
 // stay on the branch by design (the table is append-only).
@@ -49,6 +51,11 @@ if (gate.mode === "refuse") {
     `Refusing to run the integration suite: ${process.env.INTEGRATION_GATE_REASON}`,
   );
 }
+
+// The manual document data of `manual-document-data` rides on the same proof
+// (MD-34, MD-35): each of the two documents with a request carries a manual
+// record (name and issuer) and the three marks, and the record may disappear
+// only as the cascade of its document.
 
 // The route builds its blob store from `@/lib/intake/deps`; a fake one stands
 // in so no file is stored or deleted anywhere.
@@ -62,6 +69,16 @@ vi.mock("@/lib/intake/deps", () => ({
 import { GET } from "@/app/api/cron/retention/route";
 
 const PLACEHOLDER = "[cancelado]";
+
+// Fictitious manual values: unmistakable, so a search finds them anywhere.
+const MANUAL_AGED = {
+  nombre: "IT Manual Name Aged",
+  emisor: "IT Manual Issuer Aged",
+};
+const MANUAL_YOUNGER = {
+  nombre: "IT Manual Name Younger",
+  emisor: "IT Manual Issuer Younger",
+};
 
 /** `years` before the real clock; `now` itself is never shifted. */
 function yearsAgo(years: number): Date {
@@ -104,6 +121,7 @@ describe.skipIf(gate.mode !== "run")(
     let requestIds: number[];
     let pathname: string;
     let documentId: number;
+    let youngerDocumentId: number;
     let before: Awaited<ReturnType<typeof readStudentRows>>;
     let untouched: Awaited<ReturnType<typeof readStudentRows>>[];
     let dryRun: { status: number; body: Record<string, unknown> };
@@ -148,6 +166,26 @@ describe.skipIf(gate.mode !== "run")(
           .from(escalamiento)
           .where(ofRequests(escalamiento))
           .orderBy(escalamiento.id),
+        // The type and the marks of each document, and its manual record.
+        documents: await db
+          .select({
+            id: documentoRespaldo.id,
+            tipoDocumento: documentoRespaldo.tipoDocumento,
+            tieneFirma: documentoRespaldo.tieneFirma,
+            tieneSello: documentoRespaldo.tieneSello,
+          })
+          .from(documentoRespaldo)
+          .where(ofRequests(documentoRespaldo))
+          .orderBy(documentoRespaldo.id),
+        manualData: await db
+          .select(getTableColumns(documentoDatoManual))
+          .from(documentoDatoManual)
+          .innerJoin(
+            documentoRespaldo,
+            eq(documentoRespaldo.id, documentoDatoManual.documentoId),
+          )
+          .where(ofRequests(documentoRespaldo))
+          .orderBy(documentoDatoManual.documentoId),
       };
     }
 
@@ -275,11 +313,45 @@ describe.skipIf(gate.mode !== "run")(
         .where(eq(documentoRespaldo.pathname, pathname));
       documentId = document.id;
       await db.insert(extraccionDocumento).values({ documentoId: documentId });
+      await db.insert(documentoDatoManual).values({
+        documentoId: documentId,
+        nombreEstudiante: MANUAL_AGED.nombre,
+        emisor: MANUAL_AGED.emisor,
+        registradoPorId: secretariaId,
+      });
+      await db
+        .update(documentoRespaldo)
+        .set({
+          tipoDocumento: "constancia_medica",
+          tieneFirma: true,
+          tieneSello: false,
+        })
+        .where(eq(documentoRespaldo.id, documentId));
 
       // B: aged account, but a request presented two years ago.
       b = (await fixtures.addStudent()).id;
       const recent = await addRequest(b, "pendiente", yearsAgo(2));
       await decide(recent, "rechazada", "Recent decision text");
+      const [youngerDocument] = await db
+        .select({ id: documentoRespaldo.id })
+        .from(documentoRespaldo)
+        .where(
+          eq(
+            documentoRespaldo.pathname,
+            await fixtures.addValidDocument(recent),
+          ),
+        );
+      youngerDocumentId = youngerDocument.id;
+      await db.insert(documentoDatoManual).values({
+        documentoId: youngerDocumentId,
+        nombreEstudiante: MANUAL_YOUNGER.nombre,
+        emisor: MANUAL_YOUNGER.emisor,
+        registradoPorId: secretariaId,
+      });
+      await db
+        .update(documentoRespaldo)
+        .set({ tipoDocumento: "otro", tieneFirma: false, tieneSello: true })
+        .where(eq(documentoRespaldo.id, youngerDocumentId));
 
       // C: aged account and request, but an active enrollment.
       c = (await fixtures.addStudent()).id;
@@ -434,6 +506,58 @@ describe.skipIf(gate.mode !== "run")(
       expect(store.has(pathname)).toBe(false);
     });
 
+    it("cascades the manual data with its document and keeps the younger student's (MD-34, MD-35)", async () => {
+      // The aged student's record is gone with its document, though retention
+      // never names the table; the type and the marks went with the row.
+      expect(
+        await db
+          .select({ id: documentoDatoManual.documentoId })
+          .from(documentoDatoManual)
+          .where(eq(documentoDatoManual.documentoId, documentId)),
+      ).toEqual([]);
+      const gone = await readStudentRows(a.id);
+      expect(gone.documents).toEqual([]);
+      expect(gone.manualData).toEqual([]);
+      // Fixture proof: before the run the record and the marks existed.
+      expect(before.documents).toEqual([
+        {
+          id: documentId,
+          tipoDocumento: "constancia_medica",
+          tieneFirma: true,
+          tieneSello: false,
+        },
+      ]);
+      expect(before.manualData).toHaveLength(1);
+      expect(before.manualData[0]).toMatchObject({
+        documentoId: documentId,
+        nombreEstudiante: MANUAL_AGED.nombre,
+        emisor: MANUAL_AGED.emisor,
+      });
+
+      // The younger student's record and marks are exactly as they were.
+      const [kept] = await db
+        .select()
+        .from(documentoDatoManual)
+        .where(eq(documentoDatoManual.documentoId, youngerDocumentId));
+      expect(kept).toMatchObject({
+        nombreEstudiante: MANUAL_YOUNGER.nombre,
+        emisor: MANUAL_YOUNGER.emisor,
+      });
+      const [marks] = await db
+        .select({
+          tipoDocumento: documentoRespaldo.tipoDocumento,
+          tieneFirma: documentoRespaldo.tieneFirma,
+          tieneSello: documentoRespaldo.tieneSello,
+        })
+        .from(documentoRespaldo)
+        .where(eq(documentoRespaldo.id, youngerDocumentId));
+      expect(marks).toEqual({
+        tipoDocumento: "otro",
+        tieneFirma: false,
+        tieneSello: true,
+      });
+    });
+
     it("writes exactly one audit row, by the system account, without personal data (DR-6)", async () => {
       const rows = await db
         .select()
@@ -461,7 +585,13 @@ describe.skipIf(gate.mode !== "run")(
         documentos: 1,
       });
       const serialized = JSON.stringify(rows[0]);
-      for (const personal of [a.nombre, a.cif, a.correo]) {
+      for (const personal of [
+        a.nombre,
+        a.cif,
+        a.correo,
+        MANUAL_AGED.nombre,
+        MANUAL_AGED.emisor,
+      ]) {
         expect(serialized).not.toContain(personal);
       }
     });

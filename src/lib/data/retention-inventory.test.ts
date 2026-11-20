@@ -4,6 +4,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  documentoDatoManual,
   documentoRespaldo,
   escalamiento,
   remision,
@@ -176,7 +177,28 @@ const INVENTORY = {
       "subidoPorId",
       "formatoEspecial",
       "huellaSha256",
+      "tipoDocumento",
+      "tieneFirma",
+      "tieneSello",
       "creadoEn",
+    ],
+  },
+  // The secretary-entered data of a document (manual-document-data, MD-35).
+  // The table cascades from its document, so the deletion of the
+  // DocumentoRespaldo rows removes it; the retention module never names it.
+  documentoDatoManual: {
+    table: documentoDatoManual,
+    rewritten: [],
+    kept: [],
+    deleted: [
+      "documentoId",
+      "nombreEstudiante",
+      "emisor",
+      "fechaEmision",
+      "reposoDesde",
+      "reposoHasta",
+      "registradoPorId",
+      "actualizadoEn",
     ],
   },
 } as const;

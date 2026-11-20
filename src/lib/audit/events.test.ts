@@ -8,6 +8,8 @@ import type {
 } from "../catalog/types";
 import { encodeDias } from "../catalog/dias";
 import type { EntityCounts, ImportSummary } from "../import/types";
+import { DOCUMENT_DATA_FIELDS } from "../document-data/types";
+import type { DocumentDataField } from "../document-data/types";
 import type { DropResult, EnrollResult } from "../enrollment/types";
 import { changedFields } from "./diff";
 import {
@@ -20,6 +22,7 @@ import {
   asignaturaWriteEvents,
   buildAuditEvents,
   documentAttachedEvent,
+  documentDataRecordedEvent,
   documentDownloadedEvent,
   documentRejectedEvent,
   documentRemovedEvent,
@@ -2083,5 +2086,102 @@ describe("account cancelled event (RNF-04, RN-27, RNF-06, audit-log delta)", () 
     expect(JSON.stringify(event)).not.toMatch(
       /Ana|Perez|@|20260701|Diagnostico|701|702|secret/,
     );
+  });
+});
+
+describe("document data recorded event (manual-document-data, MD-31, MD-33)", () => {
+  it("maps to documento.datos_registrados on the document, with the request in the payload", () => {
+    const event = documentDataRecordedEvent({
+      documentoId: 77,
+      solicitudId: 41,
+      campos: ["emisor"],
+    });
+
+    expect(event.accion).toBe("documento.datos_registrados");
+    expect(event.entidadTipo).toBe("DocumentoRespaldo");
+    expect(event.entidadId).toBe(77);
+    expect(AUDIT_ACTIONS).toContain("documento.datos_registrados");
+  });
+
+  it("carries exactly the request id and the changed field names, whatever the save", () => {
+    const one = documentDataRecordedEvent({
+      documentoId: 77,
+      solicitudId: 41,
+      campos: ["emisor"],
+    });
+    const many = documentDataRecordedEvent({
+      documentoId: 12,
+      solicitudId: 9,
+      campos: ["emisor", "reposo", "tipoDocumento", "tieneFirma"],
+    });
+
+    expect(Object.keys(one.datos).sort()).toEqual(["campos", "solicitudId"]);
+    expect(one.datos).toEqual({ solicitudId: 41, campos: ["emisor"] });
+    expect(Object.keys(many.datos).sort()).toEqual(["campos", "solicitudId"]);
+    expect(many.datos).toEqual({
+      solicitudId: 9,
+      campos: ["emisor", "reposo", "tipoDocumento", "tieneFirma"],
+    });
+  });
+
+  it("reports every field of the closed list by its own name, and no other name", () => {
+    const names: DocumentDataField[] = [...DOCUMENT_DATA_FIELDS];
+    expect(names).toEqual([
+      "nombreEstudiante",
+      "emisor",
+      "fechaEmision",
+      "reposo",
+      "tipoDocumento",
+      "tieneFirma",
+      "tieneSello",
+    ]);
+    for (const name of names) {
+      const event = documentDataRecordedEvent({
+        documentoId: 77,
+        solicitudId: 41,
+        campos: [name],
+      });
+      expect(event.datos).toEqual({ solicitudId: 41, campos: [name] });
+      const { campos } = event.datos as unknown as {
+        campos: readonly string[];
+      };
+      expect(campos).toHaveLength(1);
+      expect(DOCUMENT_DATA_FIELDS as readonly string[]).toContain(campos[0]);
+    }
+  });
+
+  it("reports a cleared value by name, like any other change, with no value", () => {
+    const event = documentDataRecordedEvent({
+      documentoId: 77,
+      solicitudId: 41,
+      campos: ["emisor"],
+    });
+    expect(event.datos).toEqual({ solicitudId: 41, campos: ["emisor"] });
+    expect(JSON.stringify(event.datos)).toBe(
+      '{"solicitudId":41,"campos":["emisor"]}',
+    );
+  });
+
+  it("drops a name, issuer, date, day count, type code or mark smuggled into the call", () => {
+    const event = documentDataRecordedEvent({
+      documentoId: 77,
+      solicitudId: 41,
+      campos: ["emisor", "reposo", "tipoDocumento", "tieneFirma"],
+      nombreEstudiante: "Ana Lopez",
+      emisor: "Clinica Santa Fe",
+      fechaEmision: "2026-11-05",
+      reposoDesde: "2026-11-05",
+      reposoHasta: "2026-11-07",
+      dias: 3,
+      tipoDocumento: "constancia_medica",
+      tieneFirma: false,
+      tieneSello: true,
+    } as Parameters<typeof documentDataRecordedEvent>[0]);
+
+    const serialized = JSON.stringify(event);
+    expect(serialized).not.toMatch(
+      /Ana|Lopez|Clinica|Santa Fe|\d{4}-\d{2}-\d{2}|"dias"|constancia_medica|true|false/,
+    );
+    expect(Object.keys(event.datos).sort()).toEqual(["campos", "solicitudId"]);
   });
 });

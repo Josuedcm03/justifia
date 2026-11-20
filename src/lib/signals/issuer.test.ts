@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { DocumentMarks } from "@/lib/document-data/types";
 import type { ExtractionRowView } from "@/lib/extraction/display";
 
 import { evaluateRecurrence, issuerKey, normalizeIssuer } from "./issuer";
@@ -7,6 +8,14 @@ import { DEFAULT_SIGNAL_PARAMS } from "./params";
 import type { IssuerHistoryRow, SignalDocument } from "./types";
 
 // validation-signals: "Recurrence, RN-14".
+
+// RN-14 reads the extraction only; the marks are required by the type and left
+// unregistered here.
+const NO_MARKS: DocumentMarks = {
+  type: null,
+  hasSignature: null,
+  hasSeal: null,
+};
 
 describe("normalizeIssuer", () => {
   it("equates accents, case, punctuation and whitespace", () => {
@@ -70,6 +79,7 @@ function docs(...issuers: (string | null)[]): SignalDocument[] {
   return issuers.map((issuer, i) => ({
     documentId: i + 1,
     extraction: row(issuer),
+    marks: NO_MARKS,
   }));
 }
 
@@ -90,7 +100,7 @@ function evaluate(
       history: [],
       ...overrides,
     },
-    { issuerRecurrenceThreshold: threshold },
+    { ...DEFAULT_SIGNAL_PARAMS, issuerRecurrenceThreshold: threshold },
   );
 }
 
@@ -269,21 +279,27 @@ describe("evaluateRecurrence missing inputs", () => {
   ])("a %s document gives extraction_pending", (_label, state) => {
     expect(
       reasonOf({
-        documents: [{ documentId: 1, extraction: row(null, state) }],
+        documents: [
+          { documentId: 1, extraction: row(null, state), marks: NO_MARKS },
+        ],
       }),
     ).toBe("extraction_pending");
   });
 
   it("a missing row gives extraction_pending", () => {
-    expect(reasonOf({ documents: [{ documentId: 1, extraction: null }] })).toBe(
-      "extraction_pending",
-    );
+    expect(
+      reasonOf({
+        documents: [{ documentId: 1, extraction: null, marks: NO_MARKS }],
+      }),
+    ).toBe("extraction_pending");
   });
 
   it("every document failed gives extraction_failed", () => {
     expect(
       reasonOf({
-        documents: [{ documentId: 1, extraction: row(null, "fallida") }],
+        documents: [
+          { documentId: 1, extraction: row(null, "fallida"), marks: NO_MARKS },
+        ],
       }),
     ).toBe("extraction_failed");
   });
@@ -295,8 +311,16 @@ describe("evaluateRecurrence missing inputs", () => {
   it("evaluates with the documents that have an issuer when others are pending", () => {
     const result = evaluate({
       documents: [
-        { documentId: 1, extraction: row("Clinica Central") },
-        { documentId: 2, extraction: row(null, "pendiente") },
+        {
+          documentId: 1,
+          extraction: row("Clinica Central"),
+          marks: NO_MARKS,
+        },
+        {
+          documentId: 2,
+          extraction: row(null, "pendiente"),
+          marks: NO_MARKS,
+        },
       ],
     });
 
