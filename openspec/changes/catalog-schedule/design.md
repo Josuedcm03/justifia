@@ -90,11 +90,14 @@ pageSize, sort })` in new `src/lib/data/inscripciones.ts`, returning
 `CatalogListResult<InscripcionListItem>`; `try/catch` → `degraded: true`.
 Joins `Inscripcion → Usuario` (name, CIF only), `Grupo`, `Asignatura`. Per row:
 raw `activo`; `effective` (`activo ∧ Grupo.Activo ∧ Asignatura.Activo`);
-`writable` (`Grupo.Periodo = latest`); `hasActiveSibling` (another effective row
-of the same asignatura and period); `dependentRequests` (CS-7). Filters: `q`
+`writable` (an offered group: `Grupo.Periodo = latest` and the grupo and the
+asignatura active, whatever the raw state of the row); `hasActiveSibling`
+(another raw-active row of the same student in the same asignatura and period,
+the sibling term of the spec and of `enrollInGroup`); `dependentRequests`
+(CS-7). Filters: `q`
 `containsPattern` on name or CIF; `asignatura` on code or name; `grupo` exact
 number; `periodo` exact (default `getLatestPeriod()`); `status` on the
-effective state (default `active`). `listInscripcionPeriods(scope)` feeds the
+RAW state (default `active`, EA-FILT-1). `listInscripcionPeriods(scope)` feeds the
 period select. `list-params.ts`: `CatalogListBase` adds
 `"/catalog/inscripciones"`, plus `INSCRIPCIONES_SORT_KEYS = ["student",
 "subject", "group"]`, `parseInscripcionesListParams`, and an `extra` map in

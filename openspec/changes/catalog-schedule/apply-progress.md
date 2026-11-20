@@ -139,3 +139,81 @@ Totals: 3 test files touched, 151 tests passing in the focused run (15 new: 3 + 
 ### Remaining tasks
 
 Phases 3-17 (S1b-2 onward). PR for S1b-1 to be opened by the parent against `feat/catalog-schedule-s1a2-list-params`.
+
+## Batch 3: S1b-2 list read (tasks 3.1-3.11, complete)
+
+Branch `feat/catalog-schedule-s1b2-list-read`, created from `feat/catalog-schedule-s1b1-audit-reads`. Date: 2026-11-19. Commits `cb7f2ee` `feat(enrollment): add the scoped inscripciones list read` (3.1-3.5), `28742bc` `feat(enrollment): add the sibling flag, request count and periods to the inscripciones read` (3.6-3.9) and a docs commit for 3.10 and these artifacts. The first pass stopped after `cb7f2ee` at 636 lines; the owner then raised `review_budget_lines` to 800 (see "Budget change") and the slice was finished.
+
+### Completed tasks
+
+- [x] 3.1 branch
+- [x] 3.2 RED, 3.3 GREEN: `listInscripciones` core and `InscripcionListItem`
+- [x] 3.4 RED, 3.5 GREEN: filters, sort, paging
+- [x] 3.6 RED, 3.7 GREEN: `hasActiveSibling` and `dependentRequests` columns
+- [x] 3.8 RED, 3.9 GREEN: `listInscripcionPeriods`
+- [x] 3.10 `design.md` CS-6 reconciled (status on the RAW state, `writable` = offered group, sibling = raw-active row)
+- [x] 3.11 gates and measure done; PR NOT opened (parent owns PRs)
+
+Nothing from Phase 4 was started.
+
+### Budget change (owner, 2026-11-19)
+
+`review_budget_lines` is now **800** for all remaining slices (was 400). Recorded in the tasks.md Review Workload Forecast block. The whole S1b-2 slice ships as ONE PR when its authored diff is at or under 800; it measured 799 (below).
+
+### First pass: commit 1 alone was over the old 400-line budget
+
+`git diff --shortstat feat/catalog-schedule-s1b1-audit-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 636 insertions, 0 deletions = **636 changed lines** (forecast ~380 for the whole slice). Per file: `inscripciones.test.ts` 410, `inscripciones.ts` 198, `types.ts` 21, `db-double.ts` 7. Instruction: stop and report, so tasks 3.6-3.9 were not started. Rough split of the 636 by task group (estimate from line positions, not measured per commit): core 3.2-3.3 about 365, filters/sort/paging 3.4-3.5 about 270.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.2/3.3 | `src/lib/data/inscripciones.test.ts` (new) | Unit (`createDbDouble`, `PgDialect` render) | 7 files, 200/200 green first (catalog, enrollment-picker, request-scope-sql) | Suite failed to load: `@/lib/data/inscripciones` unresolved | 19/19 | scope `none` (no statement) vs facultad 3 and 9 (id bound in count and page); no latest period -> empty; four EA-LIST-1 state rows -> raw, effective, writable; five `writable` cases (offered, inactive inscripcion of offered group, older period, inactive group, inactive asignatura); smuggled `correo`/`telefono` never reach the JSON; selection holds name and CIF, not email or phone; failure at each of the three statements -> degraded | `effective` and `writable` share one `offered` term |
+| 3.4/3.5 | same file | Unit | 19/19 | 19 of 39 tests failed (filters, order, paging not implemented) | 39/39 | each filter alone and combined; LIKE wildcards escaped; raw state `inactive` never reads `Grupo.Activo`; existing vs unknown period (fallback, extra `Grupo` lookup only when the period is not the latest); default order and each sort key and direction, unknown key falls back; page clamp (1, 2, 9 of 25, 0, empty) with limit and offset | Order helper appends the `grupoId` tie-break in the direction of the chosen key; `where` shared by count and page |
+
+| 3.6/3.7 | same file | Unit (`createDbDouble`, `PgDialect` render of the selected column fragments) | 39/39 | 13 failed (the 4 existing state rows now expect the two new keys; 9 new tests: `selection.hasActiveSibling` and `selection.dependentRequests` undefined) | 48/48 | flag and count carried for `true/2` and `false/0`; sibling SQL: same student, raw `Activo`, `<>` own group, same asignatura, same period (aliased `sib`, `sibg`); count SQL: this group, this student, `count(*)`; bound params equal `VISIBLE_STATES` exactly, no `borrador` in SQL or params; EA-DEACT-1 table (2, 2, 0, 1) derived from the bound params | Aliases and the two fragments are module constants; the `from` clause names the table before its alias (an aliased table alone renders only the alias in a `sql` template) |
+| 3.8/3.9 | same file | Unit | 48/48 | 3 failed (`listInscripcionPeriods is not a function`) | 51/51 | in-scope read (facultad 9 bound, `Grupo.Periodo desc`, rows to strings); scope `none` -> `[]` with no statement; failing read -> `[]` without throwing | Clean |
+
+Total: 51 tests in the new file (39 + 12), all passing; 62 with `enrollment-picker.test.ts`. Layer: unit only. Pure helpers added: `buildInscripcionesWhere`, `inscripcionesOrderBy`. Final trim: after prettier the slice was 806 lines, so repeated `toContain` calls became loops over non-empty fragment arrays and three doc comments were shortened (commit 2 amended before any push).
+
+Commit 1 gates (first pass): focused vitest 50 passed; typecheck clean (after typing `params` as `ListInscripcionesParams`); eslint 0 findings after renaming the test helper `use` to `scripted` (`react-hooks/rules-of-hooks` flags a `use*` function called from a named helper); prettier clean.
+
+### Decisions and notes
+
+1. `InscripcionListItem` (in `src/lib/catalog/types.ts`) has `estudianteCif: string | null` (`Usuario.Cif` is nullable); it carries no email or phone. `hasActiveSibling` and `dependentRequests` are NOT in the type yet; tasks 3.6-3.9 add them.
+2. The data layer selects the raw `Grupo.Activo` and `Asignatura.Activo` internally and derives `effective` and `writable` in the mapper; the two raw flags never leave it. `writable` is independent of the raw state of the inscripcion (a reactivation target must be offered, so an inactive row of an offered group is writable).
+3. Period resolution: `getLatestPeriod()` (reused from `enrollment-picker.ts`, same db), and for an explicit period other than the latest one extra `select 1 from Grupo where Periodo = ? limit 1`; unknown -> latest. No latest period -> empty page, not degraded.
+4. `src/lib/data/test-support/db-double.ts` now also logs `offset` (7 lines), so the page tests can assert it. No existing test used `offset` through the double.
+5. Sort keys: `student` and `subject` use the collated name (`es-x-icu`), `group` the plain number; the total order ends with `(estudianteId, grupoId)` in the direction of the chosen key.
+6. Not a deviation from design CS-6 except the three points task 3.10 reconciles (`status` on the RAW state, `writable` = offered group, sibling = raw-active row).
+7. Sibling: task 3.6 and CS-6 said "another effective row"; the spec term (terms table of the spec) and `enrollInGroup` (`enrollment-write.ts`, which deactivates every raw-active sibling) use raw `Activo` true with no group or asignatura condition. The list follows the spec and the writer so the offered reactivate control never disagrees with the server refusal. CS-6 and task 3.6 were corrected.
+8. `hasActiveSibling` and `dependentRequests` are correlated subqueries of the PAGE select only (at most `pageSize` rows), not of the count. `dependentRequests` uses `.mapWith(Number)` (pg `count(*)` is a bigint string), like the existing total.
+9. `listInscripcionPeriods(scope)` lists the periods of in-scope rows of any status (a period with only inactive rows is still selectable), via `selectDistinct`; it lives in the same file and is fail-soft (`[]`).
+10. The two `InscripcionListItem` field doc comments were dropped to fit the budget; the type header comment still describes the states, and the fields are named by the spec terms.
+
+### Gates G (2026-11-19, S1b-2 complete)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run src/lib/data/inscripciones.test.ts src/lib/data/enrollment-picker.test.ts` | 2 files, 62 passed |
+| `npx next typegen && npm run typecheck` | clean |
+| `npm test` (full suite) | 358 files, 8576 passed |
+| `npm run build` (dummy `DATABASE_URL`, dummy 32-char `AUTH_SECRET`, inline env) | OK |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]" src` | 0 findings in the slice files. Same 3 pre-existing items as S1a (2 prettier errors in `src/test/access/inventory.ts`, 1 unused-import warning in `src/components/app-sidebar.tsx`), untouched |
+| `npx prettier --check --end-of-line auto` on the touched files | clean |
+
+### Work Unit Evidence (S1b-2)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/inscripciones.test.ts src/lib/data/enrollment-picker.test.ts` -> 2 files, 62 passed (RED runs: 13 failed after 3.6, 3 failed after 3.8) |
+| Runtime harness | N/A: DB double; the SQL fragments are rendered with `PgDialect` and nothing calls `listInscripciones` until S1c-2 |
+| Rollback boundary | Revert `28742bc` (sibling, count, periods) and `cb7f2ee` (list read); both additive, `inscripciones.ts` is a new file and `types.ts` only gained the type |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1b1-audit-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 799 insertions(+) = **799 changed lines**, under the 800 budget (forecast ~380; the first pass measured 636 after commit 1). Per commit: `cb7f2ee` 636, `28742bc` 167 (165 insertions, 2 deletions of `cb7f2ee` lines). Margin: 1 line, so any later edit to this slice needs a matching trim. One PR; the docs commit is openspec only.
+
+### Remaining tasks
+
+Phases 4-17 (S1c-1 onward). PR for S1b-2 to be opened by the parent against `feat/catalog-schedule-s1b1-audit-reads`.

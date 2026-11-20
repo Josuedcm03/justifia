@@ -11,6 +11,7 @@
 | Field | Value |
 |-------|-------|
 | Estimated changed lines | ~4,350 authored total, tests included, `openspec/` excluded (per-PR table below; design said ~2,330) |
+| Review budget | 800 changed lines per PR for every remaining slice (owner, 2026-11-19; was 400) |
 | 400-line budget risk | High in aggregate; Medium for S1a, S1b-2, S3a-1, S3b-2 (350-380 forecast); the rest Low |
 | Chained PRs recommended | Yes |
 | Suggested split | S1a -> S1b-1 -> S1b-2 -> S1c-1 -> S1c-2 -> S1c-3 -> S2a-1 -> S2a-2 -> S2b-1 -> S2b-2 -> S3a-1 -> S3a-2 -> S3a-3 -> S3b-1 -> S3b-2 (15 PRs) |
@@ -22,7 +23,9 @@ Chained PRs recommended: Yes
 Chain strategy: stacked-to-main
 400-line budget risk: High
 
-Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S1a is created from `main`; each later slice branch is created from the previous slice branch and its PR targets that branch until the previous PR merges, then it is retargeted (or rebased) onto `main`, so every PR merges into `main` in order. `feat/catalog-schedule` holds only the planning documents, which land as the first commit of S1a. If GitHub shows a previous slice in a child diff, retarget or rebase until clean. Stop rule: measure the authored diff (`git diff --shortstat <base>...HEAD -- . ':!openspec' ':!.engram'`) before opening each PR; if over 400, stop and cut at the commit boundary named in the slice.
+Budget change (owner, 2026-11-19): `review_budget_lines` is **800** for all slices from S1b-2 on (it was 400). A slice whose authored diff is at or under 800 ships as ONE PR; the 400 figures in the forecast and per-slice cut points below are superseded by this value, and the stop rule below now reads 800. S1b-2 measured 799 and ships whole.
+
+Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S1a is created from `main`; each later slice branch is created from the previous slice branch and its PR targets that branch until the previous PR merges, then it is retargeted (or rebased) onto `main`, so every PR merges into `main` in order. `feat/catalog-schedule` holds only the planning documents, which land as the first commit of S1a. If GitHub shows a previous slice in a child diff, retarget or rebase until clean. Stop rule: measure the authored diff (`git diff --shortstat <base>...HEAD -- . ':!openspec' ':!.engram'`) before opening each PR; if over the budget (800 since 2026-11-19, 400 before), stop and cut at the commit boundary named in the slice.
 
 | Slice | Branch (`feat/catalog-schedule-...`) | Created from / PR base | Depends on | Est. lines |
 |-------|------|------|------|-----|
@@ -99,17 +102,17 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 3: S1b-2 list read (CS-6, CS-7)
 
-- [ ] 3.1 Branch `feat/catalog-schedule-s1b2-list-read` from S1b-1.
-- [ ] 3.2 RED `src/lib/data/inscripciones.test.ts` core (db double): scope `none` -> `{ data: [], total: 0, degraded: false }` with no statement run; facultad scope renders `enrollmentInScope`; selected columns pinned to student `NombreCompleto` and `Cif` (serialized result searched for any email and phone, EA-PII-1); states table of the four EA-LIST-1 rows -> raw `activo` and `effective`; `writable` true only for an offered group (latest period, grupo and asignatura active); failing read -> `{ data: [], degraded: true }` without throwing (EA-DEG-1).
-- [ ] 3.3 GREEN `src/lib/data/inscripciones.ts` (`import "server-only"`) `listInscripciones` core + `InscripcionListItem` and `CatalogListResult` use in `src/lib/catalog/types.ts`. Verify: `npx vitest run src/lib/data/inscripciones.test.ts`.
-- [ ] 3.4 RED same file, filters (EA-FILT-1 table): student by name or CIF (`containsPattern`), asignatura by code or name, group exact number, period exact (default `getLatestPeriod()`, unknown value falls back), status on the RAW state (`active` default, `inactive`); filters AND-combine; stable total order with `(estudianteId, grupoId)` tie-break; page clamp; each sort key; no latest period -> empty, not an error.
-- [ ] 3.5 GREEN `listInscripciones` filters, sort and paging. Verify: same command.
-- [ ] 3.6 RED same file: `hasActiveSibling` (another effective row of the same asignatura and period, not other asignaturas or periods); `dependentRequests` SQL render contains every `VISIBLE_STATES` value and never the literal `'borrador'`; counts only this student's requests naming this group; count table of EA-DEACT-1 (pendiente+devuelta=2, aprobada+rechazada=2, only borrador=0, pendiente+borrador=1).
-- [ ] 3.7 GREEN `listInscripciones`: correlated `count(*)` column and sibling flag. Verify: same command.
-- [ ] 3.8 RED same file: `listInscripcionPeriods(scope)` returns the distinct periods of in-scope rows, newest first; `none` -> `[]` with no query; failure -> `[]`, no throw.
-- [ ] 3.9 GREEN `listInscripcionPeriods`. Verify: same command.
-- [ ] 3.10 Reconcile `design.md` CS-6: `status` filters the RAW state and `writable` means an offered group, to match EA-FILT-1, EA-REACT-1 and EA-CHG-1 (spec wins).
-- [ ] 3.11 Gates G + measure (~380; cut point: 3.6-3.9 move to a second PR). Open PR. Commit: `feat(enrollment): add the scoped inscripciones list read`.
+- [x] 3.1 Branch `feat/catalog-schedule-s1b2-list-read` from S1b-1.
+- [x] 3.2 RED `src/lib/data/inscripciones.test.ts` core (db double): scope `none` -> `{ data: [], total: 0, degraded: false }` with no statement run; facultad scope renders `enrollmentInScope`; selected columns pinned to student `NombreCompleto` and `Cif` (serialized result searched for any email and phone, EA-PII-1); states table of the four EA-LIST-1 rows -> raw `activo` and `effective`; `writable` true only for an offered group (latest period, grupo and asignatura active); failing read -> `{ data: [], degraded: true }` without throwing (EA-DEG-1).
+- [x] 3.3 GREEN `src/lib/data/inscripciones.ts` (`import "server-only"`) `listInscripciones` core + `InscripcionListItem` and `CatalogListResult` use in `src/lib/catalog/types.ts`. Verify: `npx vitest run src/lib/data/inscripciones.test.ts`.
+- [x] 3.4 RED same file, filters (EA-FILT-1 table): student by name or CIF (`containsPattern`), asignatura by code or name, group exact number, period exact (default `getLatestPeriod()`, unknown value falls back), status on the RAW state (`active` default, `inactive`); filters AND-combine; stable total order with `(estudianteId, grupoId)` tie-break; page clamp; each sort key; no latest period -> empty, not an error.
+- [x] 3.5 GREEN `listInscripciones` filters, sort and paging. Verify: same command.
+- [x] 3.6 RED same file: `hasActiveSibling` (another raw-active row of the same student, asignatura and period, per the spec sibling term; not other asignaturas or periods); `dependentRequests` SQL render contains every `VISIBLE_STATES` value and never the literal `'borrador'`; counts only this student's requests naming this group; count table of EA-DEACT-1 (pendiente+devuelta=2, aprobada+rechazada=2, only borrador=0, pendiente+borrador=1).
+- [x] 3.7 GREEN `listInscripciones`: correlated `count(*)` column and sibling flag. Verify: same command.
+- [x] 3.8 RED same file: `listInscripcionPeriods(scope)` returns the distinct periods of in-scope rows, newest first; `none` -> `[]` with no query; failure -> `[]`, no throw.
+- [x] 3.9 GREEN `listInscripcionPeriods`. Verify: same command.
+- [x] 3.10 Reconcile `design.md` CS-6: `status` filters the RAW state, `writable` means an offered group and `hasActiveSibling` means a raw-active sibling, to match EA-FILT-1, EA-REACT-1 and EA-CHG-1 (spec wins).
+- [x] 3.11 Gates G + measure done (799 authored lines, one PR under the 800 budget; commits `cb7f2ee` 636, `28742bc` 167). Open PR: left to the parent.
 
 ## Phase 4: S1c-1 list table and copy (EA-LIST-1, EA-FILT-1, EA-UI-1, RNF-11)
 
