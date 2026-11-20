@@ -75,6 +75,8 @@ function useEvidenceLines() {
       case "repeated":
         // Rendered by `RepeatedEvidence`: the references are links.
         return [];
+      case "documents":
+        return [];
     }
   };
 }

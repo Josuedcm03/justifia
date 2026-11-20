@@ -249,3 +249,100 @@ describe("suggestVerdict with not applicable signals", () => {
     ]);
   });
 });
+
+// validation-signals: "Three-state suggested verdict" (MD-19, D1). The verdict
+// is generic over the signal code, so the three manual signals need no rule of
+// their own: an unregistered datum is a not_evaluable reason like any other.
+describe("suggestVerdict with the manual signals (RN-11, RN-12, RN-13)", () => {
+  const unregistered = (signal: "rn11" | "rn12" | "rn13") =>
+    unknown(signal, "not_registered");
+
+  it("keeps the verdict inconclusive, and lists the three apart, while the marks are not registered", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      absent("rn09"),
+      absent("rn10"),
+      unregistered("rn11"),
+      unregistered("rn12"),
+      unregistered("rn13"),
+      absent("rn14"),
+      absent("rn26"),
+    ]);
+
+    expect(suggestion.verdict).toBe("inconclusive");
+    expect(suggestion.notEvaluable).toEqual([
+      { signal: "rn11", reason: "not_registered" },
+      { signal: "rn12", reason: "not_registered" },
+      { signal: "rn13", reason: "not_registered" },
+    ]);
+  });
+
+  it("restores no_alerts once the marks are registered and absent", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      absent("rn09"),
+      absent("rn10"),
+      absent("rn11"),
+      absent("rn12"),
+      absent("rn13"),
+      absent("rn14"),
+      absent("rn26"),
+    ]);
+
+    expect(suggestion.verdict).toBe("no_alerts");
+    expect(suggestion.notEvaluable).toEqual([]);
+  });
+
+  it("keeps a single unregistered mark from reaching no_alerts", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      absent("rn09"),
+      absent("rn10"),
+      unregistered("rn11"),
+      absent("rn12"),
+      absent("rn13"),
+      absent("rn14"),
+      absent("rn26"),
+    ]);
+
+    expect(suggestion.verdict).toBe("inconclusive");
+    expect(suggestion.notEvaluable).toEqual([
+      { signal: "rn11", reason: "not_registered" },
+    ]);
+  });
+
+  it("lets a present manual signal beat not registered, and still lists the two apart", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      unregistered("rn11"),
+      present("rn12"),
+      unregistered("rn13"),
+    ]);
+
+    expect(suggestion.verdict).toBe("review_carefully");
+    expect(suggestion.notEvaluable).toEqual([
+      { signal: "rn11", reason: "not_registered" },
+      { signal: "rn13", reason: "not_registered" },
+    ]);
+  });
+
+  it("is inconclusive for a non-rest cause with only the marks unregistered", () => {
+    const suggestion = suggestVerdict([
+      absent("rn07"),
+      notApplicable("rn09"),
+      notApplicable("rn10"),
+      unregistered("rn11"),
+      unregistered("rn12"),
+      unregistered("rn13"),
+      absent("rn14"),
+      absent("rn26"),
+    ]);
+
+    expect(suggestion.verdict).toBe("inconclusive");
+    expect(suggestion.notEvaluable.map((e) => e.signal)).toEqual([
+      "rn11",
+      "rn12",
+      "rn13",
+    ]);
+  });
+});

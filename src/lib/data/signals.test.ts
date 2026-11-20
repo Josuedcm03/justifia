@@ -58,14 +58,32 @@ const COMPLETE = {
   restDays: 5,
 };
 
-function extractions(row: unknown, degraded = false) {
+// What the secretary registered for the document: no signal for a medical
+// request. The loader hands it to the evaluators as it comes from the read.
+const MARKS = {
+  type: "constancia_medica",
+  hasSignature: true,
+  hasSeal: true,
+};
+
+function extractions(row: unknown, degraded = false, marks: unknown = MARKS) {
   return {
     degraded,
     data: degraded
       ? []
-      : [{ documentoId: 31, nombreOriginal: "constancia-privada.pdf", row }],
+      : [
+          {
+            documentoId: 31,
+            nombreOriginal: "constancia-privada.pdf",
+            row,
+            marks,
+          },
+        ],
   };
 }
+
+const find = (result: Awaited<ReturnType<typeof load>>, signal: string) =>
+  result.data?.results.find((r) => r.signal === signal);
 
 function use(script: Step[]) {
   const double = createDbDouble(script);
@@ -108,7 +126,7 @@ beforeEach(() => {
 });
 
 describe("loadSignals assembly", () => {
-  it("evaluates the five signals from Q1, the extractions, Q3, Q4 and Q5", async () => {
+  it("evaluates the eight signals from Q1, the extractions, Q3, Q4 and Q5", async () => {
     const double = use(
       fullScript([
         { solicitudId: 10, emisor: "CLÍNICA CENTRAL." },
@@ -123,6 +141,9 @@ describe("loadSignals assembly", () => {
       ["rn07", "absent"],
       ["rn09", "absent"],
       ["rn10", "absent"],
+      ["rn11", "absent"],
+      ["rn12", "absent"],
+      ["rn13", "absent"],
       ["rn14", "present"],
       ["rn26", "absent"],
     ]);
@@ -160,7 +181,7 @@ describe("loadSignals assembly", () => {
 
     const result = await load();
 
-    expect(result.data?.results[3]).toEqual({
+    expect(find(result, "rn14")).toEqual({
       signal: "rn14",
       outcome: "not_evaluable",
       reason: "no_period",
@@ -212,7 +233,12 @@ describe("loadSignals cause scope (RN-09, RN-10)", () => {
   }
 
   it("hands the declared cause to the evaluator: fuerza_mayor makes RN-09 and RN-10 not applicable", async () => {
-    listExtractionsMock.mockResolvedValue(extractions(incoherent));
+    listExtractionsMock.mockResolvedValue(
+      extractions(incoherent, false, {
+        ...MARKS,
+        type: "constancia_institucional",
+      }),
+    );
     const double = use(withCausa("fuerza_mayor"));
 
     const result = await load();
@@ -222,6 +248,9 @@ describe("loadSignals cause scope (RN-09, RN-10)", () => {
       ["rn07", "absent"],
       ["rn09", "not_applicable"],
       ["rn10", "not_applicable"],
+      ["rn11", "absent"],
+      ["rn12", "absent"],
+      ["rn13", "absent"],
       ["rn14", "absent"],
       ["rn26", "absent"],
     ]);
@@ -351,7 +380,7 @@ describe("loadSignals fail-soft", () => {
 
 describe("RN-26 through the loader (Documents from before the change)", () => {
   const rn26 = (result: Awaited<ReturnType<typeof load>>) =>
-    result.data?.results[4];
+    find(result, "rn26");
 
   it("is not evaluable and runs no lookup when every current document has no fingerprint", async () => {
     const double = use(fullScript([], [{ documentId: 31, huella: null }]));
@@ -395,7 +424,7 @@ describe("RN-26 through the loader (Documents from before the change)", () => {
 describe("RN-26 reference is confined to the scope (RNF-01)", () => {
   const SECRETARY_A = { kind: "facultad", facultadId: 4 } as const;
   const rn26 = (result: Awaited<ReturnType<typeof load>>) =>
-    result.data?.results[4];
+    find(result, "rn26");
 
   beforeEach(() => {
     vi.mocked(requestInScope).mockClear();
@@ -488,5 +517,116 @@ describe("RN-26 reference is confined to the scope (RNF-01)", () => {
     expect(text).not.toMatch(/nombre|cif|correo|huella|fingerprint/i);
     expect(text).not.toContain("constancia-privada");
     expect(text).not.toContain(HASH);
+  });
+});
+
+// validation-signals: "Aggregation and reasons of RN-11, RN-12 and RN-13" and
+// "Manual data removes the extraction reason". The loader maps the marks of the
+// effective read into the documents; the signals read them, never the row.
+describe("loadSignals marks (RN-11, RN-12, RN-13)", () => {
+  const withMarks = (marks: unknown, row: unknown = COMPLETE) =>
+    listExtractionsMock.mockResolvedValue(extractions(row, false, marks));
+
+  it("hands the marks of the effective read to the evaluators", async () => {
+    withMarks({
+      type: "constancia_institucional",
+      hasSignature: false,
+      hasSeal: true,
+    });
+    use(fullScript());
+
+    const result = await load();
+
+    expect(find(result, "rn11")).toEqual({
+      signal: "rn11",
+      outcome: "present",
+      evidence: { kind: "documents", documentIds: [31] },
+    });
+    expect(find(result, "rn12")).toMatchObject({ outcome: "absent" });
+    expect(find(result, "rn13")).toEqual({
+      signal: "rn13",
+      outcome: "present",
+      evidence: { kind: "documents", documentIds: [31] },
+    });
+    expect(result.data?.verdict).toBe("review_carefully");
+  });
+
+  it("lists the three apart as not registered, and stays inconclusive, for a document with no marks", async () => {
+    withMarks({ type: null, hasSignature: null, hasSeal: null });
+    use(fullScript());
+
+    const result = await load();
+
+    for (const signal of ["rn11", "rn12", "rn13"]) {
+      expect(find(result, signal)).toEqual({
+        signal,
+        outcome: "not_evaluable",
+        reason: "not_registered",
+      });
+    }
+    expect(result.data?.verdict).toBe("inconclusive");
+    expect(result.data?.notEvaluable).toEqual([
+      { signal: "rn11", reason: "not_registered" },
+      { signal: "rn12", reason: "not_registered" },
+      { signal: "rn13", reason: "not_registered" },
+    ]);
+  });
+
+  it("reads the marks whatever the extraction state is", async () => {
+    withMarks(
+      { type: "otro", hasSignature: false, hasSeal: false },
+      { ...COMPLETE, state: "fallida" },
+    );
+    use(fullScript());
+
+    const result = await load();
+
+    for (const signal of ["rn11", "rn12", "rn13"]) {
+      expect(find(result, signal)).toMatchObject({ outcome: "present" });
+    }
+  });
+
+  it("evaluates the type with the map of the params", async () => {
+    withMarks({
+      type: "constancia_institucional",
+      hasSignature: true,
+      hasSeal: true,
+    });
+    use(fullScript());
+    const defaults = await load();
+
+    use(fullScript());
+    const custom = await loadSignals({
+      solicitudId: 42,
+      referenceScope: SCOPE,
+      params: {
+        issuerRecurrenceThreshold: 3,
+        documentTypeCauses: {
+          constancia_medica: ["medica"],
+          constancia_institucional: ["medica"],
+          otro: [],
+        },
+      },
+    });
+
+    // The request is medica: the default map says an institutional certificate
+    // does not correspond, the injected one says it does.
+    expect(find(defaults, "rn13")).toMatchObject({ outcome: "present" });
+    expect(find(custom, "rn13")).toMatchObject({ outcome: "absent" });
+  });
+
+  it("serializes no type code, mark value or document name", async () => {
+    withMarks({
+      type: "constancia_institucional",
+      hasSignature: false,
+      hasSeal: false,
+    });
+    use(fullScript());
+
+    const text = JSON.stringify(await load());
+
+    expect(text).not.toContain("constancia_institucional");
+    expect(text).not.toContain("constancia-privada");
+    expect(text).not.toMatch(/hasSignature|hasSeal|tieneFirma|tieneSello/);
   });
 });

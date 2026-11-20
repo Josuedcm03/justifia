@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import type { DocumentMarks } from "@/lib/document-data/types";
 import type { ExtractionRowView } from "@/lib/extraction/display";
 
 import { evaluateIncoherentDates, evaluateUncoveredDates } from "./rest-dates";
 import type { SignalDocument } from "./types";
 
 // validation-signals: "Incoherent dates, RN-09".
+
+// RN-09 and RN-10 read the extraction only; the marks are required by the type
+// and left unregistered here.
+const NO_MARKS: DocumentMarks = {
+  type: null,
+  hasSignature: null,
+  hasSeal: null,
+};
 
 const COMPLETE: ExtractionRowView = {
   state: "completada",
@@ -24,6 +33,7 @@ function doc(
   return {
     documentId: id,
     extraction: row === null ? null : { ...COMPLETE, ...row },
+    marks: NO_MARKS,
   };
 }
 

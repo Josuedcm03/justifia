@@ -1426,6 +1426,9 @@
         "rn07": "Presentación tardía",
         "rn09": "Fechas incoherentes",
         "rn10": "Fechas no cubiertas",
+        "rn11": "Firma ausente",
+        "rn12": "Sello ausente",
+        "rn13": "Formato no corresponde a la causa",
         "rn14": "Reincidencia",
         "rn26": "Documento repetido"
       },
@@ -1448,7 +1451,8 @@
         "days_only": "El reposo indica solo una cantidad de días, sin fechas.",
         "no_period": "Las asignaturas no corresponden a un único período académico.",
         "no_eligible_documents": "La solicitud no tiene documentos vigentes del estudiante.",
-        "no_fingerprint": "Los documentos vigentes se guardaron antes de que existiera la detección de documentos repetidos, por lo que no se pueden comparar."
+        "no_fingerprint": "Los documentos vigentes se guardaron antes de que existiera la detección de documentos repetidos, por lo que no se pueden comparar.",
+        "not_registered": "La secretaría aún no registró este dato en uno o más documentos vigentes."
       },
       "evidence": {
         "timing": "Presentada el {presented}; el plazo vence el {deadline}.",
