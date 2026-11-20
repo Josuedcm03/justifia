@@ -12,6 +12,10 @@ import type {
 /** The state filter of a catalog list; `active` is the default (CM-LST-1). */
 export type CatalogStatusFilter = "active" | "inactive" | "all";
 
+/** The state filter of the inscripciones list: the RAW state only, so there is
+ *  no `all` (EA-FILT-1). `active` is the default. */
+export type InscripcionStatusFilter = "active" | "inactive";
+
 /** One page of a catalog list; `page` is the CLAMPED page actually read and
  *  `degraded` is true when the database could not be reached. */
 export type CatalogListResult<T> = {
