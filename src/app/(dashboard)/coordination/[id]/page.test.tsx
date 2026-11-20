@@ -144,6 +144,17 @@ const SIGNAL_REPORT = {
     },
     { signal: "rn10", outcome: "not_evaluable", reason: "extraction_pending" },
     {
+      signal: "rn11",
+      outcome: "present",
+      evidence: { kind: "documents", documentIds: [31] },
+    },
+    {
+      signal: "rn12",
+      outcome: "absent",
+      evidence: { kind: "documents", documentIds: [] },
+    },
+    { signal: "rn13", outcome: "not_evaluable", reason: "not_registered" },
+    {
       signal: "rn14",
       outcome: "not_evaluable",
       reason: "no_period",
@@ -156,6 +167,7 @@ const SIGNAL_REPORT = {
   ],
   notEvaluable: [
     { signal: "rn10", reason: "extraction_pending" },
+    { signal: "rn13", reason: "not_registered" },
     { signal: "rn14", reason: "no_period" },
   ],
 };
@@ -544,6 +556,8 @@ describe("CoordinationDetailPage validation signals (RF-05, RN-15, RN-26, RNF-01
     for (const [signal, outcome] of [
       ["rn07", "present"],
       ["rn09", "absent"],
+      ["rn11", "present"],
+      ["rn12", "absent"],
       ["rn26", "present"],
     ] as const) {
       const term = within(region).getByText(sig.names[signal], {
@@ -553,6 +567,7 @@ describe("CoordinationDetailPage validation signals (RF-05, RN-15, RN-26, RNF-01
     }
     expect(region).toHaveTextContent(sig.reasons.extraction_pending);
     expect(region).toHaveTextContent(sig.reasons.no_period);
+    expect(region).toHaveTextContent(sig.reasons.not_registered);
     expect(region).toHaveTextContent(sig.coordinationNote);
   });
 

@@ -765,3 +765,82 @@ describe("review signals messages (validation-signals, RNF-12)", () => {
     },
   );
 });
+
+// request-review: "Manual data UI i18n" (MD-25) for the signal names, the reason
+// and the evidence line of RN-11, RN-12 and RN-13.
+describe("review signals messages of the manual signals (RN-11, RN-12, RN-13)", () => {
+  it("words the three names as the owner specified", () => {
+    expect(es.review.signals.names.rn11).toBe("Firma ausente");
+    expect(es.review.signals.names.rn12).toBe("Sello ausente");
+    expect(es.review.signals.names.rn13).toBe(
+      "Formato no corresponde a la causa",
+    );
+    expect(en.review.signals.names.rn11).toBe("Signature missing");
+    expect(en.review.signals.names.rn12).toBe("Seal missing");
+    expect(en.review.signals.names.rn13).toBe(
+      "Format does not match the cause",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s words the not registered reason as the secretary not having registered the datum",
+    (_l, m) => {
+      expect(m.review.signals.reasons.not_registered).toMatch(/secretar/i);
+      expect(m.review.signals.reasons.not_registered).toMatch(/regist/i);
+    },
+  );
+
+  it.each(catalogs)(
+    "%s words the documents evidence line with its placeholders",
+    (_l, m) => {
+      const line = m.review.signals.evidence.documents;
+
+      expect(line).toContain("{count");
+      expect(line).toContain("{documents}");
+      expect(line).toContain("plural");
+    },
+  );
+
+  it.each([
+    [
+      "es",
+      es,
+      {
+        one: "Documento que activa la señal: a.pdf",
+        other: "Documentos que activan la señal: a.pdf",
+      },
+    ],
+    [
+      "en",
+      en,
+      {
+        one: "Document that raises the signal: a.pdf",
+        other: "Documents that raise the signal: a.pdf",
+      },
+    ],
+  ] as const)(
+    "%s words the documents line in both numbers",
+    (locale, m, expected) => {
+      const t = createTranslator({
+        locale,
+        messages: m,
+        namespace: "review.signals.evidence",
+      });
+
+      expect(t("documents", { count: 1, documents: "a.pdf" })).toBe(
+        expected.one,
+      );
+      expect(t("documents", { count: 2, documents: "a.pdf" })).toBe(
+        expected.other,
+      );
+    },
+  );
+
+  it("keeps the evidence line free of ids, types and mark values", () => {
+    for (const m of [es, en]) {
+      expect(m.review.signals.evidence.documents).not.toMatch(
+        /\{id\}|\{type\}|constancia_|tieneFirma|hasSignature/,
+      );
+    }
+  });
+});

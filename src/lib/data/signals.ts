@@ -308,6 +308,7 @@ export async function loadSignals({
           documents: extractions.data.map((item) => ({
             documentId: item.documentoId,
             extraction: item.row,
+            marks: item.marks,
           })),
           periods,
           issuerHistory,

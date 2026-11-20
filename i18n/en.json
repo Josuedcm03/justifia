@@ -1426,6 +1426,9 @@
         "rn07": "Late presentation",
         "rn09": "Incoherent dates",
         "rn10": "Uncovered dates",
+        "rn11": "Signature missing",
+        "rn12": "Seal missing",
+        "rn13": "Format does not match the cause",
         "rn14": "Recurrence",
         "rn26": "Repeated document"
       },
@@ -1448,7 +1451,8 @@
         "days_only": "The rest period gives only a number of days, with no dates.",
         "no_period": "The subjects do not belong to a single academic period.",
         "no_eligible_documents": "The request has no current student documents.",
-        "no_fingerprint": "The current documents were stored before repeated-document detection existed, so they cannot be compared."
+        "no_fingerprint": "The current documents were stored before repeated-document detection existed, so they cannot be compared.",
+        "not_registered": "The secretary has not yet registered this datum for one or more current documents."
       },
       "evidence": {
         "timing": "Presented {presented}; the deadline is {deadline}.",
@@ -1458,7 +1462,8 @@
         "recurrence": "Requests from this student with the issuer “{issuer}” in the period: {count} (an alert is raised from {threshold}).",
         "repeated": "A document is identical to one in an earlier request.",
         "repeatedSee": "Earlier requests with the same document:",
-        "requestLink": "Request {id}"
+        "requestLink": "Request {id}",
+        "documents": "{count, plural, one {Document that raises the signal: {documents}} other {Documents that raise the signal: {documents}}}"
       }
     },
     "remission": {

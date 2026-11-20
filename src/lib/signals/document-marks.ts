@@ -1,10 +1,12 @@
 import type { DocumentMarks, TipoDocumento } from "@/lib/document-data/types";
 import type { Causa } from "@/lib/intake/causes";
 
+import type { MarkSignalCode, MarkSignalResult } from "./types";
+
 // RN-11 (firma ausente), RN-12 (sello ausente) and RN-13 (formato no
 // corresponde a la causa): the three signals that read what the secretary
 // registered by hand, never what the extraction found (manual-document-data,
-// MD-12 to MD-16). Pure and unwired: the input is the current documents only
+// MD-12 to MD-16). Pure: the input is the current documents only
 // (not retired, student-uploaded, not special format), as ids and marks, so
 // nothing here filters them and nothing can leak a name, an issuer, a date or a
 // fingerprint.
@@ -15,38 +17,19 @@ import type { Causa } from "@/lib/intake/causes";
 // where one evaluable document is enough: an unregistered document is the very
 // one these signals exist to catch, so it keeps the signal open.
 //
-// The result types are local for now: SIGNAL_CODES and the closed reason set of
-// `types.ts` still hold the five signals until the wiring change folds these
-// in. They are shaped to fold in unchanged.
+// The result types live in `types.ts` with the rest of the signal model.
 
-/** One current document: its id and its three marks. */
+/**
+ * One current document: its id and its three marks. A `SignalDocument` is
+ * assignable to it, so the evaluators receive the documents of the input as they
+ * are and cannot see the extraction row.
+ */
 export type MarkedDocument = { documentId: number; marks: DocumentMarks };
 
 /** The map of RN-13: the causes each document type corresponds to (MD-15). */
 export type DocumentTypeCauses = Readonly<
   Record<TipoDocumento, readonly Causa[]>
 >;
-
-export type MarkSignalCode = "rn11" | "rn12" | "rn13";
-
-/** The only two reasons these signals can carry (MD-16). */
-export type MarkNotEvaluableReason = "no_eligible_documents" | "not_registered";
-
-/** Document ids only: the ones that raise the signal, none when absent. */
-export type MarkEvidence = { kind: "documents"; documentIds: number[] };
-
-/** Never `not_applicable`: it is not a member of this type (MD-12 to MD-14). */
-export type MarkSignalResult =
-  | {
-      signal: MarkSignalCode;
-      outcome: "present" | "absent";
-      evidence: MarkEvidence;
-    }
-  | {
-      signal: MarkSignalCode;
-      outcome: "not_evaluable";
-      reason: MarkNotEvaluableReason;
-    };
 
 /** What one document says about one signal. */
 type DocumentCheck = "present" | "absent" | "not_registered";

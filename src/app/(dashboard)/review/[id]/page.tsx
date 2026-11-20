@@ -303,7 +303,14 @@ export default async function ReviewDetailPage({
           requestState={detail.estado}
           configured={isExtractionConfigured()}
         />
-        {signals ? <SignalsSection signals={signals} /> : null}
+        {signals ? (
+          <SignalsSection
+            signals={signals}
+            documentNames={Object.fromEntries(
+              detail.documentos.map((doc) => [doc.id, doc.nombreOriginal]),
+            )}
+          />
+        ) : null}
         {remissions ? (
           <RemissionSection
             remissions={remissions}
