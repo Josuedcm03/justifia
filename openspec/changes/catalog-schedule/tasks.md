@@ -35,7 +35,7 @@ Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S
 | S1b-2 list read | `-s1b2-list-read` | S1b-1 | S1a | ~380 |
 | S1c-1 table | `-s1c1-table` | S1b-2 | S1b-2 | 1064 measured; `size:exception` accepted by the owner (2026-11-19) |
 | S1c-2 page | `-s1c2-page` | S1c-1 | S1a, S1b-1, S1b-2, S1c-1 | 852 measured; `size:exception` accepted by the owner (2026-11-20) |
-| S1c-3 nav + docs | `-s1c3-nav` | S1c-2 | S1a, S1c-2 | ~190 |
+| S1c-3 nav + docs | `-s1c3-nav` | S1c-2 | S1a, S1c-2 | 258 measured |
 | S2a-1 writer actor | `-s2a1-writer-actor` | S1c-3 | S1a | ~230 |
 | S2a-2 staff reactivate | `-s2a2-staff-enroll` | S2a-1 | S2a-1 | ~200 |
 | S2b-1 toggle action | `-s2b1-actions` | S2a-2 | S1a, S2a-1, S2a-2 | ~330 |
@@ -136,14 +136,15 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 6: S1c-3 navigation, pins, docs (BS-NAV-4, BS-HOME-1, EA-UI-1)
 
-- [ ] 6.1 Branch `feat/catalog-schedule-s1c3-nav` from S1c-2.
-- [ ] 6.2 RED `src/lib/navigation.test.ts`: `catalogInscripciones` (`/catalog/inscripciones`) is in the `administration` group after Docentes and before Import, `visibleTo: canManageEnrollments`; entries per role table (secretaria: Dashboard, Review requests, Administration (Asignaturas, Docentes, Inscripciones, Import, Users), Settings; other four roles unchanged); `shortcutsFor("secretaria")` includes it in order; active marker only Inscripciones on `/catalog/inscripciones` and only Asignaturas on `/catalog/asignaturas`; trail Administration / Inscripciones in `es` and `en`; label differs from the student's Enrollment label; `/settings` entry untouched.
-- [ ] 6.3 [P] RED pins: `src/components/app-sidebar.test.tsx`, `page-context.test.tsx`, `src/app/(dashboard)/(home)/page.test.tsx`, `navigation-mock.test.tsx`, `src/i18n/catalog-parity.test.ts` (`SHORTCUT_KEYS`, `GUARDED_SECTIONS` + `nav.catalogInscripciones`, `catalog.inscripciones`) expect the new entry for secretaria only and none for the other four roles.
-- [ ] 6.4 GREEN `src/lib/navigation.ts`; `nav.catalogInscripciones` and `dashboard.shortcuts.catalogInscripciones` in both locale files. Verify: `npx vitest run src/lib/navigation.test.ts src/components src/i18n "src/app/(dashboard)/(home)"`.
-- [ ] 6.5 Docs `docs/roadmap.md` row 0 (Spanish, project convention): replace "Horarios en el catálogo" with the inscripciones maintenance scope and covered IDs (RF-12 (a)(b)(c), RF-17 (b)(d)(e); RN-21; RNF-01, RNF-02, RNF-06, RNF-12; RN-27 related); add a Notas bullet: docentes gap of RF-12 (a) and RN-22 clock-time schedules NOT covered. State stays `pendiente` until archive.
-- [ ] 6.6 Docs `docs/requirements.md` (Spanish): record that the enrollment surface uses `canManageEnrollments` (secretaría only) instead of `canManageCatalog`, via a changelog row and a note; RF-12, RF-17 and RN-21 rows unchanged (D8). Stage hunks only (`git add -p`): the file already carries unrelated staged edits.
-- [ ] 6.7 Readback: `rg -n "catalog-schedule|canManageEnrollments" docs/roadmap.md docs/requirements.md`; `git diff -- docs/requirements.md` shows no change inside the RF-12, RF-17 or RN-21 rows.
-- [ ] 6.8 Gates G + measure (~190). Open PR. Commits: `feat(nav): add the inscripciones entry for the secretaria`, `docs(catalog-schedule): record the scope in the roadmap and requirements`.
+- [x] 6.1 Branch `feat/catalog-schedule-s1c3-nav` from S1c-2.
+- [x] 6.2 RED `src/lib/navigation.test.ts`: `catalogInscripciones` (`/catalog/inscripciones`) is in the `administration` group after Docentes and before Import, `visibleTo: canManageEnrollments`; entries per role table (secretaria: Dashboard, Review requests, Administration (Asignaturas, Docentes, Inscripciones, Import, Users), Settings; other four roles unchanged); `shortcutsFor("secretaria")` includes it in order; active marker only Inscripciones on `/catalog/inscripciones` and only Asignaturas on `/catalog/asignaturas`; trail Administration / Inscripciones in `es` and `en`; label differs from the student's Enrollment label; `/settings` entry untouched.
+- [x] 6.3 [P] RED pins: `src/components/app-sidebar.test.tsx`, `page-context.test.tsx`, `src/app/(dashboard)/(home)/page.test.tsx`, `navigation-mock.test.tsx`, `src/i18n/catalog-parity.test.ts` (`SHORTCUT_KEYS`, `GUARDED_SECTIONS` + `nav.catalogInscripciones`, `catalog.inscripciones`) expect the new entry for secretaria only and none for the other four roles.
+- [x] 6.4 GREEN `src/lib/navigation.ts`; `nav.catalogInscripciones` and `dashboard.shortcuts.catalogInscripciones` in both locale files. Verify: `npx vitest run src/lib/navigation.test.ts src/components src/i18n "src/app/(dashboard)/(home)"`.
+- [x] 6.5 Docs `docs/roadmap.md` row 0 (Spanish, project convention): replace "Horarios en el catálogo" with the inscripciones maintenance scope and covered IDs (RF-12 (a)(b)(c), RF-17 (b)(d)(e); RN-21; RNF-01, RNF-02, RNF-06, RNF-12; RN-27 related); add a Notas bullet: docentes gap of RF-12 (a) and RN-22 clock-time schedules NOT covered. State stays `pendiente` until archive.
+- [x] 6.6 Docs `docs/requirements.md` (Spanish): record that the enrollment surface uses `canManageEnrollments` (secretaría only) instead of `canManageCatalog`, via a changelog row and a note; RF-12, RF-17 and RN-21 rows unchanged (D8). Stage hunks only (`git add -p`): the file already carries unrelated staged edits.
+- [x] 6.7 Readback: `rg -n "catalog-schedule|canManageEnrollments" docs/roadmap.md docs/requirements.md`; `git diff -- docs/requirements.md` shows no change inside the RF-12, RF-17 or RN-21 rows.
+- [x] 6.8 Gates G + measure (~190). Open PR. Commits: `feat(nav): add the inscripciones entry for the secretaria`, `docs(catalog-schedule): record the scope in the roadmap and requirements`.
+  - Apply result (2026-11-20): gates G green (full suite 9178, build OK). Measured 258 changed lines. The entry also opts out of prefetch and the sidebar now passes that opt-out to group children; 6.6 is recorded as a sub-bullet, not a changelog row, to avoid a conflict with PR #98. See `apply-progress.md` Batch 6.
 
 ## Phase 7: S2a-1 actor-aware writer and staff drop (CS-1, CS-2, CS-3, EA-WRITE-1, EA-DEACT-1)
 

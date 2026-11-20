@@ -334,3 +334,60 @@ Mechanism: next/link prefetches its `href` by default, and a prefetch of a dynam
 ### Remaining tasks
 
 Open PR for S1c-2 (parent) and Phases 6-17 (S1c-3 onward).
+
+## Chain maintenance: main merged into the stack (2026-11-20)
+
+`main` gained `manual-document-data` (PR #106 and #107) after the chain was cut, and S1b-1 and every later slice conflicted with it in `src/lib/audit/types.ts` and `types.test.ts`. Resolved without rebase or force-push, by merging down the chain so each PR's diff against its base stays the slice's own: `main` -> S1a-1 (`9ed1de0`, clean) -> S1a-2 (`603e3d7`, clean) -> S1b-1 (`c3c89bf`, the only conflict) -> S1b-2 (`60f8670`) -> S1c-1 (`170d62c`) -> S1c-2 (`7635db1`), all clean after S1b-1.
+
+Resolution in S1b-1: both sides kept. `types.ts` imports `InscripcionStatusFilter` and `DocumentDataField`; `AUDIT_ACTIONS` holds the two `inscripcion.*.consultada` reads and `documento.datos_registrados`; the `AuditEvent` union keeps both members. The `AUDIT_ACTIONS` test title names both additions; its expected list already held both after the textual merge.
+
+Gates on the S1c-2 tip after the cascade: typecheck clean; `npm test` 372 files, 9143 passed; build OK (inline dummy `DATABASE_URL` and `AUTH_SECRET`). Eslint and prettier report two findings that come unchanged from `main` (`src/test/access/inventory.ts` quote style, unused `SidebarGroupLabel` in `app-sidebar.tsx`), none in the chain. Each slice now merges cleanly into `main` (`git merge-tree`).
+
+## Batch 6: S1c-3 navigation, pins, docs (tasks 6.1-6.8)
+
+Branch `feat/catalog-schedule-s1c3-nav`, created from S1c-2 (`7635db1`). Date: 2026-11-20. Commits `0c5e234` `feat(nav): add the inscripciones entry for the secretaria` and `1053e97` `docs(catalog-schedule): record the scope in the roadmap and requirements`.
+
+### Completed tasks
+
+- [x] 6.1 branch
+- [x] 6.2 RED, 6.3 RED, 6.4 GREEN: `navigation.ts`, `nav.catalogInscripciones`, `dashboard.shortcuts.catalogInscripciones`, sidebar sub-item prefetch
+- [x] 6.5, 6.6, 6.7 docs and readback (6.6 with a deviation, see below)
+- [x] 6.8 gates and measure; PR opened by the parent
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN |
+|------|-----------|-------|------------|-----|-------|
+| 6.2 | `src/lib/navigation.test.ts` | Unit | 64 existing green | 8 failed: characterization list, inscripciones prefetch, order Docentes < Inscripciones < Import, visible only to secretaria, trail on `/catalog/inscripciones` and `/assign` (with `prefetch: false`), CR-9 prefetch set, secretaria shortcuts | 72/72 |
+| 6.3 | `app-sidebar.test.tsx`, `page-context.test.tsx`, `(home)/page.test.tsx`, `catalog-parity.test.ts` | Integration (real catalogs) | existing files green | 26 failed across the set with only the tests changed: per-role children and links, active marker on both paths, the es and en links with `data-prefetch="false"`, Asignaturas stays current on its own page, es and en trails, link back from `/assign` not prefetched, home card and its order, the predicate-flip pin (Inscripciones stays: it reads `canManageEnrollments`), shortcut copy, `nav.catalogInscripciones` parity, labels distinct from `nav.enrollment` | 1030/1030 in `src/lib/navigation.test.ts src/components src/i18n "src/app/(dashboard)/(home)"` |
+| 6.4 | same | GREEN | n/a | Two more pins went red only once the entry existed (keyboard order through the group, the BS-NAV-1 per-role labels) and were updated | Mutation: removing the sidebar fix turns the two prefetch pins red again |
+
+### Decisions and deviations
+
+1. **Prefetch opt-out on the entry (not in the task text).** The page writes `inscripcion.lista.consultada` on every render, so the entry carries `prefetch: false` like review, coordination and reports (the CR-9 rule in `navigation.ts`). The sidebar only passed `prefetch` to top-level links, so a group child could not opt out; `NavGroupItem` now passes it too. No other group child sets it, so nothing else changes.
+2. **6.6 without a changelog row.** PR #98 (`docs/thesis-sync-p3-2`, open) reformats the whole changelog table of `docs/requirements.md`, so any new row there conflicts with it. The decision is recorded instead as a sub-bullet under the open "RF-12 nombra a la secretaría académica" item, which is where the question lives; `git merge-tree` against PR #98 is clean. A changelog row can be added after #98 merges, if the owner wants one: no requirement text changed (D8), and the changelog records requirement changes.
+3. `src/test/navigation-mock.test.tsx` (named in 6.3) holds no navigation entry, so it was left unchanged.
+4. Copy: `nav.catalogInscripciones` es `Inscripciones`, en `Enrollments` (the page title's words); the shortcut says "Consulte..."/"Browse..." because S1 is read-only. S2b-2 can update it when the list gains its writes.
+
+### Readback (6.7)
+
+`rg -n "catalog-schedule|canManageEnrollments" docs/roadmap.md docs/requirements.md` hits roadmap row 0, the new roadmap note and the requirements sub-bullet. `git diff -- docs/requirements.md` touches no line of the RF-12, RF-17 or RN-21 rows (0 matching lines).
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| focused vitest (command above) | 1030/1030 |
+| `npm test` (full suite) | 372 files, 9178 passed |
+| `npx next typegen && npm run typecheck` | clean |
+| eslint on the touched files | 0 errors; 1 warning from `main` (unused `SidebarGroupLabel`) |
+| prettier on the touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and `AUTH_SECRET`) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1c2-page...HEAD -- . ':!openspec'` -> 11 files, 249 insertions, 9 deletions = **258 changed lines** (forecast ~190), under the 800 budget. Code and copy 18 (`navigation.ts` 13, `app-sidebar.tsx` 1, locales 4), tests 229, docs 11.
+
+### Remaining tasks
+
+Phases 7-17 (S2a-1 onward). Walk W1 (16.3) can run once this slice is reachable.
