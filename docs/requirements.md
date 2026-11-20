@@ -150,5 +150,5 @@ se hace en los dos a la vez y se anota aquí.
 **Pendientes derivados del cambio del 2026-10-12:**
 
 - RN-25 y RF-03 (f) tocan `justification-intake`, ya archivado: el consentimiento necesita un cambio propio.
-- RF-14 no está en el alcance de `secretary-review`; lo cubre `validation-signals`.
+- RF-14 no está en el alcance de `secretary-review`; lo cubre `manual-document-data`.
 - RF-12 nombra a la secretaría académica; el código permite además a coordinación y administrador (`canManageCatalog`). No es una contradicción, pero conviene decidir si el requisito o el permiso se ajustan.
