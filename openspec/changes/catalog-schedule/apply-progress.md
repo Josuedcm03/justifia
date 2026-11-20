@@ -273,3 +273,64 @@ Totals: 2 test files touched, 31 new component tests plus 2 new parity tests (th
 ### Remaining tasks
 
 Phase 5 (5.2-5.5) and Phases 6-17. The parent must decide how to handle the over-budget slice before Phase 5 continues.
+
+## Batch 5: S1c-2 page, guards, audited load (tasks 5.1-5.5; Phase 6 NOT started)
+
+Branch `feat/catalog-schedule-s1c2-page`, created from `feat/catalog-schedule-s1c1-table` (PR #105). Date: 2026-11-20. Commits `187818d` `feat(tables): let a list opt its pagination links out of prefetch` and `40b1353` `feat(enrollment): add the inscripciones page with the audited list load`. The run was interrupted once (the PC went to sleep, the run was stopped) after the code and tests existed; the resumed run reviewed them against the specs, re-ran every gate, and committed.
+
+### Completed tasks
+
+- [x] 5.1 branch (from S1c-1)
+- [x] 5.2 RED, 5.3 RED, 5.4 GREEN: `CI/guards.test.ts`, `CI/page.test.tsx`, `CI/page.tsx`
+- [x] 5.5 gates and measure done; PR NOT opened (parent owns PRs); over budget, see "Measured size"
+
+Nothing from Phase 6 was started.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| prefetch opt-out (shared) | `src/components/tables/table-pagination.test.tsx`, `src/test/navigation-mock.test.tsx` | Unit / integration | existing files green | Not recorded: the interrupted run committed `187818d` without recording the failing run | pass | `prefetch={false}` sets `data-prefetch="false"` on every page link; omitted keeps the default (no attribute); the link stand-in exposes the flag only when set | Removed `void prefetch` from the link stand-in |
+| 5.2 | `CI/guards.test.ts` (new) | Source-text structural | N/A (new) | Not recorded (interrupted run). Honest substitute, run on resume: removing `prefetch={false}` from the table's `TablePagination` makes the prefetch test fail (2 failed: guards and page test), then restored | pass (in the 811-test focused run) | exact page set is `page.tsx`; `await requireEnrollmentAccess(` is the first `await` and precedes `await searchParams`; no `requireCatalogAccess(`; no action import, no `"use server"`; no `<form`, `<button`, `action=`, `onClick`, `onSubmit`, `formAction`, `ActiveToggle`; tag-check self-test (4 cases) and a non-vacuity pin that the table's `<TablePagination` is found; every `<Link>` and `<TablePagination>` under `inscripciones/` has `prefetch={false}` | Clean |
+| 5.3 | `CI/page.test.tsx` (new) | Integration (REAL `dal` and `requireEnrollmentAccess` on a mocked session and scope read; Testing Library; real catalogs) | N/A (new) | Not recorded (interrupted run). The same substitute mutation turned the page test "opts every page link out of prefetch" red | pass | four non-secretaria roles, anonymous and pending-password-change identities -> redirect, no scope read, no list read, no audit; scope `none` -> no-facultad state, nothing read or audited; default and hostile URL params (`status=all`, array values, bad sort, size 7 and 9999, page `x` and `0`) fall back; URL cannot widen the scope (`facultadId`, `scope` ignored); clamped page rendered; one audit call AFTER the list (call order), actor and facultad from the session; payload booleans only, no search text, no CIF or name; `periodo` recorded only when it is an in-scope period; degraded -> one `role="status"`, no table, no filter bar, no link, no button, no empty state, no audit; failing insert rejects the render; one GET form only and no control in a row; a leaky row (`correo`, `telefono`, `hashClave`, `dependentRequests`, `hasActiveSibling`, `writable`, `asignaturaId`) never reaches the HTML or the serialized props; one `h1` and no skipped heading level in five variants; one page frame; Spanish title and state | Clean |
+| 5.4 | same files | GREEN | n/a | n/a | `page.tsx` passes both files | n/a | Field-by-field row projection, payload built once, no `try/catch` around the audit |
+
+Totals: focused run `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx src/components` -> 32 files, 811 passed. Layers: structural source checks, integration, unit. `route-coverage.test.ts` gained `requireEnrollmentAccess` in its guard allowlist and `matrix-table.ts` the page row (`SECRETARIA`), so the two route-wide pins now cover the new page.
+
+### Review against the specs (resume run, no gap found)
+
+- EA-ACC-1: the guard is the first statement of the page; six non-secretaria identities redirect before any read (page test).
+- EA-SCOPE-1: scope comes from `requireEnrollmentAccess`, never the URL; `none` renders its own state with no read and no audit.
+- EA-DEG-1 and audit-log: the audited insert runs after authorisation and after the data loaded, never in the degraded branch, with a payload built once per render; a failing insert throws to the error boundary. Note: when no period is chosen the payload `periodo` is `""` (the default means "latest"; the page does not know which period the data layer resolved without a second read), so the spec's "the period" is recorded for a chosen period only. This is a conscious reading, flagged for the verify phase.
+- CS-10: `guards.test.ts` repeats the `catalog/guards.test.ts` checks for `requireEnrollmentAccess(`; the catalog guards test and `catalog-structure.test.ts` are untouched.
+
+### Prefetch risk (closed)
+
+Mechanism: next/link prefetches its `href` by default, and a prefetch of a dynamic route runs only as far as the nearest `loading.tsx` boundary, so the page body (which writes the audit row) did not run even before this work, because the dashboard segment has a `loading.tsx` above the page. That is an implicit, framework-version-dependent protection, so it is not relied on. Every navigation on this page is now one of: a `<Link prefetch={false}>` (the no-results clear link via the `EmptyState` action, and every pagination page link via the new optional `prefetch` prop of `TablePagination`, default unchanged for every other list), or an imperative `navigate(...)` through `useListNavigation` (sort headers, page-size select, filter submit), which is a `router.push` and never prefetches. Pins: `guards.test.ts` fails if any `<Link>` or `<TablePagination>` under `inscripciones/` lacks `prefetch={false}`; `page.test.tsx` renders the page and asserts every link (pagination and clear) has `data-prefetch="false"`; the shared change is pinned in `table-pagination.test.tsx` and `navigation-mock.test.tsx`. Verified by mutation on resume: dropping the opt-out turned both pins red.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx src/components` -> 32 files, 811 passed |
+| Runtime harness | N/A: server component rendered by awaiting the page function with the REAL guard on a mocked session and scope source; the DB and the audit helper are mocked. The real-database walk W1 is `[USER][CONFIRM]` after S1c-3 |
+| Rollback boundary | Revert `40b1353` (page, two tests, one table line, two pin lines) and, separately, `187818d` (shared pagination `prefetch` prop and mock flag); additive |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| focused vitest (command above) | 811/811 |
+| `npm test` (full suite) | 361 files, 8669 passed |
+| `npx next typegen && npm run typecheck` | clean |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 6 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 6 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and dummy 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1c1-table...HEAD -- . ':!openspec' ':!.engram'` -> 10 files changed, 848 insertions(+), 4 deletions(-) = **852 changed lines**, over the 800 budget (forecast ~360; 2.4x). Per commit: `187818d` 49 (47 + 2; `table-pagination.tsx` 7, its test 20, `navigation-mock.ts` 3, its test 19), `40b1353` 803 (801 + 2; `page.test.tsx` 534, `guards.test.ts` 134, `page.tsx` 126, route-coverage 6, table 2, matrix 1). The page commit alone is 3 lines over 800. Per the instruction, comments and tests were NOT trimmed to fit; the stop rule applies and Phase 6 was not started. Decision needed from the owner: ship with `size:exception`, or cut at a commit boundary (`187818d` as its own small PR below this one leaves S1c-2 at 803, still over; the largest movable piece is `page.test.tsx`, 534 lines, at the cost of splitting the strict-TDD pairing).
+
+### Remaining tasks
+
+Open PR for S1c-2 (parent) and Phases 6-17 (S1c-3 onward).
