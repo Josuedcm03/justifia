@@ -275,3 +275,19 @@ equipo), `resuelta` (cubierta por un change).
 - **Requisitos:** RN-02 (el CIF y el correo provienen de la cuenta), RNF-01;
   specs `auth-entry-access`, `user-roles` y `users-listing`. Afecta el Anexo E de la tesis, que hoy
   indica ingresar con «Usuario» y «Contraseña».
+
+### UX-22. Mantener la sesión iniciada
+
+- **Estado:** abierta.
+- **Origen:** observación del dueño del proyecto, 2026-11-20, al definir
+  UX-21.
+- **Pantalla:** inicio de sesión (`/login`).
+- **Hoy:** la sesión dura 8 horas (`src/lib/auth/session.ts`) y no hay forma
+  de pedir que se mantenga. Quien entra cada día vuelve a escribir su
+  identificador y su contraseña.
+- **Esperado:** una casilla «Mantener la sesión iniciada» en el inicio de
+  sesión. Marcada, la sesión dura más (por ejemplo, 30 días) en ese
+  dispositivo; sin marcar, se mantiene el comportamiento actual. Cerrar sesión
+  la termina igual en ambos casos.
+- **Requisitos:** RNF-01 (no cambia qué puede hacer cada rol); spec
+  `auth-entry-access`.
