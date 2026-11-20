@@ -547,3 +547,101 @@ The new action and form files were staged before their mutations, so "git restor
 - **Task 12.3 figure.** The access matrix is 64 entry points x 7 identities.
 - **The requirements edit (task 8.12).** Rebase first (decision 0.2) and keep it to line 153.
 - **Before the tracker reaches main.** Task 1.13 (migration 0015 in production, owner's "yes" for that exact command) is still open, and every existing request reads «No concluyente» until the marks are registered (D1).
+
+## Phase 8 (PR 7)
+
+Mode: Strict TDD for the coordination block (unit 17); the acceptance suite is integration code that cannot run here, so its evidence is a typecheck, a skip-mode run and a temporary paper check. Branch "feat/manual-document-data-7-coordination-thesis" from the PR 6 branch (d8d317e). PR 7: "https://github.com/Josuedcm03/justifia/pull/104", base "feat/manual-document-data-6-form". Size exception accepted by the owner (0.1 a); the slice is not split.
+
+No database was touched: no migrate, no neon command, no SQL. Every unit run used the dummy DB. The one integration-config run (task 8.11) had INTEGRATION_DATABASE_URL unset, so every file was skipped and nothing connected. The integration files were written and typechecked, not run: Phase 9.
+
+### Commits
+
+| Unit | Hash    | Message                                                    |
+| ---- | ------- | ---------------------------------------------------------- |
+| 17   | 84c27f6 | feat(coordination): show the document type and marks read-only |
+| 18   | b17b83d | test(manual-document-data): add the RF-14 acceptance suite |
+| docs | fa86649 | docs(requirements): point RF-14 to manual-document-data    |
+| docs | this commit | docs(manual-document-data): record PR 7 apply progress |
+
+### Files
+
+| File                                                                          | Action                                                                                                         |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `src/lib/data/document-marks-read.ts`                                         | Created: listDocumentMarks, the narrow fail-soft read (88 lines)                                               |
+| `src/lib/data/document-marks-read.test.ts`                                    | Created (14 cases)                                                                                             |
+| `src/app/(dashboard)/coordination/[id]/document-marks-section.tsx`            | Created: the read-only block (61 lines)                                                                        |
+| `src/app/(dashboard)/coordination/[id]/document-marks-section.test.tsx`       | Created (14 cases)                                                                                             |
+| `src/app/(dashboard)/coordination/[id]/page.tsx`                              | Modified: one access decision for the signals and the marks; the block after the signals section               |
+| `src/app/(dashboard)/coordination/[id]/page.test.tsx`                         | Modified: the marks mock and a describe of 12 tests (ten cases and one table of two rows)                          |
+| `src/app/(dashboard)/coordination/structure.test.ts`                          | Modified: the allowlist entry and a pin that only the detail page imports the read and no staff module        |
+| `src/i18n/coordination-messages.test.ts`                                      | Modified: a describe of 5 tests (same wording as "review.extraction", names, no value or control key)          |
+| `i18n/es.json`, `i18n/en.json`                                                | Modified: "sections.marks", "marks.*", "markValues.*", "types.*", "marksDegraded" under "coordination.detail" |
+| `src/lib/data/integration/rf-14-support.ts`                                   | Created: the shared gate and harness of the four suites                                                        |
+| `src/lib/data/integration/rf-14-a.integration.test.ts`                        | Created (6 cases)                                                                                              |
+| `src/lib/data/integration/rf-14-b.integration.test.ts`                        | Created (5 cases)                                                                                              |
+| `src/lib/data/integration/rf-14-c.integration.test.ts`                        | Created (7 cases)                                                                                              |
+| `src/lib/data/integration/rf-14-d.integration.test.ts`                        | Created (11 cases)                                                                                             |
+| `docs/requirements.md`                                                        | Modified: line 153 only                                                                                        |
+
+### TDD cycle evidence
+
+| Task                    | RED                                                                                                                                   | GREEN                                                                                                  | Refactor                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| 8.1 read                | run failed: module "document-marks-read" missing (no test collected)                                                                  | 14 of 14 pass in `src/lib/data/document-marks-read.test.ts`                                             | prettier reflow                                       |
+| 8.2 mutations           | n/a (revert-only checks)                                                                                                              | extra column 2 failed; subidoPorId filter dropped 1; firma from sello 1; manual table joined 3; no_aplica dropped 1; each restored with "git restore" | none                  |
+| 8.3 section             | suite failed: component missing                                                                                                       | 14 of 14 pass in `src/app/(dashboard)/coordination/[id]/document-marks-section.test.tsx`                | prettier reflow                                       |
+| 8.4 page                | 7 failed in `src/app/(dashboard)/coordination/[id]/page.test.tsx` against the page of PR 6                                            | 58 of 58 pass after the page edit                                                                      | none                                                  |
+| 8.4 structure, i18n     | 2 failed in `src/app/(dashboard)/coordination/structure.test.ts`, 5 failed in `src/i18n/coordination-messages.test.ts`               | 18 of 18 and the messages file pass after the page and the keys                                        | the pin counts value imports only (type import erased) |
+| 8.5 mutations           | n/a (revert-only checks)                                                                                                              | read made unconditional 1 failed; staff read imported 2; firma from sello 4; button added 2; null as "No" 3; drifted Spanish wording 1; each restored from a copy | none           |
+| 8.7 to 8.10 suite       | n/a: integration code, owner-run in Phase 9                                                                                           | typecheck clean; skip-mode run: 4 files, 29 tests skipped, exit 0; a temporary unit test (deleted) fed every case input to evaluateSignals and toEffectiveRow: 4 cases passed | none                                  |
+
+The new data and section files were staged before their mutations, so "git restore" restored them from the index; the page, the structure test and the catalog were tracked and modified, so they were restored from copies made first. The mutation checks of the acceptance suite itself are tasks 9.6 to 9.8.
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | "npm test -- src/app src/i18n src/lib/data src/lib/signals" before unit 17: 215 files and 5866 tests passed. "npm test -- src/app/(dashboard)/coordination src/i18n/coordination-messages.test.ts src/lib/data/document-marks-read.test.ts": 19 files and 599 tests passed                |
+| Runtime harness      | Owner-run: "npm run test:integration -- src/lib/data/integration/rf-14-" on "manual-it" (tasks 9.2 to 9.8). Here: skip mode only (4 files, 29 tests skipped, exit 0)                                                                                                                    |
+| Rollback boundary    | Revert the PR; delete the four acceptance files and the harness, and the block with its read; the requirements line is its own commit (fa86649) and reverts alone                                                                                                                       |
+
+### Gates
+
+- Full "npm test" with the dummy DB: 367 files, 8926 tests, all passed, 250.5 s (vitest duration; 4 m 12 s wall). PR 6 was 365 files and 8880 tests: two new files, 46 new tests. A first run, before the harness fix, had 3 failed of 8926 (two structural guards, see the findings).
+- "npm run typecheck": clean (run before each commit and at the end).
+- "npx eslint" on the touched files: clean (exit 0) on the 13 touched source and test files. "npx eslint src": 125178 problems, all in untouched files: 125175 CRLF "Delete the carriage return" messages (worktree line endings), two CRLF-quoted lines in `src/test/access/inventory.ts` and one unused-import warning in `src/components/app-sidebar.tsx`.
+- "npx prettier --check" on the touched files and both catalogs: clean.
+
+### Measured size (task 8.14)
+
+"git diff --numstat feat/manual-document-data-6-form...HEAD" excluding "openspec/" and ".engram/": 2357 additions and 9 deletions, 2366 changed lines (212 production lines, 2154 test and harness lines). Target was about 410 and the stop line 460; the owner's size exception covers it. Unit 17 is 1022 lines (88 + 61 + 21 production, 40 in the catalogs, the rest tests), unit 18 is 1342 (366 of them the shared harness) and the requirements line is 2.
+
+### Deviations and findings
+
+- **Four acceptance files instead of one (owner instruction).** Tasks 8.7 to 8.10 name one file, `rf-14.integration.test.ts`, with a describe per inciso. The owner asked for files named after the incisos so the thesis Anexo F can cite them, so there are four, plus `src/lib/data/integration/rf-14-support.ts` (the gate and the shared fixtures, 366 lines) which the task list does not name. Task 9.2 named the old path in its command; it was updated to the filter "src/lib/data/integration/rf-14-" (it matches the four files and not the harness) so Phase 9 can run as written.
+- **The first full run caught two structural guards, and the harness was fixed, not the guards.** `src/lib/data/extraction.test.ts` (no non-test module outside the extraction module writes the extraction table) and `src/lib/signals/fingerprint-exposure.test.ts` (no non-test module outside three allowed ones names or writes the fingerprint column) scan every non-test file of `src`, so the harness `src/lib/data/integration/rf-14-support.ts` tripped both (3 tests failed, 8923 of 8926 passed). The harness now builds only the values (`documentValues`, `extractionValues`, and `fingerprint()` for the hash); the two inserts live in each suite file, as in `src/lib/data/integration/validation-signals.integration.test.ts`. Unit 18 was recreated with the fix before any push; a second full run is the one recorded below.
+- **Acceptance files: inciso, scenario and cases.**
+  - `src/lib/data/integration/rf-14-a.integration.test.ts`, RF-14 (a): round trip, RN-24 manual over extracted, clearing reverts, RN-14 manual issuer counts and stops when cleared (A5 history, MD-18), extraction row byte-equal, audit rows names only.
+  - `src/lib/data/integration/rf-14-b.integration.test.ts`, RF-14 (b): SC-08 (sello ausente, rn12), SC-14 (firma ausente, rn11), the three mark states apart, firma and sello independent, marks never promote.
+  - `src/lib/data/integration/rf-14-c.integration.test.ts`, RF-14 (c): SC-12 (forced fallida then capture, rn10 present), the completada variant, a pending row, a document with no row, a covering rest, approval through decideRequest with no outbound call, data frozen after the decision.
+  - `src/lib/data/integration/rf-14-d.integration.test.ts`, RF-14 (d) and RF-05 (e): SC-05, SC-01 (no_alerts and inconclusive until registered), SC-11 b, the type and cause table, the A5 strict rule, RN-24 end to end.
+- **"The A5 precedence of RN-24" (task 8.10) is ambiguous.** It was read as the A5 strict rule across several documents plus the manual-over-extracted precedence of RN-24 carried to the verdict; both are cases of the (d) file.
+- **The acceptance suite cannot be mutation-checked here.** The unit-style revert-only checks need a database; M1 to M3 (tasks 9.6 to 9.8) are the mutation checks. To lower the risk meanwhile, a temporary unit test (not committed) fed the inputs of every case to evaluateSignals and toEffectiveRow with the default parameters and the production calendar, and all expected outcomes held. What it cannot prove is the SQL, the constraints, the row lock and the cleanup, which only Phase 9 shows.
+- **The narrow read joins the extraction table for its state only.** Task 8.1 says the filters equal those of listExtractions and 8.2 says the read never touches the manual table. Equal filters include "no_aplica", which lives on the extraction row, so the statement left-joins `ExtraccionDocumento` and selects none of its columns; a pin proves the select holds the five columns and no value. The where clause is compared with the one of listExtractions by rendering both.
+- **The block lists the file name and a read-only note.** The spec asks for the type and the marks per document; each entry carries the file name as its heading (the documents card of the same page shows the names) so several documents can be told apart, and one sentence says the secretary registers the data (key "marks.note"). Neither is a registered or extracted value.
+- **The block renders nothing when the request has no current document and no degraded read.** The spec is silent; an escalation of only special-format documents has none, and an empty card would carry no information. The degraded read shows one notice and the rest of the detail loads.
+- **One access decision for two reads.** `src/app/(dashboard)/coordination/[id]/page.tsx` computes "outcomesOnly" once (an open escalation and the "outcomes" access of signalsAccess) and uses it for the signals and the marks; a pin keeps a single signalsAccess call. The marks read has no page-level try/catch because listDocumentMarks is fail-soft by contract and its own tests prove it.
+- **No write path for coordination (MD-30 scenario).** Not new in PR 7: the call of the save action by a coordinator is denied in `src/app/(dashboard)/review/[id]/document-data-actions.test.ts` (six roles) and in the access matrix (64 entry points x 7 identities, unchanged: PR 7 adds a read inside an existing page and no entry point).
+- **Task 8.12 and PR 98.** The edit stays: line 153 is outside both hunks of PR 98 and a trial merge with its head is clean. The line must be re-checked after PR 98 merges (a different rewrite of the "Pendientes" list there would conflict); see the plan notes.
+- Line endings: `src/app/(dashboard)/coordination/[id]/page.tsx`, `src/app/(dashboard)/coordination/structure.test.ts`, `src/i18n/coordination-messages.test.ts` and `docs/requirements.md` were CRLF in the worktree and were converted to LF before editing; the "git restore" of the mutation checks wrote CRLF into the new files, which were left as the working tree had them and checked LF before each commit. Git stores LF, so the diffs show no line-ending change.
+- The repo hook staged `.engram/` files on each commit. Each commit was amended with the helper `fixengram.sh` (chunks "git rm --cached", manifest "git checkout HEAD~1 --", then "git commit --amend --no-edit --no-verify"); the local manifest was put back, so it is still modified and the chunks untracked.
+- CodeGraph was not queried (no index for this worktree); every file was named in the tasks or the earlier notes and was read directly. No new Next.js API was used (a server component and a page edit), so no guide was re-read.
+
+### Plan notes for Phases 9 to 12
+
+- **Phase 9 command.** "$env:INTEGRATION_DATABASE_URL='<direct URL of branch manual-it>'; $env:INTEGRATION_ALLOW_WRITES='1'; npm run test:integration -- src/lib/data/integration/rf-14-" runs the four files (29 cases: 6, 5, 7 and 11). A refused gate throws at import, unset skips. Audit rows are append-only, so the secretary the suites create, with its rows, stays on the branch by design.
+- **What each mutation should break.** M1 (OCR wins): in (a) "manual value wins" and "reverts when cleared" and in (d) the RN-24 case. M2 (no promotion to "completada"): the capture cases of (c) (fallida, completada variant, pending, no row) and the (a) round trip. M3 (RN-14 history reads only the extracted issuer): the (a) RN-14 case.
+- **For task 9.5.** SC-05, SC-01 and SC-11 b are in (d), SC-08 and SC-14 in (b), SC-12 in (c) (rn10 present after the capture), RN-24 precedence and clearing in (a) and (d), the names-only audit rows in (a) and (b), and the retention cascade is the retention suite of PR 3.
+- **Thesis Anexo F (task 12.3).** The acceptance files can be cited per inciso: "src/lib/data/integration/rf-14-a.integration.test.ts" to "rf-14-d.integration.test.ts", next to "src/lib/signals/rf-05-e.test.ts" for RF-05 (e) and the captures "RF-14_a.png" to "RF-14_d.png" (Phase 10). The access matrix figure of 12.3 stays 64 entry points x 7 identities.
+- **Task 11.1.** When PR 98 merges, re-check `docs/requirements.md` line 153 (the "Pendientes" bullet about RF-14) on the tracker before the slice PRs merge; if PR 98 rewrote that list, redo the one-line edit on top of it. Then the note of task 12.4 can say whether a rebase was needed. This branch was not rebased onto PR 98 and holds only its one line.
+- **Coordinator experience (Phase 10, optional).** The block shows after the signals section of an open escalation; it reads «Sin registrar» until the secretary saves, which is every request until the marks are registered (D1).
