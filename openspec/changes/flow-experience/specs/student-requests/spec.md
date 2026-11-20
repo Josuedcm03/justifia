@@ -6,7 +6,9 @@ Anexo F RF-08 (a to c)). The causes are the kit and the task design, so the
 changes are defensive: they help a student tell requests and files apart, and
 change no rule. The list order (newest first), the neutral wording for a request
 in coordination, and "Students never see validation signals" stay as they are.
-Owner decision 2026-11-20: decided cards show the decision reason.
+Owner decision 2026-11-20: returned and rejected cards show the decision reason;
+an approved card shows none (the approval text is template boilerplate, the
+detail keeps the full text).
 
 ## ADDED Requirements
 
@@ -62,14 +64,16 @@ audit row.
 
 ### Requirement: FE-15 Decided cards show the decision reason (RF-07 c, RN-17; RNF-01, RNF-11)
 
-A card of a request currently in `devuelta`, `rechazada` or `aprobada` MUST show
-the reason of the latest decision: for `devuelta`, the label of its RN-17 reason
-code; for `rechazada`, an excerpt of the decision text; for `aprobada`, an
-excerpt of the decision text when one was written, and nothing when it was not.
-An excerpt MUST be at most 140 characters, shortened with an ellipsis when
-longer, and the complete text stays on the detail. The reason MUST NOT be shown
-on a card in `pendiente` or `en_revision_coordinacion`, including a request
-corrected and resubmitted after a return. Reading it MUST be only for the
+A card of a request currently in `devuelta` or `rechazada` MUST show the reason
+of the latest decision: for `devuelta`, the label of its RN-17 reason code; for
+`rechazada`, an excerpt of the decision text. A card in `aprobada` MUST show no
+reason and no excerpt, whether or not the approval carries a text (owner
+decision 2026-11-20: the approval text is template boilerplate and approved
+students do not ask why). An excerpt MUST be at most 140 characters, shortened
+with an ellipsis when longer, shown in up to 2 lines, and the complete text
+stays on the detail. The reason MUST NOT be shown on a card in `pendiente` or
+`en_revision_coordinacion`, including a request corrected and resubmitted after
+a return. Reading it MUST be only for the
 owner and MUST add no audit row. The cards stay usable at 360 px. Texts MUST
 exist in `es` and `en`.
 
@@ -79,18 +83,28 @@ exist in `es` and `en`.
 - WHEN the owner opens `/requests`
 - THEN its card shows the state and the label of `documento_ilegible`
 
-#### Scenario: Rejected and approved cards (table-driven, 4.9 RF-07 c)
+#### Scenario: Rejected cards show an excerpt (table-driven, 4.9 RF-07 c)
 
 | State | Decision text | Card shows |
 |---|---|---|
 | `rechazada` | 200 characters | first 140 characters with an ellipsis |
 | `rechazada` | 60 characters | the whole text |
-| `aprobada` | 30 characters | the whole text |
-| `aprobada` | none | no reason line |
 
 - GIVEN a request in the state with the decision text in the row
 - WHEN the owner opens `/requests`
-- THEN the card shows what the row says
+- THEN the card shows what the row says, in up to 2 lines
+
+#### Scenario: Approved card shows no excerpt (owner decision 2026-11-20)
+
+| State | Decision text | Card shows |
+|---|---|---|
+| `aprobada` | 30 characters | no reason line |
+| `aprobada` | 200 characters | no reason line |
+| `aprobada` | none | no reason line |
+
+- GIVEN a request in `aprobada` with the decision text in the row
+- WHEN the owner opens `/requests`
+- THEN the card shows the state and no reason line, and neither the card nor the data sent to the client carries the approval text
 
 #### Scenario: No reason while the request is open
 

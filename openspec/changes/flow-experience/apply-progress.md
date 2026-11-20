@@ -434,3 +434,98 @@ No Spanish UI copy is added in PR 3b: the report dialog and the coordinator answ
 - Size: tests are 88 percent of S2 and S3 lines; the forecast of about 250 will run 2 to 3 times higher, so plan the cut the tasks name (after unit 7: the data layer and its excerpt helper, 4.2 to 4.7; then the card, 4.8 to 4.10) and measure at each unit.
 - React async transitions: a test that leaves a never-settling server action pending keeps every later "isPending" in the same file true (React entangles async actions across roots). Resolve promises of mocked actions at the end of the test.
 - Tooling: write patch scripts as files; the helpers in the scratchpad ("i18n-set.cjs", the append and the line-ending scripts) work as before. the owner's rules ask for "rg", "fd", "bat", "eza" and "sd"; only "rg" is installed here, so use "rg", Node scripts and the Read and Edit tools. After "git show HEAD:<path> > <path>" the file is LF, which is what the index holds.
+
+## Phase 4 (PR 4): S4 RF-07, cards that tell requests apart
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-4-card-reasons", cut from the tip of "feat/flow-experience-3b-report-answer-errors" (67cf703, all of S3). Size exception per the owner decision of 2026-11-20 (see Phase 1); if the slice goes over the stop line it is cut after unit 7 into "-4-card-reasons" (data and excerpt helper) and "-4b-..." (the card), as the plan says.
+
+### Owner decision of 2026-11-20 on task 4.1
+
+- **(a) No excerpt on "aprobada" cards.** The decision excerpt shows ONLY on "devuelta" and "rechazada" cards, never on "aprobada" cards. Reason: approval text is template boilerplate and approved students do not ask why, so the excerpt would add noise; the student already sees the full text in the detail. This reverses the spec default (FE-15 listed "aprobada"). Edited to match: spec FE-15 in `openspec/changes/flow-experience/specs/student-requests/spec.md` (requirement text, header note, the table-driven scenario split in two, and a new scenario "Approved card shows no excerpt"), design D7 in `openspec/changes/flow-experience/design.md`, and the tasks 4.1, 4.4 and 4.8 text and the convention line about known spec differences in `openspec/changes/flow-experience/tasks.md`.
+- **(b) Excerpt rule.** At most 140 characters with an ellipsis when cut, shown in up to 2 lines (owner resolution 3, 2026-11-20).
+
+### PR #98 merged (2026-11-20): unblocks S8
+
+"gh pr view 98": MERGED at 2026-11-20T17:57:26Z as 27abd8c on "main" ("Merge pull request #98 from Josuedcm03/docs/thesis-sync-p3-2"). After "git fetch origin main", "drizzle/" on "origin/main" still ends at 0015, so 0016 is still free. This satisfies the precondition of task 8.0 (the entry itself is recorded when S8 starts). Main was NOT merged into the tracker or into any slice now; it is merged into the tracker only when the plan says (before S8).
+
+### Cut decision
+
+Unit 7 (the data layer and the excerpt helper) measured 606 changed lines, over the 460 stop line on its own, so the slice is cut after unit 7 as the plan says (candidate cut: PR 4 after unit 7):
+
+- **PR 4**, branch "feat/flow-experience-4-card-reasons", cut from the tip of "feat/flow-experience-3b-report-answer-errors": unit 7 (tasks 4.2 to 4.7). It stacks on #113.
+- **PR 4b**, branch "feat/flow-experience-4b-request-card", cut from the tip of PR 4: unit 8 (tasks 4.8 to 4.10), the card and its copy.
+
+Unit 7 is not cut further: its only seam (the excerpt helper, 101 lines, against the reader and its tests, 505 lines) would leave a PR whose helper nothing calls. Tests are 81 percent of the lines and were not trimmed. Size exception per the owner decision of 2026-11-20 (see Phase 1).
+
+### Commits (PR 4)
+
+| Unit | Hash    | Message                                                                              |
+| ---- | ------- | ------------------------------------------------------------------------------------ |
+| 4.1  | 7d86f90 | docs(flow-experience): record the owner decision that approved cards show no excerpt |
+| 7    | a2fe9f2 | feat(requests): read subjects and the decision reason for each own request           |
+| docs | (tip)   | docs(flow-experience): record the Phase 4 apply progress for PR 4                    |
+
+### TDD cycle evidence (PR 4)
+
+| Task        | Test file                                         | Layer | Safety net                                                          | RED                                                                                                                       | GREEN                         | Triangulation                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Refactor      |
+| ----------- | ------------------------------------------------- | ----- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 4.2 and 4.3 | `src/lib/data/decision-excerpt.test.ts` (new)     | Unit  | N/A (new file)                                                      | The file failed to load (module missing)                                                                                  | 1 file, 14 passed             | 200 chars cut to 140 plus an ellipsis; exactly 140 whole; 141 cut; 60 whole; null, undefined, empty and two whitespace-only texts give null; surrounding whitespace trimmed; trailing whitespace trimmed before the ellipsis; a surrogate pair at the cut kept whole; 140 emoji count as 140                                                                                                                                                                                  | Prettier only |
+| 4.4 and 4.5 | `src/lib/data/student-requests.test.ts`           | Unit  | 4 listOwnRequests cases and the detail and correction cases passing | 20 cases failed first (shape, select count, class and decision reads, excerpt, reason code, approved rule, skip rule)     | 66 passed with the next row   | Rows with subjects and decision; owner and visible-state filter; order; empty list issues 1 select; 1, 2 and 5 rows issue 3; ids passed to both reads; subjects in the order of `listRequestClasses`; no class rows; latest of two decisions; returned code and text; rejected excerpt (200, 60, null, blank); long text never leaves; code only for returned; approved gets none (2 texts); approved never read; open states get none (2); skip rule; read-only             | None needed   |
+| 4.4 and 4.5 | `src/app/(dashboard)/requests/no-signals.test.ts` | Unit  | Existing cases passing                                              | 2 cases failed first (the list keys gain "asignaturas" and "decision"; a list row with a long decision reveals no signal) | Pass                          | Exact list keys, selects only, 3 statements; the card decision carries only "motivoCodigo" and "texto"; the subject carries only "codigo" and "nombre"; the REVEALING scan of the serialized rows                                                                                                                                                                                                                                                                             | None needed   |
+
+### Mutation checks (revert-only; the file was restored from a byte-identical backup copy and checked with "cmp", because the GREEN was not committed yet)
+
+| Test                                                                          | Temporary edit in `src/lib/data/student-requests.ts`   | Result                                                               |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| select-count cases (task 4.6)                                                 | Read the classes once per row inside the mapping       | 10 failed, including the 2- and 5-row select-count cases             |
+| approved-gets-none (2), approved-never-read, skip rule                        | Add "aprobada" to the states whose decision is read    | 4 failed, as expected                                                |
+| "keeps the reason code only for a returned request, never for a rejected one" | Pass the reason code through for every state           | 1 failed, as expected                                                |
+| "reads only: no write and no audit row" and the statement-count cases         | Add an insert before the class read                    | 22 failed, including it (the double refuses an unscripted statement) |
+
+### Checkpoint (task 4.11): measured size of PR 4
+
+Measure: "git diff --numstat feat/flow-experience-3b-report-answer-errors...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                         | Changed lines |
+| --------------------------------------------- | ------------- |
+| Production (excerpt helper 28, reader 88)     | 116           |
+| Tests (excerpt 73, reader 365, no-signals 52) | 490           |
+| All of PR 4 (596 added, 10 deleted)           | 606           |
+
+The design forecast for all of S4 was about 250; unit 7 alone is 2.4 times that. Tests are 81 percent of the lines.
+
+### Work unit evidence (PR 4)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- src/lib/data/student-requests src/lib/data/decision-excerpt src/app/(dashboard)/requests": 23 files, 533 tests, all passed                                                                                                    |
+| Runtime harness                       | N/A in this run: the owner-run capture "RF-07_c" on "flow-it" (task 12.8) is not part of PR 4, and no database or Neon command was run (the dummy DB URL and the statement double only)                                                                                                |
+| Rollback boundary                     | Revert the PR: `src/lib/data/decision-excerpt.ts` is removed and `src/lib/data/student-requests.ts` returns its old list shape (one select, no subjects, no decision). Nothing renders the new fields until PR 4b, so the screens do not change. No data, no schema, no audit event type |
+
+### Gates (task 4.12), tip of "-4-card-reasons", dummy DB
+
+- Full "npm test": 370 files, 9097 tests, all passed, 272.6 s vitest duration. PR 3b was 369 files and 9061 tests; PR 4 adds one test file (decision-excerpt) and 36 tests.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (143810 lines), the only findings are the same three in files PR 4 does not touch: the unused `SidebarGroupLabel` warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on the five touched files alone is clean, and "npx prettier --check" passes on all of them.
+- i18n is not touched by PR 4.
+
+### Files (PR 4; all LF in the working tree, the index was already LF)
+
+| File                                                                                       | Action                                                                                           |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `src/lib/data/decision-excerpt.ts`                                                         | Created: DECISION_EXCERPT_MAX and the pure decisionExcerpt                                       |
+| `src/lib/data/decision-excerpt.test.ts`                                                    | Created: 14 cases                                                                                |
+| `src/lib/data/student-requests.ts`                                                         | Modified: OwnCardDecision, OwnRequestListItem, listOwnRequests with the class and decision reads |
+| `src/lib/data/student-requests.test.ts`, `src/app/(dashboard)/requests/no-signals.test.ts` | Modified: the list block rewritten and extended; LIST_KEYS gains "asignaturas" and "decision"    |
+
+No Spanish UI copy is added in PR 4 (the card copy is PR 4b).
+
+### Deviations (PR 4)
+
+1. **Branch names.** Task 4.0 says "feat/flow-experience-4-request-cards"; the owner's run order says "feat/flow-experience-4-card-reasons", which is used. The cut branch is "feat/flow-experience-4b-request-card". Tasks 4.11 and 4.13 name "feat/flow-experience-3-note-errors" as the base; the real base is the tip of "feat/flow-experience-3b-report-answer-errors" (#113).
+2. **Approved cards (owner decision of 2026-11-20).** The design, the spec and tasks 4.1, 4.4 and 4.8 changed so an approved request carries no decision at all; the data layer does not even read it. The spec was edited first.
+3. **Reason code kept only for a returned request.** The design types the decision as a code and a text; the reader sets the code to null for a rejected request (D7 says a rejection carries no code), so the card cannot show a code the design does not allow.
+4. **Excerpt applied to every kept text.** Including the text of a returned request, so no complete decision text reaches the client list.
+5. **Mutation checks with an uncommitted GREEN.** As in S1 to S3: byte-identical backup copy restored and checked with "cmp".
+6. **Cut at unit 7, size exception.** See the cut decision.
+7. **Tasks 4.11 to 4.13.** They close when PR 4b is done, over both PRs.

@@ -460,7 +460,9 @@ describe("the own-request reads keep their shape (student-requests, unchanged)",
     "revisiones",
   ];
   const LIST_KEYS = [
+    "asignaturas",
     "causa",
+    "decision",
     "estado",
     "fechaFin",
     "fechaInicio",
@@ -528,12 +530,60 @@ describe("the own-request reads keep their shape (student-requests, unchanged)",
 
   it("returns the list rows with exactly the pre-signals keys", async () => {
     const { listOwnRequests } = await actual();
-    use([{ kind: "select", rows: [requestRow] }]);
+    const double = use([
+      { kind: "select", rows: [requestRow] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
 
     const rows = await listOwnRequests(7);
 
     expect(rows).toHaveLength(1);
     expect(Object.keys(rows[0]).sort()).toEqual(LIST_KEYS);
+    expect(new Set(double.log.map((s) => s.kind))).toEqual(new Set(["select"]));
+    expect(double.log).toHaveLength(3);
+  });
+
+  it("returns a list row that reveals no signal even when the decision is long", async () => {
+    const { listOwnRequests } = await actual();
+    use([
+      { kind: "select", rows: [requestRow] },
+      {
+        kind: "select",
+        rows: [
+          {
+            solicitudId: 12,
+            asignaturaId: 1,
+            codigo: "MAT-101",
+            nombre: "Calculo",
+            numeroGrupo: "2",
+            docenteNombre: "Pedro Ruiz",
+          },
+        ],
+      },
+      {
+        kind: "select",
+        rows: [
+          {
+            solicitudId: 12,
+            motivoCodigo: "documento_ilegible",
+            texto: DECISION_TEXT.repeat(10),
+          },
+        ],
+      },
+    ]);
+
+    const rows = await listOwnRequests(7);
+
+    expect(JSON.stringify(rows)).not.toMatch(REVEALING);
+    expect(Object.keys(rows[0].decision ?? {}).sort()).toEqual([
+      "motivoCodigo",
+      "texto",
+    ]);
+    expect(Object.keys(rows[0].asignaturas[0]).sort()).toEqual([
+      "codigo",
+      "nombre",
+    ]);
   });
 
   it("answers null with a single read for another student's id and for an unknown id alike", async () => {
