@@ -1043,3 +1043,100 @@ English twins: "Absence dates"; "From {start} to {end}"; "Edit dates"; "The star
 - No overlap with S6: S7 touches `src/app/(dashboard)/profile/page.tsx`, `src/components/dashboard-header.tsx`, their tests and the catalogs ("profile" and "auth.userMenu").
 - The route constant is `PASSWORD_CHANGE_PATH` in `src/lib/auth/routes.ts`; use it instead of a literal.
 - Pitfall met in S6: a Zod refinement is skipped when another field already failed, so a mutation that must fire beside another error belongs on the field itself.
+## Phase 7 (PR 7): S7 UX-20, the "Cambiar contraseña" link
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-7-password-link", cut from the tip of "feat/flow-experience-6b-dates-wiring" (83f4f8a, the S6 tip, #119). One work unit (unit 14), one code commit. PR 7 is #120 ("https://github.com/Josuedcm03/justifia/pull/120", base "feat/flow-experience-6b-dates-wiring", stacked on #119). The slice is under the 460 stop line, so it is one PR. No new route and no access rule changed.
+
+### Commits (PR 7)
+
+| Unit | Hash    | Message                                                           |
+| ---- | ------- | ----------------------------------------------------------------- |
+| 14   | 59571b6 | feat(profile): link to the voluntary password change              |
+| docs | (tip)   | docs(flow-experience): record the Phase 7 apply progress for PR 7 |
+
+### TDD cycle evidence (PR 7)
+
+| Task        | Test file                                                       | Layer              | Safety net                           | RED                                                                                                               | GREEN                | Triangulation                                                                                                                                                                           | Refactor    |
+| ----------- | --------------------------------------------------------------- | ------------------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 7.1 and 7.2 | `src/app/(dashboard)/profile/page.test.tsx`                     | Component (page)   | 7 existing cases of the file passing | 9 cases failed first (five roles, Spanish, outline large link, the only link and the rows kept, the catalog keys) | 11 files, 469 passed | The five roles; es and en; the 44 px outline link; one link only with the email and CIF rows still shown; both catalog values                                                           | None needed |
+| 7.1 and 7.2 | `src/components/dashboard-header.test.tsx` (new)                | Component (server) | N/A (new file)                       | 9 cases failed first (five roles, English, entry order, no other link, the catalog keys)                          | Pass                 | The menu is opened with the user-event click; each role; es and en; the order "Ver perfil", "Cambiar contraseña", "Cerrar sesión"; the only hrefs are "/profile" and "/change-password" | None needed |
+| 7.3         | `src/app/route-coverage.test.ts`, `src/test/access` (read-only) | Structural         | N/A                                  | Pass at write (4 files, 536 tests, no row added)                                                                  | Pass                 | Mutation check below                                                                                                                                                                    | N/A         |
+
+### Mutation checks (revert-only; the file was restored from a byte-identical backup copy and confirmed with "git diff --stat")
+
+| Pass-at-write test                                           | Temporary edit                                                                      | Result                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| route-coverage "the table lists every protected entry point" | In `src/test/access/matrix-table.ts`: the "change-password/page.tsx" row is removed | 1 failed, 528 passed; the file was restored and its diff stat is empty |
+
+### Checkpoint (task 7.5): measured size of PR 7
+
+Measure: "git diff --numstat feat/flow-experience-6b-dates-wiring...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                  | Changed lines |
+| ------------------------------------------------------ | ------------- |
+| Production (profile page 13, header 6, two catalogs 8) | 27            |
+| Tests (header test 101, profile test 53)               | 154           |
+| All of PR 7 (179 added, 2 deleted)                     | 181           |
+
+The design forecast was about 50; the slice is 3.6 times that and under the stop line. Tests are 85 percent of the lines and were not trimmed.
+
+### Work unit evidence (PR 7)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- profile/page.test dashboard-header src/i18n": 11 files, 469 tests, all passed. The access proof: "npm test -- access-matrix route-coverage src/test/access": 4 files, 536 tests, all passed |
+| Runtime harness                       | N/A: a link and a menu entry to an existing route; the access matrix and the route inventory are the proof, and no database or Neon command was run                                                                                                  |
+| Rollback boundary                     | Revert the PR: `src/app/(dashboard)/profile/page.tsx` loses the link, `src/components/dashboard-header.tsx` loses the entry and the two "changePassword" keys go. No data, no schema, no route, no access rule                                       |
+
+### Gates (task 7.6), tip of "-7-password-link" (the S7 tip), dummy DB
+
+- Full "npm test": 375 files, 9349 tests, all passed, 257.5 s vitest duration. The S6 tip was 374 files and 9331 tests; PR 7 adds one test file (the header test) and 18 tests.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (133651 findings counted with it), the only findings are the same three in files S7 does not touch: the unused "SidebarGroupLabel" warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on the touched files alone is clean, and "npx prettier --check" passes on every touched file and on both catalogs.
+
+### Files (PR 7; all LF in the working tree, the index was already LF)
+
+| File                                        | Action                                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------------- |
+| `src/app/(dashboard)/profile/page.tsx`      | Modified: outline large link to PASSWORD_CHANGE_PATH under the account card |
+| `src/components/dashboard-header.tsx`       | Modified: the user menu entry between "Ver perfil" and "Cerrar sesión"      |
+| `src/app/(dashboard)/profile/page.test.tsx` | Modified: 9 new cases                                                       |
+| `src/components/dashboard-header.test.tsx`  | Created: 9 cases                                                            |
+| `i18n/es.json`, `i18n/en.json`              | Modified: "profile.changePassword" and "auth.userMenu.changePassword"       |
+
+### Final Spanish UI copy added in PR 7 (labels with no verb, so neutral in both existing registers)
+
+- "profile.changePassword": "Cambiar contraseña" (the profile page speaks "tú")
+- "auth.userMenu.changePassword": "Cambiar contraseña"
+
+English twins: "Change password" for both.
+
+### Deviations (PR 7)
+
+1. **Base.** Tasks 7.0, 7.5 and 7.7 name "feat/flow-experience-6-dates-recap"; the real base is the tip of "feat/flow-experience-6b-dates-wiring" (#119), which holds all of S6.
+2. **Link position and width.** The tasks say "outline lg link"; it sits under the account card, full row at 360 px and content width from the "sm" breakpoint, aligned to the start.
+3. **Constant, not a literal.** Both entries use PASSWORD_CHANGE_PATH of `src/lib/auth/routes.ts`; the tests also pin its value "/change-password".
+4. **Header test is a server render.** DashboardHeader is an async server component, so its test mocks the server translator, the locale reader and the logout action, and stubs the locale switcher, theme toggle, page context and sidebar trigger, which need providers of their own and are not under test.
+5. **Outline classes.** The first version of the profile test expected "border-border"; the outline variant of the button uses "border-primary", so the expectation was corrected before the GREEN.
+6. **Flagged and anonymous cases.** They are the existing redirect cases of the profile test (they throw before anything renders), so no new case was added for them.
+7. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF without changing the index content. Other files still show as modified for that reason only.
+
+### Notes for S8 (motive "otro", migration 0016, RN-20)
+
+What the orchestrator must do before S8 starts (tasks 8.0 and 8.1; S8 is based on the tracker, not on the S7 branch):
+
+1. **Confirm #98 and the migration number (task 8.0, read-only).** "gh pr view 98 --json state,mergedAt" must show it merged, and "eza drizzle" on the latest main must still show 0015 as the last file. If #98 is open, stop and ask the owner. Record both results in this file.
+2. **Merge PRs 1 to 7 into the tracker, in order, each with the owner's OK** (merging into the tracker does not deploy; only the tracker ever merges to "main"). The stack is a chain, so after each merge retarget the next PR with "gh pr edit <number> --base feat/flow-experience" and check that its diff holds only its own files:
+   - S1: #109 (base the tracker), #110 (1b).
+   - S2: #111.
+   - S3: #112 (3a), #113 (3b).
+   - S4: #114, #115 (4b).
+   - S5: #116, #117 (5b).
+   - S6: #118, #119 (6b).
+   - S7: #120.
+     Never delete a slice branch or the tracker.
+3. **Merge "origin/main" into the tracker** ("git merge origin/main"). If #105 (catalog namespace) merged, expect JSON conflicts in `i18n/es.json` and `i18n/en.json`: S1 to S7 added keys under "review", "requests", "intake", "profile" and "auth.userMenu" only. Resolve them and run T(src/i18n).
+4. **Create "feat/flow-experience-8-motive-otro" from the tracker tip** and record "git log --oneline -3".
+5. The S1 to S7 PRs are over the usual 460 lines on purpose (owner's size exception of 2026-11-20); S8 is covered by the same exception, cut at its plan seam (after unit 15: migration, then dialog and notice, then the docs unit).
+6. S8 touches `src/app/(dashboard)/review/[id]/escalate-dialog.tsx`, `src/i18n/review-messages.test.ts` and the "review.escalation" keys that S1 and S3 changed (previousAnswer notice, required note label, hint), so the S8 RED tests must be written against the merged text, and the "otro" hint is a new "usted" key beside "noteHint".
+7. The DB rule holds: "drizzle-kit generate" reads the schema and opens no connection; "migrate", "push", "db:seed" and the production command of task 8.25 are owner-run with an explicit "yes".
