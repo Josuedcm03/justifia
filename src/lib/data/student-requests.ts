@@ -9,6 +9,7 @@ import {
   solicitudDecision,
   solicitudRevision,
 } from "@/db/schema";
+import { decisionExcerpt } from "@/lib/data/decision-excerpt";
 import {
   listRequestClasses,
   type RequestClass,
@@ -37,6 +38,13 @@ export type OwnRequestRow = {
   reenviadaEn: Date | null;
 };
 
+/**
+ * The states whose card shows the reason of the latest decision (FE-15). An
+ * approved card shows none (owner decision 2026-11-20: the approval text is
+ * template boilerplate), so its decision is never read for the list.
+ */
+const CARD_REASON_STATES: readonly string[] = ["devuelta", "rechazada"];
+
 /** A decision as the student sees it: no secretary, no template code. */
 export type OwnDecision = {
   id: number;
@@ -44,6 +52,25 @@ export type OwnDecision = {
   motivoCodigo: string | null;
   texto: string | null;
   decididaEn: Date;
+};
+
+/**
+ * The reason a list card shows. `motivoCodigo` is the RN-17 code of a returned
+ * request (always null for a rejected one); `texto` is the excerpt of the
+ * decision text, already cut on the server (140 characters), so the complete
+ * text never leaves it.
+ */
+export type OwnCardDecision = {
+  motivoCodigo: string | null;
+  texto: string | null;
+};
+
+/** One card of the student's list: the request, its subjects and its reason. */
+export type OwnRequestListItem = OwnRequestRow & {
+  /** In the order of `listRequestClasses`: subject code, then group. */
+  asignaturas: { codigo: string; nombre: string }[];
+  /** Only for a returned or rejected request, else null. */
+  decision: OwnCardDecision | null;
 };
 
 export type OwnRequestDetail = OwnRequestRow & {
@@ -56,11 +83,18 @@ export type OwnRequestDetail = OwnRequestRow & {
   revisiones: DetailRevision[];
 };
 
-/** The caller's presented requests, newest first (never a draft). */
+/**
+ * The caller's presented requests, newest first (never a draft), with the
+ * subjects and, for a returned or rejected request, the reason of its latest
+ * decision. At most three selects for any number of requests: the rows, the
+ * classes of every row (`listRequestClasses`) and the decisions of the
+ * returned and rejected ones; the latest decision of each is picked in
+ * TypeScript. An empty list issues one select.
+ */
 export async function listOwnRequests(
   userId: number,
-): Promise<OwnRequestRow[]> {
-  return db
+): Promise<OwnRequestListItem[]> {
+  const rows = await db
     .select({
       id: solicitud.id,
       estado: solicitud.estado,
@@ -78,6 +112,54 @@ export async function listOwnRequests(
       ),
     )
     .orderBy(desc(solicitud.presentadaEn), desc(solicitud.id));
+  if (rows.length === 0) return [];
+
+  const withReason = rows
+    .filter((row) => CARD_REASON_STATES.includes(row.estado))
+    .map((row) => row.id);
+  const [classes, decisions] = await Promise.all([
+    listRequestClasses(
+      db,
+      rows.map((row) => row.id),
+    ),
+    withReason.length === 0
+      ? []
+      : db
+          .select({
+            solicitudId: solicitudDecision.solicitudId,
+            motivoCodigo: solicitudDecision.motivoCodigo,
+            texto: solicitudDecision.texto,
+          })
+          .from(solicitudDecision)
+          .where(inArray(solicitudDecision.solicitudId, withReason))
+          .orderBy(
+            asc(solicitudDecision.decididaEn),
+            asc(solicitudDecision.id),
+          ),
+  ]);
+
+  const latest = new Map<number, (typeof decisions)[number]>();
+  for (const decision of decisions) latest.set(decision.solicitudId, decision);
+
+  return rows.map((row) => {
+    const decision = CARD_REASON_STATES.includes(row.estado)
+      ? latest.get(row.id)
+      : undefined;
+    return {
+      ...row,
+      asignaturas: (classes.get(row.id) ?? []).map(({ codigo, nombre }) => ({
+        codigo,
+        nombre,
+      })),
+      decision: decision
+        ? {
+            motivoCodigo:
+              row.estado === "devuelta" ? decision.motivoCodigo : null,
+            texto: decisionExcerpt(decision.texto),
+          }
+        : null,
+    };
+  });
 }
 
 /** The caller's own presented request with its history, else `null`. */

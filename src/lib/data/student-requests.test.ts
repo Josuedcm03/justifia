@@ -55,20 +55,83 @@ const listRow = {
   reenviadaEn: null,
 };
 
+function listClass(solicitudId: number, codigo: string, numeroGrupo = "A") {
+  return {
+    solicitudId,
+    asignaturaId: 100 + Number(codigo.replace(/\D/g, "")),
+    codigo,
+    nombre: `Nombre ${codigo}`,
+    numeroGrupo,
+    docenteNombre: "Luis Mora",
+  };
+}
+
+function listDecision(
+  solicitudId: number,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    solicitudId,
+    motivoCodigo: null,
+    texto: "Texto de la decision.",
+    ...overrides,
+  };
+}
+
 describe("listOwnRequests (RF-07 c, RNF-01)", () => {
   beforeEach(() => {
     holder.current = null;
   });
 
-  it("returns the rows of the owner, as the query gave them", async () => {
+  it("returns the rows of the owner with their subjects and decision, as the query gave them", async () => {
     const newer = { ...listRow, id: 8, estado: "pendiente" };
-    use([{ kind: "select", rows: [newer, listRow] }]);
+    use([
+      { kind: "select", rows: [newer, listRow] },
+      {
+        kind: "select",
+        rows: [
+          listClass(7, "FIS201"),
+          listClass(8, "MAT101"),
+          listClass(8, "QUI110"),
+        ],
+      },
+      {
+        kind: "select",
+        rows: [
+          listDecision(7, {
+            motivoCodigo: "documento_ilegible",
+            texto: "Adjunte una copia legible.",
+          }),
+        ],
+      },
+    ]);
 
-    expect(await listOwnRequests(USER)).toEqual([newer, listRow]);
+    expect(await listOwnRequests(USER)).toEqual([
+      {
+        ...newer,
+        asignaturas: [
+          { codigo: "MAT101", nombre: "Nombre MAT101" },
+          { codigo: "QUI110", nombre: "Nombre QUI110" },
+        ],
+        decision: null,
+      },
+      {
+        ...listRow,
+        asignaturas: [{ codigo: "FIS201", nombre: "Nombre FIS201" }],
+        decision: {
+          motivoCodigo: "documento_ilegible",
+          texto: "Adjunte una copia legible.",
+        },
+      },
+    ]);
   });
 
   it("selects only the owner's rows in the visible states, never a draft", async () => {
-    const double = use([{ kind: "select", rows: [listRow] }]);
+    const double = use([
+      { kind: "select", rows: [listRow] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
 
     await listOwnRequests(USER);
 
@@ -80,7 +143,11 @@ describe("listOwnRequests (RF-07 c, RNF-01)", () => {
   });
 
   it("orders newest presentation first, then newest id", async () => {
-    const double = use([{ kind: "select", rows: [listRow] }]);
+    const double = use([
+      { kind: "select", rows: [listRow] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
 
     await listOwnRequests(USER);
 
@@ -89,11 +156,297 @@ describe("listOwnRequests (RF-07 c, RNF-01)", () => {
     ).toBe('"Solicitud"."PresentadaEn" desc, "Solicitud"."Id" desc');
   });
 
-  it("is empty for a student with no presented request, and only reads", async () => {
+  it("is empty for a student with no presented request, and only reads once", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
     expect(await listOwnRequests(USER)).toEqual([]);
     expect(double.log.map((s) => s.kind)).toEqual(["select"]);
+  });
+
+  it.each([1, 2, 5])(
+    "issues exactly three selects for %i rows: the rows, the classes and the decisions",
+    async (count) => {
+      const rows = Array.from({ length: count }, (_, i) => ({
+        ...listRow,
+        id: 20 + i,
+      }));
+      const double = use([
+        { kind: "select", rows },
+        { kind: "select", rows: rows.map((r) => listClass(r.id, "MAT101")) },
+        { kind: "select", rows: [] },
+      ]);
+
+      await listOwnRequests(USER);
+
+      expect(double.log.map((s) => s.kind)).toEqual([
+        "select",
+        "select",
+        "select",
+      ]);
+      expect(double.exhausted).toBe(true);
+    },
+  );
+
+  it("reads the classes and the decisions only for the ids of the owner's rows", async () => {
+    const other = { ...listRow, id: 9, estado: "rechazada" };
+    const double = use([
+      { kind: "select", rows: [listRow, other] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
+
+    await listOwnRequests(USER);
+
+    const classes = render(double.log[1].where);
+    expect(classes.sql).toContain('"SolicitudAsignatura"."SolicitudId" in (');
+    expect(classes.params).toEqual([7, 9]);
+    const decisions = render(double.log[2].where);
+    expect(decisions.sql).toContain('"SolicitudDecision"."SolicitudId" in (');
+    expect(decisions.params).toEqual([7, 9]);
+  });
+
+  it("attaches the subjects to each request in the order of listRequestClasses", async () => {
+    const second = { ...listRow, id: 8 };
+    use([
+      { kind: "select", rows: [second, listRow] },
+      {
+        kind: "select",
+        rows: [
+          listClass(7, "BIO100"),
+          listClass(7, "MAT101", "A"),
+          listClass(7, "MAT101", "B"),
+          listClass(8, "ZOO300"),
+        ],
+      },
+      { kind: "select", rows: [] },
+    ]);
+
+    const [first, last] = await listOwnRequests(USER);
+
+    expect(first.asignaturas.map((a) => a.codigo)).toEqual(["ZOO300"]);
+    expect(last.asignaturas.map((a) => a.codigo)).toEqual([
+      "BIO100",
+      "MAT101",
+      "MAT101",
+    ]);
+  });
+
+  it("gives a request without class rows an empty subject list", async () => {
+    use([
+      { kind: "select", rows: [listRow] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
+
+    const [row] = await listOwnRequests(USER);
+
+    expect(row.asignaturas).toEqual([]);
+  });
+
+  it("orders the decisions by time, then id, and keeps the latest one of each request", async () => {
+    const double = use([
+      { kind: "select", rows: [listRow] },
+      { kind: "select", rows: [] },
+      {
+        kind: "select",
+        rows: [
+          listDecision(7, {
+            motivoCodigo: "fecha_incorrecta",
+            texto: "Primera devolucion",
+          }),
+          listDecision(7, {
+            motivoCodigo: "documento_ilegible",
+            texto: "Ultima devolucion",
+          }),
+        ],
+      },
+    ]);
+
+    const [row] = await listOwnRequests(USER);
+
+    expect(
+      render(sql.join(double.log[2].orderBy as never[], sql`, `)).sql,
+    ).toBe(
+      '"SolicitudDecision"."DecididaEn" asc, "SolicitudDecision"."Id" asc',
+    );
+    expect(row.decision).toEqual({
+      motivoCodigo: "documento_ilegible",
+      texto: "Ultima devolucion",
+    });
+  });
+
+  it("gives a returned request its reason code and its text", async () => {
+    use([
+      { kind: "select", rows: [listRow] },
+      { kind: "select", rows: [] },
+      {
+        kind: "select",
+        rows: [
+          listDecision(7, {
+            motivoCodigo: "fecha_alterada",
+            texto: "La fecha esta alterada.",
+          }),
+        ],
+      },
+    ]);
+
+    const [row] = await listOwnRequests(USER);
+
+    expect(row.decision).toEqual({
+      motivoCodigo: "fecha_alterada",
+      texto: "La fecha esta alterada.",
+    });
+  });
+
+  it.each([
+    ["a 200-character text", "x".repeat(200), `${"x".repeat(140)}…`],
+    ["a 60-character text", "y".repeat(60), "y".repeat(60)],
+    ["no text", null, null],
+    ["a blank text", "   ", null],
+  ])(
+    "cuts the text of a rejected request on the server: %s",
+    async (_name, texto, expected) => {
+      use([
+        { kind: "select", rows: [{ ...listRow, estado: "rechazada" }] },
+        { kind: "select", rows: [] },
+        { kind: "select", rows: [listDecision(7, { texto })] },
+      ]);
+
+      const [row] = await listOwnRequests(USER);
+
+      expect(row.decision).toEqual({ motivoCodigo: null, texto: expected });
+    },
+  );
+
+  it("never lets the complete text of a long decision leave the reader", async () => {
+    const full = `${"z".repeat(300)} FINAL`;
+    use([
+      { kind: "select", rows: [{ ...listRow, estado: "rechazada" }] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [listDecision(7, { texto: full })] },
+    ]);
+
+    const rows = await listOwnRequests(USER);
+
+    expect(JSON.stringify(rows)).not.toContain("FINAL");
+    expect(JSON.stringify(rows)).not.toContain("z".repeat(141));
+  });
+
+  it("keeps the reason code only for a returned request, never for a rejected one", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [{ ...listRow, id: 9, estado: "rechazada" }, listRow],
+      },
+      { kind: "select", rows: [] },
+      {
+        kind: "select",
+        rows: [
+          listDecision(9, { motivoCodigo: "documento_ilegible" }),
+          listDecision(7, { motivoCodigo: "documento_ilegible" }),
+        ],
+      },
+    ]);
+
+    const [rejected, returned] = await listOwnRequests(USER);
+
+    expect(rejected.decision?.motivoCodigo).toBeNull();
+    expect(returned.decision?.motivoCodigo).toBe("documento_ilegible");
+  });
+
+  // Owner decision 2026-11-20 (FE-15): the approval text is template
+  // boilerplate, so an approved card carries no decision at all.
+  it.each([["Su solicitud fue aprobada."], [null]])(
+    "gives an approved request no decision, whatever its text (%j)",
+    async (texto) => {
+      use([
+        {
+          kind: "select",
+          rows: [
+            { ...listRow, estado: "aprobada" },
+            { ...listRow, id: 6 },
+          ],
+        },
+        { kind: "select", rows: [] },
+        // The stray row of request 7 must be ignored: it is approved.
+        { kind: "select", rows: [listDecision(6), listDecision(7, { texto })] },
+      ]);
+
+      const rows = await listOwnRequests(USER);
+
+      expect(rows[0].decision).toBeNull();
+      expect(JSON.stringify(rows[0])).not.toContain("aprobada.");
+    },
+  );
+
+  it("never reads the decisions of an approved request", async () => {
+    const double = use([
+      {
+        kind: "select",
+        rows: [
+          { ...listRow, id: 7, estado: "aprobada" },
+          { ...listRow, id: 8, estado: "devuelta" },
+          { ...listRow, id: 9, estado: "rechazada" },
+        ],
+      },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
+
+    await listOwnRequests(USER);
+
+    expect(render(double.log[2].where).params).toEqual([8, 9]);
+  });
+
+  it.each(["pendiente", "en_revision_coordinacion"])(
+    "gives a %s request no decision, even one corrected and resubmitted after a return",
+    async (estado) => {
+      // The earlier return still sits in the table, but the request is open
+      // again, so the reader issues no decisions select for it.
+      const double = use([
+        { kind: "select", rows: [{ ...listRow, estado }] },
+        { kind: "select", rows: [] },
+      ]);
+
+      const [row] = await listOwnRequests(USER);
+
+      expect(row.decision).toBeNull();
+      expect(double.log).toHaveLength(2);
+    },
+  );
+
+  it("skips the decisions select when no request is returned or rejected", async () => {
+    const double = use([
+      {
+        kind: "select",
+        rows: [
+          { ...listRow, id: 7, estado: "pendiente" },
+          { ...listRow, id: 8, estado: "aprobada" },
+          { ...listRow, id: 9, estado: "en_revision_coordinacion" },
+        ],
+      },
+      { kind: "select", rows: [] },
+    ]);
+
+    const rows = await listOwnRequests(USER);
+
+    expect(double.log).toHaveLength(2);
+    expect(double.exhausted).toBe(true);
+    expect(rows.map((r) => r.decision)).toEqual([null, null, null]);
+  });
+
+  it("reads only: no write and no audit row", async () => {
+    const double = use([
+      { kind: "select", rows: [listRow] },
+      { kind: "select", rows: [] },
+      { kind: "select", rows: [] },
+    ]);
+
+    await listOwnRequests(USER);
+
+    expect(new Set(double.log.map((s) => s.kind))).toEqual(new Set(["select"]));
+    expect(double.log.map((s) => s.table)).not.toContain(escalamiento);
+    expect(double.log.map((s) => s.table)).not.toContain(reporteInasistencia);
   });
 });
 
