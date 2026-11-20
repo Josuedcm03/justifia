@@ -852,7 +852,6 @@ describe("review manual document data messages (manual-document-data, MD-25, RNF
   // catalogs fails here even though the two would still be equal.
   const FORM_KEYS = [
     "manualBadge",
-    "states.notExtracted",
     "marks.type",
     "marks.signature",
     "marks.seal",

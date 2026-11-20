@@ -1406,8 +1406,7 @@
       "states": {
         "extracting": "Extrayendo datos. Vuelva a cargar esta página más tarde.",
         "unavailable": "Datos no disponibles. Revise el documento directamente.",
-        "notConfigured": "Hace falta configurar el servicio de extracción. Contacte al administrador del sistema.",
-        "notExtracted": "Este documento no tiene datos extraídos."
+        "notConfigured": "Hace falta configurar el servicio de extracción. Contacte al administrador del sistema."
       },
       "manualBadge": "Ingresado manualmente",
       "marks": {

@@ -75,6 +75,9 @@ vi.mock("@/lib/extraction/configured", () => ({
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),
 }));
+vi.mock("@/app/(dashboard)/review/[id]/document-data-actions", () => ({
+  saveDocumentDataAction: vi.fn(),
+}));
 vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
   decideAction: vi.fn(),
 }));
@@ -1457,6 +1460,9 @@ function extractions(
       documentoId: 31 + i,
       nombreOriginal: i === 0 ? "constancia.pdf" : `otro-${i}.pdf`,
       row,
+      ocr: row,
+      manual: null,
+      marks: { type: null, hasSignature: null, hasSeal: null },
     })),
   };
 }
@@ -1597,6 +1603,71 @@ describe("ReviewDetailPage extracted data (RF-11, RN-02, RNF-06)", () => {
   });
 });
 
+describe("ReviewDetailPage manual data form (RF-14, MD-23, MD-26)", () => {
+  const form = messages.en.review.extraction.form;
+  const open = () =>
+    within(extractionRegion()).queryAllByRole("button", { name: form.open });
+
+  it("offers one form per document on a pendiente request, for the request that was opened", async () => {
+    extractionsMock.mockResolvedValue(
+      extractions(COMPLETED_ROW, { state: "pendiente" }),
+    );
+
+    await renderPage();
+
+    expect(open()).toHaveLength(2);
+    const user = userEvent.setup();
+    await user.click(open()[1]);
+    const opened = await within(extractionRegion()).findByRole("form");
+    expect(
+      (opened.querySelector('input[name="solicitudId"]') as HTMLInputElement)
+        .value,
+    ).toBe("12");
+    expect(
+      (opened.querySelector('input[name="documentoId"]') as HTMLInputElement)
+        .value,
+    ).toBe("32");
+  });
+
+  it.each(["aprobada", "rechazada", "devuelta", "en_revision_coordinacion"])(
+    "offers no form on a %s request, and still shows the values",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+      extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+      await renderPage();
+
+      expect(open()).toHaveLength(0);
+      expect(extractionRegion()).toHaveTextContent("Clinica Central");
+      expect(within(extractionRegion()).queryAllByRole("textbox")).toHaveLength(
+        0,
+      );
+    },
+  );
+
+  it("offers the form while extraction is not configured (RF-14 c)", async () => {
+    configuredMock.mockReturnValue(false);
+    extractionsMock.mockResolvedValue(extractions(null));
+
+    await renderPage();
+
+    expect(open()).toHaveLength(1);
+    expect(
+      within(extractionRegion()).getAllByText(
+        messages.en.review.extraction.states.notConfigured,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("offers no form when the extraction read is degraded", async () => {
+    extractionsMock.mockResolvedValue({ data: [], degraded: true });
+
+    await renderPage();
+
+    expect(open()).toHaveLength(0);
+  });
+});
+
 describe("extracted data access (RNF-01)", () => {
   async function source(path: string) {
     const { readFileSync } = await import("node:fs");
@@ -1622,6 +1693,22 @@ describe("extracted data access (RNF-01)", () => {
     for (const file of files) {
       expect(await source(file), file).not.toMatch(
         /listExtractions|extraction-section|lib\/data\/extraction|lib\/extraction/,
+      );
+    }
+  });
+
+  it("gives the student side no manual value, mark, type, form or action (MD-7)", async () => {
+    const { readdirSync } = await import("node:fs");
+    const dir = "src/app/(dashboard)/requests";
+    const files = readdirSync(dir, { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile() && /\.(ts|tsx)$/.test(e.name))
+      .filter((e) => !/\.test\.(ts|tsx)$/.test(e.name))
+      .map((e) => `${e.parentPath}/${e.name}`);
+
+    expect(files.length).toBeGreaterThan(5);
+    for (const file of files) {
+      expect(await source(file), file).not.toMatch(
+        /document-data|DocumentData|documentoDatoManual|tipoDocumento|tieneFirma|tieneSello|hasSignature|hasSeal/,
       );
     }
   });
