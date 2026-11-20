@@ -29,6 +29,7 @@ const ROW: ReviewQueueTableRow = {
   deadlineStatus: "por_vencer",
   deadlineLabel: "Due soon",
   dueOnText: "Due Oct 12, 2026",
+  firstDueLabel: null,
   reviewLabel: "Review",
   reviewAriaLabel: "Review request from Ana Lopez",
 };
@@ -149,11 +150,39 @@ describe("ReviewQueueTable (bounded kit, RF-06)", () => {
         "deadlineStatus",
         "deadlineLabel",
         "dueOnText",
+        "firstDueLabel",
         "reviewLabel",
         "reviewAriaLabel",
       ].sort(),
     );
     expect(JSON.stringify(ROW)).not.toMatch(/causa|motivo|clockStart/i);
+  });
+
+  it("renders the first-due mark in the deadline cell and in the accessible name of the row (FE-2)", () => {
+    show([
+      { ...ROW, firstDueLabel: "Due first" },
+      { ...ROW, id: 13, name: "Luis Mora" },
+    ]);
+
+    const rows = screen.getAllByRole("row").slice(1);
+    const cells = within(rows[0]).getAllByRole("cell");
+    expect(within(cells[4]).getByText("Due first")).toHaveClass(
+      "rounded-full",
+      "bg-muted",
+      "text-foreground",
+    );
+    expect(cells[4]).toHaveTextContent("Due soon");
+    expect(cells[4]).toHaveTextContent("Due Oct 12, 2026");
+    expect(screen.getAllByRole("row", { name: /Due first/ })).toEqual([
+      rows[0],
+    ]);
+  });
+
+  it("renders no first-due mark when the label is null (FE-2)", () => {
+    show([ROW]);
+
+    expect(screen.queryByText("Due first")).toBeNull();
+    expect(screen.queryByRole("row", { name: /Due first/ })).toBeNull();
   });
 
   it("renders nothing for zero rows", () => {

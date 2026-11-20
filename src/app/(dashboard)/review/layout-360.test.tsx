@@ -24,6 +24,7 @@ import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { ApprovedTab } from "@/app/(dashboard)/review/approved-tab";
 import { CoordinationTab } from "@/app/(dashboard)/review/coordination-tab";
+import { FirstDueBadge } from "@/app/(dashboard)/review/deadline-badge";
 import { ReviewTabs } from "@/app/(dashboard)/review/review-tabs";
 
 const VIEWPORT = 360;
@@ -128,6 +129,16 @@ describe.each([
     () => <EscalationSection escalations={[ESCALATION]} />,
   ],
   ["the answer banner", () => <AnswerBanner answer={ANSWER} />],
+  [
+    "the first-due mark in a queue card",
+    () => (
+      <ul>
+        <li>
+          <FirstDueBadge label="Vence primero" />
+        </li>
+      </ul>
+    ),
+  ],
   [
     "the absence reports section",
     () => (

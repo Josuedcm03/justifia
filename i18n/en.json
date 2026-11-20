@@ -1065,8 +1065,9 @@
   "review": {
     "queue": {
       "title": "Review queue",
-      "description": "Pending requests from your faculty, oldest first.",
+      "description": "Pending requests of your faculty, ordered by deadline: the one due first comes first.",
       "caption": "Pending requests",
+      "firstDue": "Due first",
       "tabs": {
         "label": "Request status",
         "pendiente": "Pending",

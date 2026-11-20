@@ -3,7 +3,10 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import { ApprovedTab } from "@/app/(dashboard)/review/approved-tab";
 import { CoordinationTab } from "@/app/(dashboard)/review/coordination-tab";
-import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
+import {
+  DeadlineBadge,
+  FirstDueBadge,
+} from "@/app/(dashboard)/review/deadline-badge";
 import {
   BUSINESS_TIME_ZONE,
   QueueCard,
@@ -149,6 +152,9 @@ export default async function ReviewQueuePage({
   // The search applies to the pending tab only; the audit counts the whole queue.
   const q = parseQ(rawQ, SEARCH_MAX);
   const visibleRows = filterQueueRows(queue.rows, q);
+  // The first request of the whole queue, found before the search narrows the
+  // list: a search that hides it leaves no mark on the rows it does show (FE-2).
+  const firstDueId = queue.rows[0]?.id ?? null;
 
   const received = (row: QueueRow) =>
     format.dateTime(row.clockStart, {
@@ -185,12 +191,18 @@ export default async function ReviewQueuePage({
       {t("review")}
     </Link>
   );
-  const deadline = (row: QueueRow) => (
-    <div className="flex flex-col gap-1">
-      <DeadlineBadge status={row.status} label={deadlineLabel(row)} />
-      <span className="text-muted-foreground text-xs">{dueOn(row)}</span>
-    </div>
-  );
+  const firstDue = (row: QueueRow) =>
+    row.id === firstDueId ? t("firstDue") : null;
+  const deadline = (row: QueueRow) => {
+    const firstDueLabel = firstDue(row);
+    return (
+      <div className="flex flex-col gap-1">
+        <DeadlineBadge status={row.status} label={deadlineLabel(row)} />
+        <span className="text-muted-foreground text-xs">{dueOn(row)}</span>
+        {firstDueLabel ? <FirstDueBadge label={firstDueLabel} /> : null}
+      </div>
+    );
+  };
 
   // The desktop table is a client module: it receives plain display values,
   // picked field by field, never the data-layer row and never a function.
@@ -205,6 +217,7 @@ export default async function ReviewQueuePage({
     deadlineStatus: row.status,
     deadlineLabel: deadlineLabel(row),
     dueOnText: dueOn(row),
+    firstDueLabel: firstDue(row),
     reviewLabel: t("review"),
     reviewAriaLabel: t("reviewNamed", { name: name(row) }),
   }));

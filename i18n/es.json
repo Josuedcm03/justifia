@@ -1065,8 +1065,9 @@
   "review": {
     "queue": {
       "title": "Cola de revisión",
-      "description": "Solicitudes pendientes de su facultad, de la más antigua a la más reciente.",
+      "description": "Solicitudes pendientes de su facultad, ordenadas por vencimiento del plazo: primero la que vence antes.",
       "caption": "Solicitudes pendientes",
+      "firstDue": "Vence primero",
       "tabs": {
         "label": "Estado de las solicitudes",
         "pendiente": "Pendientes",

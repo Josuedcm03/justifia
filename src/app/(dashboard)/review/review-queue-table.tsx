@@ -4,7 +4,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
-import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
+import {
+  DeadlineBadge,
+  FirstDueBadge,
+} from "@/app/(dashboard)/review/deadline-badge";
 import {
   actionColumn,
   studentColumns,
@@ -26,6 +29,8 @@ export type ReviewQueueTableRow = QueueRowBase & {
   deadlineStatus: DeadlineStatus;
   deadlineLabel: string;
   dueOnText: string;
+  /** "Due first" for the first request of the whole queue, else `null`. */
+  firstDueLabel: string | null;
 };
 
 /**
@@ -80,6 +85,9 @@ export function ReviewQueueTable({
             <span className="text-muted-foreground text-xs">
               {row.original.dueOnText}
             </span>
+            {row.original.firstDueLabel ? (
+              <FirstDueBadge label={row.original.firstDueLabel} />
+            ) : null}
           </div>
         ),
       },
