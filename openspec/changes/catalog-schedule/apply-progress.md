@@ -80,3 +80,62 @@ Stop rule applies. The measurement was taken at task 1.10, after the three commi
 ### Remaining tasks
 
 Phase 1.10 (open the PR(s) after the cut decision) and Phases 2-17 (S1b-1 onward).
+
+## Batch 2: S1b-1 audited read plumbing (tasks 2.1-2.8)
+
+Branch `feat/catalog-schedule-s1b1-audit-reads`, created from `feat/catalog-schedule-s1a2-list-params`. Date: 2026-11-19. Single commit `367d79e` `feat(audit): add the audited read of the inscripciones list`.
+
+### Completed tasks
+
+- [x] 2.1 branch
+- [x] 2.2 RED, 2.3 GREEN: `AUDIT_ACTIONS` gains `inscripcion.lista.consultada` and `inscripcion.estudiantes.consultada`; payload type `InscripcionReadPayload`
+- [x] 2.4 RED, 2.5 GREEN: `inscripcionListaConsultadaEvent`, `inscripcionEstudiantesConsultadaEvent`
+- [x] 2.6 RED, 2.7 GREEN: `recordEnrollmentListRead`
+- [x] 2.8 gates and measure done; PR NOT opened (parent owns PRs)
+
+Nothing from Phase 3 or later was started. `recordEnrollmentStudentSearch` stays in S3a-1 (task 11.6).
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 2.2/2.3 | `src/lib/audit/types.test.ts` | Unit | 3 files, 136 tests green before (audit + request-reads) | Expected-set test and 2 new tests failed (two actions missing) | pass | exact sorted set with the two new codes; write set filter equals the three `creada/reactivada/desactivada`; read set equals the two new codes in order; `slice(0, 3)` pin untouched | Clean |
+| 2.4/2.5 | `src/lib/audit/events.test.ts` | Unit | existing tests green | 8 new tests failed (builders undefined) | pass | 2 builders x (entity `Facultad` and `entidadId`, exact payload keys with booleans, smuggled search text, student id, name, CIF, group id, request count and string filters leave no trace and filters coerce to `false`, no email or credential key) | Shared private `inscripcionReadPayload` rebuilds the payload key by key; `=== true` keeps a string out of the booleans |
+| 2.6/2.7 | `src/lib/data/request-reads.test.ts` | Unit (`createDbDouble`, mocked `insertAuditEvents`, `cache` fake) | existing tests green; cache-count pin moved 3 -> 4 | 5 new tests failed (`recordEnrollmentListRead is not a function`) | pass | one transaction, staff actor, entity `Facultad`; payload keys; same args twice -> 1 write, other facultad or actor -> writes again; failing insert rejects | Clean |
+
+Totals: 3 test files touched, 151 tests passing in the focused run (15 new: 3 + 8 + 4, plus the cache-count assertion changed). Layers: unit only.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/audit src/lib/data/request-reads.test.ts` -> 4 files, 151 tests passed (RED run before the code: 3 files failed, 15 tests failed) |
+| Runtime harness | N/A: DB double; nothing calls `recordEnrollmentListRead` until S1c-2 |
+| Rollback boundary | Revert `367d79e` (additive; no existing builder or action changed) |
+
+### Gates G (2026-11-19)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest | 151/151 |
+| `npm test` (full suite) | 357 files, 8525 passed (8511 + 14 new) |
+| `npm run build` (dummy `DATABASE_URL`, dummy 32-char `AUTH_SECRET`) | OK |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files | clean (prettier reformatted `types.ts` and `events.test.ts`, which were then committed) |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1a2-list-params...HEAD -- . ':!openspec' ':!.engram'` -> 6 files changed, 295 insertions, 2 deletions = **297 changed lines** (forecast ~210; 1.4x). Under the 400 budget; single commit, no cut needed.
+
+### Decisions and notes for later slices
+
+1. Both builders share one payload type `InscripcionReadPayload` exported from `src/lib/audit/types.ts` (task 2.3 names a single payload shape), and a private `inscripcionReadPayload` helper rebuilds it. For the student search (S3a-1) `periodo`, `status`, `page` and `total` still apply: the assign page passes the period and status it used and the page of results.
+2. `recordEnrollmentListRead(actorId, facultadId, payload)` takes the payload as an object. `react` `cache()` dedupes by reference for objects, so the page (S1c-2) builds the payload once per render. Because the page calls it once, the dedupe is only a guard.
+3. The payload `filters` are rebuilt with `=== true`: a string passed through a cast becomes `false`, never a leak.
+4. `src/lib/audit/types.ts` now imports the type `InscripcionStatusFilter` from `@/lib/catalog/types` (type-only; no cycle at runtime).
+5. No design change needed.
+
+### Remaining tasks
+
+Phases 3-17 (S1b-2 onward). PR for S1b-1 to be opened by the parent against `feat/catalog-schedule-s1a2-list-params`.

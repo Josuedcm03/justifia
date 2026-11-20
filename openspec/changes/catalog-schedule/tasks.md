@@ -87,14 +87,15 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 2: S1b-1 audited read plumbing (CS-6b, D10)
 
-- [ ] 2.1 Branch `feat/catalog-schedule-s1b1-audit-reads` from S1a.
-- [ ] 2.2 RED `src/lib/audit/types.test.ts`: `AUDIT_ACTIONS` gains exactly `inscripcion.lista.consultada` and `inscripcion.estudiantes.consultada`; every existing pinned entry unchanged; no new entity type (`Facultad` already exists); the closed `inscripcion.*` write set is unchanged (audit-log "no write action added").
-- [ ] 2.3 GREEN `src/lib/audit/types.ts`: the two actions and the payload type `{ periodo, status, filters: { q, asignatura, grupo }, page, total }`. Verify: `npx vitest run src/lib/audit/types.test.ts`.
-- [ ] 2.4 RED `src/lib/audit/events.test.ts`: both builders return entity `Facultad`, `entidadId = facultadId`, `datos` exactly the payload keys with the three filters as booleans; serialized payload for search text "Pérez", a student id, name, CIF, a group id and a request count contains none of them (audit-log "List load writes one row without student data").
-- [ ] 2.5 GREEN `src/lib/audit/events.ts`: `inscripcionListaConsultadaEvent`, `inscripcionEstudiantesConsultadaEvent` (both land here so the closed set is pinned once; the search helper arrives in S3a-1). Verify: `npx vitest run src/lib/audit`.
-- [ ] 2.6 RED `src/lib/data/request-reads.test.ts`: `recordEnrollmentListRead(actorId, facultadId, payload)` opens one transaction and inserts exactly one list event with that actor; a failing insert rejects (not swallowed); `cache()` makes a second call with the same args a no-op (same shape as the `recordQueueRead` tests).
-- [ ] 2.7 GREEN `src/lib/data/request-reads.ts`: `recordEnrollmentListRead`. Verify: `npx vitest run src/lib/data/request-reads.test.ts`.
-- [ ] 2.8 Gates G + measure (~210). Open PR. Commit: `feat(audit): add the audited read of the inscripciones list`.
+- [x] 2.1 Branch `feat/catalog-schedule-s1b1-audit-reads` from S1a.
+- [x] 2.2 RED `src/lib/audit/types.test.ts`: `AUDIT_ACTIONS` gains exactly `inscripcion.lista.consultada` and `inscripcion.estudiantes.consultada`; every existing pinned entry unchanged; no new entity type (`Facultad` already exists); the closed `inscripcion.*` write set is unchanged (audit-log "no write action added").
+- [x] 2.3 GREEN `src/lib/audit/types.ts`: the two actions and the payload type `{ periodo, status, filters: { q, asignatura, grupo }, page, total }`. Verify: `npx vitest run src/lib/audit/types.test.ts`.
+- [x] 2.4 RED `src/lib/audit/events.test.ts`: both builders return entity `Facultad`, `entidadId = facultadId`, `datos` exactly the payload keys with the three filters as booleans; serialized payload for search text "Pérez", a student id, name, CIF, a group id and a request count contains none of them (audit-log "List load writes one row without student data").
+- [x] 2.5 GREEN `src/lib/audit/events.ts`: `inscripcionListaConsultadaEvent`, `inscripcionEstudiantesConsultadaEvent` (both land here so the closed set is pinned once; the search helper arrives in S3a-1). Verify: `npx vitest run src/lib/audit`.
+- [x] 2.6 RED `src/lib/data/request-reads.test.ts`: `recordEnrollmentListRead(actorId, facultadId, payload)` opens one transaction and inserts exactly one list event with that actor; a failing insert rejects (not swallowed); `cache()` makes a second call with the same args a no-op (same shape as the `recordQueueRead` tests).
+- [x] 2.7 GREEN `src/lib/data/request-reads.ts`: `recordEnrollmentListRead`. Verify: `npx vitest run src/lib/data/request-reads.test.ts`.
+- [x] 2.8 Gates G + measure (~210). Open PR is left to the parent. Commit: `feat(audit): add the audited read of the inscripciones list`.
+  - Apply result (2026-11-19): gates G green and measured, PR NOT opened. Commit `367d79e`, measured **297 authored lines** against base S1a-2 (295 added, 2 removed; forecast ~210, 1.4x). Focused 151/151, full suite 8525 passed, typecheck, eslint, prettier clean, build OK. See `apply-progress.md`.
 
 ## Phase 3: S1b-2 list read (CS-6, CS-7)
 
