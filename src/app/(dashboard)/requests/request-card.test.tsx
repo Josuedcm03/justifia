@@ -248,6 +248,11 @@ describe("RequestCard carries nothing but the student's own data (FE-14)", () =>
           nota: "SECRET NOTE",
           respuesta: "SECRET ANSWER",
         },
+        {
+          motivo: "otro",
+          nota: "SECRET DESCRIPTION",
+          respuesta: "SECRET ANSWER",
+        },
       ],
     } as OwnRequestListItem;
 
@@ -256,6 +261,8 @@ describe("RequestCard carries nothing but the student's own data (FE-14)", () =>
 
       expect(container.textContent).not.toMatch(REVEALING);
       expect(container.innerHTML).not.toContain("rn07");
+      expect(container.textContent).not.toMatch(/otro/i);
+      expect(container.textContent).not.toContain("SECRET DESCRIPTION");
       unmount();
     }
   });

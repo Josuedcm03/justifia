@@ -627,6 +627,26 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
       expect(rows[3]).toHaveTextContent(notice.pendienteFallido);
     });
 
+    it("shows the label of the motive otro in the reason column (FE-9)", async () => {
+      coordinationMock.mockResolvedValue({
+        rows: [coordinationRow({ id: 25, motivo: "otro" })],
+      });
+
+      await renderPage({ estado: "en_revision_coordinacion" });
+
+      const rows = within(screen.getByRole("table"))
+        .getAllByRole("row")
+        .slice(1);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toHaveTextContent(
+        messages.en.review.escalation.reasons.otro,
+      );
+      expect(messages.en.review.escalation.reasons.otro).toBe("Other");
+      expect(rows[0]).not.toHaveTextContent(
+        messages.en.review.escalation.reasons.sospecha_documento,
+      );
+    });
+
     it("marks no alert or overdue state and links each row to its detail without prefetch", async () => {
       await renderPage({ estado: "en_revision_coordinacion" });
 
