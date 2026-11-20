@@ -645,3 +645,20 @@ The new data and section files were staged before their mutations, so "git resto
 - **Thesis Anexo F (task 12.3).** The acceptance files can be cited per inciso: "src/lib/data/integration/rf-14-a.integration.test.ts" to "rf-14-d.integration.test.ts", next to "src/lib/signals/rf-05-e.test.ts" for RF-05 (e) and the captures "RF-14_a.png" to "RF-14_d.png" (Phase 10). The access matrix figure of 12.3 stays 64 entry points x 7 identities.
 - **Task 11.1.** When PR 98 merges, re-check `docs/requirements.md` line 153 (the "Pendientes" bullet about RF-14) on the tracker before the slice PRs merge; if PR 98 rewrote that list, redo the one-line edit on top of it. Then the note of task 12.4 can say whether a rebase was needed. This branch was not rebased onto PR 98 and holds only its one line.
 - **Coordinator experience (Phase 10, optional).** The block shows after the signals section of an open escalation; it reads «Sin registrar» until the secretary saves, which is every request until the marks are registered (D1).
+
+## Phase 9 (integration on "manual-it", owner yes 2026-11-19)
+
+- Commit: d0dfe3f (tip of "feat/manual-document-data-7-coordination-thesis"). Branch: "manual-it" (child of "dev-arnia"; never production, never "validacion-secretaria"). The run refused any URL on the production endpoint.
+- 9.1 (23:31 Managua, read-only): 16 migrations, DocumentoDatoManual present, cascade FK.
+- 9.2 (23:33): RF-14 acceptance suite, 4 files, 29/29 passed in 182.9 s.
+  - rf-14-a: round trip, RN-24 manual over OCR, clearing reverts, RN-14 manual issuer (MD-18), extraction row byte-equal, audit names only.
+  - rf-14-b: SC-08 (sello ausente, rn12 present), SC-14 (firma ausente, rn11 present), three mark states, firma and sello independent.
+  - rf-14-c: SC-12 (forced fallida, capture of rest 9 Nov vs absence 9-10 Nov makes rn10 evaluable and present), completada and pending variants, decision without extraction, data frozen after the decision.
+  - rf-14-d: SC-05 (rn13 present), SC-01, SC-11 b, the type and cause table, the strict rule across documents, RN-24 to the verdict.
+- 9.3 (23:36): retention suite 10/10 (manual data cascade).
+- 9.4 (23:37): signals suite 48/48.
+- Mutation checks (each applied temporarily, restored from a copy, then a green rerun):
+  - M1 (23:44) OCR value wins in toEffectiveRow: 1 failed, the RN-24 datum-by-datum case.
+  - M2 (23:47) no promotion to completada: 3 failed, SC-12, the pending-row A4 case and the full-cover RN-10 absent case.
+  - M3 (23:50) readIssuerHistory reads only the extracted issuer: 1 failed, the MD-18 manual issuer case.
+  - Green rerun (23:53): 29/29. Working tree clean under src afterwards.
