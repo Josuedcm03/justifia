@@ -70,6 +70,12 @@ The tracker is pushed ("git ls-remote" shows "refs/heads/feat/flow-experience" a
 
 Mode: Strict TDD. Date: 2026-11-20. Slice branch "feat/flow-experience-1-answer-banner" from the tracker tip 42f7c93 (task 1.0). Units 1 and 2 are on it; unit 3 is on "feat/flow-experience-1b-escalate-dialog-pointer", cut from it at the unit boundary because the slice went over the stop line (see "Checkpoint"). Nothing was pushed and PR 1 was NOT opened: the owner decides how the over-size slice ships (task 1.13 is open).
 
+### Owner decision on slice size (2026-11-20)
+
+Owner decision 2026-11-20: size exception for the whole flow-experience change; each slice is cut at its natural unit boundary into one or two PRs and its size recorded, without stopping.
+
+Result for S1: PRs 109 (1a, 554 lines) and 110 (1b, 440 lines) were opened 2026-11-20 under this exception (task 1.13). PR 109 targets the tracker "feat/flow-experience"; PR 110 targets "feat/flow-experience-1-answer-banner". The "Nothing was pushed" sentence above describes the state before that decision.
+
 ### Commits
 
 | Unit     | Hash    | Branch                        | Message                                                                                           |
@@ -172,3 +178,87 @@ English twins: "Coordination answer"; "Take this answer into account when you de
 - Tests are about 78 percent of S1 lines. The S2 forecast is about 100 lines; expect 250 to 350. Plan one commit and check the stop line at the checkpoint.
 - The design-system test scans every production module of the review directory for spacing steps, raw colours and fixed widths, so a new module such as `src/app/(dashboard)/review/deadline-badge.tsx` is checked automatically.
 - Tooling: shell commands that carry a backslash lose it in this environment, so write patch scripts as files and use the Edit tool for regular expressions. A catalog insert helper exists in the scratchpad ("i18n-set.cjs"). Run "npx prettier --write" on a test file before the gates to avoid one-line prettier errors.
+
+## Phase 2 (PR 2): S2 RF-06, "Vence primero" and the deadline-order description
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-2-first-due", cut from the tip of "feat/flow-experience-1b-escalate-dialog-pointer" (19b98f3, all of S1). One work unit (unit 4), one code commit. Size exception per the owner decision of 2026-11-20 (see Phase 1).
+
+### Commits
+
+| Unit | Hash    | Message                                                            |
+| ---- | ------- | ------------------------------------------------------------------ |
+| 4    | 37ca062 | feat(review): state the queue order and mark the request due first |
+| docs | (tip)   | docs(flow-experience): record the Phase 2 apply progress           |
+
+### TDD cycle evidence
+
+| Task        | Test file                                                                                             | Layer            | Safety net                                           | RED                                                                                                                                                                                                                  | GREEN                                                                       | Triangulation                                                                                                                                                                                                                                                                                             | Refactor    |
+| ----------- | ----------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 2.1 and 2.2 | `src/app/(dashboard)/review/page.test.tsx`                                                            | Component (page) | Existing cases of the file passing before the change | 10 of the 21 RED failures: description en and es, mark on row 1 (table and cards), accessible name, overdue and due-soon next to it, ids 4 and 7, position, Spanish, term matching row 1, term matching several rows | Review directory, review-messages and revision-queue: 31 files, 1089 passed | Description en and es and the other two tabs; one mark per layout; accessible name; overdue next to it; equal deadlines (ids 4 and 7); queue position beats presentation date; Spanish; search hides row 1, matches row 1, matches several rows, matches none; empty queue; two other tabs; one audit row | None needed |
+| 2.1 and 2.2 | `src/app/(dashboard)/review/review-queue-table.test.tsx`                                              | Component        | Existing cases passing                               | 1 case failed first (the mark in the deadline cell and in the row name); the null case passes at write                                                                                                               | Pass                                                                        | Mark present in cell 5, in the name of its row only; null label renders nothing; the row keys list gains "firstDueLabel"                                                                                                                                                                                  | None needed |
+| 2.1 and 2.2 | `src/app/(dashboard)/review/design-system.test.tsx`, `src/app/(dashboard)/review/layout-360.test.tsx` | Component        | Existing suites green                                | 2 design-system and 3 layout-360 cases failed first (export missing)                                                                                                                                                 | Pass                                                                        | Neutral pill classes, no warning or alarm tint, told apart from the on-time state by weight and ink, no width above 360 px, axe es and en inside a card list                                                                                                                                              | None needed |
+| 2.1 and 2.2 | `src/i18n/review-messages.test.ts`                                                                    | Unit             | Existing cases passing                               | 5 cases failed first (description es and en, no age wording es and en, mark)                                                                                                                                         | Pass                                                                        | Exact copy es and en; the other two tab descriptions pinned unchanged                                                                                                                                                                                                                                     | None needed |
+| 2.3         | `src/lib/data/revision-queue.test.ts` (read-only)                                                     | Unit             | N/A                                                  | Pass at write (4.9:20 order tests, no edit)                                                                                                                                                                          | 28 passed                                                                   | Three-way effective start then id; paused days move the deadline; the order the database returned is kept                                                                                                                                                                                                 | N/A         |
+
+### Mutation checks (revert-only; every file was restored from a byte-identical backup copy and confirmed with "cmp", because the GREEN was not committed yet)
+
+| Pass-at-write test                                                                                                                          | Temporary edit                                                                                                         | Result                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| page "shows no mark and does not move it when the term hides row 1"                                                                         | In `src/app/(dashboard)/review/page.tsx`: firstDueId from visibleRows[0] instead of queue.rows[0]                      | Failed, with 7 other cases that depend on row 1 |
+| review-queue-table "renders no first-due mark when the label is null"                                                                       | In `src/app/(dashboard)/review/review-queue-table.tsx`: always render the badge, label falling back to the text        | Failed                                          |
+| review-messages and page "keeps the descriptions of the other two tabs"                                                                     | In `i18n/en.json`: change the coordination description                                                                 | Both failed                                     |
+| page "is absent from an empty queue", "is absent from the En coordinacion and Aprobadas tabs", "writes one queue-read row ... search hides" | In `src/app/(dashboard)/review/page.tsx`: a badge in the other-tab branch and in the empty branch, a second audit call | 8 failed, including those three                 |
+| page "shows no mark when nothing matches"                                                                                                   | In `src/app/(dashboard)/review/page.tsx`: a badge beside the no-results state                                          | Failed                                          |
+
+### Checkpoint (task 2.5): measured size
+
+Measure: the diff of the unit against its base (the tip of "-1b-escalate-dialog-pointer"), excluding "openspec/" and ".engram/".
+
+| Scope                                                                           | Changed lines |
+| ------------------------------------------------------------------------------- | ------------- |
+| Production code (badge 14, page 27, table 10, two catalogs 6)                   | 57            |
+| Tests (page 286, table 29, design-system 42, layout-360 11, review-messages 46) | 414           |
+| All of S2 (460 added, 11 deleted)                                               | 471           |
+
+The design forecast was about 100; the slice is 4.7 times that. It is 11 lines over the 460 stop line, which is "about 460". It is not cut: the planned cut list has no boundary inside PR 2, the only seam is FE-1 (the description, about 70 lines of copy and tests) against FE-2 (the mark), both share the same test files and the same commit, and a 70-line PR 2a would only add a stacked branch. Tests are 88 percent of the lines and were not trimmed. Size exception per the owner decision of 2026-11-20.
+
+### Work unit evidence
+
+| Evidence                              | Value                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused test command and exact result | "$env:DATABASE_URL='postgres://u:p@127.0.0.1:9/x'; npm test -- src/app/(dashboard)/review src/i18n/review-messages src/lib/data/revision-queue": 31 files, 1089 tests, all passed                                                                                                                      |
+| Runtime harness                       | N/A in this run: the owner-run check on "flow-it" with the seeded queue (task 12.6) is not part of Phase 2, and no database or Neon command was run                                                                                                                                                    |
+| Rollback boundary                     | Revert the PR: `src/app/(dashboard)/review/deadline-badge.tsx` loses FirstDueBadge, `src/app/(dashboard)/review/page.tsx` and `src/app/(dashboard)/review/review-queue-table.tsx` lose the mark, and the Pendientes description returns. Copy and marker only; no data, no schema, no audit event type |
+
+### Gates (task 2.6), tip of "-2-first-due", dummy DB
+
+- Full "npm test": 368 files, 9016 tests, all passed, 248.0 s vitest duration (4 m 10 s wall). Phase 1 was 368 files and 8987 tests; S2 adds 29 tests and no file.
+- "npm run typecheck": exit 0.
+- "npx eslint src": apart from the known CRLF "Delete" prettier noise (145879 lines; the working tree is CRLF outside the touched files), the only findings are the same three in files S2 does not touch: the unused `SidebarGroupLabel` warning in `src/components/app-sidebar.tsx` and two prettier quote errors in `src/test/access/inventory.ts`. "npx eslint" on the S2 files alone is clean, and "npx prettier --check" passes on every touched file and on both catalogs.
+- "npm test -- src/i18n": 9 files, 421 tests, all passed.
+
+### Files (all LF in the working tree; the index was already LF)
+
+| File                                                                                                                                                                                                                                            | Action                                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `src/app/(dashboard)/review/deadline-badge.tsx`                                                                                                                                                                                                 | Modified: FirstDueBadge (neutral pill, no hooks)                                     |
+| `src/app/(dashboard)/review/page.tsx`                                                                                                                                                                                                           | Modified: firstDueId before the search, badge in the card deadline, label to the row |
+| `src/app/(dashboard)/review/review-queue-table.tsx`                                                                                                                                                                                             | Modified: row field firstDueLabel, rendered in the deadline cell                     |
+| `src/app/(dashboard)/review/page.test.tsx`, `src/app/(dashboard)/review/review-queue-table.test.tsx`, `src/app/(dashboard)/review/design-system.test.tsx`, `src/app/(dashboard)/review/layout-360.test.tsx`, `src/i18n/review-messages.test.ts` | Modified: new cases                                                                  |
+| `i18n/es.json`, `i18n/en.json`                                                                                                                                                                                                                  | Modified: "review.queue.description" (replaced) and "review.queue.firstDue" (new)    |
+
+### Final Spanish UI copy added (staff screen "review", "usted")
+
+- "review.queue.description" (replaces "Solicitudes pendientes de su facultad, de la más antigua a la más reciente."): "Solicitudes pendientes de su facultad, ordenadas por vencimiento del plazo: primero la que vence antes."
+- "review.queue.firstDue": "Vence primero"
+
+English twins: "Pending requests of your faculty, ordered by deadline: the one due first comes first."; "Due first". The descriptions of the other two tabs are unchanged.
+
+### Deviations
+
+1. **Branch base.** Task 2.0 says "from the PR 1 branch"; the owner's run order cut it from the tip of "feat/flow-experience-1b-escalate-dialog-pointer" (the tip with all of S1), as the S1 notes planned. The PR targets that branch (stacked on #110), not "feat/flow-experience-1-answer-banner".
+2. **Slice 471 lines, one PR.** See the checkpoint: 11 lines over "about 460"; no natural boundary inside the unit; recorded under the owner's size exception.
+3. **Test file for the layout pin.** The 360 px axe check renders the mark inside a list item (a card), because axe reports no applicable rule for a lone span. The width check and the axe check cover the same component as the other describe.each entries.
+4. **Mutation checks with an uncommitted GREEN.** As in S1: byte-identical backup copies restored, checked with "cmp".
+5. **Task 2.7 is marked in Phase 3.** The PR number does not exist until the PR is opened, so the S3 docs commit records it.
+6. **Line endings.** Five production and test files were CRLF in the working tree (index LF); converted to LF without changing the index content.
