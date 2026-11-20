@@ -155,11 +155,25 @@ const SIGNAL_REPORT = {
     },
     { signal: "rn09", outcome: "not_evaluable", reason: "extraction_pending" },
     { signal: "rn10", outcome: "not_evaluable", reason: "extraction_pending" },
+    {
+      signal: "rn11",
+      outcome: "present",
+      evidence: { kind: "documents", documentIds: [31] },
+    },
+    { signal: "rn12", outcome: "not_evaluable", reason: "not_registered" },
+    { signal: "rn13", outcome: "not_evaluable", reason: "not_registered" },
     { signal: "rn14", outcome: "not_evaluable", reason: "extraction_pending" },
+    {
+      signal: "rn26",
+      outcome: "absent",
+      evidence: { kind: "repeated", references: [] },
+    },
   ],
   notEvaluable: [
     { signal: "rn09", reason: "extraction_pending" },
     { signal: "rn10", reason: "extraction_pending" },
+    { signal: "rn12", reason: "not_registered" },
+    { signal: "rn13", reason: "not_registered" },
     { signal: "rn14", reason: "extraction_pending" },
   ],
 };
@@ -1646,6 +1660,26 @@ describe("ReviewDetailPage validation signals (RF-05, RN-15, RNF-01)", () => {
       screen.queryByRole("region", { name: en.sections.extraction }),
     ).toBeNull();
     expect(signalsRegion()).toBeInTheDocument();
+  });
+
+  it("shows the eight entries and names the raising document by the label of the documents section", async () => {
+    await renderPage();
+
+    const region = signalsRegion();
+    const sig = messages.en.review.signals;
+    expect(region.querySelectorAll("dt")).toHaveLength(8);
+    const rn11 = within(region).getByText(sig.names.rn11, {
+      selector: "dt",
+    }).nextElementSibling;
+    expect(rn11).toHaveTextContent(sig.outcomes.present);
+    expect(rn11).toHaveTextContent("constancia.pdf");
+    for (const code of ["rn12", "rn13"] as const) {
+      expect(
+        within(region).getByText(sig.names[code], { selector: "dt" })
+          .nextElementSibling,
+      ).toHaveTextContent(sig.outcomes.not_evaluable);
+    }
+    expect(region).toHaveTextContent(sig.reasons.not_registered);
   });
 
   it("loads the signals for the opened request with the resolved scope, before the audited read", async () => {

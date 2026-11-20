@@ -1462,7 +1462,8 @@
         "recurrence": "Requests from this student with the issuer “{issuer}” in the period: {count} (an alert is raised from {threshold}).",
         "repeated": "A document is identical to one in an earlier request.",
         "repeatedSee": "Earlier requests with the same document:",
-        "requestLink": "Request {id}"
+        "requestLink": "Request {id}",
+        "documents": "{count, plural, one {Document that raises the signal: {documents}} other {Documents that raise the signal: {documents}}}"
       }
     },
     "remission": {

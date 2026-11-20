@@ -1462,7 +1462,8 @@
         "recurrence": "Solicitudes de este estudiante con el emisor «{issuer}» en el período: {count} (se alerta a partir de {threshold}).",
         "repeated": "Un documento es idéntico a uno de una solicitud anterior.",
         "repeatedSee": "Solicitudes anteriores con el mismo documento:",
-        "requestLink": "Solicitud {id}"
+        "requestLink": "Solicitud {id}",
+        "documents": "{count, plural, one {Documento que activa la señal: {documents}} other {Documentos que activan la señal: {documents}}}"
       }
     },
     "remission": {
