@@ -33,8 +33,8 @@ Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S
 | S1a-2 list params | `-s1a2-list-params` | S1a-1 | S1a-1 | 269 measured |
 | S1b-1 audit reads | `-s1b1-audit-reads` | S1a | none functional (stacked) | ~210 |
 | S1b-2 list read | `-s1b2-list-read` | S1b-1 | S1a | ~380 |
-| S1c-1 table | `-s1c1-table` | S1b-2 | S1b-2 | ~310 |
-| S1c-2 page | `-s1c2-page` | S1c-1 | S1a, S1b-1, S1b-2, S1c-1 | ~360 |
+| S1c-1 table | merged with S1c-2 on `-s1c-list-page` (owner, 2026-11-19) | S1b-2 | S1b-2 | ~310 (measured 1064, see Phase 4) |
+| S1c-2 page | merged with S1c-1 on `-s1c-list-page` (owner, 2026-11-19) | S1b-2 | S1a, S1b-1, S1b-2, S1c-1 | ~360 |
 | S1c-3 nav + docs | `-s1c3-nav` | S1c-2 | S1a, S1c-2 | ~190 |
 | S2a-1 writer actor | `-s2a1-writer-actor` | S1c-3 | S1a | ~230 |
 | S2a-2 staff reactivate | `-s2a2-staff-enroll` | S2a-1 | S2a-1 | ~200 |
@@ -116,17 +116,18 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 4: S1c-1 list table and copy (EA-LIST-1, EA-FILT-1, EA-UI-1, RNF-11)
 
-- [ ] 4.1 Branch `feat/catalog-schedule-s1c1-table` from S1b-2.
-- [ ] 4.2 RED `src/i18n/catalog-parity.test.ts`: `catalog.inscripciones.*` keys (title, description, columns, raw and effective state labels, filter labels, empty, no-results, clear, degraded, no-facultad) exist in `es` and `en` with identical key sets and non-empty values (EA-UI-1 "Key parity").
-- [ ] 4.3 GREEN `i18n/es.json` and `i18n/en.json`: `catalog.inscripciones.*`. Verify: `npx vitest run src/i18n`.
-- [ ] 4.4 RED `CI/inscripciones-table.test.tsx` (model: `docentes-table.test.tsx`): row shows name and CIF, asignatura code and name, period, group number, raw and effective state as TEXT (four EA-LIST-1 rows); no email, phone or request content anywhere; no `form`, button or other control in a row in S1; header sort links built with `catalogListHref`.
-- [ ] 4.5 RED same file: filter bar (student, asignatura, group, period select from the periods prop, status active/inactive) submits as GET and keeps the URL state; no results -> shared no-results state with a clear control; no rows in scope -> shared empty state and no table; 360 px class guard (`layout-360` style).
-- [ ] 4.6 GREEN `CI/inscripciones-table.tsx` (reuse the shared list frame, `EmptyState`, design-system tokens only). Verify: `npx vitest run "src/app/(dashboard)/catalog/inscripciones"`.
-- [ ] 4.7 Gates G + measure (~310). Open PR. Commit: `feat(enrollment): add the inscripciones list table and copy`.
+- [x] 4.1 Branch `feat/catalog-schedule-s1c1-table` from S1b-2. Satisfied by the merged branch `feat/catalog-schedule-s1c-list-page` (S1c-1 and S1c-2 in one PR, owner decision), created from `feat/catalog-schedule-s1b2-list-read`.
+- [x] 4.2 RED `src/i18n/catalog-parity.test.ts`: `catalog.inscripciones.*` keys (title, description, columns, raw and effective state labels, filter labels, empty, no-results, clear, degraded, no-facultad) exist in `es` and `en` with identical key sets and non-empty values (EA-UI-1 "Key parity").
+- [x] 4.3 GREEN `i18n/es.json` and `i18n/en.json`: `catalog.inscripciones.*`. Verify: `npx vitest run src/i18n`.
+- [x] 4.4 RED `CI/inscripciones-table.test.tsx` (model: `docentes-table.test.tsx`): row shows name and CIF, asignatura code and name, period, group number, raw and effective state as TEXT (four EA-LIST-1 rows); no email, phone or request content anywhere; no `form`, button or other control in a row in S1; header sort links built with `catalogListHref`.
+- [x] 4.5 RED same file: filter bar (student, asignatura, group, period select from the periods prop, status active/inactive) submits as GET and keeps the URL state; no results -> shared no-results state with a clear control; no rows in scope -> shared empty state and no table; 360 px class guard (`layout-360` style).
+- [x] 4.6 GREEN `CI/inscripciones-table.tsx` (reuse the shared list frame, `EmptyState`, design-system tokens only). Verify: `npx vitest run "src/app/(dashboard)/catalog/inscripciones"`.
+- [x] 4.7 Gates G + measure (~310). Open PR. Commit: `feat(enrollment): add the inscripciones list table and copy`.
+  - Apply result (2026-11-19): gates G green (typecheck, focused 31/31 and i18n, full suite 8610, build OK, eslint and prettier clean on the touched files); PR NOT opened (parent owns it). Commit `a758c55` measured **1064 authored lines** (forecast ~310; 3.4x), over the 800 budget on its own. Stop rule applied: Phase 5 NOT started. See `apply-progress.md`.
 
 ## Phase 5: S1c-2 page, guards, audited load (EA-ACC-1, EA-SCOPE-1, EA-DEG-1, D10)
 
-- [ ] 5.1 Branch `feat/catalog-schedule-s1c2-page` from S1c-1.
+- [x] 5.1 Branch `feat/catalog-schedule-s1c2-page` from S1c-1. Satisfied by the merged branch `feat/catalog-schedule-s1c-list-page` (see 4.1).
 - [ ] 5.2 RED `CI/guards.test.ts` (model: `catalog/guards.test.ts`, CS-10): exact page set is `page.tsx`; `await requireEnrollmentAccess()` is the first await of the page; no action import in any page; no mutating control (`<form`, `action=`, `ActiveToggle`) in `page.tsx`. `catalog/guards.test.ts` and `catalog-structure.test.ts` stay untouched.
 - [ ] 5.3 RED `CI/page.test.tsx`: denied identities table (6 rows) -> no list read, no audit; scope `none` -> no-facultad state, no read, no audit; success -> `listInscripciones` with facultad scope and parsed params, then `recordEnrollmentListRead` once with `(actorId, facultadId, payload)` AFTER the data loaded, payload booleans only and no search text; degraded -> shared `role="status"` alert, no table, no empty state, no action, no audit; a failing audit insert makes the page throw (no data shown without its row); invalid params fall back; serialized props and HTML hold no email or phone; exactly one `h1`.
 - [ ] 5.4 GREEN `CI/page.tsx` (server component: guard, parse, load list and periods, audit, `PageHeader`, `DegradedAlert`). Verify: `npx vitest run "src/app/(dashboard)/catalog/inscripciones"`.

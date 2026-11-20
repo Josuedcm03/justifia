@@ -217,3 +217,59 @@ Commit 1 gates (first pass): focused vitest 50 passed; typecheck clean (after ty
 ### Remaining tasks
 
 Phases 4-17 (S1c-1 onward). PR for S1b-2 to be opened by the parent against `feat/catalog-schedule-s1b1-audit-reads`.
+
+## Batch 4: S1c-1 list table and copy (tasks 4.1-4.7; Phase 5 NOT started)
+
+Branch `feat/catalog-schedule-s1c-list-page` (S1c-1 and S1c-2 merged into one PR by the owner, 2026-11-19), created from `feat/catalog-schedule-s1b2-list-read`. Commit `a758c55` `feat(enrollment): add the inscripciones list table and copy`. The batch stopped at this commit boundary: the commit alone measured 1064 lines, over the 800 budget, so Phase 5 (page, guards test, audited load) was not started.
+
+### Completed tasks
+
+- [x] 4.1 branch (satisfied by the merged branch; 5.1 is satisfied by it too)
+- [x] 4.2 RED, 4.3 GREEN: `catalog.inscripciones` added to `GUARDED_SECTIONS`; keys in `es` and `en`
+- [x] 4.4 RED, 4.5 RED, 4.6 GREEN: `InscripcionesTable` with the filter bar
+- [x] 4.7 gates and measure done; PR NOT opened (parent owns PRs)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.2/4.3 | `src/i18n/catalog-parity.test.ts` | Unit (structural) | 230/230 first | 2 failed (`catalog.inscripciones` exists, non-empty) | 384/384 in `src/i18n` | key-set test shared by every guarded section; component tests render with throwing `onError`, so a missing key fails there too | Clean |
+| 4.4-4.6 | `src/app/(dashboard)/catalog/inscripciones/inscripciones-table.test.tsx` (new) | Integration (Testing Library, real catalogs, navigation mock) | N/A (new) | Suite failed to load (`inscripciones-table` unresolved) | 31/31 | four EA-LIST-1 state rows (active+effective, active+not effective, inactive, no CIF); each sort key and direction, filters and size kept on sort; read-only rows; leaky row (`correo`, `telefono`, `dependentRequests`, `hasActiveSibling`, `writable`) never in HTML; filter bar from URL state, option lists, GET fallback with hidden sort and size, submit of all five filters, empty submit, count, footer links, empty and no-results (term, four filter-only cases, Spanish), 360 px guard with its own self-test | Removed an unused helper and import found before the first run; prettier reformat |
+
+Totals: 2 test files touched, 31 new component tests plus 2 new parity tests (the third parity case passes in both states). Layers: unit and integration, no E2E.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/i18n` -> 10 files, 415 passed (RED runs: parity 2 failed; table suite failed to load) |
+| Runtime harness | N/A: client component rendered by Testing Library; the page and the audited load arrive in Phase 5 |
+| Rollback boundary | Revert `a758c55` (new table and its test, two locale blocks, one parity line); additive |
+
+### Gates G (2026-11-19)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| `npm test` (full suite) | 359 files, 8610 passed |
+| `npm run build` (inline dummy `DATABASE_URL`, dummy `AUTH_SECRET`) | OK |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files | clean |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1b2-list-read...HEAD -- . ':!openspec' ':!.engram'` -> 5 files changed, 1064 insertions = **1064 changed lines** (forecast ~310). Per file: `inscripciones-table.test.tsx` 559, `inscripciones-table.tsx` 395, `es.json` 54, `en.json` 54, `catalog-parity.test.ts` 2. Over the 800 budget with Phase 5 (forecast ~360, likely ~600 at the measured ratio) still to come: the combined PR would be around 1600. Decision needed from the owner (cut the table into its own PR, or accept a `size:exception`).
+
+### Decisions and notes for Phase 5 and later
+
+1. `InscripcionesTable({ rows, total, state, periods })`: `state` is the full `InscripcionesListState` (with the page the read clamped to), `periods` the newest-first list from `listInscripcionPeriods`. `InscripcionRow` carries ten displayed fields only; `asignaturaId`, `writable`, `hasActiveSibling` and `dependentRequests` are NOT sent in S1 (EA-PII-1, no request content). The page must pick fields one by one. S2b adds the fields its controls need.
+2. The shared `ListTable` cannot host this list (its toolbar has one search, a three-way status filter with "All", and decides empty vs no-results from `q` and `status` only). The table composes the same frame pieces (`TableCard`, `DataTable`, `TablePagination`, `EmptyState`, `ListNavigationProvider`) with its own one-form filter bar. Shared components are untouched.
+3. Deviation from `ListTable`: the filter bar also renders above the empty state, so a secretaria whose latest period has no active rows (a new term) can still reach older periods and inactive rows. EA-LIST-1 "Nothing in scope" still holds (empty state, no table).
+4. Filters submit through the pure `parseInscripcionesListParams` (whitelist, caps) and `catalogListHref`; sort and page size are kept, the page resets. Without JavaScript the GET form carries `sort`, `dir` and `size` as hidden fields.
+5. The no-results clear link uses `prefetch: false` (the page audits every render). The shared pagination and sort links of the table kit do not opt out of prefetch; with the dashboard `loading.tsx` boundary a default prefetch does not render the page, but Phase 5 or the nav slice should confirm this when the audited load exists.
+6. Copy added under `catalog.inscripciones` (`title`, `subtitle`, `tableCaption`, `columns`, `state`, `filters`, `empty`, `noResults`, `degraded`, `noFacultad`). `degraded` and `noFacultad` are for the page (Phase 5). English uses "Enrollments"; Spanish "Inscripciones".
+7. State words: a raw-active row shows "Active" plus "In effect" or "Not in effect"; a raw-inactive row shows "Inactive" only.
+
+### Remaining tasks
+
+Phase 5 (5.2-5.5) and Phases 6-17. The parent must decide how to handle the over-budget slice before Phase 5 continues.
