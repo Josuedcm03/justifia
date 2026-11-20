@@ -1,6 +1,11 @@
 import { admitsRest } from "@/lib/intake/causes";
 import type { NonWorkingDaysProvider } from "@/lib/intake/ports";
 
+import {
+  evaluateMissingSeal,
+  evaluateMissingSignature,
+  evaluateTypeMismatch,
+} from "./document-marks";
 import { evaluateRecurrence } from "./issuer";
 import type { SignalParams } from "./params";
 import { evaluateRepeatedDocument } from "./repeated-document";
@@ -10,11 +15,12 @@ import type { SignalInput, SignalReport, SignalResult } from "./types";
 import { suggestVerdict } from "./verdict";
 
 /**
- * Evaluates the five signals (RN-09 and RN-10 only for a cause that admits
+ * Evaluates the eight signals (RN-09 and RN-10 only for a cause that admits
  * rest, otherwise `not_applicable`) over plain data (computed on every read,
  * SNAP) and builds the suggested verdict. Pure: the calendar and the parameters
  * are injected, and the report is never stored. Nothing outside the display
- * reads it (RN-15).
+ * reads it (RN-15). RN-11, RN-12 and RN-13 read the marks of the documents and
+ * are evaluated for every cause: the cut below never touches them.
  */
 export function evaluateSignals(
   input: SignalInput,
@@ -42,6 +48,13 @@ export function evaluateSignals(
       calendar,
     ),
     ...restSignals,
+    evaluateMissingSignature(input.documents),
+    evaluateMissingSeal(input.documents),
+    evaluateTypeMismatch(
+      input.documents,
+      input.causa,
+      params.documentTypeCauses,
+    ),
     evaluateRecurrence(
       {
         solicitudId: input.solicitudId,

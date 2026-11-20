@@ -9,6 +9,7 @@ import {
   CoordinationRequestSection,
   CoordinationStudentSection,
 } from "@/app/(dashboard)/coordination/[id]/coordination-sections";
+import { DocumentMarksSection } from "@/app/(dashboard)/coordination/[id]/document-marks-section";
 import {
   DocumentsSection,
   Section,
@@ -21,6 +22,7 @@ import { requireRole } from "@/lib/auth/dal";
 import { rolesCoordinadores, signalsAccess } from "@/lib/auth/permissions";
 import { getCoordinationDetail } from "@/lib/data/coordination-queue";
 import { resolveCoordinationScope } from "@/lib/data/coordination-scope";
+import { listDocumentMarks } from "@/lib/data/document-marks-read";
 import { recordRequestRead } from "@/lib/data/request-reads";
 import { loadSignals } from "@/lib/data/signals";
 import { isVisibleState } from "@/lib/intake/states";
@@ -82,12 +84,18 @@ export default async function CoordinationDetailPage({
 
   const t = await getTranslations("coordination.detail");
 
-  // Only an open escalation has documents to check; a notice has none. Read
-  // with the rest, before the single audited read (RNF-06).
-  const signals =
-    detail.kind === "escalation" && signalsAccess(user.rol) === "outcomes"
-      ? await loadCoordinationSignals(detail.solicitudId)
-      : null;
+  // Only an open escalation has documents to check; a notice has none. The
+  // signals and the type and marks of the documents (MD-30) share one access
+  // decision and are read with the rest, before the single audited read
+  // (RNF-06). The marks read is fail-soft and carries no document value.
+  const outcomesOnly =
+    detail.kind === "escalation" && signalsAccess(user.rol) === "outcomes";
+  const signals = outcomesOnly
+    ? await loadCoordinationSignals(detail.solicitudId)
+    : null;
+  const marks = outcomesOnly
+    ? await listDocumentMarks(detail.solicitudId)
+    : null;
 
   await recordRequestRead(actorId, detail.solicitudId, detail.estado);
 
@@ -124,6 +132,7 @@ export default async function CoordinationDetailPage({
             {signals ? (
               <SignalsSection signals={signals} audience="coordination" />
             ) : null}
+            {marks ? <DocumentMarksSection marks={marks} /> : null}
             <Section id="answer" title={t("sections.answer")}>
               <AnswerForm escalamientoId={detail.id} />
             </Section>

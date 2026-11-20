@@ -75,6 +75,9 @@ vi.mock("@/lib/extraction/configured", () => ({
 vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   resendRemissionAction: vi.fn(),
 }));
+vi.mock("@/app/(dashboard)/review/[id]/document-data-actions", () => ({
+  saveDocumentDataAction: vi.fn(),
+}));
 vi.mock("@/app/(dashboard)/review/[id]/actions", () => ({
   decideAction: vi.fn(),
 }));
@@ -155,11 +158,25 @@ const SIGNAL_REPORT = {
     },
     { signal: "rn09", outcome: "not_evaluable", reason: "extraction_pending" },
     { signal: "rn10", outcome: "not_evaluable", reason: "extraction_pending" },
+    {
+      signal: "rn11",
+      outcome: "present",
+      evidence: { kind: "documents", documentIds: [31] },
+    },
+    { signal: "rn12", outcome: "not_evaluable", reason: "not_registered" },
+    { signal: "rn13", outcome: "not_evaluable", reason: "not_registered" },
     { signal: "rn14", outcome: "not_evaluable", reason: "extraction_pending" },
+    {
+      signal: "rn26",
+      outcome: "absent",
+      evidence: { kind: "repeated", references: [] },
+    },
   ],
   notEvaluable: [
     { signal: "rn09", reason: "extraction_pending" },
     { signal: "rn10", reason: "extraction_pending" },
+    { signal: "rn12", reason: "not_registered" },
+    { signal: "rn13", reason: "not_registered" },
     { signal: "rn14", reason: "extraction_pending" },
   ],
 };
@@ -1443,6 +1460,9 @@ function extractions(
       documentoId: 31 + i,
       nombreOriginal: i === 0 ? "constancia.pdf" : `otro-${i}.pdf`,
       row,
+      ocr: row,
+      manual: null,
+      marks: { type: null, hasSignature: null, hasSeal: null },
     })),
   };
 }
@@ -1583,6 +1603,71 @@ describe("ReviewDetailPage extracted data (RF-11, RN-02, RNF-06)", () => {
   });
 });
 
+describe("ReviewDetailPage manual data form (RF-14, MD-23, MD-26)", () => {
+  const form = messages.en.review.extraction.form;
+  const open = () =>
+    within(extractionRegion()).queryAllByRole("button", { name: form.open });
+
+  it("offers one form per document on a pendiente request, for the request that was opened", async () => {
+    extractionsMock.mockResolvedValue(
+      extractions(COMPLETED_ROW, { state: "pendiente" }),
+    );
+
+    await renderPage();
+
+    expect(open()).toHaveLength(2);
+    const user = userEvent.setup();
+    await user.click(open()[1]);
+    const opened = await within(extractionRegion()).findByRole("form");
+    expect(
+      (opened.querySelector('input[name="solicitudId"]') as HTMLInputElement)
+        .value,
+    ).toBe("12");
+    expect(
+      (opened.querySelector('input[name="documentoId"]') as HTMLInputElement)
+        .value,
+    ).toBe("32");
+  });
+
+  it.each(["aprobada", "rechazada", "devuelta", "en_revision_coordinacion"])(
+    "offers no form on a %s request, and still shows the values",
+    async (estado) => {
+      detailMock.mockResolvedValue(detail({ estado }));
+      extractionsMock.mockResolvedValue(extractions(COMPLETED_ROW));
+
+      await renderPage();
+
+      expect(open()).toHaveLength(0);
+      expect(extractionRegion()).toHaveTextContent("Clinica Central");
+      expect(within(extractionRegion()).queryAllByRole("textbox")).toHaveLength(
+        0,
+      );
+    },
+  );
+
+  it("offers the form while extraction is not configured (RF-14 c)", async () => {
+    configuredMock.mockReturnValue(false);
+    extractionsMock.mockResolvedValue(extractions(null));
+
+    await renderPage();
+
+    expect(open()).toHaveLength(1);
+    expect(
+      within(extractionRegion()).getAllByText(
+        messages.en.review.extraction.states.notConfigured,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("offers no form when the extraction read is degraded", async () => {
+    extractionsMock.mockResolvedValue({ data: [], degraded: true });
+
+    await renderPage();
+
+    expect(open()).toHaveLength(0);
+  });
+});
+
 describe("extracted data access (RNF-01)", () => {
   async function source(path: string) {
     const { readFileSync } = await import("node:fs");
@@ -1608,6 +1693,22 @@ describe("extracted data access (RNF-01)", () => {
     for (const file of files) {
       expect(await source(file), file).not.toMatch(
         /listExtractions|extraction-section|lib\/data\/extraction|lib\/extraction/,
+      );
+    }
+  });
+
+  it("gives the student side no manual value, mark, type, form or action (MD-7)", async () => {
+    const { readdirSync } = await import("node:fs");
+    const dir = "src/app/(dashboard)/requests";
+    const files = readdirSync(dir, { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile() && /\.(ts|tsx)$/.test(e.name))
+      .filter((e) => !/\.test\.(ts|tsx)$/.test(e.name))
+      .map((e) => `${e.parentPath}/${e.name}`);
+
+    expect(files.length).toBeGreaterThan(5);
+    for (const file of files) {
+      expect(await source(file), file).not.toMatch(
+        /document-data|DocumentData|documentoDatoManual|tipoDocumento|tieneFirma|tieneSello|hasSignature|hasSeal/,
       );
     }
   });
@@ -1646,6 +1747,26 @@ describe("ReviewDetailPage validation signals (RF-05, RN-15, RNF-01)", () => {
       screen.queryByRole("region", { name: en.sections.extraction }),
     ).toBeNull();
     expect(signalsRegion()).toBeInTheDocument();
+  });
+
+  it("shows the eight entries and names the raising document by the label of the documents section", async () => {
+    await renderPage();
+
+    const region = signalsRegion();
+    const sig = messages.en.review.signals;
+    expect(region.querySelectorAll("dt")).toHaveLength(8);
+    const rn11 = within(region).getByText(sig.names.rn11, {
+      selector: "dt",
+    }).nextElementSibling;
+    expect(rn11).toHaveTextContent(sig.outcomes.present);
+    expect(rn11).toHaveTextContent("constancia.pdf");
+    for (const code of ["rn12", "rn13"] as const) {
+      expect(
+        within(region).getByText(sig.names[code], { selector: "dt" })
+          .nextElementSibling,
+      ).toHaveTextContent(sig.outcomes.not_evaluable);
+    }
+    expect(region).toHaveTextContent(sig.reasons.not_registered);
   });
 
   it("loads the signals for the opened request with the resolved scope, before the audited read", async () => {

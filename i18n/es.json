@@ -1001,6 +1001,7 @@
         "request": "Solicitud",
         "escalation": "Escalamiento",
         "notice": "Aviso",
+        "marks": "Tipo y marcas de los documentos",
         "answer": "Respuesta a la secretaría"
       },
       "fields": {
@@ -1015,7 +1016,24 @@
         "teacher": "Docente",
         "communicated": "Fecha comunicada por el docente",
         "reportNote": "Nota del aviso"
-      }
+      },
+      "marks": {
+        "note": "Solo lectura. La secretaría registra el tipo de documento, la firma y el sello.",
+        "type": "Tipo de documento",
+        "signature": "Firma",
+        "seal": "Sello"
+      },
+      "markValues": {
+        "yes": "Sí",
+        "no": "No",
+        "unregistered": "Sin registrar"
+      },
+      "types": {
+        "constancia_medica": "Constancia médica",
+        "constancia_institucional": "Constancia institucional",
+        "otro": "Otro"
+      },
+      "marksDegraded": "No se pudieron cargar el tipo y las marcas de los documentos. El resto de la solicitud se muestra completo."
     },
     "answer": {
       "dialog": {
@@ -1462,6 +1480,48 @@
         "unavailable": "Datos no disponibles. Revise el documento directamente.",
         "notConfigured": "Hace falta configurar el servicio de extracción. Contacte al administrador del sistema."
       },
+      "manualBadge": "Ingresado manualmente",
+      "marks": {
+        "type": "Tipo de documento",
+        "signature": "Firma",
+        "seal": "Sello"
+      },
+      "markValues": {
+        "yes": "Sí",
+        "no": "No",
+        "unregistered": "Sin registrar"
+      },
+      "types": {
+        "constancia_medica": "Constancia médica",
+        "constancia_institucional": "Constancia institucional",
+        "otro": "Otro"
+      },
+      "form": {
+        "open": "Registrar o corregir datos",
+        "formLabel": "Datos de {name}",
+        "intro": "Los valores que registre prevalecen sobre los extraídos. Si deja un campo vacío, se muestra de nuevo el valor extraído.",
+        "save": "Guardar datos",
+        "saving": "Guardando...",
+        "ocrHint": "Valor extraído: {value}",
+        "fields": {
+          "studentName": "Nombre del estudiante en el documento",
+          "restFrom": "Desde",
+          "restTo": "Hasta"
+        },
+        "errors": {
+          "text_too_long": "El texto supera la longitud permitida.",
+          "date_invalid": "Indique una fecha válida.",
+          "rest_incomplete": "Indique la fecha de inicio y la de fin del reposo, o deje ambas vacías.",
+          "rest_order": "La fecha de fin del reposo no puede ser anterior a la de inicio.",
+          "type_invalid": "Seleccione un tipo de documento de la lista.",
+          "mark_invalid": "Seleccione Sí, No o Sin registrar."
+        },
+        "failures": {
+          "not_found": "Este documento ya no está disponible para usted.",
+          "not_editable": "Esta solicitud ya no está pendiente y sus datos no se pueden modificar. Vuelva a cargar la página.",
+          "unexpected": "No se pudieron guardar los datos. Inténtelo de nuevo."
+        }
+      },
       "degraded": "No se pudieron cargar los datos extraídos. El resto de la solicitud se muestra completo."
     },
     "signals": {
@@ -1480,6 +1540,9 @@
         "rn07": "Presentación tardía",
         "rn09": "Fechas incoherentes",
         "rn10": "Fechas no cubiertas",
+        "rn11": "Firma ausente",
+        "rn12": "Sello ausente",
+        "rn13": "Formato no corresponde a la causa",
         "rn14": "Reincidencia",
         "rn26": "Documento repetido"
       },
@@ -1502,7 +1565,8 @@
         "days_only": "El reposo indica solo una cantidad de días, sin fechas.",
         "no_period": "Las asignaturas no corresponden a un único período académico.",
         "no_eligible_documents": "La solicitud no tiene documentos vigentes del estudiante.",
-        "no_fingerprint": "Los documentos vigentes se guardaron antes de que existiera la detección de documentos repetidos, por lo que no se pueden comparar."
+        "no_fingerprint": "Los documentos vigentes se guardaron antes de que existiera la detección de documentos repetidos, por lo que no se pueden comparar.",
+        "not_registered": "La secretaría aún no registró este dato en uno o más documentos vigentes."
       },
       "evidence": {
         "timing": "Presentada el {presented}; el plazo vence el {deadline}.",
@@ -1512,7 +1576,8 @@
         "recurrence": "Solicitudes de este estudiante con el emisor «{issuer}» en el período: {count} (se alerta a partir de {threshold}).",
         "repeated": "Un documento es idéntico a uno de una solicitud anterior.",
         "repeatedSee": "Solicitudes anteriores con el mismo documento:",
-        "requestLink": "Solicitud {id}"
+        "requestLink": "Solicitud {id}",
+        "documents": "{count, plural, one {Documento que activa la señal: {documents}} other {Documentos que activan la señal: {documents}}}"
       }
     },
     "remission": {
