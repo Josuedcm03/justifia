@@ -1406,7 +1406,50 @@
       "states": {
         "extracting": "Extracting data. Reload this page later.",
         "unavailable": "Data unavailable. Review the document yourself.",
-        "notConfigured": "The extraction service needs to be configured. Contact the system administrator."
+        "notConfigured": "The extraction service needs to be configured. Contact the system administrator.",
+        "notExtracted": "This document has no extracted data."
+      },
+      "manualBadge": "Entered manually",
+      "marks": {
+        "type": "Document type",
+        "signature": "Signature",
+        "seal": "Seal"
+      },
+      "markValues": {
+        "yes": "Yes",
+        "no": "No",
+        "unregistered": "Not registered"
+      },
+      "types": {
+        "constancia_medica": "Medical certificate",
+        "constancia_institucional": "Institutional certificate",
+        "otro": "Other"
+      },
+      "form": {
+        "open": "Enter or correct data",
+        "formLabel": "Data of {name}",
+        "intro": "The values you enter take precedence over the extracted ones. If you leave a field empty, the extracted value is shown again.",
+        "save": "Save data",
+        "saving": "Saving...",
+        "ocrHint": "Extracted value: {value}",
+        "fields": {
+          "studentName": "Student name in the document",
+          "restFrom": "From",
+          "restTo": "To"
+        },
+        "errors": {
+          "text_too_long": "The text is longer than allowed.",
+          "date_invalid": "Enter a valid date.",
+          "rest_incomplete": "Enter both the start and the end date of the rest period, or leave both empty.",
+          "rest_order": "The end of the rest period cannot be before its start.",
+          "type_invalid": "Select a document type from the list.",
+          "mark_invalid": "Select Yes, No or Not registered."
+        },
+        "failures": {
+          "not_found": "This document is no longer available to you.",
+          "not_editable": "This request is no longer pending, so its data cannot be changed. Reload the page.",
+          "unexpected": "The data could not be saved. Try again."
+        }
       },
       "degraded": "The extracted data could not be loaded. The rest of the request is shown in full."
     },
