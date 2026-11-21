@@ -5,7 +5,7 @@ import { cache } from "react";
 
 import {
   SESSION_COOKIE,
-  SESSION_MAX_AGE,
+  sessionMaxAge,
   verifySession,
   type SessionPayload,
 } from "@/lib/auth/session";
@@ -16,13 +16,17 @@ export const getSession = cache(async (): Promise<SessionPayload | null> => {
   return verifySession(token);
 });
 
-export async function setSessionCookie(token: string): Promise<void> {
+/** `keep`: the cookie lasts 30 days instead of 8 hours (FE-32). */
+export async function setSessionCookie(
+  token: string,
+  keep = false,
+): Promise<void> {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_MAX_AGE,
+    maxAge: sessionMaxAge(keep),
   });
 }
 
