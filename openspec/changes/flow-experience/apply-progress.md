@@ -1299,3 +1299,96 @@ Owner approved the five rehearsal commands on 2026-11-20. Production was only re
 - The first "flow-it" endpoint id began with the production prefix that `src/lib/data/integration/guard.ts` refuses, so the guard stopped the run. The branch was deleted and recreated; the guard was not weakened.
 - "flow-it" stays for the S9 to S10 system captures and is deleted in task 12.12.
 - Open: 8.24 and 8.25 (production apply) wait for the owner's explicit yes before the tracker reaches main.
+
+## Phase 9 (PR 9a): S9 counts and S9a, CIF or email resolution
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-9a-login-identity", cut from the tracker tip d19e22f (PRs 109 to 122 are merged: #121 4ec875a, #122 d19e22f). No database or Neon command of any kind was run in this apply; unit tests use the dummy DB. Slice 9a is cut at its plan seam (the plan's candidate cut "PR 9a after unit 18") into two PRs under the owner's size rule: 9a (this one: the plan edit and the resolution, unit 18) and "9a2" (the sign-in action, form and copy, unit 19), recorded in the section "PR 9a2" below.
+
+### Task 9.0 and 9.1: the production counts and the owner decision (2026-11-20)
+
+The owner ran the three read-only production counts on 2026-11-20. Nothing was written and no name or email was read or recorded.
+
+| Count                                                         | Result |
+| ------------------------------------------------------------- | ------ |
+| 1. Active accounts without an email                           | 0      |
+| 2. Groups of emails that collide ignoring case                | 0      |
+| 3. Stored CIFs with a character that is not a digit           | 0      |
+
+Active accounts by role, each with an email: administrador 2, coordinacion 3, docente 4, estudiante 1 (it also has a CIF), secretaria 1.
+
+**Owner decision 2026-11-20, task 9.1. It supersedes resolution 2 of section 0.1:** the legacy "Login" fallback is NOT shipped. The count is already zero, staff creation now requires an email (S9b) and imported students carry a CIF. The unknown-identifier dummy password check and the generic error stay. Login rate limiting stays out of scope and goes to the backlog in S10 (task 12.13).
+
+Plan edits made for it, in the first commit of this slice (task 9.13, unit 20, made first because the code follows the plan):
+
+- `openspec/changes/flow-experience/specs/auth-entry-access/spec.md`: FE-25 is rewritten ("No account is left without a way to sign in, and no fallback ships"): its fallback paragraph is gone, the three counts are named and recorded as zero, the scenario "Such an account signs in only through the fallback" became "An account with neither identifier cannot sign in", the fallback table became "The stored Login is never an identifier", and a scenario for non-digit CIFs was added. FE-21 loses its exception for the fallback and two rows of its table; a row says an account with no email and no CIF cannot sign in.
+- FE-13 (`coordination-escalation`) and FE-28 (`staff-account-creation`): an account with no email and no CIF cannot sign in by any value, its stored "Login" included.
+- `openspec/changes/flow-experience/design.md`: D12, the sequence diagram, the S9 pre-slice text (a third count), the S9a file list and tests, the S10 list and the open question.
+- `openspec/changes/flow-experience/tasks.md`: the merge gate, the conventions note, the slicing table, WU9, tasks 9.0, 9.1, 9.2, 9.3, 9.5, 9.6, 9.9, 9.10, 9.11, 9.13, 9.16, 12.13, 13.3, 13.6, 14.1 and 14.6. Task 9.10 had no fallback text; it gains the new file `src/lib/auth/dummy-hash.ts`.
+- The Phase 0 record (section 0.1, resolution 2) is left as written, as history; this section supersedes it.
+
+### Commits (PR 9a)
+
+| Unit | Hash    | Message                                                                  |
+| ---- | ------- | ------------------------------------------------------------------------ |
+| 20   | f7694a2 | docs(flow-experience): drop the legacy Login fallback from the plan      |
+| 18   | 1c05540 | feat(auth): resolve the sign-in identifier by email or CIF               |
+| docs | (tip)   | docs(flow-experience): record the Phase 9 apply progress for PR 9a       |
+
+### TDD cycle evidence (PR 9a)
+
+| Task        | Test file                                  | Layer                  | Safety net                                                | RED                                                                  | GREEN                | Triangulation                                                                                                                                                                                                                                                       | Refactor    |
+| ----------- | ------------------------------------------ | ---------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 9.3 and 9.4 | `src/lib/auth/login-identity.test.ts` (new) | Unit (pure)            | N/A (new file)                                            | The file failed to load (module missing)                              | 20 passed            | Six emails (case, spaces, tab, a lone "@"); an email with a CIF-looking part; five CIFs with spaces and hyphens; 8, 10 and 5 digits and letters (no format check); case kept; blank gives null; hyphens only give an empty CIF; a former username is a CIF candidate | None needed |
+| 9.5 and 9.6 | `src/lib/data/users.test.ts`               | Data (db double, SQL)  | 52 existing cases of the file passing                     | 16 failed first ("findLoginAccount is not a function")                | 68 passed in the file | Email: normalized parameter, LIMIT 2, two roles, two rows give null, none; CIF: exact cleaned parameter and the role "estudiante" in the rendered SQL, LIMIT 1, a staff row never resolves, none, empty cleaned CIF runs no query; blank runs no query; no query selects on "Login" for an email, a CIF or a former username; same projection as `getUsuarioByLogin`; a database error propagates | None needed |
+
+### Mutation checks (revert-only; `src/lib/data/users.ts` was restored from a byte-identical backup copy and confirmed with "cmp", because the GREEN was not committed yet)
+
+| Test                                                    | Temporary edit                                                    | Result                                                                               |
+| ------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| "matches Cif exactly on the cleaned value and only for role estudiante" | the CIF lookup drops the "estudiante" role filter from its SQL     | 1 failed, 67 passed (the SQL pin; the in-code role guard still stops a staff row)    |
+| "fails closed when two accounts share the email ignoring case"          | the email lookup returns the first of two rows instead of null     | 1 failed, 67 passed                                                                   |
+
+### Checkpoint (task 9.14): measured size of PR 9a
+
+Measure: "git diff --numstat feat/flow-experience...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                              | Changed lines |
+| ------------------------------------------------------------------ | ------------- |
+| Production (`src/lib/auth/login-identity.ts` 31, `src/lib/data/users.ts` 42) | 73            |
+| Tests (`login-identity.test.ts` 78, `users.test.ts` 191)           | 269           |
+| All of PR 9a (342 added, 0 deleted)                                | 342           |
+
+The design forecast for the whole of S9a was about 250; unit 18 alone is 342 and the whole slice would be about 850, so it was cut at the plan seam after unit 18 (stop line 460). Tests are 79 percent of the lines and were not trimmed.
+
+### Work unit evidence (PR 9a)
+
+| Evidence                              | Value                                                                                                                                                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- login-identity src/lib/data/users.test": 2 files, 88 tests, all passed                                                                                                   |
+| Runtime harness                       | N/A for this unit: the function is not called by any action yet (the sign-in action switches to it in PR 9a2). The owner-run sign-in by CIF and by email on "flow-it" is task 12.5. No database command was run                      |
+| Rollback boundary                     | Revert the PR: `src/lib/auth/login-identity.ts` and `findLoginAccount` go, and nothing calls them. The plan edit (the docs commit) can stay, because it only records the owner decision                                           |
+
+### Gates (task 9.15), tip of "-9a-login-identity", dummy DB
+
+- Full "npm test": 377 files, 9428 tests, all passed, 268.5 s. The 8b tip had 376 files and 9392 tests; PR 9a adds one test file (20 cases) and 16 cases in `src/lib/data/users.test.ts`.
+- "npm run typecheck": exit 0.
+- "npx eslint" and "npx prettier --check" on the four touched files: clean. "npx eslint src" over the whole tree is run once on the 9c tip (the same three findings in untouched files were recorded in Phase 7).
+- The access matrix and the route inventory stay green inside the full run (no route, action or audit event was added).
+
+### Files (PR 9a; all LF in the working tree, the index was already LF)
+
+| File                                                          | Action                                                          |
+| ------------------------------------------------------------- | --------------------------------------------------------------- |
+| `src/lib/auth/login-identity.ts`                              | Created: pure `classifyIdentifier`                              |
+| `src/lib/auth/login-identity.test.ts`                         | Created: 20 cases                                               |
+| `src/lib/data/users.ts`                                       | Modified: `findLoginAccount` (email, any role; CIF, students)   |
+| `src/lib/data/users.test.ts`                                  | Modified: 16 cases for `findLoginAccount`                       |
+| Specs, design and tasks of this change                        | Modified: the plan edit for the dropped fallback (commit f7694a2) |
+
+### Deviations (PR 9a)
+
+1. **Cut.** The slice is cut at the plan's seam after unit 18 into two PRs; the second one is named "feat/flow-experience-9a2-sign-in-form" because "9b" is already the next slice.
+2. **Unit order.** The docs commit (unit 20) is the first commit of the slice, because the code follows the plan it edits.
+3. **Role guard twice.** The CIF lookup filters on the role "estudiante" in SQL and also checks the role of the returned row, so a staff row can never resolve even if the filter were lost; the mutation check shows the SQL pin catches the first and the in-code guard covers the second.
+4. **No `kind` for a login.** `classifyIdentifier` returns only "email" or "cif" (the plan's third value "cif_or_login" went with the fallback); the stored "Login" is never a key.
+5. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing. Other files may show as modified for that reason only.
