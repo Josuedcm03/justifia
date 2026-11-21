@@ -95,8 +95,11 @@ export default async function InscripcionesPage({
   };
   await recordEnrollmentListRead(actorId, scope.facultadId, payload);
 
-  // Picked field by field (EA-PII-1): the sibling flag, the request count, the
-  // writable flag and the ids of the asignatura never reach the browser in S1.
+  // Picked field by field (EA-PII-1). The row toggle needs two derived values
+  // and nothing else of the server-side flags: whether the row can be
+  // reactivated (raw inactive, offered group, no active sibling, EA-REACT-1) and
+  // the count of non-draft requests for the deactivation notice (EA-DEACT-1).
+  // The sibling flag, the writable flag and the asignatura id stay here.
   const rows: InscripcionRow[] = result.data.map((r) => ({
     estudianteId: r.estudianteId,
     grupoId: r.grupoId,
@@ -108,6 +111,8 @@ export default async function InscripcionesPage({
     numeroGrupo: r.numeroGrupo,
     activo: r.activo,
     effective: r.effective,
+    requestCount: r.dependentRequests,
+    canReactivate: !r.activo && r.writable && !r.hasActiveSibling,
   }));
 
   return (

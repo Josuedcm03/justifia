@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, type FormEvent } from "react";
 
+import { ActiveToggle } from "@/app/(dashboard)/catalog/active-toggle";
 import { EmptyState } from "@/components/empty-state";
 import { StatusPill } from "@/components/status-pill";
 import { TableCard } from "@/components/table-card";
@@ -30,12 +31,17 @@ import {
   nextSort,
 } from "@/lib/list-params";
 
+import { setInscripcionActivoAction } from "./actions";
+
 const BASE = "/catalog/inscripciones";
 
 /**
- * The only shape the table receives (EA-PII-1): the displayed fields. The page
- * builds it by picking each field explicitly, so a column added to the read
- * later (a request count, a sibling flag) never reaches the browser by accident.
+ * The only shape the table receives (EA-PII-1): the displayed fields plus the
+ * two the row toggle needs. The page builds it by picking each field
+ * explicitly, so a column added to the read later never reaches the browser by
+ * accident. The sibling flag and the writable flag are collapsed on the server
+ * into `canReactivate`, and the dependent-request count (visible states only,
+ * CS-7) is the one number the deactivation notice states.
  */
 export type InscripcionRow = Pick<
   InscripcionListItem,
@@ -49,7 +55,12 @@ export type InscripcionRow = Pick<
   | "numeroGrupo"
   | "activo"
   | "effective"
->;
+> & {
+  /** Non-draft requests of the student that name the group (EA-DEACT-1). */
+  requestCount: number;
+  /** Raw inactive, offered group, no active sibling (EA-REACT-1). */
+  canReactivate: boolean;
+};
 
 const DEFAULT_STATE = parseInscripcionesListParams({});
 /** What "clear filters" restores: no term, no filter, the default status. */
@@ -208,6 +219,39 @@ function FilterBar({
   );
 }
 
+/**
+ * The row control (EA-DEACT-1, EA-REACT-1): the shared two-step `ActiveToggle`,
+ * unchanged, with the action bound to the row's student and the group id as the
+ * posted `id`. A raw-active row of any period offers the confirmed
+ * deactivation (D9); an inactive row offers the one-press reactivation only
+ * when the server said it can take it, so there is never a dead control. The
+ * notice always carries the RN-27 sentence and states a request count only when
+ * there is one, so a draft is never counted nor hinted at.
+ */
+function RowToggle({ row }: { row: InscripcionRow }) {
+  const t = useTranslations("catalog.inscripciones");
+  if (!row.activo && !row.canReactivate) return null;
+
+  const retention = t("toggle.retention");
+  return (
+    <ActiveToggle
+      action={setInscripcionActivoAction.bind(null, row.estudianteId)}
+      id={row.grupoId}
+      recordLabel={t("toggle.recordLabel", {
+        student: row.estudianteNombre,
+        code: row.asignaturaCodigo,
+        group: row.numeroGrupo,
+      })}
+      activo={row.activo}
+      notice={
+        row.requestCount > 0
+          ? `${t("toggle.requests", { count: row.requestCount })} ${retention}`
+          : retention
+      }
+    />
+  );
+}
+
 function InscripcionesList({
   rows,
   total,
@@ -289,6 +333,11 @@ function InscripcionesList({
             ) : null}
           </span>
         ),
+      },
+      {
+        id: "actions",
+        header: t("columns.actions"),
+        cell: ({ row }) => <RowToggle row={row.original} />,
       },
     ],
     [t],
@@ -377,10 +426,10 @@ function InscripcionesList({
 }
 
 /**
- * The staff inscripciones list as a client table (EA-LIST-1, EA-FILT-1). It is
- * read-only in S1: no action column and no control in a row. The column ids of
- * the sortable columns are the URL sort keys. Columns carry function-valued
- * renderers, so they are built here and never cross a server boundary.
+ * The staff inscripciones list as a client table (EA-LIST-1, EA-FILT-1) with
+ * the row toggle of S2 (EA-DEACT-1, EA-REACT-1). The column ids of the sortable
+ * columns are the URL sort keys. Columns carry function-valued renderers, so
+ * they are built here and never cross a server boundary.
  */
 export function InscripcionesTable(props: {
   rows: readonly InscripcionRow[];
