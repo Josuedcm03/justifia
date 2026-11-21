@@ -12,13 +12,20 @@ export const rolesStaff = rolesUsuario.filter(
 
 export const rolStaffSchema = z.enum(rolesStaff as [string, ...string[]]);
 
+/**
+ * Student self-registration (FE-26, FE-28). There is no `login` key: the server
+ * derives the Login from the email, and any `login` in the request is dropped
+ * by the parse. The email and the CIF are both required; the email is stored
+ * trimmed and lower-case, the CIF as typed after the trim (its verification is
+ * out of scope, AEA-4).
+ */
 export const registroEstudianteSchema = z.object({
-  login: z.string().trim().min(1, "Ingresa un usuario").max(60),
   password: z.string().min(8, "Mínimo 8 caracteres").max(128),
   nombreCompleto: z.string().trim().min(1, "Ingresa tu nombre").max(160),
   correo: z
     .string()
     .trim()
+    .toLowerCase()
     .min(1, "Ingresa tu correo")
     .email("Correo inválido")
     .max(160),

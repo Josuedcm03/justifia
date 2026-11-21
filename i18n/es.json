@@ -621,7 +621,6 @@
       "title": "Crear cuenta de estudiante",
       "subtitle": "Regístrate para enviar tus justificaciones",
       "nameLabel": "Nombre completo",
-      "loginLabel": "Usuario",
       "passwordLabel": "Contraseña",
       "confirmPasswordLabel": "Confirmar contraseña",
       "emailLabel": "Correo",
@@ -636,7 +635,8 @@
       "errors": {
         "invalid": "Revisa los datos ingresados",
         "invalidCarrera": "La carrera seleccionada no es válida",
-        "duplicate": "El usuario o CIF ya existe",
+        "duplicate": "El CIF o el correo ya están registrados.",
+        "emailTooLong": "El correo no puede superar los 60 caracteres.",
         "passwordMismatch": "Las contraseñas no coinciden",
         "closed": "El registro de estudiantes no está habilitado en este momento."
       },
