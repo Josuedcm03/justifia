@@ -55,6 +55,10 @@ vi.mock("@/lib/data/request-reads", () => ({
   recordEnrollmentListRead: auditMock,
 }));
 vi.mock("next-intl/server", async () => serverIntl(state));
+// The table binds the server action; the page tests never run it.
+vi.mock("@/app/(dashboard)/catalog/inscripciones/actions", () => ({
+  setInscripcionActivoAction: vi.fn(),
+}));
 
 const FACULTAD = 4;
 const SCOPE = { kind: "facultad", facultadId: FACULTAD } as const;
@@ -415,21 +419,138 @@ describe("InscripcionesPage audited read (D10, audit-log: one row per load)", ()
   });
 });
 
-describe("InscripcionesPage is read-only and leaks no personal data (EA-PII-1)", () => {
-  it("offers no form but the GET filter bar, and no control inside a row", async () => {
-    listMock.mockResolvedValue(result({ total: 2, data: [row(), row()] }));
+/** The rows the page hands the table, read off the element tree. */
+function tableRows(ui: React.ReactNode): Record<string, unknown>[] {
+  const frame = ui as React.ReactElement<{ children: React.ReactNode[] }>;
+  const table = frame.props.children.find(
+    (child) =>
+      typeof child === "object" &&
+      child !== null &&
+      "props" in child &&
+      "rows" in (child as React.ReactElement<object>).props,
+  ) as React.ReactElement<{ rows: Record<string, unknown>[] }>;
+  return table.props.rows;
+}
+
+describe("InscripcionesPage row toggle (EA-DEACT-1, EA-REACT-1, RNF-12)", () => {
+  it("offers the GET filter bar and one POST toggle form per row that has a control", async () => {
+    listMock.mockResolvedValue(
+      result({
+        total: 4,
+        data: [
+          row(),
+          row({ grupoId: 22 }),
+          row({ grupoId: 23, activo: false, writable: false }),
+          row({ grupoId: 24, activo: false }),
+        ],
+      }),
+    );
 
     await renderPage();
 
-    const forms = document.querySelectorAll("form");
-    expect(forms).toHaveLength(1);
-    expect(forms[0].getAttribute("method")).toBe("get");
-    for (const tr of within(screen.getByRole("table"))
-      .getAllByRole("row")
-      .slice(1)) {
-      expect(within(tr).queryAllByRole("button")).toHaveLength(0);
-      expect(within(tr).queryAllByRole("link")).toHaveLength(0);
-    }
+    const methods = [...document.querySelectorAll("form")].map((form) =>
+      form.getAttribute("method"),
+    );
+    expect(methods).toEqual(["get", "post", "post", "post"]);
+    expect(within(screen.getByRole("table")).queryAllByRole("link")).toEqual(
+      [],
+    );
+  });
+
+  it.each([
+    ["inactive, offered, no sibling", { activo: false }, true],
+    [
+      "inactive, offered, an active sibling",
+      { activo: false, hasActiveSibling: true },
+      false,
+    ],
+    [
+      "inactive, group of an older period",
+      { activo: false, writable: false },
+      false,
+    ],
+    ["active, offered, no sibling", {}, false],
+  ] as const)(
+    "tells the table a row can be reactivated only when it is %s",
+    async (_name, overrides, expected) => {
+      listMock.mockResolvedValue(
+        result({ total: 1, data: [row({ ...overrides })] }),
+      );
+
+      const rows = tableRows(await build());
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].canReactivate).toBe(expected);
+    },
+  );
+
+  it("shows the Reactivate control exactly for the rows that can take it", async () => {
+    listMock.mockResolvedValue(
+      result({
+        total: 3,
+        data: [
+          row({ activo: false }),
+          row({ grupoId: 22, activo: false, hasActiveSibling: true }),
+          row({ grupoId: 23, activo: false, writable: false }),
+        ],
+      }),
+    );
+
+    await renderPage({ status: "inactive" });
+
+    expect(screen.getAllByRole("button", { name: "Reactivate" })).toHaveLength(
+      1,
+    );
+  });
+
+  it("passes the dependent-request count of each row and nothing that would reveal a draft", async () => {
+    listMock.mockResolvedValue(
+      result({
+        total: 2,
+        data: [
+          row({ dependentRequests: 3 }),
+          row({ grupoId: 22, dependentRequests: 0 }),
+        ],
+      }),
+    );
+
+    const rows = tableRows(await build());
+
+    expect(rows.map((r) => r.requestCount)).toEqual([3, 0]);
+  });
+
+  it("renders no toggle when the read is degraded", async () => {
+    listMock.mockResolvedValue(result({ degraded: true }));
+
+    await renderPage();
+
+    expect(document.querySelectorAll("form")).toHaveLength(0);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("InscripcionesPage leaks no personal data (EA-PII-1)", () => {
+  it("hands the table exactly the displayed fields plus the two the toggle needs", async () => {
+    listMock.mockResolvedValue(
+      result({ total: 1, data: [row({ correo: "ana@uni.edu" })] }),
+    );
+
+    const [first] = tableRows(await build());
+
+    expect(Object.keys(first).sort()).toEqual([
+      "activo",
+      "asignaturaCodigo",
+      "asignaturaNombre",
+      "canReactivate",
+      "effective",
+      "estudianteCif",
+      "estudianteId",
+      "estudianteNombre",
+      "grupoId",
+      "numeroGrupo",
+      "periodo",
+      "requestCount",
+    ]);
   });
 
   it("sends the table only the displayed fields, even if the read returned more", async () => {

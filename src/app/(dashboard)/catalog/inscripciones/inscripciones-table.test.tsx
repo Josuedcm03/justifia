@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,7 @@ import {
   parseInscripcionesListParams,
   type InscripcionesListState,
 } from "@/lib/catalog/list-params";
+import type { ActiveToggleState } from "@/lib/catalog/types";
 import { messages, renderWithIntl, type TestLocale } from "@/test/intl";
 import { resetNavigationMock, router } from "@/test/navigation-mock";
 
@@ -22,9 +23,17 @@ vi.mock(
   "next/link",
   async () => (await import("@/test/navigation-mock")).linkModule,
 );
+// The real action is a server module; the table only binds it to a student, so
+// a double records what the unchanged `ActiveToggle` posts to it.
+const { toggleAction } = vi.hoisted(() => ({ toggleAction: vi.fn() }));
+vi.mock("@/app/(dashboard)/catalog/inscripciones/actions", () => ({
+  setInscripcionActivoAction: toggleAction,
+}));
 
 beforeEach(() => {
   resetNavigationMock();
+  toggleAction.mockReset();
+  toggleAction.mockResolvedValue({ kind: "done", activo: false });
 });
 
 const BASE = "/catalog/inscripciones";
@@ -47,9 +56,14 @@ function row(overrides: Partial<InscripcionRow> = {}): InscripcionRow {
     numeroGrupo: "01",
     activo: true,
     effective: true,
+    requestCount: 0,
+    canReactivate: false,
     ...overrides,
   };
 }
+
+/** The state column of a body row (the fifth cell). */
+const stateCellOf = (tr: HTMLElement) => within(tr).getAllByRole("cell")[4];
 
 /** The three rows of EA-LIST-1 that differ in what they show. */
 const ROWS: InscripcionRow[] = [
@@ -99,14 +113,17 @@ describe.each(["es", "en"] as const)("InscripcionesTable in %s", (locale) => {
       "Calculus",
       "2026-S2",
       "01",
-      copy.state.active,
-      copy.state.effective,
     ]) {
       expect(within(body).getByText(text)).toBeVisible();
     }
+    // The toggle repeats the raw state, so the two state words are read inside
+    // the state cell.
+    const stateCell = stateCellOf(body);
+    expect(within(stateCell).getByText(copy.state.active)).toBeVisible();
+    expect(within(stateCell).getByText(copy.state.effective)).toBeVisible();
   });
 
-  it("keeps the five columns in order and sorts only student, subject and group", () => {
+  it("keeps the six columns in order and sorts only student, subject and group", () => {
     renderTable({ locale });
 
     const headers = screen.getAllByRole("columnheader");
@@ -116,6 +133,7 @@ describe.each(["es", "en"] as const)("InscripcionesTable in %s", (locale) => {
       copy.columns.period,
       copy.columns.group,
       copy.columns.state,
+      copy.columns.actions,
     ];
     expect(headers.map((header) => header.textContent)).toEqual(
       labels.map((label) => expect.stringContaining(label)),
@@ -125,6 +143,7 @@ describe.each(["es", "en"] as const)("InscripcionesTable in %s", (locale) => {
       true,
       false,
       true,
+      false,
       false,
     ]);
   });
@@ -136,19 +155,19 @@ describe("InscripcionesTable states (EA-LIST-1 table, as text)", () => {
   it("labels an active row of an offered group as active and in effect", () => {
     renderTable({ rows: [ROWS[0]] });
 
-    const [, body] = screen.getAllByRole("row");
-    expect(within(body).getByText(copy.active)).toBeVisible();
-    expect(within(body).getByText(copy.effective)).toBeVisible();
-    expect(within(body).queryByText(copy.notEffective)).toBeNull();
+    const cell = stateCellOf(screen.getAllByRole("row")[1]);
+    expect(within(cell).getByText(copy.active)).toBeVisible();
+    expect(within(cell).getByText(copy.effective)).toBeVisible();
+    expect(within(cell).queryByText(copy.notEffective)).toBeNull();
   });
 
   it("labels an active row whose group or asignatura is inactive as not in effect", () => {
     renderTable({ rows: [ROWS[1]] });
 
-    const [, body] = screen.getAllByRole("row");
-    expect(within(body).getByText(copy.active)).toBeVisible();
-    expect(within(body).getByText(copy.notEffective)).toBeVisible();
-    expect(within(body).queryByText(copy.effective)).toBeNull();
+    const cell = stateCellOf(screen.getAllByRole("row")[1]);
+    expect(within(cell).getByText(copy.active)).toBeVisible();
+    expect(within(cell).getByText(copy.notEffective)).toBeVisible();
+    expect(within(cell).queryByText(copy.effective)).toBeNull();
   });
 
   it("labels an inactive row as inactive only", () => {
@@ -229,21 +248,288 @@ describe("InscripcionesTable sorting (EA-LIST-1, DT-SORT-2)", () => {
   });
 });
 
-describe("InscripcionesTable is read-only in S1 (EA-LIST-1)", () => {
-  it("has no form, button, link or checkbox in a body row", () => {
-    const { container } = renderTable();
+const IDLE: ActiveToggleState = { kind: "idle" };
 
-    const bodyRows = screen.getAllByRole("row").slice(1);
-    expect(bodyRows).toHaveLength(ROWS.length);
-    for (const tr of bodyRows) {
-      expect(within(tr).queryAllByRole("button")).toHaveLength(0);
-      expect(within(tr).queryAllByRole("link")).toHaveLength(0);
-      expect(within(tr).queryAllByRole("checkbox")).toHaveLength(0);
+/** What `ActiveToggle` posted on the nth call of the bound action. */
+function posted(n = 0) {
+  const [estudianteId, previous, formData] = toggleAction.mock.calls[n] as [
+    number,
+    ActiveToggleState,
+    FormData,
+  ];
+  return {
+    estudianteId,
+    previous,
+    id: formData.get("id"),
+    intent: formData.get("intent"),
+  };
+}
+
+/** The nth body row. */
+const bodyRow = (n = 0) => screen.getAllByRole("row")[n + 1];
+
+describe.each(["en", "es"] as const)(
+  "InscripcionesTable deactivation in %s (EA-DEACT-1, RNF-12)",
+  (locale) => {
+    const copy = messages[locale].catalog.inscripciones.toggle;
+    const shared = messages[locale].catalog.shared.toggle;
+
+    async function openDialog(overrides: Partial<InscripcionRow> = {}) {
+      const user = userEvent.setup();
+      renderTable({ locale, rows: [row(overrides)] });
+      await user.click(
+        within(bodyRow()).getByRole("button", { name: shared.deactivate }),
+      );
+      return { user, dialog: screen.getByRole("group") };
     }
-    expect(container.querySelector("table form")).toBeNull();
+
+    it("names the student, the subject and the group in the confirmation title", async () => {
+      const { dialog } = await openDialog();
+
+      expect(dialog).toHaveAccessibleName(
+        shared.confirmTitle.replace(
+          "{record}",
+          copy.recordLabel
+            .replace("{student}", "Ana Pérez")
+            .replace("{code}", "MAT-101")
+            .replace("{group}", "01"),
+        ),
+      );
+      expect(toggleAction).not.toHaveBeenCalled();
+    });
+
+    it.each([0, 2])(
+      "always carries the RN-27 retention sentence (%d requests)",
+      async (requestCount) => {
+        const { dialog } = await openDialog({ requestCount });
+
+        expect(dialog).toHaveTextContent(copy.retention);
+      },
+    );
+
+    it("says nothing is cancelled automatically", async () => {
+      const { dialog } = await openDialog();
+
+      expect(dialog.textContent).toMatch(
+        locale === "en"
+          ? /nothing is cancelled automatically/i
+          : /no se cancela nada de forma automática/i,
+      );
+    });
+
+    it("mentions no request and no draft when the count is zero", async () => {
+      const { dialog } = await openDialog({ requestCount: 0 });
+
+      expect(dialog.textContent).not.toMatch(
+        /request|solicitud|draft|borrador/i,
+      );
+      expect(document.body.innerHTML).not.toMatch(/draft|borrador/i);
+    });
+
+    it("confirm posts the group id and the deactivate intent for the row's student", async () => {
+      const { user, dialog } = await openDialog();
+
+      await user.click(
+        within(dialog).getByRole("button", { name: shared.confirm }),
+      );
+
+      await waitFor(() => expect(toggleAction).toHaveBeenCalledTimes(1));
+      expect(posted()).toEqual({
+        estudianteId: 5,
+        previous: IDLE,
+        id: "9",
+        intent: "deactivate",
+      });
+    });
+
+    it("cancel closes the dialog and calls no action", async () => {
+      const { user, dialog } = await openDialog();
+
+      await user.click(
+        within(dialog).getByRole("button", { name: shared.cancel }),
+      );
+
+      expect(screen.queryByRole("group")).toBeNull();
+      expect(
+        within(bodyRow()).getByRole("button", { name: shared.deactivate }),
+      ).toBeVisible();
+      expect(toggleAction).not.toHaveBeenCalled();
+    });
+  },
+);
+
+describe("InscripcionesTable deactivation notice (EA-DEACT-1 count table)", () => {
+  async function dialogFor(
+    requestCount: number,
+    locale: TestLocale,
+  ): Promise<HTMLElement> {
+    const user = userEvent.setup();
+    renderTable({ locale, rows: [row({ requestCount })] });
+    await user.click(
+      within(bodyRow()).getByRole("button", {
+        name: messages[locale].catalog.shared.toggle.deactivate,
+      }),
+    );
+    return screen.getByRole("group");
+  }
+
+  it.each([
+    ["en", 1, "1 submitted request uses this group; it does not change."],
+    ["en", 2, "2 submitted requests use this group; they do not change."],
+    ["en", 5, "5 submitted requests use this group; they do not change."],
+    ["es", 1, "1 solicitud enviada usa este grupo; no cambia."],
+    ["es", 3, "3 solicitudes enviadas usan este grupo; no cambian."],
+  ] as const)(
+    "in %s a count of %d is stated as: %s",
+    async (locale, count, sentence) => {
+      const dialog = await dialogFor(count, locale);
+
+      expect(dialog).toHaveTextContent(sentence);
+    },
+  );
+
+  it("puts the count and the retention sentence in the one notice paragraph of the toggle", async () => {
+    const dialog = await dialogFor(2, "en");
+
+    const notice = within(dialog).getByText(/2 submitted requests/);
+    expect(notice.tagName).toBe("P");
+    expect(notice).toHaveTextContent(
+      messages.en.catalog.inscripciones.toggle.retention,
+    );
+  });
+});
+
+describe("InscripcionesTable deactivation of any period (D9)", () => {
+  it.each([
+    [5, 9, "2026-S2"],
+    [6, 10, "2024-S1"],
+  ] as const)(
+    "offers the toggle on an active row of student %d, group %d, period %s, in effect or not",
+    async (estudianteId, grupoId, periodo) => {
+      const user = userEvent.setup();
+      renderTable({
+        rows: [row({ estudianteId, grupoId, periodo, effective: false })],
+      });
+
+      await user.click(
+        within(bodyRow()).getByRole("button", { name: "Deactivate" }),
+      );
+      await user.click(screen.getByRole("button", { name: "Yes, deactivate" }));
+
+      await waitFor(() => expect(toggleAction).toHaveBeenCalledTimes(1));
+      expect(posted()).toMatchObject({
+        estudianteId,
+        id: String(grupoId),
+        intent: "deactivate",
+      });
+    },
+  );
+
+  it("binds each row to its own student", async () => {
+    const user = userEvent.setup();
+    renderTable({
+      rows: [row(), row({ estudianteId: 8, grupoId: 12 })],
+    });
+
+    await user.click(
+      within(bodyRow(1)).getByRole("button", { name: "Deactivate" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Yes, deactivate" }));
+
+    await waitFor(() => expect(toggleAction).toHaveBeenCalledTimes(1));
+    expect(posted()).toMatchObject({ estudianteId: 8, id: "12" });
+  });
+});
+
+describe("InscripcionesTable reactivation (EA-REACT-1)", () => {
+  const INACTIVE = { activo: false, effective: false } as const;
+  const SHARED = messages.en.catalog.shared;
+
+  it("is one press with no dialog when the row can be reactivated", async () => {
+    const user = userEvent.setup();
+    renderTable({ rows: [row({ ...INACTIVE, canReactivate: true })] });
+
+    await user.click(
+      within(bodyRow()).getByRole("button", { name: "Reactivate" }),
+    );
+
+    expect(screen.queryByRole("group")).toBeNull();
+    await waitFor(() => expect(toggleAction).toHaveBeenCalledTimes(1));
+    expect(posted()).toEqual({
+      estudianteId: 5,
+      previous: IDLE,
+      id: "9",
+      intent: "reactivate",
+    });
   });
 
-  it("renders nothing beyond the delivered fields, even if a row carried more (EA-PII-1)", () => {
+  it("offers no control on an inactive row that cannot be reactivated, not even a dead one", () => {
+    const { container } = renderTable({
+      rows: [row({ ...INACTIVE, canReactivate: false })],
+    });
+
+    expect(container.querySelector("table form")).toBeNull();
+    expect(within(bodyRow()).queryAllByRole("button")).toHaveLength(0);
+    expect(within(bodyRow()).queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it("offers reactivation only on the rows that can take it", () => {
+    renderTable({
+      rows: [
+        row({ ...INACTIVE, canReactivate: true }),
+        row({ ...INACTIVE, estudianteId: 6, grupoId: 10 }),
+        row({ estudianteId: 7, grupoId: 11 }),
+      ],
+    });
+
+    expect(screen.getAllByRole("button", { name: "Reactivate" })).toHaveLength(
+      1,
+    );
+    expect(screen.getAllByRole("button", { name: "Deactivate" })).toHaveLength(
+      1,
+    );
+  });
+
+  it.each([
+    [{ kind: "done", activo: true }, SHARED.status.active],
+    [{ kind: "unchanged" }, SHARED.refusals.unchanged],
+    [{ kind: "gone" }, `${SHARED.notFound.title}. ${SHARED.notFound.message}`],
+    [
+      { kind: "error", message: "Not reactivated: try again." },
+      "Not reactivated: try again.",
+    ],
+  ] as const)(
+    "renders the %j answer as text in the row",
+    async (answer, text) => {
+      toggleAction.mockResolvedValue(answer);
+      const user = userEvent.setup();
+      renderTable({ rows: [row({ ...INACTIVE, canReactivate: true })] });
+
+      await user.click(
+        within(bodyRow()).getByRole("button", { name: "Reactivate" }),
+      );
+
+      await waitFor(() =>
+        expect(within(bodyRow()).getByRole("status")).toHaveTextContent(text),
+      );
+    },
+  );
+});
+
+describe("InscripcionesTable delivers nothing beyond the row fields (EA-PII-1)", () => {
+  it("is a POST form per toggle row and never a link", () => {
+    renderTable();
+
+    const forms = [...document.querySelectorAll("table form")];
+    // ROWS has two raw-active rows and one inactive row that cannot be reactivated.
+    expect(forms).toHaveLength(2);
+    for (const form of forms) expect(form).toHaveAttribute("method", "post");
+    expect(within(screen.getByRole("table")).queryAllByRole("link")).toEqual(
+      [],
+    );
+  });
+
+  it("renders nothing beyond the delivered fields, even if a row carried more", () => {
     const leaky = [
       {
         ...row(),

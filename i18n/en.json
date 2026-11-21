@@ -551,13 +551,19 @@
         "subject": "Subject",
         "period": "Period",
         "group": "Group",
-        "state": "Status"
+        "state": "Status",
+        "actions": "Actions"
       },
       "state": {
         "active": "Active",
         "inactive": "Inactive",
         "effective": "In effect",
         "notEffective": "Not in effect"
+      },
+      "toggle": {
+        "recordLabel": "{student} in {code}, group {group}",
+        "requests": "{count, plural, one {# submitted request uses this group; it does not change.} other {# submitted requests use this group; they do not change.}}",
+        "retention": "If this is the student's last active enrollment, the student may become eligible for the data retention period. Nothing is cancelled automatically."
       },
       "filters": {
         "label": "Filter enrollments",
