@@ -97,6 +97,21 @@ describe("listEligibleGroups (RF-04, RN-21, RN-22, D15)", () => {
     expect(query.params).toContain(STUDENT);
   });
 
+  it("reads only Inscripcion.Activo of the row, with no author or origin column, so a staff change shows at once (EA-WRITE-1)", async () => {
+    const double = use([{ kind: "select", rows: [group(1, 10, "A")] }]);
+
+    await listEligibleGroups(STUDENT, null, scheduleOf([]));
+
+    const where = double.log[0].where as Parameters<PgDialect["sqlToQuery"]>[0];
+    const columns = new PgDialect()
+      .sqlToQuery(where)
+      .sql.match(/"Inscripcion"\."\w+"/g);
+    expect([...new Set(columns)].sort()).toEqual([
+      '"Inscripcion"."Activo"',
+      '"Inscripcion"."EstudianteId"',
+    ]);
+  });
+
   it("requires an active asignatura: the group of an inactive one is not offered (D12)", async () => {
     const double = use([{ kind: "select", rows: [group(1, 10, "A")] }]);
 
