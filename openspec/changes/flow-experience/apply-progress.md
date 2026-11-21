@@ -1283,3 +1283,19 @@ Order and exact commands (placeholders in angle brackets are the owner's URLs):
 
 - S9a stacks on the PR 8 chain (the 8b tip, or the tracker once 8a and 8b merge). S8 touches the catalogs only under "review.escalation", so there is no conflict with the "auth" and "users" keys of S9.
 - The "usted" hint of "otro" sits beside "noteHint" in "review.escalation.dialog".
+
+## Disposable-branch rehearsal of 0016 (2026-11-20)
+
+Owner approved the five rehearsal commands on 2026-11-20. Production was only read.
+
+| Step | Branch | Commit | Result |
+|---|---|---|---|
+| Production preflight (read-only) | "production" | n/a | 16 migrations, last 1795134628842; no 'otro'; "Escalamiento" empty |
+| Bring to 0015 | "flow-it" (from "dev-arnia") | tracker drizzle folder | 16 migrations |
+| RED before 0016 | "flow-it" | 483140a | "escalation-constraints": 10 failed, 63 passed |
+| Apply 0016 | "flow-it" | 483140a | 17 migrations, last 1795216905153; 'otro' in 3 CHECKs and the index |
+| GREEN after 0016 | "flow-it" | 483140a | "escalation": 2 files, 74 passed |
+
+- The first "flow-it" endpoint id began with the production prefix that `src/lib/data/integration/guard.ts` refuses, so the guard stopped the run. The branch was deleted and recreated; the guard was not weakened.
+- "flow-it" stays for the S9 to S10 system captures and is deleted in task 12.12.
+- Open: 8.24 and 8.25 (production apply) wait for the owner's explicit yes before the tracker reaches main.
