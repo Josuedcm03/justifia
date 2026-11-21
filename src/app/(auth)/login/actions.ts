@@ -47,14 +47,20 @@ export async function loginAction(
     return { error: t("errors.invalid") };
   }
 
+  // "Mantener la sesión iniciada" (FE-32): a native checkbox posts "on"; any
+  // other value is not the box. The claim is added only when true, so an
+  // unchecked token has today's shape. Every failure above returned before
+  // this point, so a failed attempt never signs or sets a cookie.
+  const keep = formData.get("mantener") === "on";
   const token = await signSession({
     sub: String(user.id),
     login: user.login,
     rol: user.rol,
     nombre: user.nombreCompleto,
     debeCambiarClave: user.debeCambiarClave,
+    ...(keep ? { mantenerSesion: true } : {}),
   });
-  await setSessionCookie(token);
+  await setSessionCookie(token, keep);
 
   redirect(safeNextPath(formData.get("next")));
 }

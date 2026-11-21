@@ -8,6 +8,7 @@ import { loginAction, type LoginState } from "@/app/(auth)/login/actions";
 import { AuthCard } from "@/components/auth-card";
 import { PasswordInput } from "@/components/password-input";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -72,6 +73,13 @@ export function LoginForm({
             aria-invalid={state.error ? true : undefined}
             aria-describedby={state.error ? "login-error" : undefined}
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox id="mantener" name="mantener" />
+          <Label htmlFor="mantener" className="min-h-11 cursor-pointer">
+            {t("keepSession")}
+          </Label>
         </div>
 
         {state.error ? (
