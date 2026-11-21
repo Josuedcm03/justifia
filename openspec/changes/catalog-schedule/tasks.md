@@ -36,8 +36,8 @@ Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S
 | S1c-1 table | `-s1c1-table` | S1b-2 | S1b-2 | 1064 measured; `size:exception` accepted by the owner (2026-11-19) |
 | S1c-2 page | `-s1c2-page` | S1c-1 | S1a, S1b-1, S1b-2, S1c-1 | 852 measured; `size:exception` accepted by the owner (2026-11-20) |
 | S1c-3 nav + docs | `-s1c3-nav` | S1c-2 | S1a, S1c-2 | 348 measured (includes the #108 audit fix, 93) |
-| S2a-1 writer actor | `-s2a-writer` (S2a-1 and S2a-2 merged into one branch and one PR by the owner, 2026-11-20; supersedes `-s2a1-writer-actor`) | S1c-3 | S1a | ~230; 561 measured for commit 1 |
-| S2a-2 staff reactivate | `-s2a-writer` (merged with S2a-1, same branch and PR; supersedes `-s2a2-staff-enroll`) | S2a-1 | S2a-1 | ~200 |
+| S2a-1 writer actor | `-s2a1-writer-actor` | S1c-3 | S1a | 561 measured |
+| S2a-2 staff reactivate | `-s2a2-staff-enroll` | S2a-1 | S2a-1 | ~200 (read at ~2.4x) |
 | S2b-1 toggle action | `-s2b1-actions` | S2a-2 | S1a, S2a-1, S2a-2 | ~330 |
 | S2b-2 toggle wiring | `-s2b2-toggle` | S2b-1 | S1c-1, S2b-1 | ~270 |
 | S3a-1 reads | `-s3a1-reads` | S2b-2 | S1b-2 | ~355 |
@@ -160,7 +160,7 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 8: S2a-2 staff reactivate (EA-REACT-1, EA-WRITE-1)
 
-- [x] 8.1 Branch `feat/catalog-schedule-s2a2-staff-enroll` from S2a-1. Not created: the owner merged S2a-1 and S2a-2 into the single branch `feat/catalog-schedule-s2a-writer` (2026-11-20); Phase 8 commits go on that branch.
+- [ ] 8.1 Branch `feat/catalog-schedule-s2a2-staff-enroll` from S2a-1 (S2a-1 and S2a-2 were first merged on one branch; the merged forecast exceeded 800, so on 2026-11-20 they went back to separate PRs).
 - [ ] 8.2 RED `src/lib/data/enrollment-write-staff.test.ts`, S2 reactivate-only: inactive row of an offered group with no sibling -> row active, one `inscripcion.reactivada` with the staff actor; refusal table (older period, grupo inactive, asignatura inactive -> `not_eligible`; row already active -> `already_enrolled`; out-of-scope or unknown student -> `not_student`; NO existing row -> `not_eligible`, nothing inserted, create is S3) each with no audit; an active sibling found inside the transaction under the lock -> refused with nothing changed and no sibling update statement (CS-8, EA-REACT-1); no new member in `EnrollResult`, `DropResult` or `EnrollmentErrorCode` (CS-2).
 - [ ] 8.3 RED same file: staff deactivation is not sticky (the student's `enrollInGroup` then reactivates the same row with one `reactivada` by the student); the lock is the first statement and audit the last for every staff write (last writer wins by serialization, EA-WRITE-1 "Race", "Not sticky").
 - [ ] 8.4 RED `src/lib/data/enrollment-picker.test.ts` and `enrollment.test.ts` (additive asserts): `listMyEnrollments` and `listEligibleGroups` read only `Inscripcion.Activo` with no author or `Origen` column, so a staff change shows at once (student-enrollment "Staff change shows to the student", EA-WRITE-1 "reaches the student and the intake").
