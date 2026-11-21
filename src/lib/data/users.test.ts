@@ -13,8 +13,10 @@ import {
   buildDocentesWhere,
   createUsuario,
   createUsuariosBulk,
+  findLoginAccount,
   getCatalogActor,
   getUserFacultadId,
+  getUsuarioByLogin,
   listDocenteOptions,
   listDocentes,
   updateClaveAndClearFlag,
@@ -722,5 +724,194 @@ describe("listDocentes (CM-LST-1: Docentes list carries no credential, Database 
       pageSize: 10,
       degraded: true,
     });
+  });
+});
+
+// FE-21, FE-22, FE-25: the sign-in identifier resolves by email (any role) or by
+// CIF (students only), and never through the stored Login.
+describe("findLoginAccount (FE-21, FE-22, FE-25)", () => {
+  type Call = {
+    projection: unknown;
+    table: unknown;
+    joined: unknown[];
+    where: unknown;
+    limit: number;
+  };
+
+  function stubSelect(rows: unknown[]) {
+    const calls: Call[] = [];
+    (db as unknown as Record<string, unknown>).select = (
+      projection: unknown,
+    ) => ({
+      from: (table: unknown) => {
+        const joined: unknown[] = [];
+        const chain = {
+          innerJoin: (target: unknown) => {
+            joined.push(target);
+            return chain;
+          },
+          where: (where: unknown) => ({
+            limit: async (limit: number) => {
+              calls.push({ projection, table, joined, where, limit });
+              return rows;
+            },
+          }),
+        };
+        return chain;
+      },
+    });
+    return calls;
+  }
+
+  function render(where: unknown) {
+    return new PgDialect().sqlToQuery(
+      where as Parameters<PgDialect["sqlToQuery"]>[0],
+    );
+  }
+
+  const student = {
+    id: 7,
+    login: "legacy-student",
+    hashClave: "$2b$12$hash",
+    nombreCompleto: "Ana Perez",
+    cif: "26001234",
+    correo: null,
+    activo: true,
+    debeCambiarClave: false,
+    rol: "estudiante" as const,
+  };
+  const staff = { ...student, id: 9, rol: "secretaria" as const, cif: null };
+
+  describe("by email", () => {
+    it("compares lower(Correo) to the normalized value and reads at most two rows", async () => {
+      const calls = stubSelect([staff]);
+
+      await findLoginAccount("  Ana.Perez@UNI.edu ");
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0].table).toBe(usuario);
+      expect(calls[0].joined).toEqual([rol]);
+      expect(calls[0].limit).toBe(2);
+      const { sql: text, params } = render(calls[0].where);
+      expect(text).toBe('lower("Usuario"."Correo") = $1');
+      expect(params).toEqual(["ana.perez@uni.edu"]);
+    });
+
+    it.each([
+      ["secretaria", staff],
+      ["estudiante", student],
+    ])("resolves one match for a %s", async (_role, account) => {
+      stubSelect([account]);
+
+      expect(await findLoginAccount("ana.perez@uni.edu")).toBe(account);
+    });
+
+    it("fails closed when two accounts share the email ignoring case (FE-22)", async () => {
+      stubSelect([staff, { ...staff, id: 10 }]);
+
+      expect(await findLoginAccount("ana@uni.edu")).toBeNull();
+    });
+
+    it("gives null when nothing matches", async () => {
+      stubSelect([]);
+
+      expect(await findLoginAccount("nobody@uni.edu")).toBeNull();
+    });
+  });
+
+  describe("by CIF", () => {
+    it("matches Cif exactly on the cleaned value and only for role estudiante", async () => {
+      const calls = stubSelect([student]);
+
+      await findLoginAccount("  26-00 1234 ");
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0].table).toBe(usuario);
+      expect(calls[0].joined).toEqual([rol]);
+      expect(calls[0].limit).toBe(1);
+      const { sql: text, params } = render(calls[0].where);
+      expect(text).toBe('("Usuario"."Cif" = $1 and "Rol"."Codigo" = $2)');
+      expect(params).toEqual(["26001234", "estudiante"]);
+    });
+
+    it("resolves the student", async () => {
+      stubSelect([student]);
+
+      expect(await findLoginAccount("26001234")).toBe(student);
+    });
+
+    it("never resolves a staff row, even if one came back", async () => {
+      stubSelect([staff]);
+
+      expect(await findLoginAccount("26001234")).toBeNull();
+    });
+
+    it("gives null when nothing matches", async () => {
+      stubSelect([]);
+
+      expect(await findLoginAccount("26001299")).toBeNull();
+    });
+
+    it("runs no query for a CIF that is empty after cleaning", async () => {
+      const calls = stubSelect([student]);
+
+      expect(await findLoginAccount(" - - ")).toBeNull();
+      expect(calls).toHaveLength(0);
+    });
+  });
+
+  it("runs no query for a blank identifier", async () => {
+    const calls = stubSelect([student]);
+
+    expect(await findLoginAccount("   ")).toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+
+  // Owner decision 2026-11-20 (task 9.1): no Login fallback ships. The stored
+  // Login is read only as data of the matched account, never as a key.
+  it.each([
+    ["an email", "maria@uni.edu"],
+    ["a CIF", "26001234"],
+    ["a former username", "maria.perez"],
+  ])("never selects on Login when the identifier is %s", async (_k, raw) => {
+    const calls = stubSelect([student]);
+
+    await findLoginAccount(raw);
+
+    for (const call of calls) {
+      expect(render(call.where).sql).not.toContain('"Login"');
+    }
+  });
+
+  it("returns the shape of getUsuarioByLogin, so the session claims are unchanged", async () => {
+    const byEmail = stubSelect([staff]);
+    await findLoginAccount("ana@uni.edu");
+    const byCif = stubSelect([student]);
+    await findLoginAccount("26001234");
+    const byLogin = stubSelect([staff]);
+    await getUsuarioByLogin("maria");
+
+    const keys = (p: unknown) => Object.keys(p as object).sort();
+    expect(keys(byEmail[0].projection)).toEqual(keys(byLogin[0].projection));
+    expect(keys(byCif[0].projection)).toEqual(keys(byLogin[0].projection));
+    expect(keys(byEmail[0].projection)).toEqual(
+      expect.arrayContaining([
+        "id",
+        "login",
+        "rol",
+        "nombreCompleto",
+        "activo",
+        "hashClave",
+        "debeCambiarClave",
+      ]),
+    );
+  });
+
+  it("fails loud: a database error propagates", async () => {
+    (db as unknown as Record<string, unknown>).select = () => {
+      throw new Error("db down");
+    };
+
+    await expect(findLoginAccount("ana@uni.edu")).rejects.toThrow("db down");
   });
 });
