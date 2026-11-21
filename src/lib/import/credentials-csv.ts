@@ -3,7 +3,10 @@ import type { TemporaryCredential } from "@/lib/import/types";
 // Pure CSV writer for the one-shot credentials export (decision D10). UTF-8
 // BOM so Excel opens accents correctly; CRLF rows per RFC 4180.
 const BOM = "\uFEFF";
-const HEADER = ["Login", "NombreCompleto", "Clave"];
+// The first column is the email the docente types to sign in (FE-29). A
+// docente's login is the normalized email, so `TemporaryCredential.login` is
+// that email; no column is named "Login" or "Usuario".
+const HEADER = ["Correo", "NombreCompleto", "Clave"];
 
 // Cells starting with these are read as formulas by spreadsheets.
 const FORMULA_LEAD = /^[=+\-@\t\r]/;

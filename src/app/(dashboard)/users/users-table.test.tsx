@@ -218,9 +218,7 @@ describe("UsersTable states (DT-STATE-1, BS-STATE-1)", () => {
     });
 
     expect(screen.getByText("No results for “zzz”")).toBeVisible();
-    expect(
-      screen.getByText("Try another name, username or email."),
-    ).toBeVisible();
+    expect(screen.getByText("Try another name or email.")).toBeVisible();
     expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute(
       "href",
       "/users?sort=name&dir=desc",
@@ -277,5 +275,53 @@ describe("UsersTable displayed fields only (DT-DATA-1, UL:fields)", () => {
     ]) {
       expect(container.innerHTML).not.toContain(secret);
     }
+  });
+});
+
+// FE-30 (UX-21): the list keeps its Login column, and no text of the list asks
+// anyone to type or remember a "Usuario".
+describe("UsersTable keeps the Login column and asks for no Usuario (FE-30)", () => {
+  it.each(["es", "en"] as const)(
+    "shows the stored Login of each row under its column header in %s",
+    (locale) => {
+      renderTable({ locale });
+      const copy = messages[locale].users;
+
+      expect(
+        screen.getByRole("columnheader", {
+          name: new RegExp(copy.columns.login),
+        }),
+      ).toBeVisible();
+      const [, first] = screen.getAllByRole("row");
+      expect(within(first).getByText("alopez")).toBeVisible();
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "the search field and the empty states ask no Usuario in %s",
+    (locale) => {
+      const copy = messages[locale].users;
+      const prompts = [
+        copy.search.label,
+        copy.search.placeholder,
+        copy.noResults.hint,
+        copy.noResults.hintStatus,
+        copy.noResults.title,
+        copy.empty,
+      ].filter((text): text is string => typeof text === "string");
+
+      for (const text of prompts) {
+        expect(text).not.toMatch(/\b(usuario|username)\b/i);
+      }
+    },
+  );
+
+  it("words the search and the no-results hint by name or email", () => {
+    expect(messages.es.users.search.placeholder).toBe("Nombre o correo");
+    expect(messages.es.users.noResults.hint).toBe(
+      "Prueba con otro nombre o correo.",
+    );
+    expect(messages.en.users.search.placeholder).toBe("Name or email");
+    expect(messages.en.users.noResults.hint).toBe("Try another name or email.");
   });
 });
