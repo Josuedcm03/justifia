@@ -45,6 +45,7 @@ const LABELS = {
     administration: "Administración",
     asignaturas: "Asignaturas",
     docentes: "Docentes",
+    inscripciones: "Inscripciones",
     users: "Usuarios",
     profile: "Mi perfil",
   },
@@ -58,6 +59,7 @@ const LABELS = {
     administration: "Administration",
     asignaturas: "Subjects",
     docentes: "Teachers",
+    inscripciones: "Enrollments",
     users: "Users",
     profile: "My profile",
   },
@@ -86,6 +88,13 @@ const TRAILS: readonly (readonly [string, boolean, Key, boolean, string])[] = [
     "/catalog/asignaturas",
   ],
   ["/catalog/docentes", true, "docentes", true, "/catalog/docentes"],
+  [
+    "/catalog/inscripciones",
+    true,
+    "inscripciones",
+    true,
+    "/catalog/inscripciones",
+  ],
   ["/requests", false, "myRequests", true, "/requests"],
   ["/requests/new", false, "newRequest", true, "/requests/new"],
   ["/enrollment", false, "enrollment", true, "/enrollment"],
@@ -226,6 +235,7 @@ describe("PageContext (BS-CTX-1)", () => {
   it.each([
     ["/review/42", "Revisión de solicitudes"],
     ["/reports/requests", "Reportes"],
+    ["/catalog/inscripciones/assign", "Inscripciones"],
   ])(
     "opts the link back from %s out of prefetch: its target writes an audit row (CR-9)",
     (pathname, label) => {

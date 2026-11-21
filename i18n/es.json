@@ -21,6 +21,7 @@
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
     "catalogDocentes": "Docentes",
+    "catalogInscripciones": "Inscripciones",
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
     "settings": "Configuración",
@@ -62,6 +63,7 @@
       "coordination": "Atienda las solicitudes escaladas a la coordinación de su carrera.",
       "catalogAsignaturas": "Consulte y administre las asignaturas y sus grupos.",
       "catalogDocentes": "Consulte los docentes registrados.",
+      "catalogInscripciones": "Consulte las inscripciones de los estudiantes de su facultad.",
       "catalogImport": "Cargue el catálogo desde un archivo de Excel.",
       "users": "Administre las cuentas de usuario.",
       "reports": "Consulte qué estudiantes, docentes y asignaturas de su carrera acumulan más inasistencias justificadas."

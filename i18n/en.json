@@ -21,6 +21,7 @@
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
     "catalogDocentes": "Teachers",
+    "catalogInscripciones": "Enrollments",
     "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
@@ -62,6 +63,7 @@
       "coordination": "Handle the requests escalated to the coordination of your career.",
       "catalogAsignaturas": "Browse and manage subjects and their groups.",
       "catalogDocentes": "Browse the registered teachers.",
+      "catalogInscripciones": "Browse the enrollments of the students in your faculty.",
       "catalogImport": "Load the catalog from an Excel file.",
       "users": "Manage user accounts.",
       "reports": "See which students, teachers and subjects of your career have the most justified absences."

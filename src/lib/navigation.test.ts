@@ -4,6 +4,7 @@ import {
   Briefcase,
   ChartColumn,
   ClipboardCheck,
+  ClipboardList,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
@@ -21,6 +22,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canManageEnrollments,
   canManageOwnEnrollment,
   canReviewRequests,
   canViewReports,
@@ -110,6 +112,13 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
             visibleTo: canManageCatalog,
           },
           {
+            key: "catalogInscripciones",
+            href: "/catalog/inscripciones",
+            icon: ClipboardList,
+            visibleTo: canManageEnrollments,
+            prefetch: false,
+          },
+          {
             key: "catalogImport",
             href: "/catalog/import",
             icon: FileSpreadsheet,
@@ -152,6 +161,35 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
     });
   });
 
+  it("opts the inscripciones entry out of prefetching (its page writes an audited read)", () => {
+    const children = NAV_ITEMS.flatMap((item) =>
+      "children" in item ? item.children : [],
+    );
+    const inscripciones = children.find(
+      (child) => child.key === "catalogInscripciones",
+    );
+
+    expect(inscripciones).toMatchObject({
+      href: "/catalog/inscripciones",
+      icon: ClipboardList,
+      prefetch: false,
+    });
+  });
+
+  it("places inscripciones after Docentes and before Import, in the administration group", () => {
+    const group = NAV_ITEMS.find((item) => item.key === "administration");
+    const keys =
+      group && "children" in group ? group.children.map((c) => c.key) : [];
+
+    expect(keys).toEqual([
+      "catalogAsignaturas",
+      "catalogDocentes",
+      "catalogInscripciones",
+      "catalogImport",
+      "users",
+    ]);
+  });
+
   it("places reports after coordination and before administration", () => {
     const keys = NAV_ITEMS.map((item) => item.key);
 
@@ -166,7 +204,10 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
 
     for (const leaf of leaves.filter(
       (l) =>
-        l.key !== "review" && l.key !== "coordination" && l.key !== "reports",
+        l.key !== "review" &&
+        l.key !== "coordination" &&
+        l.key !== "reports" &&
+        l.key !== "catalogInscripciones",
     )) {
       expect(leaf, leaf.key).not.toHaveProperty("prefetch");
     }
@@ -195,6 +236,9 @@ describe("isCurrentPath", () => {
     ["/users-archive", "/users", false],
     ["/catalog/asignaturas/3/grupos/new", "/catalog/asignaturas", true],
     ["/catalog/asignaturas", "/catalog/docentes", false],
+    ["/catalog/inscripciones", "/catalog/inscripciones", true],
+    ["/catalog/inscripciones", "/catalog/asignaturas", false],
+    ["/catalog/asignaturas", "/catalog/inscripciones", false],
   ])("%s against %s is %s", (pathname, href, expected) => {
     expect(isCurrentPath(pathname, href)).toBe(expected);
   });
@@ -230,6 +274,7 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
     ["reports", ["coordinacion"]],
     ["catalogAsignaturas", STAFF],
     ["catalogDocentes", STAFF],
+    ["catalogInscripciones", ["secretaria"]],
     ["catalogImport", ["secretaria"]],
     ["users", STAFF],
   ] as const)("%s is visible to exactly %j", (key, visible) => {
@@ -291,6 +336,16 @@ describe("trailFor (BS-CTX-1)", () => {
         key: "catalogDocentes",
         href: "/catalog/docentes",
         exact: true,
+      },
+    ],
+    [
+      "/catalog/inscripciones",
+      {
+        groupKey: "administration",
+        key: "catalogInscripciones",
+        href: "/catalog/inscripciones",
+        exact: true,
+        prefetch: false,
       },
     ],
     [
@@ -361,6 +416,7 @@ describe("trailFor (BS-CTX-1)", () => {
       "/review/42",
       "/reports",
       "/reports/requests",
+      "/catalog/inscripciones",
     ]) {
       expect(trailFor(pathname)?.prefetch, pathname).toBe(false);
     }
@@ -409,6 +465,7 @@ describe("shortcutsFor (BS-HOME-1 inputs)", () => {
         "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
+        "/catalog/inscripciones",
         "/catalog/import",
         "/users",
       ],
