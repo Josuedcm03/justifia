@@ -29,9 +29,10 @@ const LIST_PATH = "/catalog/inscripciones";
  * The toggle of one inscripcion of a student: `ActiveToggle` posts the group id
  * as `id` and the closed `intent`; the table binds the student id first
  * (`setInscripcionActivoAction.bind(null, estudianteId)`). Deactivation drops
- * the row of any period (D9); reactivation is the reactivate-only staff writer
- * of S2, which refuses a missing row, a group that is not offered and a
- * sibling with `not_eligible` and never creates or replaces.
+ * the row of any period (D9); reactivation is the reactivate-only mode of the
+ * staff writer, which refuses a missing row, a group that is not offered and a
+ * sibling with `not_eligible` and never creates or replaces: the replace needs
+ * the confirmation of the assign page (EA-SIB-1), which this toggle lacks.
  */
 export async function setInscripcionActivoAction(
   estudianteId: number,
@@ -69,7 +70,9 @@ export async function setInscripcionActivoAction(
     result =
       intent === "deactivate"
         ? await staffDropGroup(staff, student, grupoId)
-        : await staffEnrollInGroup(staff, student, grupoId);
+        : await staffEnrollInGroup(staff, student, grupoId, {
+            reactivateOnly: true,
+          });
   } catch {
     // The writer already logged one sanitised line and stored nothing; the
     // thrown text is never shown.

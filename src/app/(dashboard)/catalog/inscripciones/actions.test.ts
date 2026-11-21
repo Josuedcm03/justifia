@@ -298,10 +298,13 @@ describe("setInscripcionActivoAction reactivate (EA-REACT-1)", () => {
     });
 
     expect(h.staffEnrollInGroup).toHaveBeenCalledTimes(1);
+    // The list never creates or replaces: the replace is the assign page's
+    // confirmed flow (EA-SIB-1), so the toggle asks for reactivate only.
     expect(h.staffEnrollInGroup).toHaveBeenCalledWith(
       { actorId: ACTOR, scope: FACULTAD },
       STUDENT,
       GROUP,
+      { reactivateOnly: true },
     );
     expect(h.staffDropGroup).not.toHaveBeenCalled();
     expect(h.revalidatePath).toHaveBeenCalledTimes(1);
