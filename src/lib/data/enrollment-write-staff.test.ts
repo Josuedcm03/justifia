@@ -57,8 +57,20 @@ const REACTIVATED = {
   replaced: [],
 } as const;
 // The only way to create or replace (the assign flow of EA-SIB-1); a call
-// without it is the list's reactivate-only mode.
-const FULL = { allowReplaceAndCreate: true } as const;
+// without it is the list's reactivate-only mode. The opt-in carries the group
+// the user saw and confirmed as replaced (or null when the page showed none).
+const FULL = { allowReplaceAndCreate: true, expectedReplaced: null } as const;
+const REPLACING = (expectedReplaced: number | null) =>
+  ({ allowReplaceAndCreate: true, expectedReplaced }) as const;
+/** The read of the active siblings under the lock, before the update. */
+const SIB_READ = (grupoIds: number[]) => ({
+  kind: "select" as const,
+  rows: grupoIds.map((grupoId) => ({ grupoId })),
+});
+const SIBLINGS_UPDATE = (grupoIds: number[]) => ({
+  kind: "update" as const,
+  rows: grupoIds.map((grupoId) => ({ grupoId })),
+});
 const NO_ROW = { kind: "select", rows: [] } as const;
 const NO_SIBLING_UPDATE = { kind: "update", rows: [] } as const;
 const INSERT = { kind: "insert" } as const;
@@ -633,11 +645,20 @@ describe("staffEnrollInGroup by default, reactivate only (EA-REACT-1, CS-3, CS-8
 });
 
 describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
-  const CREATE = [STUDENT, TARGET, NO_ROW, NO_SIBLING_UPDATE, INSERT, AUDIT];
+  const CREATE = [
+    STUDENT,
+    TARGET,
+    NO_ROW,
+    SIB_READ([]),
+    NO_SIBLING_UPDATE,
+    INSERT,
+    AUDIT,
+  ];
   const REACTIVATE_ROW = [
     STUDENT,
     TARGET,
     INACTIVE_ROW,
+    SIB_READ([]),
     NO_SIBLING_UPDATE,
     REACTIVATE,
     AUDIT,
@@ -661,14 +682,15 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
       "select",
       "select",
       "select",
+      "select",
       "update",
       "insert",
       "insert",
     ]);
     expect(double.exhausted).toBe(true);
     // Role integrity: the row binds the student, never the staff user.
-    expect(double.log[4].table).toBe(inscripcion);
-    expect(double.log[4].values).toEqual({
+    expect(double.log[5].table).toBe(inscripcion);
+    expect(double.log[5].values).toEqual({
       estudianteId: S,
       grupoId: G,
       activo: true,
@@ -693,7 +715,7 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
     expect(
       double.log.filter((e) => e.kind === "insert").map((e) => e.table),
     ).toEqual([eventoAuditoria]);
-    expect(double.log[4].set).toEqual({ activo: true });
+    expect(double.log[5].set).toEqual({ activo: true });
     expect(render(double.log[2].where).params).toEqual(
       expect.arrayContaining([S, G]),
     );
@@ -756,17 +778,25 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
     },
   );
 
-  it("issues the student's own create statements: only the actor of the audit row differs", async () => {
+  it("issues the student's own create statements plus the one sibling read: only the actor of the audit row differs", async () => {
     const staff = use(CREATE);
     await staffEnrollInGroup(STAFF, S, G, FULL);
-    const student = use(CREATE);
+    const student = use([
+      STUDENT,
+      TARGET,
+      NO_ROW,
+      NO_SIBLING_UPDATE,
+      INSERT,
+      AUDIT,
+    ]);
     await enrollInGroup(S, G);
 
-    expect(staff.log.map((e) => e.kind)).toEqual(
+    // The student path has no optimistic check, so it has no sibling read.
+    expect(staff.log.filter((_e, i) => i !== 3).map((e) => e.kind)).toEqual(
       student.log.map((e) => e.kind),
     );
-    expect(staff.log[4].values).toEqual(student.log[4].values);
-    expect(render(staff.log[3].where)).toEqual(render(student.log[3].where));
+    expect(staff.log[5].values).toEqual(student.log[4].values);
+    expect(render(staff.log[4].where)).toEqual(render(student.log[3].where));
     const [staffRow] = lastRows(staff);
     const [studentRow] = lastRows(student);
     expect({ ...staffRow, actorId: S }).toEqual(studentRow);
@@ -788,12 +818,13 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       STUDENT,
       TARGET,
       INACTIVE_ROW,
+      SIB_READ([5]),
       SIBLINGS([5]),
       REACTIVATE,
       AUDIT,
     ]);
 
-    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, S, G, REPLACING(5))).toEqual({
       ok: true,
       kind: "reactivated",
       grupoId: G,
@@ -804,12 +835,13 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       "select",
       "select",
       "select",
+      "select",
       "update",
       "update",
       "insert",
     ]);
-    expect(double.log[3].set).toEqual({ activo: false });
-    expect(double.log[4].set).toEqual({ activo: true });
+    expect(double.log[4].set).toEqual({ activo: false });
+    expect(double.log[5].set).toEqual({ activo: true });
     expect(lastRows(double)).toEqual([
       expect.objectContaining({
         actorId: ACTOR,
@@ -828,16 +860,24 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
   });
 
   it("changing to a group the student has no row in replaces the current group and creates the new row: desactivada then creada", async () => {
-    const double = use([STUDENT, TARGET, NO_ROW, SIBLINGS([5]), INSERT, AUDIT]);
+    const double = use([
+      STUDENT,
+      TARGET,
+      NO_ROW,
+      SIB_READ([5]),
+      SIBLINGS([5]),
+      INSERT,
+      AUDIT,
+    ]);
 
-    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, S, G, REPLACING(5))).toEqual({
       ok: true,
       kind: "created",
       grupoId: G,
       replaced: [5],
     });
 
-    expect(double.log[4].values).toEqual({
+    expect(double.log[5].values).toEqual({
       estudianteId: S,
       grupoId: G,
       activo: true,
@@ -849,39 +889,20 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
     expect(lastRows(double).every((row) => row.actorId === ACTOR)).toBe(true);
   });
 
-  it("deactivates every sibling it finds, each with its own audit row before the activation", async () => {
-    const double = use([
-      STUDENT,
-      TARGET,
-      INACTIVE_ROW,
-      SIBLINGS([5, 6]),
-      REACTIVATE,
-      AUDIT,
-    ]);
-
-    const result = await staffEnrollInGroup(STAFF, S, G, FULL);
-
-    expect(result).toEqual({ ...REACTIVATED, replaced: [5, 6] });
-    expect(lastRows(double).map((row) => row.datos)).toEqual([
-      { grupoId: 5, motivo: "reemplazo" },
-      { grupoId: 6, motivo: "reemplazo" },
-      { grupoId: G },
-    ]);
-  });
-
   it("scopes the sibling update to the target's asignatura and period and to other groups only, so other asignaturas and periods are not in its predicate", async () => {
     const double = use([
       STUDENT,
       TARGET,
       INACTIVE_ROW,
+      SIB_READ([5]),
       SIBLINGS([5]),
       REACTIVATE,
       AUDIT,
     ]);
 
-    await staffEnrollInGroup(STAFF, S, G, FULL);
+    await staffEnrollInGroup(STAFF, S, G, REPLACING(5));
 
-    const sibling = double.log[3];
+    const sibling = double.log[4];
     expect(sibling.table).toBe(inscripcion);
     expect(sibling.calls).toContain("returning");
     const query = render(sibling.where);
@@ -913,7 +934,15 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       kind: "select",
       rows: [{ id: G, asignaturaId: 8, periodo: "2026-S2" }],
     } as const;
-    const double = use([STUDENT, other, NO_ROW, SIBLINGS([]), INSERT, AUDIT]);
+    const double = use([
+      STUDENT,
+      other,
+      NO_ROW,
+      SIB_READ([]),
+      SIBLINGS([]),
+      INSERT,
+      AUDIT,
+    ]);
 
     expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toMatchObject({
       ok: true,
@@ -932,12 +961,13 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       STUDENT,
       TARGET,
       INACTIVE_ROW,
+      SIB_READ([5]),
       SIBLINGS([5]),
       REACTIVATE,
       AUDIT,
     ]);
 
-    await staffEnrollInGroup(STAFF, S, G, FULL);
+    await staffEnrollInGroup(STAFF, S, G, REPLACING(5));
 
     expect(double.transactions).toBe(1);
     expect(double.log.every((entry) => entry.inTransaction)).toBe(true);
@@ -949,9 +979,10 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
   });
 
   it.each([
-    { label: "the sibling update", failing: 3, reached: false },
-    { label: "the activation", failing: 4, reached: false },
-    { label: "the audit insert carrying both rows", failing: 5, reached: true },
+    { label: "the sibling read", failing: 3, reached: false },
+    { label: "the sibling update", failing: 4, reached: false },
+    { label: "the activation", failing: 5, reached: false },
+    { label: "the audit insert carrying both rows", failing: 6, reached: true },
   ])(
     "rethrows when $label fails: one sanitized line with the STAFF actor and the replace is not reported",
     async ({ failing, reached }) => {
@@ -963,6 +994,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
         STUDENT,
         TARGET,
         INACTIVE_ROW,
+        SIB_READ([5]),
         SIBLINGS([5]),
         REACTIVATE,
         AUDIT,
@@ -971,7 +1003,9 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       );
       const double = use(steps);
 
-      await expect(staffEnrollInGroup(STAFF, S, G, FULL)).rejects.toBe(failure);
+      await expect(staffEnrollInGroup(STAFF, S, G, REPLACING(5))).rejects.toBe(
+        failure,
+      );
 
       expect(double.exhausted).toBe(reached);
       expect(logger).toHaveBeenCalledTimes(1);
@@ -1029,6 +1063,111 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
   });
 });
 
+describe("staffEnrollInGroup refuses a stale replace (EA-SIB-1, EA-CHG-1: the optimistic check)", () => {
+  const STALE = { ok: false, reason: "stale" } as const;
+  const rows = [
+    ["no row (create)", NO_ROW],
+    ["an inactive row (reactivate)", INACTIVE_ROW],
+  ] as const;
+  const cases = [
+    { label: "expected none but a sibling exists", expected: null, found: [5] },
+    { label: "expected a sibling but none exists", expected: 5, found: [] },
+    {
+      label: "expected one sibling but another exists",
+      expected: 5,
+      found: [6],
+    },
+    {
+      label: "expected one sibling but it has company",
+      expected: 5,
+      found: [5, 6],
+    },
+    {
+      label: "expected one sibling but there are two others",
+      expected: 5,
+      found: [6, 7],
+    },
+  ] as const;
+
+  it.each(
+    cases.flatMap((c) =>
+      rows.map(([rowLabel, row]) => ({ ...c, rowLabel, row })),
+    ),
+  )(
+    "$label, over $rowLabel: refuses with stale, nothing after the read and no audit row",
+    async ({ expected, found, row }) => {
+      // The script ends at the sibling read: any further statement (the
+      // sibling update, the activation or the audit insert) would find it
+      // exhausted and throw.
+      const double = use([STUDENT, TARGET, row, SIB_READ([...found])]);
+
+      expect(
+        await staffEnrollInGroup(STAFF, S, G, REPLACING(expected)),
+      ).toEqual(STALE);
+
+      expect(kinds(double)).toEqual(["select", "select", "select", "select"]);
+      expect(double.exhausted).toBe(true);
+      expect(double.log.some((e) => e.table === eventoAuditoria)).toBe(false);
+      expect(double.log.map((e) => e.kind)).not.toContain("update");
+      expect(double.log.map((e) => e.kind)).not.toContain("insert");
+    },
+  );
+
+  it.each([
+    { expected: 5, found: [5], row: INACTIVE_ROW, kind: "reactivated" },
+    { expected: 12, found: [12], row: NO_ROW, kind: "created" },
+  ] as const)(
+    "replaces exactly the group the user saw ($expected) over a $kind target",
+    async ({ expected, found, row, kind }) => {
+      const double = use([
+        STUDENT,
+        TARGET,
+        row,
+        SIB_READ([...found]),
+        SIBLINGS_UPDATE([...found]),
+        row === NO_ROW ? INSERT : REACTIVATE,
+        AUDIT,
+      ]);
+
+      expect(
+        await staffEnrollInGroup(STAFF, S, G, REPLACING(expected)),
+      ).toEqual({ ok: true, kind, grupoId: G, replaced: [expected] });
+      expect(double.exhausted).toBe(true);
+    },
+  );
+
+  it("reads the siblings with the very predicate the update uses, under the one lock and in the one transaction", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      INACTIVE_ROW,
+      SIB_READ([5]),
+      SIBLINGS_UPDATE([5]),
+      REACTIVATE,
+      AUDIT,
+    ]);
+
+    await staffEnrollInGroup(STAFF, S, G, REPLACING(5));
+
+    expect(render(double.log[3].where)).toEqual(render(double.log[4].where));
+    expect(double.log.every((entry) => entry.inTransaction)).toBe(true);
+    expect(double.log.filter((entry) => entry.lock)).toHaveLength(1);
+  });
+
+  it("a caller that bypasses the type and omits expectedReplaced fails closed to reactivate only", async () => {
+    const double = use([STUDENT, TARGET, NO_ROW]);
+
+    // @ts-expect-error expectedReplaced is required with the opt-in
+    const result = await staffEnrollInGroup(STAFF, S, G, {
+      allowReplaceAndCreate: true,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_eligible" });
+    expect(double.log.map((e) => e.kind)).not.toContain("insert");
+    expect(double.log.map((e) => e.kind)).not.toContain("update");
+  });
+});
+
 describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
   it("a staff deactivation is undone by the student's own enrollInGroup: one reactivada, by the student, on the same row", async () => {
     use([STUDENT, { kind: "update", rows: [{ grupoId: G }] }, AUDIT]);
@@ -1071,6 +1210,7 @@ describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
         STUDENT,
         TARGET,
         INACTIVE_ROW,
+        SIB_READ([]),
         NO_SIBLING_UPDATE,
         REACTIVATE,
         AUDIT,
@@ -1102,6 +1242,7 @@ describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
       STUDENT,
       TARGET,
       INACTIVE_ROW,
+      SIB_READ([]),
       NO_SIBLING_UPDATE,
       REACTIVATE,
       { kind: "insert", error: failure },

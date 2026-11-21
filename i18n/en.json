@@ -606,6 +606,7 @@
         "already_enrolled": "This enrollment was already active. Refresh the page to see its current state.",
         "assign_not_eligible": "The enrollment could not be saved: the group is no longer offered. Refresh the page and choose another group.",
         "assign_already_enrolled": "The student is already enrolled in that group. Refresh the page to see their current groups.",
+        "assign_stale": "The student's enrollment changed since you opened this page. Review it and try again.",
         "unexpected": "We could not save the change and nothing was changed. Try again."
       }
     }

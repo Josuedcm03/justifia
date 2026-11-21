@@ -260,7 +260,7 @@ describe("inscripciones server actions (structure)", () => {
 
       expect(byName.setInscripcionActivoAction).not.toMatch(OPT_IN);
       expect(byName.assignInscripcionAction).toMatch(
-        /staffEnrollInGroup\([^)]*\{\s*allowReplaceAndCreate:\s*true\s*\},?\s*\)/,
+        /staffEnrollInGroup\([^)]*\{\s*allowReplaceAndCreate:\s*true,\s*expectedReplaced:\s*parsed\.data\.expectedReplaced,?\s*\},?\s*\)/,
       );
       expect(code(file.text).match(OPT_IN)).toHaveLength(1);
     },

@@ -15,7 +15,12 @@ import {
 import { enrollmentWriteEvents } from "@/lib/audit/events";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import { sqlStateOf } from "@/lib/data/catalog-write";
-import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
+import type {
+  DropResult,
+  EnrollResult,
+  StaffEnrollResult,
+  StaleResult,
+} from "@/lib/enrollment/types";
 import type { RequestScope } from "@/lib/intake/request-scope";
 
 export type { DropResult, EnrollResult };
@@ -141,10 +146,9 @@ async function lockStudentForStaff(
  *  either side rolls back both. The audit actor is the student id argument or
  *  the staff session user, never a payload value; the audited entity is always
  *  the student. */
-async function writeEnrollment<R extends EnrollResult | DropResult>(
-  actor: EnrollmentActor,
-  work: (tx: Transaction) => Promise<R>,
-): Promise<R> {
+async function writeEnrollment<
+  R extends EnrollResult | DropResult | StaleResult,
+>(actor: EnrollmentActor, work: (tx: Transaction) => Promise<R>): Promise<R> {
   const auditActor =
     actor.kind === "student" ? actor.estudianteId : actor.actorId;
   try {
@@ -182,16 +186,48 @@ function siblingsOf(
   );
 }
 
+const STALE: StaleResult = { ok: false, reason: "stale" };
+
+/** The optimistic check of the staff assign: the active siblings found under
+ *  the lock are exactly the one group the user saw and confirmed (or none when
+ *  the page showed none). */
+function siblingsAreAsSeen(found: number[], expected: number | null) {
+  return expected === null
+    ? found.length === 0
+    : found.length === 1 && found[0] === expected;
+}
+
 /** `reactivateOnly` is the staff list mode (CS-3, CS-8): an existing inactive
  *  row is required (nothing is created), and a sibling refuses instead of being
  *  replaced, so no statement of that mode changes any row but the target. The
- *  student path never sets it and issues the same statements as before. */
+ *  student path never sets it and issues the same statements as before.
+ *
+ *  `expectedReplaced` is the staff assign's optimistic check (EA-SIB-1): the
+ *  active siblings are READ under the lock first and the write goes on only when
+ *  they are exactly that group (or none for `null`); otherwise `stale` and
+ *  nothing is written. It is absent on the student path, which stays unchecked
+ *  and issues no extra statement. */
 function enrollWork(
   estudianteId: number,
   grupoId: number,
-  { reactivateOnly }: { reactivateOnly: boolean } = { reactivateOnly: false },
+  options?: { reactivateOnly: boolean },
+): (tx: Transaction) => Promise<EnrollResult>;
+function enrollWork(
+  estudianteId: number,
+  grupoId: number,
+  options: { reactivateOnly: false; expectedReplaced: number | null },
+): (tx: Transaction) => Promise<StaffEnrollResult>;
+function enrollWork(
+  estudianteId: number,
+  grupoId: number,
+  {
+    reactivateOnly,
+    expectedReplaced,
+  }: { reactivateOnly: boolean; expectedReplaced?: number | null } = {
+    reactivateOnly: false,
+  },
 ) {
-  return async (tx: Transaction): Promise<EnrollResult> => {
+  return async (tx: Transaction): Promise<StaffEnrollResult> => {
     const [target] = await tx
       .select({
         id: grupo.id,
@@ -231,6 +267,20 @@ function enrollWork(
         .where(siblingRows);
       if (sibling) return { ok: false, reason: "not_eligible" };
     } else {
+      if (expectedReplaced !== undefined) {
+        const found = await tx
+          .select({ grupoId: inscripcion.grupoId })
+          .from(inscripcion)
+          .where(siblingRows);
+        if (
+          !siblingsAreAsSeen(
+            found.map((row) => row.grupoId),
+            expectedReplaced,
+          )
+        ) {
+          return STALE;
+        }
+      }
       const siblings = await tx
         .update(inscripcion)
         .set({ activo: false })
@@ -300,6 +350,12 @@ export function dropGroup(
   );
 }
 
+/** The options of the staff activation: the default is reactivate only; the
+ *  opt-in carries the optimistic check. */
+export type StaffEnrollOptions =
+  | { allowReplaceAndCreate?: false }
+  | { allowReplaceAndCreate: true; expectedReplaced: number | null };
+
 /** A secretaria activates a group for a student (EA-REACT-1, EA-CRE-1,
  *  EA-SIB-1, EA-CHG-1). The default FAILS CLOSED: it reactivates an existing
  *  inactive row of an offered group and nothing else, so no row is created and
@@ -307,26 +363,49 @@ export function dropGroup(
  *  never replaced. Only `{ allowReplaceAndCreate: true }` creates a missing row
  *  and, when the student has an active sibling of the same asignatura and
  *  period, replaces it in the same transaction, like the student's own writer.
- *  The confirmation that names the replaced group belongs to that caller (the
- *  assign flow), so a caller that forgets the option can never replace by
- *  accident. The audit actor is `staff.actorId`; refusals reuse the existing
- *  reasons (CS-2). */
+ *  The opt-in REQUIRES `expectedReplaced`, the group the user saw and confirmed
+ *  as replaced (`null` when the page showed none): the siblings are read under
+ *  the lock and a mismatch answers `stale` with nothing changed (optimistic
+ *  check, EA-SIB-1), so a replace the user did not see never happens. A caller
+ *  that forgets the option, or opts in without `expectedReplaced`, gets the
+ *  reactivate-only default. The audit actor is `staff.actorId`; refusals reuse
+ *  the existing reasons (CS-2) plus `stale`. */
+// The default is reactivate only and can never be stale, so its answer is the
+// shared `EnrollResult`; only the opt-in can answer `stale`.
 export function staffEnrollInGroup(
   staff: EnrollmentStaff,
   estudianteId: number,
   grupoId: number,
-  { allowReplaceAndCreate = false }: { allowReplaceAndCreate?: boolean } = {},
-): Promise<EnrollResult> {
-  return writeEnrollment<EnrollResult>(
+  options?: { allowReplaceAndCreate?: false },
+): Promise<EnrollResult>;
+export function staffEnrollInGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+  options: { allowReplaceAndCreate: true; expectedReplaced: number | null },
+): Promise<StaffEnrollResult>;
+export function staffEnrollInGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+  options: StaffEnrollOptions = {},
+): Promise<StaffEnrollResult> {
+  const work =
+    options.allowReplaceAndCreate === true &&
+    options.expectedReplaced !== undefined
+      ? enrollWork(estudianteId, grupoId, {
+          reactivateOnly: false,
+          expectedReplaced: options.expectedReplaced,
+        })
+      : enrollWork(estudianteId, grupoId, { reactivateOnly: true });
+  return writeEnrollment<StaffEnrollResult>(
     {
       kind: "staff",
       actorId: staff.actorId,
       scope: staff.scope,
       estudianteId,
     },
-    enrollWork(estudianteId, grupoId, {
-      reactivateOnly: !allowReplaceAndCreate,
-    }),
+    work,
   );
 }
 

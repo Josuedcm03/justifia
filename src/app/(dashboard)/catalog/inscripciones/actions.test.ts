@@ -359,19 +359,33 @@ describe("setInscripcionActivoAction failure (EA-WRITE-1)", () => {
 
 // ---------------------------------------------------------------------------
 // assignInscripcionAction (EA-CRE-1, EA-CHG-1, EA-SIB-1, EA-ACC-1, EA-SCOPE-1,
-// CS-9). The client calls it as `(estudianteId, grupoId)` after its own
-// confirmation step (S3b-2); both arguments are client-visible, so the action
-// authorizes first and re-validates them.
+// CS-9). The client calls it as `(estudianteId, grupoId, expectedReplaced)`
+// after its own confirmation step (S3b-2): the third argument is the group the
+// user saw and confirmed as replaced (or null). All three are client-visible,
+// so the action authorizes first and re-validates them, and the writer refuses
+// a replace that no longer matches (the optimistic check).
 // ---------------------------------------------------------------------------
 
-const FULL = { allowReplaceAndCreate: true };
+/** The opt-in the action hands the writer when the user saw no replaced group. */
+const FULL = { allowReplaceAndCreate: true, expectedReplaced: null };
+const REPLACING = (expectedReplaced: number) => ({
+  allowReplaceAndCreate: true,
+  expectedReplaced,
+});
 const STAFF = { actorId: ACTOR, scope: FACULTAD };
 
 /** The action as the client calls it. Forged values are typed away on purpose. */
-function assign(...args: [] | [student: unknown, group: unknown]) {
+function assign(
+  ...args: [] | [student: unknown, group: unknown, expectedReplaced: unknown]
+) {
   // No defaults: a default parameter would swallow a forged `undefined`.
-  const [student, group] = args.length === 2 ? args : [STUDENT, GROUP];
-  return assignInscripcionAction(student as number, group as number);
+  const [student, group, expected] =
+    args.length === 3 ? args : [STUDENT, GROUP, null];
+  return assignInscripcionAction(
+    student as number,
+    group as number,
+    expected as number | null,
+  );
 }
 
 const BAD_IDS: [string, unknown][] = [
@@ -419,13 +433,15 @@ describe("assignInscripcionAction access (EA-ACC-1)", () => {
     async (_identity, arrange, destination) => {
       // A forged payload would answer the error copy if validation ran first;
       // the redirect proves the guard resolved before it.
-      for (const [student, group] of [
-        [STUDENT, GROUP],
-        [0, "x"],
+      for (const [student, group, expected] of [
+        [STUDENT, GROUP, null],
+        [0, "x", "y"],
       ]) {
         arrange();
 
-        await expect(assign(student, group)).rejects.toThrow(destination);
+        await expect(assign(student, group, expected)).rejects.toThrow(
+          destination,
+        );
       }
 
       expect(h.resolveScope).not.toHaveBeenCalled();
@@ -438,7 +454,7 @@ describe("assignInscripcionAction access (EA-ACC-1)", () => {
       ...args: unknown[]
     ) => Promise<unknown>;
 
-    await call(STUDENT, GROUP, {
+    await call(STUDENT, GROUP, null, {
       actorId: 99,
       scope: "all",
       rol: "administrador",
@@ -462,28 +478,45 @@ describe("assignInscripcionAction access (EA-ACC-1)", () => {
 });
 
 describe("assignInscripcionAction opt-in (EA-SIB-1)", () => {
-  it("passes { allowReplaceAndCreate: true } to the staff writer, and only that option", async () => {
+  it("passes { allowReplaceAndCreate: true, expectedReplaced } to the staff writer, and only those two keys", async () => {
     await assign();
 
     expect(h.staffEnrollInGroup).toHaveBeenCalledTimes(1);
     const args = h.staffEnrollInGroup.mock.calls[0];
     expect(args).toHaveLength(4);
-    expect(args[3]).toStrictEqual({ allowReplaceAndCreate: true });
+    expect(args[3]).toStrictEqual({
+      allowReplaceAndCreate: true,
+      expectedReplaced: null,
+    });
     expect(h.staffDropGroup).not.toHaveBeenCalled();
   });
 
   it("opts in for every student and group it is called with", async () => {
-    await assign(12, 34);
+    await assign(12, 34, null);
 
     expect(h.staffEnrollInGroup).toHaveBeenCalledWith(STAFF, 12, 34, FULL);
   });
+
+  it.each([5, 77])(
+    "hands the writer the group the user saw as replaced (%s), unchanged",
+    async (expected) => {
+      await assign(STUDENT, GROUP, expected);
+
+      expect(h.staffEnrollInGroup).toHaveBeenCalledWith(
+        STAFF,
+        STUDENT,
+        GROUP,
+        REPLACING(expected),
+      );
+    },
+  );
 });
 
 describe("assignInscripcionAction input (EA-SCOPE-1, CS-9)", () => {
   it.each(BAD_IDS)(
     "refuses %s as the group id with the error copy and writes nothing",
     async (_label, forged) => {
-      await expect(assign(STUDENT, forged)).resolves.toEqual({
+      await expect(assign(STUDENT, forged, null)).resolves.toEqual({
         kind: "error",
         message: "inscripciones.errors.unexpected",
       });
@@ -495,7 +528,20 @@ describe("assignInscripcionAction input (EA-SCOPE-1, CS-9)", () => {
   it.each(BAD_IDS)(
     "re-validates %s as the student id and writes nothing",
     async (_label, forged) => {
-      await expect(assign(forged, GROUP)).resolves.toEqual({
+      await expect(assign(forged, GROUP, null)).resolves.toEqual({
+        kind: "error",
+        message: "inscripciones.errors.unexpected",
+      });
+
+      expectNothingWritten();
+    },
+  );
+
+  // null is the one valid non-id: the page showed no current group.
+  it.each(BAD_IDS.filter(([label]) => label !== "null"))(
+    "re-validates %s as the group the user saw as replaced and writes nothing",
+    async (_label, forged) => {
+      await expect(assign(STUDENT, GROUP, forged)).resolves.toEqual({
         kind: "error",
         message: "inscripciones.errors.unexpected",
       });
@@ -530,7 +576,9 @@ describe("assignInscripcionAction input (EA-SCOPE-1, CS-9)", () => {
         reason: "not_student",
       });
 
-      await expect(assign(student, group)).resolves.toEqual({ kind: "gone" });
+      await expect(assign(student, group, null)).resolves.toEqual({
+        kind: "gone",
+      });
 
       expect(h.staffEnrollInGroup).toHaveBeenCalledWith(
         STAFF,
@@ -606,6 +654,17 @@ describe("assignInscripcionAction outcomes (EA-CRE-1, EA-CHG-1, EA-SIB-1)", () =
       expect(h.revalidatePath).not.toHaveBeenCalled();
     },
   );
+
+  it("maps a stale replace to its own copy, without revalidating", async () => {
+    h.staffEnrollInGroup.mockResolvedValue({ ok: false, reason: "stale" });
+
+    await expect(assign(STUDENT, GROUP, 5)).resolves.toEqual({
+      kind: "error",
+      message: "inscripciones.errors.assign_stale",
+    });
+
+    expect(h.revalidatePath).not.toHaveBeenCalled();
+  });
 
   it("maps not_student to gone without revalidating", async () => {
     h.staffEnrollInGroup.mockResolvedValue({

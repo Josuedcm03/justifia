@@ -606,6 +606,7 @@
         "already_enrolled": "Esta inscripción ya estaba activa. Actualiza la página para ver su estado.",
         "assign_not_eligible": "No se pudo guardar la inscripción: el grupo ya no se ofrece. Actualiza la página y elige otro grupo.",
         "assign_already_enrolled": "El estudiante ya está inscrito en ese grupo. Actualiza la página para ver sus grupos actuales.",
+        "assign_stale": "La inscripción del estudiante cambió desde que abriste esta página. Revísala e inténtalo de nuevo.",
         "unexpected": "No pudimos guardar el cambio y no se modificó nada. Inténtalo de nuevo."
       }
     }
