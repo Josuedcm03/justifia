@@ -522,7 +522,6 @@
       "usersLink": "Manage accounts in Users",
       "columns": {
         "name": "Name",
-        "login": "Username",
         "email": "Email",
         "status": "Status"
       },
@@ -564,14 +563,14 @@
     "empty": "No users yet",
     "search": {
       "label": "Search users",
-      "placeholder": "Name, username or email"
+      "placeholder": "Name or email"
     },
     "tableCaption": "Users list",
     "noResults": {
       "title": "No results for “{q}”",
       "titleStatus": "There are no users with this filter.",
       "hintStatus": "Try another status or clear the filters.",
-      "hint": "Try another name, username or email."
+      "hint": "Try another name or email."
     },
     "new": {
       "title": "Create staff account",
@@ -655,7 +654,7 @@
       "invalid": "The sign-in details are not correct. Check your CIF or email and your password."
     },
     "userMenu": {
-      "signedInAs": "{login} · {rol}",
+      "roleLine": "{rol}",
       "viewProfile": "View profile",
       "changePassword": "Change password",
       "logout": "Sign out"
@@ -664,7 +663,6 @@
   "profile": {
     "title": "My profile",
     "subtitle": "Your account details",
-    "loginLabel": "Username",
     "roleLabel": "Role",
     "emailLabel": "Email",
     "phoneLabel": "Phone",

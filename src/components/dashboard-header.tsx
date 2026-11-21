@@ -57,7 +57,7 @@ export async function DashboardHeader({ user }: { user: SessionPayload }) {
                   {user.nombre}
                 </span>
                 <span className="text-muted-foreground text-xs font-normal">
-                  {t("signedInAs", { login: user.login, rol: user.rol })}
+                  {t("roleLine", { rol: user.rol })}
                 </span>
               </DropdownMenuLabel>
             </DropdownMenuGroup>

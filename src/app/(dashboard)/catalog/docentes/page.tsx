@@ -30,11 +30,10 @@ export default async function DocentesPage({
   });
 
   // Picked field by field (DT-DATA-1): whatever else the read returns, a hash,
-  // a CIF or a phone never reaches the browser.
+  // a login, a CIF or a phone never reaches the browser.
   const rows: DocenteRow[] = result.data.map((d) => ({
     id: d.id,
     nombreCompleto: d.nombreCompleto,
-    login: d.login,
     correo: d.correo,
     activo: d.activo,
   }));

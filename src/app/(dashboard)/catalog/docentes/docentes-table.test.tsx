@@ -35,7 +35,6 @@ function row(overrides: Partial<DocenteRow> = {}): DocenteRow {
   return {
     id: 5,
     nombreCompleto: "Ana Pérez",
-    login: "aperez",
     correo: "ana@uni.edu",
     activo: true,
     ...overrides,
@@ -47,11 +46,10 @@ const ROWS: DocenteRow[] = [
   row({
     id: 6,
     nombreCompleto: "Luis Gómez",
-    login: "lgomez",
     correo: "luis@uni.edu",
     activo: false,
   }),
-  row({ id: 7, nombreCompleto: "Eva Ríos", login: "erios", correo: null }),
+  row({ id: 7, nombreCompleto: "Eva Ríos", correo: null }),
 ];
 
 const DEFAULT_STATE = parseDocentesListParams({});
@@ -89,11 +87,11 @@ describe.each(["es", "en"] as const)("DocentesTable in %s", (locale) => {
       screen.getByRole("table", { name: new RegExp(copy.tableCaption) }),
     ).toBeVisible();
     const [, first, second, third] = screen.getAllByRole("row");
-    for (const text of ["Ana Pérez", "aperez", "ana@uni.edu"]) {
+    for (const text of ["Ana Pérez", "ana@uni.edu"]) {
       expect(within(first).getByText(text)).toBeVisible();
     }
     expect(within(first).getByText(shared.status.active)).toBeVisible();
-    for (const text of ["Luis Gómez", "lgomez", "luis@uni.edu"]) {
+    for (const text of ["Luis Gómez", "luis@uni.edu"]) {
       expect(within(second).getByText(text)).toBeVisible();
     }
     expect(within(second).getByText(shared.status.inactive)).toBeVisible();
@@ -101,22 +99,18 @@ describe.each(["es", "en"] as const)("DocentesTable in %s", (locale) => {
     expect(within(third).getByText(copy.noEmail)).toBeVisible();
   });
 
-  it("keeps the four columns in today's order, all sortable", () => {
+  it("has three columns, name, email and status, all sortable, and no login column (FE-24)", () => {
     renderTable({ locale });
 
     const headers = screen.getAllByRole("columnheader");
     expect(headers.map((header) => header.textContent)).toEqual([
       expect.stringContaining(copy.columns.name),
-      expect.stringContaining(copy.columns.login),
       expect.stringContaining(copy.columns.email),
       expect.stringContaining(copy.columns.status),
     ]);
-    const labels = [
-      copy.columns.name,
-      copy.columns.login,
-      copy.columns.email,
-      copy.columns.status,
-    ];
+    expect(Object.keys(copy.columns)).toEqual(["name", "email", "status"]);
+    expect(screen.queryByText("aperez")).not.toBeInTheDocument();
+    const labels = [copy.columns.name, copy.columns.email, copy.columns.status];
     headers.forEach((header, index) => {
       expect(
         within(header).getByRole("button", { name: labels[index] }),
@@ -176,10 +170,10 @@ describe("DocentesTable sorting (CM-LST-1, DT-SORT-2)", () => {
       total: 60,
     });
 
-    await user.click(screen.getByRole("button", { name: "Username" }));
+    await user.click(screen.getByRole("button", { name: "Status" }));
 
     expect(router.replace).toHaveBeenCalledWith(
-      `${BASE}?q=ana&status=all&sort=login&dir=asc&size=25`,
+      `${BASE}?q=ana&status=all&sort=status&dir=asc&size=25`,
       { scroll: false },
     );
   });
@@ -210,7 +204,7 @@ describe("DocentesTable controls (CM-LST-1, DT-URL-2, DT-NAV-1)", () => {
     renderTable({
       state: stateOf({
         q: "ana",
-        sort: { key: "login", dir: "desc" },
+        sort: { key: "email", dir: "desc" },
         size: 25,
         page: 2,
       }),
@@ -222,7 +216,7 @@ describe("DocentesTable controls (CM-LST-1, DT-URL-2, DT-NAV-1)", () => {
       within(filter).getByRole("link", { name: "Inactive" }),
     ).toHaveAttribute(
       "href",
-      `${BASE}?q=ana&status=inactive&sort=login&dir=desc&size=25`,
+      `${BASE}?q=ana&status=inactive&sort=email&dir=desc&size=25`,
     );
     expect(
       within(filter).getByRole("link", { name: "Active" }),
@@ -309,7 +303,7 @@ describe("DocentesTable displayed fields only (DT-DATA-1)", () => {
 
     const { container } = renderTable({ rows: leaky });
 
-    expect(container.textContent).toContain("aperez");
+    expect(container.textContent).toContain("ana@uni.edu");
     for (const secret of [
       "HASH-SECRET-VALUE",
       "CIF-SECRET-VALUE",
