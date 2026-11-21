@@ -34,6 +34,7 @@ vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
 import {
   recordEnrollmentListRead,
+  recordEnrollmentStudentSearch,
   recordEscalationQueueRead,
   recordQueueRead,
   recordRequestRead,
@@ -55,7 +56,7 @@ describe("request reads (SR-11, RNF-06)", () => {
   });
 
   it("wraps every writer in React cache() once, at module load", () => {
-    expect(cacheCallsAtLoad).toHaveLength(4);
+    expect(cacheCallsAtLoad).toHaveLength(5);
     for (const call of cacheCallsAtLoad) {
       expect(call[0]).toBeTypeOf("function");
     }
@@ -245,6 +246,89 @@ describe("request reads (SR-11, RNF-06)", () => {
       await expect(recordEnrollmentListRead(40, 6, payload)).rejects.toThrow(
         "audit down",
       );
+    });
+  });
+
+  describe("recordEnrollmentStudentSearch (assign page search, D10)", () => {
+    const payload = {
+      periodo: "2026-S2",
+      status: "active",
+      filters: { q: true, asignatura: false, grupo: false },
+      page: 1,
+      total: 2,
+    } as const;
+
+    it("writes one inscripcion.estudiantes.consultada row on the facultad with the staff actor, in one transaction", async () => {
+      const double = use();
+
+      await recordEnrollmentStudentSearch(40, 3, payload);
+
+      expect(double.transactions).toBe(1);
+      expect(insertAuditMock).toHaveBeenCalledTimes(1);
+      const [, actor, events] = insertAuditMock.mock.calls[0];
+      expect(actor).toBe(40);
+      expect(events).toEqual([
+        {
+          accion: "inscripcion.estudiantes.consultada",
+          entidadTipo: "Facultad",
+          entidadId: 3,
+          datos: payload,
+        },
+      ]);
+    });
+
+    it("carries closed values only: booleans for the filters, never the search text or a student", async () => {
+      use();
+
+      await recordEnrollmentStudentSearch(40, 4, {
+        ...payload,
+        q: "Pérez",
+        estudianteId: 5,
+      } as never);
+
+      const [event] = insertAuditMock.mock.calls.at(-1)?.[2] ?? [];
+      expect(Object.keys(event.datos)).toEqual([
+        "periodo",
+        "status",
+        "filters",
+        "page",
+        "total",
+      ]);
+      expect(JSON.stringify(event)).not.toMatch(/Pérez|estudianteId/);
+    });
+
+    it("is a no-op for a second identical call in a render, and writes again for another facultad or actor", async () => {
+      use();
+
+      await recordEnrollmentStudentSearch(40, 51, payload);
+      await recordEnrollmentStudentSearch(40, 51, payload);
+      await recordEnrollmentStudentSearch(40, 52, payload);
+      await recordEnrollmentStudentSearch(41, 51, payload);
+
+      expect(insertAuditMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not share its cache with the list read of the same arguments", async () => {
+      use();
+
+      await recordEnrollmentListRead(40, 61, payload);
+      await recordEnrollmentStudentSearch(40, 61, payload);
+
+      expect(
+        insertAuditMock.mock.calls.map((call) => call[2][0].accion),
+      ).toEqual([
+        "inscripcion.lista.consultada",
+        "inscripcion.estudiantes.consultada",
+      ]);
+    });
+
+    it("rejects when the audit insert fails, so the page shows no results", async () => {
+      use();
+      insertAuditMock.mockRejectedValue(new Error("audit down"));
+
+      await expect(
+        recordEnrollmentStudentSearch(40, 6, payload),
+      ).rejects.toThrow("audit down");
     });
   });
 

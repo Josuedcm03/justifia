@@ -7,6 +7,7 @@ import {
   eq,
   ilike,
   inArray,
+  isNull,
   not,
   or,
   sql,
@@ -19,6 +20,7 @@ import {
   asignatura,
   grupo,
   inscripcion,
+  rol,
   solicitud,
   solicitudAsignatura,
   usuario,
@@ -31,8 +33,17 @@ import {
   INSCRIPCIONES_DEFAULT_SORT,
   type InscripcionesSortKey,
 } from "@/lib/catalog/list-params";
-import { getLatestPeriod } from "@/lib/data/enrollment-picker";
-import { enrollmentInScope } from "@/lib/data/request-scope-sql";
+import {
+  getLatestPeriod,
+  listEnrollableAsignaturas,
+  listEnrollableGroups,
+  type EnrollableAsignatura,
+  type EnrollableGroup,
+} from "@/lib/data/enrollment-picker";
+import {
+  enrollmentInScope,
+  studentRowInScope,
+} from "@/lib/data/request-scope-sql";
 import {
   collatedText,
   orderByFor,
@@ -255,5 +266,185 @@ export async function listInscripcionPeriods(
     return rows.map((r) => r.periodo);
   } catch {
     return [];
+  }
+}
+
+/** Most students one search returns (EA-CRE-1); a term matching more asks the
+ *  secretaria to narrow it, so a short term cannot dump a whole facultad. */
+export const STUDENT_SEARCH_MAX = 20;
+
+/** A student as the search and the assign page show them: the id that travels
+ *  in the form, the full name and the CIF, nothing else (EA-PII-1). */
+export type StudentSearchResult = {
+  id: number;
+  nombreCompleto: string;
+  cif: string | null;
+};
+
+export type StudentSearchOutcome = {
+  data: StudentSearchResult[];
+  degraded: boolean;
+};
+
+/** The columns of `StudentSearchResult`; no email, phone or any other. */
+const STUDENT_FIELDS = {
+  id: usuario.id,
+  nombreCompleto: usuario.nombreCompleto,
+  cif: usuario.cif,
+};
+
+/** Mapped key by key so a column the read did not ask for cannot ride along. */
+function toStudent(row: StudentSearchResult): StudentSearchResult {
+  return { id: row.id, nombreCompleto: row.nombreCompleto, cif: row.cif };
+}
+
+/** An ACTIVE estudiante of the scope: not another role, not an inactive
+ *  account, not a cancelled one (EA-CRE-1). Needs `rol` joined. */
+function activeStudentInScope(scope: RequestScope): SQL {
+  return and(
+    studentRowInScope(scope),
+    eq(rol.codigo, "estudiante"),
+    eq(usuario.activo, true),
+    isNull(usuario.canceladoEn),
+  ) as SQL;
+}
+
+/**
+ * The student search of the assign page: in-scope active estudiantes whose
+ * name or CIF contains `q`, name and CIF only (EA-CRE-1, EA-PII-1). A scope of
+ * `none` and a blank term read nothing. Fail-soft: a thrown error is an empty,
+ * degraded result, which the page never audits (EA-DEG-1).
+ */
+export async function searchStudents(
+  scope: RequestScope,
+  q: string,
+): Promise<StudentSearchOutcome> {
+  const term = q.trim();
+  if (scope.kind === "none" || term === "") {
+    return { data: [], degraded: false };
+  }
+  try {
+    const rows = await db
+      .select(STUDENT_FIELDS)
+      .from(usuario)
+      .innerJoin(rol, eq(rol.id, usuario.rolId))
+      .where(
+        and(
+          activeStudentInScope(scope),
+          or(
+            ilike(usuario.nombreCompleto, containsPattern(term)),
+            ilike(usuario.cif, containsPattern(term)),
+          ),
+        ),
+      )
+      .orderBy(collatedText(usuario.nombreCompleto)("asc"), asc(usuario.id))
+      .limit(STUDENT_SEARCH_MAX);
+    return { data: rows.map(toStudent), degraded: false };
+  } catch {
+    return { data: [], degraded: true };
+  }
+}
+
+/** A group of the picked asignatura, `current` when it is the student's
+ *  active one there. */
+export type AssignGroup = EnrollableGroup & { current: boolean };
+
+/** What the assign page shows for one student (EA-CRE-1, EA-CHG-1). */
+export type AssignPageData = {
+  student: StudentSearchResult;
+  /** Latest offered period; null when nothing is offered. */
+  periodo: string | null;
+  asignaturas: EnrollableAsignatura[];
+  /** The asignatura list hit `CATALOG_OPTIONS_MAX`. */
+  truncated: boolean;
+  /** Offered groups of the picked asignatura; empty with no valid pick. */
+  groups: AssignGroup[];
+  /** The student's raw-active group of the picked asignatura and period, the
+   *  one an activation would replace (EA-SIB-1), even when it is no longer
+   *  offered; null when there is none. */
+  currentGroup: { grupoId: number; numeroGrupo: string } | null;
+};
+
+/** `not_found` answers alike for an unknown student, one of another facultad,
+ *  a cancelled account and a user of another role (EA-SCOPE-1, CS-2). */
+export type AssignPageResult =
+  | { kind: "not_found"; degraded: false }
+  | { kind: "ok"; degraded: false; data: AssignPageData }
+  | { kind: "degraded"; degraded: true };
+
+/**
+ * The reads of `/catalog/inscripciones/assign` for one student: the student
+ * (inside the scope), the asignaturas and, for a picked asignatura, its offered
+ * groups of the latest period with the student's current one marked. The pick
+ * is checked by the group read itself: an invalid or ineligible id has no
+ * groups, and then no current group is read. Fail-soft like the other reads.
+ */
+export async function loadAssignPage(
+  scope: RequestScope,
+  estudianteId: number,
+  asignaturaId: number | null,
+): Promise<AssignPageResult> {
+  if (scope.kind === "none") return { kind: "not_found", degraded: false };
+  try {
+    const [row] = await db
+      .select(STUDENT_FIELDS)
+      .from(usuario)
+      .innerJoin(rol, eq(rol.id, usuario.rolId))
+      .where(and(eq(usuario.id, estudianteId), activeStudentInScope(scope)))
+      .limit(1);
+    if (!row) return { kind: "not_found", degraded: false };
+    const student = toStudent(row);
+    const periodo = await getLatestPeriod();
+    const none = { asignaturas: [], truncated: false, groups: [] };
+    if (periodo === null) {
+      return {
+        kind: "ok",
+        degraded: false,
+        data: { student, periodo, ...none, currentGroup: null },
+      };
+    }
+    const { data: asignaturas, truncated } = await listEnrollableAsignaturas(
+      estudianteId,
+      periodo,
+    );
+    const offered =
+      asignaturaId === null
+        ? []
+        : await listEnrollableGroups(asignaturaId, periodo);
+    let currentGroup: AssignPageData["currentGroup"] = null;
+    if (asignaturaId !== null && offered.length > 0) {
+      const [active] = await db
+        .select({ grupoId: grupo.id, numeroGrupo: grupo.numeroGrupo })
+        .from(inscripcion)
+        .innerJoin(grupo, eq(grupo.id, inscripcion.grupoId))
+        .where(
+          and(
+            eq(inscripcion.estudianteId, estudianteId),
+            eq(inscripcion.activo, true),
+            eq(grupo.asignaturaId, asignaturaId),
+            eq(grupo.periodo, periodo),
+          ),
+        )
+        .orderBy(asc(grupo.id))
+        .limit(1);
+      currentGroup = active ?? null;
+    }
+    return {
+      kind: "ok",
+      degraded: false,
+      data: {
+        student,
+        periodo,
+        asignaturas,
+        truncated,
+        groups: offered.map((g) => ({
+          ...g,
+          current: g.grupoId === currentGroup?.grupoId,
+        })),
+        currentGroup,
+      },
+    };
+  } catch {
+    return { kind: "degraded", degraded: true };
   }
 }

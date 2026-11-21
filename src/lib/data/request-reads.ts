@@ -5,6 +5,7 @@ import { cache } from "react";
 import { db } from "@/db";
 import {
   escalamientoColaConsultadaEvent,
+  inscripcionEstudiantesConsultadaEvent,
   inscripcionListaConsultadaEvent,
   solicitudColaConsultadaEvent,
   solicitudConsultadaEvent,
@@ -65,6 +66,27 @@ export const recordEnrollmentListRead = cache(
     await db.transaction(async (tx) => {
       await insertAuditEvents(tx, actorId, [
         inscripcionListaConsultadaEvent({ facultadId, ...payload }),
+      ]);
+    });
+  },
+);
+
+/**
+ * One `inscripcion.estudiantes.consultada` row on the facultad: a secretaria's
+ * successful student search of the assign page, same closed payload as the
+ * list read (D10). The caller never searches in the degraded state, so a read
+ * that failed writes nothing; a failed insert throws, so no result is shown
+ * without its row.
+ */
+export const recordEnrollmentStudentSearch = cache(
+  async (
+    actorId: number,
+    facultadId: number,
+    payload: InscripcionReadPayload,
+  ): Promise<void> => {
+    await db.transaction(async (tx) => {
+      await insertAuditEvents(tx, actorId, [
+        inscripcionEstudiantesConsultadaEvent({ facultadId, ...payload }),
       ]);
     });
   },
