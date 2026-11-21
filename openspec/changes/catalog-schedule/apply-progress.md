@@ -334,3 +334,67 @@ Mechanism: next/link prefetches its `href` by default, and a prefetch of a dynam
 ### Remaining tasks
 
 Open PR for S1c-2 (parent) and Phases 6-17 (S1c-3 onward).
+
+## Batch 6: S1c-3 navigation, pins, docs, plus the #108 audit fix (tasks 6.1-6.9; Phase 7 NOT started)
+
+Branch `feat/catalog-schedule-s1c3-nav`, created from `feat/catalog-schedule-s1c2-page` (PR #108). Date: 2026-11-20. Every chain branch has `origin/main` merged in (archived change `manual-document-data`, schema 0015). Commits `c1fb67e` `fix(enrollment): record the resolved period in the inscripciones list read audit` and `881f486` `feat(enrollment): add the inscripciones navigation entry and home shortcut`. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 6.1 branch (from S1c-2)
+- [x] 6.9 carried fix from PR #108 (new task line): RED then GREEN, commit `c1fb67e`
+- [x] 6.2 RED navigation test, 6.3 RED pins, 6.4 GREEN `navigation.ts` plus `nav.catalogInscripciones` and `dashboard.shortcuts.catalogInscripciones`, 6.5 roadmap, 6.6 requirements, 6.7 readback: commit `881f486`
+- [x] 6.8 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 6.9 | `src/lib/data/inscripciones.test.ts` | Unit (db double) | 88/88 with the page test | 8 failed: the three `toEqual` shapes (none, no period offered, degraded) lacked `resolvedPeriodo`, three new cases read `undefined` | 92/92 with the page test | default (latest), chosen existing period, unknown typed period falls back to the latest, empty string for scope `none`, no period offered and degraded | One local variable reuses the resolved period for the WHERE (no second lookup) |
+| 6.9 | `CI/page.test.tsx` | Integration (real guard, Testing Library) | same run | 4 failed in the page file (payload still `""` by default, plus the new hostile-URL case) | pass | default load records the resolved period; a chosen `2026-S1` is recorded; hostile `periodo=Pérez` records the resolved `2026-S2` and the serialized call never contains the typed text | The page no longer needs the `periods.includes` rule |
+| 6.2 | `src/lib/navigation.test.ts` | Unit | Not run before the edit; the 62 unchanged tests passed in the RED run | 7 failed: characterization list, prefetch pin, group order, visibility table, trail, CR-9 prefetch trail list, shortcuts for secretaria | pass | `isNavVisible` table for the five roles, trail, `isCurrentPath` rows between Asignaturas and Inscripciones, order inside the group, shortcuts in order | Clean |
+| 6.3 | `app-sidebar.test.tsx`, `page-context.test.tsx`, `(home)/page.test.tsx`, `catalog-parity.test.ts` | Integration (real catalogs) | Not run before the edits; 999 of 1025 passed in the RED run | 26 failed in 5 files (the four listed plus `navigation.test.ts`) | 1038/1038 | es and en labels, prefetch flag on the sidebar link and the home card, hidden from the four other roles, active marker only on Inscripciones (also on a subpath) and only on Asignaturas for its own path, group opens on the page, tab order, label differs from the student label, parity of `nav.catalogInscripciones` and the shortcut key set | Renamed the stale "nine destinations" test to eleven |
+| 6.4 | same files | GREEN | n/a | n/a | the entry plus four i18n lines pass every pin except the sidebar defect below | n/a | n/a |
+
+`navigation-mock.test.tsx` (named in 6.3) pins no navigation entry: it only uses `/catalog/docentes` as a sample path for the router double, so nothing there changes.
+
+### Finding: the sidebar ignored `prefetch` for group children
+
+The first GREEN run left four sidebar tests red, one of them the new "prefetch disabled" pin: `NavGroupItem` rendered its child `<Link>` without `prefetch`, so a `prefetch: false` on any child of the Administration group was silently dropped (no child carried the flag before). `app-sidebar.tsx` now passes `prefetch={prefetchOf(link)}` for children, the same helper the top level uses; the home cards and the trail already forwarded it. The other three red tests were the tab-order test and the entries-per-role table, updated for the new entry, and a locale test that used the Spanish trigger name.
+
+### Decisions and deviations
+
+1. **`prefetch: false` on the entry.** BS-NAV-4 is silent on it; BS-NAV-1 gives it to Escalated requests and Reports because their pages are audited on render. `/catalog/inscripciones` writes an audit row per render (D10), so the sidebar link, the home card and the back link of the trail do not prefetch it. This closes the open point of Batch 4 note 5 and of Batch 5 "Prefetch risk". Pinned in `navigation.test.ts` (entry, trail, CR-9 list), the sidebar and the home. The spec text could gain one sentence for it; nothing conflicts.
+2. **Labels.** `nav.catalogInscripciones` is "Inscripciones" (es) and "Enrollments" (en), the page titles. They differ from the student's "Inscripción" and "Enrollment" (pinned) only by a plural; the Administration group and the role keep them apart. Shortcut copy follows the sentence style of Docentes and Review.
+3. **Icon.** `ClipboardList` (Review uses `ClipboardCheck`).
+4. **#108 audit fix (6.9).** `listInscripciones` returns `resolvedPeriodo` (the chosen period when it exists, else the latest, `""` when nothing was read). The page records it, so the row always carries the real period and typed text can never reach it. This resolves the "conscious reading" flagged in Batch 5 for the verify phase.
+5. **i18n.** Four additive lines, each placed right after its `catalogDocentes` sibling (`nav` and `dashboard.shortcuts`, both locales); no other key touched, to keep merges with `flow-experience` small.
+6. **Docs.** `docs/roadmap.md` row 0 (state stays `pendiente`) plus one Notas bullet after the `student-enrollment` bullet (docentes gap of RF-12 (a) and RN-22 clock-time schedules not covered); `docs/requirements.md` one changelog row (2026-11-20) and one continuation under the existing RF-12 pending item. No RF, RN or RNF row text changed. The new row is not marked "pending sync with the thesis matrix" because no requirement text changed; the owner may want it flagged anyway.
+7. The sidebar test "offers exactly Asignaturas and Docentes among the catalog pages" now also excludes `/catalog/inscripciones` from its filter (it has its own describe block).
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/navigation.test.ts src/components src/i18n "src/app/(dashboard)/(home)" src/test` -> 41 files, 1038 passed; fix: `npx vitest run src/lib/data/inscripciones.test.ts "src/app/(dashboard)/catalog/inscripciones/page.test.tsx"` -> 92 passed (RED runs: 12 failed, then 26 failed across 5 files) |
+| Runtime harness | N/A: nav config, sidebar and home rendered by Testing Library on the real catalogs; the real-database walk W1 (sidebar and home per role) is `[USER][CONFIRM]` |
+| Rollback boundary | Revert `881f486` (nav entry, sidebar `prefetch` forward, four i18n lines, pins, docs hunks) and, separately, `c1fb67e` (`resolvedPeriodo` on the list result and the page payload); both additive |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 1038/1038 and 92/92; broader `"src/app/(dashboard)/catalog/inscripciones" src/lib/data src/lib/audit` 1670/1670 after the fix |
+| `npm test` (full suite) | 372 files, 9177 passed, 0 failed (the two known flaky files passed under load this time) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 errors; 1 pre-existing warning (`SidebarGroupLabel` unused in `app-sidebar.tsx`, not from this slice) |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1c2-page...HEAD -- . ':!openspec' ':!.engram'` -> 16 files changed, 321 insertions(+), 27 deletions(-) = **348 changed lines** (forecast ~190), under the 800 budget. After `c1fb67e`: 93 (5 files, 74 + 19). `881f486` alone: 255 (11 files, 247 + 8). One PR.
+
+### Remaining tasks
+
+Open PR for S1c-3 (parent) and Phases 7-17 (S2a-1 onward). Walk W1 is the owner's, after this slice.
