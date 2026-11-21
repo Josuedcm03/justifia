@@ -6,7 +6,9 @@ email) and UX-22 (keep the session signed in). Owner decision 2026-11-20: UX-21
 is its own late slice; the `Login` column of `Usuario` is kept, so reverting
 restores sign-in by "Usuario" with no data loss. The change affects thesis
 Anexo E line 3 ("Todos ingresan con «Usuario» y «Contraseña»"), listed for the
-thesis session.
+thesis session. Owner decision 2026-11-20 (task 9.1): no legacy `Login` fallback
+ships; the three read-only production counts of FE-25 were zero, so every active
+account has an email or a CIF and nothing needs to be protected from a lockout.
 
 Terms: "identifier" = the single value typed in the sign-in field. "Institutional
 email" = the `Usuario.Correo` of the account; it is validated as an email
@@ -72,9 +74,9 @@ student's CIF is digits only, but the staff CIF has another, unknown format and
 is not stored today. The CIF is matched against accounts that have a CIF, which
 today means students only. Students MAY use either identifier; every other role
 MUST use its email. A value that is neither the email nor the CIF of an active
-account MUST fail, except the transitional `Login` fallback of FE-25, which
-covers only accounts that would otherwise be locked out. The identifier MUST be
-at most 160 characters. After a
+account MUST fail: the stored `Login` is not an identifier and no fallback
+exists (FE-25), so an account with neither an email nor a CIF cannot sign in.
+The identifier MUST be at most 160 characters. After a
 successful match the session, the role code, the forced password change and the
 safe `next` redirect (AEA-3) MUST behave exactly as before. All texts MUST exist
 in `es` and `en`.
@@ -86,9 +88,9 @@ in `es` and `en`.
 | the student's CIF | active `estudiante` | signed in |
 | the student's email | active `estudiante` | signed in |
 | the email | active `docente`, `coordinacion`, `secretaria` or `administrador` | signed in |
-| a CIF-shaped value | any staff account (unless it is the legacy `Login` of an account without email, FE-25) | fails |
-| a former "Usuario" | an account that has an email, or a student that has a CIF | fails |
-| a former "Usuario" | an active account with no email and no CIF (FE-25 fallback) | signed in |
+| a CIF-shaped value | any staff account | fails |
+| a former "Usuario" that is neither the account's email nor a student's CIF | any account | fails |
+| any value | an active account with no email and no CIF (FE-25) | fails |
 | the CIF or the email | inactive account | fails |
 
 - GIVEN the account in the row and the correct password
@@ -247,38 +249,39 @@ only (AEA-2). Texts MUST exist in `es` and `en`.
 - WHEN `/profile` is requested
 - THEN only that account's data is read and shown
 
-### Requirement: FE-25 No active account is left without a way to sign in (UX-21; RN-02, RNF-01)
+### Requirement: FE-25 No account is left without a way to sign in, and no fallback ships (UX-21; RN-02, RNF-01)
 
 Because the identifier is the CIF or the email, an account that has neither
-cannot sign in after this change. Before the slice that introduces the identifier
-reaches `main`: (1) a read-only count MUST be taken of the active accounts, other
-than the system account and accounts cancelled by retention, that have neither a
-`Cif` nor a `Correo`, together with the number of groups of accounts whose emails
-collide ignoring case; (2) the count and the ids of the affected accounts, with
-no names or emails, MUST be recorded in the merge gate of the change; (3) while
-the count is not zero the slice MUST NOT be released unless each listed account
-has gained an identifier or the fallback fixed by the design covers it. The
-fallback (owner decision 2026-11-20) is transitional: an active account that has
-no `Correo` and is not a student with a `Cif` MAY sign in with its stored `Login`
-as the identifier, trimmed. It MUST NOT reach any other account: the `Login` of
-an account that has an email, or of a student that has a CIF, MUST fail. It MUST
-be removed once the read-only count of such accounts is zero. The count MUST
-write nothing. The system account and the accounts cancelled by
-retention are excluded because they cannot sign in before or after the change.
-No account creation path MUST produce an account with neither identifier.
+cannot sign in after this change, and no fallback ships: the stored `Login` is
+never an identifier (owner decision 2026-11-20, task 9.1, which supersedes the
+transitional `Login` fallback of the earlier resolution). Before the slice that
+introduces the identifier reaches `main`: (1) read-only counts MUST be taken of
+the active accounts, other than the system account and accounts cancelled by
+retention, that have no `Correo` and no way to sign in by CIF (every role but
+`estudiante`, and a student without a `Cif`), of the groups of accounts whose
+emails collide ignoring case, and of the stored CIFs that contain a character
+other than a digit; (2) the counts, and the ids of any affected account with no
+names or emails, MUST be recorded in the merge gate of the change; (3) while a
+count is not zero the slice MUST NOT be released unless the owner has decided
+each listed account (it gains an identifier, or the owner accepts that it cannot
+sign in). The counts taken on 2026-11-20 were zero in all three, so nothing is
+left to decide and no fallback is needed. The counts MUST write nothing. The
+system account and the accounts cancelled by retention are excluded because they
+cannot sign in before or after the change. No account creation path MUST produce
+an account with neither identifier.
 
 #### Scenario: A locked-out account is counted before release
 
 - GIVEN an active staff account with no `Correo` and no `Cif`, and an active student with a CIF and no email
 - WHEN the read-only count runs
 - THEN only the staff account is counted and listed by id
-- AND the slice is not released while it is listed, until it gains an email or the design's fallback covers it
+- AND the slice is not released while it is listed, until it gains an email or the owner decides it
 
 #### Scenario: Count of zero
 
-- GIVEN no active account without both identifiers and no email collision
-- WHEN the count runs
-- THEN the result is zero and the slice may be released
+- GIVEN no active account without both identifiers, no email collision and no CIF with a non-digit character
+- WHEN the counts run
+- THEN the result is zero in all three and the slice may be released
 
 #### Scenario: Excluded accounts
 
@@ -286,31 +289,37 @@ No account creation path MUST produce an account with neither identifier.
 - WHEN the count runs
 - THEN neither is counted, and neither can sign in before or after the change
 
-#### Scenario: Such an account signs in only through the fallback
+#### Scenario: An account with neither identifier cannot sign in
 
 - GIVEN an active account with neither identifier, left as it is, and the change released
-- WHEN its stored `Login` is submitted with its former password
-- THEN it is signed in through the transitional fallback
-- AND any other value submitted for it fails with the generic message of FE-23 and no session is issued
+- WHEN its stored `Login`, or any other value, is submitted with its former password
+- THEN the sign-in fails with the generic message of FE-23 and no session is issued
+- AND no other path signs it in, because no `Login` fallback exists
 
-#### Scenario: The fallback reaches only accounts without an identifier (table-driven)
+#### Scenario: The stored Login is never an identifier (table-driven)
 
-| `Login` typed belongs to | Result |
-|---|---|
-| an active staff account that has an email | fails |
-| an active student that has a CIF and no email | fails |
-| an active account with no email that is not a student with a CIF | signed in |
-| an inactive account with no email | fails |
+| Typed identifier | Account | Result |
+|---|---|---|
+| a stored `Login` that is not the account's email | active account with no email and no CIF | fails |
+| a stored `Login` that is not the account's email | active staff account that has an email | fails |
+| a stored `Login` that is not the account's email | active student that has a CIF and no email | fails |
+| any value | inactive account with no email | fails |
 
 - GIVEN the account in the row and the correct password
-- WHEN its `Login` is submitted as the identifier
-- THEN the outcome is as shown, and the failures use the generic message of FE-23
+- WHEN the identifier in the row is submitted
+- THEN the outcome is as shown, with the generic message of FE-23
 
 #### Scenario: Case collisions are counted
 
 - GIVEN two accounts whose emails differ only by case
 - WHEN the count runs
 - THEN one collision group is reported, with the account ids
+
+#### Scenario: CIFs with a non-digit character are counted
+
+- GIVEN an active student whose stored `Cif` contains a space, a hyphen or a letter
+- WHEN the count runs
+- THEN the account is reported by id, because the cleaned identifier typed at sign-in could never match it
 
 #### Scenario: The count writes nothing
 

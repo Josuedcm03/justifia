@@ -428,10 +428,12 @@ active `coordinacion` account is refused instead (see "Escalate a pendiente
 request"). A blocked notification MUST NOT hide the escalation from the
 coordinator view: a coordinator of the career MUST still see and answer it. A
 `bloqueada` notification MUST NOT be retried by the scheduled job; only a
-manual resend re-evaluates it. A `coordinacion` account without an email cannot
-sign in once sign-in is by CIF or email (`auth-entry-access` FE-21), so such an
-account sees and answers nothing until it has an email; the blocked state is
-then resolved by giving the account an email and resending.
+manual resend re-evaluates it. A `coordinacion` account without an email, and so
+without a CIF, cannot sign in once sign-in is by CIF or email
+(`auth-entry-access` FE-21), and no `Login` fallback exists (FE-25, owner
+decision 2026-11-20), so such an account sees and answers nothing until it has
+an email; the blocked state is then resolved by giving the account an email and
+resending.
 (Previously: the coordinator of an email-less account was assumed able to log in and answer.)
 
 #### Scenario: Coordination account without email
@@ -440,7 +442,7 @@ then resolved by giving the account an email and resending.
 - WHEN the secretary escalates the request
 - THEN the request is `en_revision_coordinacion`, the notification is `bloqueada` with `sin_destinatarios`, and one `escalamiento.notificacion_bloqueada` row exists
 - AND a coordinator of C who has an email and signs in sees the escalation in the coordinator list and can answer it
-- AND an account without an email cannot sign in (`auth-entry-access` FE-21, FE-25)
+- AND an account with no email and no CIF cannot sign in, by any value, because no `Login` fallback exists (`auth-entry-access` FE-21, FE-25)
 
 #### Scenario: Recipients gone after the escalation
 

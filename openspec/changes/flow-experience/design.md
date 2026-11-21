@@ -32,7 +32,7 @@ Copy register: the staff namespaces (`review.*`) already use "usted" and are pin
 | D9 | RF-08 Nuevo/Anterior | diff in client / latest revision ids | The latest `SolicitudRevision` of a `devuelta` request is the version just returned (SR-17) | New owner-scoped `getReturnedDocumentIds(userId, id)` (one select). It is fail-soft: on failure the names show without marks |
 | D10 | RF-01 "today" | client clock / server | A client clock risks a hydration mismatch and the host time zone | `managuaToday(new Date())` (`dates.ts:20`) runs in both pages and is passed down as `today`. Pure `startsAfterToday(range, today)` compares ISO strings |
 | D11 | `otro` constants | new list / extend `ESCALATION_REASONS` | The schema CHECKs, the index predicate and every read filter render from the arrays (`schema.ts:767-809`, `inArray(..., ESCALATION_REASONS)` in 6 readers) | Insert `"otro"` after `"caso_especial"` in both `ESCALATION_KINDS` and `ESCALATION_REASONS`. The note rule (`CK_Escalamiento_Kind`) then covers it, and so does answerability (`CK_Escalamiento_SinRespuesta`) |
-| D12 | UX-21 resolution | single lookup / ordered | `Correo` is nullable (`schema.ts:130`) and its UNIQUE is case-sensitive, while the lookup lowercases | An input containing `@` resolves by email, case-insensitive and trimmed, for any role. An email that matches 2 rows is refused. Otherwise the input resolves by CIF, students only. The last step is a transitional legacy `Login` match, only for accounts at risk of lockout |
+| D12 | UX-21 resolution | single lookup / ordered | `Correo` is nullable (`schema.ts:130`) and its UNIQUE is case-sensitive, while the lookup lowercases | An input containing `@` resolves by email, case-insensitive and trimmed, for any role. An email that matches 2 rows is refused. Otherwise the input resolves by CIF, students only. No legacy `Login` step ships (owner decision 2026-11-20, task 9.1): the stored `Login` is never an identifier, and the production counts of accounts without an email, email collisions and non-digit CIFs were all zero |
 | D13 | Rate limiting | add / none | None exists (no `proxy.ts`/`middleware.ts`, no limiter). Adding one is new infrastructure | None in this change. A backlog entry records it. Timing is equalized instead: an unknown identifier still runs `verifyPassword` against a constant dummy hash |
 | D14 | `Login` column | drop / keep and derive | Dropping it is a migration, and it is the session claim (`login/actions.ts:41`) | Keep it. Staff get `deriveLogin(correo)` (`src/lib/import/normalize.ts:21`, as import does). A registered student gets the trimmed CIF |
 
@@ -54,9 +54,8 @@ UX-21 login (sequence):
 LoginForm ──login, password──► loginAction
 loginAction: loginSchema (trim, ≤160) ─► findLoginAccount(identifier)
   has "@" ? select by lower(Correo) = lower(trim) LIMIT 2 ── 2 rows ─► null
-          : select by Cif = trim ── rol ≠ estudiante ─► skip
-            none ─► select by Login = trim AND Correo IS NULL
-                     AND (rol ≠ estudiante OR Cif IS NULL)          (transitional)
+          : select by Cif = cleaned (spaces and hyphens removed)
+            ── rol ≠ estudiante ─► skip, none ─► null  (no Login step)
   user null  ─► verifyPassword(pw, DUMMY_HASH) ─► generic error
   inactive or bad password ─► generic error
   ok ─► signSession({ login: user.login, … }) ─► redirect
@@ -283,11 +282,11 @@ select lower("Correo"), count(*) from "Usuario" where "Correo" is not null
 group by 1 having count(*) > 1;
 ```
 
-The first query counts the accounts the legacy fallback protects. The second finds emails that D12 would refuse as ambiguous.
+The first query counts the accounts that would be locked out, because they have no email and are not a student with a CIF. The second finds emails that D12 would refuse as ambiguous. A third read-only query counts the stored CIFs with a character other than a digit, which the cleaned login input could never match. Owner result of 2026-11-20: zero, zero and zero, so the legacy `Login` fallback of the first design is dropped.
 
 **9a — resolution (about 220 lines).**
 
-- `src/lib/auth/login-identity.ts` (+test): pure `classifyIdentifier(raw)` returns `{ kind: "email" | "cif_or_login", value }`.
+- `src/lib/auth/login-identity.ts` (+test): pure `classifyIdentifier(raw)` returns `{ kind: "email" | "cif", value }` or `null` for a blank value (the CIF value is empty when only hyphens were typed, which skips the lookup).
 - `src/lib/data/users.ts` (+test): `findLoginAccount(identifier)` follows the sequence above, with `LIMIT 2` on the email lookup and the CIF filtered to `estudiante`.
 - `src/lib/validations/auth.ts`: login max 160.
 - `login/actions.ts`: `findLoginAccount`, plus `DUMMY_HASH` for an unknown identifier.
@@ -296,8 +295,8 @@ The first query counts the accounts the legacy fallback protects. The second fin
 Tests:
 
 - `actions.test.ts`: a CIF reaches the student. A mixed-case email with spaces reaches staff and students. A staff `Login` that equals a CIF does not resolve as a CIF.
-- The following all give the same generic error: an unknown identifier (and `verifyPassword` is still called), an inactive account, a wrong password, an ambiguous email, and a legacy `Login` whose account has an email.
-- The legacy `Login` works for an account without an email.
+- The following all give the same generic error: an unknown identifier (and `verifyPassword` is still called), an inactive account, a wrong password, an ambiguous email, and the stored `Login` of any account that is not its email or a student's CIF.
+- An account with no email and no CIF cannot sign in by any value.
 - `login-form.test.tsx`: copy.
 
 **9b — "Usuario" removed (about 260 lines).**
@@ -327,7 +326,7 @@ Removed keys: `auth.login`/`register`/`profile`/`users.new` `loginLabel`, `users
 ### S10 — Evidence and docs (about 150 lines)
 
 - Captures per 4.9 case, taken locally against a disposable Neon branch: `build/salida/pruebas/RF-16_c.png`, `RF-10_b.png`, `RF-07_c.png`, `RF-01.png`. RF-06 and RF-08 are covered by their Vitest output.
-- Backlog entries UX-22 to UX-27 for the six Table 19 items, plus the UX entries for rate limiting and for removing the legacy fallback.
+- Backlog entries UX-22 to UX-27 for the six Table 19 items, plus the open entries for login rate limiting and for the server-side revocation of 30-day sessions. No entry is needed for a legacy fallback: it was dropped.
 - Roadmap row 13, then archive.
 
 ## Testing Strategy
@@ -378,7 +377,7 @@ No slice merges to `main` on its own. The evidence runs locally, so no early pro
 
 - [ ] Register: should the "usted" copy in the `intake`, `requests` and `users` namespaces (still "tú") ship as is, or should a register sweep be scheduled?
 - [ ] CIF match: exact after trimming, or also case and hyphen normalization?
-- [ ] Confirm that the legacy `Login` fallback ships and is removed once the S9 count is 0.
+- [x] The legacy `Login` fallback does not ship (owner decision 2026-11-20, task 9.1: the S9 counts are zero).
 - [ ] Confirm that a `rechazada` card shows a 2-line excerpt of the decision text.
 - [ ] Confirm that the RF-08 preview covers only files attached during the current visit to step 3.
 
