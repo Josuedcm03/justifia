@@ -8,7 +8,8 @@ import { setSessionCookie } from "@/lib/auth/cookies";
 import { hashPassword } from "@/lib/auth/password";
 import { signSession } from "@/lib/auth/session";
 import { listCarreras } from "@/lib/data/carreras";
-import { createUsuario } from "@/lib/data/users";
+import { createUsuario, getUsuarioByCorreo } from "@/lib/data/users";
+import { deriveLogin } from "@/lib/import/normalize";
 import { registroEstudianteSchema } from "@/lib/validations/users";
 
 export type RegisterState = { error: string | null };
@@ -30,7 +31,6 @@ export async function registerAction(
   }
 
   const parsed = registroEstudianteSchema.safeParse({
-    login: formData.get("login"),
     password: formData.get("password"),
     nombreCompleto: formData.get("nombreCompleto"),
     correo: formData.get("correo"),
@@ -48,12 +48,27 @@ export async function registerAction(
     return { error: t("errors.invalidCarrera") };
   }
 
+  // The Login is derived from the normalized email, never taken from the
+  // request (FE-26); a Login over its column limit is shown as an email error
+  // and never truncated or suffixed.
+  const derived = deriveLogin(parsed.data.correo);
+  if ("error" in derived) {
+    return { error: t("errors.emailTooLong") };
+  }
+
+  // Correo is UNIQUE only case-sensitively and legacy rows may be mixed-case,
+  // so an email equal to an existing one ignoring case is refused here (FE-22)
+  // before anything is hashed or written.
+  if (await getUsuarioByCorreo(parsed.data.correo)) {
+    return { error: t("errors.duplicate") };
+  }
+
   const hashClave = await hashPassword(parsed.data.password);
 
   let userId: number;
   try {
     const nuevo = await createUsuario({
-      login: parsed.data.login,
+      login: derived.login,
       hashClave,
       rol: "estudiante",
       nombreCompleto: parsed.data.nombreCompleto,
@@ -69,7 +84,7 @@ export async function registerAction(
 
   const token = await signSession({
     sub: String(userId),
-    login: parsed.data.login,
+    login: derived.login,
     rol: "estudiante",
     nombre: parsed.data.nombreCompleto,
   });

@@ -1574,3 +1574,83 @@ Under the 460 stop line. Tests are 79 percent of the lines and were not trimmed.
 7. **Dead key.** "users.new.loginLabel" was removed in this unit, when its last use went, instead of in unit 23.
 8. **Shared test payload.** The action test's valid payload lost its login and gained an email, so every older case of the file was edited by that one change.
 9. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.
+
+### PR 9b2: self-registration by email and CIF (unit 22)
+
+Branch "feat/flow-experience-9b2-register", cut from the tip of "feat/flow-experience-9b-no-usuario" (PR #125, "https://github.com/Josuedcm03/justifia/pull/125"). Its PR targets that branch.
+
+#### Commits (PR 9b2)
+
+| Unit | Hash    | Message                                                                    |
+| ---- | ------- | -------------------------------------------------------------------------- |
+| 22   | b968ed4 | feat(auth): register students by email and CIF without a chosen username   |
+| docs | (tip)   | docs(flow-experience): record the Phase 10 apply progress for PR 9b2       |
+
+#### TDD cycle evidence (PR 9b2)
+
+| Task          | Test file                                              | Layer                | Safety net                                       | RED                                                                                                   | GREEN                    | Triangulation                                                                                                                                                                                                                                                                                                                                                | Refactor    |
+| ------------- | ------------------------------------------------------ | -------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 10.5 and 10.6 | `src/lib/validations/users.test.ts`                    | Unit (schema)        | 14 cases of `crearStaffSchema` passing           | 14 of the 15 new cases of `registroEstudianteSchema` failed first (the schema still required a login); "keeps the other rules" passes at write | 29 passed in the file    | No login key and a posted login dropped; the email absent, empty, spaces only, not an address and 161 characters, each with the error on the email alone; the CIF absent, empty, spaces only and 21 characters, each with the error on the CIF alone; exactly 20 characters; the email trimmed and lower-case; the other rules kept, with the password at 7 and 8 characters (the same boundary now also pins the staff schema)                              | None needed |
+| 10.5 and 10.6 | `src/app/(auth)/register/actions.test.ts`              | Unit (server action) | 9 existing cases (closed switch, AEA-4 pins)     | 34 cases failed first across the schema, action and form tests (the shared payload lost its login)    | 23 passed in the file    | The Login derived and the email stored normalized; a posted login ignored; the exact session payload; five missing or blank inputs; a form without the fields; a case-only duplicate found by the lower-case lookup; a derived-Login collision with no session, cookie or redirect; 61 characters (emailTooLong) and exactly 60; no lookup before the form and the career are valid | None needed |
+| 10.5 and 10.6 | `src/app/(auth)/register/register-form.test.tsx` (new) | Component            | N/A (new file)                                   | The new cases failed first (the login field existed, the keys and the duplicate line differed)        | 10 passed                | es and en: no `name=login`, no `#login`, the email and the CIF required, no "Usuario" or "username" in the rendered form, no login key in the copy; a real failed submit with a career picked: the error is shown and the email field is described by it; the Spanish and English lines pinned                                                                   | None needed |
+
+The register page test (`src/app/(auth)/register/page.test.tsx`) is unchanged: the page only hands the careers to a form double, so the "no Usuario" pins live in the new form test.
+
+#### Mutation checks (revert-only; files restored from byte-identical backup copies and confirmed with "cmp", because the GREEN was not committed yet)
+
+| Test                                                          | Temporary edit                                                   | Result                                   |
+| ------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------- |
+| "keeps the other rules: password, name and career" (pass at write) | `src/lib/validations/users.ts`: the registration password minimum 8 becomes 7 | passed at first, so the 7 and 8 boundary cases were added to it; then 1 failed, 28 passed |
+| "ignores a login posted by a hand-crafted request"            | `actions.ts` takes the Login from the posted field                | 1 failed, 22 passed                      |
+| "refuses an email equal ignoring case to an existing one"     | the lower-case lookup is disabled                                 | 1 failed, 22 passed                      |
+| "describes the email field by the error when it fails"        | `register-form.tsx` loses the `aria-describedby` of the email     | 1 failed, 9 passed                       |
+
+#### Checkpoint (task 10.13, part 2): measured size of PR 9b2
+
+Measure: "git diff --numstat feat/flow-experience-9b-no-usuario...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                                                  | Changed lines |
+| ------------------------------------------------------------------------------------------------------ | ------------- |
+| Production (`users.ts` 9, `actions.ts` 23, `register-form.tsx` 13) and the two catalogs (8)             | 53            |
+| Tests (`users.test.ts` 101, `actions.test.ts` 155, `register-form.test.tsx` 121)                        | 377           |
+| All of PR 9b2 (403 added, 27 deleted)                                                                   | 430           |
+
+Under the 460 stop line. Tests are 88 percent of the lines and were not trimmed.
+
+#### Work unit evidence (PR 9b2)
+
+| Evidence                              | Value                                                                                                                                                                                                                                          |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- validations/users (auth)/register src/i18n": 13 files, 529 tests, all passed. The access proof: "npm test -- access-matrix route-coverage src/test/access": 4 files, 536 tests, all passed |
+| Runtime harness                       | Owner-run: register a student on "flow-it" (task 12.5). No database command was run in this apply                                                                                                                                               |
+| Rollback boundary                     | Revert the PR: the registration asks for a "Usuario" again. Accounts registered in between keep a valid "Login" (their email)                                                                                                                   |
+
+#### Gates (task 10.14), tip of "-9b2-register", dummy DB
+
+- Full "npm test": 380 files, 9543 tests, all passed, 276.8 s. The PR 9b tip had 379 files and 9504 tests; PR 9b2 adds one test file (10 cases) and 29 cases in the changed files.
+- "npm run typecheck": exit 0.
+- "npx eslint" and "npx prettier --check" on the six touched files and both catalogs: clean.
+- Access matrix and route inventory, run on their own for the register change: 4 files, 536 tests, all passed, `src/test/access` untouched.
+
+#### Files (PR 9b2; all LF in the working tree, the index was already LF)
+
+| File                                                                                          | Action                                                                                         |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `src/lib/validations/users.ts`, `src/lib/validations/users.test.ts`                           | Modified: `registroEstudianteSchema` without a login, the email lower-cased; 15 new cases       |
+| `src/app/(auth)/register/actions.ts`, `src/app/(auth)/register/actions.test.ts`               | Modified: derived Login, lower-case duplicate lookup, "emailTooLong"; 14 new cases and a new payload |
+| `src/app/(auth)/register/register-form.tsx`, `src/app/(auth)/register/register-form.test.tsx` | Modified and created: the login field is gone; the email field carries the error description; 10 cases |
+| `i18n/es.json`, `i18n/en.json`                                                                | Modified: "auth.register.errors.duplicate", the new "emailTooLong"; the dead "loginLabel" removed |
+
+#### Final Spanish UI copy of PR 9b2 (student screen "register", "tú"; English twins in the catalog)
+
+- "auth.register.errors.duplicate": "El CIF o el correo ya están registrados." (`en`: "The CIF or email is already registered.").
+- "auth.register.errors.emailTooLong" (new, beyond the task's list): "El correo no puede superar los 60 caracteres." (`en`: "The email cannot exceed 60 characters."). It mirrors the staff form, because the derived "Login" has the 60 characters of its column.
+
+#### Deviations (PR 9b2)
+
+1. **Page test.** Task 10.5 lists `src/app/(auth)/register/page.test.tsx`; it is unchanged, for the reason above.
+2. **A new error line.** "emailTooLong" for registration (see the copy).
+3. **Error description.** The `aria-describedby` that pointed the login field at the error now sits on the email field, because the registration errors concern the email or the CIF.
+4. **CIF as typed.** The characterization pin "stores the CIF as posted" (AEA-4) is kept, so a CIF registered with a space or a hyphen can never match the cleaned sign-in input (FE-21); that student signs in by email, which is required. Normalizing the stored CIF is a spec change and is listed in the notes for S10.
+5. **Dead key.** "auth.register.loginLabel" was removed in this unit, when its last use went, instead of in unit 23.
+6. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.

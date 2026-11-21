@@ -621,7 +621,6 @@
       "title": "Create student account",
       "subtitle": "Sign up to submit your absence justifications",
       "nameLabel": "Full name",
-      "loginLabel": "Username",
       "passwordLabel": "Password",
       "confirmPasswordLabel": "Confirm password",
       "emailLabel": "Email",
@@ -636,7 +635,8 @@
       "errors": {
         "invalid": "Check the entered data",
         "invalidCarrera": "The selected career is not valid",
-        "duplicate": "The username or CIF already exists",
+        "duplicate": "The CIF or email is already registered.",
+        "emailTooLong": "The email cannot exceed 60 characters.",
         "passwordMismatch": "Passwords do not match",
         "closed": "Student registration is not open at this time."
       },
