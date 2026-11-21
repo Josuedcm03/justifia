@@ -77,11 +77,18 @@ export function NewUserForm({
             />
           </Field>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field htmlFor="login" label={t("loginLabel")}>
-              <Input id="login" name="login" autoComplete="off" required />
-            </Field>
+          <Field htmlFor="correo" label={t("emailLabel")} hint={t("emailHint")}>
+            <Input
+              id="correo"
+              name="correo"
+              type="email"
+              autoComplete="off"
+              required
+              aria-describedby="correo-hint"
+            />
+          </Field>
 
+          <div className="grid gap-5 sm:grid-cols-2">
             <Field htmlFor="password" label={t("passwordLabel")}>
               <Input
                 id="password"
@@ -89,17 +96,6 @@ export function NewUserForm({
                 type="password"
                 autoComplete="new-password"
                 required
-              />
-            </Field>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field htmlFor="correo" label={t("emailLabel")}>
-              <Input
-                id="correo"
-                name="correo"
-                type="email"
-                autoComplete="email"
               />
             </Field>
 
