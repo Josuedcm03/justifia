@@ -56,8 +56,9 @@ const REACTIVATED = {
   grupoId: G,
   replaced: [],
 } as const;
-// The option the list toggle passes: reactivate only, never create or replace.
-const LIST = { reactivateOnly: true } as const;
+// The only way to create or replace (the assign flow of EA-SIB-1); a call
+// without it is the list's reactivate-only mode.
+const FULL = { allowReplaceAndCreate: true } as const;
 const NO_ROW = { kind: "select", rows: [] } as const;
 const NO_SIBLING_UPDATE = { kind: "update", rows: [] } as const;
 const INSERT = { kind: "insert" } as const;
@@ -409,7 +410,7 @@ describe("staff atomicity and failure (EA-DEG-1 Write fails)", () => {
   });
 });
 
-describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS-8)", () => {
+describe("staffEnrollInGroup by default, reactivate only (EA-REACT-1, CS-3, CS-8)", () => {
   const SUCCESS = [
     STUDENT,
     TARGET,
@@ -419,10 +420,39 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
     AUDIT,
   ];
 
+  it.each([
+    {
+      label: "no row (would be a create)",
+      script: [STUDENT, TARGET, NO_ROW],
+    },
+    {
+      label: "an inactive row and an active sibling (would be a replace)",
+      script: [
+        STUDENT,
+        TARGET,
+        INACTIVE_ROW,
+        { kind: "select", rows: [{ grupoId: 5 }] },
+      ],
+    },
+  ] as const)(
+    "fails closed: a call with no options never inserts and never updates a sibling, given $label",
+    async ({ script }) => {
+      const double = use([...script]);
+
+      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+        ok: false,
+        reason: "not_eligible",
+      });
+      expect(double.exhausted).toBe(true);
+      expect(kinds(double)).not.toContain("insert");
+      expect(kinds(double)).not.toContain("update");
+    },
+  );
+
   it("reactivates an inactive row of an offered group with no sibling and writes one reactivada with the STAFF actor", async () => {
     const double = use(SUCCESS);
 
-    expect(await staffEnrollInGroup(STAFF, S, G, LIST)).toEqual(REACTIVATED);
+    expect(await staffEnrollInGroup(STAFF, S, G)).toEqual(REACTIVATED);
 
     expect(kinds(double)).toEqual([
       "select",
@@ -450,7 +480,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
 
   it("issues the student's own reactivate statement and an audit row equal to the student's except the actor", async () => {
     const staff = use(SUCCESS);
-    await staffEnrollInGroup(STAFF, S, G, LIST);
+    await staffEnrollInGroup(STAFF, S, G);
     const student = use([
       STUDENT,
       TARGET,
@@ -487,7 +517,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
       // The double returns no group; the predicate is what excludes each case.
       const double = use([STUDENT, { kind: "select", rows: [] }]);
 
-      expect(await staffEnrollInGroup(STAFF, S, G, LIST)).toEqual({
+      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
         ok: false,
         reason: "not_eligible",
       });
@@ -513,7 +543,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
     async ({ script, reason }) => {
       const double = use([...script]);
 
-      expect(await staffEnrollInGroup(STAFF, S, G, LIST)).toEqual({
+      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
         ok: false,
         reason,
       });
@@ -525,7 +555,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
   it("refuses an out-of-scope, unknown or non-student target with not_student after the one lock statement", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
-    expect(await staffEnrollInGroup(STAFF, 999_999, G, LIST)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, 999_999, G)).toEqual({
       ok: false,
       reason: "not_student",
     });
@@ -536,7 +566,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
   it("refuses a scope of none like any other out-of-scope student", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
-    expect(await staffEnrollInGroup(NO_SCOPE, S, G, LIST)).toEqual({
+    expect(await staffEnrollInGroup(NO_SCOPE, S, G)).toEqual({
       ok: false,
       reason: "not_student",
     });
@@ -550,7 +580,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
     it("refuses with nothing changed: no sibling update, no reactivation, no audit row", async () => {
       const double = use([STUDENT, TARGET, INACTIVE_ROW, SIBLING]);
 
-      expect(await staffEnrollInGroup(STAFF, S, G, LIST)).toEqual({
+      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
         ok: false,
         reason: "not_eligible",
       });
@@ -566,7 +596,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
 
     it("reads the sibling with the writer's own predicate: the student's sibling update renders the same where", async () => {
       const staff = use([STUDENT, TARGET, INACTIVE_ROW, SIBLING]);
-      await staffEnrollInGroup(STAFF, S, G, LIST);
+      await staffEnrollInGroup(STAFF, S, G);
       const student = use([
         STUDENT,
         TARGET,
@@ -593,7 +623,7 @@ describe("staffEnrollInGroup in list mode, reactivate only (EA-REACT-1, CS-3, CS
         { kind: "select", rows: [{ grupoId: 5 }, { grupoId: 6 }] },
       ]);
 
-      expect(await staffEnrollInGroup(STAFF, S, G, LIST)).toEqual({
+      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
         ok: false,
         reason: "not_eligible",
       });
@@ -620,7 +650,7 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
   it("creates the row active for the student and writes one creada with the STAFF actor", async () => {
     const double = use(CREATE);
 
-    expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
       ok: true,
       kind: "created",
       grupoId: G,
@@ -657,7 +687,7 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
   it("sets an existing inactive row active instead of inserting a second one, with one reactivada", async () => {
     const double = use(REACTIVATE_ROW);
 
-    expect(await staffEnrollInGroup(STAFF, S, G)).toEqual(REACTIVATED);
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual(REACTIVATED);
 
     // At most one row per pair: no Inscripcion insert, only the audit insert.
     expect(
@@ -683,7 +713,7 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
       { kind: "select", rows: [{ activo: true }] },
     ]);
 
-    expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
       ok: false,
       reason: "already_enrolled",
     });
@@ -700,7 +730,7 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
     async ({ fragment }) => {
       const double = use([STUDENT, { kind: "select", rows: [] }]);
 
-      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+      expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
         ok: false,
         reason: "not_eligible",
       });
@@ -717,7 +747,7 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
     async ({ staff }) => {
       const double = use([{ kind: "select", rows: [] }]);
 
-      expect(await staffEnrollInGroup(staff, S, G)).toEqual({
+      expect(await staffEnrollInGroup(staff, S, G, FULL)).toEqual({
         ok: false,
         reason: "not_student",
       });
@@ -728,7 +758,7 @@ describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
 
   it("issues the student's own create statements: only the actor of the audit row differs", async () => {
     const staff = use(CREATE);
-    await staffEnrollInGroup(STAFF, S, G);
+    await staffEnrollInGroup(STAFF, S, G, FULL);
     const student = use(CREATE);
     await enrollInGroup(S, G);
 
@@ -763,7 +793,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       AUDIT,
     ]);
 
-    expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
       ok: true,
       kind: "reactivated",
       grupoId: G,
@@ -800,7 +830,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
   it("changing to a group the student has no row in replaces the current group and creates the new row: desactivada then creada", async () => {
     const double = use([STUDENT, TARGET, NO_ROW, SIBLINGS([5]), INSERT, AUDIT]);
 
-    expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
       ok: true,
       kind: "created",
       grupoId: G,
@@ -829,7 +859,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       AUDIT,
     ]);
 
-    const result = await staffEnrollInGroup(STAFF, S, G);
+    const result = await staffEnrollInGroup(STAFF, S, G, FULL);
 
     expect(result).toEqual({ ...REACTIVATED, replaced: [5, 6] });
     expect(lastRows(double).map((row) => row.datos)).toEqual([
@@ -849,7 +879,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       AUDIT,
     ]);
 
-    await staffEnrollInGroup(STAFF, S, G);
+    await staffEnrollInGroup(STAFF, S, G, FULL);
 
     const sibling = double.log[3];
     expect(sibling.table).toBe(inscripcion);
@@ -885,7 +915,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
     } as const;
     const double = use([STUDENT, other, NO_ROW, SIBLINGS([]), INSERT, AUDIT]);
 
-    expect(await staffEnrollInGroup(STAFF, S, G)).toMatchObject({
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toMatchObject({
       ok: true,
       kind: "created",
       replaced: [],
@@ -907,7 +937,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       AUDIT,
     ]);
 
-    await staffEnrollInGroup(STAFF, S, G);
+    await staffEnrollInGroup(STAFF, S, G, FULL);
 
     expect(double.transactions).toBe(1);
     expect(double.log.every((entry) => entry.inTransaction)).toBe(true);
@@ -941,7 +971,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       );
       const double = use(steps);
 
-      await expect(staffEnrollInGroup(STAFF, S, G)).rejects.toBe(failure);
+      await expect(staffEnrollInGroup(STAFF, S, G, FULL)).rejects.toBe(failure);
 
       expect(double.exhausted).toBe(reached);
       expect(logger).toHaveBeenCalledTimes(1);
@@ -965,7 +995,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
     async ({ fragment }) => {
       const double = use([STUDENT, { kind: "select", rows: [] }]);
 
-      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+      expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
         ok: false,
         reason: "not_eligible",
       });
@@ -981,7 +1011,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
       { kind: "select", rows: [{ activo: true }] },
     ]);
 
-    expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
       ok: false,
       reason: "already_enrolled",
     });
@@ -991,7 +1021,7 @@ describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () 
   it("refuses a student out of scope with not_student and writes nothing", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
-    expect(await staffEnrollInGroup(STAFF, 999_999, G)).toEqual({
+    expect(await staffEnrollInGroup(STAFF, 999_999, G, FULL)).toEqual({
       ok: false,
       reason: "not_student",
     });
@@ -1036,7 +1066,7 @@ describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
     },
     {
       label: "staffEnrollInGroup",
-      run: () => staffEnrollInGroup(STAFF, S, G),
+      run: () => staffEnrollInGroup(STAFF, S, G, FULL),
       script: [
         STUDENT,
         TARGET,
@@ -1077,7 +1107,7 @@ describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
       { kind: "insert", error: failure },
     ]);
 
-    await expect(staffEnrollInGroup(STAFF, S, G)).rejects.toBe(failure);
+    await expect(staffEnrollInGroup(STAFF, S, G, FULL)).rejects.toBe(failure);
 
     expect(double.exhausted).toBe(true);
     expect(logger).toHaveBeenCalledTimes(1);

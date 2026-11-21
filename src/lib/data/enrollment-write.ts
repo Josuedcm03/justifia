@@ -300,20 +300,22 @@ export function dropGroup(
   );
 }
 
-/** A secretaria activates a group for a student: reactivates an inactive row or
- *  creates one (EA-REACT-1, EA-CRE-1) and, when the student has an active
- *  sibling of the same asignatura and period, replaces it in the same
- *  transaction (EA-SIB-1, EA-CHG-1), exactly like the student's own writer. The
- *  confirmation that names the replaced group belongs to the caller. The list
- *  toggle passes `{ reactivateOnly: true }` (CS-8): it then neither creates nor
- *  replaces, and an active sibling is refused (`not_eligible`) under the row
- *  lock, so a forged list request cannot skip the confirmation. The audit actor
- *  is `staff.actorId`; refusals reuse the existing reasons (CS-2). */
+/** A secretaria activates a group for a student (EA-REACT-1, EA-CRE-1,
+ *  EA-SIB-1, EA-CHG-1). The default FAILS CLOSED: it reactivates an existing
+ *  inactive row of an offered group and nothing else, so no row is created and
+ *  an active sibling is refused (`not_eligible`) under the student's row lock,
+ *  never replaced. Only `{ allowReplaceAndCreate: true }` creates a missing row
+ *  and, when the student has an active sibling of the same asignatura and
+ *  period, replaces it in the same transaction, like the student's own writer.
+ *  The confirmation that names the replaced group belongs to that caller (the
+ *  assign flow), so a caller that forgets the option can never replace by
+ *  accident. The audit actor is `staff.actorId`; refusals reuse the existing
+ *  reasons (CS-2). */
 export function staffEnrollInGroup(
   staff: EnrollmentStaff,
   estudianteId: number,
   grupoId: number,
-  { reactivateOnly = false }: { reactivateOnly?: boolean } = {},
+  { allowReplaceAndCreate = false }: { allowReplaceAndCreate?: boolean } = {},
 ): Promise<EnrollResult> {
   return writeEnrollment<EnrollResult>(
     {
@@ -322,7 +324,9 @@ export function staffEnrollInGroup(
       scope: staff.scope,
       estudianteId,
     },
-    enrollWork(estudianteId, grupoId, { reactivateOnly }),
+    enrollWork(estudianteId, grupoId, {
+      reactivateOnly: !allowReplaceAndCreate,
+    }),
   );
 }
 
