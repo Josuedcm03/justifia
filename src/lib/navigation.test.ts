@@ -4,6 +4,7 @@ import {
   Briefcase,
   ChartColumn,
   ClipboardCheck,
+  ClipboardList,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
@@ -21,6 +22,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canManageEnrollments,
   canManageOwnEnrollment,
   canReviewRequests,
   canViewReports,
@@ -110,6 +112,13 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
             visibleTo: canManageCatalog,
           },
           {
+            key: "catalogInscripciones",
+            href: "/catalog/inscripciones",
+            icon: ClipboardList,
+            visibleTo: canManageEnrollments,
+            prefetch: false,
+          },
+          {
             key: "catalogImport",
             href: "/catalog/import",
             icon: FileSpreadsheet,
@@ -152,6 +161,41 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
     });
   });
 
+  it("opts the inscripciones entry out of prefetching (its list is an audited read)", () => {
+    const administration = NAV_ITEMS.find(
+      (item) => item.key === "administration",
+    );
+    const inscripciones =
+      administration && "children" in administration
+        ? administration.children.find(
+            (child) => child.key === "catalogInscripciones",
+          )
+        : undefined;
+
+    expect(inscripciones).toMatchObject({
+      href: "/catalog/inscripciones",
+      prefetch: false,
+    });
+  });
+
+  it("places inscripciones after docentes and before import in administration (BS-NAV-4)", () => {
+    const administration = NAV_ITEMS.find(
+      (item) => item.key === "administration",
+    );
+    const keys =
+      administration && "children" in administration
+        ? administration.children.map((child) => child.key)
+        : [];
+
+    expect(keys).toEqual([
+      "catalogAsignaturas",
+      "catalogDocentes",
+      "catalogInscripciones",
+      "catalogImport",
+      "users",
+    ]);
+  });
+
   it("places reports after coordination and before administration", () => {
     const keys = NAV_ITEMS.map((item) => item.key);
 
@@ -166,7 +210,10 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
 
     for (const leaf of leaves.filter(
       (l) =>
-        l.key !== "review" && l.key !== "coordination" && l.key !== "reports",
+        l.key !== "review" &&
+        l.key !== "coordination" &&
+        l.key !== "reports" &&
+        l.key !== "catalogInscripciones",
     )) {
       expect(leaf, leaf.key).not.toHaveProperty("prefetch");
     }
@@ -195,6 +242,11 @@ describe("isCurrentPath", () => {
     ["/users-archive", "/users", false],
     ["/catalog/asignaturas/3/grupos/new", "/catalog/asignaturas", true],
     ["/catalog/asignaturas", "/catalog/docentes", false],
+    ["/catalog/inscripciones", "/catalog/inscripciones", true],
+    ["/catalog/inscripciones/assign", "/catalog/inscripciones", true],
+    ["/catalog/inscripciones", "/catalog/asignaturas", false],
+    ["/catalog/asignaturas", "/catalog/inscripciones", false],
+    ["/catalog/inscripciones", "/enrollment", false],
   ])("%s against %s is %s", (pathname, href, expected) => {
     expect(isCurrentPath(pathname, href)).toBe(expected);
   });
@@ -230,6 +282,7 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
     ["reports", ["coordinacion"]],
     ["catalogAsignaturas", STAFF],
     ["catalogDocentes", STAFF],
+    ["catalogInscripciones", ["secretaria"]],
     ["catalogImport", ["secretaria"]],
     ["users", STAFF],
   ] as const)("%s is visible to exactly %j", (key, visible) => {
@@ -291,6 +344,26 @@ describe("trailFor (BS-CTX-1)", () => {
         key: "catalogDocentes",
         href: "/catalog/docentes",
         exact: true,
+      },
+    ],
+    [
+      "/catalog/inscripciones",
+      {
+        groupKey: "administration",
+        key: "catalogInscripciones",
+        href: "/catalog/inscripciones",
+        exact: true,
+        prefetch: false,
+      },
+    ],
+    [
+      "/catalog/inscripciones/assign",
+      {
+        groupKey: "administration",
+        key: "catalogInscripciones",
+        href: "/catalog/inscripciones",
+        exact: false,
+        prefetch: false,
       },
     ],
     [
@@ -361,6 +434,8 @@ describe("trailFor (BS-CTX-1)", () => {
       "/review/42",
       "/reports",
       "/reports/requests",
+      "/catalog/inscripciones",
+      "/catalog/inscripciones/assign",
     ]) {
       expect(trailFor(pathname)?.prefetch, pathname).toBe(false);
     }
@@ -370,6 +445,8 @@ describe("trailFor (BS-CTX-1)", () => {
       "/users/new",
       "/requests/42",
       "/profile",
+      "/catalog/asignaturas",
+      "/enrollment",
     ]) {
       expect(trailFor(pathname), pathname).not.toHaveProperty("prefetch");
     }
@@ -409,6 +486,7 @@ describe("shortcutsFor (BS-HOME-1 inputs)", () => {
         "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
+        "/catalog/inscripciones",
         "/catalog/import",
         "/users",
       ],

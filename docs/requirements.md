@@ -152,3 +152,4 @@ se hace en los dos a la vez y se anota aquí.
 - RN-25 y RF-03 (f) tocan `justification-intake`, ya archivado: el consentimiento necesita un cambio propio.
 - RF-14 no está en el alcance de `secretary-review`; lo cubre `manual-document-data`.
 - RF-12 nombra a la secretaría académica; el código permite además a coordinación y administrador (`canManageCatalog`). No es una contradicción, pero conviene decidir si el requisito o el permiso se ajustan.
+  - Decisión para las inscripciones (change `catalog-schedule`, 2026-11-19): la vista del personal en `/catalog/inscripciones` usa un permiso propio, `canManageEnrollments`, que solo tiene la secretaría académica, en lugar de `canManageCatalog`. Las filas de RF-12, RF-17 y RN-21 no cambian (decisión D8 del change).

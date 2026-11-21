@@ -6,7 +6,7 @@ remiten a ese archivo.
 
 | #   | Change                     | Cubre                                                                                | Responsable | Prototipo            | Estado    |
 | --- | -------------------------- | ------------------------------------------------------------------------------------ | ----------- | -------------------- | --------- |
-| 0   | `catalog-schedule`         | Horarios en el catálogo (RN-22, RF-12)                                               | Josué       | Sí                   | pendiente |
+| 0   | `catalog-schedule`         | Mantenimiento de inscripciones por la secretaría: RF-12 (a), (b), (c); RF-17 (b), (d), (e); RN-21; RNF-01, RNF-02, RNF-06, RNF-12; relacionado con RN-27 | Josué | Sí | pendiente |
 | 1   | `justification-intake`     | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23                                          | Armando     | Sí                   | archivado |
 | 2   | `secretary-review`         | RF-06 a RF-08; RN-08, RN-15 a RN-17                                                  | Armando     | Sí                   | archivado |
 | 3   | `teacher-remission`        | RF-09; RN-18, RN-19; RNF-07                                                          | Por asignar | Sí                   | archivado |
@@ -38,6 +38,14 @@ remiten a ese archivo.
   parcial, según `openspec/changes/archive/2026-10-25-student-enrollment/tasks.md`.
 - RF-12 y RNF-13 (mantenimiento e importación de catálogos) los cubren los
   changes en curso de Josué: `catalog-excel-import` y `catalog-management`.
+- `catalog-schedule` cubre las inscripciones de RF-12 (a): la secretaría
+  consulta en `/catalog/inscripciones` las de los estudiantes de su facultad y
+  las mantiene (baja, reactivación, alta y cambio de grupo), con el permiso
+  `canManageEnrollments` (solo `secretaria`). No cubre dos partes de RF-12 (a):
+  el mantenimiento de docentes, que sigue siendo de solo lectura en
+  `/catalog/docentes`, ni los horarios con hora que pide RN-22, que quedan para
+  un change posterior. El nombre del change se conserva, aunque ya no trata de
+  horarios.
 - RNF-08, RNF-09 y RNF-10 se verifican en el piloto o en la operación, no en un
   change. RNF-04 queda cubierto por `data-retention` (fila 17) y se verificó con la
   corrida de integración del 2026-11-19 sobre una rama desechable de Neon (9 de 9

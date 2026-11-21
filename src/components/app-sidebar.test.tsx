@@ -142,6 +142,7 @@ describe("AppSidebar", () => {
       [
         "/catalog/asignaturas",
         "/catalog/docentes",
+        "/catalog/inscripciones",
         "/catalog/import",
         "/users",
       ],
@@ -247,6 +248,7 @@ describe("AppSidebar", () => {
         "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
+        "/catalog/inscripciones",
         "/catalog/import",
         "/users",
         "/settings",
@@ -420,6 +422,8 @@ describe("AppSidebar Asignaturas item (CM-NAV-1)", () => {
     ["/catalog/asignaturas/3/grupos/new", "Asignaturas"],
     ["/catalog/asignaturas/3/grupos/5/edit", "Asignaturas"],
     ["/catalog/docentes", "Docentes"],
+    ["/catalog/inscripciones", "Inscripciones"],
+    ["/catalog/inscripciones/assign", "Inscripciones"],
   ])(
     "marks exactly one item current on %s, and it is %s",
     (pathname, current) => {
@@ -440,8 +444,13 @@ describe("AppSidebar has no Grupos destination (CM-NAV-1)", () => {
     (rol) => {
       renderSidebar(rol);
 
+      // Import and Inscripciones are not catalog list pages of an entity
+      // with groups; only Asignaturas and Docentes are.
       const catalogHrefs = groupHrefs().filter(
-        (href) => href?.startsWith("/catalog/") && href !== "/catalog/import",
+        (href) =>
+          href?.startsWith("/catalog/") &&
+          href !== "/catalog/import" &&
+          href !== "/catalog/inscripciones",
       );
 
       expect(catalogHrefs).toEqual([
@@ -677,6 +686,10 @@ describe("AppSidebar Administración group trigger", () => {
 
     await user.tab();
 
+    expect(screen.getByRole("link", { name: "Inscripciones" })).toHaveFocus();
+
+    await user.tab();
+
     expect(
       screen.getByRole("link", { name: "Carga de catálogo" }),
     ).toHaveFocus();
@@ -857,7 +870,13 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
     [
       "secretaria",
       ["Panel", "Revisión de solicitudes", "Administración", "Configuración"],
-      ["Asignaturas", "Docentes", "Carga de catálogo", "Usuarios"],
+      [
+        "Asignaturas",
+        "Docentes",
+        "Inscripciones",
+        "Carga de catálogo",
+        "Usuarios",
+      ],
     ],
   ] as const)(
     "shows %s the top level %j and the group children %j, in order",
@@ -982,6 +1001,62 @@ describe("AppSidebar reports item (BS-NAV-1, RF-17 a)", () => {
     expect(screen.getByRole("link", { name: "Reportes" })).not.toHaveAttribute(
       "aria-current",
     );
+  });
+});
+
+describe("AppSidebar inscripciones item (BS-NAV-4, RF-12 a)", () => {
+  it.each([
+    ["es", "Inscripciones"],
+    ["en", "Enrollments"],
+  ] as const)(
+    "offers secretaria the %s link to /catalog/inscripciones with prefetch disabled",
+    (locale, name) => {
+      env.locale = locale;
+      renderSidebar("secretaria");
+
+      // The group stays collapsed, so the link is reached hidden.
+      const link = screen.getByRole("link", { name, hidden: true });
+
+      expect(link).toHaveAttribute("href", "/catalog/inscripciones");
+      expect(link).toHaveAttribute("data-prefetch", "false");
+    },
+  );
+
+  it.each(["estudiante", "docente", "coordinacion", "administrador"] as const)(
+    "hides it from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(screen.queryByText("Inscripciones")).not.toBeInTheDocument();
+      expect(
+        document.querySelector('a[href="/catalog/inscripciones"]'),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("marks Inscripciones as the only current entry on its page and opens the group", () => {
+    env.pathname = "/catalog/inscripciones";
+    renderSidebar("secretaria");
+
+    const link = screen.getByRole("link", { name: "Inscripciones" });
+
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link).toHaveClass(CURRENT_MARKER);
+    expect(document.querySelectorAll("[aria-current]")).toHaveLength(1);
+    expect(getTrigger()).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("leaves Asignaturas the current entry of its own page", () => {
+    env.pathname = "/catalog/asignaturas";
+    renderSidebar("secretaria");
+
+    expect(screen.getByRole("link", { name: "Asignaturas" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      screen.getByRole("link", { name: "Inscripciones" }),
+    ).not.toHaveAttribute("aria-current");
   });
 });
 

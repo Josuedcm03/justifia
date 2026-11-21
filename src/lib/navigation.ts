@@ -4,6 +4,7 @@ import {
   Briefcase,
   ChartColumn,
   ClipboardCheck,
+  ClipboardList,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
@@ -21,6 +22,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canManageEnrollments,
   canManageOwnEnrollment,
   canReviewRequests,
   canViewReports,
@@ -34,8 +36,8 @@ export type NavLink = {
   visibleTo?: (rol: RolUsuario) => boolean;
   /**
    * `false` keeps Next.js from prefetching the target. The review,
-   * coordination and report pages write an audit row when they render, so nothing may
-   * render them speculatively.
+   * coordination, report and inscripciones pages write an audit row when they
+   * render, so nothing may render them speculatively.
    */
   prefetch?: false;
 };
@@ -110,6 +112,13 @@ export const NAV_ITEMS = [
         href: "/catalog/docentes",
         icon: GraduationCap,
         visibleTo: canManageCatalog,
+      },
+      {
+        key: "catalogInscripciones",
+        href: "/catalog/inscripciones",
+        icon: ClipboardList,
+        visibleTo: canManageEnrollments,
+        prefetch: false,
       },
       {
         key: "catalogImport",

@@ -32,8 +32,10 @@ const GUARDED_SECTIONS = [
   "catalog.grupos",
   "nav.catalogDocentes",
   "catalog.docentes",
-  // Enrollment administration (EA-UI-1 "Key parity"): the staff list copy.
+  // Enrollment administration (EA-UI-1 "Key parity"): the staff list copy
+  // and its menu entry (BS-NAV-4).
   "catalog.inscripciones",
+  "nav.catalogInscripciones",
   // Backoffice shell (backoffice-ui-refresh): the top-bar trail reuses the
   // sidebar's `nav.*` labels and adds its landmark label and the profile page;
   // `roles` labels the sidebar identity block.
@@ -203,11 +205,12 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
     ),
   ].sort();
 
-  it("offers shortcuts for the nine destinations the roles reach", () => {
+  it("offers shortcuts for the eleven destinations the roles reach", () => {
     expect(SHORTCUT_KEYS).toEqual([
       "catalogAsignaturas",
       "catalogDocentes",
       "catalogImport",
+      "catalogInscripciones",
       "coordination",
       "enrollment",
       "myRequests",
@@ -1506,6 +1509,19 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
   ] as const)("%s sidebar label is %s", (locale, label) => {
     expect(section(locale, "nav.catalogDocentes")).toBe(label);
   });
+
+  // BS-NAV-4: the secretaría's entry is not the student's Enrollment entry.
+  it.each([
+    ["es", "Inscripciones", "Inscripción"],
+    ["en", "Enrollments", "Enrollment"],
+  ] as const)(
+    "%s Inscripciones label is %s, distinct from the student's %s",
+    (locale, label, studentLabel) => {
+      expect(section(locale, "nav.catalogInscripciones")).toBe(label);
+      expect(section(locale, "nav.enrollment")).toBe(studentLabel);
+      expect(label).not.toBe(studentLabel);
+    },
+  );
 
   // The page reads its copy through `getTranslations`, the client table
   // through `useTranslations`; every literal key either chooses must exist in
