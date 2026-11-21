@@ -151,6 +151,7 @@ export const ACTIONS: Record<string, Row & { exports: readonly string[] }> = {
   [`${CATALOG}/inscripciones/actions.ts`]: actions(
     SECRETARIA,
     "setInscripcionActivoAction",
+    "assignInscripcionAction",
   ),
   [`${CATALOG}/import/actions.ts`]: actions(
     SECRETARIA,

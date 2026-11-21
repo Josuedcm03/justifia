@@ -187,3 +187,13 @@ export type ActiveToggleState =
   | { kind: "gone" }
   | { kind: "busy" }
   | { kind: "unchanged" };
+
+/** What the staff assign action answers with (EA-CRE-1, EA-CHG-1, EA-SIB-1).
+ *  It is called with explicit arguments, not as form state, so there is no
+ *  `idle` or `busy`. `replaced` is the COUNT of sibling groups it deactivated:
+ *  the ids stay on the server. `message` is already translated; `gone` is both
+ *  "missing" and "out of scope" (CS-2). */
+export type AssignInscripcionState =
+  | { kind: "done"; outcome: "created" | "reactivated"; replaced: number }
+  | { kind: "error"; message: string }
+  | { kind: "gone" };

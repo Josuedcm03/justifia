@@ -4,7 +4,10 @@ import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 
 import { requireEnrollmentAccess } from "@/lib/auth/enrollment-access";
-import type { ActiveToggleState } from "@/lib/catalog/types";
+import type {
+  ActiveToggleState,
+  AssignInscripcionState,
+} from "@/lib/catalog/types";
 import {
   staffDropGroup,
   staffEnrollInGroup,
@@ -98,4 +101,72 @@ export async function setInscripcionActivoAction(
 
   revalidatePath(LIST_PATH);
   return { kind: "done", activo: intent === "reactivate" };
+}
+
+/**
+ * Creates, reactivates or changes the group of one inscripcion (EA-CRE-1,
+ * EA-CHG-1, EA-SIB-1). The assign page's confirm step calls it with explicit
+ * arguments, `(estudianteId, grupoId)`, so there is no form to read. It is the
+ * ONLY caller that passes `allowReplaceAndCreate`: the staff writer fails closed,
+ * so the list toggle can never create or replace.
+ *
+ * The confirmation that names the replaced group is the client's (CS-8); the
+ * action cannot verify it, so an in-scope secretaria who posts directly can
+ * replace without it. That is the same authority she has through the page; the
+ * writer still scopes the student, locks, replaces atomically and audits both
+ * rows with her as actor. The replaced group ids are never sent back.
+ */
+export async function assignInscripcionAction(
+  estudianteId: number,
+  grupoId: number,
+): Promise<AssignInscripcionState> {
+  const { actorId, scope } = await requireEnrollmentAccess();
+  const t = await getTranslations("catalog");
+  if (scope.kind === "none") return { kind: "gone" };
+
+  // Both ids are client-visible arguments: re-validated, never trusted.
+  const parsed = staffEnrollmentInputSchema.safeParse({
+    estudianteId,
+    grupoId,
+  });
+  if (!parsed.success) {
+    return { kind: "error", message: t("inscripciones.errors.unexpected") };
+  }
+
+  let result: EnrollResult;
+  try {
+    result = await staffEnrollInGroup(
+      { actorId, scope },
+      parsed.data.estudianteId,
+      parsed.data.grupoId,
+      { allowReplaceAndCreate: true },
+    );
+  } catch {
+    // The writer already logged one sanitised line and stored nothing.
+    return { kind: "error", message: t("inscripciones.errors.unexpected") };
+  }
+
+  if (!result.ok) {
+    switch (result.reason) {
+      case "not_student":
+        return { kind: "gone" };
+      case "already_enrolled":
+        return {
+          kind: "error",
+          message: t("inscripciones.errors.assign_already_enrolled"),
+        };
+      case "not_eligible":
+        return {
+          kind: "error",
+          message: t("inscripciones.errors.assign_not_eligible"),
+        };
+    }
+  }
+
+  revalidatePath(LIST_PATH);
+  return {
+    kind: "done",
+    outcome: result.kind,
+    replaced: result.replaced.length,
+  };
 }

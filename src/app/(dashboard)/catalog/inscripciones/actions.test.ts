@@ -37,7 +37,7 @@ vi.mock("@/lib/data/enrollment-write", () => ({
   staffEnrollInGroup: h.staffEnrollInGroup,
 }));
 
-import { setInscripcionActivoAction } from "./actions";
+import { assignInscripcionAction, setInscripcionActivoAction } from "./actions";
 
 const ACTOR = 41;
 const STUDENT = 7;
@@ -355,4 +355,281 @@ describe("setInscripcionActivoAction failure (EA-WRITE-1)", () => {
       expect(h.revalidatePath).not.toHaveBeenCalled();
     },
   );
+});
+
+// ---------------------------------------------------------------------------
+// assignInscripcionAction (EA-CRE-1, EA-CHG-1, EA-SIB-1, EA-ACC-1, EA-SCOPE-1,
+// CS-9). The client calls it as `(estudianteId, grupoId)` after its own
+// confirmation step (S3b-2); both arguments are client-visible, so the action
+// authorizes first and re-validates them.
+// ---------------------------------------------------------------------------
+
+const FULL = { allowReplaceAndCreate: true };
+const STAFF = { actorId: ACTOR, scope: FACULTAD };
+
+/** The action as the client calls it. Forged values are typed away on purpose. */
+function assign(...args: [] | [student: unknown, group: unknown]) {
+  // No defaults: a default parameter would swallow a forged `undefined`.
+  const [student, group] = args.length === 2 ? args : [STUDENT, GROUP];
+  return assignInscripcionAction(student as number, group as number);
+}
+
+const BAD_IDS: [string, unknown][] = [
+  ["zero", 0],
+  ["a negative", -1],
+  ["a decimal", 1.5],
+  ["a numeric string", "5"],
+  ["null", null],
+  ["undefined", undefined],
+  ["NaN", Number.NaN],
+  ["Infinity", Number.POSITIVE_INFINITY],
+  ["an object", { id: 5, actorId: 99 }],
+];
+
+describe("assignInscripcionAction access (EA-ACC-1)", () => {
+  const denied: [string, () => void, string][] = [
+    ...rolesUsuario
+      .filter((rol) => rol !== "secretaria")
+      .map((rol): [string, () => void, string] => [
+        rol,
+        () => h.getSession.mockResolvedValue(session(rol)),
+        `REDIRECT:${ACCESS_DENIED_PATH}`,
+      ]),
+    [
+      "anonymous",
+      () => h.getSession.mockResolvedValue(null),
+      "REDIRECT:/login",
+    ],
+    [
+      "secretaria with a pending password change",
+      () =>
+        h.getSession.mockResolvedValue(
+          session("secretaria", { debeCambiarClave: true }),
+        ),
+      `REDIRECT:${PASSWORD_CHANGE_PATH}`,
+    ],
+  ];
+
+  it("covers the six denied identities of the spec table", () => {
+    expect(denied).toHaveLength(6);
+  });
+
+  it.each(denied)(
+    "denies %s before reading the scope or validating the arguments, with a valid and a forged payload",
+    async (_identity, arrange, destination) => {
+      // A forged payload would answer the error copy if validation ran first;
+      // the redirect proves the guard resolved before it.
+      for (const [student, group] of [
+        [STUDENT, GROUP],
+        [0, "x"],
+      ]) {
+        arrange();
+
+        await expect(assign(student, group)).rejects.toThrow(destination);
+      }
+
+      expect(h.resolveScope).not.toHaveBeenCalled();
+      expectNothingWritten();
+    },
+  );
+
+  it("takes the actor and the scope from the session, never from the payload", async () => {
+    const call = assignInscripcionAction as unknown as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+
+    await call(STUDENT, GROUP, {
+      actorId: 99,
+      scope: "all",
+      rol: "administrador",
+    });
+
+    expect(h.staffEnrollInGroup).toHaveBeenCalledTimes(1);
+    expect(h.staffEnrollInGroup).toHaveBeenCalledWith(
+      STAFF,
+      STUDENT,
+      GROUP,
+      FULL,
+    );
+  });
+
+  it("hands the writer exactly the two guard fields, no session object", async () => {
+    await assign();
+
+    const [staff] = h.staffEnrollInGroup.mock.calls[0];
+    expect(Object.keys(staff).sort()).toEqual(["actorId", "scope"]);
+  });
+});
+
+describe("assignInscripcionAction opt-in (EA-SIB-1)", () => {
+  it("passes { allowReplaceAndCreate: true } to the staff writer, and only that option", async () => {
+    await assign();
+
+    expect(h.staffEnrollInGroup).toHaveBeenCalledTimes(1);
+    const args = h.staffEnrollInGroup.mock.calls[0];
+    expect(args).toHaveLength(4);
+    expect(args[3]).toStrictEqual({ allowReplaceAndCreate: true });
+    expect(h.staffDropGroup).not.toHaveBeenCalled();
+  });
+
+  it("opts in for every student and group it is called with", async () => {
+    await assign(12, 34);
+
+    expect(h.staffEnrollInGroup).toHaveBeenCalledWith(STAFF, 12, 34, FULL);
+  });
+});
+
+describe("assignInscripcionAction input (EA-SCOPE-1, CS-9)", () => {
+  it.each(BAD_IDS)(
+    "refuses %s as the group id with the error copy and writes nothing",
+    async (_label, forged) => {
+      await expect(assign(STUDENT, forged)).resolves.toEqual({
+        kind: "error",
+        message: "inscripciones.errors.unexpected",
+      });
+
+      expectNothingWritten();
+    },
+  );
+
+  it.each(BAD_IDS)(
+    "re-validates %s as the student id and writes nothing",
+    async (_label, forged) => {
+      await expect(assign(forged, GROUP)).resolves.toEqual({
+        kind: "error",
+        message: "inscripciones.errors.unexpected",
+      });
+
+      expectNothingWritten();
+    },
+  );
+
+  it("answers gone to a scope with no facultad and never calls a writer", async () => {
+    h.resolveScope.mockImplementation(async () => {
+      guardResolved = true;
+      return NONE;
+    });
+
+    await expect(assign()).resolves.toEqual({ kind: "gone" });
+
+    expectNothingWritten();
+  });
+
+  // The out-of-scope decision is the writer's, inside its transaction under the
+  // lock; the action forwards the (possibly forged) id with the session scope
+  // and shows the same answer as for an unknown student (CS-2).
+  it.each([
+    ["change group of an out-of-scope student", 99, 5],
+    ["create for an out-of-scope student", 1234, 8],
+    ["create for an unknown student", 987654, 8],
+  ])(
+    "%s answers gone, writes nothing and revalidates nothing",
+    async (_label, student, group) => {
+      h.staffEnrollInGroup.mockResolvedValue({
+        ok: false,
+        reason: "not_student",
+      });
+
+      await expect(assign(student, group)).resolves.toEqual({ kind: "gone" });
+
+      expect(h.staffEnrollInGroup).toHaveBeenCalledWith(
+        STAFF,
+        student,
+        group,
+        FULL,
+      );
+      expect(h.revalidatePath).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("assignInscripcionAction outcomes (EA-CRE-1, EA-CHG-1, EA-SIB-1)", () => {
+  it.each([
+    ["created", { kind: "created", replaced: [] }, "created", 0],
+    ["reactivated", { kind: "reactivated", replaced: [] }, "reactivated", 0],
+    [
+      "replaced (one sibling)",
+      { kind: "reactivated", replaced: [4] },
+      "reactivated",
+      1,
+    ],
+    [
+      "replaced (two siblings)",
+      { kind: "created", replaced: [4, 6] },
+      "created",
+      2,
+    ],
+  ])(
+    "maps %s to done and revalidates the list once",
+    async (_label, written, outcome, replaced) => {
+      h.staffEnrollInGroup.mockResolvedValue({
+        ok: true,
+        grupoId: GROUP,
+        ...written,
+      });
+
+      await expect(assign()).resolves.toEqual({
+        kind: "done",
+        outcome,
+        replaced,
+      });
+
+      expect(h.revalidatePath).toHaveBeenCalledTimes(1);
+      expect(h.revalidatePath).toHaveBeenCalledWith(PATH);
+    },
+  );
+
+  it("never leaks the replaced group ids to the browser", async () => {
+    h.staffEnrollInGroup.mockResolvedValue({
+      ok: true,
+      kind: "created",
+      grupoId: GROUP,
+      replaced: [4242, 4343],
+    });
+
+    const answer = await assign();
+
+    expect(answer).toEqual({ kind: "done", outcome: "created", replaced: 2 });
+    expect(JSON.stringify(answer)).not.toMatch(/4242|4343/);
+  });
+
+  it.each([
+    ["already_enrolled", "inscripciones.errors.assign_already_enrolled"],
+    ["not_eligible", "inscripciones.errors.assign_not_eligible"],
+  ] as const)(
+    "maps the %s refusal to its error copy without revalidating",
+    async (reason, message) => {
+      h.staffEnrollInGroup.mockResolvedValue({ ok: false, reason });
+
+      await expect(assign()).resolves.toEqual({ kind: "error", message });
+
+      expect(h.revalidatePath).not.toHaveBeenCalled();
+    },
+  );
+
+  it("maps not_student to gone without revalidating", async () => {
+    h.staffEnrollInGroup.mockResolvedValue({
+      ok: false,
+      reason: "not_student",
+    });
+
+    await expect(assign()).resolves.toEqual({ kind: "gone" });
+
+    expect(h.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("turns a thrown writer error into the unexpected copy, with no revalidate and no raw text", async () => {
+    h.staffEnrollInGroup.mockRejectedValue(
+      new Error("connection refused 10.0.0.1"),
+    );
+
+    const answer = await assign();
+
+    expect(answer).toEqual({
+      kind: "error",
+      message: "inscripciones.errors.unexpected",
+    });
+    expect(JSON.stringify(answer)).not.toContain("10.0.0.1");
+    expect(h.revalidatePath).not.toHaveBeenCalled();
+  });
 });

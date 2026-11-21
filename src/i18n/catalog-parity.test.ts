@@ -1027,6 +1027,8 @@ describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
   it("the scan finds every message key the action chooses", () => {
     expect(used).toEqual([
       "inscripciones.errors.already_enrolled",
+      "inscripciones.errors.assign_already_enrolled",
+      "inscripciones.errors.assign_not_eligible",
       "inscripciones.errors.not_eligible",
       "inscripciones.errors.unexpected",
     ]);
@@ -1050,6 +1052,8 @@ describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
 
       expect(leafPaths(errors).sort()).toEqual([
         "already_enrolled",
+        "assign_already_enrolled",
+        "assign_not_eligible",
         "not_eligible",
         "unexpected",
       ]);
@@ -1083,6 +1087,30 @@ describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
         resolve(messages, "catalog.inscripciones.errors"),
       )) {
         expect(value).not.toMatch(/\{|\d/);
+      }
+    },
+  );
+});
+
+describe("catalog parity (EA-CRE-1, EA-CHG-1: assign refusal copy)", () => {
+  const copy = (locale: "es" | "en", key: string) =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      `catalog.inscripciones.errors.${key}`,
+    ) as string;
+
+  it.each([
+    ["es", /ya no se ofrece/i, /ya está inscrito en ese grupo/i],
+    ["en", /no longer offered/i, /already enrolled in that group/i],
+  ] as const)(
+    "%s names the refused group and the existing enrollment, apart from the reactivation copy",
+    (locale, notOffered, enrolled) => {
+      expect(copy(locale, "assign_not_eligible")).toMatch(notOffered);
+      expect(copy(locale, "assign_already_enrolled")).toMatch(enrolled);
+      // The reactivation wording ("could not be reactivated") must not be
+      // shown to a create or a change group.
+      for (const key of ["assign_not_eligible", "assign_already_enrolled"]) {
+        expect(copy(locale, key)).not.toMatch(/reactiv/i);
       }
     },
   );
