@@ -79,11 +79,11 @@ export default async function InscripcionesPage({
   }
 
   // Built once per render (the audited helper dedupes by argument identity).
-  // Closed values only: which filters are present, never their text; the period
-  // is recorded only when it is a real in-scope period, so typed text never
-  // reaches the row (`""` is the default, latest period).
+  // Closed values only: which filters are present, never their text. The period
+  // is the one the read resolved (the chosen one, or the latest by default), so
+  // the row always carries the real period and typed text never reaches it.
   const payload: InscripcionReadPayload = {
-    periodo: periods.includes(state.periodo) ? state.periodo : "",
+    periodo: result.resolvedPeriodo,
     status: state.status,
     filters: {
       q: state.q !== "",

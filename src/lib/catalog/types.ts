@@ -91,6 +91,16 @@ export type InscripcionListItem = {
   dependentRequests: number;
 };
 
+/**
+ * The inscripciones page plus the period the read actually used: the chosen
+ * one when it exists, the latest otherwise, `""` when nothing was read (scope
+ * `none`, no period offered, degraded). The audit row records this value, so
+ * it is never the URL text.
+ */
+export type InscripcionesListResult = CatalogListResult<InscripcionListItem> & {
+  resolvedPeriodo: string;
+};
+
 /** One Grupo as the list and the edit page see it. `dias` is the decoded set in
  *  week order (empty = days not recorded); the stored mask never leaves the
  *  data layer (amendment A-9). */
