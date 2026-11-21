@@ -574,3 +574,64 @@ Totals: 61 new tests (7 + 38 + 7 + 9), layers unit and structural. The suite als
 ### Remaining tasks
 
 Open PR for S2b-1 (parent) and Phases 10-17 (S2b-2 onward).
+
+## Batch 10: S2b-2 row toggle and deactivation notice (tasks 10.1-10.5, complete; Phase 11 NOT started)
+
+Branch `feat/catalog-schedule-s2b2-toggle`, created from `feat/catalog-schedule-s2b1-actions` (S2b-1, PR #133; chain #99 -> ... -> #132 -> #133). Date: 2026-11-20. Commit `db3651c` `feat(enrollment): add the confirmed deactivation and reactivation to the list`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 10.1 branch (this one)
+- [x] 10.2 RED deactivation: reused `ActiveToggle`, bound action, notice, count table, RN-27 sentence, no draft wording, cancel
+- [x] 10.3 RED reactivation: one press, no dead control, answer states, page-level derivation and degraded read
+- [x] 10.4 GREEN `inscripciones-table.tsx`, `page.tsx`, copy in `es` and `en` with parity pin
+- [x] 10.5 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 10.2 | `catalog/inscripciones/inscripciones-table.test.tsx` | Component (Testing Library, real catalogs, real `ActiveToggle`; the server action is a double) | 544/544 over `catalog/inscripciones` and `src/i18n` before any edit | 46 failed of 360 in the three files below (table: `messages.*.catalog.inscripciones.toggle` undefined, no actions column, no control in a row) | 588/588 | both locales: title names student, subject and group; retention sentence with 0 and 2 requests; "nothing is cancelled automatically"; count table (en 1, 2, 5; es 1, 3) as ICU plural; count 0 mentions no request and no draft in the dialog and no `draft`/`borrador` anywhere in the document; confirm posts `(estudianteId, idle, id, "deactivate")`; cancel calls nothing; two periods (current and 2024-S1, in effect or not) and two students bound to their own row (D9) | The count and the RN-27 sentence travel in the single `notice` paragraph of the unchanged toggle |
+| 10.3 | same file and `catalog/inscripciones/page.test.tsx` | Component and page (REAL guard and dal, doubles for the reads) | in the 544 above | same run | pass | reactivate is one press with no dialog and posts `reactivate`; an inactive row without `canReactivate` has no form, button or link; only the rows that can take it get the control; four answers (`done`, `unchanged`, `gone`, `error`) render as text in the row; page derivation table (inactive and offered -> true; with an active sibling -> false; group not offered -> false; active -> false); degraded read renders no form and no button | Clean |
+| 10.4 | `src/i18n/catalog-parity.test.ts`, page test | Unit (JSON) and page | in the 544 above | 6 parity tests failed (`toggle` and `columns.actions` absent) plus the page-shape pin | pass | toggle subtree is exactly `recordLabel`, `requests`, `retention`; `requests` is an ICU plural with `one` and `other`; no draft wording in either locale; the retention sentence says last active enrollment and nothing cancelled | Clean |
+
+Mutation checks (production restored after each): dropping `!r.hasActiveSibling` from `canReactivate` turned 2 page tests red; making the notice always state the count turned the two "count is zero" tests red (en and es).
+
+Totals: 44 net new tests (full suite 9286 -> 9330) across the table, page and parity files, plus the reshaped existing ones. Layers: component and unit. No existing assertion was weakened: the "read-only in S1" pins were replaced by their S2 equivalents (a POST form per toggle row, never a link), and the state assertions now read the state cell because the toggle repeats the raw state pill.
+
+### Decisions and deviations
+
+1. **Two extra row fields, nothing else (EA-PII-1).** The row gained `requestCount` (the CS-7 count of non-draft requests) and `canReactivate` (`!activo && writable && !hasActiveSibling`, computed in `page.tsx`). `writable`, `hasActiveSibling`, `dependentRequests` and `asignaturaId` still never reach the browser, and a page test pins the exact twelve keys of a row handed to the table, so any other field fails the suite. The new names deliberately differ from the server-side ones so the existing leak scan (`dependentRequests`, `hasActiveSibling`, `writable` absent from props and DOM) keeps proving the raw flags do not travel.
+2. **Retention sentence is fixed and conditional.** CS-8 asks for "a fixed RN-27 sentence about the last active inscription", so the table sends no "is last active" flag: the dialog always says "If this is the student's last active enrollment, ... Nothing is cancelled automatically." This is the design's wording; EA-DEACT-1 reads as if the dialog knew whether the row is the last one, and a precise version would need another server-side field and read (not in the slice plan). Recorded for the verify phase.
+3. **Dialog, not a modal.** `ActiveToggle` is unchanged, so the "dialog" is its inline two-step confirmation group (`role="group"`), as in every catalog entity. EA-DEACT-1 says dialog; the shared control is the design's choice (CS-8).
+4. **Duplicate state pill.** `ActiveToggle` renders its own Active/Inactive pill, so a toggle row shows the raw state twice (state column and actions column). Accepted to keep the control unchanged; after a confirmed deactivation `revalidatePath` refreshes the list.
+5. **Bind on the client.** The table (client) imports `setInscripcionActivoAction` and binds the student id per row. The page (server) still imports no action, so the structural guard "no page imports an action" and "no mutating control in `page.tsx`" pass untouched; the folder's prefetch guard passes because no `Link` was added.
+6. **Copy.** `catalog.inscripciones.columns.actions` and `catalog.inscripciones.toggle.{recordLabel, requests, retention}` in both locales. The confirm button, cancel and the generic refusals are the shared catalog copy; the three action error keys of S2b-1 are used by the action.
+7. No design change needed. A process slip: restoring after a mutation check, one `git checkout` reverted `page.tsx` to HEAD; the GREEN version was recovered from the backup taken just before, and the suite was re-run in full afterwards.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/i18n` -> 13 files, 588 passed (RED run of the three changed files: 46 failed of 360); `npx vitest run "src/app/(dashboard)/catalog" src/i18n` -> 41 files, 1492 passed |
+| Runtime harness | N/A: the table renders the real `ActiveToggle` and real catalogs, and the action is a double; the real-database walk W2 (deactivate with the count dialog, cancel, last-active sentence, reactivate, student `/enrollment` reflects it) is `[USER][CONFIRM]` |
+| Rollback boundary | Revert `db3651c`: the table wiring, the two row fields in `page.tsx`, the two copy blocks and their tests; S2b-1 (the action) and the writers are untouched and stay green |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 588/588 and 1492/1492 |
+| `npm test` (full suite) | 374 files, 9330 passed, 0 failed (neither known flaky file failed under load this time) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 5 touched code files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2b1-actions...HEAD -- . ':!openspec' ':!.engram'` -> 7 files changed, 577 insertions(+), 46 deletions(-) = **623 changed lines** (forecast ~270; 2.3x), under the 800 budget. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S2b-2 (parent) and Phases 11-17 (S3a-1 onward). Walk W2 is the owner's, after this slice.
