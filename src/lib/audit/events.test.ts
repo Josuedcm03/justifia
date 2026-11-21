@@ -1648,6 +1648,24 @@ describe("escalation event builders (RF-10, RF-15, RNF-06, RN-02)", () => {
       },
     },
     {
+      name: "escalation for another reason (FE-31)",
+      event: solicitudEscaladaEvent({
+        solicitudId: 41,
+        escalamientoId: 9,
+        motivo: "otro",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      }),
+      accion: "solicitud.escalada",
+      entidadId: 41,
+      datos: {
+        escalamientoId: 9,
+        motivo: "otro",
+        estadoPrevio: "pendiente",
+        estadoNuevo: "en_revision_coordinacion",
+      },
+    },
+    {
       name: "coordination answer",
       event: solicitudEscalamientoResueltoEvent({
         solicitudId: 41,
@@ -1700,6 +1718,23 @@ describe("escalation event builders (RF-10, RF-15, RNF-06, RN-02)", () => {
         if (typeof value === "string") expect(value).toMatch(/^[a-z_]+$/);
       }
     }
+  });
+
+  it("carries the code otro and never the description in its note (FE-31)", () => {
+    const description = "Situacion familiar: cuidado de un pariente enfermo";
+    const event = solicitudEscaladaEvent({
+      solicitudId: 41,
+      escalamientoId: 9,
+      motivo: "otro",
+      estadoPrevio: "pendiente",
+      estadoNuevo: "en_revision_coordinacion",
+      nota: description,
+    } as Parameters<typeof solicitudEscaladaEvent>[0]);
+
+    const serialized = JSON.stringify(event);
+    expect(serialized).toContain('"motivo":"otro"');
+    expect(serialized).not.toContain(description);
+    expect(serialized).not.toMatch(/familiar|pariente|nota/i);
   });
 
   it("drops a note, an answer, a teacher name or an email smuggled into the call", () => {

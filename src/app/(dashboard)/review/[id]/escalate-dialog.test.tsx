@@ -686,3 +686,100 @@ describe("EscalateDialog required note and stale messages (FE-10, FE-11)", () =>
     });
   });
 });
+
+// flow-experience S8 (RF-10 a, b; FE-9, FE-10): the motive "otro" is offered as
+// the third radio and its note is the description of the reason, so choosing it
+// swaps the hint. Staff screens address the secretary as "usted".
+describe("EscalateDialog motive otro (FE-9, FE-10)", () => {
+  const HINT_OTRO_ES =
+    "Esta nota es la descripción del motivo: explique la situación que lo lleva a escalar la solicitud y por qué no corresponde a los otros dos motivos. Solo la ve el personal.";
+  const HINT_OTRO_EN =
+    "This note is the description of the reason: explain the situation that leads you to escalate the request and why it fits neither of the other two reasons. Only staff can see it.";
+  const noteBox = (dialog: HTMLElement) =>
+    within(dialog).getByRole("textbox", { name: en.dialog.noteLabel });
+
+  it("labels the third motive Otro in Spanish and Other in English", () => {
+    expect(en.dialog.motivo.otro).toBe("Other");
+    expect(messages.es.review.escalation.dialog.motivo.otro).toBe("Otro");
+  });
+
+  it("keeps the standard hint until Other is chosen, then says the note is the description", async () => {
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+    const dialog = await open();
+    expect(noteBox(dialog)).toHaveAccessibleDescription(en.dialog.noteHint);
+
+    await pick(dialog, en.dialog.motivo.otro);
+
+    expect(en.dialog.noteHintOtro).toBe(HINT_OTRO_EN);
+    expect(noteBox(dialog)).toHaveAccessibleDescription(HINT_OTRO_EN);
+    expect(within(dialog).queryByText(en.dialog.noteHint)).toBeNull();
+  });
+
+  it("words the hint of Otro in Spanish with usted", async () => {
+    renderIntl(
+      <EscalateDialog solicitudId={12} unavailableCareer={null} />,
+      "es",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Escalar a coordinación" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Otro" }));
+
+    expect(
+      within(dialog).getByRole("textbox", {
+        name: "Nota para coordinación (obligatoria)",
+      }),
+    ).toHaveAccessibleDescription(HINT_OTRO_ES);
+  });
+
+  it("returns to the standard hint when another motive is chosen", async () => {
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+    const dialog = await open();
+
+    await pick(dialog, en.dialog.motivo.otro);
+    await pick(dialog, en.dialog.motivo.caso_especial);
+
+    expect(noteBox(dialog)).toHaveAccessibleDescription(en.dialog.noteHint);
+    expect(within(dialog).queryByText(HINT_OTRO_EN)).toBeNull();
+  });
+
+  it("keeps the standard hint for the two original motives", async () => {
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+    const dialog = await open();
+
+    await pick(dialog, en.dialog.motivo.sospecha_documento);
+    expect(noteBox(dialog)).toHaveAccessibleDescription(en.dialog.noteHint);
+    await pick(dialog, en.dialog.motivo.caso_especial);
+    expect(noteBox(dialog)).toHaveAccessibleDescription(en.dialog.noteHint);
+  });
+
+  it("shows the note error for Other with an empty note, and nothing is escalated", async () => {
+    actionMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "invalid",
+      errors: [{ field: "nota", code: "nota_required" }],
+    });
+    renderIntl(<EscalateDialog solicitudId={12} unavailableCareer={null} />);
+    const dialog = await open();
+
+    await pick(dialog, en.dialog.motivo.otro);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: en.dialog.confirm }),
+    );
+
+    expect(
+      await within(dialog).findByText(en.errors.nota_required),
+    ).toBeVisible();
+    expect(actionMock).toHaveBeenCalledWith({
+      solicitudId: 12,
+      motivo: "otro",
+      nota: "",
+    });
+    expect(noteBox(dialog)).toHaveAttribute("aria-invalid", "true");
+    expect(noteBox(dialog)).toHaveAccessibleDescription(
+      en.errors.nota_required,
+    );
+    expect(screen.getByRole("alertdialog")).toBe(dialog);
+  });
+});

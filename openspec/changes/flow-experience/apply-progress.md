@@ -1140,3 +1140,162 @@ What the orchestrator must do before S8 starts (tasks 8.0 and 8.1; S8 is based o
 5. The S1 to S7 PRs are over the usual 460 lines on purpose (owner's size exception of 2026-11-20); S8 is covered by the same exception, cut at its plan seam (after unit 15: migration, then dialog and notice, then the docs unit).
 6. S8 touches `src/app/(dashboard)/review/[id]/escalate-dialog.tsx`, `src/i18n/review-messages.test.ts` and the "review.escalation" keys that S1 and S3 changed (previousAnswer notice, required note label, hint), so the S8 RED tests must be written against the merged text, and the "otro" hint is a new "usted" key beside "noteHint".
 7. The DB rule holds: "drizzle-kit generate" reads the schema and opens no connection; "migrate", "push", "db:seed" and the production command of task 8.25 are owner-run with an explicit "yes".
+
+## Phase 8 (PR 8): S8 motive "otro", migration 0016 and RN-20 (code and files only)
+
+Mode: Strict TDD. Date: 2026-11-20. Scope: every task up to, not including, the first database task: 8.0 to 8.16. Tasks 8.17 to 8.25 are owner-gated database tasks and stay open; no database or Neon command of any kind was run in this apply (unit tests use the dummy DB, and "drizzle-kit generate" opens no connection). Owner decision of 2026-11-20: keep "caso_especial" and add the motive "otro", whose note text is required. It enters through the escalation constants only (design D11).
+
+Migration 0016 has NOT been applied to any database.
+
+### Task 8.0 and the merges (recorded 2026-11-20)
+
+- "gh pr view 98 --json state,mergedAt": MERGED at 2026-11-20T17:57:26Z (27abd8c on main). `drizzle/` ends at `drizzle/0015_manual_document_data.sql`, so 0016 is free (the last journal entry is 0015 with "when" 1795134628842).
+- Merged into the tracker by the orchestrator, in order, every slice branch kept: #109 d554fb0, #110 ddbd234, #111 005e11d, #112 cccc758, #113 cfda39f, #114 525566f, #115 b1c31c2, #116 f63ccdf, #117 7a87385, #118 87be648, #119 a950f77, #120 809f212. Then "origin/main" (which includes #98) merged as bb6f67c and pushed.
+- Branch "feat/flow-experience-8-motive-otro" was cut from bb6f67c.
+
+### Cut (size exception, plan seam after unit 15)
+
+The slice measured about 880 authored lines before the docs, so it was cut at the plan's seam into two PRs. Each commit typechecks and is green.
+
+| PR  | Branch                                     | Base                                     | Commits                                                                                                                                                      | Changed lines (excl. "openspec/" and the snapshot) |
+| --- | ------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| 8a  | "feat/flow-experience-8-motive-otro"       | tracker "feat/flow-experience" (bb6f67c) | 418497b feat(db): add the escalation motive otro                                                                                                             | 445 (403 added, 42 deleted)                        |
+| 8b  | "feat/flow-experience-8b-otro-dialog-docs" | "feat/flow-experience-8-motive-otro"     | 741d6ef feat(escalation): give the motive otro its own hint in the dialog; 61db5f8 docs(requirements): add the motive otro to RN-20 and pin its constraints | 456 (447 added, 9 deleted)                         |
+
+PR 8a is #121 ("https://github.com/Josuedcm03/justifia/pull/121") and PR 8b is #122 ("https://github.com/Josuedcm03/justifia/pull/122"). The snapshot `drizzle/meta/0016_snapshot.json` is 2467 generated lines, reported apart. Production versus tests: 8a has 67 production and migration lines and 378 of tests; 8b has 25 production and docs lines and 431 of tests. The design forecast was about 280 for the whole slice; the slice is 3.2 times that, in line with the repository precedent. Tests were not trimmed.
+
+### TDD cycle evidence (PR 8)
+
+One combined RED run before any production code: 47 cases failed in 12 files. The full suite later revealed 4 more query-placeholder pins, fixed in unit 15.
+
+| Task        | Test file                                                                                                                                                                                                         | Layer                   | RED                                                                                                                                                         | GREEN                                                       | Triangulation                                                                                                                                                                             | Refactor                                                |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| 8.2         | `src/lib/intake/escalation.test.ts`                                                                                                                                                                               | Unit                    | 8 failed (kinds, reasons, accepts "otro", empty, blank, non-string and 1001-character note, the 1000 bound)                                                 | Pass                                                        | Four bad notes, the 1000 and trimmed 1000 bounds, "Otro", " otro", an array and the notice kind refused (the last four pass at write, mutation below)                                     | None needed                                             |
+| 8.3         | `src/db/migration-escalation-otro.test.ts` (new)                                                                                                                                                                  | Structural (SQL file)   | 9 failed (0016 not found)                                                                                                                                   | Pass after "drizzle-kit generate"                           | Journal position and "when"; exactly eight statements; each drop before its add; index drop before create; only-widens; only four objects touched                                         | None needed                                             |
+| 8.4 to 8.6  | `src/lib/escalation/message.test.ts`, `src/lib/data/solicitud-escalation.test.ts`, the data-layer pins                                                                                                            | Unit (message, data)    | 4 message, 2 escalate, 1 detail, 1 documentos failed; then 4 more query pins found by the full suite (revision-queue, coordination-queue, escalation-answer x2) | 18 files and 767 tests passed, then 9373 on the full suite  | The label and the full text and HTML equal the other escalations except the reason; "otro" escalates like the others and the audit row carries no note; no note refuses before the database | None needed                                             |
+| 8.4 to 8.6  | `src/app/(dashboard)/review/[id]/escalate-dialog.test.tsx`, `src/i18n/review-messages.test.ts`                                                                                                                    | Component, catalog      | 4 dialog cases (three radios in both locales, send "otro", cancel resets three) and 4 catalog cases failed                                                  | Pass                                                        | Three radios with none checked, the labels "Otro" and "Other"                                                                                                                             | None needed                                             |
+| 8.8 and 8.9 | the same dialog and catalog tests                                                                                                                                                                                 | Component, catalog      | 5 dialog cases (English and Spanish hint, back to the standard hint, empty note error, labels) and 4 hint-copy cases failed                                 | Pass                                                        | The hint swaps only for "otro"; the usted pin and the staff-only statement                                                                                                                | Short comment on why the dialog wraps the copy function |
+| 8.8         | `src/app/(dashboard)/review/[id]/escalation-section.test.tsx`, `src/app/(dashboard)/review/page.test.tsx`, `src/app/(dashboard)/coordination/page.test.tsx`, `src/app/(dashboard)/coordination/[id]/page.test.tsx` | Component (render)      | 6 failed (the label key was missing)                                                                                                                        | Pass                                                        | "Other" in English and "Otro" in Spanish on the section; one row on the En coordinacion tab; the list item and its link; the detail with note and answer form                             | None needed                                             |
+| 8.8         | `src/lib/audit/events.test.ts`, `src/app/(dashboard)/requests/[id]/page.test.tsx`, `src/app/(dashboard)/requests/request-card.test.tsx`                                                                           | Unit, component         | Pass at write (they pin behavior the builders and pages already have)                                                                                       | Pass                                                        | The payload holds the code "otro" and no part of the note; the student detail and card show no trace of the motive, the label or the description                                          | None needed                                             |
+| 8.11        | `src/lib/data/integration/escalation-constraints.integration.test.ts`                                                                                                                                             | Integration (owner-run) | Not run here (needs a disposable branch with 0016): "npm run typecheck" passes and "npm test" does not collect it                                           | N/A                                                         | N/A                                                                                                                                                                                       | N/A                                                     |
+
+### Mutation checks (revert-only; each file was restored from a byte-identical backup copy and confirmed with "git diff --stat")
+
+| Pass-at-write test                                      | Temporary edit                                                  | Result            |
+| ------------------------------------------------------- | --------------------------------------------------------------- | ----------------- |
+| refusals of "Otro" and " otro" in `escalation.test.ts`  | `isEscalationReason` trims and lowercases the value             | 2 failed; restored |
+| audit payload cases of `events.test.ts`                 | `solicitudEscaladaEvent` adds the note to "datos"               | 3 failed; restored |
+| student detail pins (`requests/[id]/page.test.tsx`)     | the page prints "motivo" of the detail                          | 2 failed; restored |
+| student card pin (`request-card.test.tsx`)              | the card prints its "escalamientos"                             | 1 failed; restored |
+| "original motives keep the standard hint" (dialog test) | the dialog swaps the hint for any chosen motive                 | 2 failed; restored |
+
+An early version of the student pins used a word-boundary regex; the mutation showed it missed a motive printed right after other text, so it was widened before the commit.
+
+### Work unit evidence (PR 8)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- escalation.test migration-escalation-otro message.test escalate-dialog review-messages src/lib/audit coordination escalation-section review/page requests/ solicitud-escalation src/i18n": 64 files, 1923 tests, all passed on the 8b tip                         |
+| Runtime harness                       | Owner-run: "flow-it" RED then GREEN, then production (tasks 8.17 to 8.25), all pending. No database command was run                                                                                                                                                                                                         |
+| Rollback boundary                     | 8b: revert the PR (the hint, the pins, the RN-20 text, the integration cases). 8a: revert the PR; 0016 only widens and may stay; never revert the constants once "otro" rows exist (the six readers would hide open "otro" escalations; remove only the radio option instead)                                              |
+
+### Gates
+
+- Full "npm test" with the dummy DB: tip of 8a 376 files, 9373 tests, all passed, 263.2 s; tip of 8b 376 files, 9392 tests, all passed, 274.4 s. The S7 tip had 375 files and 9349 tests; PR 8a adds the migration test file.
+- "npm run typecheck": exit 0 on both tips.
+- "npx eslint" on the touched files: only the known CRLF "Delete" prettier noise (the working copies go back to CRLF after a branch switch); no real finding. "npx prettier --check" is clean on the touched files, `docs/requirements.md` and both catalogs (with "--end-of-line auto" when the checkout wrote CRLF).
+- "npx eslint src" over the whole tree was not repeated: the same three findings in untouched files were recorded in Phase 7 and S8 touches none of them.
+
+### Files (PR 8)
+
+| File                                                                                                                                                         | Action                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `src/lib/intake/escalation.ts`                                                                                                                               | Modified: "otro" in both arrays, doc comments                         |
+| `src/db/schema.ts`                                                                                                                                           | Modified: comment only                                                |
+| `drizzle/0016_escalation_otro.sql`, `drizzle/meta/_journal.json`, `drizzle/meta/0016_snapshot.json`                                                          | Created and modified: the migration, journal entry 16, the snapshot   |
+| `src/db/migration-escalation-otro.test.ts`                                                                                                                   | Created: 9 cases                                                      |
+| `src/lib/escalation/message.ts`, `src/lib/escalation/message.test.ts`                                                                                        | Modified: the label "Otro" and the maps                               |
+| `src/lib/data/solicitud-escalation.ts` and its test, the pins of `documentos`, `solicitud-detail`, `revision-queue`, `coordination-queue` and `escalation-answer` | Modified: comment, escalate cases, query placeholders                 |
+| `i18n/es.json`, `i18n/en.json`                                                                                                                               | Modified: "reasons.otro", "dialog.motivo.otro", "dialog.noteHintOtro" |
+| `src/app/(dashboard)/review/[id]/escalate-dialog.tsx` and its test                                                                                           | Modified: the hint swap and the cases                                 |
+| `src/i18n/review-messages.test.ts`                                                                                                                           | Modified: catalog pins                                                |
+| render pins: `escalation-section`, `review/page`, `coordination/page`, `coordination/[id]/page`, `requests/[id]/page`, `request-card` tests                  | Modified: cases for "otro"                                            |
+| `src/lib/audit/events.test.ts`                                                                                                                               | Modified: cases for "otro"                                            |
+| `src/lib/data/integration/escalation-constraints.integration.test.ts`                                                                                        | Modified: "otro" cases (owner-run)                                    |
+| `docs/requirements.md`                                                                                                                                       | Modified: RN-20 and one change-history row                            |
+
+### Final Spanish UI copy (staff screens, "usted")
+
+- Radio label: "Otro" (`en`: "Other"). Reason label on every surface (notice message, escalations section, En coordinacion tab, coordination list and detail): "Otro" (`en`: "Other").
+- "review.escalation.dialog.noteHintOtro": "Esta nota es la descripción del motivo: explique la situación que lo lleva a escalar la solicitud y por qué no corresponde a los otros dos motivos. Solo la ve el personal." (`en`: "This note is the description of the reason: explain the situation that leads you to escalate the request and why it fits neither of the other two reasons. Only staff can see it.")
+- RN-20 in `docs/requirements.md`: "Los motivos de escalamiento son la sospecha sobre el documento, el caso especial fuera de las causas del reglamento y otro motivo, que la secretaría describe en la nota obligatoria. El reporte de exceso del 20 % que comunica el docente es un aviso informativo a la coordinación: no cambia el estado de la solicitud ni se responde. El sistema no calcula ese porcentaje."
+- Change-history row (2026-11-20): RN-20 names the three motives and keeps the 20 % report wording; the reason cites the owner decision and FE-9, pending the thesis sync (4.2:89, 5.4:19). The counts do not change (18 RF, 14 RNF, 27 RN).
+
+### Exact SQL of `drizzle/0016_escalation_otro.sql` (generated, then checked by hand; "--> statement-breakpoint" separates statements)
+
+```sql
+ALTER TABLE "Escalamiento" DROP CONSTRAINT "CK_Escalamiento_Tipo";--> statement-breakpoint
+ALTER TABLE "Escalamiento" DROP CONSTRAINT "CK_Escalamiento_Kind";--> statement-breakpoint
+ALTER TABLE "Escalamiento" DROP CONSTRAINT "CK_Escalamiento_SinRespuesta";--> statement-breakpoint
+DROP INDEX "UX_Escalamiento_Abierto";--> statement-breakpoint
+CREATE UNIQUE INDEX "UX_Escalamiento_Abierto" ON "Escalamiento" USING btree ("SolicitudId") WHERE "Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro') AND "Escalamiento"."RespondidaEn" IS NULL;--> statement-breakpoint
+ALTER TABLE "Escalamiento" ADD CONSTRAINT "CK_Escalamiento_Tipo" CHECK ("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro', 'exceso_inasistencias'));--> statement-breakpoint
+ALTER TABLE "Escalamiento" ADD CONSTRAINT "CK_Escalamiento_Kind" CHECK (("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro') AND "Escalamiento"."EstadoPrevio" = 'pendiente' AND "Escalamiento"."ReporteId" IS NULL AND "Escalamiento"."Nota" IS NOT NULL AND length(btrim("Escalamiento"."Nota")) > 0) OR ("Escalamiento"."Tipo" = 'exceso_inasistencias' AND "Escalamiento"."EstadoPrevio" = 'aprobada' AND "Escalamiento"."ReporteId" IS NOT NULL AND "Escalamiento"."Nota" IS NULL));--> statement-breakpoint
+ALTER TABLE "Escalamiento" ADD CONSTRAINT "CK_Escalamiento_SinRespuesta" CHECK ("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro') OR "Escalamiento"."RespondidaEn" IS NULL);
+```
+
+Journal entry 16: tag "0016_escalation_otro", "when" 1795216905153 (later than 0015's 1795134628842), "breakpoints" true. Existing rows satisfy the wider rules, so the migration can run in one transaction.
+
+### Owner-gated database tasks 8.17 to 8.25 (open; none run; each needs the owner's explicit "yes" for its exact command)
+
+Order and exact commands (placeholders in angle brackets are the owner's URLs):
+
+1. 8.17 read-only, production preflight, four read-only queries (the first must return 16 and 1795134628842; the second and third must not contain 'otro'; the fourth is recorded for the later comparison):
+
+   ```sql
+   SELECT count(*), max(created_at) FROM drizzle.__drizzle_migrations;
+   SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conname IN ('CK_Escalamiento_Tipo','CK_Escalamiento_Kind','CK_Escalamiento_SinRespuesta');
+   SELECT indexdef FROM pg_indexes WHERE indexname = 'UX_Escalamiento_Abierto';
+   SELECT "Tipo", count(*) FROM "Escalamiento" GROUP BY 1;
+   ```
+
+2. 8.18 confirm, create the disposable branch: "neon branches create --name flow-it --parent dev-arnia" (the owner confirms the syntax of the installed CLI); then the read-only journal count and last "when" (stop and ask if "dev-arnia" lacks 0014 and 0015).
+3. 8.19 confirm, bring "flow-it" to 0015 only, from a checkout of the tracker tip before PR 8 merges: "$env:DATABASE_URL='<direct non-pooler URL of branch flow-it>'; npm run db:migrate"; then read-only: 16 migrations, last "when" 1795134628842, no 'otro' in the four definitions.
+4. 8.20 confirm, RED before 0016: "$env:INTEGRATION_DATABASE_URL='<direct URL of branch flow-it>'; $env:INTEGRATION_ALLOW_WRITES='1'; npm run test:integration -- escalation-constraints". Run it from the tip of "feat/flow-experience-8b-otro-dialog-docs": the "otro" integration cases live in PR 8b, not in the branch named by the task. The "otro" cases and the catalog and index checks must fail, the earlier cases pass.
+5. 8.21 confirm, apply 0016 to "flow-it" only, from the same tip: "$env:DATABASE_URL='<direct non-pooler URL of branch flow-it>'; npm run db:migrate"; then read-only: 17 migrations, last "when" 1795216905153, and 'otro' in "CK_Escalamiento_Tipo", "CK_Escalamiento_Kind", "CK_Escalamiento_SinRespuesta" and "UX_Escalamiento_Abierto".
+6. 8.22 confirm, GREEN: "$env:INTEGRATION_DATABASE_URL='<direct URL of branch flow-it>'; $env:INTEGRATION_ALLOW_WRITES='1'; npm run test:integration -- escalation" (it also runs the race test).
+7. 8.23 no command: record the run dates, commit, branch, the RED and GREEN counts and the assertions.
+8. 8.24 confirm, production safety check before the apply: "git status" clean, and `drizzle/meta/_journal.json` (read-only) lists only 0016 beyond production's 16 entries.
+9. 8.25 confirm, production apply BEFORE the tracker reaches main: "$env:DATABASE_URL='<production direct non-pooler URL from the Neon CLI>'; npm run db:migrate"; then read-only: the 8.21 checks on production, the "Escalamiento" counts of 8.17 equal, and "/login" answers 200. Never on "validacion-secretaria" or "validacion-estudiantes".
+
+### Deviations (PR 8)
+
+1. **Cut and branch names.** The slice was cut into 8a and 8b at the plan seam (size exception of 2026-11-20). 8a keeps the name "feat/flow-experience-8-motive-otro" and targets the tracker; 8b is "feat/flow-experience-8b-otro-dialog-docs", stacked on 8a.
+2. **Type-forced pieces in unit 15.** Adding "otro" to `ESCALATION_KINDS` breaks the maps typed by `EscalationKind` in `src/lib/escalation/message.ts` and adds a third radio whose label keys must exist, so those pieces, the label keys and the pins of the existing radio and catalog tests are in the first commit. Task 8.4 therefore carries more than the constants, so that each commit typechecks and is green.
+3. **Extra pins.** Five query-placeholder pins outside the task list (documentos, solicitud-detail, revision-queue, coordination-queue, escalation-answer) changed because each "Tipo" list now binds three motives; four of them were found only by the full suite.
+4. **Labels.** The spec label "Otro" (`en`: "Other") governs over the design's "Otro motivo" and "Otro (descríbalo en la nota)"; the hint replaces the standard hint for "otro" rather than adding to it.
+5. **RN-20.** The orchestrator's instruction governs: #98's 20 % report sentences are kept verbatim (task 8.12 and the design shorten them), and the change history gets a row.
+6. **Integration run location.** Tasks 8.20 to 8.22 name the tip of the 8a branch; the "otro" integration cases are in 8b, so those runs start from the 8b tip (or from the tracker once both are merged).
+7. **Line endings.** The working copies of touched files were converted to LF before editing. A branch switch writes CRLF back for files that differ between branches, so eslint shows the known CRLF noise and prettier needs "--end-of-line auto" in that state; the index content is LF.
+8. **Where this section lives.** Task marks and this section are committed on the 8b tip, as the S1 and S6 splits did.
+
+### Notes for S9
+
+- S9a stacks on the PR 8 chain (the 8b tip, or the tracker once 8a and 8b merge). S8 touches the catalogs only under "review.escalation", so there is no conflict with the "auth" and "users" keys of S9.
+- The "usted" hint of "otro" sits beside "noteHint" in "review.escalation.dialog".
+
+## Disposable-branch rehearsal of 0016 (2026-11-20)
+
+Owner approved the five rehearsal commands on 2026-11-20. Production was only read.
+
+| Step | Branch | Commit | Result |
+|---|---|---|---|
+| Production preflight (read-only) | "production" | n/a | 16 migrations, last 1795134628842; no 'otro'; "Escalamiento" empty |
+| Bring to 0015 | "flow-it" (from "dev-arnia") | tracker drizzle folder | 16 migrations |
+| RED before 0016 | "flow-it" | 483140a | "escalation-constraints": 10 failed, 63 passed |
+| Apply 0016 | "flow-it" | 483140a | 17 migrations, last 1795216905153; 'otro' in 3 CHECKs and the index |
+| GREEN after 0016 | "flow-it" | 483140a | "escalation": 2 files, 74 passed |
+
+- The first "flow-it" endpoint id began with the production prefix that `src/lib/data/integration/guard.ts` refuses, so the guard stopped the run. The branch was deleted and recreated; the guard was not weakened.
+- "flow-it" stays for the S9 to S10 system captures and is deleted in task 12.12.
+- Open: 8.24 and 8.25 (production apply) wait for the owner's explicit yes before the tracker reaches main.

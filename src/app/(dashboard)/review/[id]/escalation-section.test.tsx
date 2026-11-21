@@ -64,6 +64,34 @@ describe("EscalationSection history (RF-10, RN-16)", () => {
     ).toHaveTextContent("Caso especial");
   });
 
+  it("lists the motive otro as Other, with its description note, in both locales (FE-9)", () => {
+    show([
+      escalation({
+        motivo: "otro",
+        nota: "Situación familiar sin causa del reglamento.",
+      }),
+    ]);
+
+    const region = screen.getByRole("region", { name: en.section.title });
+    expect(region).toHaveTextContent(en.reasons.otro);
+    expect(en.reasons.otro).toBe("Other");
+    expect(region).not.toHaveTextContent(en.reasons.sospecha_documento);
+    expect(region).not.toHaveTextContent(en.reasons.caso_especial);
+    expect(region).toHaveTextContent(
+      "Situación familiar sin causa del reglamento.",
+    );
+  });
+
+  it("words the motive otro in Spanish as Otro", () => {
+    show([escalation({ motivo: "otro" })], "es");
+
+    expect(
+      screen.getByRole("region", {
+        name: messages.es.review.escalation.section.title,
+      }),
+    ).toHaveTextContent("Otro");
+  });
+
   it("says an open escalation is waiting for the coordination and offers no decision control", () => {
     show([
       escalation({ notificacionEstado: "enviada", enviadaEn: new Date() }),

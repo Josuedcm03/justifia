@@ -9,10 +9,14 @@ import {
   NoteField,
   useEscalationAction,
   withoutFieldErrors,
+  type DialogCopy,
 } from "@/app/(dashboard)/review/[id]/dialog-parts";
 import { escalateRequestAction } from "@/app/(dashboard)/review/[id]/escalation-actions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ESCALATION_REASONS } from "@/lib/intake/escalation";
+
+/** The motive whose note is the description of the reason (FE-9, FE-10). */
+const DESCRIBED_MOTIVE = "otro";
 
 /** The earlier coordination answer the dialog quotes (FE-12). */
 export type PreviousAnswer = { text: string; byline: string };
@@ -20,9 +24,11 @@ export type PreviousAnswer = { text: string; byline: string };
 /**
  * "Escalar a coordinación" (RF-10 a, RN-20, RNF-12, E18). Nothing is sent until
  * the secretary confirms; cancelling or Escape changes nothing and discards the
- * draft. The motive (a suspicion about a document, or a special case outside the
- * regulation) and the note are both required, and no motive is preselected; the
- * server validates the motive against the same closed set. When the student's
+ * draft. The motive (a suspicion about a document, a special case outside the
+ * regulation, or another reason) and the note are both required, and no motive
+ * is preselected; the server validates the motive against the same closed set.
+ * Choosing "otro" swaps the note hint, because there the note is the
+ * description of the reason (FE-9, FE-10). When the student's
  * career has no coordination account the action is not offered and the text
  * names the career (E17); the server refuses the same way. A success redirects,
  * so this component only ever receives refusals. When coordination already
@@ -89,6 +95,12 @@ function EscalateForm({
             ? t("errors.unexpected")
             : null
           : t(`errors.${failure.reason}`);
+
+  // The note's hint follows the motive: for "otro" the note is the description.
+  const noteCopy: DialogCopy = (key, values) =>
+    key === "dialog.noteHint" && motivo === DESCRIBED_MOTIVE
+      ? t("dialog.noteHintOtro")
+      : t(key, values);
 
   const motivoErrorId = `${ids}-motivo-error`;
   const motivoLabelId = `${ids}-motivo-label`;
@@ -159,7 +171,7 @@ function EscalateForm({
       </div>
       <NoteField
         id={`${ids}-note`}
-        copy={t}
+        copy={noteCopy}
         value={nota}
         onChange={(value) => {
           setNota(value);

@@ -1198,6 +1198,7 @@
         },
         "noteLabel": "Note for coordination (required)",
         "noteHint": "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it.",
+        "noteHintOtro": "This note is the description of the reason: explain the situation that leads you to escalate the request and why it fits neither of the other two reasons. Only staff can see it.",
         "previousAnswer": {
           "title": "Coordination already answered this request ({byline}):",
           "hint": "If you escalate it again, it goes back to coordination and you cannot decide until it answers."

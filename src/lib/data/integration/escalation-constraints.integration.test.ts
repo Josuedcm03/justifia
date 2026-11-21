@@ -29,7 +29,8 @@ import { createFixtures } from "@/lib/data/integration/fixtures";
 // HOW TO RUN (never part of `npm test`; owner-run, phase 14):
 //   INTEGRATION_DATABASE_URL=<disposable branch url> \
 //   INTEGRATION_ALLOW_WRITES=1 npm run test:integration
-// The branch needs migration `0012_escalation` applied. Without
+// The branch needs migration `0012_escalation` applied, and
+// `0016_escalation_otro` for the cases of the motive `otro` (FE-8, FE-9). Without
 // INTEGRATION_DATABASE_URL the suite is skipped; the opt-in guard is the one of
 // `intake-concurrency.integration.test.ts`.
 
@@ -186,6 +187,18 @@ describe.skipIf(gate.mode !== "run")(
       });
     }
 
+    /** A valid row of the motive `otro` (FE-9): the note describes the reason. */
+    function other(
+      solicitudId: number,
+      overrides: Partial<NuevoEscalamiento> = {},
+    ): NuevoEscalamiento {
+      return suspicion(solicitudId, {
+        tipo: "otro",
+        nota: "A family situation the regulation does not cover",
+        ...overrides,
+      });
+    }
+
     /** A valid excess-absence row; `reporteId` comes from `report()`. */
     function excess(
       solicitudId: number,
@@ -226,7 +239,7 @@ describe.skipIf(gate.mode !== "run")(
       {
         name: "rejects an unknown Tipo",
         row: async (tx) =>
-          suspicion(await request(tx), { tipo: "otro" as never }),
+          suspicion(await request(tx), { tipo: "desconocido" as never }),
         rejectedBy: ["CK_Escalamiento_Tipo", "CK_Escalamiento_Kind"],
       },
 
@@ -293,6 +306,47 @@ describe.skipIf(gate.mode !== "run")(
         name: "accepts an answered special case",
         row: async (tx) =>
           specialCase(await request(tx), {
+            ...answered,
+            respondidaPorId: secretariaId,
+          }),
+      },
+
+      // CK_Escalamiento_Kind: shape of the motive otro (FE-9); its note is the
+      // description of the reason, so it is as mandatory as for the others.
+      {
+        name: "accepts a motive otro with a note",
+        row: async (tx) => other(await request(tx)),
+      },
+      {
+        name: "rejects a motive otro without a note",
+        row: async (tx) => other(await request(tx), { nota: null }),
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "rejects a motive otro with a blank note",
+        row: async (tx) => other(await request(tx), { nota: "   " }),
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "rejects a motive otro that came from a state other than pendiente",
+        row: async (tx) =>
+          other(await request(tx), { estadoPrevio: "aprobada" }),
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "rejects a motive otro that carries a report",
+        row: async (tx) => {
+          const approved = await request(tx, { estado: "aprobada" });
+          return other(await request(tx), {
+            reporteId: await report(tx, approved),
+          });
+        },
+        rejectedBy: ["CK_Escalamiento_Kind"],
+      },
+      {
+        name: "accepts an answered motive otro (CK_Escalamiento_SinRespuesta allows it)",
+        row: async (tx) =>
+          other(await request(tx), {
             ...answered,
             respondidaPorId: secretariaId,
           }),
@@ -557,12 +611,14 @@ describe.skipIf(gate.mode !== "run")(
         '"Tipo"',
         "sospecha_documento",
         "caso_especial",
+        "otro",
         "exceso_inasistencias",
       ],
       CK_Escalamiento_Kind: [
         "Escalamiento",
         "sospecha_documento",
         "caso_especial",
+        "otro",
         '"EstadoPrevio"',
         '"ReporteId"',
         "aprobada",
@@ -578,6 +634,7 @@ describe.skipIf(gate.mode !== "run")(
         "Escalamiento",
         "sospecha_documento",
         "caso_especial",
+        "otro",
         '"RespondidaEn"',
       ],
       CK_Escalamiento_NotificacionEstado: [
@@ -652,6 +709,31 @@ describe.skipIf(gate.mode !== "run")(
       });
     });
 
+    describe("UX_Escalamiento_Abierto exists in the catalog with otro (FE-8)", () => {
+      it("is a unique partial index whose predicate lists the three motives", async () => {
+        const rows = (await db.execute(sql`
+          SELECT indexdef AS def
+          FROM pg_indexes
+          WHERE indexname = 'UX_Escalamiento_Abierto'
+        `)) as unknown as Array<{ def: string }>;
+
+        expect(rows).toHaveLength(1);
+        for (const fragment of [
+          "UNIQUE",
+          '"SolicitudId"',
+          "sospecha_documento",
+          "caso_especial",
+          "otro",
+          '"RespondidaEn"',
+        ]) {
+          expect(rows[0].def, `index should contain ${fragment}`).toContain(
+            fragment,
+          );
+        }
+        expect(rows[0].def).not.toContain("exceso_inasistencias");
+      });
+    });
+
     describe("Escalamiento CHECK constraints", () => {
       it.each(CASES)("$name", async ({ row, rejectedBy }) => {
         const outcome = await attempt(async (tx) => {
@@ -697,14 +779,23 @@ describe.skipIf(gate.mode !== "run")(
     });
 
     describe("UX_Escalamiento_Abierto: one open escalation per request, of either motive (E12, E18)", () => {
-      const motive = (kind: "sospecha_documento" | "caso_especial") =>
-        kind === "sospecha_documento" ? suspicion : specialCase;
+      const motive = (kind: "sospecha_documento" | "caso_especial" | "otro") =>
+        kind === "sospecha_documento"
+          ? suspicion
+          : kind === "caso_especial"
+            ? specialCase
+            : other;
 
       it.each([
         ["sospecha_documento", "sospecha_documento"],
         ["sospecha_documento", "caso_especial"],
+        ["sospecha_documento", "otro"],
         ["caso_especial", "sospecha_documento"],
         ["caso_especial", "caso_especial"],
+        ["caso_especial", "otro"],
+        ["otro", "sospecha_documento"],
+        ["otro", "caso_especial"],
+        ["otro", "otro"],
       ] as const)(
         "rejects an open %s next to an open %s on the same request",
         async (first, second) => {
@@ -750,6 +841,30 @@ describe.skipIf(gate.mode !== "run")(
             })
             .where(eq(escalamiento.id, second.id));
           await tx.insert(escalamiento).values(suspicion(id));
+        });
+
+        expect(outcome).toEqual({ accepted: true });
+      });
+
+      it("allows another escalation once an otro was answered, and an excess notice beside an open otro (FE-8)", async () => {
+        const outcome = await attempt(async (tx) => {
+          const id = await request(tx);
+          const [first] = await tx
+            .insert(escalamiento)
+            .values(other(id))
+            .returning({ id: escalamiento.id });
+          await tx
+            .update(escalamiento)
+            .set({
+              respuesta: "Reviewed: the coordination accepts the case",
+              respondidaPorId: secretariaId,
+              respondidaEn: LATER,
+            })
+            .where(eq(escalamiento.id, first.id));
+          await tx.insert(escalamiento).values(other(id));
+          await tx
+            .insert(escalamiento)
+            .values(excess(id, await report(tx, id)));
         });
 
         expect(outcome).toEqual({ accepted: true });

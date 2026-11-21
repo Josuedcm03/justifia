@@ -333,6 +333,35 @@ describe("CoordinationDetailPage: a special case (E18)", () => {
   });
 });
 
+describe("CoordinationDetailPage: the motive otro (FE-9)", () => {
+  it("shows the label Other, the description note and the answer form, like the other motives", async () => {
+    detailMock.mockResolvedValue(
+      escalation({
+        motivo: "otro",
+        nota: "Situación familiar que el reglamento no prevé.",
+      }),
+    );
+
+    await renderPage();
+
+    const escalated = screen.getByRole("region", {
+      name: en.sections.escalation,
+    });
+    expect(
+      within(escalated).getByText(messages.en.review.escalation.reasons.otro),
+    ).toBeInTheDocument();
+    expect(messages.en.review.escalation.reasons.otro).toBe("Other");
+    expect(
+      within(escalated).getByText(
+        "Situación familiar que el reglamento no prevé.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: en.sections.answer }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("CoordinationDetailPage: an open escalation (E1, E3, RNF-02)", () => {
   it("shows the student, the cause, the dates, the reason, the note and the time", async () => {
     await renderPage();

@@ -297,6 +297,7 @@ describe("review messages", () => {
         e.dialog.motivo.otro,
         e.dialog.noteLabel,
         e.dialog.noteHint,
+        e.dialog.noteHintOtro,
         e.dialog.counter,
         e.dialog.confirm,
         e.dialog.pending,
@@ -1181,6 +1182,44 @@ describe("escalate dialog note messages (FE-10, RF-10 a, b)", () => {
     );
     expect(en.coordination.answer.dialog.noteLabel).toBe(
       "Answer for the secretary",
+    );
+  });
+});
+
+// flow-experience S8 (RF-10 a, b; FE-9, FE-10): the motive "otro" has its own
+// hint, because its note is the description of the reason. Staff screens speak
+// "usted".
+describe("escalate dialog hint for the motive otro (FE-9, FE-10)", () => {
+  it("words the hint in Spanish with usted", () => {
+    expect(es.review.escalation.dialog.noteHintOtro).toBe(
+      "Esta nota es la descripción del motivo: explique la situación que lo lleva a escalar la solicitud y por qué no corresponde a los otros dos motivos. Solo la ve el personal.",
+    );
+  });
+
+  it("words the hint in English", () => {
+    expect(en.review.escalation.dialog.noteHintOtro).toBe(
+      "This note is the description of the reason: explain the situation that leads you to escalate the request and why it fits neither of the other two reasons. Only staff can see it.",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s keeps the staff-only statement and no informal address in the hint",
+    (_l, m) => {
+      expect(m.review.escalation.dialog.noteHintOtro).toMatch(
+        /only staff|solo la ve el personal/i,
+      );
+      expect(m.review.escalation.dialog.noteHintOtro).not.toMatch(
+        /\b(tu|tus|tienes|puedes|vos|tené|explica|describe)\b/i,
+      );
+    },
+  );
+
+  it("leaves the standard hint as it was", () => {
+    expect(es.review.escalation.dialog.noteHint).not.toBe(
+      es.review.escalation.dialog.noteHintOtro,
+    );
+    expect(en.review.escalation.dialog.noteHint).not.toBe(
+      en.review.escalation.dialog.noteHintOtro,
     );
   });
 });
