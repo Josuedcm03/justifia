@@ -22,6 +22,53 @@ describe("loginSchema", () => {
     ).toBe(false);
   });
 
+  // FE-21: the identifier is an email (up to the 160 characters of
+  // `Usuario.Correo`) or a CIF, so the old 60-character limit of a username no
+  // longer applies.
+  it("accepts a 160-character identifier after trimming and refuses 161", () => {
+    const ok = "a".repeat(160);
+    expect(
+      loginSchema.parse({ login: `  ${ok}  `, password: "supersecret" }).login,
+    ).toBe(ok);
+    expect(
+      loginSchema.safeParse({ login: "a".repeat(161), password: "supersecret" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("accepts an email-sized identifier that the old limit of 60 refused", () => {
+    const email = `${"a".repeat(70)}@uni.edu`;
+    expect(
+      loginSchema.safeParse({ login: email, password: "supersecret" }).success,
+    ).toBe(true);
+  });
+
+  it("refuses an identifier that is only spaces", () => {
+    expect(
+      loginSchema.safeParse({ login: "   ", password: "supersecret" }).success,
+    ).toBe(false);
+  });
+
+  it("keeps the password rule: 8 to 128 characters", () => {
+    const login = "26001234";
+    const bad = (password: string) =>
+      loginSchema.safeParse({ login, password }).success;
+    expect(bad("1234567")).toBe(false);
+    expect(bad("12345678")).toBe(true);
+    expect(bad("p".repeat(128))).toBe(true);
+    expect(bad("p".repeat(129))).toBe(false);
+  });
+
+  it("does not ask for a Usuario in any of its messages", () => {
+    const result = loginSchema.safeParse({ login: "", password: "short" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        expect(issue.message.toLowerCase()).not.toContain("usuario");
+      }
+    }
+  });
+
   it("rejects a password shorter than 8 characters", () => {
     expect(
       loginSchema.safeParse({ login: "admin", password: "short" }).success,

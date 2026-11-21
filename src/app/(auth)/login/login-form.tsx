@@ -46,11 +46,18 @@ export function LoginForm({
             id="login"
             name="login"
             autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
             autoFocus
             required
             aria-invalid={state.error ? true : undefined}
-            aria-describedby={state.error ? "login-error" : undefined}
+            aria-describedby={
+              state.error ? "login-hint login-error" : "login-hint"
+            }
           />
+          <p id="login-hint" className="text-muted-foreground text-xs">
+            {t("loginHint")}
+          </p>
         </div>
 
         <div className="flex flex-col gap-2">

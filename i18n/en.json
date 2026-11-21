@@ -607,7 +607,8 @@
     "login": {
       "title": "Sign in",
       "subtitle": "Sign in with your institutional account",
-      "loginLabel": "Username",
+      "loginLabel": "CIF or institutional email",
+      "loginHint": "Students may use their CIF or email; staff use their institutional email.",
       "passwordLabel": "Password",
       "submit": "Sign in",
       "submitting": "Signing in…",
@@ -649,7 +650,7 @@
       }
     },
     "errors": {
-      "invalid": "Incorrect username or password"
+      "invalid": "The sign-in details are not correct. Check your CIF or email and your password."
     },
     "userMenu": {
       "signedInAs": "{login} · {rol}",
