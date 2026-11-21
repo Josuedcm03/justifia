@@ -513,3 +513,64 @@ Totals: 16 new tests in the staff file, 1 each in the picker and enrollment file
 ### Remaining tasks
 
 Open PR for S2a-2 (parent) and Phases 9-17 (S2b-1 onward).
+
+## Batch 9: S2b-1 staff toggle server action (tasks 9.1-9.8, complete; Phase 10 NOT started)
+
+Branch `feat/catalog-schedule-s2b1-actions`, created from `feat/catalog-schedule-s2a2-staff-enroll` (S2a-2, PR #132; chain #99 -> #100 -> #101 -> #103 -> #105 -> #108 -> #130 -> #131 -> #132). Date: 2026-11-20. Commit `b203b3e` `feat(enrollment): add the staff toggle server action`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 9.1 branch (this one)
+- [x] 9.2 RED, 9.3 GREEN: `staffEnrollmentInputSchema`
+- [x] 9.4 RED, 9.5 GREEN: `setInscripcionActivoAction`
+- [x] 9.6 guards additions, 9.7 RED then GREEN copy and parity pin
+- [x] 9.8 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 9.2/9.3 | `src/lib/validations/inscripcion.test.ts` | Unit | 13/13 existing student-schema tests | 7 failed, 13 passed (`TypeError: Cannot read properties of undefined (reading 'parse')`, schema not exported) | 20/20 | three valid pairs; each of the two ids against 9 bad values (0, negative, decimal, NaN, Infinity, numeric string, null, boolean, undefined) while the other id is valid; missing id and non-object payload; extra `actorId` and `scope` keys dropped | Clean |
+| 9.4/9.5 | `catalog/inscripciones/actions.test.ts` (new) | Unit (REAL `requireEnrollmentAccess` and dal on a mocked session and scope read; writers are doubles) | N/A (new) | Suite failed to load (`./actions` unresolved) | 38/38 | six denied identities (4 roles, anonymous, flagged secretaria) x both intents, scope never read, no write, no revalidate; the form `get` throws before the guard resolved; forged `actorId`, `estudianteId`, `scope` form fields ignored (only `id` and `intent` are read) and the writer gets exactly `{ actorId, scope }`; 7 bad group ids, 7 bad bound student ids, 5 bad intents; scope `none` -> `gone`, writers not called; deactivate `ok`, `not_enrolled`, `not_student`; reactivate `ok`, `not_eligible`, `already_enrolled`, `not_student`; thrown writer on both intents with no raw text | The first run had one red test that was a test bug (a default parameter swallowed the `undefined` forged id); the `run` helper now takes the bound id as an object. `revalidatePath` kept outside the `try` |
+| 9.6 | `catalog/inscripciones/guards.test.ts` | Structural (source scan) | 10 existing tests | none possible at write time: the action already existed (task order puts 9.5 first), so the 7 new tests passed at once (characterization). Mutation checks instead (production restored after each): a form read before the guard turned the first-await test red; swapping `staffDropGroup` for `dropGroup` turned the staff-writers test red | 17/17 (with `inscripcion-writes.test.ts`, the writer allowlist, 20/20) | exact actions module set; the form-read helper self-test (3 shapes); first await is the guard with no form read before; `"use server"` and async exports only; no `requireCatalogAccess`, no student writer, no actor read from the form | Clean |
+| 9.7 | `src/i18n/catalog-parity.test.ts` | Unit (JSON + source scan) | 241 existing tests | 6 failed of 9 new (keys absent: scan, exact leaf set, generic wording, both locales); the other 3 passed because they scan empty values | 437/437 across `src/i18n` and the guards file | the scan finds exactly the three keys the action chooses and each resolves to a string in `es` and `en`; the errors subtree has exactly those three leaves; no `exception`, `ECONN`, `stack`, `sql`; the generic copy says nothing was changed and to try again; no placeholder or digit (no student data) | A first draft of two regexes lost their backslashes through the shell (`/{|d/`); caught by the run and fixed with an editor |
+
+Mutation check on behaviour: removing the scope-`none` branch turned the scope-`none` test red; restored.
+
+Totals: 61 new tests (7 + 38 + 7 + 9), layers unit and structural. The suite also needed one data row outside the task list: `src/app/route-coverage.test.ts` failed (1 of 9279) because the access-matrix oracle had no row for the new actions module, so `src/test/access/matrix-table.ts` gained `setInscripcionActivoAction` for `secretaria` (the matrix tests then pass: 553/553 across the four access files).
+
+### Decisions and deviations
+
+1. **Three error keys, not five.** `catalog.inscripciones.errors` holds `not_eligible`, `already_enrolled` and `unexpected`. Task 9.7 also names `gone` and `unchanged`, but the action returns those as the `ActiveToggle` kinds `gone` and `unchanged`, which the unchanged `ActiveToggle` renders with its own `catalog.shared` copy (`notFound`, `refusals.unchanged`, `refusals.alreadyInactive`); two more keys would be dead copy that no code reads. Key names are snake_case like the student `enrollment.errors.*` codes.
+2. **Zod refusal is the error copy.** A malformed group id (parsed with `parseRecordId` first, since the form field is a string and the schema takes numbers) or a forged bound student id answers `{ kind: "error", message: unexpected }` and writes nothing, as task 9.4 words it. A bad `intent` answers `gone`, like the catalog toggle actions.
+3. **Order inside the action:** guard, translator, scope `none` -> `gone` (writer not called), closed intent, zod, writer. Nothing of the form is read before the guard. The writer receives exactly `{ actorId, scope }` (two fields copied from the guard result; the session never travels).
+4. **Result mapping:** `not_student` -> `gone`; `not_enrolled` -> `unchanged`; `not_eligible` and `already_enrolled` -> error copy (the sibling refusal of S2 is a `not_eligible`, so it shows the generic reactivation copy, which names a group no longer offered or another active group in the same subject, CS-2); thrown -> `unexpected`, no `revalidatePath`, no raw text. `revalidatePath("/catalog/inscripciones")` runs once, only on `done`, outside the `try`.
+5. **No second log line.** The writer already logs one sanitised line on a throw; the action does not log again.
+6. No design change needed. `ActiveToggle` is unchanged; S2b-2 binds it.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/validations/inscripcion.test.ts "src/app/(dashboard)/catalog/inscripciones/actions.test.ts"` -> 2 files, 58 passed (RED runs: schema 7 failed of 20; actions suite failed to load); `npx vitest run src/i18n "src/app/(dashboard)/catalog/inscripciones/guards.test.ts"` -> 10 files, 437 passed (RED run of the parity file: 6 failed) |
+| Runtime harness | N/A: the action runs on a mocked session and a double writer, and nothing renders it until S2b-2 (the real-database walk W2 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `b203b3e`: `actions.ts` and its test, the schema, the two copy blocks, the guards and parity additions and the one matrix row; no student or catalog code is touched |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 58/58 and 437/437; matrix and route-coverage 553/553 |
+| `npm test` (full suite) | 374 files, 9286 passed, 0 failed (first run: 1 failed, `route-coverage.test.ts`, fixed by the matrix row above) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 7 touched code files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2a2-staff-enroll...HEAD -- . ':!openspec' ':!.engram'` -> 9 files changed, 721 insertions(+), 1 deletion(-) = **722 changed lines** (forecast ~330; 2.2x), under the 800 budget. Per file: `actions.test.ts` 356, `actions.ts` 100, `guards.test.ts` 93, `catalog-parity.test.ts` 79, `inscripcion.test.ts` 67 (66 + 1), `inscripcion.ts` 13, locales 10, `matrix-table.ts` 4. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S2b-1 (parent) and Phases 10-17 (S2b-2 onward).
