@@ -93,7 +93,7 @@ describe("loginAction session payload (FPC)", () => {
     expect(mocks.signSession).toHaveBeenCalledWith(
       expect.objectContaining({ sub: "7", debeCambiarClave: true }),
     );
-    expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token");
+    expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token", false);
   });
 
   it("puts debeCambiarClave: false in the session of a normal account", async () => {
@@ -191,7 +191,10 @@ describe("loginAction identifier resolution (FE-21, FE-22)", () => {
           rol: resolvedAccount.rol,
         }),
       );
-      expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token");
+      expect(mocks.setSessionCookie).toHaveBeenCalledWith(
+        "signed-token",
+        false,
+      );
     },
   );
 
@@ -471,3 +474,149 @@ describe("logoutAction while flagged (FPC)", () => {
     );
   });
 });
+
+// FE-32 (UX-22): the box "Mantener la sesión iniciada" decides the duration of
+// the session, and nothing else about the sign-in changes.
+describe("loginAction keep the session signed in (FE-32)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.verifyPassword.mockResolvedValue(true);
+  });
+
+  function keepForm(value: string | null = "on", identifier = "maria") {
+    const f = form(identifier);
+    if (value !== null) f.set("mantener", value);
+    return f;
+  }
+
+  it("signs with the claim and sets the 30-day cookie when the box is checked", async () => {
+    mocks.findLoginAccount.mockResolvedValue(account(false));
+
+    await expect(loginAction({ error: null }, keepForm())).rejects.toThrow(
+      /^REDIRECT:/,
+    );
+
+    expect(mocks.signSession).toHaveBeenCalledWith({
+      sub: "7",
+      login: "maria",
+      rol: "secretaria",
+      nombre: "Maria Perez",
+      debeCambiarClave: false,
+      mantenerSesion: true,
+    });
+    expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token", true);
+  });
+
+  it("gives today's payload, with no claim key, and the 8-hour cookie when the box is absent", async () => {
+    mocks.findLoginAccount.mockResolvedValue(account(false));
+
+    await expect(loginAction({ error: null }, keepForm(null))).rejects.toThrow(
+      /^REDIRECT:/,
+    );
+
+    const payload = signedPayload() as Record<string, unknown>;
+    expect(payload).toEqual({
+      sub: "7",
+      login: "maria",
+      rol: "secretaria",
+      nombre: "Maria Perez",
+      debeCambiarClave: false,
+    });
+    expect(payload).not.toHaveProperty("mantenerSesion");
+    expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token", false);
+  });
+
+  // A native checkbox posts "on"; any other value is not the box.
+  it.each(["", "off", "true", "1", "ON", "yes"])(
+    "reads the value %j as an unchecked box",
+    async (value) => {
+      mocks.findLoginAccount.mockResolvedValue(account(false));
+
+      await expect(
+        loginAction({ error: null }, keepForm(value)),
+      ).rejects.toThrow(/^REDIRECT:/);
+
+      expect(signedPayload()).not.toHaveProperty("mantenerSesion");
+      expect(mocks.setSessionCookie).toHaveBeenCalledWith(
+        "signed-token",
+        false,
+      );
+    },
+  );
+
+  it.each([
+    ["an unknown identifier", () => null],
+    ["an inactive account", () => ({ ...account(false), activo: false })],
+  ])(
+    "signs nothing and sets no cookie for %s with the box checked",
+    async (_label, lookup) => {
+      mocks.findLoginAccount.mockResolvedValue(lookup());
+
+      await expect(loginAction({ error: null }, keepForm())).resolves.toEqual(
+        GENERIC,
+      );
+
+      expectNoSession();
+    },
+  );
+
+  it("signs nothing and sets no cookie for a wrong password with the box checked", async () => {
+    mocks.findLoginAccount.mockResolvedValue(account(false));
+    mocks.verifyPassword.mockResolvedValue(false);
+
+    await expect(loginAction({ error: null }, keepForm())).resolves.toEqual(
+      GENERIC,
+    );
+
+    expectNoSession();
+  });
+
+  it("carries both the flag and the claim for a flagged account with the box checked", async () => {
+    mocks.findLoginAccount.mockResolvedValue(account(true));
+
+    await expect(loginAction({ error: null }, keepForm())).rejects.toThrow(
+      /^REDIRECT:/,
+    );
+
+    expect(mocks.signSession).toHaveBeenCalledWith(
+      expect.objectContaining({ debeCambiarClave: true, mantenerSesion: true }),
+    );
+    expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token", true);
+  });
+
+  it("keeps the safe next redirect with the box checked", async () => {
+    mocks.findLoginAccount.mockResolvedValue(account(false));
+    const f = keepForm();
+    f.set("next", "/requests");
+
+    await expect(loginAction({ error: null }, f)).rejects.toThrow(
+      "REDIRECT:/requests",
+    );
+
+    const bad = keepForm();
+    bad.set("next", "//evil.com");
+    await expect(loginAction({ error: null }, bad)).rejects.toThrow(
+      "REDIRECT:/",
+    );
+  });
+
+  // Pass at write: sign-out clears the cookie whatever the box said.
+  it("clears the session cookie on sign-out after a kept sign-in", async () => {
+    mocks.findLoginAccount.mockResolvedValue(account(false));
+    await expect(loginAction({ error: null }, keepForm())).rejects.toThrow(
+      /^REDIRECT:/,
+    );
+
+    await expect(logoutAction()).rejects.toThrow("REDIRECT:/login");
+
+    expect(mocks.clearSessionCookie).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** The claims of the first signed session (the mock has no typed parameters). */
+function signedPayload() {
+  return (mocks.signSession.mock.calls as unknown[][])[0][0] as Record<
+    string,
+    unknown
+  >;
+}
