@@ -398,3 +398,60 @@ The first GREEN run left four sidebar tests red, one of them the new "prefetch d
 ### Remaining tasks
 
 Open PR for S1c-3 (parent) and Phases 7-17 (S2a-1 onward). Walk W1 is the owner's, after this slice.
+
+## Batch 7: S2a actor-aware writer and staff drop (Phase 7 done; Phase 8 NOT started, size stop)
+
+Branch `feat/catalog-schedule-s2a-writer`, created from `feat/catalog-schedule-s1c3-nav` (PR #130; chain #99 -> #100 -> #101 -> #103 -> #105 -> #108 -> #130). The owner merged S2a-1 and S2a-2 into this one branch and one PR (2026-11-20): task 7.1 is done on this branch and 8.1 is marked done because no separate S2a-2 branch will exist. Date: 2026-11-20. Commit `7424eb8` `refactor(enrollment): make the enrollment writer actor-aware and add the staff drop`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 7.1 branch (merged S2a branch, see above), 8.1 branch (same branch)
+- [x] 7.2 baseline: `enrollment-write.test.ts` and `inscripcion-writes.test.ts` green and UNTOUCHED (git shows neither modified)
+- [x] 7.3 RED lock, 7.4 RED `staffDropGroup`, 7.5 RED atomicity: new `src/lib/data/enrollment-write-staff.test.ts`
+- [x] 7.6 GREEN `src/lib/data/enrollment-write.ts`
+- [x] 7.7 gates and measure done; PR NOT opened (parent owns it); Phase 8 deliberately not started, see "Measured size"
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 7.2 | `enrollment-write.test.ts`, `inscripcion-writes.test.ts` (unchanged) | Unit (db double) and structural | 54/54 across the four files `enrollment-write`, `inscripcion-writes`, `enrollment-picker`, `enrollment` before any edit | N/A (characterization of the student path; proof is that both files stay unedited and green) | 27/27 in the two files after the refactor, 49/49 with the staff file | the student statement order, rendered SQL and failure log are asserted by the untouched file | `enrollInGroup` and `dropGroup` keep their signatures; `enrollWork` and `dropWork` bodies moved unchanged |
+| 7.3 | `enrollment-write-staff.test.ts` (new) | Unit (db double, `PgDialect` render) | N/A (new) | 22 failed of 22 (`TypeError: staffDropGroup is not a function`) | 22/22 | lock first and `for no key update of Usuario`, two inner joins (Rol, Carrera), facultad and student params; actor exists-clause with actor id, `secretaria`, active, same facultad; refusal table of six predicates each ending after the one lock statement with no audit; scope `none` renders `false`; foreign and missing ids answer alike | Mutation checks: replacing the staff audit actor by the student id turned 4 tests red; removing the actor clause turned 2 red; both restored |
+| 7.4 | same file | Unit | N/A (new) | same run | pass | success row with the staff actor and the student as entity; `Inscripcion` statement binds the student and never the staff id; no period, Grupo or Asignatura filter and the rendered where equals the student's drop (D9, `dropWork` unchanged); two `not_enrolled` refusals; student drop and staff drop rows equal except `actorId`; payload keys exactly `grupoId`, `motivo`, no staff id | Clean |
+| 7.5 | same file | Unit | N/A (new) | same run | pass | data statement failing and audit insert failing: rethrown, exactly one sanitized log line with the STAFF actor id and no message or params, `exhausted` false then true; a refusal logs nothing | Clean |
+| 7.6 | `enrollment-write.ts` | GREEN | n/a | n/a | the three files pass: 49/49 | n/a | `lockStudent` untouched; `writeAsStudent` became `writeEnrollment(actor, work)` with the same lock, work, audit order |
+
+### Decisions and deviations
+
+1. **Actor check in the same lock statement.** CS-1 says the staff lock "is still one statement" and EA-WRITE-1 requires verifying the actor, so the actor check is an `exists` over aliased `Usuario` and `Rol` (`actor`, `actor_rol`) inside the lock's WHERE: id, role `secretaria`, active, and `FacultadId` equal to the scope facultad (so a secretaria reassigned after the guard ran is refused). Task 7.3 words it as a "staff-only guard statement"; no second statement was added because the design keeps one and the student statement order is untouched. The actor row itself is not locked (only the student row, `of: usuario`).
+2. **Scope `none`.** The staff lock still runs its one statement with a literal `false` (CS-1), so it takes no lock and answers `not_student` like any other refusal.
+3. **`EnrollmentStaff` export.** `{ actorId, scope }` is the new exported type; the action of S2b-1 passes exactly those two fields of the guard result. `staffDropGroup` copies the two fields explicitly into the actor (no object spread), so extra guard properties never travel.
+4. **Result unions unchanged.** No member added to `EnrollResult`, `DropResult` or `EnrollmentErrorCode`; the staff drop returns the existing `not_student` (CS-2) and `not_enrolled`.
+5. **Writer allowlist unchanged.** `enrollment-write.ts` is still the only module that writes `Inscripcion`; `inscripcion-writes.test.ts` passes untouched.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/enrollment-write.test.ts src/lib/data/enrollment-write-staff.test.ts src/lib/data/inscripcion-writes.test.ts` -> 3 files, 49 passed (RED run of the new file: 22 failed of 22) |
+| Runtime harness | N/A: DB double; no caller until S2b-1 (real-database walk W2 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `7424eb8`: the `enrollment-write.ts` refactor and `enrollment-write-staff.test.ts`; the student tests are unchanged and stay green |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 49/49 |
+| `npm test` (full suite) | 373 files, 9199 passed, 0 failed (no flaky file failed under load this time) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 2 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 2 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1c3-nav...HEAD -- . ':!openspec' ':!.engram'` -> 2 files changed, 536 insertions(+), 25 deletions(-) = **561 changed lines** for commit `7424eb8` (forecast ~230; 2.4x): `enrollment-write.ts` 175 (150 + 25), `enrollment-write-staff.test.ts` 386. Budget for the merged PR is 800. Phase 8 forecast is ~200; at the measured ratio it would add 300 to 480 lines and take the PR to roughly 860 to 1,040, so per the stop rule Phase 8 was NOT started and comments and tests were not trimmed. Decision needed from the owner: ship S2a-1 alone at 561 and keep S2a-2 as its own PR (the original plan), or accept `size:exception` for the merged PR.
+
+### Remaining tasks
+
+Open PR for S2a-1 (parent); Phase 8 (8.2-8.6: staff reactivate, `staffEnrollInGroup`, picker and enrollment additive asserts) and Phases 9-17.

@@ -1,22 +1,51 @@
 import "server-only";
 
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, exists, ne, sql } from "drizzle-orm";
+import { alias, QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
-import { asignatura, grupo, inscripcion, rol, usuario } from "@/db/schema";
+import {
+  asignatura,
+  carrera,
+  grupo,
+  inscripcion,
+  rol,
+  usuario,
+} from "@/db/schema";
 import { enrollmentWriteEvents } from "@/lib/audit/events";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import { sqlStateOf } from "@/lib/data/catalog-write";
 import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
+import type { RequestScope } from "@/lib/intake/request-scope";
 
 export type { DropResult, EnrollResult };
 
 // The ONLY module that writes `Inscripcion` (student-enrollment SE-1..SE-3,
-// SE-12). One short transaction per action: lock the student's own `Usuario`
-// row (which is also the role check), run guarded statements, append the audit
-// rows on the same handle. Rows are deactivated, never removed (D7).
+// SE-12; enrollment-administration EA-WRITE-1). One short transaction per
+// action: lock the target student's `Usuario` row (which is also the role
+// check), run guarded statements, append the audit rows on the same handle.
+// The student and the secretaria writers share this path and differ only in
+// the lock and in whose id is the audit actor. Rows are deactivated, never
+// removed (D7).
 
 const NOT_STUDENT = { ok: false, reason: "not_student" } as const;
+
+/** The secretaria behind a staff write: her id and the scope the guard
+ *  resolved from the database for this request (`requireEnrollmentAccess`). */
+export type EnrollmentStaff = { actorId: number; scope: RequestScope };
+
+type EnrollmentActor =
+  | { kind: "student"; estudianteId: number }
+  | {
+      kind: "staff";
+      actorId: number;
+      estudianteId: number;
+      scope: RequestScope;
+    };
+
+const qb = new QueryBuilder();
+const actorUser = alias(usuario, "actor");
+const actorRol = alias(rol, "actor_rol");
 
 /** SE-4: the latest period, evaluated at write time, over active grupos of
  *  ACTIVE asignaturas. An inactive row never sets it. */
@@ -55,32 +84,89 @@ async function lockStudent(tx: Transaction, estudianteId: number) {
   return rows.length > 0;
 }
 
+/** The writing user is, right now, an active secretaria of the facultad the
+ *  request was scoped to (EA-WRITE-1): a stale session or a reassigned
+ *  secretaria stops here, in the same statement as the lock. */
+function activeSecretariaOf(actorId: number, facultadId: number) {
+  return exists(
+    qb
+      .select({ one: sql`1` })
+      .from(actorUser)
+      .innerJoin(actorRol, eq(actorRol.id, actorUser.rolId))
+      .where(
+        and(
+          eq(actorUser.id, actorId),
+          eq(actorRol.codigo, "secretaria"),
+          eq(actorUser.activo, true),
+          eq(actorUser.facultadId, facultadId),
+        ),
+      ),
+  );
+}
+
+/** The staff lock: still ONE statement and the same row lock as the student's
+ *  (`of: usuario`), but the student must also belong to the secretaria's
+ *  facultad through the CURRENT carrera (inner join: no carrera, no row) and
+ *  the actor is verified. A foreign, missing or cancelled student answers
+ *  alike (EA-SCOPE-1, CS-2); a scope of `none` renders `false`. */
+async function lockStudentForStaff(
+  tx: Transaction,
+  actor: Extract<EnrollmentActor, { kind: "staff" }>,
+) {
+  const inScope =
+    actor.scope.kind === "facultad"
+      ? and(
+          eq(carrera.facultadId, actor.scope.facultadId),
+          activeSecretariaOf(actor.actorId, actor.scope.facultadId),
+        )
+      : sql`false`;
+  const rows = await tx
+    .select({ id: usuario.id })
+    .from(usuario)
+    .innerJoin(rol, eq(rol.id, usuario.rolId))
+    .innerJoin(carrera, eq(carrera.id, usuario.carreraId))
+    .where(
+      and(
+        eq(usuario.id, actor.estudianteId),
+        eq(rol.codigo, "estudiante"),
+        eq(usuario.activo, true),
+        inScope,
+      ),
+    )
+    .for("no key update", { of: usuario });
+  return rows.length > 0;
+}
+
 /** Lock, `work`, then the audit rows last on the same handle: a failure on
- *  either side rolls back both. The actor is the student id argument, never a
- *  payload value. */
-async function writeAsStudent<R extends EnrollResult | DropResult>(
-  estudianteId: number,
+ *  either side rolls back both. The audit actor is the student id argument or
+ *  the staff session user, never a payload value; the audited entity is always
+ *  the student. */
+async function writeEnrollment<R extends EnrollResult | DropResult>(
+  actor: EnrollmentActor,
   work: (tx: Transaction) => Promise<R>,
 ): Promise<R> {
+  const auditActor =
+    actor.kind === "student" ? actor.estudianteId : actor.actorId;
   try {
     return await db.transaction(async (tx) => {
-      if (!(await lockStudent(tx, estudianteId))) return NOT_STUDENT as R;
+      const locked =
+        actor.kind === "student"
+          ? await lockStudent(tx, actor.estudianteId)
+          : await lockStudentForStaff(tx, actor);
+      if (!locked) return NOT_STUDENT as R;
       const result = await work(tx);
-      const events = enrollmentWriteEvents(estudianteId, result);
-      if (events.length > 0) await insertAuditEvents(tx, estudianteId, events);
+      const events = enrollmentWriteEvents(actor.estudianteId, result);
+      if (events.length > 0) await insertAuditEvents(tx, auditActor, events);
       return result;
     });
   } catch (error) {
-    logEnrollmentFailure(estudianteId, error);
+    logEnrollmentFailure(auditActor, error);
     throw error;
   }
 }
 
-export function enrollInGroup(
-  estudianteId: number,
-  grupoId: number,
-): Promise<EnrollResult> {
-  return writeAsStudent<EnrollResult>(estudianteId, async (tx) => {
+function enrollWork(estudianteId: number, grupoId: number) {
+  return async (tx: Transaction): Promise<EnrollResult> => {
     const [target] = await tx
       .select({
         id: grupo.id,
@@ -138,14 +224,14 @@ export function enrollInGroup(
       grupoId,
       replaced: siblings.map((row) => row.grupoId),
     };
-  });
+  };
 }
 
-export function dropGroup(
-  estudianteId: number,
-  grupoId: number,
-): Promise<DropResult> {
-  return writeAsStudent<DropResult>(estudianteId, async (tx) => {
+/** Deactivates the student's own active row of any period: no period, grupo or
+ *  asignatura filter, so a stale row of an older period can be dropped (D9,
+ *  CS-3). The staff path reuses it unchanged. */
+function dropWork(estudianteId: number, grupoId: number) {
+  return async (tx: Transaction): Promise<DropResult> => {
     const dropped = await tx
       .update(inscripcion)
       .set({ activo: false })
@@ -160,5 +246,44 @@ export function dropGroup(
     return dropped.length > 0
       ? { ok: true, grupoId }
       : { ok: false, reason: "not_enrolled" };
-  });
+  };
+}
+
+export function enrollInGroup(
+  estudianteId: number,
+  grupoId: number,
+): Promise<EnrollResult> {
+  return writeEnrollment<EnrollResult>(
+    { kind: "student", estudianteId },
+    enrollWork(estudianteId, grupoId),
+  );
+}
+
+export function dropGroup(
+  estudianteId: number,
+  grupoId: number,
+): Promise<DropResult> {
+  return writeEnrollment<DropResult>(
+    { kind: "student", estudianteId },
+    dropWork(estudianteId, grupoId),
+  );
+}
+
+/** A secretaria deactivates a student's inscripcion of any period (EA-DEACT-1,
+ *  D9). `not_student` covers an out-of-scope, missing or non-student target and
+ *  a stale actor alike (CS-2). The audit actor is `staff.actorId`. */
+export function staffDropGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+): Promise<DropResult> {
+  return writeEnrollment<DropResult>(
+    {
+      kind: "staff",
+      actorId: staff.actorId,
+      scope: staff.scope,
+      estudianteId,
+    },
+    dropWork(estudianteId, grupoId),
+  );
 }
