@@ -576,9 +576,9 @@
     "new": {
       "title": "Create staff account",
       "nameLabel": "Full name",
-      "loginLabel": "Username",
       "passwordLabel": "Password",
-      "emailLabel": "Email",
+      "emailLabel": "Institutional email",
+      "emailHint": "This person signs in with this email.",
       "phoneLabel": "Phone",
       "roleLabel": "Role",
       "rolePlaceholder": "Select a role",
@@ -597,7 +597,9 @@
         "careerRequired": "Select the coordinated career",
         "invalidCarrera": "The selected career is not valid",
         "facultadRequired": "Your account has no career assigned, so the faculty of the new secretary cannot be determined",
-        "duplicate": "The username or CIF already exists"
+        "duplicate": "An account with that email already exists.",
+        "emailTooLong": "The email cannot exceed 60 characters.",
+        "emailInvalid": "Enter a valid email of up to 160 characters."
       },
       "subtitle": "Create an account for backoffice staff."
     },

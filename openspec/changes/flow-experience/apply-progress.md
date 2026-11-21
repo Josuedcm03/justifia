@@ -1480,3 +1480,97 @@ The design forecast for S9a was about 250 and the whole slice is 3.4 times that,
 - `getUsuarioByLogin` stays: the profile and change-password read the session "login" claim. The claim keeps the stored "Login".
 - Task 10.1 asks the owner to confirm three defaults; the owner's brief of 2026-11-20 did not restate them, so they are applied as the spec says (users list keeps its "Login" column; self-registration derives "Login" from the normalized email; the docentes table and the header role line drop the login) and recorded as deviations.
 - A legacy mixed-case email is not caught by the case-sensitive UNIQUE of "Correo": the creation paths need a lower-case lookup (`getUsuarioByCorreo`) before the insert, as FE-22 requires.
+
+## Phase 10 (PR 9b): S9b, "Usuario" removed from creation, profile, header and export
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-9b-no-usuario", cut from the tip of "feat/flow-experience-9a2-sign-in-form" (249a052, PR #124). No database or Neon command of any kind was run; unit tests use the dummy DB. Slice S9b is cut at the plan's candidate seams (after unit 21 and after unit 22) into three PRs: 9b (unit 21, staff creation), "9b2" (unit 22, self-registration) and "9b3" (unit 23, profile, header, docentes table and export). Each PR targets the previous branch. This section starts with PR 9b and gains one subsection per later PR.
+
+### Task 10.1: the three spec-over-design defaults (applied 2026-11-20, owner may veto)
+
+The owner's brief of 2026-11-20 orders S9b with the specs and did not restate the three questions of task 10.1, so the defaults the task names are applied exactly as the specs say. They are listed in each PR body for the owner to veto.
+
+| Default                                                                                                                              | Applied in |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| (a) the users list keeps its "Login" column, the "sort=login" key and the search by "Login" (FE-30)                                   | 9b3        |
+| (b) self-registration derives "Login" from the normalized email, as the staff form does (FE-26, FE-27; the design's D14 said the CIF) | 9b2        |
+| (c) the docentes catalog table drops its login column and the header role line drops the login (the design; the specs are silent)     | 9b3        |
+
+### PR 9b: staff creation by email (unit 21)
+
+#### Commits (PR 9b)
+
+| Unit | Hash    | Message                                                            |
+| ---- | ------- | ------------------------------------------------------------------ |
+| 21   | 7394bfe | feat(users): create staff accounts by email with a derived login   |
+| docs | (tip)   | docs(flow-experience): record the Phase 10 apply progress for PR 9b |
+
+#### TDD cycle evidence (PR 9b)
+
+| Task          | Test file                                                  | Layer                | Safety net                                                 | RED                                                                                                              | GREEN                   | Triangulation                                                                                                                                                                                                                                                                                                                                                       | Refactor    |
+| ------------- | ---------------------------------------------------------- | -------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 10.2 and 10.3 | `src/lib/validations/users.test.ts` (new)                  | Unit (schema)        | N/A (new file)                                             | 51 cases failed first across the three test files of this unit (the schema still required a login)              | 14 passed in the file   | No login key and a posted login dropped; the email absent, empty, spaces only, not an address, no domain and 161 characters, each with the error on the email alone; exactly 160 characters; trimmed and lower-case; every assignable role; the other rules kept                                                                                                     | None needed |
+| 10.2 and 10.3 | `src/app/(dashboard)/users/new/actions.test.ts`            | Unit (server action) | 22 existing cases of the file (the shared payload changed) | 17 of the 22 old cases failed (the payload lost its login and gained a required email), and the 15 new ones failed | 37 passed in the file (22 old, 15 new) | The Login derived and the email stored normalized; a posted login ignored; five unusable emails; the three allowed pairs without an email; 61 characters (emailTooLong) and exactly 60; a case-only duplicate found by the lower-case lookup; a derived-Login collision with no redirect and no suffix; no lookup when the role check redirects first                    | None needed |
+| 10.2 and 10.3 | `src/app/(dashboard)/users/new/new-user-form.test.tsx`     | Component            | 7 existing cases of the file passing                       | The new cases failed first (no login field, the email required and tied to its hint, the Spanish and English pins, the copy keys) | 13 passed in the file (7 old, 6 new) | No `name=login` and no `#login`; the email is `type=email`, `required`, described by its hint; es and en lines pinned; no key with "login" and no value "Usuario" or "Username" in the form copy                                                                                                                                                                   | None needed |
+
+#### Mutation checks (revert-only; `src/app/(dashboard)/users/new/actions.ts` was restored from a byte-identical backup copy and confirmed with "cmp", because the GREEN was not committed yet)
+
+| Test                                           | Temporary edit                                               | Result                 |
+| ---------------------------------------------- | ------------------------------------------------------------ | ---------------------- |
+| "ignores a login posted by a hand-crafted request" | the action takes the Login from the posted field            | 1 failed, 36 passed    |
+| "refuses an email equal ignoring case to an existing one" | the lower-case lookup is disabled                          | 1 failed, 36 passed    |
+
+#### Checkpoint (task 10.13, part 1): measured size of PR 9b
+
+Measure: "git diff --numstat feat/flow-experience-9a2-sign-in-form...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                                                                       | Changed lines |
+| --------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Production (`users.ts` 16, `actions.ts` 35, `new-user-form.tsx` 26) and the two catalogs (16)                               | 93            |
+| Tests (`validations/users.test.ts` 91, `actions.test.ts` 185, `new-user-form.test.tsx` 80)                                  | 356           |
+| All of PR 9b (416 added, 33 deleted)                                                                                        | 449           |
+
+Under the 460 stop line. Tests are 79 percent of the lines and were not trimmed.
+
+#### Work unit evidence (PR 9b)
+
+| Evidence                              | Value                                                                                                                                                                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- validations/users users/new src/i18n": 13 files, 515 tests, all passed. The access proof: "npm test -- access-matrix route-coverage src/test/access": 4 files, 536 tests, all passed |
+| Runtime harness                       | Owner-run: create a staff account on "flow-it" (task 12.5). No database command was run in this apply                                                                                                                                       |
+| Rollback boundary                     | Revert the PR: the staff form asks for a "Usuario" again and accepts an optional email. Accounts created in between keep a valid "Login" (their email)                                                                                      |
+
+#### Gates (task 10.14), tip of "-9b-no-usuario", dummy DB
+
+- Full "npm test": 379 files, 9504 tests, all passed, 293.3 s. The 9a2 tip had 378 files and 9469 tests; PR 9b adds one test file (14 cases) and 21 cases in the changed files.
+- "npm run typecheck": exit 0.
+- "npx eslint" and "npx prettier --check" on the six touched files and both catalogs: clean.
+- Access matrix and route inventory, run on their own for the staff creation change: 4 files, 536 tests, all passed, `src/test/access` untouched.
+
+#### Files (PR 9b; all LF in the working tree, the index was already LF)
+
+| File                                                                                          | Action                                                                                                   |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `src/lib/validations/users.ts`, `src/lib/validations/users.test.ts`                           | Modified and created: `crearStaffSchema` without a login, email required; 14 cases                         |
+| `src/app/(dashboard)/users/new/actions.ts`, `src/app/(dashboard)/users/new/actions.test.ts`   | Modified: derived Login, lower-case duplicate lookup, email errors; 15 new cases and a new shared payload |
+| `src/app/(dashboard)/users/new/new-user-form.tsx` and its test                                | Modified: the login field is gone, the email is required with a hint; 6 new cases                         |
+| `i18n/es.json`, `i18n/en.json`                                                                | Modified: "users.new" email label and hint, three error lines; the dead "loginLabel" key removed          |
+
+#### Final Spanish UI copy of PR 9b (admin screen "users", "tú"; English twins in the catalog)
+
+- "users.new.emailLabel": "Correo institucional" (`en`: "Institutional email").
+- "users.new.emailHint": "Con este correo la persona ingresa al sistema." (`en`: "This person signs in with this email.").
+- "users.new.errors.duplicate": "Ya existe una cuenta con ese correo." (`en`: "An account with that email already exists.").
+- "users.new.errors.emailTooLong": "El correo no puede superar los 60 caracteres." (`en`: "The email cannot exceed 60 characters.").
+- "users.new.errors.emailInvalid" (new, beyond the task's list): "Ingresa un correo válido, de hasta 160 caracteres." (`en`: "Enter a valid email of up to 160 characters.").
+
+#### Deviations (PR 9b)
+
+1. **Cut.** S9b is cut into three PRs at the plan's two candidate seams; the branch names are "feat/flow-experience-9b-no-usuario", "feat/flow-experience-9b2-register" and "feat/flow-experience-9b3-profile-export".
+2. **Task 10.1** was not answered by the owner in the brief; the defaults were applied as the specs say (see the table above).
+3. **A fourth error line.** The spec table says an unusable email is "refused, error on email", so the schema failure on `correo` maps to its own line "users.new.errors.emailInvalid" instead of the generic "Revisa los datos ingresados".
+4. **Lookup before the write.** `Correo` is UNIQUE only case-sensitively and legacy rows may be mixed-case, so the action calls `getUsuarioByCorreo` (lower-case comparison) before hashing; the database constraint still stops an exact duplicate and a derived "Login" that already exists, both answered with "errors.duplicate".
+5. **Email limit.** The schema accepts the 160 characters of "Correo" (FE-28), and the derived "Login" has the 60 characters of its column, so an email of 61 to 160 characters is refused with "emailTooLong" (FE-27), never truncated or suffixed.
+6. **Autofill.** The email input uses `autoComplete` "off" instead of "email", because on this form the person typing is not the account holder.
+7. **Dead key.** "users.new.loginLabel" was removed in this unit, when its last use went, instead of in unit 23.
+8. **Shared test payload.** The action test's valid payload lost its login and gained an email, so every older case of the file was edited by that one change.
+9. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.

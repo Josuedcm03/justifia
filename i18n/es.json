@@ -576,9 +576,9 @@
     "new": {
       "title": "Crear cuenta de staff",
       "nameLabel": "Nombre completo",
-      "loginLabel": "Usuario",
       "passwordLabel": "Contraseña",
-      "emailLabel": "Correo",
+      "emailLabel": "Correo institucional",
+      "emailHint": "Con este correo la persona ingresa al sistema.",
       "phoneLabel": "Teléfono",
       "roleLabel": "Rol",
       "rolePlaceholder": "Selecciona un rol",
@@ -597,7 +597,9 @@
         "careerRequired": "Selecciona la carrera que coordina",
         "invalidCarrera": "La carrera seleccionada no es válida",
         "facultadRequired": "Tu cuenta no tiene una carrera asignada, por lo que no se puede determinar la facultad de la nueva secretaria",
-        "duplicate": "El usuario o CIF ya existe"
+        "duplicate": "Ya existe una cuenta con ese correo.",
+        "emailTooLong": "El correo no puede superar los 60 caracteres.",
+        "emailInvalid": "Ingresa un correo válido, de hasta 160 caracteres."
       },
       "subtitle": "Crea una cuenta para el personal del backoffice."
     },

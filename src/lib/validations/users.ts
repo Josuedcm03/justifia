@@ -32,14 +32,22 @@ export const registroEstudianteSchema = z.object({
 
 export type RegistroEstudianteInput = z.infer<typeof registroEstudianteSchema>;
 
+/**
+ * Staff creation (FE-27, FE-28). There is no `login` key: the server derives the
+ * Login from the email, and any `login` in the request is dropped by the parse.
+ * The email is required for every role, stored trimmed and lower-case, and at
+ * most the 160 characters of `Usuario.Correo`.
+ */
 export const crearStaffSchema = z.object({
-  login: z.string().trim().min(1, "Ingresa un usuario").max(60),
   password: z.string().min(8, "Mínimo 8 caracteres").max(128),
   nombreCompleto: z.string().trim().min(1, "Ingresa el nombre").max(160),
   correo: z
-    .union([z.literal(""), z.string().trim().email("Correo inválido").max(160)])
-    .optional()
-    .transform((v) => (v ? v : undefined)),
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, "Ingresa el correo")
+    .email("Correo inválido")
+    .max(160),
   telefono: z
     .union([z.literal(""), z.string().trim().max(30)])
     .optional()
