@@ -1009,6 +1009,85 @@ describe("catalog parity (CM-I18N-1: Grupo action copy)", () => {
   // proves the Grupo actions choose only keys that exist.
 });
 
+describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
+  // The test translator of `actions.test.ts` echoes keys, so only a scan of the
+  // action source proves every message key it chooses exists in the catalogs.
+  const source = readFileSync(
+    join(process.cwd(), "src/app/(dashboard)/catalog/inscripciones/actions.ts"),
+    "utf8",
+  );
+  const used = [
+    ...new Set(
+      [...source.matchAll(/"(inscripciones\.errors\.[A-Za-z_]+)"/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  ].sort();
+
+  it("the scan finds every message key the action chooses", () => {
+    expect(used).toEqual([
+      "inscripciones.errors.already_enrolled",
+      "inscripciones.errors.not_eligible",
+      "inscripciones.errors.unexpected",
+    ]);
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every message key the action source uses",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      for (const key of used) {
+        expect(typeof resolve(messages, `catalog.${key}`), key).toBe("string");
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s action errors hold exactly the keys the action chooses, with no raw error wording",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      const errors = resolve(messages, "catalog.inscripciones.errors");
+
+      expect(leafPaths(errors).sort()).toEqual([
+        "already_enrolled",
+        "not_eligible",
+        "unexpected",
+      ]);
+      for (const value of leafValues(errors)) {
+        expect(value).not.toMatch(/exception|ECONN|stack|sql/i);
+      }
+    },
+  );
+
+  it.each([
+    ["es", /no se modificó nada/i, /inténtalo de nuevo/i],
+    ["en", /nothing was changed/i, /try again/i],
+  ] as const)(
+    "%s generic error says nothing was changed and to try again",
+    (locale, notSaved, retry) => {
+      const message = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.errors.unexpected",
+      ) as string;
+
+      expect(message).toMatch(notSaved);
+      expect(message).toMatch(retry);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s action errors carry no placeholder or number, so no student or group data",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      for (const value of leafValues(
+        resolve(messages, "catalog.inscripciones.errors"),
+      )) {
+        expect(value).not.toMatch(/\{|\d/);
+      }
+    },
+  );
+});
+
 describe("catalog parity (CM-I18N-1, CM-UX-1: Asignatura form, toggle and page copy)", () => {
   const section = (locale: "es" | "en", path: string) =>
     resolve(locale === "es" ? esMessages : enMessages, path);

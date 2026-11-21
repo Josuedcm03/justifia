@@ -594,6 +594,11 @@
       "noFacultad": {
         "title": "Tu cuenta no tiene una facultad asignada",
         "message": "Pide a quien administra el sistema que asigne una facultad a tu cuenta antes de consultar las inscripciones."
+      },
+      "errors": {
+        "not_eligible": "No se pudo reactivar la inscripción: el grupo ya no se ofrece o el estudiante tiene otro grupo activo en la misma asignatura. Actualiza la página e inténtalo de nuevo.",
+        "already_enrolled": "Esta inscripción ya estaba activa. Actualiza la página para ver su estado.",
+        "unexpected": "No pudimos guardar el cambio y no se modificó nada. Inténtalo de nuevo."
       }
     }
   },

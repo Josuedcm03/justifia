@@ -594,6 +594,11 @@
       "noFacultad": {
         "title": "Your account has no faculty assigned",
         "message": "Ask whoever administers the system to assign a faculty to your account before you review enrollments."
+      },
+      "errors": {
+        "not_eligible": "The enrollment could not be reactivated: the group is no longer offered or the student has another active group in the same subject. Refresh the page and try again.",
+        "already_enrolled": "This enrollment was already active. Refresh the page to see its current state.",
+        "unexpected": "We could not save the change and nothing was changed. Try again."
       }
     }
   },
