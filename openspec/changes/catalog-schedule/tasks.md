@@ -191,13 +191,14 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 11: S3a-1 student search and assign reads (EA-CRE-1, EA-PII-1, D10)
 
-- [ ] 11.1 Branch `feat/catalog-schedule-s3a1-reads` from S2b-2.
-- [ ] 11.2 RED `src/lib/data/inscripciones.test.ts`, `searchStudents(scope, q)`: only in-scope ACTIVE estudiantes (excluded: other facultad, no carrera, non-active or cancelled account, other roles); match by name or CIF (`containsPattern`); capped by a named constant; rows are `{ id, nombreCompleto, cif }` only, serialized scan finds no email or phone; scope `none` -> `[]`, no query; failure -> `{ data: [], degraded: true }`.
-- [ ] 11.3 RED same file, `loadAssignPage(scope, estudianteId, asignaturaId | null)`: student not in scope or unknown -> `not_found` (alike for both); asignaturas via `listEnrollableAsignaturas`, groups via `listEnrollableGroups` (latest period, offered only; docente name only); the student's current active group of that asignatura and period is marked and its sibling is named; invalid or ineligible asignatura -> no groups; failure fail-soft `degraded: true`.
-- [ ] 11.4 GREEN `src/lib/data/inscripciones.ts`: `searchStudents`, `loadAssignPage` (uses `studentRowInScope`). Verify: `npx vitest run src/lib/data/inscripciones.test.ts`.
-- [ ] 11.5 RED `src/lib/data/request-reads.test.ts`: `recordEnrollmentStudentSearch(actorId, facultadId, payload)` inserts exactly one `inscripcion.estudiantes.consultada`, entity `Facultad`; a failing insert rejects; cached per render.
-- [ ] 11.6 GREEN `src/lib/data/request-reads.ts`: `recordEnrollmentStudentSearch`. Verify: `npx vitest run src/lib/data/request-reads.test.ts`.
-- [ ] 11.7 Gates G + measure (~355). Open PR. Commit: `feat(enrollment): add the scoped student search and assign reads`.
+- [x] 11.1 Branch `feat/catalog-schedule-s3a1-reads` from S2b-2.
+- [x] 11.2 RED `src/lib/data/inscripciones.test.ts`, `searchStudents(scope, q)`: only in-scope ACTIVE estudiantes (excluded: other facultad, no carrera, non-active or cancelled account, other roles); match by name or CIF (`containsPattern`); capped by a named constant; rows are `{ id, nombreCompleto, cif }` only, serialized scan finds no email or phone; scope `none` -> `[]`, no query; failure -> `{ data: [], degraded: true }`.
+- [x] 11.3 RED same file, `loadAssignPage(scope, estudianteId, asignaturaId | null)`: student not in scope or unknown -> `not_found` (alike for both); asignaturas via `listEnrollableAsignaturas`, groups via `listEnrollableGroups` (latest period, offered only; docente name only); the student's current active group of that asignatura and period is marked and its sibling is named; invalid or ineligible asignatura -> no groups; failure fail-soft `degraded: true`.
+- [x] 11.4 GREEN `src/lib/data/inscripciones.ts`: `searchStudents`, `loadAssignPage` (uses `studentRowInScope`). Verify: `npx vitest run src/lib/data/inscripciones.test.ts`.
+- [x] 11.5 RED `src/lib/data/request-reads.test.ts`: `recordEnrollmentStudentSearch(actorId, facultadId, payload)` inserts exactly one `inscripcion.estudiantes.consultada`, entity `Facultad`; a failing insert rejects; cached per render.
+- [x] 11.6 GREEN `src/lib/data/request-reads.ts`: `recordEnrollmentStudentSearch`. Verify: `npx vitest run src/lib/data/request-reads.test.ts`.
+- [x] 11.7 Gates G + measure (~355). Open PR. Commit: `feat(enrollment): add the scoped student search and assign reads`.
+  - Apply result (2026-11-20): gates G green (typecheck, focused 106/106, full suite 374 files and 9364 passed, build OK, eslint and prettier clean on the touched files). Commit `1e3964a` measured **686 authored lines** (683 added, 3 removed; forecast ~355, 1.9x) against the S2b-2 branch, under the 800 budget. PR NOT opened (parent owns it). See `apply-progress.md`.
 
 ## Phase 12: S3a-2 staff replace and create (EA-SIB-1, EA-CHG-1, EA-CRE-1, EA-WRITE-1)
 
