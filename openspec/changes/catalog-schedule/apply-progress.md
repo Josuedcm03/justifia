@@ -698,3 +698,60 @@ Totals: 34 new tests (29 + 5) plus one amended pin; full suite 9330 -> 9364. Lay
 ### Remaining tasks
 
 Open PR for S3a-1 (parent) and Phases 12-17 (S3a-2 onward). Phase 12 projects ~170 lines at ~2x, about 340, so S3a-2 fits its own PR.
+
+## Batch 12: S3a-2 staff replace and create (tasks 12.1-12.5, complete; Phase 13 NOT started)
+
+Branch `feat/catalog-schedule-s3a2-writer-replace`, created from `feat/catalog-schedule-s3a1-reads` (S3a-1, PR #135; chain #99 -> ... -> #134 -> #135). Date: 2026-11-20. Commit `26941a3` `feat(enrollment): let the staff create, change group and replace`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 12.1 branch (this one)
+- [x] 12.2 RED create table, 12.3 RED replace and change group, 12.4 GREEN `staffEnrollInGroup`
+- [x] 12.5 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 12.2 | `enrollment-write-staff.test.ts` | Unit (db double, `PgDialect` render) | 103/103 over `enrollment-write-staff`, `enrollment-write`, `inscripcion-writes` and the actions test before any edit | 15 failed of 99 (14 in the staff file, 1 in `actions.test.ts`); the refusal rows passed at once because the target, existing-row and lock statements are mode independent (characterization) | 99/99, then 279/279 over the nine writer, picker, enrollment and `catalog/inscripciones` files | create: no row -> `created` (select x3, sibling update, `Inscripcion` insert with exactly `{ estudianteId: S, grupoId: G, activo: true }`, audit insert), inactive row -> `reactivada` with no second `Inscripcion` insert, already active -> `already_enrolled` (3 selects, no update), older period, inactive grupo, inactive asignatura -> `not_eligible` (2 statements, fragment-checked), non-student and scope `none` -> `not_student` after the one lock; create statements and audit row equal the student's except the actor | Clean |
+| 12.3 | same file | Unit | in the 103 above | same run | pass | reactivate with one sibling -> sibling `set {activo:false}` then `set {activo:true}`, result `replaced: [5]`, audit rows `desactivada` (`motivo: "reemplazo"`) then `reactivada`, staff actor on both, entity = student; change to a group with no row -> `desactivada` then `creada`; two siblings -> two `desactivada` rows then the activation; the sibling update renders EXACTLY the params student, target group, asignatura 3, period (no other ids) and equals the student's sibling update where; a target of another asignatura binds its own asignatura (8, never 3) and replaces nothing; both audit rows travel in ONE insert, last, in one transaction after the one lock; failure at the sibling update, the activation or the audit insert rethrows with one sanitized log line carrying the STAFF actor; the current group -> `already_enrolled` with no update | Clean |
+| 12.4 | `enrollment-write.ts`, `inscripciones/actions.ts`, `actions.test.ts` | GREEN | n/a | n/a | the nine files pass: 279/279 | n/a | n/a |
+
+Mutation checks (production restored from a copy taken just before each; no `git checkout`): forcing `reactivateOnly: false` turned 6 tests red (the whole list-mode table); replacing `replaced` by `[]` turned 3 red (the replace audit rows); the action not passing the option turned its test red. Existing S2 list-mode assertions were kept, not deleted: they now pass `{ reactivateOnly: true }` through a `LIST` constant, and the two S2 "not sticky" tests moved to the full statement order.
+
+Totals: 23 new tests in the staff file (create 9, replace 14, counting the it.each expansions), 1 amended action test; full suite 9364 -> 9387. Layers: unit only. `enrollment-write.test.ts` and `inscripcion-writes.test.ts` are unedited and green (student statements and signatures byte-identical).
+
+### Decisions and deviations
+
+1. **The list keeps its no-replace guarantee through an option, not through the guard.** `tasks.md` 12.4 says "lift the S2 reactivate-only guard so `staffEnrollInGroup` runs the full `enrollWork`" and does not separate "reactivate from the list" from "replace through the assign page" at the writer; both would call `staffEnrollInGroup`. The only separation was UI (10.3: no reactivate control when a sibling exists), which a forged POST bypasses and which would let the toggle replace without the EA-SIB-1 confirmation. So `staffEnrollInGroup(staff, estudianteId, grupoId, { reactivateOnly = false })` defaults to the full create, reactivate and replace behaviour (what `assignInscripcionAction` of S3a-3 will call as `staffEnrollInGroup(staff, student, grupoId)`), and `setInscripcionActivoAction` now passes `{ reactivateOnly: true }`: no row -> `not_eligible`, an active sibling -> `not_eligible` with nothing changed, as in S2. The task text 12.3 says the 8.2 sibling-refusal assertion is "replaced"; it was kept for list mode and the default mode gained the replace assertion.
+2. **Existing S2b-1 action test amended.** The reactivate test now expects the fourth argument. This is the only edit to an S2b file. The new option adds no member to `EnrollResult`, `DropResult` or `EnrollmentErrorCode` (CS-2), and the writer allowlist is unchanged.
+3. **"Target of another asignatura -> not_eligible" (12.3, EA-CHG-1 refusals) is NOT a writer refusal.** The writer receives only the target group; it has no "current group" to compare asignaturas with, and a group of another asignatura that is offered is a legitimate independent create (EA-SIB-1: other asignaturas are unaffected). The test pins that behaviour (the sibling predicate follows the target's own asignatura and replaces nothing of the first). The EA-CHG-1 candidate restriction (same asignatura only) is the assign page's job: `loadAssignPage` already lists only the picked asignatura's groups (S3a-1), and S3b-1 and S3a-3 should keep the picker as the only source of `grupoId` for a change. If the owner wants the writer to refuse it, the action would need a `fromGrupoId` argument, a signature change outside this slice.
+4. **EA-SIB-1 confirmation stays UI.** The writer replaces whenever it is called in default mode; the confirm step is S3b-2.
+5. No design change needed (CS-8 "the replace path arrives with EA-SIB-1 in S3" is what this slice does).
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/enrollment-write-staff.test.ts src/lib/data/enrollment-write.test.ts src/lib/data/inscripcion-writes.test.ts "src/app/(dashboard)/catalog/inscripciones" src/lib/data/enrollment-picker.test.ts src/lib/data/enrollment.test.ts` -> 9 files, 279 passed (RED run: 15 failed of 99 in the staff and actions files) |
+| Runtime harness | N/A: DB double; the only caller in this slice is the list toggle in reactivate-only mode (the real-database walk W3 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `26941a3`: the option and doc in `enrollment-write.ts`, the one argument in `actions.ts`, and the two test files; S2 behaviour returns |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 279/279 |
+| `npm test` (full suite) | 374 files, 9387 passed, 0 failed |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 4 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 4 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3a1-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 444 insertions(+), 24 deletions(-) = **468 changed lines** (forecast ~170; 2.8x), under the 800 budget. Per file: `enrollment-write-staff.test.ts` 435 (422 + 13), `enrollment-write.ts` 19 (12 + 7), `actions.ts` 11 (7 + 4), `actions.test.ts` 3. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3a-2 (parent) and Phases 13-17 (S3a-3 onward). Phase 13's `assignInscripcionAction` must call `staffEnrollInGroup(staff, student, grupoId)` WITHOUT the option.
