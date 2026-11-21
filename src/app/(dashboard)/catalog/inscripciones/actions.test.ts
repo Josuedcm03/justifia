@@ -298,6 +298,8 @@ describe("setInscripcionActivoAction reactivate (EA-REACT-1)", () => {
     });
 
     expect(h.staffEnrollInGroup).toHaveBeenCalledTimes(1);
+    // Exactly three arguments, no option: the writer's default is reactivate
+    // only, and the replace is the assign page's confirmed flow (EA-SIB-1).
     expect(h.staffEnrollInGroup).toHaveBeenCalledWith(
       { actorId: ACTOR, scope: FACULTAD },
       STUDENT,
