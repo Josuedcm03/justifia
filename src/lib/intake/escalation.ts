@@ -9,25 +9,30 @@ import { isIsoDate, managuaToday } from "./dates";
 // maps to an i18n message.
 
 /**
- * `Escalamiento.Tipo` (RN-20, E18): a suspicion about a document or a special
- * case escalates, an excess notifies.
+ * `Escalamiento.Tipo` (RN-20, E18): a suspicion about a document, a special
+ * case or another reason (`otro`, FE-9) escalates, an excess notifies.
  */
 export const ESCALATION_KINDS = [
   "sospecha_documento",
   "caso_especial",
+  "otro",
   "exceso_inasistencias",
 ] as const;
 
 export type EscalationKind = (typeof ESCALATION_KINDS)[number];
 
 /**
- * The motives a secretary may escalate with (E18): both move the request to
- * coordination and are answered by it. A suspicion concerns a document; a
- * special case is a cause outside the regulation that the coordination values.
+ * The motives a secretary may escalate with (E18, FE-9): all three move the
+ * request to coordination and are answered by it. A suspicion concerns a
+ * document; a special case is a cause outside the regulation that the
+ * coordination values; `otro` is a reason that fits neither, described by its
+ * note (which is mandatory for every motive). The schema CHECKs, the
+ * one-open-escalation index and every reader render from this array.
  */
 export const ESCALATION_REASONS = [
   "sospecha_documento",
   "caso_especial",
+  "otro",
 ] as const satisfies readonly EscalationKind[];
 
 export type EscalationReason = (typeof ESCALATION_REASONS)[number];
@@ -139,8 +144,9 @@ function requiredText(
 }
 
 /**
- * RN-20, E18: the motive must be one of the two escalation motives (the server
- * checks it, the form only offers it) and the note is mandatory.
+ * RN-20, E18: the motive must be one of the three escalation motives (the
+ * server checks it, the form only offers it) and the note is mandatory, for
+ * `otro` as well, where it is the description of the reason.
  */
 export function validateEscalationDraft(input: {
   motivo: unknown;

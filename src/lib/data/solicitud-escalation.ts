@@ -114,7 +114,7 @@ export type EscalateInput = {
   actorId: number;
   scope: RequestScope;
   solicitudId: number;
-  /** `sospecha_documento` or `caso_especial`; checked here, never trusted. */
+  /** `sospecha_documento`, `caso_especial` or `otro`; checked here, never trusted. */
   motivo: unknown;
   nota: string;
   now: Date;

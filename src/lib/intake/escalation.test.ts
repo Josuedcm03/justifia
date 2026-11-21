@@ -45,21 +45,24 @@ describe("reasonAfterUnconfiguredRelease", () => {
 });
 
 describe("escalation constants (RN-20, ES-4)", () => {
-  it("knows exactly the three kinds (E18)", () => {
+  it("knows exactly the four kinds, in this order (E18, FE-9)", () => {
     expect([...ESCALATION_KINDS]).toEqual([
       "sospecha_documento",
       "caso_especial",
+      "otro",
       "exceso_inasistencias",
     ]);
   });
 
-  it("lets a secretary choose between two motives, never the notice kind", () => {
+  it("lets a secretary choose between three motives, never the notice kind (FE-9)", () => {
     expect([...ESCALATION_REASONS]).toEqual([
       "sospecha_documento",
       "caso_especial",
+      "otro",
     ]);
     expect(isEscalationReason("caso_especial")).toBe(true);
     expect(isEscalationReason("sospecha_documento")).toBe(true);
+    expect(isEscalationReason("otro")).toBe(true);
     expect(isEscalationReason("exceso_inasistencias")).toBe(false);
     expect(isEscalationReason(undefined)).toBe(false);
   });
@@ -73,8 +76,8 @@ describe("validateEscalationDraft (RN-20)", () => {
   const ok = (nota: unknown) =>
     validateEscalationDraft({ motivo: "sospecha_documento", nota });
 
-  it.each([["sospecha_documento"], ["caso_especial"]])(
-    "accepts the motive %s and returns it (E18)",
+  it.each([["sospecha_documento"], ["caso_especial"], ["otro"]])(
+    "accepts the motive %s and returns it (E18, FE-9)",
     (motivo) => {
       expect(
         validateEscalationDraft({ motivo, nota: "Fallecimiento" }),
@@ -109,14 +112,41 @@ describe("validateEscalationDraft (RN-20)", () => {
   });
 
   it.each([
+    ["empty", "", "nota_required"],
+    ["whitespace only", " \n\t ", "nota_required"],
+    ["not a string", undefined, "nota_required"],
+    ["1001 characters", "a".repeat(1001), "nota_too_long"],
+  ])(
+    "refuses the motive otro with a note that is %s (FE-9)",
+    (_l, nota, code) => {
+      expect(validateEscalationDraft({ motivo: "otro", nota })).toEqual({
+        ok: false,
+        errors: [{ field: "nota", code }],
+      });
+    },
+  );
+
+  it("keeps the 1000 character bound for the motive otro, trimmed (FE-9)", () => {
+    expect(
+      validateEscalationDraft({ motivo: "otro", nota: "a".repeat(1000) }),
+    ).toEqual({ ok: true, motivo: "otro", nota: "a".repeat(1000) });
+    expect(
+      validateEscalationDraft({ motivo: "otro", nota: ` ${"a".repeat(1000)} ` })
+        .ok,
+    ).toBe(true);
+  });
+
+  it.each([
     ["exceso_inasistencias"],
-    ["otro"],
+    ["Otro"],
+    [" otro"],
     [""],
     [null],
     [undefined],
     [42],
+    [["otro"]],
     [["caso_especial"]],
-  ])("refuses the reason %j: it must be one of the two motives", (motivo) => {
+  ])("refuses the reason %j: it must be one of the three motives", (motivo) => {
     expect(validateEscalationDraft({ motivo, nota: "Firma dudosa" })).toEqual({
       ok: false,
       errors: [{ field: "motivo", code: "motivo_invalid" }],

@@ -1163,6 +1163,7 @@
       "reasons": {
         "sospecha_documento": "Sospecha sobre un documento",
         "caso_especial": "Caso especial",
+        "otro": "Otro",
         "exceso_inasistencias": "Exceso de inasistencias"
       },
       "notification": {
@@ -1192,7 +1193,8 @@
         "motivoLabel": "Motivo del escalamiento",
         "motivo": {
           "sospecha_documento": "Sospecha sobre un documento",
-          "caso_especial": "Caso especial (fuera de las causas del reglamento)"
+          "caso_especial": "Caso especial (fuera de las causas del reglamento)",
+          "otro": "Otro"
         },
         "noteLabel": "Nota para coordinación (obligatoria)",
         "noteHint": "Explique por qué escala la solicitud; por ejemplo, qué dato del documento no coincide o qué situación no prevé el reglamento. Solo la ve el personal.",
