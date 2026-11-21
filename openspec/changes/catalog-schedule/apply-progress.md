@@ -772,3 +772,63 @@ Commit `7e231cb` `refactor(enrollment): make replace and create an explicit opt-
 - **Measured size** after this commit: `git diff --shortstat feat/catalog-schedule-s3a1-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 466 insertions(+), 15 deletions(-) = **481 changed lines**, under the 800 budget.
 - Deviation 3 (no writer refusal for a target of another asignatura; the candidate source handles it) is unchanged.
 
+## Batch 13: S3a-3 staff assign action (tasks 13.1-13.5, complete; Phase 14 NOT started)
+
+Branch `feat/catalog-schedule-s3a3-assign-action`, created from `feat/catalog-schedule-s3a2-writer-replace` (S3a-2, PR #136; chain #99 -> ... -> #135 -> #136). Date: 2026-11-20. Commit `ac9b987` `feat(enrollment): add the staff assign server action`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here). Next `forms.md` ("Passing additional arguments") and `data-security.md` (Server Actions are reachable by a direct POST; check authorization inside each) were re-read before writing the action.
+
+### Completed tasks
+
+- [x] 13.1 branch (this one)
+- [x] 13.2 RED `assignInscripcionAction` in `actions.test.ts`, 13.3 GREEN `actions.ts`
+- [x] 13.4 RED then GREEN: guards additions, two error keys in both locales with parity pin
+- [x] 13.5 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 13.2/13.3 | `catalog/inscripciones/actions.test.ts` | Unit (REAL `requireEnrollmentAccess` and dal on a mocked session and scope read; writers are doubles) | 643/643 over the six touched suites before any edit | 41 failed, 39 passed (`TypeError: assignInscripcionAction is not a function`) | 80/80 (after a test-helper fix, below) | six denied identities with a valid AND a forged payload (a redirect, not the error copy, proves the guard ran before zod; scope never read); forged third argument `{ actorId, scope, rol }` ignored, writer gets exactly `{ actorId, scope }` and the session never travels; the writer receives exactly four arguments and the fourth is strictly `{ allowReplaceAndCreate: true }` for two different student and group pairs; nine bad values for each of the two ids (0, negative, decimal, numeric string, null, undefined, NaN, Infinity, object) -> unexpected copy, nothing written; scope `none` -> gone, writer not called; out-of-scope table (change group, create, unknown student) -> gone and no revalidate; outcomes created, reactivated, one and two replaced -> `done` with the right `outcome` and `replaced` count and one `revalidatePath("/catalog/inscripciones")`; replaced ids never in the answer; `already_enrolled` and `not_eligible` -> their assign copy; `not_student` -> gone; thrown -> unexpected with no raw text and no revalidate | The `assign` helper first used default parameters, which swallowed a forged `undefined` (the same slip as batch 9); it now takes rest arguments |
+| 13.4 | `catalog/inscripciones/guards.test.ts` | Structural (source scan) | in the 643 above | 3 failed of 22 (exact action list, the opt-in check and the no-form check: the action did not exist) | 22/22 | the exact action list is now two names; only `assignInscripcionAction` carries `allowReplaceAndCreate` (comments stripped; the toggle body never does; exactly one code occurrence in the module; the call matches `staffEnrollInGroup(..., { allowReplaceAndCreate: true })`); the opt-in check self-test (bare call, opted-in call, comment only); the assign action reads no form and names no `FormData` | The first regex missed the trailing comma that prettier adds; fixed in the test |
+| 13.4 | `src/i18n/catalog-parity.test.ts` | Unit (JSON + source scan) | in the 643 above | 5 failed of 255 (scan finds 3 keys not 5, exact leaf set, and the two new copy tests) | 255/255 | the scan finds exactly the five keys the module chooses and each resolves in `es` and `en`; the errors subtree has exactly those five leaves; both assign messages name the refused group (`no longer offered` / `ya no se ofrece`) and the existing enrollment, and none carries reactivation wording; the existing "no placeholder or number" and "no raw error wording" pins cover the new keys | Clean |
+| 13.3 | `src/test/access/matrix-table.ts` (data row) | Matrix | in the 643 above | n/a (the matrix exports check needs the row as soon as the export exists, as in batch 9) | `route-coverage` and `access-matrix.actions` green | the new export runs as the seven identities | n/a |
+
+Mutation checks (production restored from a copy taken just before each; no `git checkout`): the action dropping the option turned 7 tests red; the list toggle opting in turned 2 red (the structural pin and the three-argument assertion); skipping zod turned 18 red; revalidating on a `not_student` refusal turned 4 red; leaking the replaced ids in the answer turned 5 red; reading the translator before the guard turned the first-await pin red (1).
+
+Totals: 56 new tests (full suite 9389 -> 9445), layers unit and structural. One extra data row outside the task list: `matrix-table.ts` gained `assignInscripcionAction`.
+
+### Decisions and deviations
+
+1. **Call shape.** `assignInscripcionAction(estudianteId, grupoId)`, plain arguments and no `FormData`, exactly as 13.2 and 15.2 word it. It is meant to be called from the confirm button's handler (S3b-2). The access matrix still calls it as `(prev, FormData)` like every action, which the zod re-validation answers with the error copy after the guard.
+2. **Order inside the action:** guard, translator, scope `none` -> `gone` (writer not called), zod, writer. Nothing is read before the guard resolves; the writer gets exactly `{ actorId, scope }` and, as a fourth argument, exactly `{ allowReplaceAndCreate: true }`. The module's only code occurrence of that option is in this action (a structural pin), so the toggle stays reactivate only.
+3. **Result type** `AssignInscripcionState` in `src/lib/catalog/types.ts`: `{ kind: "done", outcome: "created" | "reactivated", replaced: number }`, `{ kind: "error", message }`, `{ kind: "gone" }`. `replaced` is a COUNT; the replaced group ids stay on the server. The success message and the link back to the list (15.2) are the UI's.
+4. **Two refusal keys of its own.** `catalog.inscripciones.errors.assign_not_eligible` and `assign_already_enrolled` (es and en). The existing `not_eligible` and `already_enrolled` copy says the enrollment "could not be reactivated", which is wrong for a create or a change group. Zod refusals and thrown errors reuse `unexpected`.
+5. **THE CONFIRM MARKER (reported, as asked).** `tasks.md` and CS-8 define NO server-checked confirm marker. CS-8 says the confirm step is a client step ("a client confirm step names student, asignatura, new group and, when present, the replaced group"), 15.2 pins the call as `(estudianteId, grupoId)` only, and EA-SIB-1 puts the confirmation in the dialog. So the server does NOT know the user confirmed: an in-scope secretaria who posts the action directly can create or replace without the dialog. What the server does guarantee on that path is the same authority she has through the page: guard, facultad scope on the student, one lock, an atomic replace and both audit rows with her as actor, and no effect on another facultad. The fail-closed writer option stops the OTHER caller (the list toggle) from replacing; it cannot stop this one by design. If the owner wants server-side proof of confirmation, the options are a third `confirmReplaceOf` argument (the sibling group id the dialog named, which the writer would compare with the siblings it actually finds, refusing on a mismatch) or a short-lived signed token minted when the page renders; both change the 15.2 call shape and the writer, so they are a design decision for the owner, not taken here. Recorded for the verify phase.
+6. **A target of another asignatura** is still not refused by the writer (S3a-2 deviation 3). The picker of S3a-1 and S3b-1 is the only source of `grupoId` for a change; the action does not know the "current group".
+7. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones/actions.test.ts" "src/app/(dashboard)/catalog/inscripciones/guards.test.ts" src/i18n/catalog-parity.test.ts src/app/route-coverage.test.ts src/app/access-matrix.actions.test.ts src/lib/validations/inscripcion.test.ts` -> 6 files, 699 passed (RED runs: 41 failed of 80 in the actions file; 3 failed of 22 in guards; 5 failed of 255 in parity) |
+| Runtime harness | N/A: the action runs on a mocked session and a double writer, and nothing renders it until S3b-2 (the real-database walk W3 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `ac9b987`: the action, the result type, the two copy keys, the matrix row and the test and pin additions; the writer and the list toggle are untouched |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 699/699 |
+| `npm test` (full suite) | 374 files, 9445 passed, 0 failed (the first run had 1 failed of 9445 under load, not identified because only the tail was kept; the re-run with the full log was clean) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 6 touched code files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3a2-writer-replace...HEAD -- . ':!openspec' ':!.engram'` -> 8 files changed, 447 insertions(+), 2 deletions(-) = **449 changed lines** (forecast ~270; 1.7x), under the 800 budget. Per file: `actions.test.ts` 279 (278 + 1), `actions.ts` 73 (72 + 1), `guards.test.ts` 54, `catalog-parity.test.ts` 28, `types.ts` 10, locales 4, `matrix-table.ts` 1. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3a-3 (parent) and Phases 14-17 (S3b-1 onward). Phase 15's form must call `assignInscripcionAction(estudianteId, grupoId)` with those two arguments only and render the `done`, `error` and `gone` states; the confirm marker question (decision 5) is the owner's.

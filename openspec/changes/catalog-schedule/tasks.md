@@ -211,11 +211,12 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 13: S3a-3 assign action (EA-CHG-1, EA-CRE-1, EA-SCOPE-1, CS-9)
 
-- [ ] 13.1 Branch `feat/catalog-schedule-s3a3-assign-action` from S3a-2.
-- [ ] 13.2 RED `CI/actions.test.ts`, `assignInscripcionAction(estudianteId, grupoId)`: denied identities table (6 rows) -> no write, no revalidate; forged actor or student ignored; zod refusal; created, reactivated and replaced -> success and `revalidatePath("/catalog/inscripciones")` once; `already_enrolled` and `not_eligible` -> error copy; `not_student` -> `gone`; thrown -> `unexpected`; out-of-scope table (change group, create) -> refused, no audit.
-- [ ] 13.3 GREEN `CI/actions.ts`: `assignInscripcionAction` (guard first, then zod, then `staffEnrollInGroup`). Verify: `npx vitest run "src/app/(dashboard)/catalog/inscripciones/actions.test.ts" "src/app/(dashboard)/catalog/inscripciones/guards.test.ts"`.
-- [ ] 13.4 RED then GREEN: `CI/guards.test.ts` still passes with the second action; error keys for the assign outcomes added to `catalog.inscripciones.errors.*` in both locales with parity pin.
-- [ ] 13.5 Gates G + measure (~270). Open PR. Commit: `feat(enrollment): add the staff assign server action`.
+- [x] 13.1 Branch `feat/catalog-schedule-s3a3-assign-action` from S3a-2.
+- [x] 13.2 RED `CI/actions.test.ts`, `assignInscripcionAction(estudianteId, grupoId)`: denied identities table (6 rows) -> no write, no revalidate; forged actor or student ignored; zod refusal; created, reactivated and replaced -> success and `revalidatePath("/catalog/inscripciones")` once; `already_enrolled` and `not_eligible` -> error copy; `not_student` -> `gone`; thrown -> `unexpected`; out-of-scope table (change group, create) -> refused, no audit.
+- [x] 13.3 GREEN `CI/actions.ts`: `assignInscripcionAction` (guard first, then zod, then `staffEnrollInGroup`). Verify: `npx vitest run "src/app/(dashboard)/catalog/inscripciones/actions.test.ts" "src/app/(dashboard)/catalog/inscripciones/guards.test.ts"`.
+- [x] 13.4 RED then GREEN: `CI/guards.test.ts` still passes with the second action; error keys for the assign outcomes added to `catalog.inscripciones.errors.*` in both locales with parity pin.
+- [x] 13.5 Gates G + measure (~270). Open PR. Commit: `feat(enrollment): add the staff assign server action`.
+  - Apply result (2026-11-20): gates G green (typecheck, focused 699/699, full suite 374 files and 9445 passed, build OK, eslint and prettier clean on the touched files). Commit `ac9b987` measured **449 authored lines** (447 added, 2 removed; forecast ~270, 1.7x) against the S3a-2 branch, under the 800 budget. Deviations: the action returns `AssignInscripcionState` (`done` with `outcome` and a `replaced` COUNT, `error`, `gone`) and has two refusal keys of its own (`assign_not_eligible`, `assign_already_enrolled`), because the list's reactivation wording would be wrong for a create or a change group; the confirm marker: `tasks.md` and CS-8 define none and 15.2 pins the call as `(estudianteId, grupoId)` only, so the server CANNOT verify the confirmation (it is the client step of S3b-2), see `apply-progress.md`. PR NOT opened (parent owns it).
 
 ## Phase 14: S3b-1 assign page, audited search, list links (EA-CRE-1, EA-CHG-1, EA-SIB-1, D10)
 
