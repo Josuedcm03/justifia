@@ -1827,3 +1827,84 @@ Under the 460 stop line. Tests are 79 percent of the lines and were not trimmed.
 1. **Cut.** S9c is cut at the plan's candidate seam after unit 24: this PR is the duration, "feat/flow-experience-9c2-keep-session-form" is the wiring. The cut was made after both units were written and committed once, because the whole slice measured 570 lines; each PR was then verified on its own tip.
 2. **No UI text in this PR.** The label "Mantener la sesión iniciada" and every catalog key are in PR 9c2.
 3. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.
+
+### PR 9c2: the checkbox, the sign-in and the password-change re-issue (unit 25; closes S9c)
+
+Branch "feat/flow-experience-9c2-keep-session-form", cut from the tip of "feat/flow-experience-9c-keep-session" (830bd83, PR #128, "https://github.com/Josuedcm03/justifia/pull/128"). Its PR targets that branch.
+
+#### Commits (PR 9c2)
+
+| Unit | Hash    | Message                                                                 |
+| ---- | ------- | ----------------------------------------------------------------------- |
+| 25   | a41adb6 | feat(auth): keep the session signed in for 30 days when requested       |
+| docs | (tip)   | docs(flow-experience): record the Phase 11 apply progress for PR 9c2    |
+
+#### TDD cycle evidence (PR 9c2)
+
+| Task          | Test file                                              | Layer                  | Safety net                              | RED                                                                                                                        | GREEN                    | Triangulation                                                                                                                                                                                                                                                                                  | Refactor    |
+| ------------- | ------------------------------------------------------ | ---------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 11.5 and 11.6 | `src/app/(auth)/login/actions.test.ts`                 | Unit (server action)   | 34 existing cases of the file passing   | 14 failed first: 5 old cases edited to the new cookie call ("signed-token", false) and 9 new ones; the failed-attempt, redirect and sign-out cases pass at write | 48 passed in the file    | "on" gives the exact payload with the claim and the 30-day cookie; absent gives today's exact payload and 8 hours; six other values ("", "off", "true", "1", "ON", "yes") read as unchecked; a flagged account carries both the flag and the claim; failed attempts with the box checked sign nothing | None needed |
+| 11.5 and 11.6 | `src/app/change-password/actions.test.ts`              | Unit (server action)   | 22 existing cases of the file passing   | 6 failed first (the edited re-issue case and 5 new ones)                                                                   | 27 passed in the file    | A kept session re-issues with the claim, the flag cleared and the 30-day cookie; no claim and a false claim give no key and 8 hours; a voluntary change by a kept, unflagged session keeps its 30 days; the claim is never read from the form                                                  | None needed |
+| 11.5 and 11.6 | `src/app/(auth)/login/login-form.test.tsx`             | Component              | 9 existing cases of the file passing    | 5 of the 6 new cases failed first (the box did not exist); "posts no mantener when unchecked" passes at write                | 15 passed in the file    | es and en: a native unchecked checkbox named "mantener"; the catalog values pinned; a real submit posts "mantener=on" when checked and no key when not; the identifier and the password still travel                                                                                         | None needed |
+| 11.5          | `src/app/(auth)/register/actions.test.ts`              | Unit (server action)   | 23 existing cases of the file passing   | Pass at write                                                                                                              | 25 passed in the file    | The session is issued with no claim and `setSessionCookie` gets exactly the token; a posted "mantener=on" is ignored                                                                                                                                                                          | N/A         |
+
+#### Mutation checks (revert-only; files restored from byte-identical backup copies and confirmed with "cmp")
+
+| Pass-at-write test                                               | Temporary edit                                                              | Result                            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------- |
+| the register pins (task 11.5)                                    | `register/actions.ts` passes the keep flag (`setSessionCookie(token, true)`) | 3 failed (4 in the file)          |
+| "clears the session cookie on sign-out after a kept sign-in"     | `login/actions.ts` skips `clearSessionCookie` in `logoutAction`             | 2 failed, 46 passed               |
+| "posts no mantener when the box is left unchecked" and the offer | `login-form.tsx` renders the box with `defaultChecked`                       | 4 failed                          |
+| "signs nothing for a wrong password with the box checked"        | `login/actions.ts` drops the password check                                 | 4 failed                          |
+
+#### Checkpoint (task 11.9, part 2): measured size of PR 9c2 and of S9c
+
+Measure: "git diff --numstat feat/flow-experience-9c-keep-session...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                                                  | Changed lines |
+| ------------------------------------------------------------------------------------------------------ | ------------- |
+| Production (login action 8, form 8, password change 8) and the two catalogs (2)                         | 26            |
+| Tests (login action 153, form 69, register 27, password change 88)                                      | 337           |
+| All of PR 9c2 (357 added, 6 deleted)                                                                    | 363           |
+| PR 9c (unit 24, 197 added, 10 deleted)                                                                  | 207           |
+| All of S9c                                                                                              | 570           |
+
+The design forecast was about 180; S9c was 570 lines, 3.2 times that, and was cut at the plan's seam after unit 24 (stop line 460). Tests are 91 percent of the lines of 9c2 and were not trimmed.
+
+#### Work unit evidence (PR 9c2)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- session.test cookies.test login/actions change-password/actions (auth)/register/actions login-form src/i18n": 15 files, 593 tests, all passed. The access proof: "npm test -- access-matrix route-coverage src/test/access": 4 files, 536 tests, all passed |
+| Runtime harness                       | Owner-run: the cookie "Max-Age" check on "flow-it" (task 12.5): 30 days with the box checked, 8 hours unchecked, logout removes it, a flagged account keeps its duration after the forced change. No database command was run in this apply                                                |
+| Rollback boundary                     | Revert the PR: the form loses the box and the action ignores "mantener"; PR 9c stays and tokens without the claim stay valid. A 30-day session already issued stays valid until it expires (there is no session table)                                                                    |
+
+#### Gates (tasks 11.10 and the final run), tip of "-9c2-keep-session-form" (the S9c tip and the end of the chain)
+
+- Full "npm test": 381 files, 9613 tests, all passed, 325.9 s. The PR 9c tip had 381 files and 9586 tests; PR 9c2 adds 27 cases and no file.
+- "npm run typecheck": exit 0.
+- "npx eslint" on the 42 `src` files touched by S9a to S9c (LF in the working tree): exit 0, no finding. With CRLF working copies the same command reports only the known "Delete ␍" prettier noise (1968 lines) and no other finding; "npx prettier --check" is clean on those files and both catalogs (with "--end-of-line auto" when the checkout wrote CRLF). "npx eslint src" over the whole tree was not repeated.
+- Access matrix and route inventory, run on their own: 4 files, 536 tests, all passed, `src/test/access` untouched: no row added or changed by the login, register and S9c changes.
+
+#### Files (PR 9c2; all LF in the working tree, the index was already LF)
+
+| File                                                                                 | Action                                                                       |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `src/app/(auth)/login/actions.ts` and its test                                       | Modified: reads "mantener", adds the claim only when true, passes the flag; 14 new cases |
+| `src/app/(auth)/login/login-form.tsx` and its test                                   | Modified: the native checkbox with its label; 6 new cases                    |
+| `src/app/change-password/actions.ts` and its test                                    | Modified: carries the claim and the cookie flag; 5 new cases and 1 edited     |
+| `src/app/(auth)/register/actions.test.ts`                                            | Modified: 2 pass-at-write pins of the 8-hour session                         |
+| `i18n/es.json`, `i18n/en.json`                                                       | Modified: "auth.login.keepSession"                                           |
+
+#### Final Spanish UI copy of S9c (sign-in page, "usted"-neutral label; English twin in the catalog)
+
+- "auth.login.keepSession": "Mantener la sesión iniciada" (`en`: "Keep me signed in"). It sits under the password, unchecked by default.
+
+#### Deviations (PR 9c2)
+
+1. **Cut and branch.** S9c is cut at the plan's seam after unit 24 into "feat/flow-experience-9c-keep-session" and this branch; the second one was rebased onto the first one's docs commit.
+2. **Cookie call.** The login and password-change actions always pass the flag, `setSessionCookie(token, false)` for an unchecked session, so the older assertions `toHaveBeenCalledWith("signed-token")` of those two test files were edited; the register action still passes only the token.
+3. **Claim shape.** A false or missing claim is never written: the actions spread `{ mantenerSesion: true }` only when kept, so an unchecked token has today's exact shape; a session carrying `false` re-issues without the key.
+4. **Test typing.** The mocks have no typed parameters, so a small `signedPayload()` helper reads the first signed claims in three test files.
+5. **Label spacing.** The label uses the `Label` component with a 44 px target (`min-h-11`) beside the native checkbox, like the checkbox group.
+6. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.
