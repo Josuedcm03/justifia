@@ -455,3 +455,61 @@ Branch `feat/catalog-schedule-s2a-writer`, created from `feat/catalog-schedule-s
 ### Remaining tasks
 
 Open PR for S2a-1 (parent); Phase 8 (8.2-8.6: staff reactivate, `staffEnrollInGroup`, picker and enrollment additive asserts) and Phases 9-17.
+
+## Batch 8: S2a-2 staff reactivate (tasks 8.1-8.6, complete; Phase 9 NOT started)
+
+Branch `feat/catalog-schedule-s2a2-staff-enroll`, created from `feat/catalog-schedule-s2a1-writer-actor` (S2a-1, PR #131). On 2026-11-20 S2a went back to two PRs (Batch 7 had merged them on one branch and stopped at the size rule). Date: 2026-11-20. Commit `8361510` `feat(enrollment): add the staff reactivation without replace`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 8.1 branch (this one)
+- [x] 8.2 RED reactivate-only table, 8.3 RED not sticky and lock first/audit last, 8.4 additive picker and enrollment asserts, 8.5 GREEN `staffEnrollInGroup`
+- [x] 8.6 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 8.2 | `enrollment-write-staff.test.ts` | Unit (db double, `PgDialect` render) | 76/76 across the five writer and reader files before any edit | 14 failed (`staffEnrollInGroup is not a function`) | 94/94 across the five files | success (statement order select x4, update, insert; `set {activo: true}`; audit actor = staff, entity = student, payload `{grupoId}`); reactivate where and audit row equal the student's except the actor; older period, grupo inactive, asignatura inactive each fragment-checked (`not_eligible`, two statements); already active (`already_enrolled`); NO existing row (`not_eligible`, three selects, no insert); unknown or out-of-scope student and scope `none` (`not_student`, one statement); sibling found: `not_eligible`, four selects, no update, no audit, lock first; sibling read renders the SAME where as the student's sibling update (shared predicate); several siblings also refused | Sibling predicate extracted to `siblingsOf`, used by both modes |
+| 8.3 | same file | Unit | same run | the two `staffEnrollInGroup` cases red; the student re-enroll case and the `staffDropGroup` order case pass at once (characterization of unchanged code) | pass | staff drop then the student's `enrollInGroup`: one `reactivada`, actor = student, same row (params `S`, `G`, `false`, never the staff id); lock first, exactly one lock, audit last, everything in one transaction, for `staffDropGroup` and `staffEnrollInGroup`; failing audit insert rethrows, one sanitized log with the STAFF actor | Clean |
+| 8.4 | `enrollment-picker.test.ts`, `enrollment.test.ts` | Unit (db double) | in the 76 above | none possible: no production change (characterization; the table has three columns, so no author or `Origen` column exists) | pass | `Inscripcion` columns in the schema are exactly `estudianteId`, `grupoId`, `activo`; the rendered where of `listMyEnrollments` and of `listEligibleGroups` names only `Inscripcion.EstudianteId` and `Inscripcion.Activo` | Clean |
+| 8.5 | `enrollment-write.ts` | GREEN | n/a | n/a | the five files pass: 94/94 | n/a | n/a |
+
+Mutation checks (production restored after each): dropping the "no existing row" guard and the sibling refusal turned the sibling tests and the create-refusal test red; removing `Inscripcion.Activo` from `ACTIVE_ENROLLMENT` turned the new reader asserts and four more existing tests red.
+
+Totals: 16 new tests in the staff file, 1 each in the picker and enrollment files (18). Layers: unit only. Student statements and signatures are untouched: `enrollment-write.test.ts` and `inscripcion-writes.test.ts` are unedited and green.
+
+### Decisions and deviations
+
+1. **Reactivate-only option on `enrollWork`.** `enrollWork(estudianteId, grupoId, { reactivateOnly })`, default `false`. With the default it issues the same statements as before (the sibling `where` moved into the shared `siblingsOf` predicate and renders the same SQL; the student tests pass unedited). With `reactivateOnly` it (a) answers `not_eligible` when there is no existing row, so nothing is ever inserted, and (b) READS the siblings with the same predicate instead of updating them, answering `not_eligible` when one exists. No statement of that mode touches any row but the target. S3a-2 lifts both limits by dropping the option.
+2. **Sibling refusal reason.** `not_eligible` (no new union member, CS-2). The server action of S2b maps it to the generic error copy; a more specific message would need a new code, which the design rejected.
+3. **Statement order of the staff reactivate:** lock, target, existing row, sibling read, reactivate update, audit. The existing-row check runs before the sibling read so a create attempt costs one statement less.
+4. **No new exports besides `staffEnrollInGroup`.** `EnrollResult`, `DropResult`, `EnrollmentErrorCode` and the writer allowlist are unchanged.
+5. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/enrollment-write-staff.test.ts src/lib/data/enrollment-write.test.ts src/lib/data/inscripcion-writes.test.ts src/lib/data/enrollment-picker.test.ts src/lib/data/enrollment.test.ts` -> 5 files, 94 passed (RED run of the staff file: 14 failed) |
+| Runtime harness | N/A: DB double; no caller until S2b-1 (real-database walk W2 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `8361510`: `staffEnrollInGroup`, the `reactivateOnly` option and `siblingsOf`; the student tests are unchanged and stay green |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 94/94 |
+| `npm test` (full suite) | 373 files, 9217 passed, 0 failed |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 4 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 4 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2a1-writer-actor...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 401 insertions(+), 18 deletions(-) = **419 changed lines** (forecast ~200; 2.1x), under the 800 budget. Per file: `enrollment-write-staff.test.ts` about 300, `enrollment-write.ts` about 80, `enrollment-picker.test.ts` 25, `enrollment.test.ts` 15.
+
+### Remaining tasks
+
+Open PR for S2a-2 (parent) and Phases 9-17 (S2b-1 onward).

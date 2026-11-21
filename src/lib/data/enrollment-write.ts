@@ -165,7 +165,32 @@ async function writeEnrollment<R extends EnrollResult | DropResult>(
   }
 }
 
-function enrollWork(estudianteId: number, grupoId: number) {
+/** The sibling term of the spec: the student's OTHER raw-active rows of the
+ *  same asignatura and period, whatever the state of their grupo. The student
+ *  replace updates these rows and the staff reactivate refuses when any exists
+ *  (EA-REACT-1 until EA-SIB-1), both through this one predicate. */
+function siblingsOf(
+  estudianteId: number,
+  grupoId: number,
+  target: { asignaturaId: number; periodo: string },
+) {
+  return and(
+    eq(inscripcion.estudianteId, estudianteId),
+    eq(inscripcion.activo, true),
+    ne(inscripcion.grupoId, grupoId),
+    sql`${inscripcion.grupoId} in (select ${grupo.id} from ${grupo} where ${grupo.asignaturaId} = ${target.asignaturaId} and ${grupo.periodo} = ${target.periodo})`,
+  );
+}
+
+/** `reactivateOnly` is the staff mode of S2 (CS-3, CS-8): an existing inactive
+ *  row is required (nothing is created), and a sibling refuses instead of being
+ *  replaced, so no statement of that mode changes any row but the target. The
+ *  student path never sets it and issues the same statements as before. */
+function enrollWork(
+  estudianteId: number,
+  grupoId: number,
+  { reactivateOnly }: { reactivateOnly: boolean } = { reactivateOnly: false },
+) {
   return async (tx: Transaction): Promise<EnrollResult> => {
     const [target] = await tx
       .select({
@@ -194,19 +219,25 @@ function enrollWork(estudianteId: number, grupoId: number) {
       .from(inscripcion)
       .where(pair);
     if (existing?.activo) return { ok: false, reason: "already_enrolled" };
+    if (reactivateOnly && !existing)
+      return { ok: false, reason: "not_eligible" };
 
-    const siblings = await tx
-      .update(inscripcion)
-      .set({ activo: false })
-      .where(
-        and(
-          eq(inscripcion.estudianteId, estudianteId),
-          eq(inscripcion.activo, true),
-          ne(inscripcion.grupoId, grupoId),
-          sql`${inscripcion.grupoId} in (select ${grupo.id} from ${grupo} where ${grupo.asignaturaId} = ${target.asignaturaId} and ${grupo.periodo} = ${target.periodo})`,
-        ),
-      )
-      .returning({ grupoId: inscripcion.grupoId });
+    const siblingRows = siblingsOf(estudianteId, grupoId, target);
+    let replaced: number[] = [];
+    if (reactivateOnly) {
+      const [sibling] = await tx
+        .select({ grupoId: inscripcion.grupoId })
+        .from(inscripcion)
+        .where(siblingRows);
+      if (sibling) return { ok: false, reason: "not_eligible" };
+    } else {
+      const siblings = await tx
+        .update(inscripcion)
+        .set({ activo: false })
+        .where(siblingRows)
+        .returning({ grupoId: inscripcion.grupoId });
+      replaced = siblings.map((row) => row.grupoId);
+    }
 
     if (existing) {
       await tx
@@ -222,7 +253,7 @@ function enrollWork(estudianteId: number, grupoId: number) {
       ok: true,
       kind: existing ? "reactivated" : "created",
       grupoId,
-      replaced: siblings.map((row) => row.grupoId),
+      replaced,
     };
   };
 }
@@ -266,6 +297,27 @@ export function dropGroup(
   return writeEnrollment<DropResult>(
     { kind: "student", estudianteId },
     dropWork(estudianteId, grupoId),
+  );
+}
+
+/** A secretaria reactivates a student's inactive inscripcion of an offered
+ *  group (EA-REACT-1, CS-3, CS-8). S2 is reactivate only: no row is created and
+ *  an active sibling is refused (`not_eligible`) under the student's row lock,
+ *  never replaced; S3 lifts both limits with the confirmation of EA-SIB-1. The
+ *  audit actor is `staff.actorId`; refusals reuse the existing reasons (CS-2). */
+export function staffEnrollInGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+): Promise<EnrollResult> {
+  return writeEnrollment<EnrollResult>(
+    {
+      kind: "staff",
+      actorId: staff.actorId,
+      scope: staff.scope,
+      estudianteId,
+    },
+    enrollWork(estudianteId, grupoId, { reactivateOnly: true }),
   );
 }
 

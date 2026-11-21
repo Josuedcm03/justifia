@@ -1,9 +1,9 @@
 // @vitest-environment node
-import type { SQL } from "drizzle-orm";
+import { getTableColumns, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { usuario } from "@/db/schema";
+import { inscripcion, usuario } from "@/db/schema";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 
 import { createDbDouble, type Step } from "./test-support/db-double";
@@ -118,6 +118,27 @@ describe("listMyEnrollments (RF-17, RF-04)", () => {
     expect((double.log[0].orderBy as SQL[]).map((o) => render(o).sql)).toEqual([
       '"Asignatura"."Nombre" asc',
       '"Grupo"."NumeroGrupo" asc',
+    ]);
+  });
+
+  it("reads only Inscripcion.Activo of the row, with no author or origin column, so a staff change shows at once (EA-WRITE-1)", async () => {
+    const double = use([{ kind: "select", rows: [enrollment(1, "Dr. Ruiz")] }]);
+
+    await listMyEnrollments(S);
+
+    // The table has no author, origin or staff column to read, and the filter
+    // names only the student and the raw state.
+    expect(Object.keys(getTableColumns(inscripcion))).toEqual([
+      "estudianteId",
+      "grupoId",
+      "activo",
+    ]);
+    const columns = render(double.log[0].where).sql.match(
+      /"Inscripcion"\."\w+"/g,
+    );
+    expect([...new Set(columns)].sort()).toEqual([
+      '"Inscripcion"."Activo"',
+      '"Inscripcion"."EstudianteId"',
     ]);
   });
 
