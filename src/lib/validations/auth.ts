@@ -14,8 +14,14 @@ export const rolesUsuario = [
 
 export const rolUsuarioSchema = z.enum(rolesUsuario);
 
+/**
+ * The sign-in field holds the CIF or the institutional email (FE-21), so its
+ * limit is the 160 characters of `Usuario.Correo`, not the 60 of a username.
+ * Its message is shown nowhere: the action answers every failure with the same
+ * generic text (FE-23).
+ */
 export const loginSchema = z.object({
-  login: z.string().trim().min(1, "Ingresa tu usuario").max(60),
+  login: z.string().trim().min(1, "Ingrese su CIF o correo").max(160),
   password: z.string().min(8, "Mínimo 8 caracteres").max(128),
 });
 
