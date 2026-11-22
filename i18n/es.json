@@ -539,6 +539,60 @@
         "placeholder": "Nombre o correo"
       },
       "tableCaption": "Lista de docentes"
+    },
+    "inscripciones": {
+      "title": "Inscripciones",
+      "subtitle": "Consulta las inscripciones de los estudiantes de tu facultad.",
+      "tableCaption": "Lista de inscripciones",
+      "columns": {
+        "student": "Estudiante",
+        "subject": "Asignatura",
+        "period": "Periodo",
+        "group": "Grupo",
+        "state": "Estado"
+      },
+      "state": {
+        "active": "Activa",
+        "inactive": "Inactiva",
+        "effective": "Vigente",
+        "notEffective": "No vigente"
+      },
+      "filters": {
+        "label": "Filtrar inscripciones",
+        "student": {
+          "label": "Estudiante",
+          "placeholder": "Nombre o CIF"
+        },
+        "asignatura": {
+          "label": "Asignatura",
+          "placeholder": "Código o nombre"
+        },
+        "grupo": {
+          "label": "Grupo",
+          "placeholder": "Número"
+        },
+        "periodo": {
+          "label": "Periodo",
+          "latest": "Periodo más reciente"
+        },
+        "status": {
+          "label": "Estado",
+          "active": "Activas",
+          "inactive": "Inactivas"
+        },
+        "apply": "Aplicar filtros"
+      },
+      "empty": "No hay inscripciones activas que mostrar.",
+      "noResults": {
+        "title": "Sin resultados para «{q}»",
+        "titleFilters": "No hay inscripciones con estos filtros.",
+        "hint": "Prueba con otros filtros, o quítalos para volver a la vista predeterminada."
+      },
+      "degraded": "No se pudieron cargar las inscripciones. Vuelve a intentarlo en unos minutos.",
+      "noFacultad": {
+        "title": "Tu cuenta no tiene una facultad asignada",
+        "message": "Pide a quien administra el sistema que asigne una facultad a tu cuenta antes de consultar las inscripciones."
+      }
     }
   },
   "denied": {
