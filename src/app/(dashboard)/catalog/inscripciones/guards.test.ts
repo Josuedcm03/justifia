@@ -132,3 +132,96 @@ describe("inscripciones links never prefetch the audited page (D10)", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// Server actions (EA-ACC-1, CS-9): an action does not inherit the page guard,
+// so each exported one must resolve `requireEnrollmentAccess()` before anything
+// else and must not touch the form data until it has.
+const actionFiles = filesUnder(SEGMENT_DIR)
+  .filter((path) => /actions\.ts$/.test(path))
+  .map((path) => ({
+    path: relative(ROOT, path).replace(/\\/g, "/"),
+    text: readFileSync(path, "utf8"),
+  }));
+
+/** A form read: `get` and `getAll`. */
+const FORM_READ = /\b(formData|fd)\.get(All)?\(/;
+
+/** True when the source reads the form before the first `await`. */
+function readsFormBeforeAwait(source: string): boolean {
+  const firstAwait = source.indexOf("await ");
+  return FORM_READ.test(source.slice(0, firstAwait));
+}
+
+/** Each exported function with its body (up to the next export or the end). */
+function exportedFunctions(text: string) {
+  const starts = [...text.matchAll(/^export async function (\w+)\(/gm)];
+  return starts.map((match, i) => ({
+    name: match[1],
+    body: text.slice(match.index, starts[i + 1]?.index ?? text.length),
+  }));
+}
+
+describe("inscripciones server actions (structure)", () => {
+  it("discovers exactly the expected actions module", () => {
+    expect(actionFiles.map((f) => f.path)).toEqual([
+      "src/app/(dashboard)/catalog/inscripciones/actions.ts",
+    ]);
+  });
+
+  it.each([
+    ["get", 'const d = formData.get("id");'],
+    ["getAll", 'const d = formData.getAll("id");'],
+    ["fd.get", 'const d = fd.get("id");'],
+  ])("the form-read check catches %s before the guard", (_name, read) => {
+    const early = `export async function a(_p, formData) {\n  ${read}\n  await requireEnrollmentAccess();\n}`;
+    const late = `export async function a(_p, formData) {\n  await requireEnrollmentAccess();\n  ${read}\n}`;
+
+    expect(readsFormBeforeAwait(early)).toBe(true);
+    expect(readsFormBeforeAwait(late)).toBe(false);
+  });
+
+  it.each(actionFiles.map((f) => [f.path, f] as const))(
+    "%s: every exported action awaits requireEnrollmentAccess() first, before any form read",
+    (_path, file) => {
+      const actions = exportedFunctions(file.text);
+      expect(actions.map((a) => a.name)).toEqual([
+        "setInscripcionActivoAction",
+      ]);
+
+      for (const action of actions) {
+        const firstAwait = action.body.indexOf("await ");
+        expect(firstAwait, action.name).toBeGreaterThanOrEqual(0);
+        expect(action.body.slice(firstAwait), action.name).toMatch(
+          /^await requireEnrollmentAccess\(\)/,
+        );
+        expect(action.body.slice(0, firstAwait), action.name).not.toMatch(
+          FORM_READ,
+        );
+      }
+    },
+  );
+
+  it.each(actionFiles.map((f) => [f.path, f] as const))(
+    "%s: is a 'use server' module that exports only async functions",
+    (_path, file) => {
+      expect(file.text.startsWith('"use server";')).toBe(true);
+      const exported = [
+        ...file.text.matchAll(/^export (?!type |async function )/gm),
+      ];
+      expect(exported).toEqual([]);
+    },
+  );
+
+  it.each(actionFiles.map((f) => [f.path, f] as const))(
+    "%s: uses the enrollment guard and the staff writers only, and never reads an actor from the form",
+    (_path, file) => {
+      // The catalog guard admits administrador and coordinacion.
+      expect(file.text).not.toContain("requireCatalogAccess");
+      // The student writers are the student's path (no actor, no scope).
+      expect(file.text).not.toMatch(/\b(enrollInGroup|dropGroup)\b/);
+      expect(file.text).not.toMatch(
+        /\.get(All)?\(\s*["'](actorId|estudianteId|scope|rol)["']/,
+      );
+    },
+  );
+});
