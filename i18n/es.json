@@ -659,6 +659,25 @@
           "currentNotice": "{student} está actualmente en el grupo {number} de esta asignatura.",
           "noCurrent": "{student} no tiene un grupo activo en esta asignatura para este periodo.",
           "empty": "Esta asignatura no tiene grupos que se ofrezcan."
+        },
+        "form": {
+          "choose": "Asignar este grupo",
+          "chooseLabel": "Asignar el grupo {number} a {student}",
+          "confirm": {
+            "title": "Confirmar la asignación",
+            "create": "{student} se inscribirá en el grupo {number} de {subject} para {periodo}.",
+            "replace": "{student} pasará al grupo {number} de {subject} para {periodo}. Esto reemplaza el grupo {replaced}, que se desactivará.",
+            "cancel": "Cancelar",
+            "submit": "Confirmar",
+            "pending": "Guardando…"
+          },
+          "done": {
+            "created": "Se inscribió a {student} en el grupo {number}.",
+            "reactivated": "Se reactivó la inscripción de {student} en el grupo {number}.",
+            "replacedNote": "El grupo anterior se desactivó.",
+            "back": "Volver a la lista"
+          },
+          "reload": "Recargar esta página"
         }
       }
     }

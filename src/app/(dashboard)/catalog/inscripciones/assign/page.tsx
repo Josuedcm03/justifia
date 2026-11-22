@@ -10,18 +10,19 @@ import { requireEnrollmentAccess } from "@/lib/auth/enrollment-access";
 import { loadAssignPage, searchStudents } from "@/lib/data/inscripciones";
 import { recordEnrollmentStudentSearch } from "@/lib/data/request-reads";
 
-import { AssignGroups } from "./assign-groups";
+import { AssignForm } from "./assign-form";
 import { parseAssignParams } from "./assign-params";
 import { AsignaturaPicker } from "./asignatura-picker";
 import { StudentResults, StudentSearchForm } from "./student-search";
 
 /**
- * The staff assign page (EA-CRE-1, EA-CHG-1), read-only in this slice: the
- * student search, the chosen student, the subject choice and the offered groups
- * with the student's current group named. The form with the confirmation is
- * S3b-2. The guard is the first statement (EA-ACC-1) and the facultad scope
- * comes from it, never from the URL (EA-SCOPE-1): a malformed, unknown or
- * out-of-scope `estudiante` is not found, alike, before any group is read.
+ * The staff assign page (EA-CRE-1, EA-CHG-1): the student search, the chosen
+ * student, the subject choice and the offered groups with the student's current
+ * group named. The page itself only reads; the confirmed form (a client
+ * component) is the one place that writes. The guard is the first statement
+ * (EA-ACC-1) and the facultad scope comes from it, never from the URL
+ * (EA-SCOPE-1): a malformed, unknown or out-of-scope `estudiante` is not found,
+ * alike, before any group is read.
  * Each successful search writes one audit row after its results loaded, never
  * in the degraded branch (D10); a failed insert throws to the error boundary,
  * so no result is shown without its row. No link of this page prefetches it.
@@ -74,7 +75,7 @@ export default async function AssignPage({
 
     const { data } = result;
     // Picked field by field (EA-PII-1): a column a read gains later never
-    // reaches the components, which are the S3b-2 form's props.
+    // reaches the components, which are the confirmed form's props.
     const student = {
       id: data.student.id,
       nombreCompleto: data.student.nombreCompleto,
@@ -119,7 +120,7 @@ export default async function AssignPage({
             />
             {params.asignatura === null ? null : picked &&
               data.groups.length > 0 ? (
-              <AssignGroups
+              <AssignForm
                 student={student}
                 asignatura={{
                   id: picked.id,

@@ -659,6 +659,25 @@
           "currentNotice": "{student} is currently in group {number} of this subject.",
           "noCurrent": "{student} has no active group in this subject for this period.",
           "empty": "This subject has no offered groups."
+        },
+        "form": {
+          "choose": "Assign this group",
+          "chooseLabel": "Assign group {number} to {student}",
+          "confirm": {
+            "title": "Confirm the assignment",
+            "create": "{student} will be enrolled in group {number} of {subject} for {periodo}.",
+            "replace": "{student} will be moved to group {number} of {subject} for {periodo}. This replaces group {replaced}, which will be deactivated.",
+            "cancel": "Cancel",
+            "submit": "Confirm",
+            "pending": "Saving…"
+          },
+          "done": {
+            "created": "{student} was enrolled in group {number}.",
+            "reactivated": "{student}'s enrollment in group {number} was reactivated.",
+            "replacedNote": "The previous group was deactivated.",
+            "back": "Back to the list"
+          },
+          "reload": "Reload this page"
         }
       }
     }
