@@ -56,6 +56,12 @@ const REACTIVATED = {
   grupoId: G,
   replaced: [],
 } as const;
+// The only way to create or replace (the assign flow of EA-SIB-1); a call
+// without it is the list's reactivate-only mode.
+const FULL = { allowReplaceAndCreate: true } as const;
+const NO_ROW = { kind: "select", rows: [] } as const;
+const NO_SIBLING_UPDATE = { kind: "update", rows: [] } as const;
+const INSERT = { kind: "insert" } as const;
 
 function use(script: Step[]) {
   const double = createDbDouble(script);
@@ -404,7 +410,7 @@ describe("staff atomicity and failure (EA-DEG-1 Write fails)", () => {
   });
 });
 
-describe("staffEnrollInGroup, reactivate only (EA-REACT-1, CS-3, CS-8)", () => {
+describe("staffEnrollInGroup by default, reactivate only (EA-REACT-1, CS-3, CS-8)", () => {
   const SUCCESS = [
     STUDENT,
     TARGET,
@@ -413,6 +419,35 @@ describe("staffEnrollInGroup, reactivate only (EA-REACT-1, CS-3, CS-8)", () => {
     REACTIVATE,
     AUDIT,
   ];
+
+  it.each([
+    {
+      label: "no row (would be a create)",
+      script: [STUDENT, TARGET, NO_ROW],
+    },
+    {
+      label: "an inactive row and an active sibling (would be a replace)",
+      script: [
+        STUDENT,
+        TARGET,
+        INACTIVE_ROW,
+        { kind: "select", rows: [{ grupoId: 5 }] },
+      ],
+    },
+  ] as const)(
+    "fails closed: a call with no options never inserts and never updates a sibling, given $label",
+    async ({ script }) => {
+      const double = use([...script]);
+
+      expect(await staffEnrollInGroup(STAFF, S, G)).toEqual({
+        ok: false,
+        reason: "not_eligible",
+      });
+      expect(double.exhausted).toBe(true);
+      expect(kinds(double)).not.toContain("insert");
+      expect(kinds(double)).not.toContain("update");
+    },
+  );
 
   it("reactivates an inactive row of an offered group with no sibling and writes one reactivada with the STAFF actor", async () => {
     const double = use(SUCCESS);
@@ -499,7 +534,7 @@ describe("staffEnrollInGroup, reactivate only (EA-REACT-1, CS-3, CS-8)", () => {
       reason: "already_enrolled",
     },
     {
-      label: "no inscripcion row at all (create belongs to S3)",
+      label: "no inscripcion row at all (the list never creates)",
       script: [STUDENT, TARGET, { kind: "select", rows: [] }],
       reason: "not_eligible",
     },
@@ -597,6 +632,403 @@ describe("staffEnrollInGroup, reactivate only (EA-REACT-1, CS-3, CS-8)", () => {
   });
 });
 
+describe("staffEnrollInGroup create (EA-CRE-1, CS-3)", () => {
+  const CREATE = [STUDENT, TARGET, NO_ROW, NO_SIBLING_UPDATE, INSERT, AUDIT];
+  const REACTIVATE_ROW = [
+    STUDENT,
+    TARGET,
+    INACTIVE_ROW,
+    NO_SIBLING_UPDATE,
+    REACTIVATE,
+    AUDIT,
+  ];
+
+  function lastRows(double: ReturnType<typeof use>) {
+    return double.log.at(-1)?.values as Record<string, unknown>[];
+  }
+
+  it("creates the row active for the student and writes one creada with the STAFF actor", async () => {
+    const double = use(CREATE);
+
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+      ok: true,
+      kind: "created",
+      grupoId: G,
+      replaced: [],
+    });
+
+    expect(kinds(double)).toEqual([
+      "select",
+      "select",
+      "select",
+      "update",
+      "insert",
+      "insert",
+    ]);
+    expect(double.exhausted).toBe(true);
+    // Role integrity: the row binds the student, never the staff user.
+    expect(double.log[4].table).toBe(inscripcion);
+    expect(double.log[4].values).toEqual({
+      estudianteId: S,
+      grupoId: G,
+      activo: true,
+    });
+    expect(lastRows(double)).toEqual([
+      expect.objectContaining({
+        actorId: ACTOR,
+        accion: "inscripcion.creada",
+        entidadTipo: "Inscripcion",
+        entidadId: S,
+        datos: { grupoId: G },
+      }),
+    ]);
+  });
+
+  it("sets an existing inactive row active instead of inserting a second one, with one reactivada", async () => {
+    const double = use(REACTIVATE_ROW);
+
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual(REACTIVATED);
+
+    // At most one row per pair: no Inscripcion insert, only the audit insert.
+    expect(
+      double.log.filter((e) => e.kind === "insert").map((e) => e.table),
+    ).toEqual([eventoAuditoria]);
+    expect(double.log[4].set).toEqual({ activo: true });
+    expect(render(double.log[2].where).params).toEqual(
+      expect.arrayContaining([S, G]),
+    );
+    expect(lastRows(double)).toEqual([
+      expect.objectContaining({
+        actorId: ACTOR,
+        accion: "inscripcion.reactivada",
+        datos: { grupoId: G },
+      }),
+    ]);
+  });
+
+  it("changes nothing when the row is already active, which is also a change to the current group", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      { kind: "select", rows: [{ activo: true }] },
+    ]);
+
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+      ok: false,
+      reason: "already_enrolled",
+    });
+    expect(kinds(double)).toEqual(["select", "select", "select"]);
+    expect(double.exhausted).toBe(true);
+  });
+
+  it.each([
+    { label: "an older period", fragment: '"Grupo"."Periodo"' },
+    { label: "a grupo that is inactive", fragment: '"Grupo"."Activo"' },
+    { label: "an inactive asignatura", fragment: '"Asignatura"."Activo"' },
+  ])(
+    "refuses $label with not_eligible, nothing written and no audit row",
+    async ({ fragment }) => {
+      const double = use([STUDENT, { kind: "select", rows: [] }]);
+
+      expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+        ok: false,
+        reason: "not_eligible",
+      });
+      expect(kinds(double)).toEqual(["select", "select"]);
+      expect(render(double.log[1].where).sql).toContain(fragment);
+    },
+  );
+
+  it.each([
+    { label: "a target who is not an active estudiante", staff: STAFF },
+    { label: "a secretaria without a facultad", staff: NO_SCOPE },
+  ])(
+    "refuses $label with not_student after the one lock statement",
+    async ({ staff }) => {
+      const double = use([{ kind: "select", rows: [] }]);
+
+      expect(await staffEnrollInGroup(staff, S, G, FULL)).toEqual({
+        ok: false,
+        reason: "not_student",
+      });
+      expect(kinds(double)).toEqual(["select"]);
+      expect(double.exhausted).toBe(true);
+    },
+  );
+
+  it("issues the student's own create statements: only the actor of the audit row differs", async () => {
+    const staff = use(CREATE);
+    await staffEnrollInGroup(STAFF, S, G, FULL);
+    const student = use(CREATE);
+    await enrollInGroup(S, G);
+
+    expect(staff.log.map((e) => e.kind)).toEqual(
+      student.log.map((e) => e.kind),
+    );
+    expect(staff.log[4].values).toEqual(student.log[4].values);
+    expect(render(staff.log[3].where)).toEqual(render(student.log[3].where));
+    const [staffRow] = lastRows(staff);
+    const [studentRow] = lastRows(student);
+    expect({ ...staffRow, actorId: S }).toEqual(studentRow);
+  });
+});
+
+describe("staffEnrollInGroup replace and change group (EA-SIB-1, EA-CHG-1)", () => {
+  const SIBLINGS = (grupoIds: number[]) => ({
+    kind: "update" as const,
+    rows: grupoIds.map((grupoId) => ({ grupoId })),
+  });
+
+  function lastRows(double: ReturnType<typeof use>) {
+    return double.log.at(-1)?.values as Record<string, unknown>[];
+  }
+
+  it("reactivating a group with an active sibling replaces it: the sibling goes inactive, the target active, and the audit is desactivada then reactivada", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      INACTIVE_ROW,
+      SIBLINGS([5]),
+      REACTIVATE,
+      AUDIT,
+    ]);
+
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+      ok: true,
+      kind: "reactivated",
+      grupoId: G,
+      replaced: [5],
+    });
+
+    expect(kinds(double)).toEqual([
+      "select",
+      "select",
+      "select",
+      "update",
+      "update",
+      "insert",
+    ]);
+    expect(double.log[3].set).toEqual({ activo: false });
+    expect(double.log[4].set).toEqual({ activo: true });
+    expect(lastRows(double)).toEqual([
+      expect.objectContaining({
+        actorId: ACTOR,
+        accion: "inscripcion.desactivada",
+        entidadTipo: "Inscripcion",
+        entidadId: S,
+        datos: { grupoId: 5, motivo: "reemplazo" },
+      }),
+      expect.objectContaining({
+        actorId: ACTOR,
+        accion: "inscripcion.reactivada",
+        entidadId: S,
+        datos: { grupoId: G },
+      }),
+    ]);
+  });
+
+  it("changing to a group the student has no row in replaces the current group and creates the new row: desactivada then creada", async () => {
+    const double = use([STUDENT, TARGET, NO_ROW, SIBLINGS([5]), INSERT, AUDIT]);
+
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+      ok: true,
+      kind: "created",
+      grupoId: G,
+      replaced: [5],
+    });
+
+    expect(double.log[4].values).toEqual({
+      estudianteId: S,
+      grupoId: G,
+      activo: true,
+    });
+    expect(lastRows(double).map((row) => [row.accion, row.datos])).toEqual([
+      ["inscripcion.desactivada", { grupoId: 5, motivo: "reemplazo" }],
+      ["inscripcion.creada", { grupoId: G }],
+    ]);
+    expect(lastRows(double).every((row) => row.actorId === ACTOR)).toBe(true);
+  });
+
+  it("deactivates every sibling it finds, each with its own audit row before the activation", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      INACTIVE_ROW,
+      SIBLINGS([5, 6]),
+      REACTIVATE,
+      AUDIT,
+    ]);
+
+    const result = await staffEnrollInGroup(STAFF, S, G, FULL);
+
+    expect(result).toEqual({ ...REACTIVATED, replaced: [5, 6] });
+    expect(lastRows(double).map((row) => row.datos)).toEqual([
+      { grupoId: 5, motivo: "reemplazo" },
+      { grupoId: 6, motivo: "reemplazo" },
+      { grupoId: G },
+    ]);
+  });
+
+  it("scopes the sibling update to the target's asignatura and period and to other groups only, so other asignaturas and periods are not in its predicate", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      INACTIVE_ROW,
+      SIBLINGS([5]),
+      REACTIVATE,
+      AUDIT,
+    ]);
+
+    await staffEnrollInGroup(STAFF, S, G, FULL);
+
+    const sibling = double.log[3];
+    expect(sibling.table).toBe(inscripcion);
+    expect(sibling.calls).toContain("returning");
+    const query = render(sibling.where);
+    for (const part of [
+      '"Inscripcion"."EstudianteId"',
+      '"Inscripcion"."Activo"',
+      '"Inscripcion"."GrupoId" <>',
+      '"Grupo"."AsignaturaId"',
+      '"Grupo"."Periodo"',
+    ]) {
+      expect(query.sql).toContain(part);
+    }
+    // Exactly the student, the target group, its asignatura and its period.
+    expect([...query.params].sort()).toEqual([G, S, 3, "2026-S2", true].sort());
+    const student = use([
+      STUDENT,
+      TARGET,
+      INACTIVE_ROW,
+      SIBLINGS([5]),
+      REACTIVATE,
+      AUDIT,
+    ]);
+    await enrollInGroup(S, G);
+    expect(query).toEqual(render(student.log[3].where));
+  });
+
+  it("a target of another asignatura replaces nothing of the first: the predicate follows the target's own asignatura", async () => {
+    const other = {
+      kind: "select",
+      rows: [{ id: G, asignaturaId: 8, periodo: "2026-S2" }],
+    } as const;
+    const double = use([STUDENT, other, NO_ROW, SIBLINGS([]), INSERT, AUDIT]);
+
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toMatchObject({
+      ok: true,
+      kind: "created",
+      replaced: [],
+    });
+
+    const params = render(double.log[3].where).params;
+    expect(params).toContain(8);
+    expect(params).not.toContain(3);
+    expect(lastRows(double)).toHaveLength(1);
+  });
+
+  it("writes both audit rows in one insert on the same transaction as the data statements, last", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      INACTIVE_ROW,
+      SIBLINGS([5]),
+      REACTIVATE,
+      AUDIT,
+    ]);
+
+    await staffEnrollInGroup(STAFF, S, G, FULL);
+
+    expect(double.transactions).toBe(1);
+    expect(double.log.every((entry) => entry.inTransaction)).toBe(true);
+    expect(double.log.filter((e) => e.table === eventoAuditoria)).toHaveLength(
+      1,
+    );
+    expect(double.log.at(-1)?.table).toBe(eventoAuditoria);
+    expect(double.log[0].lock?.strength).toBe("no key update");
+  });
+
+  it.each([
+    { label: "the sibling update", failing: 3, reached: false },
+    { label: "the activation", failing: 4, reached: false },
+    { label: "the audit insert carrying both rows", failing: 5, reached: true },
+  ])(
+    "rethrows when $label fails: one sanitized line with the STAFF actor and the replace is not reported",
+    async ({ failing, reached }) => {
+      const logger = vi.spyOn(console, "error").mockImplementation(() => {});
+      const failure = Object.assign(new Error("secret value 123"), {
+        cause: { code: "40001" },
+      });
+      const steps = [
+        STUDENT,
+        TARGET,
+        INACTIVE_ROW,
+        SIBLINGS([5]),
+        REACTIVATE,
+        AUDIT,
+      ].map((step, index) =>
+        index === failing ? { ...step, error: failure } : step,
+      );
+      const double = use(steps);
+
+      await expect(staffEnrollInGroup(STAFF, S, G, FULL)).rejects.toBe(failure);
+
+      expect(double.exhausted).toBe(reached);
+      expect(logger).toHaveBeenCalledTimes(1);
+      const line = String(logger.mock.calls[0][0]);
+      expect(JSON.parse(line)).toEqual({
+        event: "enrollment.write.failed",
+        actor: ACTOR,
+        errorName: "Error",
+        errorCode: "40001",
+      });
+      expect(line).not.toContain("secret");
+    },
+  );
+
+  it.each([
+    { label: "an older period", fragment: '"Grupo"."Periodo"' },
+    { label: "an inactive grupo", fragment: '"Grupo"."Activo"' },
+    { label: "an inactive asignatura", fragment: '"Asignatura"."Activo"' },
+  ])(
+    "refuses a target in $label before any sibling is touched",
+    async ({ fragment }) => {
+      const double = use([STUDENT, { kind: "select", rows: [] }]);
+
+      expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+        ok: false,
+        reason: "not_eligible",
+      });
+      expect(kinds(double)).toEqual(["select", "select"]);
+      expect(render(double.log[1].where).sql).toContain(fragment);
+    },
+  );
+
+  it("refuses the student's current group with already_enrolled and leaves every sibling alone", async () => {
+    const double = use([
+      STUDENT,
+      TARGET,
+      { kind: "select", rows: [{ activo: true }] },
+    ]);
+
+    expect(await staffEnrollInGroup(STAFF, S, G, FULL)).toEqual({
+      ok: false,
+      reason: "already_enrolled",
+    });
+    expect(kinds(double)).not.toContain("update");
+  });
+
+  it("refuses a student out of scope with not_student and writes nothing", async () => {
+    const double = use([{ kind: "select", rows: [] }]);
+
+    expect(await staffEnrollInGroup(STAFF, 999_999, G, FULL)).toEqual({
+      ok: false,
+      reason: "not_student",
+    });
+    expect(kinds(double)).toEqual(["select"]);
+  });
+});
+
 describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
   it("a staff deactivation is undone by the student's own enrollInGroup: one reactivada, by the student, on the same row", async () => {
     use([STUDENT, { kind: "update", rows: [{ grupoId: G }] }, AUDIT]);
@@ -634,8 +1066,15 @@ describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
     },
     {
       label: "staffEnrollInGroup",
-      run: () => staffEnrollInGroup(STAFF, S, G),
-      script: [STUDENT, TARGET, INACTIVE_ROW, NO_SIBLING, REACTIVATE, AUDIT],
+      run: () => staffEnrollInGroup(STAFF, S, G, FULL),
+      script: [
+        STUDENT,
+        TARGET,
+        INACTIVE_ROW,
+        NO_SIBLING_UPDATE,
+        REACTIVATE,
+        AUDIT,
+      ],
     },
   ] as const)(
     "$label takes the one lock first and writes the audit row last",
@@ -663,12 +1102,12 @@ describe("not sticky and serialized (EA-WRITE-1 Race, Not sticky)", () => {
       STUDENT,
       TARGET,
       INACTIVE_ROW,
-      NO_SIBLING,
+      NO_SIBLING_UPDATE,
       REACTIVATE,
       { kind: "insert", error: failure },
     ]);
 
-    await expect(staffEnrollInGroup(STAFF, S, G)).rejects.toBe(failure);
+    await expect(staffEnrollInGroup(STAFF, S, G, FULL)).rejects.toBe(failure);
 
     expect(double.exhausted).toBe(true);
     expect(logger).toHaveBeenCalledTimes(1);
