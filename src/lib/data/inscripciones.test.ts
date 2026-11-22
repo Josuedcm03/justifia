@@ -4,6 +4,8 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usuario } from "@/db/schema";
+import { encodeDias } from "@/lib/catalog/dias";
+import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import { VISIBLE_STATES } from "@/lib/intake/states";
 import type { RequestScope } from "@/lib/intake/request-scope";
 
@@ -26,6 +28,9 @@ vi.mock("@/db", () => ({
 import {
   listInscripcionPeriods,
   listInscripciones,
+  loadAssignPage,
+  searchStudents,
+  STUDENT_SEARCH_MAX,
   type ListInscripcionesParams,
 } from "@/lib/data/inscripciones";
 
@@ -540,5 +545,383 @@ describe("listInscripcionPeriods (EA-FILT-1 period select, EA-SCOPE-1)", () => {
     scripted([{ kind: "select", error: new Error("down") }]);
 
     expect(await listInscripcionPeriods(FAC)).toEqual([]);
+  });
+});
+
+const found = (...rows: unknown[]): Step => ({ kind: "select", rows });
+
+describe("searchStudents (EA-CRE-1, EA-PII-1, EA-SCOPE-1)", () => {
+  const student = { id: 5, nombreCompleto: "Ana Pérez", cif: "CIF-1" };
+
+  /** Runs one search and hands back the logged WHERE, rendered. */
+  const whereOf = async (q: string, scope: RequestScope = FAC) => {
+    const double = scripted([found(student)]);
+    await searchStudents(scope, q);
+    return render(double.log[0].where);
+  };
+
+  it("returns the id, the name and the CIF of each match, in that shape only", async () => {
+    scripted([
+      found(student, { id: 6, nombreCompleto: "Ana Gómez", cif: null }),
+    ]);
+
+    expect(await searchStudents(FAC, "ana")).toEqual({
+      data: [
+        { id: 5, nombreCompleto: "Ana Pérez", cif: "CIF-1" },
+        { id: 6, nombreCompleto: "Ana Gómez", cif: null },
+      ],
+      degraded: false,
+    });
+  });
+
+  it("selects no contact column and drops any extra column of a row", async () => {
+    const double = scripted([
+      found({ ...student, correo: "ana@uni.edu", telefono: "099111222" }),
+    ]);
+
+    const result = await searchStudents(FAC, "ana");
+
+    const selected = Object.values(double.log[0].selection as object);
+    expect(selected).toEqual([usuario.id, usuario.nombreCompleto, usuario.cif]);
+    expect(result.data).toHaveLength(1);
+    expect(JSON.stringify(result)).not.toMatch(/ana@uni|099111222|@/);
+  });
+
+  it.each([3, 9])("limits the search to facultad %i", async (id) => {
+    const query = await whereOf("ana", { kind: "facultad", facultadId: id });
+
+    expect(query.sql).toContain(
+      'exists (select 1 from "Usuario" "e" inner join "Carrera" "c"',
+    );
+    expect(query.sql).toContain('"e"."Id" = "Usuario"."Id"');
+    expect(query.params).toContain(id);
+  });
+
+  it("keeps only active estudiantes: not another role, not an inactive or cancelled account", async () => {
+    const query = await whereOf("ana");
+
+    expect(query.sql).toContain('"Rol"."Codigo" = $');
+    expect(query.params).toContain("estudiante");
+    expect(query.sql).toContain('"Usuario"."Activo" = $');
+    expect(query.params).toContain(true);
+    expect(query.sql).toContain('"Usuario"."CanceladoEn" is null');
+  });
+
+  it("matches the term on the name or the CIF", async () => {
+    const query = await whereOf("Pérez");
+
+    expect(query.sql).toContain('"Usuario"."NombreCompleto" ilike');
+    expect(query.sql).toContain('"Usuario"."Cif" ilike');
+    expect(query.params.filter((v) => v === "%Pérez%")).toHaveLength(2);
+  });
+
+  it("trims the term and escapes LIKE wildcards in it", async () => {
+    const query = await whereOf("  50%_ ");
+
+    expect(query.params).toContain("%50\\%\\_%");
+  });
+
+  it("caps the page at the named limit and orders by name, then id", async () => {
+    const double = scripted([found(student)]);
+
+    await searchStudents(FAC, "ana");
+
+    expect(double.log[0].limit).toBe(STUDENT_SEARCH_MAX);
+    expect(STUDENT_SEARCH_MAX).toBeGreaterThan(0);
+    expect(STUDENT_SEARCH_MAX).toBeLessThanOrEqual(50);
+    expect(
+      render(sql.join(double.log[0].orderBy as never[], sql`, `)).sql,
+    ).toBe(
+      '"Usuario"."NombreCompleto" collate "es-x-icu" asc, "Usuario"."Id" asc',
+    );
+  });
+
+  it("reads nothing for a secretaria without a facultad", async () => {
+    const double = scripted([]);
+
+    expect(await searchStudents(NONE, "ana")).toEqual({
+      data: [],
+      degraded: false,
+    });
+    expect(double.log).toHaveLength(0);
+  });
+
+  it.each(["", "   "])("reads nothing for the blank term %j", async (q) => {
+    const double = scripted([]);
+
+    expect(await searchStudents(FAC, q)).toEqual({ data: [], degraded: false });
+    expect(double.log).toHaveLength(0);
+  });
+
+  it("is an empty, degraded result, without throwing, when the read fails", async () => {
+    scripted([{ kind: "select", error: new Error("down") }]);
+
+    expect(await searchStudents(FAC, "ana")).toEqual({
+      data: [],
+      degraded: true,
+    });
+  });
+});
+
+describe("loadAssignPage (EA-CRE-1, EA-CHG-1, EA-SIB-1, EA-SCOPE-1, EA-PII-1)", () => {
+  const PERIODO = LATEST;
+  const studentRow = { id: 5, nombreCompleto: "Ana Pérez", cif: "CIF-1" };
+  const subject = {
+    id: 2,
+    codigo: "MAT101",
+    nombre: "Matemática I",
+    carreraNombre: "Ingeniería",
+    ownCarrera: true,
+  };
+  const groupRow = (grupoId: number, numeroGrupo: string, dias = 0) => ({
+    grupoId,
+    numeroGrupo,
+    docenteNombre: "Luis Gómez",
+    dias,
+  });
+  const studentStep = (...rows: unknown[]): Step => found(...rows);
+  const subjects = (...rows: unknown[]): Step => found(...rows);
+  const current = (...rows: unknown[]): Step => found(...rows);
+
+  const NOT_FOUND = { kind: "not_found", degraded: false };
+
+  it.each([
+    ["an unknown student", FAC],
+    ["a student of another facultad", { kind: "facultad", facultadId: 9 }],
+  ] as const)(
+    "answers %s with not_found and reads nothing else",
+    async (_l, scope) => {
+      const double = scripted([studentStep()]);
+
+      expect(await loadAssignPage(scope, 5, 2)).toEqual(NOT_FOUND);
+      expect(double.log).toHaveLength(1);
+      expect(render(double.log[0].where).params).toContain(scope.facultadId);
+    },
+  );
+
+  it("asks for the student inside the facultad, as an active estudiante", async () => {
+    const double = scripted([studentStep(studentRow), latest(null)]);
+
+    await loadAssignPage({ kind: "facultad", facultadId: 7 }, 5, null);
+
+    const query = render(double.log[0].where);
+    expect(query.sql).toContain('"e"."Id" = "Usuario"."Id"');
+    expect(query.sql).toContain('"Rol"."Codigo" = $');
+    expect(query.sql).toContain('"Usuario"."Activo" = $');
+    expect(query.sql).toContain('"Usuario"."CanceladoEn" is null');
+    expect(query.params).toEqual(expect.arrayContaining([7, 5, "estudiante"]));
+    expect(Object.values(double.log[0].selection as object)).toEqual([
+      usuario.id,
+      usuario.nombreCompleto,
+      usuario.cif,
+    ]);
+  });
+
+  it("reads nothing for a secretaria without a facultad", async () => {
+    const double = scripted([]);
+
+    expect(await loadAssignPage(NONE, 5, 2)).toEqual(NOT_FOUND);
+    expect(double.log).toHaveLength(0);
+  });
+
+  it("returns the student, the period and the asignaturas, and no groups without a pick", async () => {
+    const double = scripted([
+      studentStep({ ...studentRow, correo: "ana@uni.edu", telefono: "0991" }),
+      latest(),
+      subjects(subject),
+    ]);
+
+    const result = await loadAssignPage(FAC, 5, null);
+
+    expect(result).toEqual({
+      kind: "ok",
+      degraded: false,
+      data: {
+        student: { id: 5, nombreCompleto: "Ana Pérez", cif: "CIF-1" },
+        periodo: PERIODO,
+        asignaturas: [subject],
+        truncated: false,
+        groups: [],
+        currentGroup: null,
+      },
+    });
+    expect(double.log).toHaveLength(3);
+    expect(JSON.stringify(result)).not.toMatch(/ana@uni|0991|@/);
+  });
+
+  it("says when the asignatura list hit its cap", async () => {
+    scripted([
+      studentStep(studentRow),
+      latest(),
+      subjects(
+        ...Array.from({ length: CATALOG_OPTIONS_MAX + 1 }, (_, i) => ({
+          ...subject,
+          id: i + 1,
+        })),
+      ),
+    ]);
+
+    const result = await loadAssignPage(FAC, 5, null);
+
+    expect(result.kind === "ok" && result.data.asignaturas).toHaveLength(
+      CATALOG_OPTIONS_MAX,
+    );
+    expect(result.kind === "ok" && result.data.truncated).toBe(true);
+  });
+
+  it("is empty, not an error, while no period is offered", async () => {
+    const double = scripted([studentStep(studentRow), latest(null)]);
+
+    expect(await loadAssignPage(FAC, 5, 2)).toEqual({
+      kind: "ok",
+      degraded: false,
+      data: {
+        student: studentRow,
+        periodo: null,
+        asignaturas: [],
+        truncated: false,
+        groups: [],
+        currentGroup: null,
+      },
+    });
+    expect(double.log).toHaveLength(2);
+  });
+
+  it("lists the offered groups of the pick (docente name only) and marks the current one, naming it", async () => {
+    const double = scripted([
+      studentStep(studentRow),
+      latest(),
+      subjects(subject),
+      found(
+        groupRow(8, "A", encodeDias(["lunes", "jueves"])),
+        groupRow(9, "B"),
+      ),
+      current({ grupoId: 8, numeroGrupo: "A" }),
+    ]);
+
+    const result = await loadAssignPage(FAC, 5, 2);
+
+    expect(result).toMatchObject({
+      kind: "ok",
+      data: {
+        groups: [
+          {
+            grupoId: 8,
+            numeroGrupo: "A",
+            docenteNombre: "Luis Gómez",
+            dias: ["lunes", "jueves"],
+            current: true,
+          },
+          {
+            grupoId: 9,
+            numeroGrupo: "B",
+            docenteNombre: "Luis Gómez",
+            dias: [],
+            current: false,
+          },
+        ],
+        currentGroup: { grupoId: 8, numeroGrupo: "A" },
+      },
+    });
+    const groupQuery = render(double.log[3].where);
+    expect(groupQuery.params).toEqual(expect.arrayContaining([2, PERIODO]));
+    expect(JSON.stringify(result)).not.toContain("@");
+  });
+
+  it("reads the student's raw-active inscripcion of that asignatura and period for the current group", async () => {
+    const double = scripted([
+      studentStep(studentRow),
+      latest(),
+      subjects(subject),
+      found(groupRow(9, "B")),
+      current(),
+    ]);
+
+    await loadAssignPage(FAC, 5, 2);
+
+    const query = render(double.log[4].where);
+    expect(query.sql).toContain('"Inscripcion"."EstudianteId" = $');
+    expect(query.sql).toContain('"Inscripcion"."Activo"');
+    expect(query.sql).toContain('"Grupo"."AsignaturaId" = $');
+    expect(query.sql).toContain('"Grupo"."Periodo" = $');
+    expect(query.params).toEqual(expect.arrayContaining([5, 2, PERIODO]));
+  });
+
+  it("marks no group and names no sibling when the student has no active row there", async () => {
+    scripted([
+      studentStep(studentRow),
+      latest(),
+      subjects(subject),
+      found(groupRow(8, "A"), groupRow(9, "B")),
+      current(),
+    ]);
+
+    const result = await loadAssignPage(FAC, 5, 2);
+
+    expect(result.kind === "ok" && result.data.groups).toHaveLength(2);
+    expect(
+      result.kind === "ok" && result.data.groups.map((g) => g.current),
+    ).toEqual([false, false]);
+    expect(result.kind === "ok" && result.data.currentGroup).toBeNull();
+  });
+
+  it("names the sibling even when its group is no longer offered", async () => {
+    scripted([
+      studentStep(studentRow),
+      latest(),
+      subjects(subject),
+      found(groupRow(9, "B")),
+      current({ grupoId: 4, numeroGrupo: "Z" }),
+    ]);
+
+    const result = await loadAssignPage(FAC, 5, 2);
+
+    expect(result.kind === "ok" && result.data.currentGroup).toEqual({
+      grupoId: 4,
+      numeroGrupo: "Z",
+    });
+    expect(
+      result.kind === "ok" && result.data.groups.map((g) => g.current),
+    ).toEqual([false]);
+  });
+
+  it("offers no group, and reads no current one, for an invalid or ineligible asignatura", async () => {
+    const double = scripted([
+      studentStep(studentRow),
+      latest(),
+      subjects(subject),
+      found(),
+    ]);
+
+    const result = await loadAssignPage(FAC, 5, 999);
+
+    expect(result).toMatchObject({
+      kind: "ok",
+      data: { groups: [], currentGroup: null },
+    });
+    expect(double.log).toHaveLength(4);
+  });
+
+  it.each([
+    ["the student", 0],
+    ["the latest period", 1],
+    ["the asignaturas", 2],
+    ["the groups", 3],
+    ["the current group", 4],
+  ])("degrades, without throwing, when %s fails", async (_label, failing) => {
+    const script: Step[] = [
+      studentStep(studentRow),
+      latest(),
+      subjects(subject),
+      found(groupRow(8, "A")),
+      current({ grupoId: 8, numeroGrupo: "A" }),
+    ];
+    script[failing] = { kind: "select", error: new Error("down") };
+    scripted(script);
+
+    expect(await loadAssignPage(FAC, 5, 2)).toEqual({
+      kind: "degraded",
+      degraded: true,
+    });
   });
 });

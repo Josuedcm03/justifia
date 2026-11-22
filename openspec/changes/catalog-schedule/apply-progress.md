@@ -635,3 +635,66 @@ Totals: 44 net new tests (full suite 9286 -> 9330) across the table, page and pa
 ### Remaining tasks
 
 Open PR for S2b-2 (parent) and Phases 11-17 (S3a-1 onward). Walk W2 is the owner's, after this slice.
+
+## Batch 11: S3a-1 student search and assign reads (tasks 11.1-11.7, complete; Phase 12 NOT started)
+
+Branch `feat/catalog-schedule-s3a1-reads`, created from `feat/catalog-schedule-s2b2-toggle` (S2b-2, PR #134; chain #99 -> ... -> #133 -> #134). Date: 2026-11-20. Commit `1e3964a` `feat(enrollment): add the scoped student search and assign reads`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 11.1 branch (this one)
+- [x] 11.2 RED `searchStudents`
+- [x] 11.3 RED `loadAssignPage`
+- [x] 11.4 GREEN `inscripciones.ts`: `searchStudents`, `loadAssignPage`, `STUDENT_SEARCH_MAX`
+- [x] 11.5 RED `recordEnrollmentStudentSearch`
+- [x] 11.6 GREEN `request-reads.ts`
+- [x] 11.7 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 11.2/11.3 | `src/lib/data/inscripciones.test.ts` | Unit (db double, `PgDialect` render of the logged WHERE, ORDER BY and selection) | 72/72 over `inscripciones.test.ts` and `request-reads.test.ts` before any edit (54 in the first file) | 29 failed, 54 passed (`TypeError: searchStudents is not a function`) | 83/83 | search: two matches, with and without a CIF; selection is exactly `id, nombreCompleto, cif` and a row carrying `correo` and `telefono` serializes without `@`; facultad 3 and 9 bound in the scope exists; role `estudiante`, `Activo = true` and `CanceladoEn is null` in the WHERE; name and CIF `ilike` with the same bound pattern twice; trimmed term and escaped wildcards; limit equals the named constant and order is name (es-x-icu) then id; scope `none` and two blank terms read nothing; failure degrades. Assign: unknown and other-facultad students answer alike (and the facultad id is bound); the student WHERE; scope `none`; student, period and asignaturas with no pick (extra contact columns dropped); the 2001-row cap; no period offered; offered groups with decoded days and the current one marked and named; the current-group WHERE; no active row (nothing marked); a sibling in a group no longer offered (named, not marked); invalid or ineligible pick (no groups, no current read); five failing statements each degrade | One `it.each` pair merged the two not_found cases; a `calls` assertion on the join was dropped as implementation coupling |
+| 11.5/11.6 | `src/lib/data/request-reads.test.ts` | Unit (db double, audit writer mocked) | in the 72 above | 6 failed, 17 passed (the `cache()` count pin 4 -> 5 plus five new tests, `recordEnrollmentStudentSearch is not a function`) | 23/23 | one row on `Facultad` with the staff actor in one transaction; payload keys exactly `periodo, status, filters, page, total`, with `q` and `estudianteId` smuggled into the call never reaching the row; second identical call is a no-op while another facultad or actor writes; the list read and the search never share a cache; a failing insert rejects | Clean (same shape as `recordEnrollmentListRead`; the builder from S1b-1 is reused) |
+
+Mutation checks (production restored from a copy taken just before each; no `git checkout`): removing `isNull(usuario.canceladoEn)` turned 2 tests red (search WHERE and student WHERE); removing the `offered.length > 0` guard turned the ineligible-pick test red; forcing `current: true` turned 3 tests red; removing the `.limit(STUDENT_SEARCH_MAX)` turned the cap test red. A first attempt with `sd` did nothing (not installed) and its "green" runs were discarded; the checks above were re-run with a node replace script.
+
+Totals: 34 new tests (29 + 5) plus one amended pin; full suite 9330 -> 9364. Layers: unit only.
+
+### Decisions and deviations
+
+1. **Result shapes.** `searchStudents` returns `{ data: StudentSearchResult[], degraded }` (`{ id, nombreCompleto, cif }`). `loadAssignPage` returns a three-way union with `degraded` on every member: `{ kind: "not_found", degraded: false }`, `{ kind: "ok", degraded: false, data }`, `{ kind: "degraded", degraded: true }`. `data` is `{ student, periodo, asignaturas, truncated, groups, currentGroup }`; each group is the picker's `EnrollableGroup` plus `current: boolean`. The `not_found` member exists because the page needs `notFound()` for an invalid, unknown or out-of-scope student and a degraded alert for a failed read, and a flag alone cannot tell them apart (task 14.3).
+2. **"Cancelled account" is filtered twice.** `Usuario.Activo = true` and `CanceladoEn IS NULL`. The schema check already makes a cancelled account inactive; the second term costs nothing and keeps the intent visible in the SQL and in the test.
+3. **Blank term.** `searchStudents` trims the term and returns `[]` with no query for a blank one, so a missing `?q=` can never list a facultad. The page (S3b-1) also skips the search and the audit when there is no `q`.
+4. **Search cap.** `STUDENT_SEARCH_MAX = 20`, with no `truncated` flag: a term that still matches more is a prompt to narrow it. If the owner wants the flag, it is one extra row read.
+5. **Current group read.** Raw-active inscripcion of the student in that asignatura and period (the sibling term of `enrollWork`), first by group id, with no `Grupo.Activo` filter, so a sibling in a group that is no longer offered is still named although it is in no group list. Skipped when the pick has no offered group (saves a statement; EA-CHG-1 offers nothing to change then).
+6. **Statement order of `loadAssignPage`:** student (with `Rol` join and scope), latest period, asignaturas, groups, current group. It reuses `getLatestPeriod`, `listEnrollableAsignaturas` and `listEnrollableGroups` unchanged, so the student's own carrera comes first and only the docente name leaves.
+7. **Asignaturas are not narrowed by facultad.** As in the student's own picker, any active asignatura with an offered group of the latest period is a candidate; EA-CRE-1 scopes the student, not the subject.
+8. No design change needed. No new audit event or type: `inscripcionEstudiantesConsultadaEvent` and the closed-set pins already existed from S1b-1.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/inscripciones.test.ts src/lib/data/request-reads.test.ts` -> 2 files, 106 passed (RED runs: 29 failed of 83, and 6 failed of 23) |
+| Runtime harness | N/A: DB double and rendered SQL; nothing calls the reads until S3b-1 (the real-database walk is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `1e3964a`: `searchStudents`, `loadAssignPage`, `STUDENT_SEARCH_MAX` and their types in `inscripciones.ts`, `recordEnrollmentStudentSearch` in `request-reads.ts`, and the two test blocks; the list read and the list audit are untouched |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 106/106 |
+| `npm test` (full suite) | 374 files, 9364 passed, 0 failed |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 4 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 4 touched files | clean (the two test files needed `--write` once) |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2b2-toggle...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 683 insertions(+), 3 deletions(-) = **686 changed lines** (forecast ~355; 1.9x), under the 800 budget. Per file: `inscripciones.test.ts` 383, `inscripciones.ts` 195 (193 + 2), `request-reads.test.ts` 86 (85 + 1), `request-reads.ts` 22. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3a-1 (parent) and Phases 12-17 (S3a-2 onward). Phase 12 projects ~170 lines at ~2x, about 340, so S3a-2 fits its own PR.
