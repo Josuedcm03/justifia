@@ -608,6 +608,51 @@
         "assign_already_enrolled": "El estudiante ya está inscrito en ese grupo. Actualiza la página para ver sus grupos actuales.",
         "assign_stale": "La inscripción del estudiante cambió desde que abriste esta página. Revísala e inténtalo de nuevo.",
         "unexpected": "No pudimos guardar el cambio y no se modificó nada. Inténtalo de nuevo."
+      },
+      "assign": {
+        "title": "Asignar un grupo",
+        "subtitle": "Busca a un estudiante de tu facultad y elige después la asignatura y el grupo.",
+        "degraded": "No se pudieron cargar los datos del estudiante. Vuelve a intentarlo en unos minutos.",
+        "noOffering": "Aún no se ofrece ningún grupo, así que no hay nada que asignar.",
+        "search": {
+          "form": "Buscar estudiantes",
+          "label": "Estudiante",
+          "placeholder": "Nombre o CIF",
+          "submit": "Buscar"
+        },
+        "results": {
+          "title": "Estudiantes encontrados",
+          "choose": "Elegir",
+          "chooseLabel": "Elegir a {student}",
+          "empty": {
+            "title": "Ningún estudiante coincide con «{q}»",
+            "hint": "Revisa la ortografía o busca por CIF. Solo aparecen estudiantes activos de tu facultad.",
+            "clear": "Borrar búsqueda"
+          }
+        },
+        "student": {
+          "title": "Estudiante",
+          "cif": "CIF {cif}"
+        },
+        "picker": {
+          "title": "Asignatura",
+          "label": "Asignatura",
+          "placeholder": "Elige una asignatura",
+          "submit": "Ver grupos",
+          "truncated": "Solo se muestran las primeras asignaturas."
+        },
+        "groups": {
+          "title": "Grupos que se ofrecen en {periodo}",
+          "caption": "Grupos de {subject}",
+          "group": "Grupo {number}",
+          "teacher": "Docente: {name}",
+          "noTeacher": "Sin docente asignado",
+          "days": "Días",
+          "current": "Grupo actual",
+          "currentNotice": "{student} está actualmente en el grupo {number} de esta asignatura.",
+          "noCurrent": "{student} no tiene un grupo activo en esta asignatura para este periodo.",
+          "empty": "Esta asignatura no tiene grupos que se ofrezcan."
+        }
       }
     }
   },

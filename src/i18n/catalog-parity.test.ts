@@ -2033,3 +2033,92 @@ describe("catalog parity (DT-I18N-1: retired list copy)", () => {
     }
   });
 });
+
+describe("catalog parity (EA-CRE-1, EA-CHG-1: assign page copy)", () => {
+  const assign = (locale: "es" | "en") =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      "catalog.inscripciones.assign",
+    );
+
+  // The keys the assign page and its three parts read; extending the page
+  // extends this list on purpose (S3b-2 adds the form copy).
+  const ASSIGN_KEYS = [
+    "degraded",
+    "groups.caption",
+    "groups.current",
+    "groups.currentNotice",
+    "groups.days",
+    "groups.empty",
+    "groups.group",
+    "groups.noCurrent",
+    "groups.noTeacher",
+    "groups.teacher",
+    "groups.title",
+    "noOffering",
+    "picker.label",
+    "picker.placeholder",
+    "picker.submit",
+    "picker.title",
+    "picker.truncated",
+    "results.choose",
+    "results.chooseLabel",
+    "results.empty.clear",
+    "results.empty.hint",
+    "results.empty.title",
+    "results.title",
+    "search.form",
+    "search.label",
+    "search.placeholder",
+    "search.submit",
+    "student.cif",
+    "student.title",
+    "subtitle",
+    "title",
+  ];
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the assign keys",
+    (locale) => {
+      expect(leafPaths(assign(locale)).sort()).toEqual([...ASSIGN_KEYS].sort());
+    },
+  );
+
+  it.each(ASSIGN_KEYS)("%s has the same placeholders in es and en", (key) => {
+    const holes = (locale: "es" | "en") =>
+      [...(resolve(assign(locale), key) as string).matchAll(/\{(\w+)\}/g)].map(
+        (m) => m[1],
+      );
+
+    expect(holes("es").sort()).toEqual(holes("en").sort());
+  });
+
+  it.each([
+    ["groups.title", ["periodo"]],
+    ["groups.caption", ["subject"]],
+    ["groups.group", ["number"]],
+    ["groups.teacher", ["name"]],
+    ["groups.currentNotice", ["student", "number"]],
+    ["groups.noCurrent", ["student"]],
+    ["results.chooseLabel", ["student"]],
+    ["results.empty.title", ["q"]],
+    ["student.cif", ["cif"]],
+  ] as const)("%s names its placeholders", (key, expected) => {
+    for (const locale of ["es", "en"] as const) {
+      const value = resolve(assign(locale), key) as string;
+      expect(
+        [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]),
+        `${locale} ${key}`,
+      ).toEqual(expected);
+    }
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s never names a draft in the assign copy",
+    (locale) => {
+      for (const value of leafValues(assign(locale))) {
+        expect(value).not.toMatch(/draft|borrador/i);
+      }
+    },
+  );
+});

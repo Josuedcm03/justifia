@@ -38,9 +38,11 @@ const optsOut = (tag: string) => tag.includes("prefetch={false}");
 
 describe("inscripciones pages (structure)", () => {
   // A misplaced or extra page must fail here instead of shrinking the
-  // coverage below. The assign page of S3 extends this list when it lands.
+  // coverage below. Every page of the folder is checked by the cases that
+  // follow, the assign page included (S3b-1).
   it("discovers exactly the expected pages", () => {
-    expect(pages.map((p) => p.path)).toEqual([
+    expect(pages.map((p) => p.path).sort()).toEqual([
+      "src/app/(dashboard)/catalog/inscripciones/assign/page.tsx",
       "src/app/(dashboard)/catalog/inscripciones/page.tsx",
     ]);
   });
@@ -120,6 +122,34 @@ describe("inscripciones links never prefetch the audited page (D10)", () => {
     expect(
       prefetchingTags(table!.text).map((tag) => tag.slice(0, 16)),
     ).toContain("<TablePagination");
+  });
+
+  it("finds the links of the assign components, so the check below reaches that folder (S3b-1)", () => {
+    const assign = sources.filter((s) => s.path.includes("/assign/"));
+
+    expect(assign.map((s) => s.path)).toContain(
+      "src/app/(dashboard)/catalog/inscripciones/assign/page.tsx",
+    );
+    const tags = assign.flatMap((s) => prefetchingTags(s.text));
+    expect(tags.length).toBeGreaterThan(0);
+    expect(tags.every(optsOut)).toBe(true);
+  });
+
+  // The assign page writes one audit row per search (D10): its search and
+  // picker forms carry their state in the URL, so a submit can be repeated,
+  // bookmarked and never writes. Mutation arrives as a client form in S3b-2.
+  it("every <form> under assign/ is a GET form", () => {
+    const forms = sources
+      .filter((s) => s.path.includes("/assign/"))
+      .flatMap((s) =>
+        [...s.text.matchAll(/<form\b[^>]*>/g)].map((m) => ({
+          path: s.path,
+          tag: m[0],
+        })),
+      );
+
+    expect(forms.length).toBeGreaterThan(0);
+    expect(forms.filter((f) => !/method="get"/.test(f.tag))).toEqual([]);
   });
 
   it("every Link and TablePagination under inscripciones/ has prefetch={false}", () => {
