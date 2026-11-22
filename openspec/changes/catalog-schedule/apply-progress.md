@@ -915,3 +915,95 @@ Totals: 138 new tests (full suite 9486 -> 9624): 27 parser, 53 page, 3 guards, 4
 ### Remaining tasks
 
 14.5, 14.6 (table links, header link, navigation pin, `rowLinks.*` copy in both locales with its parity pin, the PII row-key pin of the page test amended by exactly the one new key) and 14.7 (gates and measure of that part), then Phases 15-17.
+
+
+## Batch 14b: S3b-1 test consolidation and the list links (tasks 14.5-14.7 done)
+
+Branch `feat/catalog-schedule-s3b1-assign-page` (same branch as Batch 14, stacked on S3a-3, PR #137). Date: 2026-11-21. Two new commits on top of `1a91151` and `edd7c09`, nothing amended and nothing pushed: `de8938f` `test(enrollment): consolidate the assign page tests` (owner decision: simplify the S3b-1 tests before shipping, losing no case) and `b217841` `feat(enrollment): link the list to the assign page` (14.5-14.7). Runtime attempt state `proceed` (acquired by the parent, not settled here). PR NOT opened (parent owns it).
+
+### Step 1: consolidation (`de8938f`, tests only, no production file touched, no dead code found)
+
+Safety net before editing (`npx vitest run "src/app/(dashboard)/catalog/inscripciones/assign" src/i18n/catalog-parity.test.ts`): 379/379 (page 53, parser 27, parity file 299 of which 41 are the `assign` block). Titles recorded in the scratchpad (`before-titles.txt`). After: 336/336 (page 48, parser 29, parity file 259 of which 4 are the `assign` block). The count falls because repeated cases became table rows and duplicated assertions were removed, not because a scenario was dropped.
+
+| File | Lines before | Lines after |
+|---|---|---|
+| `assign/page.test.tsx` | 834 | 730 |
+| `assign/assign-params.test.ts` | 116 | 101 |
+| `catalog-parity.test.ts` (assign block) | 89 | 72 |
+| Total of the three | 1039 | 903 (-136 lines; the commit itself churns 822 lines) |
+
+Mapping old block -> new block (`page.test.tsx`):
+
+| Old | New |
+|---|---|
+| four role cases, anonymous, pending password, invalid `estudiante` to a stranger | one `it.each` table of seven identities; every row now also asserts nothing was read and `notFound` was not called (the stranger row used to check only the second) |
+| scope none (3), hostile `estudiante` (6), unknown/out-of-scope, facultad from the session | unchanged |
+| search form without a term; blank or repeated term is no search | one table of three rows (no term, blank, repeated): form, empty box, GET method, no results title, no search, no audit (blank and repeated now also assert the form) |
+| searches once after the results; found nobody (total 0); no text, id, name or CIF in the audit row; failing insert throws | unchanged; the found-nobody case also pins the clear link (href and `data-prefetch="false"`), taken from the old prefetch block |
+| "builds the audit payload once per render" | removed: same `toHaveBeenCalledTimes(1)` as the searches test |
+| lists each student with name and CIF only; keeps the term in the box; opts every result link out of prefetch | one test (term `"  Ana  "` shows `Ana` in the box; two links; hrefs; both `data-prefetch="false"`) |
+| degraded search; degraded student read | one table of two rows asserting the union (one `status`, no audit, no search, link, button, combobox or list, no error text) |
+| chosen student: names and orders subjects; selects subject and lists groups | unchanged, minus the `loadMock` argument pin duplicated by "facultad of the session" (`(SCOPE, 11, 31)`); the `999` subject test lost its `(SCOPE, 11, 999)` pin for the same reason |
+| current group marked and named; current group no longer offered; no active group | one table of three rows, each pinning the notice text and the number of markers (1 in the first item, 0, 0) |
+| no groups for a foreign subject; nothing offered; list truncated | unchanged |
+| "writes no audit row for a student view" | folded into "does not search or audit when a student is chosen" (now with a subject, groups and a term) |
+| props pin (key list, then student, subject, period, current group, group key lists) | one `toStrictEqual` of the whole props object (a key added or let through fails) |
+| two leak tests | one shared `expectNoLeak` helper, one list of leaks for both (the results test now also checks the longer list) |
+| two prefetch tests; one-h1 table (7); one page frame | prefetch folded as above; the seven variants also assert one page frame; the standalone frame test is gone |
+| Spanish render | unchanged |
+
+`assign-params.test.ts`: the valid and invalid `estudiante` tables are one table (expected value per row, including the safe maximum); the valid and bad `asignatura` tables are one table; the three `assignHref` tests are a table plus the base-path pin and the round trip. `catalog-parity.test.ts`: the key list, the es/en placeholder check of 31 keys and the nine named-placeholder checks are one table (`ASSIGN_COPY`, key to its named placeholders) checked per locale, so a key with a placeholder nobody pinned now fails too; the no-draft check is unchanged.
+
+Mutation checks re-run on the consolidated tests (production restored from a copy after each, tree clean afterwards; node script, no `git checkout`). Red tests before -> after: removing the `invalid` not-found 6 -> 6; removing the degraded return (audit written) 1 -> 1; `total: 0` 1 -> 1; searching with a blank term 2 -> 3; raw student rows 1 -> 1; dropping the `current` flag 2 -> 3; removing the `not_found` answer 1 -> 1; removing the own-carrera sort 1 -> 1; removing `prefetch={false}` from the result link 3 -> 3; a `getTranslations` before the guard 1 -> 1. All ten still turn the suites red.
+
+### Step 2: 14.5-14.7 (`b217841`)
+
+- [x] 14.5 RED
+- [x] 14.6 GREEN
+- [x] 14.7 gates and measure (PR is the parent's)
+
+What changed: the row gets exactly ONE new key, `assignHref: string | null`, built on the server with `assignHref()` of `assign-params.ts` (the one place that knows the URL): the link exists only when the group is offered (`writable`) and the row is active (change, EA-CHG-1) or inactive with an active sibling (replace, EA-SIB-1, the S2 hidden reactivation); an inactive offered row with no sibling keeps the in-place reactivation and gets no link; a group not offered gets neither. The table renders `RowLink` in the actions cell next to the toggle (label by `activo`, `prefetch={false}`, `aria-label` with the student and the code). The header carries a "create" link to the assign page through `list-header.tsx` (`InscripcionesHeader withAssign`), only in the normal render (the degraded and no-facultad states keep the bare header). Copy: `catalog.inscripciones.rowLinks.{create,change,changeLabel,replace,replaceLabel}` in `es` and `en`. The navigation needed only the characterization row `trailFor("/catalog/inscripciones/assign")`.
+
+TDD Cycle Evidence:
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 14.5 | `CI/page.test.tsx` | Integration (real guard, mocked reads) | 1279/1279 over the inscripciones folder, navigation, components and i18n before any edit | 9 failed of the file's cases: the five-row table of what a row can do (`assignHref` absent), the PII key pin (one key short), the change links of the table, the header link, the prefetch count (4 links, expected 6) | all green with the page change | five row kinds: inactive no sibling, inactive with a sibling, inactive older period, active offered, active not offered | clean |
+| 14.5 | `CI/inscripciones-table.test.tsx` | Component | in the 1279 | suite failed to load (`rowLinks` copy absent) | 6 new tests (2 locales x change link, replace link, links only on rows that carry one) green | active and inactive row, both locales, mixed rows | clean |
+| 14.5 | `src/i18n/catalog-parity.test.ts` | Unit (JSON) | in the 1279 | 2 failed (`rowLinks` subtree absent) | green with the copy | five keys with their named placeholders in es and en | clean |
+| 14.5 | `src/lib/navigation.test.ts` | Unit | in the 1279 | none: characterization pin, passes at once (the trail already resolves by prefix, see Batch 14 decision 7) | green | n/a | n/a |
+
+Mutation checks on the new code (production restored from a copy): dropping `writable` from the link rule 1 red; dropping the sibling replace link 1; giving every offered inactive row a link 2; removing `prefetch={false}` from the row link 6; from the header link 3; showing the header link in every state 1; one label for every row 2.
+
+### Deviations and notes
+
+1. **New file `list-header.tsx`.** The guard pin forbids `action=` in either `page.tsx` (GET never mutates), and `PageHeader` takes its link through an `action` prop, so the header with its link lives in a tiny server component of the same folder. The guard was not relaxed.
+2. **`page.test.tsx` "table has no links" case changed**: the table now holds the change links, so that case pins the two hrefs of the two active offered rows and nothing for the other two.
+3. **Audit `periodo: ""` of the student search is left as it is** (owner decision pending, see Batch 14 decision 4).
+4. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/lib/navigation.test.ts src/components src/i18n src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx` -> 1571 passed in 45 files (RED run: 11 failed plus the table suite failing to load) |
+| Runtime harness | N/A: the list page and the table are rendered under Testing Library with the real guard on a mocked session; the real-database walk W3 is `[USER][CONFIRM]` after S3b-2 |
+| Rollback boundary | revert `b217841` (list links, header link, `rowLinks` copy, parity pin, navigation row) without touching the assign page; revert `de8938f` to get the long test form back |
+
+### Gates G (2026-11-21)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the same files, the inscripciones folder and both locale files | clean |
+| `npm test` (full suite) | 376 files, 9591 passed and 1 timed out under load (`src/lib/signals/evaluate.test.ts` "gives present and absent no reason ...", 15 s timeout, unrelated to this slice); the file re-run alone: 49/49 passed |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3a3-assign-action...HEAD -- . ':!openspec' ':!.engram'`: after `de8938f` 12 files, 1588 insertions, 2 deletions = **1590 lines** (was 1728 after `1a91151`); after `b217841` 18 files, 1824 insertions, 24 deletions = **1848 lines**, OVER the 800 budget (forecast ~330 for the whole phase). Commit sizes: `1a91151` 1728, `de8938f` 822 (342 added, 480 removed; net -138), `b217841` 258 (236 added, 22 removed: code 107, tests 137 with the 31-line parity pin, copy 14). No comment was trimmed and no case was dropped to reach a number. Owner decision still open: `size:exception` or a re-cut (the search flow with its audit, the student view with the groups, and the list links are three natural slices).
+
+### Remaining tasks
+
+Phases 15-17 (S3b-2 assign form with confirmation onward). The "Open PR" step of 14.7 is the parent's.
