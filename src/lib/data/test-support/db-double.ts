@@ -18,6 +18,7 @@ export type LoggedStatement = {
   where?: unknown;
   orderBy?: unknown[];
   limit?: number;
+  offset?: number;
   /** The argument of `select(...)`: the column set a read asks for. */
   selection?: unknown;
   /** The arguments of `.for(...)`: row-lock strength and its config. */
@@ -72,6 +73,12 @@ function builder(
       if (prop === "limit") {
         return (limit: number) => {
           record({ limit });
+          return proxy;
+        };
+      }
+      if (prop === "offset") {
+        return (offset: number) => {
+          record({ offset });
           return proxy;
         };
       }
