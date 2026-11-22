@@ -42,7 +42,7 @@ Decision (owner, 2026-11-19): **stacked-to-main**. There is no tracker branch. S
 | S2b-2 toggle wiring | `-s2b2-toggle` | S2b-1 | S1c-1, S2b-1 | ~270 |
 | S3a-1 reads | `-s3a1-reads` | S2b-2 | S1b-2 | ~355 |
 | S3a-2 writer replace/create | `-s3a2-writer-replace` | S3a-1 | S2a-2 | ~170 |
-| S3a-3 assign action | `-s3a3-assign-action` | S3a-2 | S2b-1, S3a-2 | ~270 |
+| S3a-3 assign action | `-s3a3-assign-action` | S3a-2 | S2b-1, S3a-2 | 993 measured (action 449 + optimistic replace check 616); `size:exception` accepted by the owner (2026-11-21) so the action never lands without its check |
 | S3b-1 assign page | `-s3b1-assign-page` | S3a-3 | S3a-1, S3a-3, S1c-1 | ~330 |
 | S3b-2 assign form | `-s3b2-assign-form` | S3b-1 | S3a-3, S3b-1 | ~370 |
 
