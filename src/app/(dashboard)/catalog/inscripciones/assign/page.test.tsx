@@ -58,6 +58,10 @@ vi.mock("@/lib/data/request-reads", () => ({
   recordEnrollmentStudentSearch: auditMock,
 }));
 vi.mock("next-intl/server", async () => serverIntl(state));
+// The form's action is a server module; the page only renders the form.
+vi.mock("@/app/(dashboard)/catalog/inscripciones/actions", () => ({
+  assignInscripcionAction: vi.fn(),
+}));
 
 const FACULTAD = 4;
 const SCOPE = { kind: "facultad", facultadId: FACULTAD } as const;
@@ -549,6 +553,10 @@ describe("AssignPage chosen student (EA-CRE-1, EA-CHG-1)", () => {
       expect(screen.getByText(notice)).toBeInTheDocument();
       const markers = screen.queryAllByText(en.assign.groups.current);
       expect(markers).toHaveLength(marked === null ? 0 : 1);
+      // The form offers every group but the current one (S3b-2).
+      expect(
+        screen.queryAllByRole("button", { name: /^Assign group / }),
+      ).toHaveLength(groups.length - (marked === null ? 0 : 1));
       if (marked !== null) {
         expect(
           within(screen.getAllByRole("listitem")[marked]).getByText(

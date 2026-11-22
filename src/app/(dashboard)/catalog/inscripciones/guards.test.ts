@@ -137,7 +137,19 @@ describe("inscripciones links never prefetch the audited page (D10)", () => {
 
   // The assign page writes one audit row per search (D10): its search and
   // picker forms carry their state in the URL, so a submit can be repeated,
-  // bookmarked and never writes. Mutation arrives as a client form in S3b-2.
+  // bookmarked and never writes. The mutation (S3b-2) is a button flow with a
+  // confirm step in one client component, never a form.
+  it("only one client component under assign/ reaches a server action", () => {
+    const reaching = sources
+      .filter((s) => s.path.includes("/assign/"))
+      .filter((s) => /from\s+["'][^"']*\/actions["']/.test(s.text));
+
+    expect(reaching.map((s) => s.path)).toEqual([
+      "src/app/(dashboard)/catalog/inscripciones/assign/assign-form.tsx",
+    ]);
+    expect(reaching[0].text).toMatch(/^"use client";/);
+  });
+
   it("every <form> under assign/ is a GET form", () => {
     const forms = sources
       .filter((s) => s.path.includes("/assign/"))

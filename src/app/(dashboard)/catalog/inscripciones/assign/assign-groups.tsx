@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { DiasCell } from "@/app/(dashboard)/catalog/dias-cell";
 import { StatusPill } from "@/components/status-pill";
@@ -30,8 +31,8 @@ export type AssignGroupsProps = {
 
 /**
  * The offered groups of the chosen subject with the student's current group
- * named (EA-CHG-1). Read-only in S3b-1: there is no control here until the form
- * of S3b-2 replaces this list.
+ * named (EA-CHG-1). It holds no control of its own: the confirmed form of S3b-2
+ * (`AssignForm`) passes `renderAction` to put one under each group.
  */
 export function AssignGroups({
   student,
@@ -39,7 +40,10 @@ export function AssignGroups({
   periodo,
   groups,
   currentGroup,
-}: AssignGroupsProps) {
+  renderAction,
+}: AssignGroupsProps & {
+  renderAction?: (group: AssignGroupsProps["groups"][number]) => ReactNode;
+}) {
   const t = useTranslations("catalog.inscripciones.assign");
   const tDias = useTranslations("catalog.shared.dias");
 
@@ -92,6 +96,7 @@ export function AssignGroups({
                 notSet={tDias("notSet")}
               />
             </p>
+            {renderAction?.(g)}
           </li>
         ))}
       </ul>
