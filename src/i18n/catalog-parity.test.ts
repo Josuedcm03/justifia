@@ -2103,3 +2103,34 @@ describe("catalog parity (EA-CRE-1, EA-CHG-1: assign page copy)", () => {
     },
   );
 });
+
+describe("catalog parity (EA-CRE-1, EA-CHG-1, EA-SIB-1: list link copy)", () => {
+  // The create link of the header and the change and replace links of a row,
+  // each with the named placeholders it holds.
+  const ROW_LINKS: Record<string, string[]> = {
+    change: [],
+    changeLabel: ["student", "code"],
+    create: [],
+    replace: [],
+    replaceLabel: ["student", "code"],
+  };
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the list link keys, each with its placeholders",
+    (locale) => {
+      const links = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.rowLinks",
+      );
+
+      expect(leafPaths(links).sort()).toEqual(Object.keys(ROW_LINKS).sort());
+      for (const [key, expected] of Object.entries(ROW_LINKS)) {
+        const value = resolve(links, key) as string;
+        expect(
+          [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]),
+          `${locale} ${key}`,
+        ).toEqual(expected);
+      }
+    },
+  );
+});

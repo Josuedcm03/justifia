@@ -1,6 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, type FormEvent } from "react";
 
@@ -15,7 +16,7 @@ import {
   useListNavigation,
 } from "@/components/tables/list-navigation";
 import { TablePagination } from "@/components/tables/table-pagination";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,7 +38,7 @@ const BASE = "/catalog/inscripciones";
 
 /**
  * The only shape the table receives (EA-PII-1): the displayed fields plus the
- * two the row toggle needs. The page builds it by picking each field
+ * three the row controls need. The page builds it by picking each field
  * explicitly, so a column added to the read later never reaches the browser by
  * accident. The sibling flag and the writable flag are collapsed on the server
  * into `canReactivate`, and the dependent-request count (visible states only,
@@ -60,6 +61,10 @@ export type InscripcionRow = Pick<
   requestCount: number;
   /** Raw inactive, offered group, no active sibling (EA-REACT-1). */
   canReactivate: boolean;
+  /** The assign page for this row, only when its group is offered and the row
+   *  is an active one (change, EA-CHG-1) or an inactive one with an active
+   *  sibling (replace, EA-SIB-1); `null` otherwise. */
+  assignHref: string | null;
 };
 
 const DEFAULT_STATE = parseInscripcionesListParams({});
@@ -252,6 +257,31 @@ function RowToggle({ row }: { row: InscripcionRow }) {
   );
 }
 
+/**
+ * The way into the assign page (EA-CHG-1, EA-SIB-1): a plain link the server
+ * built, so the table knows no URL. The page audits what it reads, so it never
+ * prefetches.
+ */
+function RowLink({ row }: { row: InscripcionRow }) {
+  const t = useTranslations("catalog.inscripciones");
+  if (row.assignHref === null) return null;
+
+  const kind = row.activo ? "change" : "replace";
+  return (
+    <Link
+      href={row.assignHref}
+      prefetch={false}
+      aria-label={t(`rowLinks.${kind}Label`, {
+        student: row.estudianteNombre,
+        code: row.asignaturaCodigo,
+      })}
+      className={buttonVariants({ variant: "secondary", size: "lg" })}
+    >
+      {t(`rowLinks.${kind}`)}
+    </Link>
+  );
+}
+
 function InscripcionesList({
   rows,
   total,
@@ -337,7 +367,12 @@ function InscripcionesList({
       {
         id: "actions",
         header: t("columns.actions"),
-        cell: ({ row }) => <RowToggle row={row.original} />,
+        cell: ({ row }) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <RowLink row={row.original} />
+            <RowToggle row={row.original} />
+          </div>
+        ),
       },
     ],
     [t],

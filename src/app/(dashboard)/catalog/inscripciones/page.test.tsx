@@ -61,6 +61,8 @@ vi.mock("@/app/(dashboard)/catalog/inscripciones/actions", () => ({
 }));
 
 const FACULTAD = 4;
+/** The assign link of the default row (student 11, subject 31). */
+const ASSIGN_LINK = "/catalog/inscripciones/assign?estudiante=11&asignatura=31";
 const SCOPE = { kind: "facultad", facultadId: FACULTAD } as const;
 
 function row(overrides: Record<string, unknown> = {}) {
@@ -433,7 +435,7 @@ function tableRows(ui: React.ReactNode): Record<string, unknown>[] {
 }
 
 describe("InscripcionesPage row toggle (EA-DEACT-1, EA-REACT-1, RNF-12)", () => {
-  it("offers the GET filter bar and one POST toggle form per row that has a control", async () => {
+  it("offers the GET filter bar, one POST toggle form per row that has a control, and a change link per offered active row", async () => {
     listMock.mockResolvedValue(
       result({
         total: 4,
@@ -452,27 +454,46 @@ describe("InscripcionesPage row toggle (EA-DEACT-1, EA-REACT-1, RNF-12)", () => 
       form.getAttribute("method"),
     );
     expect(methods).toEqual(["get", "post", "post", "post"]);
-    expect(within(screen.getByRole("table")).queryAllByRole("link")).toEqual(
-      [],
-    );
+    // Only the two active, offered rows carry the link (EA-CHG-1).
+    expect(
+      within(screen.getByRole("table"))
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href")),
+    ).toEqual([ASSIGN_LINK, ASSIGN_LINK]);
   });
 
+  it("links the header to the assign page, out of prefetch (EA-CRE-1)", async () => {
+    await renderPage();
+
+    const create = screen.getByRole("link", { name: en.rowLinks.create });
+    expect(create).toHaveAttribute("href", "/catalog/inscripciones/assign");
+    expect(create).toHaveAttribute("data-prefetch", "false");
+  });
+
+  // The reactivation toggle and the assign link never share a row: an inactive
+  // offered row with no sibling is reactivated in place (EA-REACT-1), with an
+  // active sibling it is replaced through the assign page (EA-SIB-1), and an
+  // active offered row is changed there (EA-CHG-1); a group that is not
+  // offered gets neither.
   it.each([
-    ["inactive, offered, no sibling", { activo: false }, true],
+    ["inactive, offered, no sibling", { activo: false }, true, null],
     [
       "inactive, offered, an active sibling",
       { activo: false, hasActiveSibling: true },
       false,
+      ASSIGN_LINK,
     ],
     [
       "inactive, group of an older period",
       { activo: false, writable: false },
       false,
+      null,
     ],
-    ["active, offered, no sibling", {}, false],
+    ["active, offered, no sibling", {}, false, ASSIGN_LINK],
+    ["active, group no longer offered", { writable: false }, false, null],
   ] as const)(
-    "tells the table a row can be reactivated only when it is %s",
-    async (_name, overrides, expected) => {
+    "tells the table what a row that is %s can do",
+    async (_name, overrides, canReactivate, assignHref) => {
       listMock.mockResolvedValue(
         result({ total: 1, data: [row({ ...overrides })] }),
       );
@@ -480,7 +501,8 @@ describe("InscripcionesPage row toggle (EA-DEACT-1, EA-REACT-1, RNF-12)", () => 
       const rows = tableRows(await build());
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].canReactivate).toBe(expected);
+      expect(rows[0].canReactivate).toBe(canReactivate);
+      expect(rows[0].assignHref).toBe(assignHref);
     },
   );
 
@@ -530,7 +552,7 @@ describe("InscripcionesPage row toggle (EA-DEACT-1, EA-REACT-1, RNF-12)", () => 
 });
 
 describe("InscripcionesPage leaks no personal data (EA-PII-1)", () => {
-  it("hands the table exactly the displayed fields plus the two the toggle needs", async () => {
+  it("hands the table exactly the displayed fields plus the three the row controls need", async () => {
     listMock.mockResolvedValue(
       result({ total: 1, data: [row({ correo: "ana@uni.edu" })] }),
     );
@@ -541,6 +563,7 @@ describe("InscripcionesPage leaks no personal data (EA-PII-1)", () => {
       "activo",
       "asignaturaCodigo",
       "asignaturaNombre",
+      "assignHref",
       "canReactivate",
       "effective",
       "estudianteCif",
@@ -600,7 +623,8 @@ describe("InscripcionesPage never lets a link prefetch it (D10)", () => {
     const pageLinks = within(nav).getAllByRole("link");
     expect(pageLinks).toHaveLength(4);
     const all = screen.getAllByRole("link");
-    expect(all).toHaveLength(4);
+    // The four page links, the header link and the row's change link.
+    expect(all).toHaveLength(6);
     for (const link of all) {
       expect(link).toHaveAttribute("data-prefetch", "false");
     }
