@@ -349,6 +349,18 @@ describe("trailFor (BS-CTX-1)", () => {
       },
     ],
     [
+      // The assign page is not a menu entry: Inscripciones stays the active
+      // one and the trail resolves to it (S3b-1).
+      "/catalog/inscripciones/assign",
+      {
+        groupKey: "administration",
+        key: "catalogInscripciones",
+        href: "/catalog/inscripciones",
+        exact: false,
+        prefetch: false,
+      },
+    ],
+    [
       "/catalog/import",
       {
         groupKey: "administration",

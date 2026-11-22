@@ -58,6 +58,7 @@ function row(overrides: Partial<InscripcionRow> = {}): InscripcionRow {
     effective: true,
     requestCount: 0,
     canReactivate: false,
+    assignHref: null,
     ...overrides,
   };
 }
@@ -515,6 +516,53 @@ describe("InscripcionesTable reactivation (EA-REACT-1)", () => {
     },
   );
 });
+
+describe.each(["en", "es"] as const)(
+  "InscripcionesTable assign links in %s (EA-CHG-1, EA-SIB-1)",
+  (locale) => {
+    const copy = messages[locale].catalog.inscripciones.rowLinks;
+    const HREF = "/catalog/inscripciones/assign?estudiante=5&asignatura=31";
+
+    it.each([
+      ["an active row", {}, copy.change, copy.changeLabel],
+      [
+        "an inactive row with an active sibling",
+        { activo: false, effective: false },
+        copy.replace,
+        copy.replaceLabel,
+      ],
+    ])(
+      "links %s to the assign page, out of prefetch",
+      (_name, state, text, label) => {
+        renderTable({ locale, rows: [row({ ...state, assignHref: HREF })] });
+
+        const link = within(bodyRow()).getByRole("link", {
+          name: label
+            .replace("{student}", "Ana Pérez")
+            .replace("{code}", "MAT-101"),
+        });
+        expect(link).toHaveTextContent(text);
+        expect(link).toHaveAttribute("href", HREF);
+        expect(link).toHaveAttribute("data-prefetch", "false");
+      },
+    );
+
+    it("shows the link only on the rows that carry one, next to the toggle", () => {
+      renderTable({
+        locale,
+        rows: [
+          row({ assignHref: HREF }),
+          row({ estudianteId: 6, grupoId: 10, assignHref: null }),
+        ],
+      });
+
+      expect(screen.getAllByRole("link")).toHaveLength(1);
+      expect(within(bodyRow(0)).getByRole("link")).toBeVisible();
+      expect(within(bodyRow(0)).getByRole("button")).toBeVisible();
+      expect(within(bodyRow(1)).queryByRole("link")).toBeNull();
+    });
+  },
+);
 
 describe("InscripcionesTable delivers nothing beyond the row fields (EA-PII-1)", () => {
   it("is a POST form per toggle row and never a link", () => {

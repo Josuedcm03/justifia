@@ -565,6 +565,13 @@
         "requests": "{count, plural, one {# solicitud enviada usa este grupo; no cambia.} other {# solicitudes enviadas usan este grupo; no cambian.}}",
         "retention": "Si esta es la última inscripción activa del estudiante, el estudiante podría cumplir el plazo de conservación de sus datos. No se cancela nada de forma automática."
       },
+      "rowLinks": {
+        "create": "Asignar un grupo",
+        "change": "Cambiar grupo",
+        "changeLabel": "Cambiar el grupo de {student} en {code}",
+        "replace": "Reemplazar grupo",
+        "replaceLabel": "Reemplazar el grupo activo de {student} en {code}"
+      },
       "filters": {
         "label": "Filtrar inscripciones",
         "student": {

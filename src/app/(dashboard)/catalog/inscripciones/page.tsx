@@ -2,7 +2,6 @@ import { getTranslations } from "next-intl/server";
 
 import { DegradedAlert } from "@/components/degraded-alert";
 import { PageFrame } from "@/components/page-frame";
-import { PageHeader } from "@/components/page-header";
 import type { InscripcionReadPayload } from "@/lib/audit/types";
 import { requireEnrollmentAccess } from "@/lib/auth/enrollment-access";
 import { parseInscripcionesListParams } from "@/lib/catalog/list-params";
@@ -12,7 +11,9 @@ import {
 } from "@/lib/data/inscripciones";
 import { recordEnrollmentListRead } from "@/lib/data/request-reads";
 
+import { assignHref } from "./assign/assign-params";
 import { InscripcionesTable, type InscripcionRow } from "./inscripciones-table";
+import { InscripcionesHeader } from "./list-header";
 
 /**
  * The staff inscripciones list (RF-12 a, EA-LIST-1). The guard is the first
@@ -31,7 +32,7 @@ export default async function InscripcionesPage({
 }) {
   const { actorId, scope } = await requireEnrollmentAccess();
   const t = await getTranslations("catalog.inscripciones");
-  const header = <PageHeader title={t("title")} description={t("subtitle")} />;
+  const header = <InscripcionesHeader />;
 
   // A scope of kind `none` is a state of its own, not "no results": nothing is
   // read and nothing is audited (EA-SCOPE-1).
@@ -95,11 +96,14 @@ export default async function InscripcionesPage({
   };
   await recordEnrollmentListRead(actorId, scope.facultadId, payload);
 
-  // Picked field by field (EA-PII-1). The row toggle needs two derived values
-  // and nothing else of the server-side flags: whether the row can be
-  // reactivated (raw inactive, offered group, no active sibling, EA-REACT-1) and
-  // the count of non-draft requests for the deactivation notice (EA-DEACT-1).
-  // The sibling flag, the writable flag and the asignatura id stay here.
+  // Picked field by field (EA-PII-1). The row controls need three derived
+  // values and nothing else of the server-side flags: whether the row can be
+  // reactivated (raw inactive, offered group, no active sibling, EA-REACT-1),
+  // the count of non-draft requests for the deactivation notice (EA-DEACT-1)
+  // and the link to the assign page, which only an offered group has: an
+  // active row changes its group there (EA-CHG-1) and an inactive row with an
+  // active sibling replaces it there (EA-SIB-1). The sibling flag, the writable
+  // flag and the asignatura id stay here.
   const rows: InscripcionRow[] = result.data.map((r) => ({
     estudianteId: r.estudianteId,
     grupoId: r.grupoId,
@@ -113,11 +117,18 @@ export default async function InscripcionesPage({
     effective: r.effective,
     requestCount: r.dependentRequests,
     canReactivate: !r.activo && r.writable && !r.hasActiveSibling,
+    assignHref:
+      r.writable && (r.activo || r.hasActiveSibling)
+        ? assignHref({
+            estudianteId: r.estudianteId,
+            asignaturaId: r.asignaturaId,
+          })
+        : null,
   }));
 
   return (
     <PageFrame>
-      {header}
+      <InscripcionesHeader withAssign />
       <InscripcionesTable
         rows={rows}
         total={result.total}

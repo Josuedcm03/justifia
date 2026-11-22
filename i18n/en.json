@@ -565,6 +565,13 @@
         "requests": "{count, plural, one {# submitted request uses this group; it does not change.} other {# submitted requests use this group; they do not change.}}",
         "retention": "If this is the student's last active enrollment, the student may become eligible for the data retention period. Nothing is cancelled automatically."
       },
+      "rowLinks": {
+        "create": "Assign a group",
+        "change": "Change group",
+        "changeLabel": "Change the group of {student} in {code}",
+        "replace": "Replace group",
+        "replaceLabel": "Replace the active group of {student} in {code}"
+      },
       "filters": {
         "label": "Filter enrollments",
         "student": {
