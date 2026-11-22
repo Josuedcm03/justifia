@@ -22,13 +22,15 @@ import {
 
 const ENTRIES = listAppEntries();
 
-// `requireCatalogAccess` is the catalog pages' named helper: it calls
-// `requireRole` before it reads anything.
+// `requireCatalogAccess` and `requireEnrollmentAccess` are the named helpers of
+// the catalog and inscripciones pages: each calls `requireRole` before it reads
+// anything.
 const GUARDS = [
   "requireUser",
   "requireUserAllowingPasswordChange",
   "requireRole",
   "requireCatalogAccess",
+  "requireEnrollmentAccess",
 ];
 
 /** Callee of the first `await` after the default export, or why there is none. */

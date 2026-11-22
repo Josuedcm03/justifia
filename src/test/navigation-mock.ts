@@ -79,8 +79,6 @@ function MockLink({
   children,
   ...anchor
 }: LinkProps) {
-  void prefetch;
-
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     onClick?.(event);
     if (event.defaultPrevented || isModifiedClick(event)) return;
@@ -107,6 +105,7 @@ function MockLink({
       href,
       // Not rendered by the real link; exposed so a test can assert the flag.
       "data-scroll": scroll === undefined ? undefined : String(scroll),
+      "data-prefetch": prefetch == null ? undefined : String(prefetch),
       onClick: handleClick,
     },
     children,

@@ -345,6 +345,8 @@ function InscripcionesList({
             page={state.page}
             pageSize={state.size}
             total={total}
+            // The page audits every render, so no page link may prefetch it.
+            prefetch={false}
             hrefFor={(page) => hrefOf(applyListChange(state, { page }))}
             sizeHrefFor={(size) => hrefOf(applyListChange(state, { size }))}
           />
