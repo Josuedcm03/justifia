@@ -1,3 +1,4 @@
+import type { InscripcionStatusFilter } from "@/lib/catalog/types";
 import type { DocumentDataField } from "@/lib/document-data/types";
 import type { Causa } from "@/lib/intake/causes";
 import type {
@@ -52,6 +53,8 @@ export const AUDIT_ACTIONS = [
   "inscripcion.creada",
   "inscripcion.reactivada",
   "inscripcion.desactivada",
+  "inscripcion.lista.consultada",
+  "inscripcion.estudiantes.consultada",
   "solicitud.ranking.consultado",
   "solicitud.reporte.consultado",
   "solicitud.reporte.descargado",
@@ -372,6 +375,19 @@ type InscripcionPayload = {
   motivo?: "baja" | "reemplazo";
 };
 
+/** Staff reads of the inscriptions (catalog-schedule, D10, RNF-06 a). The
+ *  entity is the caller's faculty. Closed values only: the period code, the
+ *  status filter, which filters are present as booleans, the page and the rows
+ *  returned. Never the search text, a student id, name or CIF, a group or
+ *  asignatura id typed as a filter, or a count of requests. */
+export type InscripcionReadPayload = {
+  periodo: string;
+  status: InscripcionStatusFilter;
+  filters: { q: boolean; asignatura: boolean; grupo: boolean };
+  page: number;
+  total: number;
+};
+
 /** Closed discriminated union. Built ONLY by `src/lib/audit/events.ts`.
  *  `actorId` and `ocurridoEn` are NOT on this type: the actor is supplied by
  *  the writer from the session, and the timestamp is the column default, so
@@ -517,6 +533,15 @@ export type AuditEvent =
       entidadTipo: "Inscripcion";
       entidadId: number;
       datos: InscripcionPayload;
+    }
+  | {
+      // The entity is the caller's faculty: the list and the student search
+      // are scopes, not a student.
+      accion:
+        "inscripcion.lista.consultada" | "inscripcion.estudiantes.consultada";
+      entidadTipo: "Facultad";
+      entidadId: number;
+      datos: InscripcionReadPayload;
     }
   | {
       // The entity is the coordinator's career: the dashboard is a scope.

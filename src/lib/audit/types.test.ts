@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, three escalation, four escalation notice one coordinator read three report ones, one retention one and one manual document data one", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, two inscripcion read, three escalation, four escalation notice one coordinator read three report ones, one retention one and one manual document data one", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -67,6 +67,8 @@ describe("AUDIT_ACTIONS", () => {
         "inscripcion.creada",
         "inscripcion.reactivada",
         "inscripcion.desactivada",
+        "inscripcion.lista.consultada",
+        "inscripcion.estudiantes.consultada",
         "solicitud.ranking.consultado",
         "solicitud.reporte.consultado",
         "solicitud.reporte.descargado",
@@ -86,6 +88,28 @@ describe("AUDIT_ACTIONS", () => {
       "catalogo.importacion.aplicada",
       "usuario.creado",
       "usuario.actualizado",
+    ]);
+  });
+
+  it("adds no inscripcion write action: the write set stays the three of student-enrollment (audit-log)", () => {
+    const writes = AUDIT_ACTIONS.filter(
+      (action) =>
+        action.startsWith("inscripcion.") && !action.endsWith(".consultada"),
+    );
+    expect(writes).toEqual([
+      "inscripcion.creada",
+      "inscripcion.reactivada",
+      "inscripcion.desactivada",
+    ]);
+  });
+
+  it("registers the two staff read actions of the inscriptions, each once (D10)", () => {
+    const reads = AUDIT_ACTIONS.filter((action) =>
+      action.startsWith("inscripcion."),
+    ).filter((action) => action.endsWith(".consultada"));
+    expect(reads).toEqual([
+      "inscripcion.lista.consultada",
+      "inscripcion.estudiantes.consultada",
     ]);
   });
 });

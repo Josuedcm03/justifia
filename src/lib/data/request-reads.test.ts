@@ -33,6 +33,7 @@ vi.mock("@/db", () => ({
 vi.mock("@/lib/data/audit", () => ({ insertAuditEvents: insertAuditMock }));
 
 import {
+  recordEnrollmentListRead,
   recordEscalationQueueRead,
   recordQueueRead,
   recordRequestRead,
@@ -54,7 +55,7 @@ describe("request reads (SR-11, RNF-06)", () => {
   });
 
   it("wraps every writer in React cache() once, at module load", () => {
-    expect(cacheCallsAtLoad).toHaveLength(3);
+    expect(cacheCallsAtLoad).toHaveLength(4);
     for (const call of cacheCallsAtLoad) {
       expect(call[0]).toBeTypeOf("function");
     }
@@ -173,6 +174,75 @@ describe("request reads (SR-11, RNF-06)", () => {
       insertAuditMock.mockRejectedValue(new Error("audit down"));
 
       await expect(recordQueueRead(20, 6, 1, "pendiente")).rejects.toThrow(
+        "audit down",
+      );
+    });
+  });
+
+  describe("recordEnrollmentListRead (inscriptions list, D10)", () => {
+    const payload = {
+      periodo: "2026-S2",
+      status: "active",
+      filters: { q: true, asignatura: false, grupo: false },
+      page: 1,
+      total: 12,
+    } as const;
+
+    it("writes one inscripcion.lista.consultada row on the facultad with the staff actor, in one transaction", async () => {
+      const double = use();
+
+      await recordEnrollmentListRead(40, 3, payload);
+
+      expect(double.transactions).toBe(1);
+      expect(insertAuditMock).toHaveBeenCalledTimes(1);
+      const [, actor, events] = insertAuditMock.mock.calls[0];
+      expect(actor).toBe(40);
+      expect(events).toEqual([
+        {
+          accion: "inscripcion.lista.consultada",
+          entidadTipo: "Facultad",
+          entidadId: 3,
+          datos: payload,
+        },
+      ]);
+    });
+
+    it("carries booleans for the filters and never the search text", async () => {
+      use();
+
+      await recordEnrollmentListRead(40, 4, payload);
+
+      const [event] = insertAuditMock.mock.calls.at(-1)?.[2] ?? [];
+      expect(Object.keys(event.datos)).toEqual([
+        "periodo",
+        "status",
+        "filters",
+        "page",
+        "total",
+      ]);
+      expect(event.datos.filters).toEqual({
+        q: true,
+        asignatura: false,
+        grupo: false,
+      });
+    });
+
+    it("is a no-op for a second identical call in a render, and writes again for another facultad or actor", async () => {
+      use();
+
+      await recordEnrollmentListRead(40, 51, payload);
+      await recordEnrollmentListRead(40, 51, payload);
+      await recordEnrollmentListRead(40, 52, payload);
+      await recordEnrollmentListRead(41, 51, payload);
+
+      expect(insertAuditMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("rejects when the audit insert fails, so the page shows no data", async () => {
+      use();
+      insertAuditMock.mockRejectedValue(new Error("audit down"));
+
+      await expect(recordEnrollmentListRead(40, 6, payload)).rejects.toThrow(
         "audit down",
       );
     });
