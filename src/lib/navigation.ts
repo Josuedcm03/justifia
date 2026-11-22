@@ -4,6 +4,7 @@ import {
   Briefcase,
   ChartColumn,
   ClipboardCheck,
+  ClipboardList,
   FilePlus,
   FileSpreadsheet,
   GraduationCap,
@@ -21,6 +22,7 @@ import {
   canFileRequests,
   canImportCatalog,
   canManageCatalog,
+  canManageEnrollments,
   canManageOwnEnrollment,
   canReviewRequests,
   canViewReports,
@@ -110,6 +112,16 @@ export const NAV_ITEMS = [
         href: "/catalog/docentes",
         icon: GraduationCap,
         visibleTo: canManageCatalog,
+      },
+      {
+        // Staff maintenance of the students' inscripciones (RF-12 a): its own
+        // predicate, not `canManageCatalog` (secretaria only, D8). The page
+        // writes an audited read when it renders, so it is never prefetched.
+        key: "catalogInscripciones",
+        href: "/catalog/inscripciones",
+        icon: ClipboardList,
+        visibleTo: canManageEnrollments,
+        prefetch: false,
       },
       {
         key: "catalogImport",

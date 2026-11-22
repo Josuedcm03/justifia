@@ -93,6 +93,7 @@ describe("listInscripciones core (EA-SCOPE-1, EA-LIST-1, EA-PII-1, EA-DEG-1)", (
       page: 1,
       pageSize: 10,
       degraded: false,
+      resolvedPeriodo: "",
     });
     expect(double.log).toHaveLength(0);
   });
@@ -106,6 +107,7 @@ describe("listInscripciones core (EA-SCOPE-1, EA-LIST-1, EA-PII-1, EA-DEG-1)", (
       page: 1,
       pageSize: 10,
       degraded: false,
+      resolvedPeriodo: "",
     });
     expect(double.log).toHaveLength(1);
   });
@@ -245,6 +247,7 @@ describe("listInscripciones core (EA-SCOPE-1, EA-LIST-1, EA-PII-1, EA-DEG-1)", (
       page: 1,
       pageSize: 10,
       degraded: true,
+      resolvedPeriodo: "",
     });
   });
 });
@@ -350,6 +353,30 @@ describe("listInscripciones filters (EA-FILT-1)", () => {
 
     expect(query.params).toContain(LATEST);
     expect(query.params).not.toContain("1999-S9");
+  });
+
+  it("reports the latest period it read when none was chosen", async () => {
+    scripted([latest(), count(1), page(row)]);
+
+    expect((await listInscripciones(params)).resolvedPeriodo).toBe(LATEST);
+  });
+
+  it("reports the chosen period when it exists", async () => {
+    scripted([latest(), known(true), count(1), page(row)]);
+
+    expect(
+      (await listInscripciones({ ...params, periodo: "2026-S1" }))
+        .resolvedPeriodo,
+    ).toBe("2026-S1");
+  });
+
+  it("reports the latest period, never the typed text, when the period does not exist", async () => {
+    scripted([latest(), known(false), count(1), page(row)]);
+
+    expect(
+      (await listInscripciones({ ...params, periodo: "Pérez" }))
+        .resolvedPeriodo,
+    ).toBe(LATEST);
   });
 
   it("does not look the period up again when it is the latest", async () => {

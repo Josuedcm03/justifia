@@ -24,8 +24,7 @@ import {
   usuario,
 } from "@/db/schema";
 import type {
-  CatalogListResult,
-  InscripcionListItem,
+  InscripcionesListResult,
   InscripcionStatusFilter,
 } from "@/lib/catalog/types";
 import {
@@ -149,27 +148,34 @@ function buildInscripcionesWhere(
 function emptyPage(
   pageSize: number,
   degraded: boolean,
-): CatalogListResult<InscripcionListItem> {
-  return { data: [], total: 0, page: 1, pageSize, degraded };
+): InscripcionesListResult {
+  return {
+    data: [],
+    total: 0,
+    page: 1,
+    pageSize,
+    degraded,
+    resolvedPeriodo: "",
+  };
 }
 
 /**
  * The staff inscripciones list (enrollment-administration CS-6). Only the
  * student name and CIF leave the data layer (EA-PII-1); the row is mapped key
  * by key so nothing else can ride along. Fail-soft like `listAsignaturas`: a
- * thrown error is an empty, degraded page (EA-DEG-1).
+ * thrown error is an empty, degraded page (EA-DEG-1). `resolvedPeriodo` is the
+ * period the rows were read for, so the audited page records the real period
+ * even when none was chosen.
  */
 export async function listInscripciones(
   p: ListInscripcionesParams,
-): Promise<CatalogListResult<InscripcionListItem>> {
+): Promise<InscripcionesListResult> {
   if (p.scope.kind === "none") return emptyPage(p.pageSize, false);
   try {
     const latest = await getLatestPeriod();
     if (latest === null) return emptyPage(p.pageSize, false);
-    const where = buildInscripcionesWhere(
-      p,
-      await resolvePeriod(p.periodo, latest),
-    );
+    const resolvedPeriodo = await resolvePeriod(p.periodo, latest);
+    const where = buildInscripcionesWhere(p, resolvedPeriodo);
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)`.mapWith(Number) })
       .from(inscripcion)
@@ -227,6 +233,7 @@ export async function listInscripciones(
       page,
       pageSize: p.pageSize,
       degraded: false,
+      resolvedPeriodo,
     };
   } catch {
     return emptyPage(p.pageSize, true);

@@ -86,6 +86,7 @@ function result(overrides: Record<string, unknown> = {}) {
     page: 1,
     pageSize: 10,
     degraded: false,
+    resolvedPeriodo: "2026-S2",
     ...overrides,
   };
 }
@@ -328,7 +329,7 @@ describe("InscripcionesPage audited read (D10, audit-log: one row per load)", ()
 
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledWith(7, FACULTAD, {
-      periodo: "",
+      periodo: "2026-S2",
       status: "active",
       filters: { q: false, asignatura: false, grupo: false },
       page: 1,
@@ -352,7 +353,7 @@ describe("InscripcionesPage audited read (D10, audit-log: one row per load)", ()
 
     const payload = auditMock.mock.calls[0][2];
     expect(payload).toEqual({
-      periodo: "",
+      periodo: "2026-S2",
       status: "inactive",
       filters: { q: true, asignatura: true, grupo: true },
       page: 2,
@@ -364,13 +365,23 @@ describe("InscripcionesPage audited read (D10, audit-log: one row per load)", ()
     }
   });
 
-  it("records a chosen in-scope period, and nothing typed that is not one", async () => {
-    await renderPage({ periodo: "2026-S1" });
-    expect(auditMock.mock.calls[0][2].periodo).toBe("2026-S1");
+  it("records the period the read resolved, so a default load carries the real period", async () => {
+    listMock.mockResolvedValue(result({ resolvedPeriodo: "2026-S2" }));
+    await renderPage();
+    expect(auditMock.mock.calls[0][2].periodo).toBe("2026-S2");
 
     auditMock.mockClear();
+    listMock.mockResolvedValue(result({ resolvedPeriodo: "2026-S1" }));
+    await renderPage({ periodo: "2026-S1" });
+    expect(auditMock.mock.calls[0][2].periodo).toBe("2026-S1");
+  });
+
+  it("never records the URL text, only what the read resolved", async () => {
+    listMock.mockResolvedValue(result({ resolvedPeriodo: "2026-S2" }));
+
     await renderPage({ periodo: "Pérez" });
-    expect(auditMock.mock.calls[0][2].periodo).toBe("");
+
+    expect(auditMock.mock.calls[0][2].periodo).toBe("2026-S2");
     expect(JSON.stringify(auditMock.mock.calls[0])).not.toContain("Pérez");
   });
 
