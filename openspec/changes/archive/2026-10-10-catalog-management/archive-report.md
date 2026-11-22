@@ -107,6 +107,7 @@ Task 15.9 (this archive) is ticked with the date.
 - Stale text carried verbatim (see "Scope of the merge"): the `academic-catalog` Purpose sentence and Grupo table row; the `catalog-management` header blockquote; the delta "Assumptions" sections, which were not merged.
 - Verify S2: the `db:push` script in `package.json` remains a standing hazard for the shared database. Removing it is a candidate follow-up.
 - The four open tasks above (14.10, 14.11, 15.7, 18.11) are carried over and need owner action; they are not blockers for the next change.
+- **Update 2026-11-19:** the four tasks are closed in `tasks.md`. 15.7 is done (the branches no longer exist on Neon; `production` untouched). 14.10, 14.11 and 18.11 are closed out at the owner's request without the manual pass, because their properties are pinned by automated tests that passed that day; the manual role pass and the visual check in both themes are left to the pilot and to `flow-experience`.
 
 ---
 
