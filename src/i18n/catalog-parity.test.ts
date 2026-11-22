@@ -1088,6 +1088,64 @@ describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
   );
 });
 
+describe("catalog parity (EA-DEACT-1, RN-27: inscripciones deactivation notice)", () => {
+  const toggle = (locale: "es" | "en") =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      "catalog.inscripciones.toggle",
+    );
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the label, the request count and the retention sentence",
+    (locale) => {
+      expect(leafPaths(toggle(locale)).sort()).toEqual([
+        "recordLabel",
+        "requests",
+        "retention",
+      ]);
+      expect(
+        resolve(
+          locale === "es" ? esMessages : enMessages,
+          "catalog.inscripciones.columns.actions",
+        ),
+      ).toEqual(expect.any(String));
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s counts requests with an ICU plural that has one and other",
+    (locale) => {
+      const requests = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.toggle.requests",
+      ) as string;
+
+      expect(requests).toMatch(
+        /^\{count, plural, one \{.*#.*\} other \{.*#.*\}\}$/,
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s never names a draft, and the retention sentence promises no automatic cancellation",
+    (locale) => {
+      for (const value of leafValues(toggle(locale))) {
+        expect(value).not.toMatch(/draft|borrador/i);
+      }
+      const retention = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.toggle.retention",
+      ) as string;
+
+      expect(retention).toMatch(
+        locale === "es"
+          ? /última inscripción activa.*no se cancela nada/i
+          : /last active enrollment.*nothing is cancelled/i,
+      );
+    },
+  );
+});
+
 describe("catalog parity (CM-I18N-1, CM-UX-1: Asignatura form, toggle and page copy)", () => {
   const section = (locale: "es" | "en", path: string) =>
     resolve(locale === "es" ? esMessages : enMessages, path);

@@ -182,11 +182,12 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 10: S2b-2 row toggle and deactivation notice (EA-DEACT-1, EA-REACT-1, RNF-12, RN-27)
 
-- [ ] 10.1 Branch `feat/catalog-schedule-s2b2-toggle` from S2b-1.
-- [ ] 10.2 RED `CI/inscripciones-table.test.tsx`: a raw-active row of ANY period offers the existing `ActiveToggle` (reused unchanged) bound to `setInscripcionActivoAction.bind(null, estudianteId)`, `id = grupoId` (D9); dialog notice states the count of non-draft requests ("N submitted requests use this group; they do not change", singular and plural, N from the EA-DEACT-1 table) and always carries the fixed RN-27 sentence (retention effect if this is the last active inscription, nothing cancelled automatically); count 0 -> no mention of requests and no word `borrador` or draft anywhere in the DOM; cancel changes nothing and calls no action.
-- [ ] 10.3 RED same file: reactivate control only when raw inactive AND offered group AND no active sibling, otherwise absent (no dead control, EA-REACT-1); single press, no dialog; `gone`, `unchanged` and error states render; a degraded read renders no toggle (page test).
-- [ ] 10.4 GREEN `CI/inscripciones-table.tsx` wiring, notice and confirm copy (ICU plural) in `es` and `en` with parity pin. Verify: `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/i18n`.
-- [ ] 10.5 Gates G + measure (~270). Open PR. Commit: `feat(enrollment): add the confirmed deactivation and reactivation to the list`.
+- [x] 10.1 Branch `feat/catalog-schedule-s2b2-toggle` from S2b-1.
+- [x] 10.2 RED `CI/inscripciones-table.test.tsx`: a raw-active row of ANY period offers the existing `ActiveToggle` (reused unchanged) bound to `setInscripcionActivoAction.bind(null, estudianteId)`, `id = grupoId` (D9); dialog notice states the count of non-draft requests ("N submitted requests use this group; they do not change", singular and plural, N from the EA-DEACT-1 table) and always carries the fixed RN-27 sentence (retention effect if this is the last active inscription, nothing cancelled automatically); count 0 -> no mention of requests and no word `borrador` or draft anywhere in the DOM; cancel changes nothing and calls no action.
+- [x] 10.3 RED same file: reactivate control only when raw inactive AND offered group AND no active sibling, otherwise absent (no dead control, EA-REACT-1); single press, no dialog; `gone`, `unchanged` and error states render; a degraded read renders no toggle (page test).
+- [x] 10.4 GREEN `CI/inscripciones-table.tsx` wiring, notice and confirm copy (ICU plural) in `es` and `en` with parity pin. Verify: `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/i18n`.
+- [x] 10.5 Gates G + measure (~270). Open PR. Commit: `feat(enrollment): add the confirmed deactivation and reactivation to the list`.
+  - Apply result (2026-11-20): gates G green (typecheck, focused 588/588 and 1492/1492 over the catalog tree plus `src/i18n`, full suite 374 files and 9330 passed, build OK, eslint and prettier clean on the touched files). Commit `db3651c` measured **623 authored lines** (577 added, 46 removed; forecast ~270, 2.3x) against the S2b-1 branch, under the 800 budget. PR NOT opened (parent owns it). See `apply-progress.md`.
 
 ## Phase 11: S3a-1 student search and assign reads (EA-CRE-1, EA-PII-1, D10)
 

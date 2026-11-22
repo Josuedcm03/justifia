@@ -551,13 +551,19 @@
         "subject": "Asignatura",
         "period": "Periodo",
         "group": "Grupo",
-        "state": "Estado"
+        "state": "Estado",
+        "actions": "Acciones"
       },
       "state": {
         "active": "Activa",
         "inactive": "Inactiva",
         "effective": "Vigente",
         "notEffective": "No vigente"
+      },
+      "toggle": {
+        "recordLabel": "{student} en {code}, grupo {group}",
+        "requests": "{count, plural, one {# solicitud enviada usa este grupo; no cambia.} other {# solicitudes enviadas usan este grupo; no cambian.}}",
+        "retention": "Si esta es la última inscripción activa del estudiante, el estudiante podría cumplir el plazo de conservación de sus datos. No se cancela nada de forma automática."
       },
       "filters": {
         "label": "Filtrar inscripciones",
