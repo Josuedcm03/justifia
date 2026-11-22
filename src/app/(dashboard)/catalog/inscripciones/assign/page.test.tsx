@@ -9,7 +9,7 @@ import {
   type Locale,
 } from "@/app/(dashboard)/review/test-support";
 import { ACCESS_DENIED_PATH, PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
-import { rolesUsuario, type RolUsuario } from "@/lib/validations/auth";
+import { rolesUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
 
@@ -183,6 +183,20 @@ beforeEach(() => {
   auditMock.mockResolvedValue(undefined);
 });
 
+const DEGRADED = { kind: "degraded", degraded: true };
+const CURRENT_GROUP = { grupoId: 21, numeroGrupo: "02" };
+const CURRENT = () =>
+  assignData({
+    groups: [group({ current: true })],
+    currentGroup: CURRENT_GROUP,
+  });
+const STUDENT_VIEW = { estudiante: "11" };
+const SUBJECT_VIEW = { estudiante: "11", asignatura: "31" };
+
+/** The student search answers with these rows (never degraded). */
+const found = (...rows: Record<string, unknown>[]) =>
+  searchMock.mockResolvedValue({ data: rows, degraded: false });
+
 function expectNothingRead() {
   expect(scopeMock).not.toHaveBeenCalled();
   expect(searchMock).not.toHaveBeenCalled();
@@ -191,52 +205,46 @@ function expectNothingRead() {
 }
 
 describe("AssignPage access (EA-ACC-1: other identities denied)", () => {
-  it.each(
-    rolesUsuario
+  const denied: [string, () => unknown, Params, string][] = [
+    ...rolesUsuario
       .filter((rol) => rol !== "secretaria")
-      .map((rol) => [rol] as [RolUsuario]),
-  )("sends %s to /denied with no read and no audit row", async (rol) => {
-    getSessionMock.mockResolvedValue(sessionFor(rol));
+      .map((rol): [string, () => unknown, Params, string] => [
+        rol,
+        () => sessionFor(rol),
+        { q: "ana" },
+        ACCESS_DENIED_PATH,
+      ]),
+    ["an anonymous caller", () => null, STUDENT_VIEW, "/login"],
+    [
+      "a secretaria with a pending password change",
+      () => sessionFor("secretaria", true),
+      { q: "ana" },
+      PASSWORD_CHANGE_PATH,
+    ],
+    // The redirect wins over the not-found answer of a hostile value.
+    [
+      "an estudiante with a hostile estudiante",
+      () => sessionFor("estudiante"),
+      { estudiante: "abc" },
+      ACCESS_DENIED_PATH,
+    ],
+  ];
 
-    await expect(renderPage({ q: "ana" })).rejects.toThrow(
-      `REDIRECT:${ACCESS_DENIED_PATH}`,
-    );
+  it.each(denied)(
+    "sends %s away with no read and no audit row",
+    async (_who, session, params, path) => {
+      getSessionMock.mockResolvedValue(session());
 
-    expectNothingRead();
-  });
+      await expect(renderPage(params)).rejects.toThrow(`REDIRECT:${path}`);
 
-  it("sends an anonymous caller to /login with no read and no audit row", async () => {
-    getSessionMock.mockResolvedValue(null);
-
-    await expect(renderPage({ estudiante: "11" })).rejects.toThrow(
-      "REDIRECT:/login",
-    );
-
-    expectNothingRead();
-  });
-
-  it("sends a secretaria with a pending password change to the change screen", async () => {
-    getSessionMock.mockResolvedValue(sessionFor("secretaria", true));
-
-    await expect(renderPage({ q: "ana" })).rejects.toThrow(
-      `REDIRECT:${PASSWORD_CHANGE_PATH}`,
-    );
-
-    expectNothingRead();
-  });
-
-  it("answers an invalid estudiante to a stranger with the redirect, not not-found", async () => {
-    getSessionMock.mockResolvedValue(sessionFor("estudiante"));
-
-    await expect(renderPage({ estudiante: "abc" })).rejects.toThrow(
-      `REDIRECT:${ACCESS_DENIED_PATH}`,
-    );
-    expect(notFoundMock).not.toHaveBeenCalled();
-  });
+      expectNothingRead();
+      expect(notFoundMock).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("AssignPage scope none (EA-SCOPE-1)", () => {
-  it.each([[{}], [{ q: "ana" }], [{ estudiante: "11" }]] as const)(
+  it.each([[{}], [{ q: "ana" }], [STUDENT_VIEW]] as const)(
     "shows the no-facultad state and reads and audits nothing for %j",
     async (params) => {
       scopeMock.mockResolvedValue({ kind: "none" });
@@ -282,42 +290,35 @@ describe("AssignPage hostile estudiante (EA-SCOPE-1: not found)", () => {
   });
 
   it("reads the student with the facultad of the session and never the URL", async () => {
-    await renderPage({
-      estudiante: "11",
-      asignatura: "31",
-      facultadId: "9",
-      scope: "all",
-    });
+    await renderPage({ ...SUBJECT_VIEW, facultadId: "9", scope: "all" });
 
     expect(loadMock).toHaveBeenCalledExactlyOnceWith(SCOPE, 11, 31);
   });
 });
 
 describe("AssignPage student search (EA-CRE-1, D10: one audit row per search)", () => {
-  it("shows only the search form, and reads and audits nothing, without a term", async () => {
-    await renderPage();
+  it.each([
+    ["no term", {}],
+    ["a blank term", { q: "   " }],
+    ["a repeated term", { q: ["a", "b"] }],
+  ])(
+    "shows only the search form, reading and auditing nothing, for %s",
+    async (_name, params) => {
+      await renderPage(params);
 
-    const form = screen.getByRole("search", { name: en.assign.search.form });
-    expect(within(form).getByLabelText(en.assign.search.label)).toHaveValue("");
-    expect(form).toHaveAttribute("method", "get");
-    expect(searchMock).not.toHaveBeenCalled();
-    expect(auditMock).not.toHaveBeenCalled();
-    expect(screen.queryByText(en.assign.results.title)).toBeNull();
-  });
-
-  it("treats a blank or repeated term as no search", async () => {
-    await renderPage({ q: "   " });
-    await renderPage({ q: ["a", "b"] });
-
-    expect(searchMock).not.toHaveBeenCalled();
-    expect(auditMock).not.toHaveBeenCalled();
-  });
+      const form = screen.getByRole("search", { name: en.assign.search.form });
+      expect(within(form).getByLabelText(en.assign.search.label)).toHaveValue(
+        "",
+      );
+      expect(form).toHaveAttribute("method", "get");
+      expect(screen.queryByText(en.assign.results.title)).toBeNull();
+      expect(searchMock).not.toHaveBeenCalled();
+      expect(auditMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("searches with the facultad scope and the trimmed term, then audits once, after the results", async () => {
-    searchMock.mockResolvedValue({
-      data: [student(), student({ id: 12, nombreCompleto: "Ana Gómez" })],
-      degraded: false,
-    });
+    found(student(), student({ id: 12, nombreCompleto: "Ana Gómez" }));
 
     await renderPage({ q: "  ana  ", facultadId: "9" });
 
@@ -343,10 +344,15 @@ describe("AssignPage student search (EA-CRE-1, D10: one audit row per search)", 
     expect(
       screen.getByText(en.assign.results.empty.title.replace("{q}", "zz")),
     ).toBeInTheDocument();
+    const clear = screen.getByRole("link", {
+      name: en.assign.results.empty.clear,
+    });
+    expect(clear).toHaveAttribute("href", "/catalog/inscripciones/assign");
+    expect(clear).toHaveAttribute("data-prefetch", "false");
   });
 
   it("never puts the search text, an id, a name or a CIF in the audit row", async () => {
-    searchMock.mockResolvedValue({ data: [student()], degraded: false });
+    found(student());
 
     await renderPage({ q: "Pérez" });
 
@@ -356,17 +362,15 @@ describe("AssignPage student search (EA-CRE-1, D10: one audit row per search)", 
     }
   });
 
-  it("lists each student with the name and the CIF only and a link to choose them", async () => {
-    searchMock.mockResolvedValue({
-      data: [
-        student(),
-        student({ id: 12, nombreCompleto: "Ana Gómez", cif: null }),
-      ],
-      degraded: false,
-    });
+  it("lists each student with the name and the CIF only and a link, out of prefetch, to choose them; keeps the term in the box", async () => {
+    found(
+      student(),
+      student({ id: 12, nombreCompleto: "Ana Gómez", cif: null }),
+    );
 
-    await renderPage({ q: "ana" });
+    await renderPage({ q: "  Ana  " });
 
+    expect(screen.getByRole("searchbox")).toHaveValue("Ana");
     const items = within(
       screen.getByRole("list", { name: en.assign.results.title }),
     ).getAllByRole("listitem");
@@ -374,82 +378,78 @@ describe("AssignPage student search (EA-CRE-1, D10: one audit row per search)", 
     expect(within(items[0]).getByText("Ana Pérez")).toBeInTheDocument();
     expect(within(items[0]).getByText("2021-0001")).toBeInTheDocument();
     expect(within(items[1]).getByText("Ana Gómez")).toBeInTheDocument();
-    expect(
+    const links = [
       within(items[0]).getByRole("link", { name: "Choose Ana Pérez" }),
-    ).toHaveAttribute("href", "/catalog/inscripciones/assign?estudiante=11");
-    expect(
       within(items[1]).getByRole("link", { name: "Choose Ana Gómez" }),
-    ).toHaveAttribute("href", "/catalog/inscripciones/assign?estudiante=12");
-  });
-
-  it("keeps the term in the search box", async () => {
-    await renderPage({ q: "  Ana  " });
-
-    expect(screen.getByRole("searchbox")).toHaveValue("Ana");
-  });
-
-  it("writes no row and shows no content when the search is degraded (EA-DEG-1)", async () => {
-    searchMock.mockResolvedValue({ data: [], degraded: true });
-
-    const { container } = await renderPage({ q: "ana" });
-
-    expect(auditMock).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("status")).toHaveLength(1);
-    expect(screen.getByRole("status")).toHaveTextContent(en.assign.degraded);
-    expect(screen.queryByRole("search")).toBeNull();
-    expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.queryByRole("button")).toBeNull();
-    expect(container.textContent).not.toMatch(/error|exception|ECONN/i);
+    ];
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/catalog/inscripciones/assign?estudiante=11",
+      "/catalog/inscripciones/assign?estudiante=12",
+    ]);
+    // D10: no link of the audited page prefetches it.
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute("data-prefetch", "false");
+    }
   });
 
   it("throws when the audit insert fails, so no result is shown without its row", async () => {
-    searchMock.mockResolvedValue({ data: [student()], degraded: false });
+    found(student());
     auditMock.mockRejectedValue(new Error("insert failed"));
 
     await expect(build({ q: "ana" })).rejects.toThrow("insert failed");
   });
 
   it("does not search or audit when a student is chosen, even with a term in the URL", async () => {
-    await renderPage({ estudiante: "11", q: "ana" });
+    loadMock.mockResolvedValue(assignData({ groups: [group()] }));
+
+    await renderPage({ ...SUBJECT_VIEW, q: "ana" });
 
     expect(searchMock).not.toHaveBeenCalled();
     expect(auditMock).not.toHaveBeenCalled();
   });
+});
 
-  it("builds the audit payload once per render", async () => {
-    searchMock.mockResolvedValue({ data: [student()], degraded: false });
+describe("AssignPage degraded (EA-DEG-1)", () => {
+  it.each([
+    [
+      "search",
+      { q: "ana" },
+      () => searchMock.mockResolvedValue({ data: [], degraded: true }),
+    ],
+    ["student read", SUBJECT_VIEW, () => loadMock.mockResolvedValue(DEGRADED)],
+  ] as [string, Params, () => unknown][])(
+    "shows one alert in place of the content, with nothing offered or audited, for the %s",
+    async (_name, params, arrange) => {
+      arrange();
 
-    await renderPage({ q: "ana" });
+      const { container } = await renderPage(params);
 
-    expect(auditMock).toHaveBeenCalledTimes(1);
-  });
+      expect(auditMock).not.toHaveBeenCalled();
+      expect(screen.getAllByRole("status")).toHaveLength(1);
+      expect(screen.getByRole("status")).toHaveTextContent(en.assign.degraded);
+      for (const role of ["search", "link", "button", "combobox", "list"]) {
+        expect(screen.queryByRole(role)).toBeNull();
+      }
+      expect(container.textContent).not.toMatch(/error|exception|ECONN/i);
+    },
+  );
 });
 
 describe("AssignPage chosen student (EA-CRE-1, EA-CHG-1)", () => {
   it("names the student and offers the subjects, the student's own carrera first", async () => {
+    const other = { ownCarrera: false, carreraNombre: "Arquitectura" };
     loadMock.mockResolvedValue(
       assignData({
         asignaturas: [
-          asignatura({
-            id: 40,
-            codigo: "FIS200",
-            nombre: "Fisica",
-            ownCarrera: false,
-            carreraNombre: "Arquitectura",
-          }),
+          asignatura({ id: 40, codigo: "FIS200", nombre: "Fisica", ...other }),
           asignatura({ id: 31 }),
-          asignatura({
-            id: 41,
-            codigo: "QUI100",
-            nombre: "Quimica",
-            ownCarrera: false,
-            carreraNombre: "Arquitectura",
-          }),
+          asignatura({ id: 41, codigo: "QUI100", nombre: "Quimica", ...other }),
         ],
       }),
     );
 
-    await renderPage({ estudiante: "11" });
+    await renderPage(STUDENT_VIEW);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       en.assign.title,
@@ -490,9 +490,8 @@ describe("AssignPage chosen student (EA-CRE-1, EA-CHG-1)", () => {
       }),
     );
 
-    await renderPage({ estudiante: "11", asignatura: "31" });
+    await renderPage(SUBJECT_VIEW);
 
-    expect(loadMock).toHaveBeenCalledExactlyOnceWith(SCOPE, 11, 31);
     expect(
       screen.getByRole("option", { name: "MAT101 · Calculo I" }),
     ).toHaveProperty("selected", true);
@@ -516,61 +515,53 @@ describe("AssignPage chosen student (EA-CRE-1, EA-CHG-1)", () => {
     expect(within(items[1]).getByText("Days not set")).toBeInTheDocument();
   });
 
-  it("marks the current group in text and names it, even when it is no longer offered", async () => {
-    loadMock.mockResolvedValue(
-      assignData({
-        groups: [
-          group({ current: true }),
-          group({ grupoId: 22, numeroGrupo: "03" }),
-        ],
-        currentGroup: { grupoId: 21, numeroGrupo: "02" },
-      }),
-    );
+  // The current group is marked in text and named in a notice; a current group
+  // that is no longer offered is named with no group marked.
+  it.each([
+    [
+      "is offered",
+      [group({ current: true }), group({ grupoId: 22, numeroGrupo: "03" })],
+      CURRENT_GROUP,
+      "Ana Pérez is currently in group 02 of this subject.",
+      0,
+    ],
+    [
+      "is no longer offered",
+      [group({ grupoId: 22, numeroGrupo: "03" })],
+      CURRENT_GROUP,
+      "Ana Pérez is currently in group 02 of this subject.",
+      null,
+    ],
+    [
+      "does not exist",
+      [group()],
+      null,
+      "Ana Pérez has no active group in this subject for this period.",
+      null,
+    ],
+  ])(
+    "names the student's situation when the current group %s",
+    async (_name, groups, currentGroup, notice, marked) => {
+      loadMock.mockResolvedValue(assignData({ groups, currentGroup }));
 
-    await renderPage({ estudiante: "11", asignatura: "31" });
+      await renderPage(SUBJECT_VIEW);
 
-    const items = screen.getAllByRole("listitem");
-    expect(
-      within(items[0]).getByText(en.assign.groups.current),
-    ).toBeInTheDocument();
-    expect(within(items[1]).queryByText(en.assign.groups.current)).toBeNull();
-    expect(
-      screen.getByText("Ana Pérez is currently in group 02 of this subject."),
-    ).toBeInTheDocument();
-  });
-
-  it("names a current group that is not in the offered list and marks none", async () => {
-    loadMock.mockResolvedValue(
-      assignData({
-        groups: [group({ grupoId: 22, numeroGrupo: "03" })],
-        currentGroup: { grupoId: 21, numeroGrupo: "02" },
-      }),
-    );
-
-    await renderPage({ estudiante: "11", asignatura: "31" });
-
-    expect(
-      screen.getByText("Ana Pérez is currently in group 02 of this subject."),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(en.assign.groups.current)).toBeNull();
-  });
-
-  it("says so when the student has no active group in the subject", async () => {
-    loadMock.mockResolvedValue(assignData({ groups: [group()] }));
-
-    await renderPage({ estudiante: "11", asignatura: "31" });
-
-    expect(
-      screen.getByText(
-        "Ana Pérez has no active group in this subject for this period.",
-      ),
-    ).toBeInTheDocument();
-  });
+      expect(screen.getByText(notice)).toBeInTheDocument();
+      const markers = screen.queryAllByText(en.assign.groups.current);
+      expect(markers).toHaveLength(marked === null ? 0 : 1);
+      if (marked !== null) {
+        expect(
+          within(screen.getAllByRole("listitem")[marked]).getByText(
+            en.assign.groups.current,
+          ),
+        ).toBeInTheDocument();
+      }
+    },
+  );
 
   it("shows no groups for a subject that is not one of the student's offered subjects", async () => {
-    await renderPage({ estudiante: "11", asignatura: "999" });
+    await renderPage({ ...STUDENT_VIEW, asignatura: "999" });
 
-    expect(loadMock).toHaveBeenCalledExactlyOnceWith(SCOPE, 11, 999);
     expect(screen.queryByRole("list", { name: /Groups of/ })).toBeNull();
     expect(screen.getByText(en.assign.groups.empty)).toBeInTheDocument();
   });
@@ -580,7 +571,7 @@ describe("AssignPage chosen student (EA-CRE-1, EA-CHG-1)", () => {
       assignData({ periodo: null, asignaturas: [], groups: [] }),
     );
 
-    await renderPage({ estudiante: "11" });
+    await renderPage(STUDENT_VIEW);
 
     expect(screen.getByText(en.assign.noOffering)).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).toBeNull();
@@ -589,82 +580,79 @@ describe("AssignPage chosen student (EA-CRE-1, EA-CHG-1)", () => {
   it("notes that the subject list was cut", async () => {
     loadMock.mockResolvedValue(assignData({ truncated: true }));
 
-    await renderPage({ estudiante: "11" });
+    await renderPage(STUDENT_VIEW);
 
     expect(screen.getByText(en.assign.picker.truncated)).toBeInTheDocument();
   });
-
-  it("shows the degraded alert in place of the content and offers nothing", async () => {
-    loadMock.mockResolvedValue({ kind: "degraded", degraded: true });
-
-    await renderPage({ estudiante: "11", asignatura: "31" });
-
-    expect(screen.getAllByRole("status")).toHaveLength(1);
-    expect(screen.getByRole("status")).toHaveTextContent(en.assign.degraded);
-    expect(screen.queryByRole("search")).toBeNull();
-    expect(screen.queryByRole("combobox")).toBeNull();
-    expect(screen.queryByRole("list")).toBeNull();
-    expect(auditMock).not.toHaveBeenCalled();
-  });
-
-  it("writes no audit row for a student view", async () => {
-    loadMock.mockResolvedValue(assignData({ groups: [group()] }));
-
-    await renderPage({ estudiante: "11", asignatura: "31" });
-
-    expect(auditMock).not.toHaveBeenCalled();
-  });
 });
 
-describe("AssignPage hands the group list exactly what the S3b-2 form needs (EA-PII-1)", () => {
-  const FULL = assignData({
-    groups: [
-      group({ current: true }),
-      group({ grupoId: 22, numeroGrupo: "03" }),
-    ],
-    currentGroup: { grupoId: 21, numeroGrupo: "02" },
-  });
+describe("AssignPage hands the components exactly what the S3b-2 form needs (EA-PII-1)", () => {
+  const LEAKS = [
+    "ana@uni.edu",
+    "555-0100",
+    "LEAKED",
+    "coord@uni.edu",
+    "luis@uni.edu",
+    "555-0199",
+    "carreraId",
+    "estudianteId",
+    "creadoEn",
+    "correo",
+    "telefono",
+  ];
 
-  it("pins the props, the current group id included", async () => {
-    loadMock.mockResolvedValue(FULL);
+  /** Neither the HTML nor the props handed to a child hold any of `LEAKS`. */
+  async function expectNoLeak(params: Params) {
+    const ui = await build(params);
+    const { container } = renderUi(ui);
 
-    const props = propsWith(
-      await build({ estudiante: "11", asignatura: "31" }),
-      "currentGroup",
+    for (const text of [container.innerHTML, serializedProps(ui)]) {
+      expect(text.length).toBeGreaterThan(0);
+      for (const leak of LEAKS) expect(text).not.toContain(leak);
+    }
+    expect(serializedProps(ui)).toContain("2021-0001");
+  }
+
+  it("pins the props of the group list, the current group id included", async () => {
+    loadMock.mockResolvedValue(
+      assignData({
+        groups: [
+          group({ current: true }),
+          group({ grupoId: 22, numeroGrupo: "03" }),
+        ],
+        currentGroup: CURRENT_GROUP,
+      }),
     );
 
-    expect(props).not.toBeNull();
-    expect(Object.keys(props!).sort()).toEqual([
-      "asignatura",
-      "currentGroup",
-      "groups",
-      "periodo",
-      "student",
-    ]);
-    expect(props!.student).toEqual({
-      id: 11,
-      nombreCompleto: "Ana Pérez",
-      cif: "2021-0001",
+    const props = propsWith(await build(SUBJECT_VIEW), "currentGroup");
+
+    // Strict: a key the page adds or lets through fails here. The current
+    // group id is the `expectedReplaced` the form sends back (13.6).
+    expect(props).toStrictEqual({
+      student: { id: 11, nombreCompleto: "Ana Pérez", cif: "2021-0001" },
+      asignatura: { id: 31, codigo: "MAT101", nombre: "Calculo I" },
+      periodo: "2026-S2",
+      groups: [
+        {
+          grupoId: 21,
+          numeroGrupo: "02",
+          docenteNombre: "Luis Gómez",
+          dias: ["lunes", "miercoles"],
+          current: true,
+        },
+        {
+          grupoId: 22,
+          numeroGrupo: "03",
+          docenteNombre: "Luis Gómez",
+          dias: ["lunes", "miercoles"],
+          current: false,
+        },
+      ],
+      currentGroup: CURRENT_GROUP,
     });
-    expect(props!.asignatura).toEqual({
-      id: 31,
-      codigo: "MAT101",
-      nombre: "Calculo I",
-    });
-    expect(props!.periodo).toBe("2026-S2");
-    // The id the form sends back as `expectedReplaced` (13.6).
-    expect(props!.currentGroup).toEqual({ grupoId: 21, numeroGrupo: "02" });
-    expect(
-      (props!.groups as Record<string, unknown>[]).map((g) =>
-        Object.keys(g).sort(),
-      ),
-    ).toEqual([
-      ["current", "dias", "docenteNombre", "grupoId", "numeroGrupo"],
-      ["current", "dias", "docenteNombre", "grupoId", "numeroGrupo"],
-    ]);
   });
 
-  it("sends nothing else, even if the reads returned more", async () => {
+  it("sends nothing else to the group list, even if the reads returned more", async () => {
     loadMock.mockResolvedValue(
       assignData({
         student: student({
@@ -680,120 +668,41 @@ describe("AssignPage hands the group list exactly what the S3b-2 form needs (EA-
             docenteTelefono: "555-0199",
           }),
         ],
-        currentGroup: {
-          grupoId: 21,
-          numeroGrupo: "02",
-          estudianteId: 11,
-          creadoEn: "2026-01-01",
-        },
+        currentGroup: { ...CURRENT_GROUP, estudianteId: 11, creadoEn: "2026" },
       }),
     );
 
-    const ui = await build({ estudiante: "11", asignatura: "31" });
-    const { container } = renderUi(ui);
-
-    for (const text of [container.innerHTML, serializedProps(ui)]) {
-      expect(text.length).toBeGreaterThan(0);
-      for (const leak of [
-        "ana@uni.edu",
-        "555-0100",
-        "LEAKED",
-        "coord@uni.edu",
-        "luis@uni.edu",
-        "555-0199",
-        "carreraId",
-        "estudianteId",
-        "creadoEn",
-        "correo",
-        "telefono",
-      ]) {
-        expect(text).not.toContain(leak);
-      }
-    }
-    expect(serializedProps(ui)).toContain("2021-0001");
+    await expectNoLeak(SUBJECT_VIEW);
   });
 
   it("sends the results list only the name, the CIF and the id", async () => {
-    searchMock.mockResolvedValue({
-      data: [student({ correo: "ana@uni.edu", telefono: "555-0100" })],
-      degraded: false,
-    });
+    found(student({ correo: "ana@uni.edu", telefono: "555-0100" }));
 
-    const ui = await build({ q: "ana" });
-    const { container } = renderUi(ui);
-
-    for (const text of [container.innerHTML, serializedProps(ui)]) {
-      expect(text).not.toContain("ana@uni.edu");
-      expect(text).not.toContain("555-0100");
-    }
-    expect(serializedProps(ui)).toContain("2021-0001");
-  });
-});
-
-describe("AssignPage never lets a link prefetch it (D10)", () => {
-  it("opts every link out of prefetch while results are shown", async () => {
-    searchMock.mockResolvedValue({
-      data: [student(), student({ id: 12 })],
-      degraded: false,
-    });
-
-    await renderPage({ q: "ana" });
-
-    const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(2);
-    for (const link of links) {
-      expect(link).toHaveAttribute("data-prefetch", "false");
-    }
-  });
-
-  it("opts the clear link of the no-results state out of prefetch", async () => {
-    await renderPage({ q: "zz" });
-
-    const clear = screen.getByRole("link", {
-      name: en.assign.results.empty.clear,
-    });
-    expect(clear).toHaveAttribute("data-prefetch", "false");
-    expect(clear).toHaveAttribute("href", "/catalog/inscripciones/assign");
+    await expectNoLeak({ q: "ana" });
   });
 });
 
 describe("AssignPage structure and copy (EA-UI-1)", () => {
-  it.each([
-    "search",
-    "results",
-    "no-results",
-    "student",
-    "groups",
-    "degraded",
-    "no-facultad",
-  ] as const)(
-    "has exactly one h1 and no skipped levels (%s)",
-    async (variant) => {
-      let params: Params = {};
-      if (variant === "results") {
-        searchMock.mockResolvedValue({ data: [student()], degraded: false });
-        params = { q: "ana" };
-      }
-      if (variant === "no-results") params = { q: "zz" };
-      if (variant === "student") params = { estudiante: "11" };
-      if (variant === "groups") {
-        loadMock.mockResolvedValue(
-          assignData({
-            groups: [group({ current: true })],
-            currentGroup: { grupoId: 21, numeroGrupo: "02" },
-          }),
-        );
-        params = { estudiante: "11", asignatura: "31" };
-      }
-      if (variant === "degraded") {
-        loadMock.mockResolvedValue({ kind: "degraded", degraded: true });
-        params = { estudiante: "11" };
-      }
-      if (variant === "no-facultad")
-        scopeMock.mockResolvedValue({ kind: "none" });
+  const VARIANTS: [string, Params, () => unknown][] = [
+    ["search", {}, () => undefined],
+    ["results", { q: "ana" }, () => found(student())],
+    ["no-results", { q: "zz" }, () => undefined],
+    ["student", STUDENT_VIEW, () => undefined],
+    ["groups", SUBJECT_VIEW, () => loadMock.mockResolvedValue(CURRENT())],
+    ["degraded", STUDENT_VIEW, () => loadMock.mockResolvedValue(DEGRADED)],
+    ["no-facultad", {}, () => scopeMock.mockResolvedValue({ kind: "none" })],
+  ];
+
+  it.each(VARIANTS)(
+    "has one page frame, exactly one h1 and no skipped levels (%s)",
+    async (_variant, params, arrange) => {
+      arrange();
 
       await renderPage(params);
 
+      expect(
+        document.querySelectorAll('[data-slot="page-frame"]'),
+      ).toHaveLength(1);
       const levels = screen
         .getAllByRole("heading")
         .map((h) => Number(h.tagName.slice(1)));
@@ -805,24 +714,11 @@ describe("AssignPage structure and copy (EA-UI-1)", () => {
     },
   );
 
-  it("wraps its content in one page frame", async () => {
-    await renderPage();
-
-    expect(document.querySelectorAll('[data-slot="page-frame"]')).toHaveLength(
-      1,
-    );
-  });
-
   it("renders the title, the search and the current-group marker in Spanish", async () => {
     state.locale = "es";
-    loadMock.mockResolvedValue(
-      assignData({
-        groups: [group({ current: true })],
-        currentGroup: { grupoId: 21, numeroGrupo: "02" },
-      }),
-    );
+    loadMock.mockResolvedValue(CURRENT());
 
-    await renderPage({ estudiante: "11", asignatura: "31" });
+    await renderPage(SUBJECT_VIEW);
 
     const es = messages.es.catalog.inscripciones.assign;
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
