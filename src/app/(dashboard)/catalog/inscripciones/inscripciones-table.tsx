@@ -79,6 +79,14 @@ const CLEARED_FILTERS = {
 
 const hrefOf = (state: InscripcionesListState) => catalogListHref(BASE, state);
 
+/** Whether any filter differs from what "clear filters" restores. */
+const hasFilters = (state: InscripcionesListState) =>
+  state.q !== CLEARED_FILTERS.q ||
+  state.asignatura !== CLEARED_FILTERS.asignatura ||
+  state.grupo !== CLEARED_FILTERS.grupo ||
+  state.periodo !== CLEARED_FILTERS.periodo ||
+  state.status !== CLEARED_FILTERS.status;
+
 const SELECT =
   "border-input bg-card text-foreground h-11 w-full rounded-lg border px-3 text-sm outline-none focus-visible:border-primary focus-visible:ring-ring/40 focus-visible:ring-3";
 
@@ -93,10 +101,13 @@ function FilterBar({
   state,
   periods,
   total,
+  showClear,
 }: {
   state: InscripcionesListState;
   periods: readonly string[];
   total: number;
+  /** Off when the no-results state already offers its own clear link. */
+  showClear: boolean;
 }) {
   const t = useTranslations("catalog.inscripciones");
   const tTables = useTranslations("tables");
@@ -212,6 +223,21 @@ function FilterBar({
         <Button type="submit" size="lg" className="w-full sm:w-auto">
           {t("filters.apply")}
         </Button>
+        {showClear ? (
+          // Clears the filters; sort and size are view preferences and stay.
+          // The page audits each render, so the link is never prefetched.
+          <Link
+            href={hrefOf(applyListChange(state, CLEARED_FILTERS))}
+            prefetch={false}
+            className={buttonVariants({
+              variant: "ghost",
+              size: "lg",
+              className: "w-full sm:w-auto",
+            })}
+          >
+            {tTables("clear")}
+          </Link>
+        ) : null}
       </form>
       <p
         role="status"
@@ -248,6 +274,8 @@ function RowToggle({ row }: { row: InscripcionRow }) {
         group: row.numeroGrupo,
       })}
       activo={row.activo}
+      // In a table cell an inline panel would stretch the row; use a modal.
+      confirmIn="dialog"
       notice={
         row.requestCount > 0
           ? `${t("toggle.requests", { count: row.requestCount })} ${retention}`
@@ -378,15 +406,17 @@ function InscripcionesList({
     [t],
   );
 
-  const toolbar = <FilterBar state={state} periods={periods} total={total} />;
+  const filtered = hasFilters(state);
+  const toolbar = (
+    <FilterBar
+      state={state}
+      periods={periods}
+      total={total}
+      showClear={filtered && rows.length > 0}
+    />
+  );
 
   if (rows.length === 0) {
-    const filtered =
-      state.q !== "" ||
-      state.asignatura !== "" ||
-      state.grupo !== "" ||
-      state.periodo !== "" ||
-      state.status !== DEFAULT_STATE.status;
     return (
       <div className="flex flex-col gap-4">
         {/* The filters stay reachable: an empty latest period still has older
