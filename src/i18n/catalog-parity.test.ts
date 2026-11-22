@@ -2033,3 +2033,73 @@ describe("catalog parity (DT-I18N-1: retired list copy)", () => {
     }
   });
 });
+
+describe("catalog parity (EA-CRE-1, EA-CHG-1: assign page copy)", () => {
+  const assign = (locale: "es" | "en") =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      "catalog.inscripciones.assign",
+    );
+
+  // The keys the assign page and its three parts read, each with the named
+  // placeholders it holds (none when the list is empty); extending the page
+  // extends this table on purpose (S3b-2 adds the form copy).
+  const ASSIGN_COPY: Record<string, string[]> = {
+    degraded: [],
+    "groups.caption": ["subject"],
+    "groups.current": [],
+    "groups.currentNotice": ["student", "number"],
+    "groups.days": [],
+    "groups.empty": [],
+    "groups.group": ["number"],
+    "groups.noCurrent": ["student"],
+    "groups.noTeacher": [],
+    "groups.teacher": ["name"],
+    "groups.title": ["periodo"],
+    noOffering: [],
+    "picker.label": [],
+    "picker.placeholder": [],
+    "picker.submit": [],
+    "picker.title": [],
+    "picker.truncated": [],
+    "results.choose": [],
+    "results.chooseLabel": ["student"],
+    "results.empty.clear": [],
+    "results.empty.hint": [],
+    "results.empty.title": ["q"],
+    "results.title": [],
+    "search.form": [],
+    "search.label": [],
+    "search.placeholder": [],
+    "search.submit": [],
+    "student.cif": ["cif"],
+    "student.title": [],
+    subtitle: [],
+    title: [],
+  };
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the assign keys, each with its placeholders",
+    (locale) => {
+      expect(leafPaths(assign(locale)).sort()).toEqual(
+        Object.keys(ASSIGN_COPY).sort(),
+      );
+      for (const [key, expected] of Object.entries(ASSIGN_COPY)) {
+        const value = resolve(assign(locale), key) as string;
+        expect(
+          [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]),
+          `${locale} ${key}`,
+        ).toEqual(expected);
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s never names a draft in the assign copy",
+    (locale) => {
+      for (const value of leafValues(assign(locale))) {
+        expect(value).not.toMatch(/draft|borrador/i);
+      }
+    },
+  );
+});

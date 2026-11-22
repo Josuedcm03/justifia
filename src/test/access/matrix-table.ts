@@ -58,6 +58,7 @@ export const PAGES: Record<string, Row> = {
   [`${CATALOG}/docentes/page.tsx`]: row(STAFF),
   [`${CATALOG}/grupos/[id]/edit/page.tsx`]: row(STAFF),
   [`${CATALOG}/inscripciones/page.tsx`]: row(SECRETARIA),
+  [`${CATALOG}/inscripciones/assign/page.tsx`]: row(SECRETARIA),
   [`${CATALOG}/import/page.tsx`]: row(SECRETARIA),
   "(dashboard)/coordination/page.tsx": row(COORDINACION),
   "(dashboard)/coordination/[id]/page.tsx": row(COORDINACION),
