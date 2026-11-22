@@ -6,7 +6,7 @@ remiten a ese archivo.
 
 | #   | Change                     | Cubre                                                                                | Responsable | Prototipo            | Estado    |
 | --- | -------------------------- | ------------------------------------------------------------------------------------ | ----------- | -------------------- | --------- |
-| 0   | `catalog-schedule`         | Mantenimiento de inscripciones por la secretaría: RF-12 (a) a (c), RF-17 (b), (d), (e); RN-21; RNF-01, RNF-02, RNF-06, RNF-12; relacionado con RN-27 | Josué       | Sí                   | pendiente |
+| 0   | `catalog-schedule`         | Mantenimiento de inscripciones por la secretaría: RF-12 (a) a (c), RF-17 (b), (d), (e); RN-21; RNF-01, RNF-02, RNF-06, RNF-12; relacionado con RN-27 | Josué       | Sí                   | archivado |
 | 1   | `justification-intake`     | RF-01 a RF-04; RN-01 a RN-06, RN-21 a RN-23                                          | Armando     | Sí                   | archivado |
 | 2   | `secretary-review`         | RF-06 a RF-08; RN-08, RN-15 a RN-17                                                  | Armando     | Sí                   | archivado |
 | 3   | `teacher-remission`        | RF-09; RN-18, RN-19; RNF-07                                                          | Por asignar | Sí                   | archivado |
@@ -36,7 +36,7 @@ remiten a ese archivo.
   sincronizar RF-12 (c) y RN-21.
   Archivado el 2026-10-25; el recorrido del propietario (fase 13) quedó
   parcial, según `openspec/changes/archive/2026-10-25-student-enrollment/tasks.md`.
-- `catalog-schedule` (en curso) da a la secretaría el mantenimiento de las
+- `catalog-schedule` (archivado el 2026-11-22) da a la secretaría el mantenimiento de las
   inscripciones de los estudiantes de su facultad en `/catalog/inscripciones`:
   lista con filtros, desactivación y reactivación con confirmación, cambio de
   grupo y alta. Cubre RF-12 (a) a (c), RF-17 (b), (d), (e), RN-21, RNF-01,
@@ -44,7 +44,7 @@ remiten a ese archivo.
   retiene los datos del estudiante). Usa el permiso `canManageEnrollments`
   (solo la secretaría) y no `canManageCatalog`. No cubre la brecha de
   mantenimiento de docentes de RF-12 (a) ni los horarios con hora de reloj de
-  RN-22. El estado pasa a `archivado` cuando se archive el change.
+  RN-22.
 - RF-12 y RNF-13 (mantenimiento e importación de catálogos) los cubren los
   changes en curso de Josué: `catalog-excel-import` y `catalog-management`.
 - RNF-08, RNF-09 y RNF-10 se verifican en el piloto o en la operación, no en un

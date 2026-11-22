@@ -623,8 +623,9 @@ describe("InscripcionesPage never lets a link prefetch it (D10)", () => {
     const pageLinks = within(nav).getAllByRole("link");
     expect(pageLinks).toHaveLength(4);
     const all = screen.getAllByRole("link");
-    // The four page links, the header link and the row's change link.
-    expect(all).toHaveLength(6);
+    // The four page links, the header link, the filter bar's clear link and
+    // the row's change link.
+    expect(all).toHaveLength(7);
     for (const link of all) {
       expect(link).toHaveAttribute("data-prefetch", "false");
     }

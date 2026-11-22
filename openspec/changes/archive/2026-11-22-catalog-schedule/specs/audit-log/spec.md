@@ -96,7 +96,11 @@ The payload MUST carry only closed, non-identifying values: the period, the
 status filter, which filters are present (booleans), the page and the number of
 rows returned. It MUST NOT carry the search text, any student id, name or CIF,
 any group or asignatura id typed as a filter, nor a count of requests. A read
-that fails or returns the degraded state MUST write no audit row.
+that fails or returns the degraded state MUST write no audit row. The student
+search is not bound to a period, so its payload MUST record the period as the
+empty string `""` and the status as `active`, and the only filter present is the
+search term (`q: true`). A blank search term reads and audits nothing (owner
+decision, 2026-11-22).
 
 #### Scenario: List load writes one row without student data
 
@@ -110,6 +114,13 @@ that fails or returns the degraded state MUST write no audit row.
 - GIVEN the assign page in S3
 - WHEN a student search returns results
 - THEN exactly one `inscripcion.estudiantes.consultada` row exists with entity `Facultad` F
+- AND its payload records `periodo` as `""`, `status` as `active` and only `q` as a present filter
+
+#### Scenario: Blank student search writes nothing
+
+- GIVEN the assign page with an empty search term
+- WHEN the page renders
+- THEN no student is read and no audit row is written
 
 #### Scenario: Degraded read writes nothing
 

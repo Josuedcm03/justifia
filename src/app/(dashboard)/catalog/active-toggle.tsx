@@ -11,6 +11,15 @@ import {
 } from "react";
 
 import { StatusPill } from "@/components/status-pill";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import type { ActiveToggleState } from "@/lib/catalog/types";
 
@@ -31,6 +40,10 @@ const IDLE: ActiveToggleState = { kind: "idle" };
  *
  * `notice` is an optional sentence shown in the confirmation step (for an
  * Asignatura, how many active groups it has); the caller owns that copy.
+ *
+ * `confirmIn` places the confirmation step: `inline` (default) below the
+ * control, for a wide edit page; `dialog` in a modal alert dialog, for a
+ * control inside a table cell, where an inline panel would stretch the row.
  */
 export function ActiveToggle({
   action,
@@ -38,12 +51,14 @@ export function ActiveToggle({
   recordLabel,
   activo,
   notice,
+  confirmIn = "inline",
 }: {
   action: ActiveToggleAction;
   id: number;
   recordLabel: string;
   activo: boolean;
   notice?: string;
+  confirmIn?: "inline" | "dialog";
 }) {
   const t = useTranslations("catalog.shared");
   const [state, dispatch, isPending] = useActionState(action, IDLE);
@@ -52,17 +67,19 @@ export function ActiveToggle({
   const titleId = useId();
   const openRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   // Focus goes back to step one only after cancel or an answer, never on mount.
   const restoreFocus = useRef(false);
 
   useEffect(() => {
+    // The dialog moves focus into itself; only the inline panel needs help.
     if (confirming) {
-      confirmRef.current?.focus();
+      if (confirmIn === "inline") confirmRef.current?.focus();
     } else if (restoreFocus.current) {
       restoreFocus.current = false;
       openRef.current?.focus();
     }
-  }, [confirming]);
+  }, [confirming, confirmIn]);
 
   // The answer replaces the confirmation's button, so focus is handed back to
   // step one once the server has answered.
@@ -120,6 +137,7 @@ export function ActiveToggle({
 
   return (
     <form
+      ref={formRef}
       method="post"
       className="flex flex-col gap-4"
       aria-busy={isPending}
@@ -157,7 +175,52 @@ export function ActiveToggle({
         ) : null}
       </div>
 
-      {confirming ? (
+      {confirmIn === "dialog" ? (
+        <AlertDialog
+          open={confirming}
+          onOpenChange={(open) => {
+            if (!open) {
+              restoreFocus.current = true;
+              setConfirming(false);
+            }
+          }}
+        >
+          <AlertDialogContent initialFocus={confirmRef}>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="break-words">
+                {t("toggle.confirmTitle", { record: recordLabel })}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("toggle.nothingDeleted")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {notice ? (
+              <p className="bg-muted text-foreground rounded-lg px-3 py-2 text-sm">
+                {notice}
+              </p>
+            ) : null}
+            <AlertDialogFooter>
+              <AlertDialogCancel render={<Button variant="ghost" size="lg" />}>
+                {t("toggle.cancel")}
+              </AlertDialogCancel>
+              <Button
+                ref={confirmRef}
+                type="button"
+                variant="destructive"
+                size="lg"
+                disabled={isPending}
+                onClick={() => {
+                  // The popup is portalled out of the form, so it submits the
+                  // form by reference rather than as a submit button.
+                  if (formRef.current) submit(formRef.current, "deactivate");
+                }}
+              >
+                {t("toggle.confirm")}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : confirming ? (
         <div
           role="group"
           aria-labelledby={titleId}

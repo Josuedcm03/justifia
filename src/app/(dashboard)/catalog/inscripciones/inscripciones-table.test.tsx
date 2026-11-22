@@ -281,7 +281,7 @@ describe.each(["en", "es"] as const)(
       await user.click(
         within(bodyRow()).getByRole("button", { name: shared.deactivate }),
       );
-      return { user, dialog: screen.getByRole("group") };
+      return { user, dialog: await screen.findByRole("alertdialog") };
     }
 
     it("names the student, the subject and the group in the confirmation title", async () => {
@@ -297,6 +297,12 @@ describe.each(["en", "es"] as const)(
         ),
       );
       expect(toggleAction).not.toHaveBeenCalled();
+    });
+
+    it("opens the confirmation as a modal outside the table, so it never stretches the row", async () => {
+      const { dialog } = await openDialog();
+
+      expect(screen.getByRole("table")).not.toContainElement(dialog);
     });
 
     it.each([0, 2])(
@@ -350,7 +356,7 @@ describe.each(["en", "es"] as const)(
         within(dialog).getByRole("button", { name: shared.cancel }),
       );
 
-      expect(screen.queryByRole("group")).toBeNull();
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
       expect(
         within(bodyRow()).getByRole("button", { name: shared.deactivate }),
       ).toBeVisible();
@@ -371,7 +377,7 @@ describe("InscripcionesTable deactivation notice (EA-DEACT-1 count table)", () =
         name: messages[locale].catalog.shared.toggle.deactivate,
       }),
     );
-    return screen.getByRole("group");
+    return screen.findByRole("alertdialog");
   }
 
   it.each([
@@ -782,6 +788,40 @@ describe("InscripcionesTable states (EA-FILT-1, EA-LIST-1 'Nothing in scope')", 
     // The filters stay reachable: an empty latest period still has older ones.
     expect(screen.getByLabelText(copy.filters.periodo.label)).toBeVisible();
   });
+
+  it("offers no clear link in the filter bar when no filter is active", () => {
+    renderTable();
+
+    expect(
+      screen.queryByRole("link", { name: "Clear filters" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each(["en", "es"] as const)(
+    "in %s puts one clear link in the filter bar over rows that keeps sort and size",
+    (locale) => {
+      renderTable({
+        locale,
+        state: stateOf({
+          q: "ana",
+          grupo: "2",
+          status: "inactive",
+          sort: { key: "group", dir: "asc" },
+          size: 25,
+        }),
+      });
+
+      const links = screen.getAllByRole("link", {
+        name: messages[locale].tables.clear,
+      });
+      expect(links).toHaveLength(1);
+      expect(links[0]).toHaveAttribute(
+        "href",
+        `${BASE}?sort=group&dir=asc&size=25`,
+      );
+      expect(screen.getByRole("table")).not.toContainElement(links[0]);
+    },
+  );
 
   it("names the search term in no-results and clears every filter but sort and size", () => {
     renderTable({
