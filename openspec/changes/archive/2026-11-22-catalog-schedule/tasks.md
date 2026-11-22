@@ -242,19 +242,38 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 16: Owner manual walk (the list load and every search write audit rows, so ALL DB steps are `[USER][CONFIRM]`)
 
-- [ ] 16.1 `[USER][CONFIRM]` Create a disposable Neon branch and point the local dev server at it (never production). Check the `DATABASE_URL` host is the walk branch before starting (the student-enrollment walk wrote to production through a stale `.env`); the owner edits `.env`, the agent never does.
-- [ ] 16.2 `[USER][CONFIRM]` Practice accounts on the walk branch: two secretarias (two facultades), students in both, one cancelled student, one docente; no seeding without an explicit yes.
-- [ ] 16.3 `[USER][CONFIRM]` W1 (after S1c-3), `es` and `en`, 360 px and desktop, keyboard: list shows only her facultad with name and CIF; filters; four state labels; other roles denied; sidebar and home entry per role.
-- [ ] 16.4 `[USER][CONFIRM]` W2 (after S2b-2): deactivate with the count dialog (a draft is not counted), cancel, last-active sentence, reactivate, student `/enrollment` and intake step 2 reflect it.
-- [ ] 16.5 `[USER][CONFIRM]` W3 (after S3b-2): change group (dialog names the replaced group), create, search, out-of-scope direct URL -> not found, student `/enrollment` shows the result.
-- [ ] 16.6 `[USER][CONFIRM]` `[READ-ONLY]` query on the walk branch: each staff write has one `inscripcion.*` row with the staff actor and the student id as entity; one `inscripcion.lista.consultada` per list load and one `inscripcion.estudiantes.consultada` per search, entity `Facultad`, payload without search text, ids or names; none for refused or cancelled operations.
-- [ ] 16.7 `[USER][CONFIRM]` Delete the walk branch; record every result and date here.
+- [x] 16.1 `[USER][CONFIRM]` Create a disposable Neon branch and point the local dev server at it (never production). Check the `DATABASE_URL` host is the walk branch before starting (the student-enrollment walk wrote to production through a stale `.env`); the owner edits `.env`, the agent never does.
+  - 2026-11-21: branch `walk-catalog-schedule` (`br-rough-pond-aykqxjdg`). `.env` was left untouched on `main`; the walk URL was passed only to the seed and `next dev` processes. The seed guard refused the first run because `.env` pointed at the main host, and nothing was written.
+- [x] 16.2 `[USER][CONFIRM]` Practice accounts on the walk branch: two secretarias (two facultades), students in both, one cancelled student, one docente; no seeding without an explicit yes.
+  - 2026-11-21: `npm run db:seed:walk` (commit 97de35d) ran after the owner asked for it. It created 13 `walk.*` accounts and 9 inscripciones, with periods `2026-S2` (latest) and `2026-S1`. One targeted owner-confirmed `UPDATE` restored the two `walk.est.a.hermano` rows (WALK-A2 01 active, 02 inactive) so the replace path could be walked again.
+- [x] 16.3 `[USER][CONFIRM]` W1 (after S1c-3), `es` and `en`, 360 px and desktop, keyboard: list shows only her facultad with name and CIF; filters; four state labels; other roles denied; sidebar and home entry per role.
+  - 2026-11-21, owner walk: passed. Feedback fixed in ab37d5d: a "clear filters" link in the filter bar when a filter is active.
+- [x] 16.4 `[USER][CONFIRM]` W2 (after S2b-2): deactivate with the count dialog (a draft is not counted), cancel, last-active sentence, reactivate, student `/enrollment` and intake step 2 reflect it.
+  - 2026-11-21, owner walk: deactivate, cancel and reactivate passed. Feedback fixed in ab37d5d: the inline confirmation stretched the table cell, so it is now a modal alert dialog (opt-in `confirmIn="dialog"` of `ActiveToggle`).
+  - Reactivate with an active sibling first ended as a plain `baja` of the sibling: the owner pressed Deactivate on the active row. After the rows were restored, "Reemplazar grupo" on the inactive row wrote `desactivada` (motivo `reemplazo`, 01) and `reactivada` (02) at the same instant.
+  - Not separately confirmed by the owner: the refused reactivation of `walk.est.a.bloqueado` and the student `/enrollment` view.
+- [x] 16.5 `[USER][CONFIRM]` W3 (after S3b-2): change group (dialog names the replaced group), create, search, out-of-scope direct URL -> not found, student `/enrollment` shows the result.
+  - 2026-11-21, owner walk: create (`walk.est.a.nuevo`, WALK-A1 01) passed. Change group (`walk.est.a.activo`, WALK-A1 01 -> 02) wrote `desactivada` (motivo `reemplazo`) and `creada` at the same instant.
+  - A search for "Walk Estudiante" returned the 5 non-cancelled students of A, with no B student and no cancelled student.
+  - Out-of-scope URLs gave "not found" in both directions: `walk.sec.a` opening `?estudiante=24` (B) and `walk.sec.b` opening `?estudiante=19` (A).
+- [x] 16.6 `[USER][CONFIRM]` `[READ-ONLY]` query on the walk branch: each staff write has one `inscripcion.*` row with the staff actor and the student id as entity; one `inscripcion.lista.consultada` per list load and one `inscripcion.estudiantes.consultada` per search, entity `Facultad`, payload without search text, ids or names; none for refused or cancelled operations.
+  - 2026-11-21, `EventoAuditoria` on the walk branch. Every write row has actor `walk.sec.*`, entity `Inscripcion` with the student id, and a payload of only `grupoId` and `motivo`.
+  - List reads carry entity `Facultad` 4 for `walk.sec.a` and 3 for `walk.sec.b`, and the payload records `q: true` without the text.
+  - The two searches wrote two `inscripcion.estudiantes.consultada` rows, with `periodo: ""` (the open owner point). Cancelled dialogs left no row. The restoring `UPDATE` wrote no row, as expected for direct SQL.
+- [x] 16.7 `[USER][CONFIRM]` Delete the walk branch; record every result and date here.
+  - 2026-11-21: the owner confirmed and the walk branch `br-rough-pond-aykqxjdg` was deleted. A branch listing confirmed it is gone and the other branches, `production` included, are intact. The dev server had been stopped first.
 
 ## Phase 17: Closeout (after Phase 16)
 
 - [ ] 17.1 After the last slice merges into `main`, re-run `npm test`, typecheck, lint and `npm run build` on `main` and record the result (student-enrollment left this open).
-- [ ] 17.2 `sdd-verify`: every scenario of the five spec deltas mapped to a test or the walk record.
-- [ ] 17.3 `sdd-archive` spec sync: merge the deltas into `openspec/specs/{student-enrollment,academic-catalog,audit-log,backoffice-shell}/spec.md` and create `openspec/specs/enrollment-administration/spec.md`; update the student-enrollment Purpose sentence ("staff view or editing" out of scope); readback in `archive-report.md`.
-- [ ] 17.4 `docs/roadmap.md` row 0 state to `archivado`; keep the note on the docentes gap and RN-22.
-- [ ] 17.5 Archive to `openspec/changes/archive/<date>-catalog-schedule/` with `git mv` and an `archive-report.md`.
+  - Open at archive (2026-11-22). Owner and post-merge item, not an implementation task: it runs after the code PR chain (#99 to #140) merges into `main`. Record the result here when it is run.
+- [x] 17.2 `sdd-verify`: every scenario of the five spec deltas mapped to a test or the walk record.
+  - Done 2026-11-21: `verify-report.md` verdict PASS WITH WARNINGS, 0 critical, 21/21 requirements and 70/70 scenarios compliant (evidence sha256:82bb16a40faadae393ba79c9061bd5899b4d27f181b8482271fbf9e8f4d2f957). W1 resolved 2026-11-22 by the owner (audit-log delta amended, no code change). W2, W3, W5 and W6 are carried to `archive-report.md`.
+- [x] 17.3 `sdd-archive` spec sync: merge the deltas into `openspec/specs/{student-enrollment,academic-catalog,audit-log,backoffice-shell}/spec.md` and create `openspec/specs/enrollment-administration/spec.md`; update the student-enrollment Purpose sentence ("staff view or editing" out of scope); readback in `archive-report.md`.
+  - Done 2026-11-22: `student-enrollment` (ADDED requirement, Purpose sentence updated), `academic-catalog` (MODIFIED), `audit-log` (MODIFIED, 2 ADDED) and `backoffice-shell` (2 MODIFIED, 1 ADDED) merged; `openspec/specs/enrollment-administration/spec.md` created with 13 requirements and the delta header removed. Block-level readback in `archive-report.md`.
+- [x] 17.4 `docs/roadmap.md` row 0 state to `archivado`; keep the note on the docentes gap and RN-22.
+  - Done 2026-11-22: row 0 is `archivado`; the note on the RF-12 (a) docentes gap and on RN-22 is kept.
+- [x] 17.5 Archive to `openspec/changes/archive/<date>-catalog-schedule/` with `git mv` and an `archive-report.md`.
+  - Done 2026-11-22: moved with `git mv` to `openspec/changes/archive/2026-11-22-catalog-schedule/`; `archive-report.md` written inside the folder; `diff -r` readback in the archive phase result.
 - [ ] 17.6 `[USER]` Merge order: each slice PR into `main` in chain order, retargeting the next PR onto `main` after each merge; delete merged slice branches and `feat/catalog-schedule`.
+  - Open at archive (2026-11-22). Owner item: the code PRs #99 to #140 are open and not merged. This archive goes as PR 18 from `feat/catalog-schedule-archive`. Merge order and branch cleanup are pending.

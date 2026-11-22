@@ -95,18 +95,20 @@ satisfying their own scenarios.
 
 The sidebar body MUST show the same entries, in the same order, with the same
 group and the same visibility predicates as before the backoffice refresh, and
-the same active marker (the 4px bar paired with `aria-current`), with three
+the same active marker (the 4px bar paired with `aria-current`), with four
 additions: the Enrollment entry for `estudiante` (BS-NAV-3); the Escalated
 requests entry for `coordinacion`, a top-level entry placed after Review
 requests, visible through the `canCoordinate` predicate and not prefetched
-because its pages are audited on render (added by the `escalation` change); and
-the Reports entry for `coordinacion` (RF-17, RNF-01 b), a top-level entry placed
+because its pages are audited on render (added by the `escalation` change); the
+Reports entry for `coordinacion` (RF-17, RNF-01 b), a top-level entry placed
 after Escalated requests and before the Administration group, visible through
-the `canViewReports` predicate. The Reports link MUST NOT be prefetched, because
-its page is audited on render. The `/settings`
-entry MUST stay exactly as it is (D7), including its target. The
-"Administration" group MUST still render only when at least one child is
-visible.
+the `canViewReports` predicate and not prefetched, because its page is audited
+on render; and the Inscripciones entry for `secretaria` (BS-NAV-4), inside the
+Administration group, after Docentes and before Import, visible through the
+`canManageEnrollments` predicate. The `/settings` entry MUST stay exactly as it
+is (D7), including its target. The "Administration" group MUST still render only
+when at least one child is visible.
+(Previously: three additions, without the Inscripciones entry.)
 
 #### Scenario: Entries per role (table-driven)
 
@@ -116,7 +118,7 @@ visible.
 | `docente` | Dashboard, Settings |
 | `administrador` | Dashboard, Administration (Asignaturas, Docentes, Users), Settings |
 | `coordinacion` | Dashboard, Escalated requests, Reports, Administration (Asignaturas, Docentes, Users), Settings |
-| `secretaria` | Dashboard, Review requests, Administration (Asignaturas, Docentes, Import, Users), Settings |
+| `secretaria` | Dashboard, Review requests, Administration (Asignaturas, Docentes, Inscripciones, Import, Users), Settings |
 
 - GIVEN a signed-in user with the role from the row
 - WHEN the sidebar renders
@@ -340,7 +342,7 @@ The dashboard home MUST show a shortcut card for every menu destination the
 viewer's role can see, derived from the same navigation configuration and
 predicates as the sidebar, in the sidebar's order (My requests, New request,
 Enrollment, Review requests, Escalated requests, Reports, Asignaturas,
-Docentes, Import, Users);
+Docentes, Inscripciones, Import, Users);
 the Dashboard entry and the Settings entry are not offered as shortcuts (the
 settings route does not exist; D7 freezes the sidebar entry, not a second dead
 link). User-count cards (total and active users) MUST show only to roles that
@@ -348,6 +350,7 @@ may open `/users`, and MUST use the existing stats read without a new data
 query (D9); that read MUST NOT be performed for a role that does not show the
 cards. No shortcut MUST lead to a destination the role cannot open. A role with no shortcut and no counts MUST see the page header and
 a short localized message instead of an empty area.
+(Previously: the order and the secretaria row had no Inscripciones card.)
 
 #### Scenario: Home per role (table-driven)
 
@@ -357,7 +360,7 @@ a short localized message instead of an empty area.
 | `docente` | none (message shown) | no |
 | `administrador` | Asignaturas, Docentes, Users | yes |
 | `coordinacion` | Escalated requests, Reports, Asignaturas, Docentes, Users | yes |
-| `secretaria` | Review requests, Asignaturas, Docentes, Import, Users | yes |
+| `secretaria` | Review requests, Asignaturas, Docentes, Inscripciones, Import, Users | yes |
 
 - GIVEN a signed-in user with the role from the row
 - WHEN the dashboard home renders
@@ -536,6 +539,40 @@ that one entry (BS-CTX-1, BS-HOME-1), with a label in both `es` and `en`. No rol
 - GIVEN a signed-in user with the role from the row
 - WHEN the sidebar and the home render
 - THEN no Enrollment entry and no Enrollment shortcut is shown
+
+### Requirement: BS-NAV-4 Inscripciones destination for the secretaría (RF-12 a, RNF-01 b)
+
+The navigation configuration MUST contain one Inscripciones entry targeting
+`/catalog/inscripciones`, in the Administration group, visible only through
+`canManageEnrollments`. Its sidebar entry, its dashboard shortcut and its
+top-bar trail MUST come from that one entry (BS-CTX-1, BS-HOME-1), with a label
+in both `es` and `en` that differs from the student's Enrollment label. No role
+other than `secretaria` MUST see it.
+
+#### Scenario: Entry, active marker and trail
+
+- GIVEN a signed-in `secretaria` on `/catalog/inscripciones`
+- WHEN the sidebar and the top bar render in `es` and in `en`
+- THEN the Inscripciones entry is active with `aria-current`, the trail shows Administration / Inscripciones as text with `aria-current`, and the page has exactly one `h1`
+
+#### Scenario: Hidden from other roles (table-driven)
+
+| Role |
+|---|
+| `estudiante` |
+| `docente` |
+| `coordinacion` |
+| `administrador` |
+
+- GIVEN a signed-in user with the role from the row
+- WHEN the sidebar and the home render
+- THEN no Inscripciones entry and no Inscripciones shortcut is shown
+
+#### Scenario: Asignaturas stays the entry of its own paths
+
+- GIVEN a `secretaria` on `/catalog/asignaturas`
+- WHEN the sidebar renders
+- THEN Asignaturas is active and Inscripciones is not
 
 ## Assumptions and open points
 
