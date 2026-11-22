@@ -1007,3 +1007,65 @@ Mutation checks on the new code (production restored from a copy): dropping `wri
 ### Remaining tasks
 
 Phases 15-17 (S3b-2 assign form with confirmation onward). The "Open PR" step of 14.7 is the parent's.
+
+## Batch 15: S3b-2 assign form with confirmation (tasks 15.1-15.4, complete; Phase 16 NOT started)
+
+Branch `feat/catalog-schedule-s3b2-assign-form`, created from `feat/catalog-schedule-s3b1b-list-links` (S3b-1b, PR #139; chain #99 -> ... -> #138 -> #139). Date: 2026-11-21. Commit `8d3c120` `feat(enrollment): add the confirmed create and change group form`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here). Next `mutating-data.md` ("Event Handlers": a Server Function is called from an `onClick` in a Client Component) re-read; the action takes explicit arguments, so the form uses `useTransition` and no `<form>`.
+
+### Completed tasks
+
+- [x] 15.1 branch (this one)
+- [x] 15.2 RED `CI/assign/assign-form.test.tsx` (plus the page, guards and parity RED additions)
+- [x] 15.3 GREEN `CI/assign/assign-form.tsx` wired into `assign/page.tsx`, copy `catalog.inscripciones.assign.form.*` in both locales with its parity pin
+- [x] 15.4 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 15.2/15.3 | `CI/assign/assign-form.test.tsx` (new) | Component (real `AlertDialog`, real catalogs, the action is a double) | 744/744 over the inscripciones folder and `src/i18n` before any edit | Suite failed to load (`assign-form` unresolved), 0 tests ran | 14/14 | choice: the current group is marked and has no control, the others are named by student and number; confirm step table of three rows (no current group, a current group that is offered, a current group no longer offered) pinning the exact sentence AND the exact call `(11, grupoId, expectedReplaced)` with `null` or `21`; cancel sends nothing and leaves the status empty; pending disables confirm and cancel, Escape does not close, one call even on a second click; answers table of four (created, reactivated with a replaced group, stale, gone) with the exact text of the region; success links back to the list (prefetch off) and disables the groups; stale and gone keep the form usable, offer a reload link to the same page and re-open the dialog; touch targets (every control `h-11`), no fixed width, wrapping description, stacked footer, full-width choose control | Dropped a `setAnswer(null)` that no test needed (the next answer replaces the previous one) |
+| 15.2 | `CI/assign/page.test.tsx` | Integration | in the 744 | 3 failed (the group-situation table: no assign control per group) | green with the page change | the table counts one control per group except the current one, in three situations | clean |
+| 15.2 | `CI/guards.test.ts` | Structural | in the 744 | 1 failed (no module under `assign/` reaches an action) | green | exactly `assign-form.tsx` imports `../actions` and it starts with `"use client"`; the existing GET-form pin and the prefetch pin now also scan the new file (my own doc comment first tripped the form pin and was reworded) | clean |
+| 15.3 | `src/i18n/catalog-parity.test.ts` | Unit (JSON) | in the 744 | 2 failed (the 13 new keys absent in es and en) | green | exact leaf set of `assign` including `form.*`, each key with its named placeholders in both locales | clean |
+
+Mutation checks (production restored from an in-memory copy taken just before each, node script, no `git checkout`; 17 mutations, all killed after one fix): always sending `null` as `expectedReplaced` (2 red); sending the target group as `expectedReplaced` (3); offering the current group too (2 files red); sending on choose, before the confirm (13); never naming the replaced group (3); confirm enabled while pending (3); groups still enabled after a success (1); the replaced note always shown (1); the reload link prefetching (4); the back link prefetching (3); `gone` shown as nothing (2); a refusal swallowed (3); no 44 px size on the choose control (1); a fixed width on it (1); a description that cannot wrap (1); the list rendering no action (17). One mutation SURVIVED the first time (Escape closing the dialog while pending); the pending test now presses Escape and the mutation is killed (3 red).
+
+Totals: 14 new tests in the form file, 3 page cases changed (one new assertion in an existing table), 1 guard case, 2 parity cases expanded (full suite 9591 -> 9607). Layers: component, integration, structural, unit.
+
+### Decisions and deviations
+
+1. **Plain button flow, no `<form>`.** `assignInscripcionAction(estudianteId, grupoId, expectedReplaced)` takes explicit arguments (13.2), so a click handler inside `useTransition` calls it; there is nothing to post. The S3b-1 pin "every `<form>` under assign/ is a GET form" is untouched and still non-vacuous (the search and picker forms), and the page keeps no `action=`, `<form` or `onClick`.
+2. **`AssignGroups` is kept** as the list (the props type `AssignGroupsProps` stays pinned by the page test); it gained one optional prop `renderAction(group)`, so the client form renders the control under each group without duplicating the markup. Without the prop it is the read-only list it was in S3b-1 (rollback: revert `assign-form.tsx` and the page import).
+3. **Confirm frame.** `ConfirmChangeDialog` (student enrollment) is tied to `EnrollmentActionResult` and the `enrollment.*` copy, so a local frame was built from the same `AlertDialog` parts: it stays open while the action works, Escape and cancel are blocked while pending, and it closes when the answer arrives.
+4. **`expectedReplaced` has one source.** The replaced group named in the confirm sentence and the third argument both come from `currentGroup` of the props (the id the page displayed), so what she saw is what the server checks (13.6). A current group that is no longer offered is still named and sent.
+5. **Answers.** `done` shows the outcome sentence (created or reactivated, plus a note when a group was replaced) and a prefetch-free link back to `/catalog/inscripciones`, and stops offering the groups (the page behind it is stale; a second submit would only be refused as stale). `error` (stale included, the action returns only the message) and `gone` render in a `role="alert"` with a prefetch-free "Reload this page" link to the same assign URL, and the form stays usable. `gone` reuses `catalog.shared.notFound`. A rejected call (network) is not caught: it reaches the dashboard error boundary like the student dialog.
+6. **Copy** `catalog.inscripciones.assign.form.*` (13 keys, es and en); one extension of the existing parity table, no new pin file. The Spanish done sentence is gender-neutral ("Se inscribió a {student} ...").
+7. **360 px guard** follows the enrollment one: static class checks (no fixed width, `h-11` on every control, `break-words`, stacked footer, `w-full` choose control); the real check is the owner walk W3.
+8. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/lib/navigation.test.ts src/components src/i18n src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx src/app/access-matrix.actions.test.ts` -> 47 files, 1818 passed (RED runs: 6 failed plus the new suite failing to load) |
+| Runtime harness | N/A: the form is rendered under Testing Library with the real `AlertDialog` and the real catalogs, the action is a double; the real-database walk W3 is `[USER][CONFIRM]` (Phase 16) |
+| Rollback boundary | Revert `8d3c120`: the form, the `renderAction` slot, the page import, the `form.*` copy and the test and pin additions; the page returns to the S3b-1 read-only list |
+
+### Gates G (2026-11-21)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 1818/1818 |
+| `npm test` (full suite) | 377 files, 9607 passed, 0 failed (115 s, no flaky failure) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the inscripciones folder and `src/i18n` | 0 findings |
+| `npx prettier --check --end-of-line auto` on the same paths and `i18n` | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3b1b-list-links...HEAD -- . ':!openspec' ':!.engram'` -> 9 files changed, 565 insertions(+), 13 deletions(-) = **578 changed lines** (forecast ~370; 1.6x), under the 800 budget. Per file: `assign-form.test.tsx` 278, `assign-form.tsx` 191, locales 38, `assign-groups.tsx` 11, `page.tsx` 19, `catalog-parity.test.ts` 19, `guards.test.ts` 14, `page.test.tsx` 8. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3b-2 (parent) and Phases 16-17 (the owner walk W3 and the closeout). Not started.
