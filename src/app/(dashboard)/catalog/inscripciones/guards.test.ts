@@ -186,6 +186,7 @@ describe("inscripciones server actions (structure)", () => {
       const actions = exportedFunctions(file.text);
       expect(actions.map((a) => a.name)).toEqual([
         "setInscripcionActivoAction",
+        "assignInscripcionAction",
       ]);
 
       for (const action of actions) {
@@ -222,6 +223,59 @@ describe("inscripciones server actions (structure)", () => {
       expect(file.text).not.toMatch(
         /\.get(All)?\(\s*["'](actorId|estudianteId|scope|rol)["']/,
       );
+    },
+  );
+
+  // The writer fails closed (EA-SIB-1): only the assign action, behind the
+  // confirmation of the assign page, opts in to create and replace. The list
+  // toggle must never carry the option, or a forged POST could replace a
+  // group without the confirmation. Comments are stripped so prose cannot
+  // satisfy or break the check.
+  const code = (text: string) =>
+    text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const OPT_IN = /\ballowReplaceAndCreate\b/g;
+
+  it.each([
+    ["a bare call", "staffEnrollInGroup(staff, s, g)", 0],
+    [
+      "an opted-in call",
+      "staffEnrollInGroup(staff, s, g, { allowReplaceAndCreate: true })",
+      1,
+    ],
+    [
+      "a comment only",
+      "// allowReplaceAndCreate\n/** allowReplaceAndCreate */ f()",
+      0,
+    ],
+  ])("the opt-in check reads %s", (_name, source, count) => {
+    expect(code(source).match(OPT_IN)?.length ?? 0).toBe(count);
+  });
+
+  it.each(actionFiles.map((f) => [f.path, f] as const))(
+    "%s: only assignInscripcionAction opts in to create and replace; the list toggle never does",
+    (_path, file) => {
+      const byName = Object.fromEntries(
+        exportedFunctions(file.text).map((a) => [a.name, code(a.body)]),
+      );
+
+      expect(byName.setInscripcionActivoAction).not.toMatch(OPT_IN);
+      expect(byName.assignInscripcionAction).toMatch(
+        /staffEnrollInGroup\([^)]*\{\s*allowReplaceAndCreate:\s*true,\s*expectedReplaced:\s*parsed\.data\.expectedReplaced,?\s*\},?\s*\)/,
+      );
+      expect(code(file.text).match(OPT_IN)).toHaveLength(1);
+    },
+  );
+
+  it.each(actionFiles.map((f) => [f.path, f] as const))(
+    "%s: assignInscripcionAction takes explicit arguments and reads no form",
+    (_path, file) => {
+      const assign = exportedFunctions(file.text).find(
+        (a) => a.name === "assignInscripcionAction",
+      );
+
+      expect(assign).toBeDefined();
+      expect(code(assign!.body)).not.toMatch(FORM_READ);
+      expect(code(assign!.body)).not.toContain("FormData");
     },
   );
 });

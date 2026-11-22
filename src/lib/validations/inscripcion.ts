@@ -22,3 +22,13 @@ export const staffEnrollmentInputSchema = z.object({
 });
 
 export type StaffEnrollmentInput = z.infer<typeof staffEnrollmentInputSchema>;
+
+// Payload of the staff assign action (EA-SIB-1, EA-CHG-1, EA-CRE-1). It adds the
+// optimistic check: the group the user saw and confirmed as replaced, or `null`
+// when the page showed none. The key is REQUIRED (an absent value is not `null`),
+// so a caller cannot opt out of the check by omitting it.
+export const assignEnrollmentInputSchema = staffEnrollmentInputSchema.extend({
+  expectedReplaced: z.number().int().positive().nullable(),
+});
+
+export type AssignEnrollmentInput = z.infer<typeof assignEnrollmentInputSchema>;

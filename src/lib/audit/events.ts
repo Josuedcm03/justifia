@@ -11,7 +11,11 @@ import type {
   GrupoWriteResult,
 } from "@/lib/catalog/types";
 import type { DocumentDataField } from "@/lib/document-data/types";
-import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
+import type {
+  DropResult,
+  EnrollResult,
+  StaleResult,
+} from "@/lib/enrollment/types";
 import type { Causa } from "@/lib/intake/causes";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
 import type {
@@ -897,7 +901,7 @@ export function inscripcionEvent(args: InscripcionEventArgs): AuditEvent {
  *  Every refusal and no-op gives `[]`, so it can never leave a row (AL-ONE). */
 export function enrollmentWriteEvents(
   estudianteId: number,
-  result: EnrollResult | DropResult,
+  result: EnrollResult | DropResult | StaleResult,
 ): AuditEvent[] {
   if (!result.ok) return [];
   if (!("kind" in result)) {
