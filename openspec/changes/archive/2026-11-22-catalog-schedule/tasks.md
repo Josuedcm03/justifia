@@ -276,5 +276,6 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
   - Done 2026-11-22: row 0 is `archivado`; the note on the RF-12 (a) docentes gap and on RN-22 is kept.
 - [x] 17.5 Archive to `openspec/changes/archive/<date>-catalog-schedule/` with `git mv` and an `archive-report.md`.
   - Done 2026-11-22: moved with `git mv` to `openspec/changes/archive/2026-11-22-catalog-schedule/`; `archive-report.md` written inside the folder; `diff -r` readback in the archive phase result.
-- [ ] 17.6 `[USER]` Merge order: each slice PR into `main` in chain order, retargeting the next PR onto `main` after each merge; delete merged slice branches and `feat/catalog-schedule`.
+- [x] 17.6 `[USER]` Merge order: each slice PR into `main` in chain order, retargeting the next PR onto `main` after each merge; delete merged slice branches and `feat/catalog-schedule`.
   - Open at archive (2026-11-22). Owner item: the code PRs #99 to #140 are open and not merged. This archive goes as PR 18 from `feat/catalog-schedule-archive`. Merge order and branch cleanup are pending.
+  - Done 2026-11-22: the code PR chain and the archive PR #142 are merged into `main` (`7cd93e9`). Every slice branch, `feat/catalog-schedule-walk-seed`, `feat/catalog-schedule-archive` and `feat/catalog-schedule` were deleted (19 remote, 20 local), each first confirmed as an ancestor of `origin/main`.
