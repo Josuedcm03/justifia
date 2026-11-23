@@ -265,8 +265,9 @@ Parallelism: inside a slice, tasks marked `[P]` are independent. Across slices t
 
 ## Phase 17: Closeout (after Phase 16)
 
-- [ ] 17.1 After the last slice merges into `main`, re-run `npm test`, typecheck, lint and `npm run build` on `main` and record the result (student-enrollment left this open).
+- [x] 17.1 After the last slice merges into `main`, re-run `npm test`, typecheck, lint and `npm run build` on `main` and record the result (student-enrollment left this open).
   - Open at archive (2026-11-22). Owner and post-merge item, not an implementation task: it runs after the code PR chain (#99 to #140) merges into `main`. Record the result here when it is run.
+  - Done 2026-11-22 on `main` at `7cd93e9` (merge of #142), in a clean worktree after `npm ci`: `vitest run` 378 files, 9623/9623 passed; `next build` OK; `tsc --noEmit` 0 errors (run after the build, which generates the global `LayoutProps` route types). `eslint .` exits 1: the CRLF checkout artifact ("Delete CR") plus, with `endOfLine: auto`, the same 3 pre-existing findings as W4 (2 prettier quote-style errors in `src/test/access/inventory.ts` lines 52 and 58, 1 unused `SidebarGroupLabel` import warning in `src/components/app-sidebar.tsx`). No finding introduced by this change.
 - [x] 17.2 `sdd-verify`: every scenario of the five spec deltas mapped to a test or the walk record.
   - Done 2026-11-21: `verify-report.md` verdict PASS WITH WARNINGS, 0 critical, 21/21 requirements and 70/70 scenarios compliant (evidence sha256:82bb16a40faadae393ba79c9061bd5899b4d27f181b8482271fbf9e8f4d2f957). W1 resolved 2026-11-22 by the owner (audit-log delta amended, no code change). W2, W3, W5 and W6 are carried to `archive-report.md`.
 - [x] 17.3 `sdd-archive` spec sync: merge the deltas into `openspec/specs/{student-enrollment,academic-catalog,audit-log,backoffice-shell}/spec.md` and create `openspec/specs/enrollment-administration/spec.md`; update the student-enrollment Purpose sentence ("staff view or editing" out of scope); readback in `archive-report.md`.
