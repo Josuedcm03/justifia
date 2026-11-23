@@ -1120,6 +1120,14 @@
       "sessions": 0,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "b4acc801",
+      "created_by": "jdkno",
+      "created_at": "2026-11-23T03:31:01Z",
+      "sessions": 0,
+      "memories": 6,
+      "prompts": 0
     }
   ]
 }
