@@ -1758,3 +1758,72 @@ Task 10.14 over S9b: 379 files and 9504 tests (PR 9b), 380 and 9543 (PR 9b2), 38
 5. **Mutation retarget.** The first mutation of the import case (the trim of `normalizeEmail`) was not caught because the schema trims the cell upstream; the check was retargeted to the call in `src/lib/import/plan.ts`.
 6. **Key name.** The design lists "auth.profile.loginLabel"; the real key is "profile.loginLabel".
 7. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.
+
+## Phase 11 (PR 9c): S9c, keep the session signed in (UX-22)
+
+Mode: Strict TDD. Date: 2026-11-20. Branch "feat/flow-experience-9c-keep-session", cut from the tip of "feat/flow-experience-9b3-profile-export" (25686b4, PR #127). No database or Neon command of any kind was run; unit tests use the dummy DB. Slice S9c is cut at the plan's candidate seam (after unit 24) into two PRs: 9c (unit 24, the session and cookie duration) and "9c2" (unit 25, the sign-in action, the form, the password-change re-issue and the copy). Each PR targets the previous branch. This section starts with PR 9c and gains a subsection for 9c2.
+
+### PR 9c: the 30-day duration (unit 24)
+
+#### Commits (PR 9c)
+
+| Unit | Hash    | Message                                              |
+| ---- | ------- | ---------------------------------------------------- |
+| 24   | 7c7553e | feat(auth): add the 30-day session duration          |
+| docs | (tip)   | docs(flow-experience): record the Phase 11 apply progress for PR 9c |
+
+#### TDD cycle evidence (PR 9c)
+
+| Task          | Test file                                  | Layer          | Safety net                          | RED                                                                                                                          | GREEN                  | Triangulation                                                                                                                                                                                                                                                  | Refactor    |
+| ------------- | ------------------------------------------ | -------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 11.1 and 11.3 | `src/lib/auth/session.test.ts`             | Unit (JWT)     | 11 existing cases of the file passing | 7 of the 11 new cases failed first (30 days, the helper and the constants, five non-boolean claims); the other four pass at write | 22 passed in the file  | exp minus iat is 30 days with the claim and 8 hours when it is absent or false; `sessionMaxAge` for both values and the token agrees with it; the claim survives verification; an old token without it verifies and lasts 8 hours; "yes", 1, "true", null and {} are refused | None needed |
+| 11.2 and 11.3 | `src/lib/auth/cookies.test.ts` (new)       | Unit (cookie)  | N/A (new file)                      | 2 of the 6 cases failed first (the 30-day maxAge, the flags for a kept session); four pass at write                          | 6 passed               | 30 days kept; 8 hours by default and for false; the exact flag set (httpOnly, secure false, sameSite lax, path /) for both durations; secure in production for both; sign-out deletes the cookie and sets nothing                                                | None needed |
+
+#### Mutation checks (revert-only; files restored from byte-identical backup copies and confirmed with "cmp")
+
+| Pass-at-write test                                         | Temporary edit                                                         | Result                          |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------- |
+| "verifies a token issued before the claim existed"         | `session.ts` requires the claim to be a boolean (no undefined)          | 5 failed (this case among them) |
+| "lasts 8 hours when the claim is absent or false"          | `session.ts` always signs "30d"                                        | 3 failed                        |
+| "is secure in production, for both durations"              | `cookies.ts` sets `secure` to false                                    | 1 failed, 5 passed              |
+| "deletes the session cookie"                               | `cookies.ts` `clearSessionCookie` no longer deletes                    | 1 failed, 5 passed              |
+
+#### Checkpoint (task 11.9, part 1): measured size of PR 9c
+
+Measure: "git diff --numstat feat/flow-experience-9b3-profile-export...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                                 | Changed lines |
+| ------------------------------------------------------------------------------------- | ------------- |
+| Production (`session.ts` 34, `cookies.ts` 10)                                          | 44            |
+| Tests (`session.test.ts` 77, `cookies.test.ts` 86)                                     | 163           |
+| All of PR 9c (197 added, 10 deleted)                                                   | 207           |
+
+Under the 460 stop line. Tests are 79 percent of the lines and were not trimmed.
+
+#### Work unit evidence (PR 9c)
+
+| Evidence                              | Value                                                                                                                                                                                             |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- session.test cookies.test": 2 files, all passed (22 and 6 cases). The access proof: "npm test -- access-matrix route-coverage src/test/access": 4 files, 536 tests, all passed |
+| Runtime harness                       | Owner-run: the cookie "Max-Age" check on "flow-it" (task 12.5), after PR 9c2 wires the box. No database command was run in this apply                                                              |
+| Rollback boundary                     | Revert the PR: `src/lib/auth/session.ts` and `src/lib/auth/cookies.ts` return to the 8-hour constant; nothing else calls the new helper or the flag yet, and tokens without the claim stay valid |
+
+#### Gates (task 11.10, part 1), tip of "-9c-keep-session", dummy DB
+
+- Full "npm test": 381 files, 9586 tests, all passed, 283.5 s. The 9b3 tip had 380 files and 9569 tests; PR 9c adds one test file (6 cases) and 11 cases in `session.test.ts`.
+- "npm run typecheck": exit 0.
+- "npx eslint" and "npx prettier --check" on the four touched files: clean.
+- Access matrix and route inventory, run on their own: 4 files, 536 tests, all passed, `src/test/access` untouched (task 11.7).
+
+#### Files (PR 9c; all LF in the working tree, the index was already LF)
+
+| File                                                       | Action                                                                                                     |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `src/lib/auth/session.ts`, `src/lib/auth/session.test.ts`   | Modified: the optional claim, `SESSION_MAX_AGE_KEPT`, `sessionMaxAge`, the expiry strings, the payload guard; 11 new cases |
+| `src/lib/auth/cookies.ts`, `src/lib/auth/cookies.test.ts`   | Modified and created: `setSessionCookie(token, keep = false)`; 6 cases                                      |
+
+#### Deviations (PR 9c)
+
+1. **Cut.** S9c is cut at the plan's candidate seam after unit 24: this PR is the duration, "feat/flow-experience-9c2-keep-session-form" is the wiring. The cut was made after both units were written and committed once, because the whole slice measured 570 lines; each PR was then verified on its own tip.
+2. **No UI text in this PR.** The label "Mantener la sesión iniciada" and every catalog key are in PR 9c2.
+3. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.
