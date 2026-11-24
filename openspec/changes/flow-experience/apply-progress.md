@@ -1989,7 +1989,7 @@ RED: 94 of 165 cases failed first. Two changes after RED: a wall-clock case was 
 | Evidence | Value |
 | --- | --- |
 | Focused test command and exact result | "npx vitest run src/lib/intake/decision-templates.test.ts src/lib/data/student-requests.test.ts", dummy DB: 2 files, 165 tests, all passed |
-| Runtime harness | Pending: the RF-07 capture of 12.8 is to be repeated on "flow-it" with the owner's yes |
+| Runtime harness | "flow-it", 468c3f8, 2026-11-24: the rejected card shows the reason at 1440 and 360 px, and the page sent to the browser does not contain the greeting (task 12.8) |
 | Rollback boundary | Revert the PR: the excerpt starts at the introduction again. No data or schema change |
 
 #### Gates (S9e), dummy DB
@@ -2070,3 +2070,51 @@ Against "feat/flow-experience" (cd39986), excluding "openspec/" and ".engram/": 
 ### Task 13.1, partial (2026-11-24)
 
 PRs #123 to #129 and #144 merged into the tracker on 2026-11-24 with the owner's OK; origin/main de810fb merged as cd39986; npm test 392 files, 10337 tests passed; typecheck exit 0; next build exit 0. Task 13.1 stays open: the tracker holds S1 to S9 and this PR (#145, S10) is not merged yet. Tasks 13.1 and 13.2 and every ASK OWNER and CONFIRM task stay unmarked.
+
+## Phase 12: S10 evidence (2026-11-24; tasks 12.1 to 12.11)
+
+Run on the disposable branch "flow-it" (endpoint asserted before every write) with the owner's explicit yes. Fictitious demo data. Local app on port 3001 with mail, cron, Blob and extraction off. Code at bc9828c; RF-07 was repeated at 468c3f8 after S9e.
+
+Evidence files: "C:\thesis-workspace\bitacora\evidencia_p1_2026-11-18\flow-experience" (with a "LEEME.md"), not the "build\salida\pruebas" folder of the plan. The names of the staff accounts are covered with a grey block and some images are cropped; nothing else was altered.
+
+### Database writes made
+
+- "UPDATE Usuario SET HashClave" for the Ids 24, 2 and 8, and later for 24 only. No session or password value was recorded; the credential files were deleted.
+- Through the screens: one fictitious student registered, request 36 escalated and answered, request 30 returned, request 40 rejected, one draft (534).
+- Left by the integration suite: 27 users, 4 careers, 8 faculties and 99 audit rows.
+
+### Outcomes
+
+| Task | Case | Desenlace | Observado | Evidence |
+| --- | --- | --- | --- | --- |
+| 12.1 | Branch | Conforme | 17 migrations, 0016 the last | - |
+| 12.2 | RF-08, 4.9:22 | No ejecutado | No integration test of the correction exists | - |
+| 12.3 | Integration suite | Conforme con una falla conocida | 12 files, 173 tests: 172 passed, 1 failed ("queue-index": the plan Postgres chooses with the demo data), 530 s | - |
+| 12.5 | Sign-in | Conforme en lo observado | Student, secretary and coordinator sign in by email; a mixed-case email with spaces works; a student registered with a hyphenated CIF signs in with digits, hyphen or spaces; a CIF of another length, an unknown identifier, a wrong password and the old login give the generic error; cookie of 720 h with "Mantener la sesión iniciada" and 8 h without; logout removes it. Not observed: the forced change of a flagged account. The seeded account 24 cannot sign in by CIF because its demo CIF keeps a hyphen; production had no CIF with anything but digits on 2026-11-24 | - |
+| 12.6 | RF-16 (c), 4.9:28 | Conforme | Request 36 went back to "pendiente"; the answer with author and date is the first block, the decision panel says that coordination already answered, the escalate dialog shows the answer; "Vence primero" on the first row of the queue | RF-16_c.png, RF-16_c_dialogo.png, RF-06.png |
+| 12.7 | RF-10 (b), 4.9:24 | Conforme | Both errors with nothing filled; the motive error clears on choice; the note reads "(obligatoria)"; "Otro" shows in the secretary and the coordinator details | RF-10_b_1 to RF-10_b_5 |
+| 12.8 | RF-07 (c), 4.9:21 | Conforme después de S9e | First run at bc9828c: the rejected card did not reach the reason. Second run at 468c3f8: dates with the month name, subject codes and reason on the returned and the rejected card; no horizontal scroll at 1440 and 360 px. Seeded requests 34 and 38 show no reason because they have no decision row (checked read-only) | RF-07_c_1_escritorio.png, RF-07_c_2_360.png; first run: RF-07_c_antes_1 and RF-07_c_antes_2 |
+| 12.9 | RF-01, 4.9:15 | Conforme en lo observado | Notice on steps 1, 2 and 3; recap with weekdays and "Editar fechas" on steps 2 and 3; editing keeps the dates, the cause and the subject. Not observed: the presentation | RF-01_1 to RF-01_3 |
+
+With the Blob token empty, "/requests/new" shows "No pudimos cargar tu borrador"; with a placeholder value it loads. It is the effect of turning the store off, not a defect.
+
+### Vitest output for RF-06 and RF-08 (task 12.10), 468c3f8, dummy DB, 2026-11-24
+
+| Case | File | Passed | Tests that prove it |
+| --- | --- | --- | --- |
+| RF-06, 4.9:20 | `src/lib/data/revision-queue.test.ts` | 28 | "orders by the three-way effective start then id, the queue index expression (ES-5)"; "keeps the order the database returned" |
+| RF-06, 4.9:20 | `src/app/(dashboard)/review/page.test.tsx` | 75 | "goes to id 4 alone when two overdue requests share the deadline (4.9 RF-06)"; "names the deadline, soonest first, and no presentation age" (es and en) |
+| RF-06, 4.9:20 | `src/app/(dashboard)/review/review-queue-table.test.tsx` | 13 | "renders the first-due mark in the deadline cell and in the accessible name of the row (FE-2)"; "keeps the order of the delivered rows" |
+| RF-08, 4.9:22 | `src/app/(dashboard)/requests/new/local-preview.test.tsx` | 19 | "shows the file name and the size next to the preview"; "never calls fetch and never names the document route" |
+| RF-08, 4.9:22 | `src/app/(dashboard)/requests/new/documents-step.test.tsx` | 56 | "reads nothing from the server to preview: no fetch, no document route"; "marks the kept file Anterior and the added file Nuevo" |
+| RF-08, 4.9:22 | `src/app/(dashboard)/requests/new/resubmit-dialog.test.tsx` | 12 | "lists the kept file as Anterior and the added file as Nuevo, and not the retired one"; "links nothing to the document route and never calls fetch" |
+
+6 files, 203 tests, all passed.
+
+### Task 13.1, continued (2026-11-24)
+
+#145 (bc9828c) and #146, S9e (468c3f8), merged into the tracker with the owner's OK. At S9e: npm test 392 files, 10432 tests passed, typecheck exit 0; at 468c3f8: next build exit 0 (with dummy environment values).
+
+### Open before the merge gate
+
+12.2, 12.5 (forced change) and 12.9 (presentation) as stated above; 12.12 (delete "flow-it"); 8.24, 8.25 and 13.2 on.
