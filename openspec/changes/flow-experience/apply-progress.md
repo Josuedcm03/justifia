@@ -1392,3 +1392,91 @@ The design forecast for the whole of S9a was about 250; unit 18 alone is 342 and
 3. **Role guard twice.** The CIF lookup filters on the role "estudiante" in SQL and also checks the role of the returned row, so a staff row can never resolve even if the filter were lost; the mutation check shows the SQL pin catches the first and the in-code guard covers the second.
 4. **No `kind` for a login.** `classifyIdentifier` returns only "email" or "cif" (the plan's third value "cif_or_login" went with the fallback); the stored "Login" is never a key.
 5. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing. Other files may show as modified for that reason only.
+
+### PR 9a2: the sign-in action, the form and the copy (unit 19)
+
+Branch "feat/flow-experience-9a2-sign-in-form", cut from the tip of "feat/flow-experience-9a-login-identity" (a89f878, PR #123, "https://github.com/Josuedcm03/justifia/pull/123"). Its PR is #124 ("https://github.com/Josuedcm03/justifia/pull/124"), base that branch; PR #123 has the tracker as base.
+
+#### Commits (PR 9a2)
+
+| Unit | Hash    | Message                                                                  |
+| ---- | ------- | ------------------------------------------------------------------------ |
+| 19   | be0841e | feat(auth): sign in with the CIF or the institutional email              |
+| docs | (tip)   | docs(flow-experience): record the Phase 9 apply progress for PR 9a2      |
+
+#### TDD cycle evidence (PR 9a2)
+
+| Task         | Test file                                                       | Layer              | Safety net                                       | RED                                                                                                                                  | GREEN                | Triangulation                                                                                                                                                                                                                                                                                                                                  | Refactor    |
+| ------------ | --------------------------------------------------------------- | ------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 9.8 and 9.10 | `src/lib/validations/auth.test.ts`                              | Unit (schema)      | 3 existing cases of `loginSchema` passing        | 3 failed first (160 accepted and 161 refused, an email-sized value, no "usuario" in any message); 2 cases pass at write (spaces only, password rule) | 15 passed            | 160 after trimming and 161; a 158-character email that the old limit of 60 refused; spaces only; the password at 7, 8, 128 and 129 characters; every issue message free of "usuario"                                                                                                                                                         | None needed |
+| 9.9 and 9.10 | `src/lib/auth/dummy-hash.test.ts` (new)                         | Unit (hash)        | N/A (new file)                                   | The file failed to load (module missing)                                                                                             | 5 passed             | A bcrypt-shaped hash; the cost equals that of `hashPassword`; a typed password, the hash itself, eight bangs and the empty string never verify                                                                                                                                                                                                | None needed |
+| 9.9 and 9.10 | `src/app/(auth)/login/actions.test.ts`                          | Unit (server action) | 10 existing cases (payload, redirect, retention, logout) | The file failed to load (it imports the new dummy-hash module, which did not exist) | 34 passed            | Four sign-ins (a CIF, a CIF with spaces and hyphens, a mixed-case email with spaces for a student and for staff); exactly 160 characters; four lookup failures, a wrong password, five unreadable inputs and a missing form, all answering the one value with no session, cookie or redirect; the dummy hash for an unknown identifier and the account hash for a known one; the exact Spanish and English line | None needed |
+| 9.9 and 9.10 | `src/app/(auth)/login/login-form.test.tsx`                      | Component          | 2 existing cases (register link) passing         | 7 failed first (label and hint in es and en, tied hint, catalog pins, no "Usuario" before and after a failed attempt in es and en)    | 9 passed             | es and en; one textbox besides the password; `autocomplete` "username"; `aria-invalid` after the failure; the failed attempt is a real submit of the form through the action double                                                                                                                                                           | None needed |
+
+#### Mutation checks (revert-only; the GREEN files were restored from byte-identical backup copies or "git restore" after the commit)
+
+| Test                                                         | Temporary edit                                                                  | Result                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------- |
+| "still verifies the password against the dummy hash"         | `src/app/(auth)/login/actions.ts` skips `verifyPassword` for an unknown identifier | 1 failed, 33 passed; restored with "cmp"           |
+| the inactive, same-answer and retention cases                | the inactive check is replaced by "if (false)"                                  | 4 failed; restored with "cmp"                       |
+| "keeps the password rule: 8 to 128 characters" (pass at write) | `src/lib/validations/auth.ts` password minimum 8 becomes 7                      | 1 failed, 14 passed; "git restore"                  |
+| "refuses an identifier that is only spaces" (pass at write)  | the login loses its trim                                                        | 3 failed; "git restore"                             |
+
+#### Checkpoint (task 9.14): measured size of S9a
+
+Measure: "git diff --numstat" excluding "openspec/" and ".engram/".
+
+| Scope                                                                                              | Changed lines |
+| -------------------------------------------------------------------------------------------------- | ------------- |
+| PR 9a (unit 18; 73 production, 269 tests)                                                          | 342           |
+| PR 9a2 (unit 19; 474 added, 22 deleted; production 45, catalogs 10 and tests 441)                  | 496           |
+| All of S9a                                                                                         | 838           |
+
+The design forecast for S9a was about 250 and the whole slice is 3.4 times that, in line with the repository precedent (Phase 8: 3.2 times). PR 9a2 is 36 lines (8 percent) over the 460 stop line, which is "about 460" (PR 2 was accepted at 471 on the same reading). It was not cut again: the plan has no boundary inside unit 19, and a seam between the action and the form would leave the merged tracker with the new generic message on a form that still says "Usuario". Tests are 89 percent of the lines and were not trimmed.
+
+#### Work unit evidence (PR 9a2)
+
+| Evidence                              | Value                                                                                                                                                                                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- validations/auth login/actions login-form dummy-hash src/i18n": 13 files, 513 tests, all passed. The access proof: "npm test -- access-matrix route-coverage src/test/access": 4 files, 536 tests, all passed, with "src/test/access" untouched |
+| Runtime harness                       | Owner-run: sign in by CIF and by email on "flow-it" (task 12.5); no database command was run in this apply                                                                                                                                                                      |
+| Rollback boundary                     | Revert the PR: the sign-in goes back to `getUsuarioByLogin` through the stored "Login", the label returns to "Usuario" and the old message returns. `findLoginAccount` from PR 9a can stay, unused. Accounts keep a valid "Login"                                                  |
+
+#### Gates (task 9.15), tip of "-9a2-sign-in-form", dummy DB
+
+- Full "npm test": 378 files, 9469 tests, all passed, 299.6 s. The PR 9a tip had 377 files and 9428 tests; PR 9a2 adds one test file (5 cases) and 36 cases in the changed files.
+- "npm run typecheck": exit 0.
+- "npx eslint" and "npx prettier --check" on the eight touched files and both catalogs: clean. "npx eslint src" over the whole tree is run once on the 9c tip.
+- Access matrix and route inventory, run on their own for the login change: "access-matrix route-coverage src/test/access", 4 files, 536 tests, all passed, no row added or changed.
+
+#### Files (PR 9a2; all LF in the working tree, the index was already LF)
+
+| File                                                                                  | Action                                                                                         |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `src/lib/auth/dummy-hash.ts`, `src/lib/auth/dummy-hash.test.ts`                       | Created: the constant bcrypt hash of cost 12 and its 5 cases                                   |
+| `src/lib/validations/auth.ts`, `src/lib/validations/auth.test.ts`                     | Modified: login limit 160, a neutral message; 5 new cases                                      |
+| `src/app/(auth)/login/actions.ts`, `src/app/(auth)/login/actions.test.ts`             | Modified: `findLoginAccount`, the dummy check, one generic error; the test file rewritten as tables |
+| `src/app/(auth)/login/login-form.tsx`, `src/app/(auth)/login/login-form.test.tsx`     | Modified: the hint under the field, `autoCapitalize` none and no spell check; 7 new cases       |
+| `i18n/es.json`, `i18n/en.json`                                                        | Modified: "auth.login.loginLabel", the new "auth.login.loginHint" and "auth.errors.invalid"     |
+
+#### Final Spanish UI copy of S9a (sign-in page, "usted"; English twins in the catalog)
+
+- "auth.login.loginLabel": "CIF o correo institucional" (`en`: "CIF or institutional email").
+- "auth.login.loginHint" (under the field): "Los estudiantes pueden usar su CIF o su correo; el personal, su correo institucional." (`en`: "Students may use their CIF or email; staff use their institutional email.").
+- "auth.errors.invalid": "Los datos de acceso no son correctos. Revise su CIF o correo y su contraseña." (`en`: "The sign-in details are not correct. Check your CIF or email and your password."). It names both parts together, so neither is singled out, and says nothing of "Usuario", an unknown account or an inactive one.
+- No input placeholder was added: the hint under the field carries the guidance. The "Nombre o correo" placeholder belongs to the users search (S9b).
+
+#### Deviations (PR 9a2)
+
+1. **Size.** 496 changed lines, 36 over "about 460"; not cut, for the reason in the checkpoint.
+2. **Dummy hash in its own module.** The plan put "DUMMY_HASH" in the action; a "use server" file may export only async functions and the action test mocks the password module, so the constant lives in `src/lib/auth/dummy-hash.ts`, with a test that its cost equals the one `hashPassword` uses.
+3. **Inactive accounts.** An inactive account still returns before any password check, as before (the retention pins say so); only an unknown or ambiguous identifier pays the dummy check. A timing difference between "inactive" and "wrong password" therefore remains; it belongs to the rate-limit and timing backlog entry of S10.
+4. **Hint ties.** The input's `aria-describedby` names the hint always and the error when there is one; `autoCapitalize` "none" and `spellCheck` false were added because the field often holds an email.
+5. **Branch name.** Part two of the S9a cut is "feat/flow-experience-9a2-sign-in-form" and its PR targets the first part.
+
+#### Notes for S9b ("Usuario" removed from creation, profile, header and export)
+
+- S9b stacks on the 9a2 tip. It touches the catalogs under "users", "auth.register", "auth.userMenu", "profile" and "catalog.docentes"; S9a touched only "auth.login" and "auth.errors", so there is no conflict.
+- `getUsuarioByLogin` stays: the profile and change-password read the session "login" claim. The claim keeps the stored "Login".
+- Task 10.1 asks the owner to confirm three defaults; the owner's brief of 2026-11-20 did not restate them, so they are applied as the spec says (users list keeps its "Login" column; self-registration derives "Login" from the normalized email; the docentes table and the header role line drop the login) and recorded as deviations.
+- A legacy mixed-case email is not caught by the case-sensitive UNIQUE of "Correo": the creation paths need a lower-case lookup (`getUsuarioByCorreo`) before the insert, as FE-22 requires.

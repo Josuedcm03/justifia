@@ -4,10 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { clearSessionCookie, setSessionCookie } from "@/lib/auth/cookies";
+import { DUMMY_PASSWORD_HASH } from "@/lib/auth/dummy-hash";
 import { verifyPassword } from "@/lib/auth/password";
 import { safeNextPath } from "@/lib/auth/safe-next";
 import { signSession } from "@/lib/auth/session";
-import { getUsuarioByLogin } from "@/lib/data/users";
+import { findLoginAccount } from "@/lib/data/users";
 import { loginSchema } from "@/lib/validations/auth";
 
 export type LoginState = { error: string | null };
@@ -26,8 +27,18 @@ export async function loginAction(
     return { error: t("errors.invalid") };
   }
 
-  const user = await getUsuarioByLogin(parsed.data.login);
-  if (!user || !user.activo) {
+  // The identifier is a CIF or an institutional email (FE-21); the stored
+  // Login is never a key. Every failure below answers with the same message
+  // (FE-23), and none sets a cookie.
+  const user = await findLoginAccount(parsed.data.login);
+  if (!user) {
+    // No rate limiter exists (D13), so an unknown or ambiguous identifier
+    // still pays one password check against a constant hash, and the time of
+    // the answer does not tell it from a wrong password.
+    await verifyPassword(parsed.data.password, DUMMY_PASSWORD_HASH);
+    return { error: t("errors.invalid") };
+  }
+  if (!user.activo) {
     return { error: t("errors.invalid") };
   }
 

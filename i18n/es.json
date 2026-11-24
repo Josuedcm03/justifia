@@ -607,7 +607,8 @@
     "login": {
       "title": "Iniciar sesión",
       "subtitle": "Ingrese con su cuenta institucional",
-      "loginLabel": "Usuario",
+      "loginLabel": "CIF o correo institucional",
+      "loginHint": "Los estudiantes pueden usar su CIF o su correo; el personal, su correo institucional.",
       "passwordLabel": "Contraseña",
       "submit": "Ingresar",
       "submitting": "Ingresando…",
@@ -649,7 +650,7 @@
       }
     },
     "errors": {
-      "invalid": "Usuario o contraseña incorrectos"
+      "invalid": "Los datos de acceso no son correctos. Revise su CIF o correo y su contraseña."
     },
     "userMenu": {
       "signedInAs": "{login} · {rol}",
