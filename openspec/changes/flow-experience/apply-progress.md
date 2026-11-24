@@ -2088,13 +2088,13 @@ Evidence files: "C:\thesis-workspace\bitacora\evidencia_p1_2026-11-18\flow-exper
 | Task | Case | Desenlace | Observado | Evidence |
 | --- | --- | --- | --- | --- |
 | 12.1 | Branch | Conforme | 17 migrations, 0016 the last | - |
-| 12.2 | RF-08, 4.9:22 | No ejecutado | No integration test of the correction exists | - |
+| 12.2 | RF-08, 4.9:22 | Conforme | See "S10b" below: integration test written and run, 4 of 4 | - |
 | 12.3 | Integration suite | Conforme con una falla conocida | 12 files, 173 tests: 172 passed, 1 failed ("queue-index": the plan Postgres chooses with the demo data), 530 s | - |
 | 12.5 | Sign-in | Conforme en lo observado | Student, secretary and coordinator sign in by email; a mixed-case email with spaces works; a student registered with a hyphenated CIF signs in with digits, hyphen or spaces; a CIF of another length, an unknown identifier, a wrong password and the old login give the generic error; cookie of 720 h with "Mantener la sesión iniciada" and 8 h without; logout removes it. Not observed: the forced change of a flagged account. The seeded account 24 cannot sign in by CIF because its demo CIF keeps a hyphen; production had no CIF with anything but digits on 2026-11-24 | - |
 | 12.6 | RF-16 (c), 4.9:28 | Conforme | Request 36 went back to "pendiente"; the answer with author and date is the first block, the decision panel says that coordination already answered, the escalate dialog shows the answer; "Vence primero" on the first row of the queue | RF-16_c.png, RF-16_c_dialogo.png, RF-06.png |
 | 12.7 | RF-10 (b), 4.9:24 | Conforme | Both errors with nothing filled; the motive error clears on choice; the note reads "(obligatoria)"; "Otro" shows in the secretary and the coordinator details | RF-10_b_1 to RF-10_b_5 |
 | 12.8 | RF-07 (c), 4.9:21 | Conforme después de S9e | First run at bc9828c: the rejected card did not reach the reason. Second run at 468c3f8: dates with the month name, subject codes and reason on the returned and the rejected card; no horizontal scroll at 1440 and 360 px. Seeded requests 34 and 38 show no reason because they have no decision row (checked read-only) | RF-07_c_1_escritorio.png, RF-07_c_2_360.png; first run: RF-07_c_antes_1 and RF-07_c_antes_2 |
-| 12.9 | RF-01, 4.9:15 | Conforme en lo observado | Notice on steps 1, 2 and 3; recap with weekdays and "Editar fechas" on steps 2 and 3; editing keeps the dates, the cause and the subject. Not observed: the presentation | RF-01_1 to RF-01_3 |
+| 12.9 | RF-01, 4.9:15 | Conforme | Notice on steps 1, 2 and 3; recap with weekdays and "Editar fechas" on steps 2 and 3; editing keeps the dates, the cause and the subject. Presented in S10b | RF-01_1 to RF-01_6 |
 
 With the Blob token empty, "/requests/new" shows "No pudimos cargar tu borrador"; with a placeholder value it loads. It is the effect of turning the store off, not a defect.
 
@@ -2117,4 +2117,29 @@ With the Blob token empty, "/requests/new" shows "No pudimos cargar tu borrador"
 
 ### Open before the merge gate
 
-12.2, 12.5 (forced change) and 12.9 (presentation) as stated above; 12.12 (delete "flow-it"); 8.24, 8.25 and 13.2 on.
+12.5 (forced change) as stated above; 12.12 (delete "flow-it"); 8.24, 8.25 and 13.2 on.
+
+## S10b: RF-08 on Postgres and the RF-01 presentation (2026-11-24; tasks 12.2 and 12.9)
+
+Same branch "flow-it", endpoint asserted before every write, with the owner's explicit yes. Code at 695cbc1 (the app build is the one of 468c3f8; only documentation changed in between).
+
+### RF-08, integration test (12.2)
+
+`src/lib/data/integration/request-correction.integration.test.ts`, through `submitDraft`, `decideRequest`, the correction writes, `resubmitCorrection` and the two detail readers; only the stored files are a double.
+
+| Test | Covers |
+| --- | --- |
+| "records the correction in the same request, keeps the earlier version and goes back to pendiente (a, b, c)" | (a) the student still has one request; (b) the student and the staff detail keep the returned version, its documents and its decision, and the replaced document is retired, not deleted; (c) `pendiente`, presentation, consent and student snapshot unchanged, one `solicitud.corregida` row |
+| "keeps one version per return when the request is returned and corrected twice" | (b) two versions in order, two decisions |
+| "lets exactly one of several simultaneous resubmissions through, with one audit row" | concurrency, 6 callers |
+| "refuses a correction left with no document and one by another student, changing nothing" | refusals |
+
+Result: 1 file, 4 tests, all passed (67.57 s). The first run failed on a mistake of the test itself (it read `grupoId` from a detail class, which has none); no product code changed. Mutation check: with the retirement condition of `removeDocument` disabled locally, the first test fails; restored afterwards. `npm test`: 392 files, 10432 tests passed; typecheck exit 0; ESLint of the file exit 0.
+
+### RF-01, presentation (12.9)
+
+Row 214 of "DocumentoRespaldo" was inserted in draft 534 (name "constancia-ficticia.pdf"; the file does not exist in any store), so the upload itself was not exercised. On the review step the future-start notice shows; without the consent box the screen answers "Marca la casilla de consentimiento para presentar la solicitud." and nothing is presented; with it the request is presented. Read-only check: request 534 in `pendiente` with presentation and consent dates and one `solicitud.presentada` event. Evidence: RF-01_4_revision.png, RF-01_5_dialogo.png, RF-01_6_presentada.png.
+
+### Writes left in "flow-it"
+
+The password of the Id 24; the document 214; the request 534 presented; and, from the three runs of the new test, 20 fictitious accounts (9 students and 11 secretaries) with their audit rows and catalog rows, because the audit log is append-only. No request and no enrollment of those accounts remain. The planned password change of a second account was not needed and was not made. The server was stopped and the credential file deleted.
