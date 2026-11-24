@@ -21,6 +21,7 @@ import {
   type NuevoUsuario,
   type Usuario,
 } from "@/db/schema";
+import { classifyIdentifier } from "@/lib/auth/login-identity";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
 import {
   CATALOG_OPTIONS_MAX,
@@ -318,6 +319,47 @@ export async function getUsuarioByCif(
     .where(eq(usuario.cif, cif))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Sign-in identity resolution (FE-21, FE-22, FE-25). One typed identifier is
+ * classified by its content (`classifyIdentifier`):
+ *
+ * - an email is matched against `lower(Correo)` for any role. The read takes at
+ *   most two rows, and two matches (legacy emails that differ only by case)
+ *   give `null`, so the sign-in fails closed instead of picking one;
+ * - a CIF is matched exactly against `Cif`, and only for role `estudiante`
+ *   (staff have no stored CIF). A staff row is never resolved this way.
+ *
+ * The stored `Login` is never a key here: no fallback ships (owner decision
+ * 2026-11-20, task 9.1), so an account with neither an email nor a CIF cannot
+ * sign in. It returns the shape of `getUsuarioByLogin`, so the session claims
+ * stay as they were. Fail-loud: a database error rejects the sign-in.
+ */
+export async function findLoginAccount(
+  identifier: string,
+): Promise<UsuarioConRol | null> {
+  const classified = classifyIdentifier(identifier);
+  if (!classified) return null;
+
+  if (classified.kind === "email") {
+    const rows = await db
+      .select(usuarioConRolColumns)
+      .from(usuario)
+      .innerJoin(rol, eq(usuario.rolId, rol.id))
+      .where(sql`lower(${usuario.correo}) = ${classified.value}`)
+      .limit(2);
+    return rows.length === 1 ? rows[0] : null;
+  }
+
+  if (classified.value === "") return null;
+  const [row] = await db
+    .select(usuarioConRolColumns)
+    .from(usuario)
+    .innerJoin(rol, eq(usuario.rolId, rol.id))
+    .where(and(eq(usuario.cif, classified.value), eq(rol.codigo, "estudiante")))
+    .limit(1);
+  return row && row.rol === "estudiante" ? row : null;
 }
 
 /**

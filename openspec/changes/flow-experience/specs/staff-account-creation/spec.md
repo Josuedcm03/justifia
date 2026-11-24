@@ -58,8 +58,10 @@ fail with an ordinary form error, with nothing created and no redirect. The emai
 MUST be stored normalized. An email equal, ignoring case and surrounding
 whitespace, to the email of an existing account MUST make the creation fail the
 same way. The rule applies to every role the flow can assign. Accounts created
-before this change without an email are not altered by it; they cannot sign in
-(`auth-entry-access` FE-25). Texts MUST exist in `es` and `en`.
+before this change without an email, which have no CIF either, are not altered
+by it; they cannot sign in by any value, their stored `Login` included, because
+no fallback exists (`auth-entry-access` FE-21, FE-25). Texts MUST exist in `es`
+and `en`.
 
 #### Scenario: Email required and unique (table-driven)
 
@@ -89,6 +91,6 @@ before this change without an email are not altered by it; they cannot sign in
 
 #### Scenario: Older email-less accounts are untouched
 
-- GIVEN an active coordinator account created before this change with no email
+- GIVEN an active coordinator account created before this change with no email and no CIF
 - WHEN the change is applied
-- THEN the account is unchanged and cannot sign in until it has an email
+- THEN the account is unchanged and cannot sign in, by its stored `Login` or by any other value, until it has an email
