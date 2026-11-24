@@ -49,11 +49,11 @@ export const PUBLIC_ENTRY_POINTS: Record<string, string> = {
   "(auth)/login/page.tsx":
     "Sign-in screen; signed-in users are redirected away instead of denied.",
   "(auth)/register/page.tsx":
-    "Self-registration screen; closed unless REGISTRATION_OPEN is \"true\".",
+    'Self-registration screen; closed unless REGISTRATION_OPEN is "true".',
   "denied/page.tsx": "Target of every role denial; it must stay reachable.",
   "privacy/page.tsx": "Public privacy notice.",
   "(auth)/login/actions.ts":
     "Sign-in and sign-out actions; they authenticate, so no guard applies.",
   "(auth)/register/actions.ts":
-    "Self-registration action; refuses unless REGISTRATION_OPEN is \"true\".",
+    'Self-registration action; refuses unless REGISTRATION_OPEN is "true".',
 };

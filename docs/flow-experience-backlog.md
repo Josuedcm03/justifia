@@ -291,3 +291,174 @@ equipo), `resuelta` (cubierta por un change).
   la termina igual en ambos casos.
 - **Requisitos:** RNF-01 (no cambia qué puede hacer cada rol); spec
   `auth-entry-access`.
+
+### UX-23. Tarjetas de solicitud que se distingan entre sí
+
+- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 1: «Dos
+  consultaron otra solicitud» (estudiante, severidad mayor).
+- **Pantalla:** lista de solicitudes del estudiante (`/requests`).
+- **Hoy:** cada tarjeta muestra el número, el estado, la causa, el periodo de
+  ausencia y la fecha de presentación, pero no las asignaturas ni el motivo de
+  una solicitud devuelta o rechazada. El diagnóstico de la validación
+  (2026-11-20) no halló un defecto en la lista: la causa fue sobre todo el kit,
+  porque la consigna suponía una solicitud previa y la base tenía dos, y el
+  formulario pedía un «motivo», palabra que solo imprime la solicitud devuelta.
+  La solicitud buscada quedaba al final de la lista y, para un mismo
+  estudiante, la causa no ayudaba a distinguirlas.
+- **Esperado:** cada tarjeta rotula «Fechas de ausencia» con el mes escrito en
+  letras, muestra los códigos de asignatura y, si está devuelta o rechazada, el
+  motivo: la etiqueta del motivo, o un extracto de la decisión de hasta 140
+  caracteres. Una solicitud aprobada no muestra motivo. El orden de la lista no
+  cambia.
+- **Requisitos:** RF-07 (c), RF-08 (b); RN-16, RN-17; spec `student-requests`
+  (FE-14, FE-15).
+
+### UX-24. Vista previa del archivo y nombres de los archivos al reenviar
+
+- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 2: «Uno
+  reenvió un archivo ajeno a las constancias simuladas» (estudiante, severidad
+  mayor).
+- **Pantalla:** documentos de la nueva solicitud y de la corrección
+  (`/requests/new`, `/requests/[id]/correct`), revisión y diálogo de reenvío.
+- **Hoy:** el paso de documentos no deja ver el contenido de un archivo recién
+  elegido antes de confirmar; «Ver» abre el documento ya guardado por la ruta
+  del documento y deja registro de descarga. El diálogo de reenvío no lista los
+  archivos que llevará la solicitud. En la validación, el archivo reenviado no
+  era una de las constancias simuladas.
+- **Esperado:** «Vista previa» en el navegador de los archivos elegidos en esa
+  visita (imagen o PDF, con nombre y tamaño), sin pedir el documento al servidor
+  ni dejar registro de auditoría. En la corrección, el paso de documentos, la
+  revisión y el diálogo de reenvío listan cada archivo por nombre con la marca
+  «Nuevo» o «Anterior». Los archivos ya guardados conservan «Ver».
+- **Requisitos:** RF-08 (a, b, c), RF-02; RN-03, RN-04; RNF-06, RNF-11, RNF-12;
+  specs `supporting-documents` (FE-17) y `student-requests` (FE-16).
+
+### UX-25. Resumen de las fechas y aviso de inicio posterior a hoy
+
+- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 3: «Uno
+  registró fechas y asignaturas ajenas» (estudiante, severidad mayor).
+- **Pantalla:** nueva solicitud y corrección (`/requests/new`), pasos 1 a 3.
+- **Hoy:** el sistema acepta una ausencia que empieza después de hoy (RN-05 y
+  RN-23 solo acotan el orden y la ventana de 30 días) y los pasos 2 y 3 no
+  repiten las fechas elegidas. El diagnóstico de la validación (2026-11-20)
+  atribuyó el caso al participante y al protocolo, no a la interfaz ni a la
+  configuración regional: el participante escribió otras fechas (del día de la
+  sesión a dos días después), el paso de asignaturas ofreció las que coincidían
+  con esas fechas y toda la solicitud tomó 48 segundos.
+- **Esperado:** los pasos 2 y 3 muestran un resumen «Fechas de ausencia» con el
+  día de la semana y el mes en letras, y un enlace «Editar fechas» que vuelve
+  al paso 1 sin perder datos. Si el inicio es posterior a hoy, un aviso
+  informativo en el paso 1 y en el resumen pide revisar las fechas, sin
+  bloquear el avance ni el envío.
+- **Requisitos:** RF-01 (a, b, c), RF-03 (a, b), RF-04 (a); RN-05, RN-22, RN-23;
+  RNF-11; spec `justification-intake` (FE-18, FE-19).
+
+### UX-26. Indicar el orden de la bandeja y marcar «Vence primero»
+
+- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 4: «No
+  nombró la solicitud prioritaria (T-S1)» (secretaría, severidad crítica).
+- **Pantalla:** bandeja de la secretaría, pestaña «Pendientes» (`/review`).
+- **Hoy:** la descripción de la pestaña habla de orden «de la más antigua a la
+  más reciente», pero la bandeja ordena por el plazo efectivo de remisión al
+  docente, y ninguna fila marca cuál vence primero. El diagnóstico de la
+  validación (2026-11-20) halló que la bandeja aplicó su regla: la primera fila
+  era una solicitud ajena a las cinco de la tarea, con el mismo plazo que la
+  respuesta esperada. La causa fue el diseño de la tarea, no el orden.
+- **Esperado:** la descripción dice que las solicitudes se ordenan por el plazo
+  de su remisión al docente, de la que vence antes a la que vence después, y la
+  primera solicitud de la bandeja lleva la marca de texto «Vence primero» en la
+  tabla y en las tarjetas de 360 px. El orden no cambia.
+- **Requisitos:** RF-06 (a, b); RN-08; RNF-10, RNF-12; spec `request-review`
+  (FE-1, FE-2).
+
+### UX-27. La respuesta de la coordinación, al inicio del detalle
+
+- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 5:
+  «Volvió a escalar lo ya contestado (T-S11)» (secretaría, severidad crítica).
+- **Pantalla:** detalle de la solicitud para la secretaría (`/review/[id]`) y
+  su diálogo de escalamiento.
+- **Hoy:** cuando la coordinación responde, la solicitud vuelve a «pendiente»
+  y la respuesta solo consta en la sección de escalamientos, más abajo en el
+  detalle. La secretaría puede escalar de nuevo sin haberla visto. En la
+  validación, la secretaria dijo haber leído la respuesta, calificó con 1
+  haberla visto y volvió a escalar con la misma pregunta (5.6).
+- **Esperado:** un aviso «Respuesta de coordinación» sobre todas las secciones,
+  con la respuesta completa, su autor y la fecha. El panel de decisión dice que
+  la coordinación ya respondió, el diálogo de escalamiento muestra la respuesta
+  anterior como aviso informativo y el historial enlaza a los escalamientos.
+  Volver a escalar sigue permitido (decisión del dueño, 2026-11-20).
+- **Requisitos:** RF-16 (c), RF-10 (a); RN-16, RN-20, RN-08; RNF-10; specs
+  `request-review` (FE-3, FE-4, FE-5) y `coordination-escalation` (FE-12).
+
+### UX-28. Nota obligatoria, errores que se borran y motivo «Otro»
+
+- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 6: «Dos
+  ayudas en T-S3: buscar una solicitud y escribir la nota» (secretaría,
+  severidad mayor).
+- **Pantalla:** diálogo «Escalar» del detalle de la solicitud (`/review/[id]`).
+- **Hoy:** el diálogo no rotula la nota como obligatoria, deja visible el error
+  del motivo o de la nota después de corregirlo y ofrece solo dos motivos. La
+  otra ayuda, buscar una solicitud, no forma parte del alcance de
+  `flow-experience`.
+- **Esperado:** la nota se rotula «Nota para coordinación (obligatoria)» con un
+  ejemplo y la aclaración de que solo la ve el personal. El error del motivo
+  desaparece al elegirlo y el de la nota al editarla. Un tercer motivo, «Otro»,
+  se comporta como los demás (misma pausa de plazo, mismo aviso a la
+  coordinación) y su nota describe la razón; el estudiante no lo ve. Requiere la
+  migración `0016` en producción.
+- **Requisitos:** RF-10 (a, b); RN-20; RNF-10, RNF-12; spec
+  `coordination-escalation` (FE-9, FE-10, FE-11).
+
+### UX-29. Limitar los intentos de ingreso
+
+- **Estado:** abierta.
+- **Origen:** decisión D13 del diseño de `flow-experience`, 2026-11-20.
+- **Pantalla:** inicio de sesión (`/login`).
+- **Hoy:** nada limita los intentos de ingreso: no hay limitador ni capa que
+  intercepte las peticiones. Lo único que se hizo en `flow-experience` es igualar
+  el tiempo de respuesta: un identificador desconocido también ejecuta la
+  comprobación de contraseña contra un hash fijo y recibe el mismo error
+  genérico.
+- **Esperado:** un límite de intentos fallidos por identificador o por origen,
+  con una espera o un bloqueo temporal. Es infraestructura nueva y requiere una
+  decisión del dueño sobre el mecanismo y el almacenamiento del contador.
+- **Requisitos:** RNF-01; spec `auth-entry-access`.
+
+### UX-30. Revocar en el servidor las sesiones de 30 días
+
+- **Estado:** abierta.
+- **Origen:** diseño de `flow-experience` (FE-32, «Mantener la sesión
+  iniciada»), 2026-11-20.
+- **Pantalla:** inicio de sesión (`/login`) y cierre de sesión.
+- **Hoy:** la sesión es un token firmado y no existe una tabla de sesiones. Un
+  token emitido no se puede revocar antes de que expire: desactivar una cuenta
+  impide el siguiente ingreso, pero no el token ya emitido. Con «Mantener la
+  sesión iniciada» el plazo es de 30 días en lugar de 8 horas.
+- **Esperado:** poder invalidar en el servidor las sesiones emitidas (por
+  ejemplo, con una tabla de sesiones o una versión de sesión por cuenta), para
+  que desactivar una cuenta surta efecto antes de que el token expire.
+- **Requisitos:** RNF-01; spec `auth-entry-access`.
+
+### UX-31. Buscar un estudiante por CIF escrito con guion o espacio
+
+- **Estado:** abierta.
+- **Origen:** revisión de la normalización del CIF (S9d) en `flow-experience`,
+  2026-11-24.
+- **Pantalla:** lista de inscripciones (`/catalog/inscripciones`) y búsqueda de
+  estudiante de la pantalla de asignación (`/catalog/inscripciones/assign`).
+- **Hoy:** el CIF se guarda sin espacios ni guiones (`normalizeCif`, FE-26),
+  pero la búsqueda compara el término tal como se escribió: usa `ilike` con
+  `%término%` sobre el CIF y sobre el nombre (`src/lib/data/inscripciones.ts`).
+  Buscar «2201-0116» o «2201 0116» no encuentra al estudiante con el CIF
+  «22010116».
+- **Esperado:** la búsqueda también compara el CIF con el término limpio como
+  lo limpia el ingreso, y conserva la coincidencia del nombre con el término tal
+  como se escribió.
+- **Requisitos:** RF-12 (a); RN-02; spec `enrollment-administration` (EA-LIST-1,
+  EA-CRE-1); FE-21 y FE-26 de `flow-experience`.

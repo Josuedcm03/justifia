@@ -1966,3 +1966,77 @@ Measure: "git diff --numstat feat/flow-experience-9c2-keep-session-form...HEAD" 
 
 1. **Existing accounts.** No data fix: an account registered before this change keeps the CIF as typed, so one with a space or hyphen still cannot sign in by CIF. Counting those rows is a production read the owner runs; no database command was run here.
 2. **Line endings.** `src/app/(auth)/register/actions.test.ts` was CRLF in the working tree (index LF) and was converted to LF before editing.
+
+## Phase 12 (PR 10): S10 docs (2026-11-24; tasks 12.0, 12.13 to 12.16)
+
+Branch "feat/flow-experience-10-evidence-docs", PR #145 ("https://github.com/Josuedcm03/justifia/pull/145"), base "feat/flow-experience". This is the documentation slice of S10 only: the evidence tasks 12.1 to 12.12 are owner-run on "flow-it" and stay open; nothing here ran a database, Neon or Vercel command.
+
+### Deviations from the plan (S10 docs)
+
+1. **Base branch (12.0, 12.16).** The plan cut the branch from the PR 9c branch and opened PR 10 against it. S1 to S9 are merged into the tracker (PRs #123 to #129 and #144), so the branch was cut from the tracker tip cd39986 and the PR targets "feat/flow-experience". The PR 9c commits are under it through the tracker.
+2. **PR scope (12.16).** The plan said the diff holds only the backlog file. It also holds the style fix of the access inventory, the catalog-management spec delta, and the records in `openspec/changes/flow-experience/tasks.md` and this file, each in its own commit.
+3. **Backlog state wording (12.13).** The plan asked for "resuelta". The file defines three states: "abierta", "decisión pendiente" and "resuelta" (cubierta por un change). None fits a change that is built but not deployed, and "resuelta" would be false until the deploy, so UX-23 to UX-28 read "implementada en flow-experience, pendiente de despliegue". They become "resuelta" at archive (task 14.2, extended to name them).
+4. **UX-31 (12.13).** The plan fixed the range at UX-23 to UX-30. UX-31 was added (the student search by a CIF typed with a hyphen or space), so the range is UX-23 to UX-31 with no gap.
+5. **Spec drift.** A delta spec for catalog-management was added (see below); the delta count in tasks 14.3 and the conventions note goes from ten to eleven.
+
+### Backlog entries (tasks 12.13, 12.14)
+
+| Entry | Table 19 row, finding as the table words it | State | Cause recorded |
+| ----- | ------------------------------------------- | ----- | -------------- |
+| UX-23 | 1, «Dos consultaron otra solicitud» (estudiante, mayor) | implementada, pendiente de despliegue | Mostly the kit (diagnosis 2026-11-20, H1): one earlier request assumed, two seeded; the word "motivo" |
+| UX-24 | 2, «Uno reenvió un archivo ajeno a las constancias simuladas» (estudiante, mayor) | implementada, pendiente de despliegue | Kit (the file was not one of the simulated constancias, 5.8 and the proposal) |
+| UX-25 | 3, «Uno registró fechas y asignaturas ajenas» (estudiante, mayor) | implementada, pendiente de despliegue | Participant and protocol, not the interface (diagnosis, H2: 48 s, no locale defect) |
+| UX-26 | 4, «No nombró la solicitud prioritaria (T-S1)» (secretaría, crítica) | implementada, pendiente de despliegue | Task design (diagnosis, T-S1: the queue applied its rule) |
+| UX-27 | 5, «Volvió a escalar lo ya contestado (T-S11)» (secretaría, crítica) | implementada, pendiente de despliegue | System (proposal) |
+| UX-28 | 6, «Dos ayudas en T-S3: buscar una solicitud y escribir la nota» (secretaría, mayor) | implementada, pendiente de despliegue | System (proposal); the search help is outside the change |
+| UX-29 | Login rate limiting (design D13) | abierta | None exists; only timing is equalized |
+| UX-30 | Server-side revocation of 30-day sessions (FE-32) | abierta | No session table; an issued token cannot be revoked |
+| UX-31 | CIF search with a hyphen or space | abierta | See the check below |
+
+Commit 0e60e24 lists one file, `docs/flow-experience-backlog.md`, 170 lines added and none removed. UX-17 and UX-18 do not exist in this file (the owner's staged edit lives in the main checkout) and were not touched; the other entries are byte-identical. Prettier is clean on the LF content (the working copy is mixed CRLF, so the file was checked as a normalized copy).
+
+**UX-31, verified in the code before writing.** `src/lib/data/inscripciones.ts` builds the list search with `ilike(usuario.cif, containsPattern(p.q))` (line 145) and the assign-page student search with `ilike(usuario.cif, containsPattern(term))` (line 336). `containsPattern` only escapes `%`, `_` and the backslash; nothing cleans the term. The CIF is stored without spaces or hyphens (`normalizeCif`, S9d), so "2201-0116" or "2201 0116" does not match "22010116". No other read in `src/lib/data` searches the CIF.
+
+### Spec drift: CM-LST-1 (owner decision of 2026-11-24)
+
+New delta `openspec/changes/flow-experience/specs/catalog-management/spec.md` (commit 4843afa): MODIFIED "CM-LST-1 Lists, filters, search and pagination", the whole requirement and its scenarios copied from `openspec/specs/catalog-management/spec.md` line 805, with only these differences, checked against `src/app/(dashboard)/catalog/docentes/` and `src/lib/data/users.ts`:
+
+- Sortable columns of Docentes: "name, login, email, status" becomes "name, email, status" (the table has three columns, all sortable, and no action column).
+- The sort keys sentence: Docentes keys are "name, email, status", and the list still accepts `login` as a URL `sort` value that orders by the stored login, with no column offering it (the whitelist `DOCENTES_SORT_KEYS` and the read still carry it, pinned by `src/lib/catalog/list-params.test.ts` and `src/lib/data/users.test.ts`).
+- The Docentes list MUST show exactly three columns (name, Correo, state) and MUST NOT show the login, nor deliver it to the browser (the page picks id, name, Correo and state).
+- "Previously" line extended; scenario "Docentes list carries no credential" adds the login; new scenario "Docentes list shows no login"; the sortable-columns table scenario splits the `login` row ("accepted in the URL; no column offers it").
+- Unchanged: the search (name and Correo only; the login was never searched), pagination, scope, read-only, the link to `/users` and every other scenario.
+
+Other main specs that pin the docentes login, not edited here (they are outside CM-LST-1 and not covered by the owner decision as worded):
+
+1. `openspec/specs/catalog-management/spec.md` "A-DOC-FIELDS" (line 1738): "The Docentes list shows name, login, Correo, state, and a link to /users".
+2. `openspec/specs/data-table/spec.md` line 43: the `sort` row lists docentes "name, login, email, status" (still true of the URL, not of the columns).
+
+No main spec pins the header login line: the identity block in `openspec/specs/backoffice-shell/spec.md` (BS-NAV-2) shows name and role, and the profile requirement AEA-2 reads `session.login` internally, which did not change. Open point for the owner: keep or remove the dead `login` sort key (code and tests) and then the two lines above.
+
+### Style fix (task 3 of the brief)
+
+Commit 78b22d7: `src/test/access/inventory.ts` lines 52 and 58 use single quotes around the two registration notes that contain double quotes (2 lines changed). "npx eslint src --rule '{\"prettier/prettier\":[\"error\",{\"endOfLine\":\"auto\"}]}'": 0 errors, 1 warning, the unused import "SidebarGroupLabel" in `src/components/app-sidebar.tsx` (line 23), not changed. The test that uses the file, `src/app/route-coverage.test.ts`: 92 passed.
+
+### Checkpoint (task 12.15)
+
+Against "feat/flow-experience" (cd39986), excluding "openspec/" and ".engram/": 174 changed lines (170 added in the backlog, 4 in the inventory). Under "openspec/": the delta adds 250 lines, plus the records in `openspec/changes/flow-experience/tasks.md` and this file.
+
+### Work unit evidence (S10 docs)
+
+| Evidence | Value |
+| -------- | ----- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npx vitest run src/app/route-coverage.test.ts": 1 file, 92 tests, all passed |
+| Runtime harness | N/A: documentation and a style fix, no runtime boundary changes |
+| Rollback boundary | Revert the PR; the backlog entries, the delta, the two quote changes and the records are independent of any code |
+
+### Gates (S10 docs), tip of "feat/flow-experience-10-evidence-docs", dummy DB
+
+- Full "npm test": 392 files, 10337 tests, all passed, 287 s (the same counts as the tracker tip; no test was added).
+- "npm run typecheck": exit 0.
+- "npx eslint src" with the prettier rule at "endOfLine: auto": 0 errors, 1 warning (above).
+- "npx prettier --check" on the backlog, LF content: clean.
+
+### Task 13.1, partial (2026-11-24)
+
+PRs #123 to #129 and #144 merged into the tracker on 2026-11-24 with the owner's OK; origin/main de810fb merged as cd39986; npm test 392 files, 10337 tests passed; typecheck exit 0; next build exit 0. Task 13.1 stays open: the tracker holds S1 to S9 and this PR (#145, S10) is not merged yet. Tasks 13.1 and 13.2 and every ASK OWNER and CONFIRM task stay unmarked.
