@@ -1908,3 +1908,61 @@ The design forecast was about 180; S9c was 570 lines, 3.2 times that, and was cu
 4. **Test typing.** The mocks have no typed parameters, so a small `signedPayload()` helper reads the first signed claims in three test files.
 5. **Label spacing.** The label uses the `Label` component with a 44 px target (`min-h-11`) beside the native checkbox, like the checkbox group.
 6. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.
+
+### S9d: the CIF is stored the way the sign-in cleans it (2026-11-24; task 11.12)
+
+Branch "feat/flow-experience-9d-cif-normalize", cut from the tip of "feat/flow-experience-9c2-keep-session-form" (ffcef92, PR #129; the tree had no content change with "git diff --ignore-cr-at-eol"). Its PR targets that branch. Spec: FE-26 (AEA-4), FE-21, FE-22. Thesis: RNF-01.
+
+**Problem.** The sign-in cleans the typed CIF (trim, spaces and hyphens removed) and matches it exactly, but self-registration stored the CIF as typed after the trim, so a student who registered "2201-0116" could never sign in with the CIF (the email still worked).
+
+**Change.** `src/lib/auth/login-identity.ts` exports "normalizeCif" (the one rule) and "classifyIdentifier" calls it; the registration schema in `src/lib/validations/users.ts` applies it before the 1 to 20 length check, so a CIF of only spaces or hyphens is refused and the limit counts the cleaned value. No digit rule and no fixed length. `src/app/(auth)/register/actions.ts` is unchanged: it already stores the parsed value.
+
+#### TDD cycle evidence (S9d)
+
+| Test file                                 | Layer                | Safety net               | RED                                                                                                                                   | GREEN                 | Triangulation                                                                                                                                                                                                                       | Refactor    |
+| ----------------------------------------- | -------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `src/lib/auth/login-identity.test.ts`     | Unit (pure)          | 20 existing cases        | The file did not load at first (a typo in a test string), so its new cases were not counted in the RED run; they fail without the export | 27 passed in the file | Six spellings (plain, hyphen, tab and newline, case kept, hyphens only, empty); a CIF identifier carries exactly the cleaned value                                                                                                  | None needed |
+| `src/lib/validations/users.test.ts`       | Unit (schema)        | 29 existing cases        | The cleaning, the round trip with the sign-in and the hyphen-only refusals failed first                                               | 43 passed in the file | "2201-0116", spaces inside, mixed case and letters only stored cleaned; 24 typed characters that clean to 20 accepted; 21 cleaned refused; "---" and " - - " refused; the stored value equals the sign-in lookup of the same text    | None needed |
+| `src/app/(auth)/register/actions.test.ts` | Unit (server action) | 25 existing cases        | The edited AEA-4 pin and the new cases failed first (the action stored "2201 0116" and let "---" through)                             | 31 passed in the file | Three posted spellings reach the user creation cleaned; three refusals return "errors.invalid" and create nothing; the pin keeps "no lookup of the CIF"                                                                             | None needed |
+
+RED: 15 of the 74 cases that loaded in the three files failed first; the 27 cases of `src/lib/auth/login-identity.test.ts` did not run because of a typo in one test string, fixed before GREEN. Two of my refusal examples then failed at GREEN because the data was wrong (a "21 characters once cleaned" string that cleaned to 19); the data was corrected, not the production code. Final run: 101 cases passed in the three files. The old version of the register test, run against the new code, fails only the old pin (1 failed, 24 passed), which shows the pin is the one deliberate change.
+
+#### The AEA-4 pin changed on purpose
+
+"stores the CIF as posted, with no lookup of it" became "stores the CIF cleaned like the sign-in cleans it, with no lookup of it": the posted "1234-ZZZ" is stored as "1234ZZZ". The rest of the pin (no CIF lookup, one careers read) is unchanged. The spec text of FE-26 in `openspec/changes/flow-experience/specs/auth-entry-access/spec.md` states the cleaned storage, its "(Previously: ...)" line records the old behavior, and a new table-driven scenario covers the spellings and the refusals.
+
+#### Other paths that write a CIF (checked, none has the gap)
+
+| Path                                                        | Writes a CIF? | Finding                                                                                                       |
+| ----------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------- |
+| Self-registration (`src/app/(auth)/register/actions.ts`)    | Yes           | The gap; fixed here through the schema                                                                        |
+| Catalog import (`src/lib/import/apply.ts`)                  | No            | Creates and updates docentes only; the insert has no CIF column and the update sets the name and phone only   |
+| Staff creation (`src/app/(dashboard)/users/new/actions.ts`) | No (null)     | Writes a null CIF                                                                                             |
+| Seed (`src/db/seed.ts`)                                     | No            | Three staff accounts, no CIF                                                                                  |
+| Retention (`src/lib/data/retention.ts`)                     | Clears it     | Writes a null CIF on cancelled accounts                                                                       |
+| Integration fixtures (`src/lib/data/integration/fixtures.ts`) | Test only   | Writes "IT" plus a tag, no spaces or hyphens; not a production path                                           |
+
+So there is no import fix to make. Open point for the owner, not decided here: a CIF that contains "@" is stored as typed but the sign-in classifies any "@" identifier as an email, so such a CIF can never sign in by CIF. The registration does not refuse it because the brief was to require no format; a student CIF is digits only, so the case is theoretical.
+
+#### Checkpoint: measured size of S9d
+
+Measure: "git diff --numstat feat/flow-experience-9c2-keep-session-form...HEAD" excluding "openspec/" and ".engram/": 127 changed lines (119 added, 8 deleted): production 25 (login-identity 13, users schema 12), tests 102. Spec and docs are outside the figure.
+
+#### Work unit evidence (S9d)
+
+| Evidence                              | Value                                                                                                                                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- src/lib/validations/users.test src/lib/auth/login-identity.test (auth)/register/actions.test": 3 files, 101 tests, all passed                    |
+| Runtime harness                       | N/A: no runtime boundary changes (a pure function and a schema). Owner check on a database that may be written: register "2201-0116", then sign in with the CIF in any spelling                          |
+| Rollback boundary                     | Revert the PR: the CIF is stored as typed again. Accounts registered after the merge keep their cleaned CIF, which is the value the sign-in looks up; none needs repair                                  |
+
+#### Gates (S9d), tip of "-9d-cif-normalize", dummy DB
+
+- Full "npm test": 381 files, 9640 tests, all passed, 257 s (9613 before; 27 added, no new file).
+- "npm run typecheck": exit 0.
+- "npx eslint" and "npx prettier --check" on the five touched `src` files (LF in the working tree): exit 0, clean.
+
+#### Deviations (S9d)
+
+1. **Existing accounts.** No data fix: an account registered before this change keeps the CIF as typed, so one with a space or hyphen still cannot sign in by CIF. Counting those rows is a production read the owner runs; no database command was run here.
+2. **Line endings.** `src/app/(auth)/register/actions.test.ts` was CRLF in the working tree (index LF) and was converted to LF before editing.

@@ -137,11 +137,11 @@ describe("registerAction pins with registration open (AEA-4)", () => {
     expect(mocks.requireUserAllowingPasswordChange).not.toHaveBeenCalled();
   });
 
-  it("stores the CIF as posted, with no lookup of it", async () => {
+  it("stores the CIF cleaned like the sign-in cleans it, with no lookup of it", async () => {
     await expect(submit({ cif: "1234-ZZZ" })).rejects.toThrow("REDIRECT:/");
 
     expect(mocks.createUsuario).toHaveBeenCalledWith(
-      expect.objectContaining({ cif: "1234-ZZZ" }),
+      expect.objectContaining({ cif: "1234ZZZ" }),
     );
     // The only data read is the careers list and the email lookup;
     // `@/lib/data/users` exposes no CIF lookup here, so one would have thrown.
@@ -241,6 +241,31 @@ describe("registerAction by email and CIF (FE-26, FE-28, FE-22)", () => {
     ["both are empty", { correo: "", cif: "" }],
   ])("refuses the registration when %s and creates nothing", async (_l, o) => {
     await expect(submit(o)).resolves.toEqual({ error: "errors.invalid" });
+
+    nothingCreated();
+  });
+
+  it.each([
+    ["2201-0116", "22010116"],
+    ["  2201 0116 ", "22010116"],
+    ["22010116", "22010116"],
+  ])("stores the posted CIF %j as %j (FE-26, FE-21)", async (typed, stored) => {
+    await expect(submit({ cif: typed })).rejects.toThrow("REDIRECT:/");
+
+    expect(mocks.createUsuario).toHaveBeenCalledTimes(1);
+    expect(mocks.createUsuario).toHaveBeenCalledWith(
+      expect.objectContaining({ cif: stored }),
+    );
+  });
+
+  it.each([
+    ["only hyphens", "---"],
+    ["only spaces and hyphens", " - - "],
+    ["21 characters once cleaned", "1111-1111-1111-1111-1111 1"],
+  ])("refuses a CIF that is %s and creates nothing", async (_l, cif) => {
+    await expect(submit({ cif })).resolves.toEqual({
+      error: "errors.invalid",
+    });
 
     nothingCreated();
   });

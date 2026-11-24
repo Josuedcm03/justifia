@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { classifyIdentifier } from "@/lib/auth/login-identity";
 import {
   crearStaffSchema,
   registroEstudianteSchema,
@@ -124,11 +125,43 @@ describe("registroEstudianteSchema (FE-26, FE-28)", () => {
     expect(parsed).not.toHaveProperty("login");
   });
 
-  it("accepts a valid registration and keeps the CIF as typed after the trim", () => {
+  it("accepts a valid registration", () => {
     expect(
       registroEstudianteSchema.parse({ ...registro, cif: "  26001234 " }),
     ).toMatchObject({ cif: "26001234", carreraId: 2 });
   });
+
+  // FE-26 (AEA-4), FE-21: the CIF is stored cleaned the way the sign-in cleans
+  // what is typed (trim, spaces and hyphens removed, case kept), so the stored
+  // value is the one a later sign-in matches.
+  it.each([
+    ["2201-0116", "22010116"],
+    ["  2201 0116  ", "22010116"],
+    ["22 01 - 01-16", "22010116"],
+    ["26001234", "26001234"],
+    [" Ab-12 ", "Ab12"],
+    ["ABC", "ABC"],
+  ])("stores the CIF %j cleaned as %j", (typed, stored) => {
+    expect(
+      registroEstudianteSchema.parse({ ...registro, cif: typed }).cif,
+    ).toBe(stored);
+  });
+
+  it.each(["2201-0116", "  2201 0116  ", " Ab-12 ", "26001234"])(
+    "stores the CIF %j as the value the sign-in looks up for the same input",
+    (typed) => {
+      const stored = registroEstudianteSchema.parse({
+        ...registro,
+        cif: typed,
+      }).cif;
+
+      expect(classifyIdentifier(typed)).toEqual({ kind: "cif", value: stored });
+      expect(classifyIdentifier(stored)).toEqual({
+        kind: "cif",
+        value: stored,
+      });
+    },
+  );
 
   it.each([
     ["absent", undefined],
@@ -150,7 +183,10 @@ describe("registroEstudianteSchema (FE-26, FE-28)", () => {
     ["absent", undefined],
     ["empty", ""],
     ["only spaces", "   "],
+    ["only hyphens", "---"],
+    ["only spaces and hyphens", " - - "],
     ["21 characters", "1".repeat(21)],
+    ["21 characters once cleaned", "1111-1111-1111-1111-1111 1"],
   ])("refuses a CIF that is %s, with the error on the CIF", (_l, cif) => {
     const input: Record<string, unknown> = { ...registro, cif };
     if (cif === undefined) delete input.cif;
@@ -162,6 +198,15 @@ describe("registroEstudianteSchema (FE-26, FE-28)", () => {
     expect(
       registroEstudianteSchema.parse({ ...registro, cif: "1".repeat(20) }).cif,
     ).toHaveLength(20);
+  });
+
+  it("applies the 20-character limit to the cleaned CIF, not to what was typed", () => {
+    const typed = "1111-1111-1111-1111-1111";
+
+    expect(typed).toHaveLength(24);
+    expect(
+      registroEstudianteSchema.parse({ ...registro, cif: typed }).cif,
+    ).toBe("1".repeat(20));
   });
 
   it.each([

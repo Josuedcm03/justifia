@@ -11,6 +11,17 @@ export type LoginIdentifier =
   | { kind: "cif"; value: string };
 
 /**
+ * The one cleaning rule of a CIF (FE-21, FE-26): trimmed, with every space and
+ * hyphen removed; the case is kept because the match is exact. The sign-in
+ * lookup and the value self-registration stores both come from here, so a CIF
+ * typed in any of those spellings is stored as the one the sign-in looks up.
+ * The result is empty when only spaces and hyphens were typed.
+ */
+export function normalizeCif(raw: string): string {
+  return raw.trim().replace(/[\s-]+/g, "");
+}
+
+/**
  * An identifier that contains "@" is an email: trimmed and lower-cased (the
  * normalized email, FE-22). Any other identifier is a CIF: trimmed, with its
  * spaces and hyphens removed. No CIF format or digit count is assumed (a
@@ -27,5 +38,5 @@ export function classifyIdentifier(raw: string): LoginIdentifier | null {
   if (trimmed.includes("@")) {
     return { kind: "email", value: trimmed.toLowerCase() };
   }
-  return { kind: "cif", value: trimmed.replace(/[\s-]+/g, "") };
+  return { kind: "cif", value: normalizeCif(trimmed) };
 }
