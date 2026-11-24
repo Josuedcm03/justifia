@@ -66,6 +66,8 @@ export function RegisterForm({ carreras }: { carreras: Carrera[] }) {
     initialState,
   );
 
+  // The registration errors concern the email or the CIF (a duplicate, an
+  // email too long), so the email field points at the message.
   const describedBy = state.error ? "register-error" : undefined;
 
   return (
@@ -120,16 +122,6 @@ export function RegisterForm({ carreras }: { carreras: Carrera[] }) {
         </Section>
 
         <Section legend={t("sections.access")}>
-          <Field htmlFor="login" label={t("loginLabel")}>
-            <Input
-              id="login"
-              name="login"
-              autoComplete="username"
-              required
-              aria-describedby={describedBy}
-            />
-          </Field>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <Field htmlFor="password" label={t("passwordLabel")}>
               <PasswordInput
@@ -164,6 +156,7 @@ export function RegisterForm({ carreras }: { carreras: Carrera[] }) {
                 type="email"
                 autoComplete="email"
                 required
+                aria-describedby={describedBy}
               />
             </Field>
 
