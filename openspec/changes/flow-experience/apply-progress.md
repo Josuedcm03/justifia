@@ -1967,6 +1967,36 @@ Measure: "git diff --numstat feat/flow-experience-9c2-keep-session-form...HEAD" 
 1. **Existing accounts.** No data fix: an account registered before this change keeps the CIF as typed, so one with a space or hyphen still cannot sign in by CIF. Counting those rows is a production read the owner runs; no database command was run here.
 2. **Line endings.** `src/app/(auth)/register/actions.test.ts` was CRLF in the working tree (index LF) and was converted to LF before editing.
 
+### S9e: the excerpt of a rejected card starts at the reason (2026-11-24; task 11.13)
+
+Branch "feat/flow-experience-9e-rejection-excerpt", cut from the tracker (bc9828c). Its PR targets "feat/flow-experience". Spec: FE-15. Thesis: RF-07 (c). Owner decision of 2026-11-24.
+
+**Problem.** The 12.8 capture on "flow-it" showed "Motivo: Buenos días, ... Su solicitud de justificación de la inasistencia por motivos de..." on a rejected card. Both rejection templates open with an introduction that uses up the 140 characters, so the reason was not shown (on the captured request the reason started after character 224 of 350). The code did what FE-15 said; the spec did not consider the introduction.
+
+**Change.** "withoutRejectionIntro" in `src/lib/intake/decision-templates.ts` returns the text from the reason on; `src/lib/data/student-requests.ts` applies it to a rejected request before the cut, on the server. The pattern is built from the strings the templates use. The template texts, the stored text and the detail do not change; a returned or approved request does not change.
+
+#### TDD cycle evidence (S9e)
+
+| Test file | Layer | Safety net | RED | GREEN | Triangulation | Refactor |
+| --- | --- | --- | --- | --- | --- | --- |
+| `src/lib/intake/decision-templates.test.ts` | Unit (pure) | Existing cases green | All the new cases failed (the function did not exist) | All passed | Every cause, four date ranges and two names for both templates; rewritten texts, an approval, a return, an empty text, nothing after the introduction, a reason that repeats the opening words | Template bodies now share the joining strings; the rendered text is the same |
+| `src/lib/data/student-requests.test.ts` | Unit (reader, DB double) | Existing cases green | 3 new cases failed first | All passed | Both templates, a reason over 140 characters; the returned text stays as before (passed from the start) | None needed |
+
+RED: 94 of 165 cases failed first. Two changes after RED: a wall-clock case was dropped because it can fail on a slow machine (the pattern was measured apart on four long texts, at most 0.27 ms each), and a case was added for the escaped period, which the first version of the pattern had lost; that case fails against that version and passes now.
+
+#### Work unit evidence (S9e)
+
+| Evidence | Value |
+| --- | --- |
+| Focused test command and exact result | "npx vitest run src/lib/intake/decision-templates.test.ts src/lib/data/student-requests.test.ts", dummy DB: 2 files, 165 tests, all passed |
+| Runtime harness | Pending: the RF-07 capture of 12.8 is to be repeated on "flow-it" with the owner's yes |
+| Rollback boundary | Revert the PR: the excerpt starts at the introduction again. No data or schema change |
+
+#### Gates (S9e), dummy DB
+
+- Full "npm test": 392 files, 10432 tests, all passed (10337 before; 95 added).
+- "npm run typecheck": exit 0. "npx eslint src": 0 errors, 1 known warning (`src/components/app-sidebar.tsx:23`).
+
 ## Phase 12 (PR 10): S10 docs (2026-11-24; tasks 12.0, 12.13 to 12.16)
 
 Branch "feat/flow-experience-10-evidence-docs", PR #145 ("https://github.com/Josuedcm03/justifia/pull/145"), base "feat/flow-experience". This is the documentation slice of S10 only: the evidence tasks 12.1 to 12.12 are owner-run on "flow-it" and stay open; nothing here ran a database, Neon or Vercel command.
