@@ -346,7 +346,7 @@ describe("DocentesPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () => 
     getSessionMock.mockResolvedValue(sessionFor("administrador"));
   });
 
-  it("renders Name, Username, Email and Status, and no actions column", async () => {
+  it("renders Name, Email and Status, no login column and no actions column (FE-24)", async () => {
     listMock.mockResolvedValue(result({ total: 1, data: [row()] }));
 
     await renderPage();
@@ -356,20 +356,18 @@ describe("DocentesPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () => 
     );
     expect(heads.map((h) => h.textContent)).toEqual([
       expect.stringContaining(en.columns.name),
-      expect.stringContaining(en.columns.login),
       expect.stringContaining(en.columns.email),
       expect.stringContaining(en.columns.status),
     ]);
-    // All four sort (CM-LST-1) and none is an action column.
+    // All three sort (CM-LST-1) and none is an action column.
     expect(heads.map((h) => h.querySelector("button") !== null)).toEqual([
-      true,
       true,
       true,
       true,
     ]);
   });
 
-  it("shows name, username, email and the state word, mixed under status=all", async () => {
+  it("shows name, email and the state word, mixed under status=all, and no login", async () => {
     listMock.mockResolvedValue(
       result({
         total: 3,
@@ -390,11 +388,14 @@ describe("DocentesPage rows (CM-LST-1: Filter, state in words; CM-UX-1)", () => 
     await renderPage({ status: "all" });
 
     const rows = within(screen.getByRole("table")).getAllByRole("row");
-    for (const text of ["Ana Pérez", "aperez", "ana@uni.edu"]) {
+    for (const text of ["Ana Pérez", "ana@uni.edu"]) {
       expect(within(rows[1]).getByText(text)).toBeInTheDocument();
     }
+    // The login is read but never delivered to the browser (FE-24).
+    expect(screen.queryByText("aperez")).not.toBeInTheDocument();
+    expect(screen.queryByText("lgomez")).not.toBeInTheDocument();
     expect(within(rows[1]).getByText(shared.status.active)).toBeInTheDocument();
-    for (const text of ["Luis Gómez", "lgomez", "luis@uni.edu"]) {
+    for (const text of ["Luis Gómez", "luis@uni.edu"]) {
       expect(within(rows[2]).getByText(text)).toBeInTheDocument();
     }
     expect(
@@ -538,7 +539,9 @@ describe("DocentesPage is read-only (CM-LST-1: read-only; CM-ACC-1)", () => {
       }
       expect(text).not.toMatch(/password/i);
     }
-    expect(serializedProps(ui)).toContain("aperez");
+    expect(serializedProps(ui)).toContain("ana@uni.edu");
+    // The login is read by the data layer and never delivered (FE-24).
+    expect(serializedProps(ui)).not.toContain("aperez");
   });
 });
 

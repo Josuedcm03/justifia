@@ -225,6 +225,30 @@ describe("planImport — Stage B: Docentes identity resolution and login derivat
     expect(plan.accountsToCreate).toBe(0);
   });
 
+  // FE-22: a docente row with surrounding spaces and mixed case matches the
+  // existing account and creates none (pass at write: planImport normalizes).
+  it("matches an existing docente by a trimmed, mixed-case email and creates none (FE-22)", () => {
+    const existing: UsuarioRow = {
+      id: 5,
+      login: "ana@uni.edu",
+      correo: "ana@uni.edu",
+      cif: null,
+      nombreCompleto: "Ana",
+      telefono: null,
+      carreraId: null,
+      activo: true,
+      rol: "docente",
+    };
+    const plan = planImport(
+      makeWorkbook({ docentes: [{ Correo: " ana@UNI.edu ", Nombre: "Ana" }] }),
+      makeSnapshot({ usuarios: [existing] }),
+    );
+
+    expect(plan.accountsToCreate).toBe(0);
+    expect(plan.writes.usuarios).toEqual([]);
+    expect(plan.counts.Usuario).toMatchObject({ create: 0, unchanged: 1 });
+  });
+
   it("two rows normalizing to the same email is an error", () => {
     const plan = planImport(
       makeWorkbook({

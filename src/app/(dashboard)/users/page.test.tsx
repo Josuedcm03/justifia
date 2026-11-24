@@ -385,6 +385,40 @@ describe("UsersPage", () => {
     });
   });
 
+  // FE-30 (pass at write): sort=login still reaches the read, both ways.
+  it.each([
+    ["asc", "asc"],
+    ["desc", "desc"],
+  ] as const)(
+    "forwards sort=login with dir=%s (FE-30)",
+    async (dir, parsed) => {
+      requireRoleMock.mockResolvedValue(sessionFor("administrador"));
+      listUsuariosMock.mockResolvedValue(emptyResult(10));
+
+      await renderUsersPage(searchParamsOf({ sort: "login", dir }));
+
+      expect(listUsuariosMock).toHaveBeenCalledWith(
+        expect.objectContaining({ sort: { key: "login", dir: parsed } }),
+      );
+    },
+  );
+
+  it("shows the stored Login under its column header (FE-30)", async () => {
+    requireRoleMock.mockResolvedValue(sessionFor("administrador"));
+    listUsuariosMock.mockResolvedValue({
+      ...emptyResult(10),
+      data: [usuarioRow({ login: "jdiaz@uni.edu" })],
+      total: 1,
+    });
+
+    const { container } = await renderUsersPage(searchParamsOf({}));
+
+    expect(container.textContent).toContain("jdiaz@uni.edu");
+    expect(
+      screen.getByRole("columnheader", { name: /columns\.login/ }),
+    ).toBeInTheDocument();
+  });
+
   it.each([
     ["a SQL injection in sort", { sort: '\'; DROP TABLE "Usuario"; --' }],
     ["an oversized page size", { size: "9999" }],

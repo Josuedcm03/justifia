@@ -1654,3 +1654,107 @@ Under the 460 stop line. Tests are 88 percent of the lines and were not trimmed.
 4. **CIF as typed.** The characterization pin "stores the CIF as posted" (AEA-4) is kept, so a CIF registered with a space or a hyphen can never match the cleaned sign-in input (FE-21); that student signs in by email, which is required. Normalizing the stored CIF is a spec change and is listed in the notes for S10.
 5. **Dead key.** "auth.register.loginLabel" was removed in this unit, when its last use went, instead of in unit 23.
 6. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.
+
+### PR 9b3: profile, header, docentes table and export (unit 23; closes S9b)
+
+Branch "feat/flow-experience-9b3-profile-export", cut from the tip of "feat/flow-experience-9b2-register" (PR #126, "https://github.com/Josuedcm03/justifia/pull/126"). Its PR targets that branch.
+
+#### Commits (PR 9b3)
+
+| Unit | Hash    | Message                                                                            |
+| ---- | ------- | ---------------------------------------------------------------------------------- |
+| 23   | 7f10a9b | feat(users): remove the Usuario from the profile, header, export and docentes table |
+| docs | (tip)   | docs(flow-experience): record the Phase 10 apply progress for PR 9b3               |
+
+#### TDD cycle evidence (PR 9b3)
+
+| Task           | Test file                                                                  | Layer                  | Safety net                              | RED                                                                                       | GREEN                | Triangulation                                                                                                                                                                                                                                                           | Refactor    |
+| -------------- | -------------------------------------------------------------------------- | ---------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 10.8 and 10.9  | `src/app/(dashboard)/profile/page.test.tsx`                                | Component (page)       | 16 existing cases of the file passing   | 11 of the 12 new cases failed first ("reads only the own account" passes at write)        | Pass                 | A student's six rows in order; four staff roles with four rows; no phone; a coordinator that keeps its career; no email; en and es never print the stored login or a Usuario label; the own account only; the dead label gone from both catalogs                       | None needed |
+| 10.8 and 10.9  | `src/components/dashboard-header.test.tsx`                                 | Component (server)     | 9 existing cases passing                | 3 new cases failed first (the line showed "login · role")                                 | Pass                 | es and en show the name and the role and neither the stored login nor the dot; "signedInAs" is replaced by "roleLine" with the value "{rol}" in both catalogs                                                                                                          | None needed |
+| 10.8 and 10.9  | `src/app/(dashboard)/catalog/docentes/docentes-table.test.tsx` and `page.test.tsx` | Component | The existing four-column pins           | The old pins were edited to three columns and the new cases failed first (the login still rendered) | Pass | es and en headers (name, email, status) all sortable; the catalog `columns` has exactly three keys; the login text is neither in the table nor in the props the page delivers; sort clicks use Status and the filter links keep an email sort                              | None needed |
+| 10.8 and 10.9  | `src/lib/import/credentials-csv.test.ts`                                   | Unit (pure)            | 12 existing cases passing (3 edited)    | 4 cases failed first (the header was "Login"); "carries the normalized email" passes at write | Pass                 | The exact header "Correo,NombreCompleto,Clave", no "login" or "usuario" column, the first cell is the lower-case email of each row, the empty list, quoting and formula escaping unchanged                                                                              | None needed |
+| 10.8           | `src/lib/import/plan.test.ts`                                              | Unit (pure)            | 86 existing cases passing               | Pass at write                                                                             | Pass                 | A docente row " ana@UNI.edu " matches the existing "ana@uni.edu" account and creates none (mutation check below)                                                                                                                                                       | N/A         |
+| 10.8           | `src/app/(dashboard)/users/users-table.test.tsx`, `page.test.tsx`          | Component (FE-30)      | The existing six-field and column pins  | The hint pin was edited and 4 cases failed first; the sort and column pins pass at write | Pass                | The Login header and each row's stored login in es and en; "sort=login" forwarded asc and desc; the search, hint and empty-state copy ask no Usuario; the placeholder and hint are "Nombre o correo" and "Prueba con otro nombre o correo." (mutation checks below)      | None needed |
+
+#### Mutation checks (revert-only; files restored from byte-identical backup copies and confirmed with "cmp")
+
+| Pass-at-write test                                         | Temporary edit                                                                         | Result                                                    |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| "reads only the own account, by the session login" (profile) | `profile/page.tsx` reads the account of the session login with an "x" appended              | 9 failed                                                  |
+| the first-cell cases of the export (`credentials-csv.test.ts`) | `credentials-csv.ts` swaps the name and the email columns                              | 9 failed                                                  |
+| the FE-30 column cases (`users-table.test.tsx`)            | `users-table.tsx` drops the "Login" column                                             | 14 failed                                                 |
+| "delivers exactly six fields" (`users/page.test.tsx`)      | `users/page.tsx` adds "correo" to the delivered rows                                   | 7 failed                                                  |
+| "forwards sort=login with dir=asc and desc"                | `src/lib/users/list-params.ts` drops "login" from the sort keys                        | 2 failed                                                  |
+| "matches an existing docente by a trimmed, mixed-case email" | `src/lib/import/normalize.ts` drops the trim of `normalizeEmail`                      | Passed: the schema already trims the cell upstream, so this edit alone is not caught |
+| the same case, mutation retargeted                         | `src/lib/import/plan.ts` uses the cell value without `normalizeEmail`                  | 4 failed, this case among them                            |
+
+#### Task 10.11: leftovers review
+
+"rg -n Usuario i18n/es.json i18n/en.json" and "rg -n login src/app src/components --glob '*.tsx' -i" show no prompt to type a "Usuario" in the sign-in, creation, import, profile or header screens. The allowed leftovers:
+
+- The users list column header "users.columns.login" ("Usuario" / "Username") and the "Login" session claim and column (FE-30); the sort key "login" of the users list.
+- "Nuevo usuario", "Crear usuario" and "Administre las cuentas de usuario": the noun for an account, not a field to type.
+- The sheet label "Usuario": "Docentes" of the import summary, an entity name.
+- Two staff-facing import error lines that use the word for the derived login: "El correo es demasiado largo para generar el usuario (máximo 60 caracteres)" and "El usuario generado a partir del correo ya lo usa otra cuenta" (and their English twins). They describe a row error, they do not ask anyone to type anything; they are listed for the owner's copy review.
+- The form field name "login" of the sign-in input (not user-facing text), and the code identifiers.
+
+#### Checkpoint (task 10.13, part 3): measured size of PR 9b3
+
+Measure: "git diff --numstat feat/flow-experience-9b2-register...HEAD" excluding "openspec/" and ".engram/".
+
+| Scope                                                                                             | Changed lines |
+| ------------------------------------------------------------------------------------------------- | ------------- |
+| Production (profile 19, header 2, docentes table 12 and page 3, export 5) and the two catalogs (16) | 57            |
+| Tests                                                                                             | 362           |
+| All of PR 9b3 (348 added, 71 deleted)                                                             | 419           |
+
+All of S9b is 1298 changed lines over three PRs (449, 430 and 419), cut at the plan's two candidate seams; the design forecast was about 260. Under the 460 stop line. Tests are 86 percent of the lines and were not trimmed.
+
+#### Work unit evidence (PR 9b3)
+
+| Evidence                              | Value                                                                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command and exact result | "DATABASE_URL='postgres://u:p@127.0.0.1:9/x' npm test -- profile/page dashboard-header catalog/docentes credentials-csv import/plan.test (dashboard)/users/ src/i18n": 20 files, 769 tests, all passed. The access proof: 4 files, 536 tests, all passed |
+| Runtime harness                       | Owner-run: open the profile and the header menu, the docentes list and the credentials file after an import on "flow-it" (task 12.5). No database command was run in this apply                                                                |
+| Rollback boundary                     | Revert the PR: the profile shows its "Usuario" row, the header its login, the docentes table its login column and the export its "Login" header. No data, no schema                                                                         |
+
+#### Gates (tasks 10.12 and 10.14), tip of "-9b3-profile-export" (the S9b tip), dummy DB
+
+- Full "npm test": 380 files, 9569 tests, all passed, 327.8 s. The PR 9b2 tip had 380 files and 9543 tests; PR 9b3 adds 26 cases and no file.
+- "npm run typecheck": exit 0.
+- "npx eslint" and "npx prettier --check" on the fifteen touched files and both catalogs: clean.
+- Access matrix and route inventory, run on their own: 4 files, 536 tests, all passed, `src/test/access` untouched.
+
+Task 10.14 over S9b: 379 files and 9504 tests (PR 9b), 380 and 9543 (PR 9b2), 380 and 9569 (PR 9b3), each all passed with the typecheck at exit 0.
+
+#### Files (PR 9b3; all LF in the working tree, the index was already LF)
+
+| File                                                                                                | Action                                                                                   |
+| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/app/(dashboard)/profile/page.tsx` and its test                                                 | Modified: no login row, rows in the spec's order; 11 new cases                            |
+| `src/components/dashboard-header.tsx` and its test                                                  | Modified: the role line is "roleLine" with the role only; 3 new cases                     |
+| `src/app/(dashboard)/catalog/docentes/docentes-table.tsx`, `page.tsx` and their tests               | Modified: no login column and no login in the delivered rows                              |
+| `src/lib/import/credentials-csv.ts` and its test                                                    | Modified: the header "Correo" and the email in the first column; 2 new cases              |
+| `src/lib/import/plan.test.ts`                                                                       | Modified: one pass-at-write case                                                          |
+| `src/app/(dashboard)/users/users-table.test.tsx`, `src/app/(dashboard)/users/page.test.tsx`         | Modified: the FE-30 pins and the new hint                                                 |
+| `src/i18n/catalog-parity.test.ts`                                                                   | Modified: the Docentes key pins lose "columns.login"                                      |
+| `i18n/es.json`, `i18n/en.json`                                                                      | Modified: "auth.userMenu.roleLine", the search placeholder and hint; two dead keys removed |
+
+#### Final Spanish UI copy of PR 9b3 (admin screens "users" and "catalog", "tú"; English twins in the catalog)
+
+- "users.search.placeholder": "Nombre o correo" (`en`: "Name or email").
+- "users.noResults.hint": "Prueba con otro nombre o correo." (`en`: "Try another name or email.").
+- "auth.userMenu.roleLine" (replaces "signedInAs"): "{rol}" (`en`: "{rol}").
+- The credentials file header: "Correo,NombreCompleto,Clave".
+- Removed dead keys: "profile.loginLabel" and "catalog.docentes.columns.login". "users.columns.login" stays because the list keeps its column.
+
+#### Deviations (PR 9b3)
+
+1. **Spec drift to resolve at archive.** The main catalog spec pins "four columns, all sortable" for the docentes list (CM-LST-1), and this change has no delta for it; the design and task 10.9 drop the login column, which task 10.1 (c) left for the owner to confirm. The sort key "login" stays in `src/lib/catalog/list-params.ts`, so an old URL with "sort=login" still sorts and no header shows it. A delta or an archive note is needed.
+2. **Export value.** The first column reuses `TemporaryCredential.login`, which for an imported docente is the normalized email by derivation; no new field was added, so no import type or apply test changed.
+3. **Row order.** The profile rows follow the spec's order (email, CIF, role, phone, career, member since); before, the order was role, email, phone, CIF, career.
+4. **FE-30 pins mostly existed.** The delivered six fields, the secrets, the five sortable columns and the search by "Login" were already pinned; this unit adds the "sort=login" forwarding, the stored login under its column, and the copy pins.
+5. **Mutation retarget.** The first mutation of the import case (the trim of `normalizeEmail`) was not caught because the schema trims the cell upstream; the check was retargeted to the call in `src/lib/import/plan.ts`.
+6. **Key name.** The design lists "auth.profile.loginLabel"; the real key is "profile.loginLabel".
+7. **Line endings.** The touched files were CRLF in the working tree (index LF); they were converted to LF before editing.

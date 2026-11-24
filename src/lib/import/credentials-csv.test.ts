@@ -6,7 +6,7 @@ import type { TemporaryCredential } from "@/lib/import/types";
 const cred = (
   over: Partial<TemporaryCredential> = {},
 ): TemporaryCredential => ({
-  login: "ana.perez",
+  login: "ana.perez@uni.edu",
   nombreCompleto: "Ana Pérez",
   clave: "ABCDEFGH23456789",
   ...over,
@@ -18,24 +18,28 @@ describe("buildCredentialsCsv (IAP: Export accompanies the successful apply)", (
   it("starts with the UTF-8 BOM and a header row", () => {
     const csv = buildCredentialsCsv([cred()]);
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(body(csv)[0]).toBe("Login,NombreCompleto,Clave");
+    expect(body(csv)[0]).toBe("Correo,NombreCompleto,Clave");
   });
 
   it("emits one row per credential and keeps accents", () => {
     const csv = buildCredentialsCsv([
       cred(),
-      cred({ login: "luis", nombreCompleto: "Luis Ñandú", clave: "ZZZZ" }),
+      cred({
+        login: "luis@uni.edu",
+        nombreCompleto: "Luis Ñandú",
+        clave: "ZZZZ",
+      }),
     ]);
     expect(body(csv)).toEqual([
-      "Login,NombreCompleto,Clave",
-      "ana.perez,Ana Pérez,ABCDEFGH23456789",
-      "luis,Luis Ñandú,ZZZZ",
+      "Correo,NombreCompleto,Clave",
+      "ana.perez@uni.edu,Ana Pérez,ABCDEFGH23456789",
+      "luis@uni.edu,Luis Ñandú,ZZZZ",
     ]);
   });
 
   it("emits only the header for an empty list", () => {
     expect(body(buildCredentialsCsv([]))).toEqual([
-      "Login,NombreCompleto,Clave",
+      "Correo,NombreCompleto,Clave",
     ]);
   });
 
@@ -78,7 +82,35 @@ describe("buildCredentialsCsv (IAP: Export accompanies the successful apply)", (
     const generated = buildCredentialsCsv([
       cred({ clave: "K7MPQRST23456789" }),
     ]);
-    expect(body(generated)[1]).toBe("ana.perez,Ana Pérez,K7MPQRST23456789");
+    expect(body(generated)[1]).toBe(
+      "ana.perez@uni.edu,Ana Pérez,K7MPQRST23456789",
+    );
     expect(csv).toContain("A-B");
+  });
+});
+
+// FE-29 (UX-21): the file names each account by the email the docente types to
+// sign in. A docente's login is the normalized email, and no column is a
+// "Login" or a "Usuario" to type.
+describe("buildCredentialsCsv names the account by email (FE-29)", () => {
+  it("has no column labelled Login or Usuario", () => {
+    const header = body(buildCredentialsCsv([cred()]))[0].split(",");
+
+    expect(header).toEqual(["Correo", "NombreCompleto", "Clave"]);
+    expect(header.map((h) => h.toLowerCase())).not.toContain("login");
+    expect(header.map((h) => h.toLowerCase())).not.toContain("usuario");
+  });
+
+  it("carries the normalized email of each new docente as the first cell", () => {
+    const csv = buildCredentialsCsv([
+      cred({ login: "ana.perez@uni.edu" }),
+      cred({ login: "luis.gomez@uni.edu", nombreCompleto: "Luis Gómez" }),
+    ]);
+
+    const firstCells = body(csv)
+      .slice(1)
+      .map((row) => row.split(",")[0]);
+    expect(firstCells).toEqual(["ana.perez@uni.edu", "luis.gomez@uni.edu"]);
+    for (const email of firstCells) expect(email).toBe(email.toLowerCase());
   });
 });

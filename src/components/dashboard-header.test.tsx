@@ -99,3 +99,38 @@ describe("user menu copy (FE-20)", () => {
     expect(messages.en.auth.userMenu.changePassword).toBe("Change password");
   });
 });
+
+// FE-24 (UX-21): the menu names the role and never the login, which is no
+// longer something a person types.
+describe("DashboardHeader role line without the login (FE-24)", () => {
+  async function labelOf(locale: Locale) {
+    state.locale = locale;
+    const user = {
+      ...sessionFor("docente"),
+      login: "stored.login",
+      nombre: "Ana Pérez",
+    };
+    render(await DashboardHeader({ user }));
+    await userEvent.click(screen.getByRole("button", { name: "Ana Pérez" }));
+    return (await screen.findByRole("menu")).textContent ?? "";
+  }
+
+  it.each(["es", "en"] as const)(
+    "shows the name and the role in %s, and not the login",
+    async (locale) => {
+      const text = await labelOf(locale);
+
+      expect(text).toContain("Ana Pérez");
+      expect(text).toContain("docente");
+      expect(text).not.toContain("stored.login");
+      expect(text).not.toContain("·");
+    },
+  );
+
+  it("replaces signedInAs with a roleLine that is only the role", () => {
+    for (const locale of ["es", "en"] as const) {
+      expect(messages[locale].auth.userMenu.roleLine).toBe("{rol}");
+      expect(messages[locale].auth.userMenu).not.toHaveProperty("signedInAs");
+    }
+  });
+});

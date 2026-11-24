@@ -522,7 +522,6 @@
       "usersLink": "Gestionar cuentas en Usuarios",
       "columns": {
         "name": "Nombre",
-        "login": "Usuario",
         "email": "Correo",
         "status": "Estado"
       },
@@ -564,14 +563,14 @@
     "empty": "Aún no hay usuarios",
     "search": {
       "label": "Buscar usuarios",
-      "placeholder": "Nombre, usuario o correo"
+      "placeholder": "Nombre o correo"
     },
     "tableCaption": "Lista de usuarios",
     "noResults": {
       "title": "Sin resultados para «{q}»",
       "titleStatus": "No hay usuarios con este filtro.",
       "hintStatus": "Prueba con otro estado o quita los filtros.",
-      "hint": "Prueba con otro nombre, usuario o correo."
+      "hint": "Prueba con otro nombre o correo."
     },
     "new": {
       "title": "Crear cuenta de staff",
@@ -655,7 +654,7 @@
       "invalid": "Los datos de acceso no son correctos. Revise su CIF o correo y su contraseña."
     },
     "userMenu": {
-      "signedInAs": "{login} · {rol}",
+      "roleLine": "{rol}",
       "viewProfile": "Ver perfil",
       "changePassword": "Cambiar contraseña",
       "logout": "Cerrar sesión"
@@ -664,7 +663,6 @@
   "profile": {
     "title": "Mi perfil",
     "subtitle": "Tus datos de cuenta",
-    "loginLabel": "Usuario",
     "roleLabel": "Rol",
     "emailLabel": "Correo",
     "phoneLabel": "Teléfono",
