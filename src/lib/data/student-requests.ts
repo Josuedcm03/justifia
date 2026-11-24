@@ -18,6 +18,7 @@ import type {
   DetailDocument,
   DetailRevision,
 } from "@/lib/data/solicitud-detail";
+import { withoutRejectionIntro } from "@/lib/intake/decision-templates";
 import { VISIBLE_STATES } from "@/lib/intake/states";
 
 // The student's own requests (RF-07 c, RF-08 b, RNF-01). Every query filters by
@@ -58,7 +59,8 @@ export type OwnDecision = {
  * The reason a list card shows. `motivoCodigo` is the RN-17 code of a returned
  * request (always null for a rejected one); `texto` is the excerpt of the
  * decision text, already cut on the server (140 characters), so the complete
- * text never leaves it.
+ * text never leaves it. The excerpt of a rejected request starts at the reason,
+ * after the fixed introduction of the templates (FE-15).
  */
 export type OwnCardDecision = {
   motivoCodigo: string | null;
@@ -155,7 +157,11 @@ export async function listOwnRequests(
         ? {
             motivoCodigo:
               row.estado === "devuelta" ? decision.motivoCodigo : null,
-            texto: decisionExcerpt(decision.texto),
+            texto: decisionExcerpt(
+              row.estado === "rechazada"
+                ? withoutRejectionIntro(decision.texto ?? "")
+                : decision.texto,
+            ),
           }
         : null,
     };

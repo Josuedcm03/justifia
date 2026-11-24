@@ -6,6 +6,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { escalamiento, reporteInasistencia } from "@/db/schema";
+import { renderTemplate } from "@/lib/intake/decision-templates";
 import { VISIBLE_STATES } from "@/lib/intake/states";
 
 import { createDbDouble, type Step } from "./test-support/db-double";
@@ -78,6 +79,13 @@ function listDecision(
     ...overrides,
   };
 }
+
+const REJECTED_VARS = {
+  estudiante: "Ana Perez",
+  causa: "actividad_representativa",
+  fechaInicio: "2026-07-24",
+  fechaFin: "2026-07-25",
+} as const;
 
 describe("listOwnRequests (RF-07 c, RNF-01)", () => {
   beforeEach(() => {
@@ -318,6 +326,64 @@ describe("listOwnRequests (RF-07 c, RNF-01)", () => {
       expect(row.decision).toEqual({ motivoCodigo: null, texto: expected });
     },
   );
+
+  it.each([
+    [
+      "the general template, completed",
+      renderTemplate("rechazo.general", REJECTED_VARS).replace(
+        "[indique el motivo]",
+        "la constancia es de otra persona",
+      ),
+      "la constancia es de otra persona. Gracias por su atención.",
+    ],
+    [
+      "the document template",
+      renderTemplate("rechazo.documento_no_acredita", REJECTED_VARS),
+      "el documento de respaldo no acredita la inasistencia en las fechas indicadas. Gracias por su atención.",
+    ],
+    [
+      "a reason longer than 140 characters",
+      renderTemplate("rechazo.general", REJECTED_VARS).replace(
+        "[indique el motivo]",
+        "m".repeat(200),
+      ),
+      `${"m".repeat(140)}…`,
+    ],
+  ])(
+    "starts the excerpt of a rejected request at the reason: %s",
+    async (_name, texto, expected) => {
+      use([
+        { kind: "select", rows: [{ ...listRow, estado: "rechazada" }] },
+        { kind: "select", rows: [] },
+        { kind: "select", rows: [listDecision(7, { texto })] },
+      ]);
+
+      const [row] = await listOwnRequests(USER);
+
+      expect(row.decision).toEqual({ motivoCodigo: null, texto: expected });
+    },
+  );
+
+  it("does not touch the text of a returned request", async () => {
+    const texto = renderTemplate(
+      "devolucion.documento_ilegible",
+      REJECTED_VARS,
+    );
+    use([
+      { kind: "select", rows: [listRow] },
+      { kind: "select", rows: [] },
+      {
+        kind: "select",
+        rows: [listDecision(7, { motivoCodigo: "documento_ilegible", texto })],
+      },
+    ]);
+
+    const [row] = await listOwnRequests(USER);
+
+    expect(row.decision?.texto).toBe(
+      `${Array.from(texto).slice(0, 140).join("").trimEnd()}…`,
+    );
+  });
 
   it("never lets the complete text of a long decision leave the reader", async () => {
     const full = `${"z".repeat(300)} FINAL`;
