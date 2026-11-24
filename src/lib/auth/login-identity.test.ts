@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyIdentifier } from "@/lib/auth/login-identity";
+import { classifyIdentifier, normalizeCif } from "@/lib/auth/login-identity";
 
 // FE-21, FE-22: the single sign-in field is classified by its content only. An
 // "@" means an email; anything else is a CIF. No digit count or format is
@@ -74,5 +74,29 @@ describe("classifyIdentifier (FE-21, FE-22)", () => {
       kind: "cif",
       value: "maria.perez",
     });
+  });
+});
+
+// FE-21, FE-26: the one cleaning rule of a CIF, shared by the sign-in lookup
+// and by the value self-registration stores.
+describe("normalizeCif (FE-21, FE-26)", () => {
+  it.each([
+    ["26001234", "26001234"],
+    ["  2201-0116 ", "22010116"],
+    ["22 01\t-\n01 16", "22010116"],
+    [" Ab-12 ", "Ab12"],
+    [" --- ", ""],
+    ["", ""],
+  ])("cleans %j to %j", (raw, cleaned) => {
+    expect(normalizeCif(raw)).toBe(cleaned);
+  });
+
+  it("is what a CIF identifier carries, so both paths share one rule", () => {
+    for (const raw of ["2201-0116", " Ab-12 ", "- -", "1 2 3"]) {
+      expect(classifyIdentifier(raw)).toEqual({
+        kind: "cif",
+        value: normalizeCif(raw),
+      });
+    }
   });
 });

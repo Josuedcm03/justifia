@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { normalizeCif } from "@/lib/auth/login-identity";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 /**
@@ -16,8 +17,10 @@ export const rolStaffSchema = z.enum(rolesStaff as [string, ...string[]]);
  * Student self-registration (FE-26, FE-28). There is no `login` key: the server
  * derives the Login from the email, and any `login` in the request is dropped
  * by the parse. The email and the CIF are both required; the email is stored
- * trimmed and lower-case, the CIF as typed after the trim (its verification is
- * out of scope, AEA-4).
+ * trimmed and lower-case, the CIF cleaned by the same rule as the sign-in
+ * (`normalizeCif`: trimmed, spaces and hyphens removed, case kept), so the
+ * stored value is the one a later sign-in looks up (its verification is out of
+ * scope, AEA-4). The length limit applies to the cleaned value.
  */
 export const registroEstudianteSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres").max(128),
@@ -33,7 +36,10 @@ export const registroEstudianteSchema = z.object({
     .union([z.literal(""), z.string().trim().max(30)])
     .optional()
     .transform((v) => (v ? v : undefined)),
-  cif: z.string().trim().min(1, "Ingresa tu CIF").max(20),
+  cif: z
+    .string()
+    .transform(normalizeCif)
+    .pipe(z.string().min(1, "Ingresa tu CIF").max(20)),
   carreraId: z.coerce.number().int().positive("Selecciona una carrera"),
 });
 

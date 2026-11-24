@@ -403,8 +403,15 @@ MUST NOT apply any guard, and MUST NOT verify the CIF. The registration form MUS
 NOT ask for a "Usuario": the account's `Login` MUST be derived by the server from
 the normalized email (see `staff-account-creation` FE-27), and a value posted as
 `login` MUST be ignored. A derived `Login` that already exists MUST make the
-registration fail with the existing duplicate error.
-(Previously: the form asked for a "Usuario" and stored it as `Login`.)
+registration fail with the existing duplicate error. The CIF MUST be stored
+cleaned by the same rule the sign-in applies to a CIF identifier (FE-21, FE-22):
+trimmed, with its spaces and hyphens removed and its case kept, so that the
+stored value is the one the sign-in looks up for the same typed text. The
+1-to-20 length limit MUST apply to the cleaned value, a CIF that is empty once
+cleaned (only spaces or hyphens) MUST be refused, and no digit count or format
+MUST be required.
+(Previously: the form asked for a "Usuario" and stored it as `Login`, and the CIF
+was stored as typed after the trim.)
 
 #### Scenario: Role is always `estudiante`
 
@@ -429,3 +436,18 @@ registration fail with the existing duplicate error.
 - GIVEN an existing account whose `Login` equals the one derived for the new email
 - WHEN `registerAction` runs
 - THEN no account is created and the duplicate error is returned
+
+#### Scenario: The CIF is stored cleaned like the sign-in cleans it (table-driven)
+
+| Typed CIF | Stored `Cif` | Result |
+|---|---|---|
+| `2201-0116` | `22010116` | registered; the sign-in with `2201-0116`, `2201 0116` or `22010116` finds it |
+| `  2201 0116  ` | `22010116` | registered |
+| ` Ab-12 ` | `Ab12` | registered, case kept |
+| `1111-1111-1111-1111-1111` (24 typed, 20 cleaned) | `11111111111111111111` | registered, the limit applies to the cleaned value |
+| `---` or ` - - ` | none | refused, nothing created |
+| `1111-1111-1111-1111-1111 1` (21 cleaned) | none | refused, nothing created |
+
+- GIVEN a valid registration with the typed CIF in the row
+- WHEN `registerAction` runs
+- THEN the outcome is as shown and no CIF lookup is made
