@@ -309,7 +309,7 @@ equipo), `resuelta` (cubierta por un change).
 - **Esperado:** cada tarjeta rotula «Fechas de ausencia» con el mes escrito en
   letras, muestra los códigos de asignatura y, si está devuelta o rechazada, el
   motivo: la etiqueta del motivo, o un extracto de la decisión de hasta 140
-  caracteres. Una solicitud aprobada no muestra motivo. El orden de la lista no
+  caracteres que empieza en el motivo. Una solicitud aprobada no muestra motivo. El orden de la lista no
   cambia.
 - **Requisitos:** RF-07 (c), RF-08 (b); RN-16, RN-17; spec `student-requests`
   (FE-14, FE-15).

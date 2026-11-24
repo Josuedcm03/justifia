@@ -66,7 +66,12 @@ audit row.
 
 A card of a request currently in `devuelta` or `rechazada` MUST show the reason
 of the latest decision: for `devuelta`, the label of its RN-17 reason code; for
-`rechazada`, an excerpt of the decision text. A card in `aprobada` MUST show no
+`rechazada`, an excerpt of the decision text that starts at the reason: when the
+text opens with the fixed introduction of the rejection templates, up to the
+words that open the reason, the excerpt MUST leave that introduction out. A text
+that does not open with it, or has nothing after it, is excerpted from its start
+(owner decision 2026-11-24: the introduction alone filled the 140 characters).
+A card in `aprobada` MUST show no
 reason and no excerpt, whether or not the approval carries a text (owner
 decision 2026-11-20: the approval text is template boilerplate and approved
 students do not ask why). An excerpt MUST be at most 140 characters, shortened
@@ -93,6 +98,20 @@ exist in `es` and `en`.
 - GIVEN a request in the state with the decision text in the row
 - WHEN the owner opens `/requests`
 - THEN the card shows what the row says, in up to 2 lines
+
+#### Scenario: The excerpt of a rejection starts at the reason (owner decision 2026-11-24)
+
+| Decision text | Card shows |
+|---|---|
+| general rejection template, completed with a reason | the text from the reason on |
+| document rejection template, unchanged | the text from "el documento de respaldo" on |
+| general rejection template, completed with a reason over 140 characters | the first 140 characters of the reason with an ellipsis |
+| a text the secretary rewrote | the text from its start |
+| the introduction with nothing after it | the text from its start |
+
+- GIVEN a request in `rechazada` with the decision text in the row
+- WHEN the owner opens `/requests`
+- THEN the card shows what the row says, and the detail still shows the complete text
 
 #### Scenario: Approved card shows no excerpt (owner decision 2026-11-20)
 
