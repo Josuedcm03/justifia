@@ -124,6 +124,7 @@ const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
       "/review",
       "/catalog/asignaturas",
       "/catalog/docentes",
+      "/catalog/inscripciones",
       "/catalog/import",
       "/users",
     ],
@@ -251,6 +252,37 @@ describe("DashboardPage (BS-HOME-1)", () => {
 
       expect(shortcutHrefs()).not.toContain("/reports");
       expect(screen.queryByText("shortcuts.reports")).not.toBeInTheDocument();
+    },
+  );
+
+  it("offers secretaria the Inscripciones shortcut between Docentes and Import, not prefetched", async () => {
+    await renderHome("secretaria");
+
+    const card = screen.getByRole("link", { name: /catalogInscripciones/ });
+
+    expect(card).toHaveAttribute("href", "/catalog/inscripciones");
+    expect(card).toHaveAttribute("data-prefetch", "false");
+    expect(
+      within(card).getByText("shortcuts.catalogInscripciones"),
+    ).toBeInTheDocument();
+    const hrefs = shortcutHrefs();
+    expect(hrefs.indexOf("/catalog/inscripciones")).toBe(
+      hrefs.indexOf("/catalog/docentes") + 1,
+    );
+    expect(hrefs.indexOf("/catalog/inscripciones")).toBe(
+      hrefs.indexOf("/catalog/import") - 1,
+    );
+  });
+
+  it.each(["administrador", "coordinacion", "docente", "estudiante"] as const)(
+    "shows %s no Inscripciones card and no link to /catalog/inscripciones",
+    async (rol) => {
+      await renderHome(rol);
+
+      expect(shortcutHrefs()).not.toContain("/catalog/inscripciones");
+      expect(
+        screen.queryByText("shortcuts.catalogInscripciones"),
+      ).not.toBeInTheDocument();
     },
   );
 
@@ -410,7 +442,14 @@ describe("DashboardPage (BS-HOME-1)", () => {
 
       const { homeHrefs, sidebarHrefs } = await homeAndSidebar("secretaria");
 
-      expect(homeHrefs).toEqual(["/review", "/catalog/import", "/users"]);
+      // Inscripciones stays: it reads `canManageEnrollments`, not the catalog
+      // predicate (D8).
+      expect(homeHrefs).toEqual([
+        "/review",
+        "/catalog/inscripciones",
+        "/catalog/import",
+        "/users",
+      ]);
       expect([...sidebarHrefs].sort()).toEqual([...homeHrefs].sort());
     });
   });
@@ -433,6 +472,7 @@ describe("DashboardPage copy", () => {
         "reports",
         "catalogAsignaturas",
         "catalogDocentes",
+        "catalogInscripciones",
         "catalogImport",
         "users",
       ]) {

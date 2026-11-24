@@ -148,19 +148,24 @@ ensure that `EstudianteId` references a `Usuario` whose role is `estudiante`,
 and MUST NOT store a duplicate (`EstudianteId`, `GrupoId`) pair; this role
 integrity MUST be enforced by the application, in the data layer and not only
 by a page or action guard, because the role lives on a separate lookup table.
-The only writer of `Inscripcion` is the student-enrollment writer (see
-`student-enrollment`); the Excel import writes none (the Inscripciones sheet
-was removed by the product owner's scope reduction). No code MUST delete an
-`Inscripcion` row: an enrollment ends by setting `Activo` false.
-(Previously: the change shipped no writer, so the rule bound a future writer and
-the one scenario was the structural check that nothing writes the table.)
+The only writer of `Inscripcion` is the enrollment writer, one module that
+serves the student (`student-enrollment`) and the secretaría
+(`enrollment-administration`); the Excel import writes none (the Inscripciones
+sheet was removed by the product owner's scope reduction). Whoever the actor
+is, the role integrity binds the referenced student, never the actor: a
+secretaría acting on a user id whose role is not `estudiante` MUST be refused.
+No code MUST delete an `Inscripcion` row: an enrollment ends by setting
+`Activo` false.
+(Previously: the only writer was the student-enrollment writer and the actor was
+always the student.)
 
 #### Scenario: Only the allowlisted writer writes Inscripcion
 
 - GIVEN every production module under `src`
 - WHEN it is checked structurally for an insert, update or delete against the
   `inscripcion` table
-- THEN only the student-enrollment writer module contains one
+- THEN only the enrollment writer module contains one, including the staff
+  operations
 - AND no module deletes from the table and the import writes none
 
 #### Scenario: Role of the referenced user (table-driven)
@@ -174,7 +179,8 @@ the one scenario was the structural check that nothing writes the table.)
 | `administrador` | refused |
 
 - GIVEN a `Usuario` with the role from the row and an existing offered grupo
-- WHEN the writer stores an inscripcion referencing it as `EstudianteId`
+- WHEN the writer stores an inscripcion referencing it as `EstudianteId`, as the
+  student or as a secretaría
 - THEN the result is the one in the row
 - AND a refusal stores nothing and writes no audit row
 
@@ -195,6 +201,12 @@ the one scenario was the structural check that nothing writes the table.)
 - GIVEN an `EstudianteId` that matches no `Usuario`, or a `GrupoId` that matches no `Grupo`
 - WHEN the writer stores the pair
 - THEN the write is refused and nothing is stored
+
+#### Scenario: Staff actor is not the referenced student
+
+- GIVEN a secretaría acting for estudiante E
+- WHEN the writer stores the inscripcion
+- THEN the row references E and never the secretaría
 
 ### Requirement: Active-only reads for downstream consumers
 

@@ -109,6 +109,26 @@ describe("TablePagination bounds (DT-PAG-1)", () => {
     );
   });
 
+  it("opts every page link out of prefetch when the list asks (an audited list)", () => {
+    renderPagination({ page: 2, prefetch: false });
+
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(4);
+    for (const link of links) {
+      expect(link).toHaveAttribute("data-prefetch", "false");
+    }
+  });
+
+  it("leaves the default prefetch on the page links when the list does not ask", () => {
+    renderPagination({ page: 2 });
+
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(4);
+    for (const link of links) {
+      expect(link).not.toHaveAttribute("data-prefetch");
+    }
+  });
+
   it("targets the last page computed from total and size", () => {
     renderPagination({ page: 1, total: 60, pageSize: 25 });
 

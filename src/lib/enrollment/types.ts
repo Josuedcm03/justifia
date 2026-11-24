@@ -12,6 +12,16 @@ export type EnrollResult =
     }
   | { ok: false; reason: "not_student" | "not_eligible" | "already_enrolled" };
 
+/** The one refusal only the staff assign can get (EA-SIB-1, EA-CHG-1): the
+ *  siblings the writer found under the lock are not exactly the group the user
+ *  saw and confirmed as replaced, so nothing was changed. It has no student
+ *  counterpart, so it is NOT a member of `EnrollResult` or
+ *  `EnrollmentErrorCode` and the student path never sees it. */
+export type StaleResult = { ok: false; reason: "stale" };
+
+/** What the staff writer answers: the shared result or the staff-only refusal. */
+export type StaffEnrollResult = EnrollResult | StaleResult;
+
 export type DropResult =
   | { ok: true; grupoId: number }
   | { ok: false; reason: "not_student" | "not_enrolled" };

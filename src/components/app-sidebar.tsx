@@ -115,6 +115,7 @@ function NavGroupItem({
                 render={
                   <Link
                     href={link.href}
+                    prefetch={prefetchOf(link)}
                     aria-current={isActive ? "page" : undefined}
                   />
                 }

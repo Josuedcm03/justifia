@@ -11,7 +11,11 @@ import type {
   GrupoWriteResult,
 } from "@/lib/catalog/types";
 import type { DocumentDataField } from "@/lib/document-data/types";
-import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
+import type {
+  DropResult,
+  EnrollResult,
+  StaleResult,
+} from "@/lib/enrollment/types";
 import type { Causa } from "@/lib/intake/causes";
 import type { DecisionKind } from "@/lib/intake/decision-templates";
 import type {
@@ -43,6 +47,7 @@ import type {
   AuditOrigin,
   DocumentMode,
   DocumentRejectionReason,
+  InscripcionReadPayload,
   MailFailureCode,
   RemissionFailureCode,
 } from "./types";
@@ -253,6 +258,55 @@ export function solicitudColaConsultadaEvent(args: {
     entidadTipo: "Facultad",
     entidadId: args.facultadId,
     datos: { total: args.total, estado: args.estado },
+  };
+}
+
+/**
+ * The payload of a staff read of the inscriptions, rebuilt key by key so a
+ * search text, an id or a count smuggled into the call never reaches the row.
+ * A filter is present or not: `=== true` keeps a string out of the booleans.
+ */
+function inscripcionReadPayload(args: InscripcionReadPayload) {
+  return {
+    periodo: args.periodo,
+    status: args.status,
+    filters: {
+      q: args.filters.q === true,
+      asignatura: args.filters.asignatura === true,
+      grupo: args.filters.grupo === true,
+    },
+    page: args.page,
+    total: args.total,
+  };
+}
+
+/**
+ * A secretaria's successful load of the inscriptions list: the entity is her
+ * faculty, the payload the closed values only (D10, RNF-06).
+ */
+export function inscripcionListaConsultadaEvent(
+  args: { facultadId: number } & InscripcionReadPayload,
+): AuditEvent {
+  return {
+    accion: "inscripcion.lista.consultada",
+    entidadTipo: "Facultad",
+    entidadId: args.facultadId,
+    datos: inscripcionReadPayload(args),
+  };
+}
+
+/**
+ * A secretaria's successful student search of the assign page: same scope and
+ * payload shape as the list read (D10, RNF-06).
+ */
+export function inscripcionEstudiantesConsultadaEvent(
+  args: { facultadId: number } & InscripcionReadPayload,
+): AuditEvent {
+  return {
+    accion: "inscripcion.estudiantes.consultada",
+    entidadTipo: "Facultad",
+    entidadId: args.facultadId,
+    datos: inscripcionReadPayload(args),
   };
 }
 
@@ -847,7 +901,7 @@ export function inscripcionEvent(args: InscripcionEventArgs): AuditEvent {
  *  Every refusal and no-op gives `[]`, so it can never leave a row (AL-ONE). */
 export function enrollmentWriteEvents(
   estudianteId: number,
-  result: EnrollResult | DropResult,
+  result: EnrollResult | DropResult | StaleResult,
 ): AuditEvent[] {
   if (!result.ok) return [];
   if (!("kind" in result)) {

@@ -57,6 +57,8 @@ export const PAGES: Record<string, Row> = {
   [`${CATALOG}/asignaturas/[id]/grupos/[grupoId]/edit/page.tsx`]: row(STAFF),
   [`${CATALOG}/docentes/page.tsx`]: row(STAFF),
   [`${CATALOG}/grupos/[id]/edit/page.tsx`]: row(STAFF),
+  [`${CATALOG}/inscripciones/page.tsx`]: row(SECRETARIA),
+  [`${CATALOG}/inscripciones/assign/page.tsx`]: row(SECRETARIA),
   [`${CATALOG}/import/page.tsx`]: row(SECRETARIA),
   "(dashboard)/coordination/page.tsx": row(COORDINACION),
   "(dashboard)/coordination/[id]/page.tsx": row(COORDINACION),
@@ -146,6 +148,11 @@ export const ACTIONS: Record<string, Row & { exports: readonly string[] }> = {
     "createGrupoAction",
     "updateGrupoAction",
     "setGrupoActivoAction",
+  ),
+  [`${CATALOG}/inscripciones/actions.ts`]: actions(
+    SECRETARIA,
+    "setInscripcionActivoAction",
+    "assignInscripcionAction",
   ),
   [`${CATALOG}/import/actions.ts`]: actions(
     SECRETARIA,

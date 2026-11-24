@@ -20,6 +20,7 @@
     "db:seed:roles": "tsx src/db/seed-roles.ts",
     "db:seed": "npm run db:seed:roles && tsx src/db/seed.ts",
     "db:seed:carreras": "tsx src/db/seed-carreras.ts",
+    "db:seed:walk": "tsx src/db/seed-walk-catalog-schedule.ts",
     "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {

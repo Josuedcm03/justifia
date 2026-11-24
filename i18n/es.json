@@ -21,6 +21,7 @@
     "administration": "Administración",
     "catalogAsignaturas": "Asignaturas",
     "catalogDocentes": "Docentes",
+    "catalogInscripciones": "Inscripciones",
     "catalogImport": "Carga de catálogo",
     "users": "Usuarios",
     "settings": "Configuración",
@@ -62,6 +63,7 @@
       "coordination": "Atienda las solicitudes escaladas a la coordinación de su carrera.",
       "catalogAsignaturas": "Consulte y administre las asignaturas y sus grupos.",
       "catalogDocentes": "Consulte los docentes registrados.",
+      "catalogInscripciones": "Consulte las inscripciones de los estudiantes de su facultad.",
       "catalogImport": "Cargue el catálogo desde un archivo de Excel.",
       "users": "Administre las cuentas de usuario.",
       "reports": "Consulte qué estudiantes, docentes y asignaturas de su carrera acumulan más inasistencias justificadas."
@@ -538,6 +540,145 @@
         "placeholder": "Nombre o correo"
       },
       "tableCaption": "Lista de docentes"
+    },
+    "inscripciones": {
+      "title": "Inscripciones",
+      "subtitle": "Consulta las inscripciones de los estudiantes de tu facultad.",
+      "tableCaption": "Lista de inscripciones",
+      "columns": {
+        "student": "Estudiante",
+        "subject": "Asignatura",
+        "period": "Periodo",
+        "group": "Grupo",
+        "state": "Estado",
+        "actions": "Acciones"
+      },
+      "state": {
+        "active": "Activa",
+        "inactive": "Inactiva",
+        "effective": "Vigente",
+        "notEffective": "No vigente"
+      },
+      "toggle": {
+        "recordLabel": "{student} en {code}, grupo {group}",
+        "requests": "{count, plural, one {# solicitud enviada usa este grupo; no cambia.} other {# solicitudes enviadas usan este grupo; no cambian.}}",
+        "retention": "Si esta es la última inscripción activa del estudiante, el estudiante podría cumplir el plazo de conservación de sus datos. No se cancela nada de forma automática."
+      },
+      "rowLinks": {
+        "create": "Asignar un grupo",
+        "change": "Cambiar grupo",
+        "changeLabel": "Cambiar el grupo de {student} en {code}",
+        "replace": "Reemplazar grupo",
+        "replaceLabel": "Reemplazar el grupo activo de {student} en {code}"
+      },
+      "filters": {
+        "label": "Filtrar inscripciones",
+        "student": {
+          "label": "Estudiante",
+          "placeholder": "Nombre o CIF"
+        },
+        "asignatura": {
+          "label": "Asignatura",
+          "placeholder": "Código o nombre"
+        },
+        "grupo": {
+          "label": "Grupo",
+          "placeholder": "Número"
+        },
+        "periodo": {
+          "label": "Periodo",
+          "latest": "Periodo más reciente"
+        },
+        "status": {
+          "label": "Estado",
+          "active": "Activas",
+          "inactive": "Inactivas"
+        },
+        "apply": "Aplicar filtros"
+      },
+      "empty": "No hay inscripciones activas que mostrar.",
+      "noResults": {
+        "title": "Sin resultados para «{q}»",
+        "titleFilters": "No hay inscripciones con estos filtros.",
+        "hint": "Prueba con otros filtros, o quítalos para volver a la vista predeterminada."
+      },
+      "degraded": "No se pudieron cargar las inscripciones. Vuelve a intentarlo en unos minutos.",
+      "noFacultad": {
+        "title": "Tu cuenta no tiene una facultad asignada",
+        "message": "Pide a quien administra el sistema que asigne una facultad a tu cuenta antes de consultar las inscripciones."
+      },
+      "errors": {
+        "not_eligible": "No se pudo reactivar la inscripción: el grupo ya no se ofrece o el estudiante tiene otro grupo activo en la misma asignatura. Actualiza la página e inténtalo de nuevo.",
+        "already_enrolled": "Esta inscripción ya estaba activa. Actualiza la página para ver su estado.",
+        "assign_not_eligible": "No se pudo guardar la inscripción: el grupo ya no se ofrece. Actualiza la página y elige otro grupo.",
+        "assign_already_enrolled": "El estudiante ya está inscrito en ese grupo. Actualiza la página para ver sus grupos actuales.",
+        "assign_stale": "La inscripción del estudiante cambió desde que abriste esta página. Revísala e inténtalo de nuevo.",
+        "unexpected": "No pudimos guardar el cambio y no se modificó nada. Inténtalo de nuevo."
+      },
+      "assign": {
+        "title": "Asignar un grupo",
+        "subtitle": "Busca a un estudiante de tu facultad y elige después la asignatura y el grupo.",
+        "degraded": "No se pudieron cargar los datos del estudiante. Vuelve a intentarlo en unos minutos.",
+        "noOffering": "Aún no se ofrece ningún grupo, así que no hay nada que asignar.",
+        "search": {
+          "form": "Buscar estudiantes",
+          "label": "Estudiante",
+          "placeholder": "Nombre o CIF",
+          "submit": "Buscar"
+        },
+        "results": {
+          "title": "Estudiantes encontrados",
+          "choose": "Elegir",
+          "chooseLabel": "Elegir a {student}",
+          "empty": {
+            "title": "Ningún estudiante coincide con «{q}»",
+            "hint": "Revisa la ortografía o busca por CIF. Solo aparecen estudiantes activos de tu facultad.",
+            "clear": "Borrar búsqueda"
+          }
+        },
+        "student": {
+          "title": "Estudiante",
+          "cif": "CIF {cif}"
+        },
+        "picker": {
+          "title": "Asignatura",
+          "label": "Asignatura",
+          "placeholder": "Elige una asignatura",
+          "submit": "Ver grupos",
+          "truncated": "Solo se muestran las primeras asignaturas."
+        },
+        "groups": {
+          "title": "Grupos que se ofrecen en {periodo}",
+          "caption": "Grupos de {subject}",
+          "group": "Grupo {number}",
+          "teacher": "Docente: {name}",
+          "noTeacher": "Sin docente asignado",
+          "days": "Días",
+          "current": "Grupo actual",
+          "currentNotice": "{student} está actualmente en el grupo {number} de esta asignatura.",
+          "noCurrent": "{student} no tiene un grupo activo en esta asignatura para este periodo.",
+          "empty": "Esta asignatura no tiene grupos que se ofrezcan."
+        },
+        "form": {
+          "choose": "Asignar este grupo",
+          "chooseLabel": "Asignar el grupo {number} a {student}",
+          "confirm": {
+            "title": "Confirmar la asignación",
+            "create": "{student} se inscribirá en el grupo {number} de {subject} para {periodo}.",
+            "replace": "{student} pasará al grupo {number} de {subject} para {periodo}. Esto reemplaza el grupo {replaced}, que se desactivará.",
+            "cancel": "Cancelar",
+            "submit": "Confirmar",
+            "pending": "Guardando…"
+          },
+          "done": {
+            "created": "Se inscribió a {student} en el grupo {number}.",
+            "reactivated": "Se reactivó la inscripción de {student} en el grupo {number}.",
+            "replacedNote": "El grupo anterior se desactivó.",
+            "back": "Volver a la lista"
+          },
+          "reload": "Recargar esta página"
+        }
+      }
     }
   },
   "denied": {

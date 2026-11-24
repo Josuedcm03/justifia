@@ -32,6 +32,10 @@ const GUARDED_SECTIONS = [
   "catalog.grupos",
   "nav.catalogDocentes",
   "catalog.docentes",
+  // Enrollment administration (EA-UI-1 "Key parity"): the staff list copy and
+  // its sidebar label (BS-NAV-4).
+  "catalog.inscripciones",
+  "nav.catalogInscripciones",
   // Backoffice shell (backoffice-ui-refresh): the top-bar trail reuses the
   // sidebar's `nav.*` labels and adds its landmark label and the profile page;
   // `roles` labels the sidebar identity block.
@@ -201,11 +205,12 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
     ),
   ].sort();
 
-  it("offers shortcuts for the nine destinations the roles reach", () => {
+  it("offers shortcuts for the eleven destinations the roles reach", () => {
     expect(SHORTCUT_KEYS).toEqual([
       "catalogAsignaturas",
       "catalogDocentes",
       "catalogImport",
+      "catalogInscripciones",
       "coordination",
       "enrollment",
       "myRequests",
@@ -1004,6 +1009,188 @@ describe("catalog parity (CM-I18N-1: Grupo action copy)", () => {
   // proves the Grupo actions choose only keys that exist.
 });
 
+describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
+  // The test translator of `actions.test.ts` echoes keys, so only a scan of the
+  // action source proves every message key it chooses exists in the catalogs.
+  const source = readFileSync(
+    join(process.cwd(), "src/app/(dashboard)/catalog/inscripciones/actions.ts"),
+    "utf8",
+  );
+  const used = [
+    ...new Set(
+      [...source.matchAll(/"(inscripciones\.errors\.[A-Za-z_]+)"/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  ].sort();
+
+  it("the scan finds every message key the action chooses", () => {
+    expect(used).toEqual([
+      "inscripciones.errors.already_enrolled",
+      "inscripciones.errors.assign_already_enrolled",
+      "inscripciones.errors.assign_not_eligible",
+      "inscripciones.errors.assign_stale",
+      "inscripciones.errors.not_eligible",
+      "inscripciones.errors.unexpected",
+    ]);
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every message key the action source uses",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      for (const key of used) {
+        expect(typeof resolve(messages, `catalog.${key}`), key).toBe("string");
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s action errors hold exactly the keys the action chooses, with no raw error wording",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      const errors = resolve(messages, "catalog.inscripciones.errors");
+
+      expect(leafPaths(errors).sort()).toEqual([
+        "already_enrolled",
+        "assign_already_enrolled",
+        "assign_not_eligible",
+        "assign_stale",
+        "not_eligible",
+        "unexpected",
+      ]);
+      for (const value of leafValues(errors)) {
+        expect(value).not.toMatch(/exception|ECONN|stack|sql/i);
+      }
+    },
+  );
+
+  it.each([
+    ["es", /no se modificó nada/i, /inténtalo de nuevo/i],
+    ["en", /nothing was changed/i, /try again/i],
+  ] as const)(
+    "%s generic error says nothing was changed and to try again",
+    (locale, notSaved, retry) => {
+      const message = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.errors.unexpected",
+      ) as string;
+
+      expect(message).toMatch(notSaved);
+      expect(message).toMatch(retry);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s action errors carry no placeholder or number, so no student or group data",
+    (locale) => {
+      const messages = locale === "es" ? esMessages : enMessages;
+      for (const value of leafValues(
+        resolve(messages, "catalog.inscripciones.errors"),
+      )) {
+        expect(value).not.toMatch(/\{|\d/);
+      }
+    },
+  );
+});
+
+describe("catalog parity (EA-CRE-1, EA-CHG-1: assign refusal copy)", () => {
+  const copy = (locale: "es" | "en", key: string) =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      `catalog.inscripciones.errors.${key}`,
+    ) as string;
+
+  it.each([
+    [
+      "es",
+      /ya no se ofrece/i,
+      /ya está inscrito en ese grupo/i,
+      /cambió desde que abriste esta página.*inténtalo de nuevo/i,
+    ],
+    [
+      "en",
+      /no longer offered/i,
+      /already enrolled in that group/i,
+      /changed since you opened this page.*try again/i,
+    ],
+  ] as const)(
+    "%s names the refused group, the existing enrollment and the stale page, apart from the reactivation copy",
+    (locale, notOffered, enrolled, stale) => {
+      expect(copy(locale, "assign_not_eligible")).toMatch(notOffered);
+      expect(copy(locale, "assign_already_enrolled")).toMatch(enrolled);
+      expect(copy(locale, "assign_stale")).toMatch(stale);
+      // The reactivation wording ("could not be reactivated") must not be
+      // shown to a create or a change group.
+      for (const key of [
+        "assign_not_eligible",
+        "assign_already_enrolled",
+        "assign_stale",
+      ]) {
+        expect(copy(locale, key)).not.toMatch(/reactiv/i);
+      }
+    },
+  );
+});
+
+describe("catalog parity (EA-DEACT-1, RN-27: inscripciones deactivation notice)", () => {
+  const toggle = (locale: "es" | "en") =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      "catalog.inscripciones.toggle",
+    );
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the label, the request count and the retention sentence",
+    (locale) => {
+      expect(leafPaths(toggle(locale)).sort()).toEqual([
+        "recordLabel",
+        "requests",
+        "retention",
+      ]);
+      expect(
+        resolve(
+          locale === "es" ? esMessages : enMessages,
+          "catalog.inscripciones.columns.actions",
+        ),
+      ).toEqual(expect.any(String));
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s counts requests with an ICU plural that has one and other",
+    (locale) => {
+      const requests = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.toggle.requests",
+      ) as string;
+
+      expect(requests).toMatch(
+        /^\{count, plural, one \{.*#.*\} other \{.*#.*\}\}$/,
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s never names a draft, and the retention sentence promises no automatic cancellation",
+    (locale) => {
+      for (const value of leafValues(toggle(locale))) {
+        expect(value).not.toMatch(/draft|borrador/i);
+      }
+      const retention = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.toggle.retention",
+      ) as string;
+
+      expect(retention).toMatch(
+        locale === "es"
+          ? /última inscripción activa.*no se cancela nada/i
+          : /last active enrollment.*nothing is cancelled/i,
+      );
+    },
+  );
+});
+
 describe("catalog parity (CM-I18N-1, CM-UX-1: Asignatura form, toggle and page copy)", () => {
   const section = (locale: "es" | "en", path: string) =>
     resolve(locale === "es" ? esMessages : enMessages, path);
@@ -1504,6 +1691,19 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     expect(section(locale, "nav.catalogDocentes")).toBe(label);
   });
 
+  it.each([
+    ["es", "Inscripciones"],
+    ["en", "Enrollments"],
+  ] as const)(
+    "%s staff Inscripciones label is %s and differs from the student's",
+    (locale, label) => {
+      expect(section(locale, "nav.catalogInscripciones")).toBe(label);
+      expect(section(locale, "nav.catalogInscripciones")).not.toBe(
+        section(locale, "nav.enrollment"),
+      );
+    },
+  );
+
   // The page reads its copy through `getTranslations`, the client table
   // through `useTranslations`; every literal key either chooses must exist in
   // both locales (DT-I18N-1, CM-LST-1).
@@ -1830,4 +2030,124 @@ describe("catalog parity (DT-I18N-1: retired list copy)", () => {
       expect(resolve(messages, key), key).toBeUndefined();
     }
   });
+});
+
+describe("catalog parity (EA-CRE-1, EA-CHG-1: assign page copy)", () => {
+  const assign = (locale: "es" | "en") =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      "catalog.inscripciones.assign",
+    );
+
+  // The keys the assign page and its three parts read, each with the named
+  // placeholders it holds (none when the list is empty); extending the page
+  // extends this table on purpose (S3b-2 adds the form copy).
+  const ASSIGN_COPY: Record<string, string[]> = {
+    degraded: [],
+    "form.choose": [],
+    "form.chooseLabel": ["number", "student"],
+    "form.confirm.cancel": [],
+    "form.confirm.create": ["student", "number", "subject", "periodo"],
+    "form.confirm.pending": [],
+    "form.confirm.replace": [
+      "student",
+      "number",
+      "subject",
+      "periodo",
+      "replaced",
+    ],
+    "form.confirm.submit": [],
+    "form.confirm.title": [],
+    "form.done.back": [],
+    "form.done.created": ["student", "number"],
+    "form.done.reactivated": ["student", "number"],
+    "form.done.replacedNote": [],
+    "form.reload": [],
+    "groups.caption": ["subject"],
+    "groups.current": [],
+    "groups.currentNotice": ["student", "number"],
+    "groups.days": [],
+    "groups.empty": [],
+    "groups.group": ["number"],
+    "groups.noCurrent": ["student"],
+    "groups.noTeacher": [],
+    "groups.teacher": ["name"],
+    "groups.title": ["periodo"],
+    noOffering: [],
+    "picker.label": [],
+    "picker.placeholder": [],
+    "picker.submit": [],
+    "picker.title": [],
+    "picker.truncated": [],
+    "results.choose": [],
+    "results.chooseLabel": ["student"],
+    "results.empty.clear": [],
+    "results.empty.hint": [],
+    "results.empty.title": ["q"],
+    "results.title": [],
+    "search.form": [],
+    "search.label": [],
+    "search.placeholder": [],
+    "search.submit": [],
+    "student.cif": ["cif"],
+    "student.title": [],
+    subtitle: [],
+    title: [],
+  };
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the assign keys, each with its placeholders",
+    (locale) => {
+      expect(leafPaths(assign(locale)).sort()).toEqual(
+        Object.keys(ASSIGN_COPY).sort(),
+      );
+      for (const [key, expected] of Object.entries(ASSIGN_COPY)) {
+        const value = resolve(assign(locale), key) as string;
+        expect(
+          [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]),
+          `${locale} ${key}`,
+        ).toEqual(expected);
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s never names a draft in the assign copy",
+    (locale) => {
+      for (const value of leafValues(assign(locale))) {
+        expect(value).not.toMatch(/draft|borrador/i);
+      }
+    },
+  );
+});
+
+describe("catalog parity (EA-CRE-1, EA-CHG-1, EA-SIB-1: list link copy)", () => {
+  // The create link of the header and the change and replace links of a row,
+  // each with the named placeholders it holds.
+  const ROW_LINKS: Record<string, string[]> = {
+    change: [],
+    changeLabel: ["student", "code"],
+    create: [],
+    replace: [],
+    replaceLabel: ["student", "code"],
+  };
+
+  it.each(["es", "en"] as const)(
+    "%s holds exactly the list link keys, each with its placeholders",
+    (locale) => {
+      const links = resolve(
+        locale === "es" ? esMessages : enMessages,
+        "catalog.inscripciones.rowLinks",
+      );
+
+      expect(leafPaths(links).sort()).toEqual(Object.keys(ROW_LINKS).sort());
+      for (const [key, expected] of Object.entries(ROW_LINKS)) {
+        const value = resolve(links, key) as string;
+        expect(
+          [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]),
+          `${locale} ${key}`,
+        ).toEqual(expected);
+      }
+    },
+  );
 });

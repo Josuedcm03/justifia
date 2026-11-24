@@ -1,22 +1,56 @@
 import "server-only";
 
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, exists, ne, sql } from "drizzle-orm";
+import { alias, QueryBuilder } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
-import { asignatura, grupo, inscripcion, rol, usuario } from "@/db/schema";
+import {
+  asignatura,
+  carrera,
+  grupo,
+  inscripcion,
+  rol,
+  usuario,
+} from "@/db/schema";
 import { enrollmentWriteEvents } from "@/lib/audit/events";
 import { insertAuditEvents, type Transaction } from "@/lib/data/audit";
 import { sqlStateOf } from "@/lib/data/catalog-write";
-import type { DropResult, EnrollResult } from "@/lib/enrollment/types";
+import type {
+  DropResult,
+  EnrollResult,
+  StaffEnrollResult,
+  StaleResult,
+} from "@/lib/enrollment/types";
+import type { RequestScope } from "@/lib/intake/request-scope";
 
 export type { DropResult, EnrollResult };
 
 // The ONLY module that writes `Inscripcion` (student-enrollment SE-1..SE-3,
-// SE-12). One short transaction per action: lock the student's own `Usuario`
-// row (which is also the role check), run guarded statements, append the audit
-// rows on the same handle. Rows are deactivated, never removed (D7).
+// SE-12; enrollment-administration EA-WRITE-1). One short transaction per
+// action: lock the target student's `Usuario` row (which is also the role
+// check), run guarded statements, append the audit rows on the same handle.
+// The student and the secretaria writers share this path and differ only in
+// the lock and in whose id is the audit actor. Rows are deactivated, never
+// removed (D7).
 
 const NOT_STUDENT = { ok: false, reason: "not_student" } as const;
+
+/** The secretaria behind a staff write: her id and the scope the guard
+ *  resolved from the database for this request (`requireEnrollmentAccess`). */
+export type EnrollmentStaff = { actorId: number; scope: RequestScope };
+
+type EnrollmentActor =
+  | { kind: "student"; estudianteId: number }
+  | {
+      kind: "staff";
+      actorId: number;
+      estudianteId: number;
+      scope: RequestScope;
+    };
+
+const qb = new QueryBuilder();
+const actorUser = alias(usuario, "actor");
+const actorRol = alias(rol, "actor_rol");
 
 /** SE-4: the latest period, evaluated at write time, over active grupos of
  *  ACTIVE asignaturas. An inactive row never sets it. */
@@ -55,32 +89,145 @@ async function lockStudent(tx: Transaction, estudianteId: number) {
   return rows.length > 0;
 }
 
+/** The writing user is, right now, an active secretaria of the facultad the
+ *  request was scoped to (EA-WRITE-1): a stale session or a reassigned
+ *  secretaria stops here, in the same statement as the lock. */
+function activeSecretariaOf(actorId: number, facultadId: number) {
+  return exists(
+    qb
+      .select({ one: sql`1` })
+      .from(actorUser)
+      .innerJoin(actorRol, eq(actorRol.id, actorUser.rolId))
+      .where(
+        and(
+          eq(actorUser.id, actorId),
+          eq(actorRol.codigo, "secretaria"),
+          eq(actorUser.activo, true),
+          eq(actorUser.facultadId, facultadId),
+        ),
+      ),
+  );
+}
+
+/** The staff lock: still ONE statement and the same row lock as the student's
+ *  (`of: usuario`), but the student must also belong to the secretaria's
+ *  facultad through the CURRENT carrera (inner join: no carrera, no row) and
+ *  the actor is verified. A foreign, missing or cancelled student answers
+ *  alike (EA-SCOPE-1, CS-2); a scope of `none` renders `false`. */
+async function lockStudentForStaff(
+  tx: Transaction,
+  actor: Extract<EnrollmentActor, { kind: "staff" }>,
+) {
+  const inScope =
+    actor.scope.kind === "facultad"
+      ? and(
+          eq(carrera.facultadId, actor.scope.facultadId),
+          activeSecretariaOf(actor.actorId, actor.scope.facultadId),
+        )
+      : sql`false`;
+  const rows = await tx
+    .select({ id: usuario.id })
+    .from(usuario)
+    .innerJoin(rol, eq(rol.id, usuario.rolId))
+    .innerJoin(carrera, eq(carrera.id, usuario.carreraId))
+    .where(
+      and(
+        eq(usuario.id, actor.estudianteId),
+        eq(rol.codigo, "estudiante"),
+        eq(usuario.activo, true),
+        inScope,
+      ),
+    )
+    .for("no key update", { of: usuario });
+  return rows.length > 0;
+}
+
 /** Lock, `work`, then the audit rows last on the same handle: a failure on
- *  either side rolls back both. The actor is the student id argument, never a
- *  payload value. */
-async function writeAsStudent<R extends EnrollResult | DropResult>(
-  estudianteId: number,
-  work: (tx: Transaction) => Promise<R>,
-): Promise<R> {
+ *  either side rolls back both. The audit actor is the student id argument or
+ *  the staff session user, never a payload value; the audited entity is always
+ *  the student. */
+async function writeEnrollment<
+  R extends EnrollResult | DropResult | StaleResult,
+>(actor: EnrollmentActor, work: (tx: Transaction) => Promise<R>): Promise<R> {
+  const auditActor =
+    actor.kind === "student" ? actor.estudianteId : actor.actorId;
   try {
     return await db.transaction(async (tx) => {
-      if (!(await lockStudent(tx, estudianteId))) return NOT_STUDENT as R;
+      const locked =
+        actor.kind === "student"
+          ? await lockStudent(tx, actor.estudianteId)
+          : await lockStudentForStaff(tx, actor);
+      if (!locked) return NOT_STUDENT as R;
       const result = await work(tx);
-      const events = enrollmentWriteEvents(estudianteId, result);
-      if (events.length > 0) await insertAuditEvents(tx, estudianteId, events);
+      const events = enrollmentWriteEvents(actor.estudianteId, result);
+      if (events.length > 0) await insertAuditEvents(tx, auditActor, events);
       return result;
     });
   } catch (error) {
-    logEnrollmentFailure(estudianteId, error);
+    logEnrollmentFailure(auditActor, error);
     throw error;
   }
 }
 
-export function enrollInGroup(
+/** The sibling term of the spec: the student's OTHER raw-active rows of the
+ *  same asignatura and period, whatever the state of their grupo. The student
+ *  replace updates these rows and the staff reactivate refuses when any exists
+ *  (EA-REACT-1 until EA-SIB-1), both through this one predicate. */
+function siblingsOf(
   estudianteId: number,
   grupoId: number,
-): Promise<EnrollResult> {
-  return writeAsStudent<EnrollResult>(estudianteId, async (tx) => {
+  target: { asignaturaId: number; periodo: string },
+) {
+  return and(
+    eq(inscripcion.estudianteId, estudianteId),
+    eq(inscripcion.activo, true),
+    ne(inscripcion.grupoId, grupoId),
+    sql`${inscripcion.grupoId} in (select ${grupo.id} from ${grupo} where ${grupo.asignaturaId} = ${target.asignaturaId} and ${grupo.periodo} = ${target.periodo})`,
+  );
+}
+
+const STALE: StaleResult = { ok: false, reason: "stale" };
+
+/** The optimistic check of the staff assign: the active siblings found under
+ *  the lock are exactly the one group the user saw and confirmed (or none when
+ *  the page showed none). */
+function siblingsAreAsSeen(found: number[], expected: number | null) {
+  return expected === null
+    ? found.length === 0
+    : found.length === 1 && found[0] === expected;
+}
+
+/** `reactivateOnly` is the staff list mode (CS-3, CS-8): an existing inactive
+ *  row is required (nothing is created), and a sibling refuses instead of being
+ *  replaced, so no statement of that mode changes any row but the target. The
+ *  student path never sets it and issues the same statements as before.
+ *
+ *  `expectedReplaced` is the staff assign's optimistic check (EA-SIB-1): the
+ *  active siblings are READ under the lock first and the write goes on only when
+ *  they are exactly that group (or none for `null`); otherwise `stale` and
+ *  nothing is written. It is absent on the student path, which stays unchecked
+ *  and issues no extra statement. */
+function enrollWork(
+  estudianteId: number,
+  grupoId: number,
+  options?: { reactivateOnly: boolean },
+): (tx: Transaction) => Promise<EnrollResult>;
+function enrollWork(
+  estudianteId: number,
+  grupoId: number,
+  options: { reactivateOnly: false; expectedReplaced: number | null },
+): (tx: Transaction) => Promise<StaffEnrollResult>;
+function enrollWork(
+  estudianteId: number,
+  grupoId: number,
+  {
+    reactivateOnly,
+    expectedReplaced,
+  }: { reactivateOnly: boolean; expectedReplaced?: number | null } = {
+    reactivateOnly: false,
+  },
+) {
+  return async (tx: Transaction): Promise<StaffEnrollResult> => {
     const [target] = await tx
       .select({
         id: grupo.id,
@@ -108,19 +255,39 @@ export function enrollInGroup(
       .from(inscripcion)
       .where(pair);
     if (existing?.activo) return { ok: false, reason: "already_enrolled" };
+    if (reactivateOnly && !existing)
+      return { ok: false, reason: "not_eligible" };
 
-    const siblings = await tx
-      .update(inscripcion)
-      .set({ activo: false })
-      .where(
-        and(
-          eq(inscripcion.estudianteId, estudianteId),
-          eq(inscripcion.activo, true),
-          ne(inscripcion.grupoId, grupoId),
-          sql`${inscripcion.grupoId} in (select ${grupo.id} from ${grupo} where ${grupo.asignaturaId} = ${target.asignaturaId} and ${grupo.periodo} = ${target.periodo})`,
-        ),
-      )
-      .returning({ grupoId: inscripcion.grupoId });
+    const siblingRows = siblingsOf(estudianteId, grupoId, target);
+    let replaced: number[] = [];
+    if (reactivateOnly) {
+      const [sibling] = await tx
+        .select({ grupoId: inscripcion.grupoId })
+        .from(inscripcion)
+        .where(siblingRows);
+      if (sibling) return { ok: false, reason: "not_eligible" };
+    } else {
+      if (expectedReplaced !== undefined) {
+        const found = await tx
+          .select({ grupoId: inscripcion.grupoId })
+          .from(inscripcion)
+          .where(siblingRows);
+        if (
+          !siblingsAreAsSeen(
+            found.map((row) => row.grupoId),
+            expectedReplaced,
+          )
+        ) {
+          return STALE;
+        }
+      }
+      const siblings = await tx
+        .update(inscripcion)
+        .set({ activo: false })
+        .where(siblingRows)
+        .returning({ grupoId: inscripcion.grupoId });
+      replaced = siblings.map((row) => row.grupoId);
+    }
 
     if (existing) {
       await tx
@@ -136,16 +303,16 @@ export function enrollInGroup(
       ok: true,
       kind: existing ? "reactivated" : "created",
       grupoId,
-      replaced: siblings.map((row) => row.grupoId),
+      replaced,
     };
-  });
+  };
 }
 
-export function dropGroup(
-  estudianteId: number,
-  grupoId: number,
-): Promise<DropResult> {
-  return writeAsStudent<DropResult>(estudianteId, async (tx) => {
+/** Deactivates the student's own active row of any period: no period, grupo or
+ *  asignatura filter, so a stale row of an older period can be dropped (D9,
+ *  CS-3). The staff path reuses it unchanged. */
+function dropWork(estudianteId: number, grupoId: number) {
+  return async (tx: Transaction): Promise<DropResult> => {
     const dropped = await tx
       .update(inscripcion)
       .set({ activo: false })
@@ -160,5 +327,103 @@ export function dropGroup(
     return dropped.length > 0
       ? { ok: true, grupoId }
       : { ok: false, reason: "not_enrolled" };
-  });
+  };
+}
+
+export function enrollInGroup(
+  estudianteId: number,
+  grupoId: number,
+): Promise<EnrollResult> {
+  return writeEnrollment<EnrollResult>(
+    { kind: "student", estudianteId },
+    enrollWork(estudianteId, grupoId),
+  );
+}
+
+export function dropGroup(
+  estudianteId: number,
+  grupoId: number,
+): Promise<DropResult> {
+  return writeEnrollment<DropResult>(
+    { kind: "student", estudianteId },
+    dropWork(estudianteId, grupoId),
+  );
+}
+
+/** The options of the staff activation: the default is reactivate only; the
+ *  opt-in carries the optimistic check. */
+export type StaffEnrollOptions =
+  | { allowReplaceAndCreate?: false }
+  | { allowReplaceAndCreate: true; expectedReplaced: number | null };
+
+/** A secretaria activates a group for a student (EA-REACT-1, EA-CRE-1,
+ *  EA-SIB-1, EA-CHG-1). The default FAILS CLOSED: it reactivates an existing
+ *  inactive row of an offered group and nothing else, so no row is created and
+ *  an active sibling is refused (`not_eligible`) under the student's row lock,
+ *  never replaced. Only `{ allowReplaceAndCreate: true }` creates a missing row
+ *  and, when the student has an active sibling of the same asignatura and
+ *  period, replaces it in the same transaction, like the student's own writer.
+ *  The opt-in REQUIRES `expectedReplaced`, the group the user saw and confirmed
+ *  as replaced (`null` when the page showed none): the siblings are read under
+ *  the lock and a mismatch answers `stale` with nothing changed (optimistic
+ *  check, EA-SIB-1), so a replace the user did not see never happens. A caller
+ *  that forgets the option, or opts in without `expectedReplaced`, gets the
+ *  reactivate-only default. The audit actor is `staff.actorId`; refusals reuse
+ *  the existing reasons (CS-2) plus `stale`. */
+// The default is reactivate only and can never be stale, so its answer is the
+// shared `EnrollResult`; only the opt-in can answer `stale`.
+export function staffEnrollInGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+  options?: { allowReplaceAndCreate?: false },
+): Promise<EnrollResult>;
+export function staffEnrollInGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+  options: { allowReplaceAndCreate: true; expectedReplaced: number | null },
+): Promise<StaffEnrollResult>;
+export function staffEnrollInGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+  options: StaffEnrollOptions = {},
+): Promise<StaffEnrollResult> {
+  const work =
+    options.allowReplaceAndCreate === true &&
+    options.expectedReplaced !== undefined
+      ? enrollWork(estudianteId, grupoId, {
+          reactivateOnly: false,
+          expectedReplaced: options.expectedReplaced,
+        })
+      : enrollWork(estudianteId, grupoId, { reactivateOnly: true });
+  return writeEnrollment<StaffEnrollResult>(
+    {
+      kind: "staff",
+      actorId: staff.actorId,
+      scope: staff.scope,
+      estudianteId,
+    },
+    work,
+  );
+}
+
+/** A secretaria deactivates a student's inscripcion of any period (EA-DEACT-1,
+ *  D9). `not_student` covers an out-of-scope, missing or non-student target and
+ *  a stale actor alike (CS-2). The audit actor is `staff.actorId`. */
+export function staffDropGroup(
+  staff: EnrollmentStaff,
+  estudianteId: number,
+  grupoId: number,
+): Promise<DropResult> {
+  return writeEnrollment<DropResult>(
+    {
+      kind: "staff",
+      actorId: staff.actorId,
+      scope: staff.scope,
+      estudianteId,
+    },
+    dropWork(estudianteId, grupoId),
+  );
 }

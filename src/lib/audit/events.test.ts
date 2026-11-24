@@ -39,7 +39,9 @@ import {
   grupoUpdatedEvent,
   grupoWriteEvents,
   importAppliedEvent,
+  inscripcionEstudiantesConsultadaEvent,
   inscripcionEvent,
+  inscripcionListaConsultadaEvent,
   MANUAL_ORIGIN,
   remisionBloqueadaEvent,
   remisionCreadaEvent,
@@ -1408,6 +1410,107 @@ describe("enrollment event builders (student-enrollment SE-8, RNF-06)", () => {
       );
     }
   });
+});
+
+describe("inscription read event builders (catalog-schedule D10, RNF-06, audit-log delta)", () => {
+  const args = {
+    facultadId: 3,
+    periodo: "2026-S2",
+    status: "active",
+    filters: { q: true, asignatura: false, grupo: true },
+    page: 2,
+    total: 17,
+  } as const;
+  const builders = [
+    ["inscripcion.lista.consultada", inscripcionListaConsultadaEvent],
+    [
+      "inscripcion.estudiantes.consultada",
+      inscripcionEstudiantesConsultadaEvent,
+    ],
+  ] as const;
+
+  it.each(builders)(
+    "%s is on the Facultad of the caller, not on a student",
+    (accion, build) => {
+      const event = build(args);
+
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe("Facultad");
+      expect(event.entidadId).toBe(3);
+      expect(AUDIT_ACTIONS).toContain(accion);
+    },
+  );
+
+  it.each(builders)(
+    "%s carries exactly the closed payload keys, the three filters as booleans",
+    (_accion, build) => {
+      const event = build(args);
+
+      expect(event.datos).toEqual({
+        periodo: "2026-S2",
+        status: "active",
+        filters: { q: true, asignatura: false, grupo: true },
+        page: 2,
+        total: 17,
+      });
+      expect(Object.keys(event.datos)).toEqual([
+        "periodo",
+        "status",
+        "filters",
+        "page",
+        "total",
+      ]);
+      expect(Object.keys((event.datos as { filters: object }).filters)).toEqual(
+        ["q", "asignatura", "grupo"],
+      );
+    },
+  );
+
+  it.each(builders)(
+    "%s keeps no search text, student id, name, CIF, group id or request count",
+    (_accion, build) => {
+      const event = build({
+        ...args,
+        q: "Pérez",
+        estudianteId: 777,
+        nombreCompleto: "Ana Pérez",
+        cif: "2020-0481",
+        grupoId: 9051,
+        solicitudes: 4242,
+        filters: {
+          ...args.filters,
+          q: "Pérez",
+          asignatura: "MAT-101",
+          grupo: "9051",
+        },
+      } as unknown as Parameters<typeof build>[0]);
+
+      expect(Object.keys(event.datos)).toEqual([
+        "periodo",
+        "status",
+        "filters",
+        "page",
+        "total",
+      ]);
+      expect(JSON.stringify(event)).not.toMatch(
+        /Pérez|Perez|777|Ana|2020-0481|9051|4242|MAT-101/,
+      );
+      expect((event.datos as { filters: object }).filters).toEqual({
+        q: false,
+        asignatura: false,
+        grupo: false,
+      });
+    },
+  );
+
+  it.each(builders)(
+    "%s serializes without any email, phone or credential key",
+    (_accion, build) => {
+      expect(JSON.stringify(build(args))).not.toMatch(
+        /correo|email|telefono|@|password|hash|clave|nombre|cif/i,
+      );
+    },
+  );
 });
 
 describe("report event builders (RF-17 e, RNF-06, audit-log delta)", () => {

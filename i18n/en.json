@@ -21,6 +21,7 @@
     "administration": "Administration",
     "catalogAsignaturas": "Subjects",
     "catalogDocentes": "Teachers",
+    "catalogInscripciones": "Enrollments",
     "catalogImport": "Catalog import",
     "users": "Users",
     "settings": "Settings",
@@ -62,6 +63,7 @@
       "coordination": "Handle the requests escalated to the coordination of your career.",
       "catalogAsignaturas": "Browse and manage subjects and their groups.",
       "catalogDocentes": "Browse the registered teachers.",
+      "catalogInscripciones": "Browse the enrollments of the students in your faculty.",
       "catalogImport": "Load the catalog from an Excel file.",
       "users": "Manage user accounts.",
       "reports": "See which students, teachers and subjects of your career have the most justified absences."
@@ -538,6 +540,145 @@
         "placeholder": "Name or email"
       },
       "tableCaption": "Teachers list"
+    },
+    "inscripciones": {
+      "title": "Enrollments",
+      "subtitle": "Review the enrollments of the students in your faculty.",
+      "tableCaption": "Enrollments list",
+      "columns": {
+        "student": "Student",
+        "subject": "Subject",
+        "period": "Period",
+        "group": "Group",
+        "state": "Status",
+        "actions": "Actions"
+      },
+      "state": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "effective": "In effect",
+        "notEffective": "Not in effect"
+      },
+      "toggle": {
+        "recordLabel": "{student} in {code}, group {group}",
+        "requests": "{count, plural, one {# submitted request uses this group; it does not change.} other {# submitted requests use this group; they do not change.}}",
+        "retention": "If this is the student's last active enrollment, the student may become eligible for the data retention period. Nothing is cancelled automatically."
+      },
+      "rowLinks": {
+        "create": "Assign a group",
+        "change": "Change group",
+        "changeLabel": "Change the group of {student} in {code}",
+        "replace": "Replace group",
+        "replaceLabel": "Replace the active group of {student} in {code}"
+      },
+      "filters": {
+        "label": "Filter enrollments",
+        "student": {
+          "label": "Student",
+          "placeholder": "Name or CIF"
+        },
+        "asignatura": {
+          "label": "Subject",
+          "placeholder": "Code or name"
+        },
+        "grupo": {
+          "label": "Group",
+          "placeholder": "Number"
+        },
+        "periodo": {
+          "label": "Period",
+          "latest": "Latest period"
+        },
+        "status": {
+          "label": "Status",
+          "active": "Active",
+          "inactive": "Inactive"
+        },
+        "apply": "Apply filters"
+      },
+      "empty": "There are no active enrollments to show.",
+      "noResults": {
+        "title": "No results for “{q}”",
+        "titleFilters": "There are no enrollments with these filters.",
+        "hint": "Try other filters, or clear them to go back to the default view."
+      },
+      "degraded": "Could not load the enrollments. Try again in a few minutes.",
+      "noFacultad": {
+        "title": "Your account has no faculty assigned",
+        "message": "Ask whoever administers the system to assign a faculty to your account before you review enrollments."
+      },
+      "errors": {
+        "not_eligible": "The enrollment could not be reactivated: the group is no longer offered or the student has another active group in the same subject. Refresh the page and try again.",
+        "already_enrolled": "This enrollment was already active. Refresh the page to see its current state.",
+        "assign_not_eligible": "The enrollment could not be saved: the group is no longer offered. Refresh the page and choose another group.",
+        "assign_already_enrolled": "The student is already enrolled in that group. Refresh the page to see their current groups.",
+        "assign_stale": "The student's enrollment changed since you opened this page. Review it and try again.",
+        "unexpected": "We could not save the change and nothing was changed. Try again."
+      },
+      "assign": {
+        "title": "Assign a group",
+        "subtitle": "Search for a student of your faculty, then choose the subject and the group.",
+        "degraded": "Could not load the student data. Try again in a few minutes.",
+        "noOffering": "No groups are offered yet, so there is nothing to assign.",
+        "search": {
+          "form": "Search students",
+          "label": "Student",
+          "placeholder": "Name or CIF",
+          "submit": "Search"
+        },
+        "results": {
+          "title": "Students found",
+          "choose": "Choose",
+          "chooseLabel": "Choose {student}",
+          "empty": {
+            "title": "No students match “{q}”",
+            "hint": "Check the spelling or search by CIF. Only active students of your faculty are listed.",
+            "clear": "Clear search"
+          }
+        },
+        "student": {
+          "title": "Student",
+          "cif": "CIF {cif}"
+        },
+        "picker": {
+          "title": "Subject",
+          "label": "Subject",
+          "placeholder": "Choose a subject",
+          "submit": "Show groups",
+          "truncated": "Only the first subjects are listed."
+        },
+        "groups": {
+          "title": "Groups offered in {periodo}",
+          "caption": "Groups of {subject}",
+          "group": "Group {number}",
+          "teacher": "Teacher: {name}",
+          "noTeacher": "No teacher assigned",
+          "days": "Days",
+          "current": "Current group",
+          "currentNotice": "{student} is currently in group {number} of this subject.",
+          "noCurrent": "{student} has no active group in this subject for this period.",
+          "empty": "This subject has no offered groups."
+        },
+        "form": {
+          "choose": "Assign this group",
+          "chooseLabel": "Assign group {number} to {student}",
+          "confirm": {
+            "title": "Confirm the assignment",
+            "create": "{student} will be enrolled in group {number} of {subject} for {periodo}.",
+            "replace": "{student} will be moved to group {number} of {subject} for {periodo}. This replaces group {replaced}, which will be deactivated.",
+            "cancel": "Cancel",
+            "submit": "Confirm",
+            "pending": "Saving…"
+          },
+          "done": {
+            "created": "{student} was enrolled in group {number}.",
+            "reactivated": "{student}'s enrollment in group {number} was reactivated.",
+            "replacedNote": "The previous group was deactivated.",
+            "back": "Back to the list"
+          },
+          "reload": "Reload this page"
+        }
+      }
     }
   },
   "denied": {

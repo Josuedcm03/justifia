@@ -142,6 +142,7 @@ describe("AppSidebar", () => {
       [
         "/catalog/asignaturas",
         "/catalog/docentes",
+        "/catalog/inscripciones",
         "/catalog/import",
         "/users",
       ],
@@ -247,6 +248,7 @@ describe("AppSidebar", () => {
         "/review",
         "/catalog/asignaturas",
         "/catalog/docentes",
+        "/catalog/inscripciones",
         "/catalog/import",
         "/users",
         "/settings",
@@ -378,6 +380,75 @@ describe("AppSidebar catalog import item (CEI: Only secretaria may import)", () 
   );
 });
 
+describe("AppSidebar Inscripciones item (BS-NAV-4, RF-12 a)", () => {
+  it.each([
+    ["es", "Inscripciones"],
+    ["en", "Enrollments"],
+  ] as const)(
+    "offers secretaria the %s link to its page with prefetch disabled",
+    (locale, name) => {
+      env.locale = locale;
+      renderSidebar("secretaria");
+
+      // The group is collapsed here, and its trigger label differs per locale.
+      const link = screen.getByRole("link", { name, hidden: true });
+
+      expect(link).toHaveAttribute("href", "/catalog/inscripciones");
+      expect(link).toHaveAttribute("data-prefetch", "false");
+    },
+  );
+
+  it.each(["administrador", "coordinacion", "docente", "estudiante"] as const)(
+    "hides the Inscripciones item and its link from %s",
+    (rol) => {
+      renderSidebar(rol);
+
+      expect(screen.queryByText("Inscripciones")).not.toBeInTheDocument();
+      expect(
+        document.querySelector('a[href="/catalog/inscripciones"]'),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("keeps the student's Inscripción entry distinct from the staff entry", () => {
+    renderSidebar("estudiante");
+
+    expect(screen.getByRole("link", { name: "Inscripción" })).toHaveAttribute(
+      "href",
+      "/enrollment",
+    );
+    expect(screen.queryByRole("link", { name: "Inscripciones" })).toBeNull();
+  });
+
+  it.each(["/catalog/inscripciones", "/catalog/inscripciones/assign"])(
+    "marks only Inscripciones current on %s, and opens the group",
+    (pathname) => {
+      env.pathname = pathname;
+      renderSidebar("secretaria");
+
+      const marked = document.querySelectorAll("[aria-current]");
+
+      expect(marked).toHaveLength(1);
+      expect(marked[0]).toHaveTextContent("Inscripciones");
+      expect(marked[0]).toHaveClass(CURRENT_MARKER);
+      expect(getTrigger()).toHaveAttribute("aria-expanded", "true");
+    },
+  );
+
+  it("marks only Asignaturas current on /catalog/asignaturas, never Inscripciones", () => {
+    env.pathname = "/catalog/asignaturas";
+    renderSidebar("secretaria");
+
+    expect(screen.getByRole("link", { name: "Asignaturas" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      screen.getByRole("link", { name: "Inscripciones" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+});
+
 describe("AppSidebar Asignaturas item (CM-NAV-1)", () => {
   it.each(["administrador", "coordinacion", "secretaria"] as const)(
     "links Asignaturas to its own list page for %s",
@@ -436,12 +507,17 @@ describe("AppSidebar Asignaturas item (CM-NAV-1)", () => {
 
 describe("AppSidebar has no Grupos destination (CM-NAV-1)", () => {
   it.each(["administrador", "coordinacion", "secretaria"] as const)(
-    "offers %s exactly Asignaturas and Docentes among the catalog pages",
+    "offers %s exactly Asignaturas and Docentes among the catalog list pages",
     (rol) => {
       renderSidebar(rol);
 
+      // Import and Inscripciones are not catalog lists; they have their own
+      // describe blocks.
       const catalogHrefs = groupHrefs().filter(
-        (href) => href?.startsWith("/catalog/") && href !== "/catalog/import",
+        (href) =>
+          href?.startsWith("/catalog/") &&
+          href !== "/catalog/import" &&
+          href !== "/catalog/inscripciones",
       );
 
       expect(catalogHrefs).toEqual([
@@ -677,6 +753,10 @@ describe("AppSidebar Administración group trigger", () => {
 
     await user.tab();
 
+    expect(screen.getByRole("link", { name: "Inscripciones" })).toHaveFocus();
+
+    await user.tab();
+
     expect(
       screen.getByRole("link", { name: "Carga de catálogo" }),
     ).toHaveFocus();
@@ -857,7 +937,13 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
     [
       "secretaria",
       ["Panel", "Revisión de solicitudes", "Administración", "Configuración"],
-      ["Asignaturas", "Docentes", "Carga de catálogo", "Usuarios"],
+      [
+        "Asignaturas",
+        "Docentes",
+        "Inscripciones",
+        "Carga de catálogo",
+        "Usuarios",
+      ],
     ],
   ] as const)(
     "shows %s the top level %j and the group children %j, in order",

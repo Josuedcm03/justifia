@@ -5,7 +5,10 @@
  * no `@/db`.
  */
 
-import type { CatalogStatusFilter } from "@/lib/catalog/types";
+import type {
+  CatalogStatusFilter,
+  InscripcionStatusFilter,
+} from "@/lib/catalog/types";
 import {
   DEFAULT_PAGE_SIZE,
   firstValue,
@@ -31,7 +34,12 @@ export const ASIGNATURA_MATCHES_MAX = 3;
 
 const DEFAULT_STATUS: CatalogStatusFilter = "active";
 
-export type CatalogListBase = "/catalog/asignaturas" | "/catalog/docentes";
+/** Longest stored `Grupo.Periodo` and `Grupo.NumeroGrupo` (VARCHAR(12)). */
+const INSCRIPCION_PERIODO_MAX = 12;
+const INSCRIPCION_GRUPO_MAX = 12;
+
+export type CatalogListBase =
+  "/catalog/asignaturas" | "/catalog/docentes" | "/catalog/inscripciones";
 
 /** The sortable columns of each catalog list (CM-LST-1, DT-URL-1). The Groups
  *  column and every action column are deliberately absent. */
@@ -44,6 +52,8 @@ export const ASIGNATURAS_SORT_KEYS = [
 export type AsignaturasSortKey = (typeof ASIGNATURAS_SORT_KEYS)[number];
 export const DOCENTES_SORT_KEYS = ["name", "login", "email", "status"] as const;
 export type DocentesSortKey = (typeof DOCENTES_SORT_KEYS)[number];
+export const INSCRIPCIONES_SORT_KEYS = ["student", "subject", "group"] as const;
+export type InscripcionesSortKey = (typeof INSCRIPCIONES_SORT_KEYS)[number];
 
 /** Today's orders: Asignaturas by Codigo, Docentes by name (the `id`
  *  tie-break is added by the query). */
@@ -53,6 +63,10 @@ export const ASIGNATURAS_DEFAULT_SORT: ListSort<AsignaturasSortKey> = {
 };
 export const DOCENTES_DEFAULT_SORT: ListSort<DocentesSortKey> = {
   key: "name",
+  dir: "asc",
+};
+export const INSCRIPCIONES_DEFAULT_SORT: ListSort<InscripcionesSortKey> = {
+  key: "student",
   dir: "asc",
 };
 
@@ -98,13 +112,71 @@ export function parseDocentesListParams(
   return parseCatalogState(sp, DOCENTES_SORT_KEYS, DOCENTES_DEFAULT_SORT);
 }
 
+/** The URL state of the inscripciones list (EA-FILT-1). `periodo` is "" when
+ *  unset, which means the latest period; the data layer resolves it. */
+export type InscripcionesListState = {
+  page: number;
+  q: string;
+  asignatura: string;
+  grupo: string;
+  periodo: string;
+  status: InscripcionStatusFilter;
+  sort: ListSort<InscripcionesSortKey>;
+  size: PageSize;
+};
+
+const DEFAULT_INSCRIPCION_STATUS: InscripcionStatusFilter = "active";
+const INSCRIPCION_STATUS_VALUES: readonly InscripcionStatusFilter[] = [
+  "active",
+  "inactive",
+];
+
+export function parseInscripcionesListParams(
+  sp: RawSearchParams | undefined,
+): InscripcionesListState {
+  const raw = sp ?? {};
+  return {
+    page: parsePage(firstValue(raw.page)),
+    q: parseQ(firstValue(raw.q), USERS_SEARCH_MAX),
+    asignatura: parseQ(raw.asignatura, USERS_SEARCH_MAX),
+    grupo: parseQ(raw.grupo, INSCRIPCION_GRUPO_MAX),
+    periodo: parseQ(raw.periodo, INSCRIPCION_PERIODO_MAX),
+    status: parseEnum(
+      raw.status,
+      INSCRIPCION_STATUS_VALUES,
+      DEFAULT_INSCRIPCION_STATUS,
+    ),
+    sort: parseSort(
+      raw.sort,
+      raw.dir,
+      INSCRIPCIONES_SORT_KEYS,
+      INSCRIPCIONES_DEFAULT_SORT,
+    ),
+    size: parsePageSize(raw.size),
+  };
+}
+
 type SortKeyFor<B extends CatalogListBase> = B extends "/catalog/asignaturas"
   ? AsignaturasSortKey
-  : DocentesSortKey;
+  : B extends "/catalog/inscripciones"
+    ? InscripcionesSortKey
+    : DocentesSortKey;
+
+type StatusFor<B extends CatalogListBase> = B extends "/catalog/inscripciones"
+  ? InscripcionStatusFilter
+  : CatalogStatusFilter;
+
+/** The filters only the inscripciones list has; "" or absent is the default. */
+type InscripcionesFilters = {
+  asignatura?: string;
+  grupo?: string;
+  periodo?: string;
+};
 
 const DEFAULT_SORT_FOR: Record<CatalogListBase, ListSort<string>> = {
   "/catalog/asignaturas": ASIGNATURAS_DEFAULT_SORT,
   "/catalog/docentes": DOCENTES_DEFAULT_SORT,
+  "/catalog/inscripciones": INSCRIPCIONES_DEFAULT_SORT,
 };
 
 /** The single place that knows the catalog list URL shape. Every default
@@ -117,12 +189,18 @@ export function catalogListHref<B extends CatalogListBase>(
   p: {
     page?: number;
     q?: string;
-    status?: CatalogStatusFilter;
+    status?: StatusFor<B>;
     sort?: ListSort<SortKeyFor<B>>;
     size?: PageSize;
-  },
+  } & (B extends "/catalog/inscripciones" ? InscripcionesFilters : unknown),
 ): string {
   const extra: Record<string, string> = {};
+  // Only the inscripciones base types these three keys; the others never carry
+  // them, so reading them off `p` is a no-op there.
+  const filters = p as InscripcionesFilters;
+  if (filters.asignatura) extra.asignatura = filters.asignatura;
+  if (filters.grupo) extra.grupo = filters.grupo;
+  if (filters.periodo) extra.periodo = filters.periodo;
   if (p.status && p.status !== DEFAULT_STATUS) extra.status = p.status;
   const fallback = DEFAULT_SORT_FOR[base];
   if (p.sort && (p.sort.key !== fallback.key || p.sort.dir !== fallback.dir)) {

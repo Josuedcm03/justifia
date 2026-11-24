@@ -531,6 +531,34 @@ describe("rolesQueGestionanCatalogo", () => {
   });
 });
 
+describe("canManageEnrollments (EA-ACC-1: only secretaria)", () => {
+  it("lists exactly secretaria as the enrollment-managing role", () => {
+    expect([...perms.rolesQueGestionanInscripciones]).toEqual(["secretaria"]);
+  });
+
+  it("allows secretaria", () => {
+    expect(perms.canManageEnrollments("secretaria")).toBe(true);
+  });
+
+  it.each(["administrador", "coordinacion", "docente", "estudiante"] as const)(
+    "denies %s",
+    (rol) => {
+      expect(perms.canManageEnrollments(rol)).toBe(false);
+    },
+  );
+
+  it("denies a missing role", () => {
+    expect(perms.canManageEnrollments(undefined)).toBe(false);
+  });
+
+  it("leaves the catalog predicate unchanged for administrador and coordinacion", () => {
+    expect(canManageCatalog("administrador")).toBe(true);
+    expect(canManageCatalog("coordinacion")).toBe(true);
+    expect(perms.canManageEnrollments("administrador")).toBe(false);
+    expect(perms.canManageEnrollments("coordinacion")).toBe(false);
+  });
+});
+
 describe("canViewReports (CR-ACC-1: only coordinacion)", () => {
   it("lists exactly coordinacion as the reporting role", () => {
     expect([...perms.rolesQueVenReportes]).toEqual(["coordinacion"]);

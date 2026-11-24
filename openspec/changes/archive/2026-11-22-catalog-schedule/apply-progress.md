@@ -1,0 +1,1071 @@
+# Apply progress: catalog-schedule
+
+Mode: Strict TDD (vitest). Artifact store: openspec. Chain strategy: stacked-to-main.
+
+## Batch 1: S1a scope (tasks 0.1, 0.3, 1.1-1.9; 1.10 partial)
+
+Branch `feat/catalog-schedule-s1a-scope`, created from `main`. Date: 2026-11-19.
+
+### Completed tasks
+
+- [x] 0.1 planning commit `d859249` (already on the branch)
+- [x] 0.2 chain strategy (owner decision, earlier)
+- [x] 0.3 Next 16 guides read (see "Task 0.3 notes")
+- [x] 1.1 branch
+- [x] 1.2 RED, 1.3 GREEN: `canManageEnrollments`
+- [x] 1.4 RED, 1.5 GREEN: `requireEnrollmentAccess`
+- [x] 1.6 RED, 1.7 GREEN: `enrollmentInScope`, `studentRowInScope`
+- [x] 1.8 RED, 1.9 GREEN: inscripciones list params
+- [ ] 1.10 gates and measure done, PR not opened (parent owns PRs); budget exceeded, see "Measured size and cut"
+
+Nothing from S1b or later was started.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 1.2/1.3 | `src/lib/auth/permissions.test.ts` | Unit | 209/209 (permissions 149, scope SQL 9, list params 51) | 8 new tests failed (`rolesQueGestionanInscripciones`/`canManageEnrollments` undefined) | 157/157 in file | secretaria true; 4 roles + `undefined` false; catalog predicate still true for administrador and coordinacion | Clean (shape copied from `rolesRevisores`) |
+| 1.4/1.5 | `src/lib/auth/enrollment-access.test.ts` (new) | Unit (mocked `requireRole`, `resolveRequestScope`) | N/A (new) | Suite failed to load: `@/lib/auth/enrollment-access` unresolved | 18/18 | six-identity redirect table with no scope read; facultad scope; scope `none`; two calls read twice (no cache); throw propagates; 7 invalid `sub` values | Clean |
+| 1.6/1.7 | `src/lib/data/request-scope-sql.test.ts` | Unit (`PgDialect` render via `QueryBuilder`) | 9 existing tests green first (the `requestInScope`/`requestRowInScope` assertions untouched) | 10 new tests failed (`enrollmentInScope is not a function`) | 19/19 | 2 builders x (render, other facultad id bound, inner join, `none` -> `false`, unknown kind throws) | Extracted private `studentOfFacultad(column, facultadId)`; `requestInScope` rendered SQL unchanged (its tests pass untouched) |
+| 1.8/1.9 | `src/lib/catalog/list-params.test.ts` | Unit + compile-time pins | 51 existing tests green first | Whole file failed to load (`INSCRIPCIONES_SORT_KEYS` undefined) | 74/74 | defaults, full parse, bad status (`all`, unknown, case, array), bad sort keys, each sort key, oversize and repeated filters, href defaults, canonical order, round-trip, no page on filter links, other bases unchanged, two `@ts-expect-error` pins | Typecheck error found and fixed (`DEFAULT_STATUS` typed as the catalog union; separate `DEFAULT_INSCRIPCION_STATUS`) |
+
+Test summary: 4 files touched or added, 268 tests passing across them (59 new: 8 + 18 + 10 + 23). Layers: unit only. Pure functions added: `parseInscripcionesListParams`, `canManageEnrollments`, three scope builders.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/auth/permissions.test.ts src/lib/auth/enrollment-access.test.ts src/lib/data/request-scope-sql.test.ts src/lib/catalog/list-params.test.ts` -> 4 files, 268 tests passed |
+| Runtime harness | N/A: DB double / pure SQL render; nothing calls the new functions yet |
+| Rollback boundary | Revert commits `08d0ba1`, `f860476`, `c776de8` (additive; `requestInScope` behaviour unchanged) |
+
+### Gates G (2026-11-19)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean (after fixing one error found by typecheck) |
+| focused vitest | 268/268 |
+| `npm test` (full suite) | 8511 passed |
+| `npm run build` (dummy `DATABASE_URL`, dummy 32-char `AUTH_SECRET`) | OK |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]" src` | 0 findings in files of this slice. Pre-existing and not touched here: 2 prettier errors in `src/test/access/inventory.ts` (from `776626e`, quote style) and 1 unused-import warning in `src/components/app-sidebar.tsx` |
+| `npx prettier --check --end-of-line auto src i18n` | 1 file flagged, `src/test/access/inventory.ts` (pre-existing, same cause) |
+
+### Measured size and cut
+
+`git diff --shortstat main...HEAD -- . ':!openspec' ':!.engram'` -> 9 files changed, 609 insertions, 23 deletions = **632 changed lines**, over the 400 budget (forecast ~380; student-enrollment ratio was 1.9x so tests dominate). Per commit:
+
+| Commit | Content | Changed lines |
+|---|---|---|
+| `c776de8` feat(auth): add the enrollment management predicate and guard | 1.2-1.5 | 189 |
+| `f860476` feat(enrollment): add the enrollment scope SQL | 1.6-1.7 | 174 |
+| `08d0ba1` feat(catalog): add the inscripciones list params | 1.8-1.9 | 269 |
+
+Stop rule applies. The measurement was taken at task 1.10, after the three commits existed; the history was not rewritten. Suggested cut with no rewrite needed: PR A = `c776de8` + `f860476` (363 lines), PR B = `08d0ba1` (269 lines, stacked on A). This differs slightly from the tasks.md cut point (1.6-1.9 together would be 443 lines, still over): the scope SQL stays with the guard. Later slices that depend on list params (S1b-2, S1c-1) only need PR B.
+
+### Task 0.3 notes (Next 16 docs, read-only)
+
+- `searchParams` in a page is a `Promise`: `await searchParams` (`file-conventions/page.md`); params are parsed with the pure `parseInscripcionesListParams`.
+- `bind` arguments in `forms.md` are client-visible: S2b actions re-validate `estudianteId` with zod and the scope (already in CS-8, CS-9).
+- `notFound()` throws and must be called in the render path (a component or a function it `await`s), never from an un-awaited promise (`functions/not-found.md`); relevant to S3b-1.
+- `revalidatePath(path)` is for Server Functions and Route Handlers only, never client components or proxy; in a Server Function it refreshes the viewed path immediately (`functions/revalidatePath.md`).
+- `use server` files export async functions only; authenticate and authorize inside each action, read identity from the session, never from parameters (`directives/use-server.md`, "Security considerations").
+
+### Deviations and decisions for later slices
+
+1. `requireEnrollmentAccess` reads the scope through the existing `resolveRequestScope(userId, rol)` (`src/lib/data/request-scope.ts`: database read of `Usuario.FacultadId` on every call, then `requestScopeFor`) instead of a new reader. Same behaviour as CS-4, no duplicated query; the test mocks that module. Its return type is `EnrollmentAccess = { session, actorId, scope: RequestScope }`.
+2. `InscripcionesListState.periodo` is a string where `""` means unset (latest period); the data layer (S1b-2) resolves it with `getLatestPeriod()` and falls back for unknown values. `status` is `InscripcionStatusFilter = "active" | "inactive"` (new type in `src/lib/catalog/types.ts`); `all` falls back to `active`.
+3. `catalogListHref` is typed per base: `periodo`, `asignatura`, `grupo` and `status` of the inscripciones base are only accepted for `/catalog/inscripciones` (compile-time pins in the test). URL order: `q`, `asignatura`, `grupo`, `periodo`, `status`, `sort`, `dir`, `size`, `page`. Filter caps: asignatura 100, grupo 12, periodo 12 (the `Grupo` column lengths).
+4. No design change needed. The forecast of ~380 lines was too low (measured 632).
+
+### Remaining tasks
+
+Phase 1.10 (open the PR(s) after the cut decision) and Phases 2-17 (S1b-1 onward).
+
+## Batch 2: S1b-1 audited read plumbing (tasks 2.1-2.8)
+
+Branch `feat/catalog-schedule-s1b1-audit-reads`, created from `feat/catalog-schedule-s1a2-list-params`. Date: 2026-11-19. Single commit `367d79e` `feat(audit): add the audited read of the inscripciones list`.
+
+### Completed tasks
+
+- [x] 2.1 branch
+- [x] 2.2 RED, 2.3 GREEN: `AUDIT_ACTIONS` gains `inscripcion.lista.consultada` and `inscripcion.estudiantes.consultada`; payload type `InscripcionReadPayload`
+- [x] 2.4 RED, 2.5 GREEN: `inscripcionListaConsultadaEvent`, `inscripcionEstudiantesConsultadaEvent`
+- [x] 2.6 RED, 2.7 GREEN: `recordEnrollmentListRead`
+- [x] 2.8 gates and measure done; PR NOT opened (parent owns PRs)
+
+Nothing from Phase 3 or later was started. `recordEnrollmentStudentSearch` stays in S3a-1 (task 11.6).
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 2.2/2.3 | `src/lib/audit/types.test.ts` | Unit | 3 files, 136 tests green before (audit + request-reads) | Expected-set test and 2 new tests failed (two actions missing) | pass | exact sorted set with the two new codes; write set filter equals the three `creada/reactivada/desactivada`; read set equals the two new codes in order; `slice(0, 3)` pin untouched | Clean |
+| 2.4/2.5 | `src/lib/audit/events.test.ts` | Unit | existing tests green | 8 new tests failed (builders undefined) | pass | 2 builders x (entity `Facultad` and `entidadId`, exact payload keys with booleans, smuggled search text, student id, name, CIF, group id, request count and string filters leave no trace and filters coerce to `false`, no email or credential key) | Shared private `inscripcionReadPayload` rebuilds the payload key by key; `=== true` keeps a string out of the booleans |
+| 2.6/2.7 | `src/lib/data/request-reads.test.ts` | Unit (`createDbDouble`, mocked `insertAuditEvents`, `cache` fake) | existing tests green; cache-count pin moved 3 -> 4 | 5 new tests failed (`recordEnrollmentListRead is not a function`) | pass | one transaction, staff actor, entity `Facultad`; payload keys; same args twice -> 1 write, other facultad or actor -> writes again; failing insert rejects | Clean |
+
+Totals: 3 test files touched, 151 tests passing in the focused run (15 new: 3 + 8 + 4, plus the cache-count assertion changed). Layers: unit only.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/audit src/lib/data/request-reads.test.ts` -> 4 files, 151 tests passed (RED run before the code: 3 files failed, 15 tests failed) |
+| Runtime harness | N/A: DB double; nothing calls `recordEnrollmentListRead` until S1c-2 |
+| Rollback boundary | Revert `367d79e` (additive; no existing builder or action changed) |
+
+### Gates G (2026-11-19)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest | 151/151 |
+| `npm test` (full suite) | 357 files, 8525 passed (8511 + 14 new) |
+| `npm run build` (dummy `DATABASE_URL`, dummy 32-char `AUTH_SECRET`) | OK |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files | clean (prettier reformatted `types.ts` and `events.test.ts`, which were then committed) |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1a2-list-params...HEAD -- . ':!openspec' ':!.engram'` -> 6 files changed, 295 insertions, 2 deletions = **297 changed lines** (forecast ~210; 1.4x). Under the 400 budget; single commit, no cut needed.
+
+### Decisions and notes for later slices
+
+1. Both builders share one payload type `InscripcionReadPayload` exported from `src/lib/audit/types.ts` (task 2.3 names a single payload shape), and a private `inscripcionReadPayload` helper rebuilds it. For the student search (S3a-1) `periodo`, `status`, `page` and `total` still apply: the assign page passes the period and status it used and the page of results.
+2. `recordEnrollmentListRead(actorId, facultadId, payload)` takes the payload as an object. `react` `cache()` dedupes by reference for objects, so the page (S1c-2) builds the payload once per render. Because the page calls it once, the dedupe is only a guard.
+3. The payload `filters` are rebuilt with `=== true`: a string passed through a cast becomes `false`, never a leak.
+4. `src/lib/audit/types.ts` now imports the type `InscripcionStatusFilter` from `@/lib/catalog/types` (type-only; no cycle at runtime).
+5. No design change needed.
+
+### Remaining tasks
+
+Phases 3-17 (S1b-2 onward). PR for S1b-1 to be opened by the parent against `feat/catalog-schedule-s1a2-list-params`.
+
+## Batch 3: S1b-2 list read (tasks 3.1-3.11, complete)
+
+Branch `feat/catalog-schedule-s1b2-list-read`, created from `feat/catalog-schedule-s1b1-audit-reads`. Date: 2026-11-19. Commits `cb7f2ee` `feat(enrollment): add the scoped inscripciones list read` (3.1-3.5), `28742bc` `feat(enrollment): add the sibling flag, request count and periods to the inscripciones read` (3.6-3.9) and a docs commit for 3.10 and these artifacts. The first pass stopped after `cb7f2ee` at 636 lines; the owner then raised `review_budget_lines` to 800 (see "Budget change") and the slice was finished.
+
+### Completed tasks
+
+- [x] 3.1 branch
+- [x] 3.2 RED, 3.3 GREEN: `listInscripciones` core and `InscripcionListItem`
+- [x] 3.4 RED, 3.5 GREEN: filters, sort, paging
+- [x] 3.6 RED, 3.7 GREEN: `hasActiveSibling` and `dependentRequests` columns
+- [x] 3.8 RED, 3.9 GREEN: `listInscripcionPeriods`
+- [x] 3.10 `design.md` CS-6 reconciled (status on the RAW state, `writable` = offered group, sibling = raw-active row)
+- [x] 3.11 gates and measure done; PR NOT opened (parent owns PRs)
+
+Nothing from Phase 4 was started.
+
+### Budget change (owner, 2026-11-19)
+
+`review_budget_lines` is now **800** for all remaining slices (was 400). Recorded in the tasks.md Review Workload Forecast block. The whole S1b-2 slice ships as ONE PR when its authored diff is at or under 800; it measured 799 (below).
+
+### First pass: commit 1 alone was over the old 400-line budget
+
+`git diff --shortstat feat/catalog-schedule-s1b1-audit-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 636 insertions, 0 deletions = **636 changed lines** (forecast ~380 for the whole slice). Per file: `inscripciones.test.ts` 410, `inscripciones.ts` 198, `types.ts` 21, `db-double.ts` 7. Instruction: stop and report, so tasks 3.6-3.9 were not started. Rough split of the 636 by task group (estimate from line positions, not measured per commit): core 3.2-3.3 about 365, filters/sort/paging 3.4-3.5 about 270.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.2/3.3 | `src/lib/data/inscripciones.test.ts` (new) | Unit (`createDbDouble`, `PgDialect` render) | 7 files, 200/200 green first (catalog, enrollment-picker, request-scope-sql) | Suite failed to load: `@/lib/data/inscripciones` unresolved | 19/19 | scope `none` (no statement) vs facultad 3 and 9 (id bound in count and page); no latest period -> empty; four EA-LIST-1 state rows -> raw, effective, writable; five `writable` cases (offered, inactive inscripcion of offered group, older period, inactive group, inactive asignatura); smuggled `correo`/`telefono` never reach the JSON; selection holds name and CIF, not email or phone; failure at each of the three statements -> degraded | `effective` and `writable` share one `offered` term |
+| 3.4/3.5 | same file | Unit | 19/19 | 19 of 39 tests failed (filters, order, paging not implemented) | 39/39 | each filter alone and combined; LIKE wildcards escaped; raw state `inactive` never reads `Grupo.Activo`; existing vs unknown period (fallback, extra `Grupo` lookup only when the period is not the latest); default order and each sort key and direction, unknown key falls back; page clamp (1, 2, 9 of 25, 0, empty) with limit and offset | Order helper appends the `grupoId` tie-break in the direction of the chosen key; `where` shared by count and page |
+
+| 3.6/3.7 | same file | Unit (`createDbDouble`, `PgDialect` render of the selected column fragments) | 39/39 | 13 failed (the 4 existing state rows now expect the two new keys; 9 new tests: `selection.hasActiveSibling` and `selection.dependentRequests` undefined) | 48/48 | flag and count carried for `true/2` and `false/0`; sibling SQL: same student, raw `Activo`, `<>` own group, same asignatura, same period (aliased `sib`, `sibg`); count SQL: this group, this student, `count(*)`; bound params equal `VISIBLE_STATES` exactly, no `borrador` in SQL or params; EA-DEACT-1 table (2, 2, 0, 1) derived from the bound params | Aliases and the two fragments are module constants; the `from` clause names the table before its alias (an aliased table alone renders only the alias in a `sql` template) |
+| 3.8/3.9 | same file | Unit | 48/48 | 3 failed (`listInscripcionPeriods is not a function`) | 51/51 | in-scope read (facultad 9 bound, `Grupo.Periodo desc`, rows to strings); scope `none` -> `[]` with no statement; failing read -> `[]` without throwing | Clean |
+
+Total: 51 tests in the new file (39 + 12), all passing; 62 with `enrollment-picker.test.ts`. Layer: unit only. Pure helpers added: `buildInscripcionesWhere`, `inscripcionesOrderBy`. Final trim: after prettier the slice was 806 lines, so repeated `toContain` calls became loops over non-empty fragment arrays and three doc comments were shortened (commit 2 amended before any push).
+
+Commit 1 gates (first pass): focused vitest 50 passed; typecheck clean (after typing `params` as `ListInscripcionesParams`); eslint 0 findings after renaming the test helper `use` to `scripted` (`react-hooks/rules-of-hooks` flags a `use*` function called from a named helper); prettier clean.
+
+### Decisions and notes
+
+1. `InscripcionListItem` (in `src/lib/catalog/types.ts`) has `estudianteCif: string | null` (`Usuario.Cif` is nullable); it carries no email or phone. `hasActiveSibling` and `dependentRequests` are NOT in the type yet; tasks 3.6-3.9 add them.
+2. The data layer selects the raw `Grupo.Activo` and `Asignatura.Activo` internally and derives `effective` and `writable` in the mapper; the two raw flags never leave it. `writable` is independent of the raw state of the inscripcion (a reactivation target must be offered, so an inactive row of an offered group is writable).
+3. Period resolution: `getLatestPeriod()` (reused from `enrollment-picker.ts`, same db), and for an explicit period other than the latest one extra `select 1 from Grupo where Periodo = ? limit 1`; unknown -> latest. No latest period -> empty page, not degraded.
+4. `src/lib/data/test-support/db-double.ts` now also logs `offset` (7 lines), so the page tests can assert it. No existing test used `offset` through the double.
+5. Sort keys: `student` and `subject` use the collated name (`es-x-icu`), `group` the plain number; the total order ends with `(estudianteId, grupoId)` in the direction of the chosen key.
+6. Not a deviation from design CS-6 except the three points task 3.10 reconciles (`status` on the RAW state, `writable` = offered group, sibling = raw-active row).
+7. Sibling: task 3.6 and CS-6 said "another effective row"; the spec term (terms table of the spec) and `enrollInGroup` (`enrollment-write.ts`, which deactivates every raw-active sibling) use raw `Activo` true with no group or asignatura condition. The list follows the spec and the writer so the offered reactivate control never disagrees with the server refusal. CS-6 and task 3.6 were corrected.
+8. `hasActiveSibling` and `dependentRequests` are correlated subqueries of the PAGE select only (at most `pageSize` rows), not of the count. `dependentRequests` uses `.mapWith(Number)` (pg `count(*)` is a bigint string), like the existing total.
+9. `listInscripcionPeriods(scope)` lists the periods of in-scope rows of any status (a period with only inactive rows is still selectable), via `selectDistinct`; it lives in the same file and is fail-soft (`[]`).
+10. The two `InscripcionListItem` field doc comments were dropped to fit the budget; the type header comment still describes the states, and the fields are named by the spec terms.
+
+### Gates G (2026-11-19, S1b-2 complete)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run src/lib/data/inscripciones.test.ts src/lib/data/enrollment-picker.test.ts` | 2 files, 62 passed |
+| `npx next typegen && npm run typecheck` | clean |
+| `npm test` (full suite) | 358 files, 8576 passed |
+| `npm run build` (dummy `DATABASE_URL`, dummy 32-char `AUTH_SECRET`, inline env) | OK |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]" src` | 0 findings in the slice files. Same 3 pre-existing items as S1a (2 prettier errors in `src/test/access/inventory.ts`, 1 unused-import warning in `src/components/app-sidebar.tsx`), untouched |
+| `npx prettier --check --end-of-line auto` on the touched files | clean |
+
+### Work Unit Evidence (S1b-2)
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/inscripciones.test.ts src/lib/data/enrollment-picker.test.ts` -> 2 files, 62 passed (RED runs: 13 failed after 3.6, 3 failed after 3.8) |
+| Runtime harness | N/A: DB double; the SQL fragments are rendered with `PgDialect` and nothing calls `listInscripciones` until S1c-2 |
+| Rollback boundary | Revert `28742bc` (sibling, count, periods) and `cb7f2ee` (list read); both additive, `inscripciones.ts` is a new file and `types.ts` only gained the type |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1b1-audit-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 799 insertions(+) = **799 changed lines**, under the 800 budget (forecast ~380; the first pass measured 636 after commit 1). Per commit: `cb7f2ee` 636, `28742bc` 167 (165 insertions, 2 deletions of `cb7f2ee` lines). Margin: 1 line, so any later edit to this slice needs a matching trim. One PR; the docs commit is openspec only.
+
+### Remaining tasks
+
+Phases 4-17 (S1c-1 onward). PR for S1b-2 to be opened by the parent against `feat/catalog-schedule-s1b1-audit-reads`.
+
+## Batch 4: S1c-1 list table and copy (tasks 4.1-4.7; Phase 5 NOT started)
+
+Branch `feat/catalog-schedule-s1c-list-page` (S1c-1 and S1c-2 merged into one PR by the owner, 2026-11-19), created from `feat/catalog-schedule-s1b2-list-read`. Commit `a758c55` `feat(enrollment): add the inscripciones list table and copy`. The batch stopped at this commit boundary: the commit alone measured 1064 lines, over the 800 budget, so Phase 5 (page, guards test, audited load) was not started.
+
+### Completed tasks
+
+- [x] 4.1 branch (satisfied by the merged branch; 5.1 is satisfied by it too)
+- [x] 4.2 RED, 4.3 GREEN: `catalog.inscripciones` added to `GUARDED_SECTIONS`; keys in `es` and `en`
+- [x] 4.4 RED, 4.5 RED, 4.6 GREEN: `InscripcionesTable` with the filter bar
+- [x] 4.7 gates and measure done; PR NOT opened (parent owns PRs)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.2/4.3 | `src/i18n/catalog-parity.test.ts` | Unit (structural) | 230/230 first | 2 failed (`catalog.inscripciones` exists, non-empty) | 384/384 in `src/i18n` | key-set test shared by every guarded section; component tests render with throwing `onError`, so a missing key fails there too | Clean |
+| 4.4-4.6 | `src/app/(dashboard)/catalog/inscripciones/inscripciones-table.test.tsx` (new) | Integration (Testing Library, real catalogs, navigation mock) | N/A (new) | Suite failed to load (`inscripciones-table` unresolved) | 31/31 | four EA-LIST-1 state rows (active+effective, active+not effective, inactive, no CIF); each sort key and direction, filters and size kept on sort; read-only rows; leaky row (`correo`, `telefono`, `dependentRequests`, `hasActiveSibling`, `writable`) never in HTML; filter bar from URL state, option lists, GET fallback with hidden sort and size, submit of all five filters, empty submit, count, footer links, empty and no-results (term, four filter-only cases, Spanish), 360 px guard with its own self-test | Removed an unused helper and import found before the first run; prettier reformat |
+
+Totals: 2 test files touched, 31 new component tests plus 2 new parity tests (the third parity case passes in both states). Layers: unit and integration, no E2E.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/i18n` -> 10 files, 415 passed (RED runs: parity 2 failed; table suite failed to load) |
+| Runtime harness | N/A: client component rendered by Testing Library; the page and the audited load arrive in Phase 5 |
+| Rollback boundary | Revert `a758c55` (new table and its test, two locale blocks, one parity line); additive |
+
+### Gates G (2026-11-19)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| `npm test` (full suite) | 359 files, 8610 passed |
+| `npm run build` (inline dummy `DATABASE_URL`, dummy `AUTH_SECRET`) | OK |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files | clean |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1b2-list-read...HEAD -- . ':!openspec' ':!.engram'` -> 5 files changed, 1064 insertions = **1064 changed lines** (forecast ~310). Per file: `inscripciones-table.test.tsx` 559, `inscripciones-table.tsx` 395, `es.json` 54, `en.json` 54, `catalog-parity.test.ts` 2. Over the 800 budget with Phase 5 (forecast ~360, likely ~600 at the measured ratio) still to come: the combined PR would be around 1600. Decision needed from the owner (cut the table into its own PR, or accept a `size:exception`).
+
+### Decisions and notes for Phase 5 and later
+
+1. `InscripcionesTable({ rows, total, state, periods })`: `state` is the full `InscripcionesListState` (with the page the read clamped to), `periods` the newest-first list from `listInscripcionPeriods`. `InscripcionRow` carries ten displayed fields only; `asignaturaId`, `writable`, `hasActiveSibling` and `dependentRequests` are NOT sent in S1 (EA-PII-1, no request content). The page must pick fields one by one. S2b adds the fields its controls need.
+2. The shared `ListTable` cannot host this list (its toolbar has one search, a three-way status filter with "All", and decides empty vs no-results from `q` and `status` only). The table composes the same frame pieces (`TableCard`, `DataTable`, `TablePagination`, `EmptyState`, `ListNavigationProvider`) with its own one-form filter bar. Shared components are untouched.
+3. Deviation from `ListTable`: the filter bar also renders above the empty state, so a secretaria whose latest period has no active rows (a new term) can still reach older periods and inactive rows. EA-LIST-1 "Nothing in scope" still holds (empty state, no table).
+4. Filters submit through the pure `parseInscripcionesListParams` (whitelist, caps) and `catalogListHref`; sort and page size are kept, the page resets. Without JavaScript the GET form carries `sort`, `dir` and `size` as hidden fields.
+5. The no-results clear link uses `prefetch: false` (the page audits every render). The shared pagination and sort links of the table kit do not opt out of prefetch; with the dashboard `loading.tsx` boundary a default prefetch does not render the page, but Phase 5 or the nav slice should confirm this when the audited load exists.
+6. Copy added under `catalog.inscripciones` (`title`, `subtitle`, `tableCaption`, `columns`, `state`, `filters`, `empty`, `noResults`, `degraded`, `noFacultad`). `degraded` and `noFacultad` are for the page (Phase 5). English uses "Enrollments"; Spanish "Inscripciones".
+7. State words: a raw-active row shows "Active" plus "In effect" or "Not in effect"; a raw-inactive row shows "Inactive" only.
+
+### Remaining tasks
+
+Phase 5 (5.2-5.5) and Phases 6-17. The parent must decide how to handle the over-budget slice before Phase 5 continues.
+
+## Batch 5: S1c-2 page, guards, audited load (tasks 5.1-5.5; Phase 6 NOT started)
+
+Branch `feat/catalog-schedule-s1c2-page`, created from `feat/catalog-schedule-s1c1-table` (PR #105). Date: 2026-11-20. Commits `187818d` `feat(tables): let a list opt its pagination links out of prefetch` and `40b1353` `feat(enrollment): add the inscripciones page with the audited list load`. The run was interrupted once (the PC went to sleep, the run was stopped) after the code and tests existed; the resumed run reviewed them against the specs, re-ran every gate, and committed.
+
+### Completed tasks
+
+- [x] 5.1 branch (from S1c-1)
+- [x] 5.2 RED, 5.3 RED, 5.4 GREEN: `CI/guards.test.ts`, `CI/page.test.tsx`, `CI/page.tsx`
+- [x] 5.5 gates and measure done; PR NOT opened (parent owns PRs); over budget, see "Measured size"
+
+Nothing from Phase 6 was started.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| prefetch opt-out (shared) | `src/components/tables/table-pagination.test.tsx`, `src/test/navigation-mock.test.tsx` | Unit / integration | existing files green | Not recorded: the interrupted run committed `187818d` without recording the failing run | pass | `prefetch={false}` sets `data-prefetch="false"` on every page link; omitted keeps the default (no attribute); the link stand-in exposes the flag only when set | Removed `void prefetch` from the link stand-in |
+| 5.2 | `CI/guards.test.ts` (new) | Source-text structural | N/A (new) | Not recorded (interrupted run). Honest substitute, run on resume: removing `prefetch={false}` from the table's `TablePagination` makes the prefetch test fail (2 failed: guards and page test), then restored | pass (in the 811-test focused run) | exact page set is `page.tsx`; `await requireEnrollmentAccess(` is the first `await` and precedes `await searchParams`; no `requireCatalogAccess(`; no action import, no `"use server"`; no `<form`, `<button`, `action=`, `onClick`, `onSubmit`, `formAction`, `ActiveToggle`; tag-check self-test (4 cases) and a non-vacuity pin that the table's `<TablePagination` is found; every `<Link>` and `<TablePagination>` under `inscripciones/` has `prefetch={false}` | Clean |
+| 5.3 | `CI/page.test.tsx` (new) | Integration (REAL `dal` and `requireEnrollmentAccess` on a mocked session and scope read; Testing Library; real catalogs) | N/A (new) | Not recorded (interrupted run). The same substitute mutation turned the page test "opts every page link out of prefetch" red | pass | four non-secretaria roles, anonymous and pending-password-change identities -> redirect, no scope read, no list read, no audit; scope `none` -> no-facultad state, nothing read or audited; default and hostile URL params (`status=all`, array values, bad sort, size 7 and 9999, page `x` and `0`) fall back; URL cannot widen the scope (`facultadId`, `scope` ignored); clamped page rendered; one audit call AFTER the list (call order), actor and facultad from the session; payload booleans only, no search text, no CIF or name; `periodo` recorded only when it is an in-scope period; degraded -> one `role="status"`, no table, no filter bar, no link, no button, no empty state, no audit; failing insert rejects the render; one GET form only and no control in a row; a leaky row (`correo`, `telefono`, `hashClave`, `dependentRequests`, `hasActiveSibling`, `writable`, `asignaturaId`) never reaches the HTML or the serialized props; one `h1` and no skipped heading level in five variants; one page frame; Spanish title and state | Clean |
+| 5.4 | same files | GREEN | n/a | n/a | `page.tsx` passes both files | n/a | Field-by-field row projection, payload built once, no `try/catch` around the audit |
+
+Totals: focused run `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx src/components` -> 32 files, 811 passed. Layers: structural source checks, integration, unit. `route-coverage.test.ts` gained `requireEnrollmentAccess` in its guard allowlist and `matrix-table.ts` the page row (`SECRETARIA`), so the two route-wide pins now cover the new page.
+
+### Review against the specs (resume run, no gap found)
+
+- EA-ACC-1: the guard is the first statement of the page; six non-secretaria identities redirect before any read (page test).
+- EA-SCOPE-1: scope comes from `requireEnrollmentAccess`, never the URL; `none` renders its own state with no read and no audit.
+- EA-DEG-1 and audit-log: the audited insert runs after authorisation and after the data loaded, never in the degraded branch, with a payload built once per render; a failing insert throws to the error boundary. Note: when no period is chosen the payload `periodo` is `""` (the default means "latest"; the page does not know which period the data layer resolved without a second read), so the spec's "the period" is recorded for a chosen period only. This is a conscious reading, flagged for the verify phase.
+- CS-10: `guards.test.ts` repeats the `catalog/guards.test.ts` checks for `requireEnrollmentAccess(`; the catalog guards test and `catalog-structure.test.ts` are untouched.
+
+### Prefetch risk (closed)
+
+Mechanism: next/link prefetches its `href` by default, and a prefetch of a dynamic route runs only as far as the nearest `loading.tsx` boundary, so the page body (which writes the audit row) did not run even before this work, because the dashboard segment has a `loading.tsx` above the page. That is an implicit, framework-version-dependent protection, so it is not relied on. Every navigation on this page is now one of: a `<Link prefetch={false}>` (the no-results clear link via the `EmptyState` action, and every pagination page link via the new optional `prefetch` prop of `TablePagination`, default unchanged for every other list), or an imperative `navigate(...)` through `useListNavigation` (sort headers, page-size select, filter submit), which is a `router.push` and never prefetches. Pins: `guards.test.ts` fails if any `<Link>` or `<TablePagination>` under `inscripciones/` lacks `prefetch={false}`; `page.test.tsx` renders the page and asserts every link (pagination and clear) has `data-prefetch="false"`; the shared change is pinned in `table-pagination.test.tsx` and `navigation-mock.test.tsx`. Verified by mutation on resume: dropping the opt-out turned both pins red.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx src/components` -> 32 files, 811 passed |
+| Runtime harness | N/A: server component rendered by awaiting the page function with the REAL guard on a mocked session and scope source; the DB and the audit helper are mocked. The real-database walk W1 is `[USER][CONFIRM]` after S1c-3 |
+| Rollback boundary | Revert `40b1353` (page, two tests, one table line, two pin lines) and, separately, `187818d` (shared pagination `prefetch` prop and mock flag); additive |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| focused vitest (command above) | 811/811 |
+| `npm test` (full suite) | 361 files, 8669 passed |
+| `npx next typegen && npm run typecheck` | clean |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 6 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 6 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and dummy 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1c1-table...HEAD -- . ':!openspec' ':!.engram'` -> 10 files changed, 848 insertions(+), 4 deletions(-) = **852 changed lines**, over the 800 budget (forecast ~360; 2.4x). Per commit: `187818d` 49 (47 + 2; `table-pagination.tsx` 7, its test 20, `navigation-mock.ts` 3, its test 19), `40b1353` 803 (801 + 2; `page.test.tsx` 534, `guards.test.ts` 134, `page.tsx` 126, route-coverage 6, table 2, matrix 1). The page commit alone is 3 lines over 800. Per the instruction, comments and tests were NOT trimmed to fit; the stop rule applies and Phase 6 was not started. Decision needed from the owner: ship with `size:exception`, or cut at a commit boundary (`187818d` as its own small PR below this one leaves S1c-2 at 803, still over; the largest movable piece is `page.test.tsx`, 534 lines, at the cost of splitting the strict-TDD pairing).
+
+### Remaining tasks
+
+Open PR for S1c-2 (parent) and Phases 6-17 (S1c-3 onward).
+
+## Batch 6: S1c-3 navigation, pins, docs, plus the #108 audit fix (tasks 6.1-6.9; Phase 7 NOT started)
+
+Branch `feat/catalog-schedule-s1c3-nav`, created from `feat/catalog-schedule-s1c2-page` (PR #108). Date: 2026-11-20. Every chain branch has `origin/main` merged in (archived change `manual-document-data`, schema 0015). Commits `c1fb67e` `fix(enrollment): record the resolved period in the inscripciones list read audit` and `881f486` `feat(enrollment): add the inscripciones navigation entry and home shortcut`. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 6.1 branch (from S1c-2)
+- [x] 6.9 carried fix from PR #108 (new task line): RED then GREEN, commit `c1fb67e`
+- [x] 6.2 RED navigation test, 6.3 RED pins, 6.4 GREEN `navigation.ts` plus `nav.catalogInscripciones` and `dashboard.shortcuts.catalogInscripciones`, 6.5 roadmap, 6.6 requirements, 6.7 readback: commit `881f486`
+- [x] 6.8 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 6.9 | `src/lib/data/inscripciones.test.ts` | Unit (db double) | 88/88 with the page test | 8 failed: the three `toEqual` shapes (none, no period offered, degraded) lacked `resolvedPeriodo`, three new cases read `undefined` | 92/92 with the page test | default (latest), chosen existing period, unknown typed period falls back to the latest, empty string for scope `none`, no period offered and degraded | One local variable reuses the resolved period for the WHERE (no second lookup) |
+| 6.9 | `CI/page.test.tsx` | Integration (real guard, Testing Library) | same run | 4 failed in the page file (payload still `""` by default, plus the new hostile-URL case) | pass | default load records the resolved period; a chosen `2026-S1` is recorded; hostile `periodo=Pérez` records the resolved `2026-S2` and the serialized call never contains the typed text | The page no longer needs the `periods.includes` rule |
+| 6.2 | `src/lib/navigation.test.ts` | Unit | Not run before the edit; the 62 unchanged tests passed in the RED run | 7 failed: characterization list, prefetch pin, group order, visibility table, trail, CR-9 prefetch trail list, shortcuts for secretaria | pass | `isNavVisible` table for the five roles, trail, `isCurrentPath` rows between Asignaturas and Inscripciones, order inside the group, shortcuts in order | Clean |
+| 6.3 | `app-sidebar.test.tsx`, `page-context.test.tsx`, `(home)/page.test.tsx`, `catalog-parity.test.ts` | Integration (real catalogs) | Not run before the edits; 999 of 1025 passed in the RED run | 26 failed in 5 files (the four listed plus `navigation.test.ts`) | 1038/1038 | es and en labels, prefetch flag on the sidebar link and the home card, hidden from the four other roles, active marker only on Inscripciones (also on a subpath) and only on Asignaturas for its own path, group opens on the page, tab order, label differs from the student label, parity of `nav.catalogInscripciones` and the shortcut key set | Renamed the stale "nine destinations" test to eleven |
+| 6.4 | same files | GREEN | n/a | n/a | the entry plus four i18n lines pass every pin except the sidebar defect below | n/a | n/a |
+
+`navigation-mock.test.tsx` (named in 6.3) pins no navigation entry: it only uses `/catalog/docentes` as a sample path for the router double, so nothing there changes.
+
+### Finding: the sidebar ignored `prefetch` for group children
+
+The first GREEN run left four sidebar tests red, one of them the new "prefetch disabled" pin: `NavGroupItem` rendered its child `<Link>` without `prefetch`, so a `prefetch: false` on any child of the Administration group was silently dropped (no child carried the flag before). `app-sidebar.tsx` now passes `prefetch={prefetchOf(link)}` for children, the same helper the top level uses; the home cards and the trail already forwarded it. The other three red tests were the tab-order test and the entries-per-role table, updated for the new entry, and a locale test that used the Spanish trigger name.
+
+### Decisions and deviations
+
+1. **`prefetch: false` on the entry.** BS-NAV-4 is silent on it; BS-NAV-1 gives it to Escalated requests and Reports because their pages are audited on render. `/catalog/inscripciones` writes an audit row per render (D10), so the sidebar link, the home card and the back link of the trail do not prefetch it. This closes the open point of Batch 4 note 5 and of Batch 5 "Prefetch risk". Pinned in `navigation.test.ts` (entry, trail, CR-9 list), the sidebar and the home. The spec text could gain one sentence for it; nothing conflicts.
+2. **Labels.** `nav.catalogInscripciones` is "Inscripciones" (es) and "Enrollments" (en), the page titles. They differ from the student's "Inscripción" and "Enrollment" (pinned) only by a plural; the Administration group and the role keep them apart. Shortcut copy follows the sentence style of Docentes and Review.
+3. **Icon.** `ClipboardList` (Review uses `ClipboardCheck`).
+4. **#108 audit fix (6.9).** `listInscripciones` returns `resolvedPeriodo` (the chosen period when it exists, else the latest, `""` when nothing was read). The page records it, so the row always carries the real period and typed text can never reach it. This resolves the "conscious reading" flagged in Batch 5 for the verify phase.
+5. **i18n.** Four additive lines, each placed right after its `catalogDocentes` sibling (`nav` and `dashboard.shortcuts`, both locales); no other key touched, to keep merges with `flow-experience` small.
+6. **Docs.** `docs/roadmap.md` row 0 (state stays `pendiente`) plus one Notas bullet after the `student-enrollment` bullet (docentes gap of RF-12 (a) and RN-22 clock-time schedules not covered); `docs/requirements.md` one changelog row (2026-11-20) and one continuation under the existing RF-12 pending item. No RF, RN or RNF row text changed. The new row is not marked "pending sync with the thesis matrix" because no requirement text changed; the owner may want it flagged anyway.
+7. The sidebar test "offers exactly Asignaturas and Docentes among the catalog pages" now also excludes `/catalog/inscripciones` from its filter (it has its own describe block).
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/navigation.test.ts src/components src/i18n "src/app/(dashboard)/(home)" src/test` -> 41 files, 1038 passed; fix: `npx vitest run src/lib/data/inscripciones.test.ts "src/app/(dashboard)/catalog/inscripciones/page.test.tsx"` -> 92 passed (RED runs: 12 failed, then 26 failed across 5 files) |
+| Runtime harness | N/A: nav config, sidebar and home rendered by Testing Library on the real catalogs; the real-database walk W1 (sidebar and home per role) is `[USER][CONFIRM]` |
+| Rollback boundary | Revert `881f486` (nav entry, sidebar `prefetch` forward, four i18n lines, pins, docs hunks) and, separately, `c1fb67e` (`resolvedPeriodo` on the list result and the page payload); both additive |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 1038/1038 and 92/92; broader `"src/app/(dashboard)/catalog/inscripciones" src/lib/data src/lib/audit` 1670/1670 after the fix |
+| `npm test` (full suite) | 372 files, 9177 passed, 0 failed (the two known flaky files passed under load this time) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 errors; 1 pre-existing warning (`SidebarGroupLabel` unused in `app-sidebar.tsx`, not from this slice) |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1c2-page...HEAD -- . ':!openspec' ':!.engram'` -> 16 files changed, 321 insertions(+), 27 deletions(-) = **348 changed lines** (forecast ~190), under the 800 budget. After `c1fb67e`: 93 (5 files, 74 + 19). `881f486` alone: 255 (11 files, 247 + 8). One PR.
+
+### Remaining tasks
+
+Open PR for S1c-3 (parent) and Phases 7-17 (S2a-1 onward). Walk W1 is the owner's, after this slice.
+
+## Batch 7: S2a actor-aware writer and staff drop (Phase 7 done; Phase 8 NOT started, size stop)
+
+Branch `feat/catalog-schedule-s2a-writer`, created from `feat/catalog-schedule-s1c3-nav` (PR #130; chain #99 -> #100 -> #101 -> #103 -> #105 -> #108 -> #130). The owner merged S2a-1 and S2a-2 into this one branch and one PR (2026-11-20): task 7.1 is done on this branch and 8.1 is marked done because no separate S2a-2 branch will exist. Date: 2026-11-20. Commit `7424eb8` `refactor(enrollment): make the enrollment writer actor-aware and add the staff drop`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 7.1 branch (merged S2a branch, see above), 8.1 branch (same branch)
+- [x] 7.2 baseline: `enrollment-write.test.ts` and `inscripcion-writes.test.ts` green and UNTOUCHED (git shows neither modified)
+- [x] 7.3 RED lock, 7.4 RED `staffDropGroup`, 7.5 RED atomicity: new `src/lib/data/enrollment-write-staff.test.ts`
+- [x] 7.6 GREEN `src/lib/data/enrollment-write.ts`
+- [x] 7.7 gates and measure done; PR NOT opened (parent owns it); Phase 8 deliberately not started, see "Measured size"
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 7.2 | `enrollment-write.test.ts`, `inscripcion-writes.test.ts` (unchanged) | Unit (db double) and structural | 54/54 across the four files `enrollment-write`, `inscripcion-writes`, `enrollment-picker`, `enrollment` before any edit | N/A (characterization of the student path; proof is that both files stay unedited and green) | 27/27 in the two files after the refactor, 49/49 with the staff file | the student statement order, rendered SQL and failure log are asserted by the untouched file | `enrollInGroup` and `dropGroup` keep their signatures; `enrollWork` and `dropWork` bodies moved unchanged |
+| 7.3 | `enrollment-write-staff.test.ts` (new) | Unit (db double, `PgDialect` render) | N/A (new) | 22 failed of 22 (`TypeError: staffDropGroup is not a function`) | 22/22 | lock first and `for no key update of Usuario`, two inner joins (Rol, Carrera), facultad and student params; actor exists-clause with actor id, `secretaria`, active, same facultad; refusal table of six predicates each ending after the one lock statement with no audit; scope `none` renders `false`; foreign and missing ids answer alike | Mutation checks: replacing the staff audit actor by the student id turned 4 tests red; removing the actor clause turned 2 red; both restored |
+| 7.4 | same file | Unit | N/A (new) | same run | pass | success row with the staff actor and the student as entity; `Inscripcion` statement binds the student and never the staff id; no period, Grupo or Asignatura filter and the rendered where equals the student's drop (D9, `dropWork` unchanged); two `not_enrolled` refusals; student drop and staff drop rows equal except `actorId`; payload keys exactly `grupoId`, `motivo`, no staff id | Clean |
+| 7.5 | same file | Unit | N/A (new) | same run | pass | data statement failing and audit insert failing: rethrown, exactly one sanitized log line with the STAFF actor id and no message or params, `exhausted` false then true; a refusal logs nothing | Clean |
+| 7.6 | `enrollment-write.ts` | GREEN | n/a | n/a | the three files pass: 49/49 | n/a | `lockStudent` untouched; `writeAsStudent` became `writeEnrollment(actor, work)` with the same lock, work, audit order |
+
+### Decisions and deviations
+
+1. **Actor check in the same lock statement.** CS-1 says the staff lock "is still one statement" and EA-WRITE-1 requires verifying the actor, so the actor check is an `exists` over aliased `Usuario` and `Rol` (`actor`, `actor_rol`) inside the lock's WHERE: id, role `secretaria`, active, and `FacultadId` equal to the scope facultad (so a secretaria reassigned after the guard ran is refused). Task 7.3 words it as a "staff-only guard statement"; no second statement was added because the design keeps one and the student statement order is untouched. The actor row itself is not locked (only the student row, `of: usuario`).
+2. **Scope `none`.** The staff lock still runs its one statement with a literal `false` (CS-1), so it takes no lock and answers `not_student` like any other refusal.
+3. **`EnrollmentStaff` export.** `{ actorId, scope }` is the new exported type; the action of S2b-1 passes exactly those two fields of the guard result. `staffDropGroup` copies the two fields explicitly into the actor (no object spread), so extra guard properties never travel.
+4. **Result unions unchanged.** No member added to `EnrollResult`, `DropResult` or `EnrollmentErrorCode`; the staff drop returns the existing `not_student` (CS-2) and `not_enrolled`.
+5. **Writer allowlist unchanged.** `enrollment-write.ts` is still the only module that writes `Inscripcion`; `inscripcion-writes.test.ts` passes untouched.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/enrollment-write.test.ts src/lib/data/enrollment-write-staff.test.ts src/lib/data/inscripcion-writes.test.ts` -> 3 files, 49 passed (RED run of the new file: 22 failed of 22) |
+| Runtime harness | N/A: DB double; no caller until S2b-1 (real-database walk W2 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `7424eb8`: the `enrollment-write.ts` refactor and `enrollment-write-staff.test.ts`; the student tests are unchanged and stay green |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 49/49 |
+| `npm test` (full suite) | 373 files, 9199 passed, 0 failed (no flaky file failed under load this time) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 2 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 2 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s1c3-nav...HEAD -- . ':!openspec' ':!.engram'` -> 2 files changed, 536 insertions(+), 25 deletions(-) = **561 changed lines** for commit `7424eb8` (forecast ~230; 2.4x): `enrollment-write.ts` 175 (150 + 25), `enrollment-write-staff.test.ts` 386. Budget for the merged PR is 800. Phase 8 forecast is ~200; at the measured ratio it would add 300 to 480 lines and take the PR to roughly 860 to 1,040, so per the stop rule Phase 8 was NOT started and comments and tests were not trimmed. Decision needed from the owner: ship S2a-1 alone at 561 and keep S2a-2 as its own PR (the original plan), or accept `size:exception` for the merged PR.
+
+### Remaining tasks
+
+Open PR for S2a-1 (parent); Phase 8 (8.2-8.6: staff reactivate, `staffEnrollInGroup`, picker and enrollment additive asserts) and Phases 9-17.
+
+## Batch 8: S2a-2 staff reactivate (tasks 8.1-8.6, complete; Phase 9 NOT started)
+
+Branch `feat/catalog-schedule-s2a2-staff-enroll`, created from `feat/catalog-schedule-s2a1-writer-actor` (S2a-1, PR #131). On 2026-11-20 S2a went back to two PRs (Batch 7 had merged them on one branch and stopped at the size rule). Date: 2026-11-20. Commit `8361510` `feat(enrollment): add the staff reactivation without replace`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 8.1 branch (this one)
+- [x] 8.2 RED reactivate-only table, 8.3 RED not sticky and lock first/audit last, 8.4 additive picker and enrollment asserts, 8.5 GREEN `staffEnrollInGroup`
+- [x] 8.6 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 8.2 | `enrollment-write-staff.test.ts` | Unit (db double, `PgDialect` render) | 76/76 across the five writer and reader files before any edit | 14 failed (`staffEnrollInGroup is not a function`) | 94/94 across the five files | success (statement order select x4, update, insert; `set {activo: true}`; audit actor = staff, entity = student, payload `{grupoId}`); reactivate where and audit row equal the student's except the actor; older period, grupo inactive, asignatura inactive each fragment-checked (`not_eligible`, two statements); already active (`already_enrolled`); NO existing row (`not_eligible`, three selects, no insert); unknown or out-of-scope student and scope `none` (`not_student`, one statement); sibling found: `not_eligible`, four selects, no update, no audit, lock first; sibling read renders the SAME where as the student's sibling update (shared predicate); several siblings also refused | Sibling predicate extracted to `siblingsOf`, used by both modes |
+| 8.3 | same file | Unit | same run | the two `staffEnrollInGroup` cases red; the student re-enroll case and the `staffDropGroup` order case pass at once (characterization of unchanged code) | pass | staff drop then the student's `enrollInGroup`: one `reactivada`, actor = student, same row (params `S`, `G`, `false`, never the staff id); lock first, exactly one lock, audit last, everything in one transaction, for `staffDropGroup` and `staffEnrollInGroup`; failing audit insert rethrows, one sanitized log with the STAFF actor | Clean |
+| 8.4 | `enrollment-picker.test.ts`, `enrollment.test.ts` | Unit (db double) | in the 76 above | none possible: no production change (characterization; the table has three columns, so no author or `Origen` column exists) | pass | `Inscripcion` columns in the schema are exactly `estudianteId`, `grupoId`, `activo`; the rendered where of `listMyEnrollments` and of `listEligibleGroups` names only `Inscripcion.EstudianteId` and `Inscripcion.Activo` | Clean |
+| 8.5 | `enrollment-write.ts` | GREEN | n/a | n/a | the five files pass: 94/94 | n/a | n/a |
+
+Mutation checks (production restored after each): dropping the "no existing row" guard and the sibling refusal turned the sibling tests and the create-refusal test red; removing `Inscripcion.Activo` from `ACTIVE_ENROLLMENT` turned the new reader asserts and four more existing tests red.
+
+Totals: 16 new tests in the staff file, 1 each in the picker and enrollment files (18). Layers: unit only. Student statements and signatures are untouched: `enrollment-write.test.ts` and `inscripcion-writes.test.ts` are unedited and green.
+
+### Decisions and deviations
+
+1. **Reactivate-only option on `enrollWork`.** `enrollWork(estudianteId, grupoId, { reactivateOnly })`, default `false`. With the default it issues the same statements as before (the sibling `where` moved into the shared `siblingsOf` predicate and renders the same SQL; the student tests pass unedited). With `reactivateOnly` it (a) answers `not_eligible` when there is no existing row, so nothing is ever inserted, and (b) READS the siblings with the same predicate instead of updating them, answering `not_eligible` when one exists. No statement of that mode touches any row but the target. S3a-2 lifts both limits by dropping the option.
+2. **Sibling refusal reason.** `not_eligible` (no new union member, CS-2). The server action of S2b maps it to the generic error copy; a more specific message would need a new code, which the design rejected.
+3. **Statement order of the staff reactivate:** lock, target, existing row, sibling read, reactivate update, audit. The existing-row check runs before the sibling read so a create attempt costs one statement less.
+4. **No new exports besides `staffEnrollInGroup`.** `EnrollResult`, `DropResult`, `EnrollmentErrorCode` and the writer allowlist are unchanged.
+5. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/enrollment-write-staff.test.ts src/lib/data/enrollment-write.test.ts src/lib/data/inscripcion-writes.test.ts src/lib/data/enrollment-picker.test.ts src/lib/data/enrollment.test.ts` -> 5 files, 94 passed (RED run of the staff file: 14 failed) |
+| Runtime harness | N/A: DB double; no caller until S2b-1 (real-database walk W2 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `8361510`: `staffEnrollInGroup`, the `reactivateOnly` option and `siblingsOf`; the student tests are unchanged and stay green |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 94/94 |
+| `npm test` (full suite) | 373 files, 9217 passed, 0 failed |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 4 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 4 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2a1-writer-actor...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 401 insertions(+), 18 deletions(-) = **419 changed lines** (forecast ~200; 2.1x), under the 800 budget. Per file: `enrollment-write-staff.test.ts` about 300, `enrollment-write.ts` about 80, `enrollment-picker.test.ts` 25, `enrollment.test.ts` 15.
+
+### Remaining tasks
+
+Open PR for S2a-2 (parent) and Phases 9-17 (S2b-1 onward).
+
+## Batch 9: S2b-1 staff toggle server action (tasks 9.1-9.8, complete; Phase 10 NOT started)
+
+Branch `feat/catalog-schedule-s2b1-actions`, created from `feat/catalog-schedule-s2a2-staff-enroll` (S2a-2, PR #132; chain #99 -> #100 -> #101 -> #103 -> #105 -> #108 -> #130 -> #131 -> #132). Date: 2026-11-20. Commit `b203b3e` `feat(enrollment): add the staff toggle server action`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 9.1 branch (this one)
+- [x] 9.2 RED, 9.3 GREEN: `staffEnrollmentInputSchema`
+- [x] 9.4 RED, 9.5 GREEN: `setInscripcionActivoAction`
+- [x] 9.6 guards additions, 9.7 RED then GREEN copy and parity pin
+- [x] 9.8 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 9.2/9.3 | `src/lib/validations/inscripcion.test.ts` | Unit | 13/13 existing student-schema tests | 7 failed, 13 passed (`TypeError: Cannot read properties of undefined (reading 'parse')`, schema not exported) | 20/20 | three valid pairs; each of the two ids against 9 bad values (0, negative, decimal, NaN, Infinity, numeric string, null, boolean, undefined) while the other id is valid; missing id and non-object payload; extra `actorId` and `scope` keys dropped | Clean |
+| 9.4/9.5 | `catalog/inscripciones/actions.test.ts` (new) | Unit (REAL `requireEnrollmentAccess` and dal on a mocked session and scope read; writers are doubles) | N/A (new) | Suite failed to load (`./actions` unresolved) | 38/38 | six denied identities (4 roles, anonymous, flagged secretaria) x both intents, scope never read, no write, no revalidate; the form `get` throws before the guard resolved; forged `actorId`, `estudianteId`, `scope` form fields ignored (only `id` and `intent` are read) and the writer gets exactly `{ actorId, scope }`; 7 bad group ids, 7 bad bound student ids, 5 bad intents; scope `none` -> `gone`, writers not called; deactivate `ok`, `not_enrolled`, `not_student`; reactivate `ok`, `not_eligible`, `already_enrolled`, `not_student`; thrown writer on both intents with no raw text | The first run had one red test that was a test bug (a default parameter swallowed the `undefined` forged id); the `run` helper now takes the bound id as an object. `revalidatePath` kept outside the `try` |
+| 9.6 | `catalog/inscripciones/guards.test.ts` | Structural (source scan) | 10 existing tests | none possible at write time: the action already existed (task order puts 9.5 first), so the 7 new tests passed at once (characterization). Mutation checks instead (production restored after each): a form read before the guard turned the first-await test red; swapping `staffDropGroup` for `dropGroup` turned the staff-writers test red | 17/17 (with `inscripcion-writes.test.ts`, the writer allowlist, 20/20) | exact actions module set; the form-read helper self-test (3 shapes); first await is the guard with no form read before; `"use server"` and async exports only; no `requireCatalogAccess`, no student writer, no actor read from the form | Clean |
+| 9.7 | `src/i18n/catalog-parity.test.ts` | Unit (JSON + source scan) | 241 existing tests | 6 failed of 9 new (keys absent: scan, exact leaf set, generic wording, both locales); the other 3 passed because they scan empty values | 437/437 across `src/i18n` and the guards file | the scan finds exactly the three keys the action chooses and each resolves to a string in `es` and `en`; the errors subtree has exactly those three leaves; no `exception`, `ECONN`, `stack`, `sql`; the generic copy says nothing was changed and to try again; no placeholder or digit (no student data) | A first draft of two regexes lost their backslashes through the shell (`/{|d/`); caught by the run and fixed with an editor |
+
+Mutation check on behaviour: removing the scope-`none` branch turned the scope-`none` test red; restored.
+
+Totals: 61 new tests (7 + 38 + 7 + 9), layers unit and structural. The suite also needed one data row outside the task list: `src/app/route-coverage.test.ts` failed (1 of 9279) because the access-matrix oracle had no row for the new actions module, so `src/test/access/matrix-table.ts` gained `setInscripcionActivoAction` for `secretaria` (the matrix tests then pass: 553/553 across the four access files).
+
+### Decisions and deviations
+
+1. **Three error keys, not five.** `catalog.inscripciones.errors` holds `not_eligible`, `already_enrolled` and `unexpected`. Task 9.7 also names `gone` and `unchanged`, but the action returns those as the `ActiveToggle` kinds `gone` and `unchanged`, which the unchanged `ActiveToggle` renders with its own `catalog.shared` copy (`notFound`, `refusals.unchanged`, `refusals.alreadyInactive`); two more keys would be dead copy that no code reads. Key names are snake_case like the student `enrollment.errors.*` codes.
+2. **Zod refusal is the error copy.** A malformed group id (parsed with `parseRecordId` first, since the form field is a string and the schema takes numbers) or a forged bound student id answers `{ kind: "error", message: unexpected }` and writes nothing, as task 9.4 words it. A bad `intent` answers `gone`, like the catalog toggle actions.
+3. **Order inside the action:** guard, translator, scope `none` -> `gone` (writer not called), closed intent, zod, writer. Nothing of the form is read before the guard. The writer receives exactly `{ actorId, scope }` (two fields copied from the guard result; the session never travels).
+4. **Result mapping:** `not_student` -> `gone`; `not_enrolled` -> `unchanged`; `not_eligible` and `already_enrolled` -> error copy (the sibling refusal of S2 is a `not_eligible`, so it shows the generic reactivation copy, which names a group no longer offered or another active group in the same subject, CS-2); thrown -> `unexpected`, no `revalidatePath`, no raw text. `revalidatePath("/catalog/inscripciones")` runs once, only on `done`, outside the `try`.
+5. **No second log line.** The writer already logs one sanitised line on a throw; the action does not log again.
+6. No design change needed. `ActiveToggle` is unchanged; S2b-2 binds it.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/validations/inscripcion.test.ts "src/app/(dashboard)/catalog/inscripciones/actions.test.ts"` -> 2 files, 58 passed (RED runs: schema 7 failed of 20; actions suite failed to load); `npx vitest run src/i18n "src/app/(dashboard)/catalog/inscripciones/guards.test.ts"` -> 10 files, 437 passed (RED run of the parity file: 6 failed) |
+| Runtime harness | N/A: the action runs on a mocked session and a double writer, and nothing renders it until S2b-2 (the real-database walk W2 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `b203b3e`: `actions.ts` and its test, the schema, the two copy blocks, the guards and parity additions and the one matrix row; no student or catalog code is touched |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 58/58 and 437/437; matrix and route-coverage 553/553 |
+| `npm test` (full suite) | 374 files, 9286 passed, 0 failed (first run: 1 failed, `route-coverage.test.ts`, fixed by the matrix row above) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 7 touched code files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2a2-staff-enroll...HEAD -- . ':!openspec' ':!.engram'` -> 9 files changed, 721 insertions(+), 1 deletion(-) = **722 changed lines** (forecast ~330; 2.2x), under the 800 budget. Per file: `actions.test.ts` 356, `actions.ts` 100, `guards.test.ts` 93, `catalog-parity.test.ts` 79, `inscripcion.test.ts` 67 (66 + 1), `inscripcion.ts` 13, locales 10, `matrix-table.ts` 4. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S2b-1 (parent) and Phases 10-17 (S2b-2 onward).
+
+## Batch 10: S2b-2 row toggle and deactivation notice (tasks 10.1-10.5, complete; Phase 11 NOT started)
+
+Branch `feat/catalog-schedule-s2b2-toggle`, created from `feat/catalog-schedule-s2b1-actions` (S2b-1, PR #133; chain #99 -> ... -> #132 -> #133). Date: 2026-11-20. Commit `db3651c` `feat(enrollment): add the confirmed deactivation and reactivation to the list`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 10.1 branch (this one)
+- [x] 10.2 RED deactivation: reused `ActiveToggle`, bound action, notice, count table, RN-27 sentence, no draft wording, cancel
+- [x] 10.3 RED reactivation: one press, no dead control, answer states, page-level derivation and degraded read
+- [x] 10.4 GREEN `inscripciones-table.tsx`, `page.tsx`, copy in `es` and `en` with parity pin
+- [x] 10.5 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 10.2 | `catalog/inscripciones/inscripciones-table.test.tsx` | Component (Testing Library, real catalogs, real `ActiveToggle`; the server action is a double) | 544/544 over `catalog/inscripciones` and `src/i18n` before any edit | 46 failed of 360 in the three files below (table: `messages.*.catalog.inscripciones.toggle` undefined, no actions column, no control in a row) | 588/588 | both locales: title names student, subject and group; retention sentence with 0 and 2 requests; "nothing is cancelled automatically"; count table (en 1, 2, 5; es 1, 3) as ICU plural; count 0 mentions no request and no draft in the dialog and no `draft`/`borrador` anywhere in the document; confirm posts `(estudianteId, idle, id, "deactivate")`; cancel calls nothing; two periods (current and 2024-S1, in effect or not) and two students bound to their own row (D9) | The count and the RN-27 sentence travel in the single `notice` paragraph of the unchanged toggle |
+| 10.3 | same file and `catalog/inscripciones/page.test.tsx` | Component and page (REAL guard and dal, doubles for the reads) | in the 544 above | same run | pass | reactivate is one press with no dialog and posts `reactivate`; an inactive row without `canReactivate` has no form, button or link; only the rows that can take it get the control; four answers (`done`, `unchanged`, `gone`, `error`) render as text in the row; page derivation table (inactive and offered -> true; with an active sibling -> false; group not offered -> false; active -> false); degraded read renders no form and no button | Clean |
+| 10.4 | `src/i18n/catalog-parity.test.ts`, page test | Unit (JSON) and page | in the 544 above | 6 parity tests failed (`toggle` and `columns.actions` absent) plus the page-shape pin | pass | toggle subtree is exactly `recordLabel`, `requests`, `retention`; `requests` is an ICU plural with `one` and `other`; no draft wording in either locale; the retention sentence says last active enrollment and nothing cancelled | Clean |
+
+Mutation checks (production restored after each): dropping `!r.hasActiveSibling` from `canReactivate` turned 2 page tests red; making the notice always state the count turned the two "count is zero" tests red (en and es).
+
+Totals: 44 net new tests (full suite 9286 -> 9330) across the table, page and parity files, plus the reshaped existing ones. Layers: component and unit. No existing assertion was weakened: the "read-only in S1" pins were replaced by their S2 equivalents (a POST form per toggle row, never a link), and the state assertions now read the state cell because the toggle repeats the raw state pill.
+
+### Decisions and deviations
+
+1. **Two extra row fields, nothing else (EA-PII-1).** The row gained `requestCount` (the CS-7 count of non-draft requests) and `canReactivate` (`!activo && writable && !hasActiveSibling`, computed in `page.tsx`). `writable`, `hasActiveSibling`, `dependentRequests` and `asignaturaId` still never reach the browser, and a page test pins the exact twelve keys of a row handed to the table, so any other field fails the suite. The new names deliberately differ from the server-side ones so the existing leak scan (`dependentRequests`, `hasActiveSibling`, `writable` absent from props and DOM) keeps proving the raw flags do not travel.
+2. **Retention sentence is fixed and conditional.** CS-8 asks for "a fixed RN-27 sentence about the last active inscription", so the table sends no "is last active" flag: the dialog always says "If this is the student's last active enrollment, ... Nothing is cancelled automatically." This is the design's wording; EA-DEACT-1 reads as if the dialog knew whether the row is the last one, and a precise version would need another server-side field and read (not in the slice plan). Recorded for the verify phase.
+3. **Dialog, not a modal.** `ActiveToggle` is unchanged, so the "dialog" is its inline two-step confirmation group (`role="group"`), as in every catalog entity. EA-DEACT-1 says dialog; the shared control is the design's choice (CS-8).
+4. **Duplicate state pill.** `ActiveToggle` renders its own Active/Inactive pill, so a toggle row shows the raw state twice (state column and actions column). Accepted to keep the control unchanged; after a confirmed deactivation `revalidatePath` refreshes the list.
+5. **Bind on the client.** The table (client) imports `setInscripcionActivoAction` and binds the student id per row. The page (server) still imports no action, so the structural guard "no page imports an action" and "no mutating control in `page.tsx`" pass untouched; the folder's prefetch guard passes because no `Link` was added.
+6. **Copy.** `catalog.inscripciones.columns.actions` and `catalog.inscripciones.toggle.{recordLabel, requests, retention}` in both locales. The confirm button, cancel and the generic refusals are the shared catalog copy; the three action error keys of S2b-1 are used by the action.
+7. No design change needed. A process slip: restoring after a mutation check, one `git checkout` reverted `page.tsx` to HEAD; the GREEN version was recovered from the backup taken just before, and the suite was re-run in full afterwards.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/i18n` -> 13 files, 588 passed (RED run of the three changed files: 46 failed of 360); `npx vitest run "src/app/(dashboard)/catalog" src/i18n` -> 41 files, 1492 passed |
+| Runtime harness | N/A: the table renders the real `ActiveToggle` and real catalogs, and the action is a double; the real-database walk W2 (deactivate with the count dialog, cancel, last-active sentence, reactivate, student `/enrollment` reflects it) is `[USER][CONFIRM]` |
+| Rollback boundary | Revert `db3651c`: the table wiring, the two row fields in `page.tsx`, the two copy blocks and their tests; S2b-1 (the action) and the writers are untouched and stay green |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 588/588 and 1492/1492 |
+| `npm test` (full suite) | 374 files, 9330 passed, 0 failed (neither known flaky file failed under load this time) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 5 touched code files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2b1-actions...HEAD -- . ':!openspec' ':!.engram'` -> 7 files changed, 577 insertions(+), 46 deletions(-) = **623 changed lines** (forecast ~270; 2.3x), under the 800 budget. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S2b-2 (parent) and Phases 11-17 (S3a-1 onward). Walk W2 is the owner's, after this slice.
+
+## Batch 11: S3a-1 student search and assign reads (tasks 11.1-11.7, complete; Phase 12 NOT started)
+
+Branch `feat/catalog-schedule-s3a1-reads`, created from `feat/catalog-schedule-s2b2-toggle` (S2b-2, PR #134; chain #99 -> ... -> #133 -> #134). Date: 2026-11-20. Commit `1e3964a` `feat(enrollment): add the scoped student search and assign reads`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 11.1 branch (this one)
+- [x] 11.2 RED `searchStudents`
+- [x] 11.3 RED `loadAssignPage`
+- [x] 11.4 GREEN `inscripciones.ts`: `searchStudents`, `loadAssignPage`, `STUDENT_SEARCH_MAX`
+- [x] 11.5 RED `recordEnrollmentStudentSearch`
+- [x] 11.6 GREEN `request-reads.ts`
+- [x] 11.7 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 11.2/11.3 | `src/lib/data/inscripciones.test.ts` | Unit (db double, `PgDialect` render of the logged WHERE, ORDER BY and selection) | 72/72 over `inscripciones.test.ts` and `request-reads.test.ts` before any edit (54 in the first file) | 29 failed, 54 passed (`TypeError: searchStudents is not a function`) | 83/83 | search: two matches, with and without a CIF; selection is exactly `id, nombreCompleto, cif` and a row carrying `correo` and `telefono` serializes without `@`; facultad 3 and 9 bound in the scope exists; role `estudiante`, `Activo = true` and `CanceladoEn is null` in the WHERE; name and CIF `ilike` with the same bound pattern twice; trimmed term and escaped wildcards; limit equals the named constant and order is name (es-x-icu) then id; scope `none` and two blank terms read nothing; failure degrades. Assign: unknown and other-facultad students answer alike (and the facultad id is bound); the student WHERE; scope `none`; student, period and asignaturas with no pick (extra contact columns dropped); the 2001-row cap; no period offered; offered groups with decoded days and the current one marked and named; the current-group WHERE; no active row (nothing marked); a sibling in a group no longer offered (named, not marked); invalid or ineligible pick (no groups, no current read); five failing statements each degrade | One `it.each` pair merged the two not_found cases; a `calls` assertion on the join was dropped as implementation coupling |
+| 11.5/11.6 | `src/lib/data/request-reads.test.ts` | Unit (db double, audit writer mocked) | in the 72 above | 6 failed, 17 passed (the `cache()` count pin 4 -> 5 plus five new tests, `recordEnrollmentStudentSearch is not a function`) | 23/23 | one row on `Facultad` with the staff actor in one transaction; payload keys exactly `periodo, status, filters, page, total`, with `q` and `estudianteId` smuggled into the call never reaching the row; second identical call is a no-op while another facultad or actor writes; the list read and the search never share a cache; a failing insert rejects | Clean (same shape as `recordEnrollmentListRead`; the builder from S1b-1 is reused) |
+
+Mutation checks (production restored from a copy taken just before each; no `git checkout`): removing `isNull(usuario.canceladoEn)` turned 2 tests red (search WHERE and student WHERE); removing the `offered.length > 0` guard turned the ineligible-pick test red; forcing `current: true` turned 3 tests red; removing the `.limit(STUDENT_SEARCH_MAX)` turned the cap test red. A first attempt with `sd` did nothing (not installed) and its "green" runs were discarded; the checks above were re-run with a node replace script.
+
+Totals: 34 new tests (29 + 5) plus one amended pin; full suite 9330 -> 9364. Layers: unit only.
+
+### Decisions and deviations
+
+1. **Result shapes.** `searchStudents` returns `{ data: StudentSearchResult[], degraded }` (`{ id, nombreCompleto, cif }`). `loadAssignPage` returns a three-way union with `degraded` on every member: `{ kind: "not_found", degraded: false }`, `{ kind: "ok", degraded: false, data }`, `{ kind: "degraded", degraded: true }`. `data` is `{ student, periodo, asignaturas, truncated, groups, currentGroup }`; each group is the picker's `EnrollableGroup` plus `current: boolean`. The `not_found` member exists because the page needs `notFound()` for an invalid, unknown or out-of-scope student and a degraded alert for a failed read, and a flag alone cannot tell them apart (task 14.3).
+2. **"Cancelled account" is filtered twice.** `Usuario.Activo = true` and `CanceladoEn IS NULL`. The schema check already makes a cancelled account inactive; the second term costs nothing and keeps the intent visible in the SQL and in the test.
+3. **Blank term.** `searchStudents` trims the term and returns `[]` with no query for a blank one, so a missing `?q=` can never list a facultad. The page (S3b-1) also skips the search and the audit when there is no `q`.
+4. **Search cap.** `STUDENT_SEARCH_MAX = 20`, with no `truncated` flag: a term that still matches more is a prompt to narrow it. If the owner wants the flag, it is one extra row read.
+5. **Current group read.** Raw-active inscripcion of the student in that asignatura and period (the sibling term of `enrollWork`), first by group id, with no `Grupo.Activo` filter, so a sibling in a group that is no longer offered is still named although it is in no group list. Skipped when the pick has no offered group (saves a statement; EA-CHG-1 offers nothing to change then).
+6. **Statement order of `loadAssignPage`:** student (with `Rol` join and scope), latest period, asignaturas, groups, current group. It reuses `getLatestPeriod`, `listEnrollableAsignaturas` and `listEnrollableGroups` unchanged, so the student's own carrera comes first and only the docente name leaves.
+7. **Asignaturas are not narrowed by facultad.** As in the student's own picker, any active asignatura with an offered group of the latest period is a candidate; EA-CRE-1 scopes the student, not the subject.
+8. No design change needed. No new audit event or type: `inscripcionEstudiantesConsultadaEvent` and the closed-set pins already existed from S1b-1.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/inscripciones.test.ts src/lib/data/request-reads.test.ts` -> 2 files, 106 passed (RED runs: 29 failed of 83, and 6 failed of 23) |
+| Runtime harness | N/A: DB double and rendered SQL; nothing calls the reads until S3b-1 (the real-database walk is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `1e3964a`: `searchStudents`, `loadAssignPage`, `STUDENT_SEARCH_MAX` and their types in `inscripciones.ts`, `recordEnrollmentStudentSearch` in `request-reads.ts`, and the two test blocks; the list read and the list audit are untouched |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 106/106 |
+| `npm test` (full suite) | 374 files, 9364 passed, 0 failed |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 4 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 4 touched files | clean (the two test files needed `--write` once) |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s2b2-toggle...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 683 insertions(+), 3 deletions(-) = **686 changed lines** (forecast ~355; 1.9x), under the 800 budget. Per file: `inscripciones.test.ts` 383, `inscripciones.ts` 195 (193 + 2), `request-reads.test.ts` 86 (85 + 1), `request-reads.ts` 22. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3a-1 (parent) and Phases 12-17 (S3a-2 onward). Phase 12 projects ~170 lines at ~2x, about 340, so S3a-2 fits its own PR.
+
+## Batch 12: S3a-2 staff replace and create (tasks 12.1-12.5, complete; Phase 13 NOT started)
+
+Branch `feat/catalog-schedule-s3a2-writer-replace`, created from `feat/catalog-schedule-s3a1-reads` (S3a-1, PR #135; chain #99 -> ... -> #134 -> #135). Date: 2026-11-20. Commit `26941a3` `feat(enrollment): let the staff create, change group and replace`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here).
+
+### Completed tasks
+
+- [x] 12.1 branch (this one)
+- [x] 12.2 RED create table, 12.3 RED replace and change group, 12.4 GREEN `staffEnrollInGroup`
+- [x] 12.5 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 12.2 | `enrollment-write-staff.test.ts` | Unit (db double, `PgDialect` render) | 103/103 over `enrollment-write-staff`, `enrollment-write`, `inscripcion-writes` and the actions test before any edit | 15 failed of 99 (14 in the staff file, 1 in `actions.test.ts`); the refusal rows passed at once because the target, existing-row and lock statements are mode independent (characterization) | 99/99, then 279/279 over the nine writer, picker, enrollment and `catalog/inscripciones` files | create: no row -> `created` (select x3, sibling update, `Inscripcion` insert with exactly `{ estudianteId: S, grupoId: G, activo: true }`, audit insert), inactive row -> `reactivada` with no second `Inscripcion` insert, already active -> `already_enrolled` (3 selects, no update), older period, inactive grupo, inactive asignatura -> `not_eligible` (2 statements, fragment-checked), non-student and scope `none` -> `not_student` after the one lock; create statements and audit row equal the student's except the actor | Clean |
+| 12.3 | same file | Unit | in the 103 above | same run | pass | reactivate with one sibling -> sibling `set {activo:false}` then `set {activo:true}`, result `replaced: [5]`, audit rows `desactivada` (`motivo: "reemplazo"`) then `reactivada`, staff actor on both, entity = student; change to a group with no row -> `desactivada` then `creada`; two siblings -> two `desactivada` rows then the activation; the sibling update renders EXACTLY the params student, target group, asignatura 3, period (no other ids) and equals the student's sibling update where; a target of another asignatura binds its own asignatura (8, never 3) and replaces nothing; both audit rows travel in ONE insert, last, in one transaction after the one lock; failure at the sibling update, the activation or the audit insert rethrows with one sanitized log line carrying the STAFF actor; the current group -> `already_enrolled` with no update | Clean |
+| 12.4 | `enrollment-write.ts`, `inscripciones/actions.ts`, `actions.test.ts` | GREEN | n/a | n/a | the nine files pass: 279/279 | n/a | n/a |
+
+Mutation checks (production restored from a copy taken just before each; no `git checkout`): forcing `reactivateOnly: false` turned 6 tests red (the whole list-mode table); replacing `replaced` by `[]` turned 3 red (the replace audit rows); the action not passing the option turned its test red. Existing S2 list-mode assertions were kept, not deleted: they now pass `{ reactivateOnly: true }` through a `LIST` constant, and the two S2 "not sticky" tests moved to the full statement order.
+
+Totals: 23 new tests in the staff file (create 9, replace 14, counting the it.each expansions), 1 amended action test; full suite 9364 -> 9387. Layers: unit only. `enrollment-write.test.ts` and `inscripcion-writes.test.ts` are unedited and green (student statements and signatures byte-identical).
+
+### Decisions and deviations
+
+1. **(Superseded by the follow-up below: the option is inverted, the default fails closed.) The list keeps its no-replace guarantee through an option, not through the guard.** `tasks.md` 12.4 says "lift the S2 reactivate-only guard so `staffEnrollInGroup` runs the full `enrollWork`" and does not separate "reactivate from the list" from "replace through the assign page" at the writer; both would call `staffEnrollInGroup`. The only separation was UI (10.3: no reactivate control when a sibling exists), which a forged POST bypasses and which would let the toggle replace without the EA-SIB-1 confirmation. So `staffEnrollInGroup(staff, estudianteId, grupoId, { reactivateOnly = false })` defaults to the full create, reactivate and replace behaviour (what `assignInscripcionAction` of S3a-3 will call as `staffEnrollInGroup(staff, student, grupoId)`), and `setInscripcionActivoAction` now passes `{ reactivateOnly: true }`: no row -> `not_eligible`, an active sibling -> `not_eligible` with nothing changed, as in S2. The task text 12.3 says the 8.2 sibling-refusal assertion is "replaced"; it was kept for list mode and the default mode gained the replace assertion.
+2. **Existing S2b-1 action test amended.** The reactivate test now expects the fourth argument. This is the only edit to an S2b file. The new option adds no member to `EnrollResult`, `DropResult` or `EnrollmentErrorCode` (CS-2), and the writer allowlist is unchanged.
+3. **"Target of another asignatura -> not_eligible" (12.3, EA-CHG-1 refusals) is NOT a writer refusal.** The writer receives only the target group; it has no "current group" to compare asignaturas with, and a group of another asignatura that is offered is a legitimate independent create (EA-SIB-1: other asignaturas are unaffected). The test pins that behaviour (the sibling predicate follows the target's own asignatura and replaces nothing of the first). The EA-CHG-1 candidate restriction (same asignatura only) is the assign page's job: `loadAssignPage` already lists only the picked asignatura's groups (S3a-1), and S3b-1 and S3a-3 should keep the picker as the only source of `grupoId` for a change. If the owner wants the writer to refuse it, the action would need a `fromGrupoId` argument, a signature change outside this slice.
+4. **EA-SIB-1 confirmation stays UI.** The writer replaces whenever it is called in default mode; the confirm step is S3b-2.
+5. No design change needed (CS-8 "the replace path arrives with EA-SIB-1 in S3" is what this slice does).
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run src/lib/data/enrollment-write-staff.test.ts src/lib/data/enrollment-write.test.ts src/lib/data/inscripcion-writes.test.ts "src/app/(dashboard)/catalog/inscripciones" src/lib/data/enrollment-picker.test.ts src/lib/data/enrollment.test.ts` -> 9 files, 279 passed (RED run: 15 failed of 99 in the staff and actions files) |
+| Runtime harness | N/A: DB double; the only caller in this slice is the list toggle in reactivate-only mode (the real-database walk W3 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `26941a3`: the option and doc in `enrollment-write.ts`, the one argument in `actions.ts`, and the two test files; S2 behaviour returns |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 279/279 |
+| `npm test` (full suite) | 374 files, 9387 passed, 0 failed |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 4 touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the 4 touched files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3a1-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 444 insertions(+), 24 deletions(-) = **468 changed lines** (forecast ~170; 2.8x), under the 800 budget. Per file: `enrollment-write-staff.test.ts` 435 (422 + 13), `enrollment-write.ts` 19 (12 + 7), `actions.ts` 11 (7 + 4), `actions.test.ts` 3. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3a-2 (parent) and Phases 13-17 (S3a-3 onward). **Phase 13's `assignInscripcionAction` MUST pass `{ allowReplaceAndCreate: true }` to `staffEnrollInGroup`**; without it the call is reactivate only (see the follow-up below).
+
+### Follow-up: fail-closed default (parent review; commit `7e231cb`)
+
+Commit `7e231cb` `refactor(enrollment): make replace and create an explicit opt-in on the staff writer`. The parent asked to invert deviation 1: `staffEnrollInGroup(staff, estudianteId, grupoId, { allowReplaceAndCreate = false })`.
+
+- **Default (no options) = reactivate only**, exactly the S2 behaviour: no row -> `not_eligible` and nothing inserted, an active sibling -> `not_eligible` with nothing changed and no audit row. Only `{ allowReplaceAndCreate: true }` creates a missing row and replaces a sibling. Internally the option maps to the unchanged `enrollWork` flag (`reactivateOnly: !allowReplaceAndCreate`); the student path never sets it.
+- **Why:** a caller that forgets the option can never replace or create by accident. The replace is only valid behind the EA-SIB-1 confirmation, so the safe behaviour must be the one a new call site gets for free, and the opt-in is greppable (`allowReplaceAndCreate`).
+- **`setInscripcionActivoAction` is back to the S2b-1 call shape** `staffEnrollInGroup(staff, student, grupoId)` (no fourth argument; its test expects exactly three arguments).
+- **Phase 13 requirement:** `assignInscripcionAction` MUST call `staffEnrollInGroup(staff, student, grupoId, { allowReplaceAndCreate: true })`, after its guard, zod and scope checks. Its RED test must assert the option is passed, and that a call without it never creates or replaces.
+- **Tests:** the list-mode table uses the default (no option); the create, replace and change-group tests pass `FULL = { allowReplaceAndCreate: true }` explicitly. New RED test: a call with no options never inserts and never updates a sibling, for two scripts (no row; inactive row with an active sibling): both answer `not_eligible`, the script is exhausted and no `insert` or `update` statement ran.
+- **RED:** 9 failed of 101 in the staff and actions files (the 2 new no-options cases, the actions expectation, and the 6 default-mode tests that still saw the old default).
+- **GREEN:** 101/101, then 281/281 over the nine writer, picker, enrollment and `catalog/inscripciones` files.
+- **Mutation checks** (restored from a copy taken just before each): making the default open (`reactivateOnly: false`) turned 8 red; ignoring the option (always reactivate only) turned 14 red; the action opting in turned 1 red.
+- **Gates:** typecheck clean; eslint and prettier clean on the 4 touched files; full suite 374 files, 9389 passed (9387 + the 2 new cases); `npm run build` OK (inline dummy env).
+- **Measured size** after this commit: `git diff --shortstat feat/catalog-schedule-s3a1-reads...HEAD -- . ':!openspec' ':!.engram'` -> 4 files changed, 466 insertions(+), 15 deletions(-) = **481 changed lines**, under the 800 budget.
+- Deviation 3 (no writer refusal for a target of another asignatura; the candidate source handles it) is unchanged.
+
+## Batch 13: S3a-3 staff assign action (tasks 13.1-13.5, complete; Phase 14 NOT started)
+
+Branch `feat/catalog-schedule-s3a3-assign-action`, created from `feat/catalog-schedule-s3a2-writer-replace` (S3a-2, PR #136; chain #99 -> ... -> #135 -> #136). Date: 2026-11-20. Commit `ac9b987` `feat(enrollment): add the staff assign server action`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here). Next `forms.md` ("Passing additional arguments") and `data-security.md` (Server Actions are reachable by a direct POST; check authorization inside each) were re-read before writing the action.
+
+### Completed tasks
+
+- [x] 13.1 branch (this one)
+- [x] 13.2 RED `assignInscripcionAction` in `actions.test.ts`, 13.3 GREEN `actions.ts`
+- [x] 13.4 RED then GREEN: guards additions, two error keys in both locales with parity pin
+- [x] 13.5 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 13.2/13.3 | `catalog/inscripciones/actions.test.ts` | Unit (REAL `requireEnrollmentAccess` and dal on a mocked session and scope read; writers are doubles) | 643/643 over the six touched suites before any edit | 41 failed, 39 passed (`TypeError: assignInscripcionAction is not a function`) | 80/80 (after a test-helper fix, below) | six denied identities with a valid AND a forged payload (a redirect, not the error copy, proves the guard ran before zod; scope never read); forged third argument `{ actorId, scope, rol }` ignored, writer gets exactly `{ actorId, scope }` and the session never travels; the writer receives exactly four arguments and the fourth is strictly `{ allowReplaceAndCreate: true }` for two different student and group pairs; nine bad values for each of the two ids (0, negative, decimal, numeric string, null, undefined, NaN, Infinity, object) -> unexpected copy, nothing written; scope `none` -> gone, writer not called; out-of-scope table (change group, create, unknown student) -> gone and no revalidate; outcomes created, reactivated, one and two replaced -> `done` with the right `outcome` and `replaced` count and one `revalidatePath("/catalog/inscripciones")`; replaced ids never in the answer; `already_enrolled` and `not_eligible` -> their assign copy; `not_student` -> gone; thrown -> unexpected with no raw text and no revalidate | The `assign` helper first used default parameters, which swallowed a forged `undefined` (the same slip as batch 9); it now takes rest arguments |
+| 13.4 | `catalog/inscripciones/guards.test.ts` | Structural (source scan) | in the 643 above | 3 failed of 22 (exact action list, the opt-in check and the no-form check: the action did not exist) | 22/22 | the exact action list is now two names; only `assignInscripcionAction` carries `allowReplaceAndCreate` (comments stripped; the toggle body never does; exactly one code occurrence in the module; the call matches `staffEnrollInGroup(..., { allowReplaceAndCreate: true })`); the opt-in check self-test (bare call, opted-in call, comment only); the assign action reads no form and names no `FormData` | The first regex missed the trailing comma that prettier adds; fixed in the test |
+| 13.4 | `src/i18n/catalog-parity.test.ts` | Unit (JSON + source scan) | in the 643 above | 5 failed of 255 (scan finds 3 keys not 5, exact leaf set, and the two new copy tests) | 255/255 | the scan finds exactly the five keys the module chooses and each resolves in `es` and `en`; the errors subtree has exactly those five leaves; both assign messages name the refused group (`no longer offered` / `ya no se ofrece`) and the existing enrollment, and none carries reactivation wording; the existing "no placeholder or number" and "no raw error wording" pins cover the new keys | Clean |
+| 13.3 | `src/test/access/matrix-table.ts` (data row) | Matrix | in the 643 above | n/a (the matrix exports check needs the row as soon as the export exists, as in batch 9) | `route-coverage` and `access-matrix.actions` green | the new export runs as the seven identities | n/a |
+
+Mutation checks (production restored from a copy taken just before each; no `git checkout`): the action dropping the option turned 7 tests red; the list toggle opting in turned 2 red (the structural pin and the three-argument assertion); skipping zod turned 18 red; revalidating on a `not_student` refusal turned 4 red; leaking the replaced ids in the answer turned 5 red; reading the translator before the guard turned the first-await pin red (1).
+
+Totals: 56 new tests (full suite 9389 -> 9445), layers unit and structural. One extra data row outside the task list: `matrix-table.ts` gained `assignInscripcionAction`.
+
+### Decisions and deviations
+
+1. **Call shape.** `assignInscripcionAction(estudianteId, grupoId)`, plain arguments and no `FormData`, exactly as 13.2 and 15.2 word it. It is meant to be called from the confirm button's handler (S3b-2). The access matrix still calls it as `(prev, FormData)` like every action, which the zod re-validation answers with the error copy after the guard.
+2. **Order inside the action:** guard, translator, scope `none` -> `gone` (writer not called), zod, writer. Nothing is read before the guard resolves; the writer gets exactly `{ actorId, scope }` and, as a fourth argument, exactly `{ allowReplaceAndCreate: true }`. The module's only code occurrence of that option is in this action (a structural pin), so the toggle stays reactivate only.
+3. **Result type** `AssignInscripcionState` in `src/lib/catalog/types.ts`: `{ kind: "done", outcome: "created" | "reactivated", replaced: number }`, `{ kind: "error", message }`, `{ kind: "gone" }`. `replaced` is a COUNT; the replaced group ids stay on the server. The success message and the link back to the list (15.2) are the UI's.
+4. **Two refusal keys of its own.** `catalog.inscripciones.errors.assign_not_eligible` and `assign_already_enrolled` (es and en). The existing `not_eligible` and `already_enrolled` copy says the enrollment "could not be reactivated", which is wrong for a create or a change group. Zod refusals and thrown errors reuse `unexpected`.
+5. **THE CONFIRM MARKER: RESOLVED by the owner with an optimistic check (2026-11-21, commit `5babcc5`, see the follow-up below).** `tasks.md` and CS-8 define no server-checked confirm marker (the confirmation is a client step and 15.2 had pinned the call to two arguments), so in `ac9b987` the server could not know the user confirmed. The owner chose to close the gap with a third argument rather than a token: the server now verifies that the replace the user saw is the replace it would perform.
+6. **A target of another asignatura** is still not refused by the writer (S3a-2 deviation 3). The picker of S3a-1 and S3b-1 is the only source of `grupoId` for a change; the action does not know the "current group".
+7. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones/actions.test.ts" "src/app/(dashboard)/catalog/inscripciones/guards.test.ts" src/i18n/catalog-parity.test.ts src/app/route-coverage.test.ts src/app/access-matrix.actions.test.ts src/lib/validations/inscripcion.test.ts` -> 6 files, 699 passed (RED runs: 41 failed of 80 in the actions file; 3 failed of 22 in guards; 5 failed of 255 in parity) |
+| Runtime harness | N/A: the action runs on a mocked session and a double writer, and nothing renders it until S3b-2 (the real-database walk W3 is `[USER][CONFIRM]`) |
+| Rollback boundary | Revert `ac9b987`: the action, the result type, the two copy keys, the matrix row and the test and pin additions; the writer and the list toggle are untouched |
+
+### Gates G (2026-11-20)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 699/699 |
+| `npm test` (full suite) | 374 files, 9445 passed, 0 failed (the first run had 1 failed of 9445 under load, not identified because only the tail was kept; the re-run with the full log was clean) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the 6 touched code files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the touched files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3a2-writer-replace...HEAD -- . ':!openspec' ':!.engram'` -> 8 files changed, 447 insertions(+), 2 deletions(-) = **449 changed lines** (forecast ~270; 1.7x), under the 800 budget. Per file: `actions.test.ts` 279 (278 + 1), `actions.ts` 73 (72 + 1), `guards.test.ts` 54, `catalog-parity.test.ts` 28, `types.ts` 10, locales 4, `matrix-table.ts` 1. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3a-3 (parent) and Phases 14-17 (S3b-1 onward). Phase 15's form must call `assignInscripcionAction(estudianteId, grupoId)` with those two arguments only and render the `done`, `error` and `gone` states; the confirm marker question (decision 5) is the owner's.
+
+### Follow-up: optimistic check of the replace (owner decision 2026-11-21; commit `5babcc5`)
+
+Commit `5babcc5` `feat(enrollment): refuse a stale replace in the staff assign`. Closes decision 5 above. Nothing was pushed.
+
+- **Call shape:** `assignInscripcionAction(estudianteId, grupoId, expectedReplaced: number | null)`. `expectedReplaced` is the group id the user SAW and confirmed as the one being replaced, or `null` when the page showed no current group for that asignatura. `assignEnrollmentInputSchema` (in `validations/inscripcion.ts`, `staffEnrollmentInputSchema.extend`) re-validates it like the other two ids: positive integer or `null`, and the KEY is required (an absent value is not `null`), so a caller cannot opt out by omitting it.
+- **Writer:** `staffEnrollInGroup(staff, student, grupoId, { allowReplaceAndCreate: true, expectedReplaced })`. In that mode `enrollWork` READS the target's active siblings with the very predicate of the sibling update (`siblingsOf`), under the same `Usuario` row lock and transaction, and compares: the set must be exactly `{expectedReplaced}`, or empty for `null`. Otherwise it answers `stale` with nothing changed: no sibling update, no activation, no audit row (statement order of that mode: lock, target, existing row, sibling read, sibling update, activation or insert, audit). The student path passes no `expectedReplaced`, so it issues no extra statement; `enrollment-write.test.ts` and `inscripcion-writes.test.ts` are unedited and green. The default (no option) is unchanged and still reactivate only; the list toggle never reads siblings in the new way and never opts in.
+- **Types:** `StaffEnrollOptions` forces `expectedReplaced` with the opt-in; `staffEnrollInGroup` is overloaded so the default returns `EnrollResult` (it can never be stale) and the opt-in returns `StaffEnrollResult`. A JS caller that opts in without `expectedReplaced` falls back to the reactivate-only default (fail closed; pinned by a `@ts-expect-error` test).
+- **New result code `stale`, justified.** No existing code fits: `not_eligible` and `already_enrolled` mean "group not offered" and "already active", and their copy would mislead. To honour CS-2 (no new member in `EnrollResult` or `EnrollmentErrorCode`), `stale` lives in a separate staff-only type `StaleResult` / `StaffEnrollResult` in `lib/enrollment/types.ts`; `EnrollResult`, `DropResult` and `EnrollmentErrorCode` are untouched, so the student action and the student copy never see it. `enrollmentWriteEvents` only widened its parameter type (a stale result is `ok: false`, so it gives no events). The action maps it to `catalog.inscripciones.errors.assign_stale` (en: "The student's enrollment changed since you opened this page. Review it and try again."; es: the neutral Spanish equivalent, see `i18n/es.json`).
+- **Behaviour change:** a staff replace of two or more siblings at once (data that only the student path or an old import could have produced) is now `stale` instead of replacing both, because the confirmation names one group. The old "deactivates every sibling it finds" staff test was removed for that reason; the unchecked student path keeps its own multi-sibling behaviour and tests.
+- **TDD evidence.** RED runs: writer file 28 failed of 77 (the scripts gained the sibling read, plus the new stale tests); schema 16 failed (`assignEnrollmentInputSchema` undefined); actions file 17 failed of 91; guards 1 failed and parity 5 failed (6 together). GREEN: schema 36/36, writer files 244/244 with the student files unedited, then 937/937 and 1250/1250 across the folder, `src/i18n`, the writers, the audit events, the matrix and route-coverage. Stale cases (each over a create target AND a reactivate target, so 10 runs): expected `null` with a sibling, expected 5 with none, expected 5 with sibling 6, expected 5 with siblings 5 and 6, expected 5 with siblings 6 and 7; each ends at the sibling read (the script is exhausted, so any later statement would throw), no `update`, no `insert`, no audit insert. Matching cases: expected 5 over a reactivate and expected 12 over a create replace exactly that group. The read and the update render the same predicate. The action tests pin the third argument passed through unchanged (5 and 77), nine bad values refused with no write, `stale` mapped to its own copy with no revalidate, and the guard-first and no-form pins still hold.
+- **Mutation checks** (restored from a copy taken just before each): no check at all turned 27 red; `null` accepting one sibling, accepting company, and accepting any single sibling turned 2 red each; opting in without `expectedReplaced` running unchecked turned 1 red; ignoring the read result turned 10 red; the action always sending `null` turned 3 red; the action not mapping `stale` turned 2 red.
+- **Gates:** typecheck clean (the overloads were needed after the first run flagged the toggle action); eslint and prettier clean on the touched files and both locale files; focused 1250/1250; `npm test` 374 files and 9486 passed (a first full run failed to start workers after 1197 s, an infrastructure timeout with 364 files and no test failure, and was re-run); `npm run build` OK with an inline dummy env.
+- **Measured size:** `git diff --shortstat feat/catalog-schedule-s3a2-writer-replace...HEAD -- . ':!openspec' ':!.engram'` -> 14 files changed, 924 insertions(+), 69 deletions(-) = **993 changed lines, OVER the 800 budget**. This commit alone is 616 lines (writer 115, writer tests 231, action tests 95, action 47, schema test 69, parity 27, schema 10, types 10, events 8, guards 2, locales 2); `ac9b987` alone is 449. Nothing was trimmed. `5babcc5` is a clean split point: it can ship as its own PR on top of S3a-3 (the S3a-3 PR would then carry the unchecked action of `ac9b987`, so the safer order is to NOT merge `ac9b987` alone).
+- **Phase 15 consequence:** the assign form must send the group id it displayed as replaced in its confirm step (the student's current group of the picked asignatura, `currentGroup` of `loadAssignPage`), or `null` when it showed none, and must render the `stale` answer with its copy while staying usable.
+
+## Batch 14: S3b-1 assign page and audited search (tasks 14.1-14.4 done; 14.5-14.7 NOT started, size stop)
+
+Branch `feat/catalog-schedule-s3b1-assign-page`, created from `feat/catalog-schedule-s3a3-assign-action` (S3a-3, PR #137; chain #99 -> ... -> #136 -> #137). Date: 2026-11-21. Commit `1a91151` `feat(enrollment): add the assign page with the audited student search`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here). Next 16 docs re-read for `page.md` (`searchParams` is a Promise) and `not-found.md` (`notFound()` throws in the render path, `noindex`).
+
+### Completed tasks
+
+- [x] 14.1 branch (this one)
+- [x] 14.2 RED `CI/guards.test.ts`: the page set is `page.tsx` and `assign/page.tsx`; the existing per-page cases now cover the assign page (guard first await, no action import, no mutating control)
+- [x] 14.3 RED `CI/assign/page.test.tsx` (and `assign-params.test.ts` for the URL parser)
+- [x] 14.4 GREEN `CI/assign/page.tsx` plus `student-search.tsx`, `asignatura-picker.tsx`, `assign-groups.tsx`, `assign-params.ts`, and `catalog.inscripciones.assign.*` in both locales with its parity pin
+- [ ] 14.5, 14.6 (list links, navigation pin) NOT started: stop rule, see "Measured size"
+- [ ] 14.7 gates and measure: gates are green for commit `1a91151`; the PR is the parent's; the size decision is open
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 14.2 | `CI/guards.test.ts` | Structural (source scan) | 816/816 over the inscripciones folder, navigation, parity, route-coverage and the pages matrix before any edit | 3 failed of 24 (exact page set; the assign links are found; every assign `<form>` is a GET form) | 27/27 once the page and its components existed | page set with both pages; per-page guard-first, no action import and no mutating control now run for two pages; the prefetch check is proven non-vacuous for `assign/` (the page is among the scanned sources and every tag found opts out); a GET-only pin for every `<form>` under `assign/` (the audited page carries its state in the URL; the POST form is S3b-2's) | Clean |
+| 14.3 (URL) | `CI/assign/assign-params.test.ts` (new) | Unit (pure) | N/A (new) | Suite failed to load (`assign-params` unresolved) | 27/27 | `estudiante`: absent is `none`, ten present-but-bad values (`0`, negative, decimal, text, empty, padded, leading zero, exponent, beyond the safe range, repeated) are `invalid`, valid ids incl. the safe maximum; `asignatura`: bad values are no selection, never an error; `q` trimmed, collapsed, capped at 100, repeated is empty; `assignHref` with and without ids and a round trip through the parser | Dropped a needless `firstValue` detour in `q` |
+| 14.3 | `CI/assign/page.test.tsx` (new) | Integration (REAL `dal` and `requireEnrollmentAccess` on a mocked session and scope read; Testing Library; real catalogs; reads and the audit helper mocked) | N/A (new) | Suite failed to load (`assign/page` unresolved), 0 tests ran | 53/53 (80 in the folder with the parser) | four non-secretaria roles, anonymous and pending-password identities redirect with nothing read (also for a hostile `estudiante`: the redirect wins over not found); scope `none` shows the no-facultad state for three URLs with no read and no audit; six hostile `estudiante` values and an unknown or out-of-scope student answer `notFound()` with no group read, no search and no audit; the read gets the facultad of the session and never `facultadId` or `scope` from the URL; search: no term, blank term and repeated term read and audit nothing; a term searches with the scope and the trimmed text, then audits ONCE after the results (call order), payload `{ periodo: "", status: "active", filters: { q: true, asignatura: false, grupo: false }, page: 1, total }`; a search that found nobody is audited with total 0 and shows the shared no-results state with a prefetch-free clear link; the audit row never holds the term, an id, a name or a CIF; results show name and CIF only with a prefetch-free link per student; degraded -> one `role="status"`, no form, no link, no button, no audit; a failing insert rejects; a chosen student ignores `?q=` (no search, no audit); chosen student: heading, name, CIF, the subject select with the student's own carrera first (read order deliberately scrambled), a GET form with the student as hidden field, the chosen subject selected, groups with teacher and days, the current group marked in TEXT and named, a current group no longer offered named with no group marked, no current group, a subject outside the student's list shows the empty note, nothing offered shows no select, the truncated note, degraded replaces the content, no audit for a student view; the props of the group list pinned key by key (including the current group's id for `expectedReplaced`) and a leaky read (email, phone, hash, carrera id, an `estudianteId` on the current group, a docente email and phone) never reaches the HTML or the serialized props, nor do the results; every link `data-prefetch="false"`; one `h1` and no skipped level in seven variants; one page frame; Spanish | Clean |
+| 14.4 | `src/i18n/catalog-parity.test.ts` | Unit (JSON) | in the 816 above | 41 failed of 298 (the `assign` subtree removed from copies of both locales; see the note below) | 298/298 | exact leaf set of `catalog.inscripciones.assign` in both locales (31 keys), the same placeholders per key in es and en, the named placeholders of nine messages, no draft wording | Clean |
+| 14.4 | `src/test/access/matrix-table.ts` (data row) | Matrix | in the 816 above | `route-coverage` failed (1 of 274): `(dashboard)/catalog/inscripciones/assign/page.tsx` missing from the table | 281/281 (route-coverage and the pages matrix: the new page as the seven identities) | n/a | n/a |
+
+Note on the copy: the English and Spanish messages were written before their parity pin (the pin was added right after). The RED run for the pin was reconstructed honestly: copies of both locales with the `assign` subtree removed were put in place, the pin failed (41 failed of 298), and the files were restored from the copies taken just before (no `git checkout`).
+
+Mutation checks (production restored from a copy taken just before each; no `git checkout`): removing the `invalid` not-found turned 6 tests red; removing the degraded return turned 1 red; `total: 0` turned 1 red; searching with a blank term turned 2 red; passing the raw student rows to the results turned 1 red; dropping the `current` flag turned 3 red; removing the `not_found` answer turned 1 red; removing the own-carrera sort turned 1 red; removing `prefetch={false}` from the result link turned 3 red (guards and page); a `getTranslations` before the guard turned the first-await pin red (1).
+
+Totals: 138 new tests (full suite 9486 -> 9624): 27 parser, 53 page, 3 guards, 41 parity (it.each expansions counted), 1 route-coverage matrix case set, plus the pages matrix rows. Layers: unit, integration, structural.
+
+### Decisions and deviations
+
+1. **Components.** `page.tsx` is the only page and has no `<form>` or `<Button>` (the guard regex is case-insensitive and also forbids `action=`), so the two GET forms and the lists live in server components of the same folder: `student-search.tsx` (`StudentSearchForm`, `StudentResults`), `asignatura-picker.tsx`, `assign-groups.tsx`. They use `useTranslations` (shared server and client), so they work as server components now and `assign-groups.tsx` is the piece S3b-2 turns into the client form.
+2. **The subject choice is a GET `<select>` form, not the student's Combobox.** The page is server rendered and read-only; a hidden `estudiante` and a `required` select carry the choice in the URL, with no JavaScript. The student's own carrera is first (stable sort in the component, so it never depends on the read order) and another carrera is named in the option. A picked subject that is not in the (possibly truncated, 2000 cap) list shows no groups, since its name is unknown.
+3. **`estudiante=` present but not a positive safe integer is not found, an empty value included; absent is the search.** A hostile value never falls back to the search. When a student is chosen, `?q=` is ignored: no search read and no audit row. `asignatura` is lenient (a bad value is no selection).
+4. **The search audit payload** is `{ periodo: "", status: "active", filters: { q: true, asignatura: false, grupo: false }, page: 1, total: rows returned }`. The search is not bound to a period, so `periodo` is empty (the #108 fix of the list resolves a real period, which the search does not have). **Flagged for verify and the owner:** if the audit-log spec wants a real period here, it is one extra read of the latest period after the search (then a failure mode of its own). A successful search that found nobody is audited (total 0): the spec writes one row per successful search and none for a degraded one.
+5. **Props pin for S3b-2** (`AssignGroupsProps`, built field by field in the page): `student { id, nombreCompleto, cif }`, `asignatura { id, codigo, nombre }`, `periodo`, `groups[] { grupoId, numeroGrupo, docenteNombre, dias, current }`, `currentGroup { grupoId, numeroGrupo } | null`. `currentGroup.grupoId` is the `expectedReplaced` the form sends (13.6); `currentGroup` is named even when it is no longer offered (then no group is marked). The picker and results props are covered by the leak test (no email, phone, carrera id or extra id reaches the HTML or the serialized props).
+6. **Reused copy:** `noFacultad` of the list. New copy is `catalog.inscripciones.assign.*` only (31 keys). The row-link copy (`rowLinks.*`) belongs to 14.5 and is NOT in this commit.
+7. **Navigation (14.5) needs only a pin:** `trailFor("/catalog/inscripciones/assign")`, the sidebar and `page-context` already resolve to Inscripciones by prefix since S1c-3 (`app-sidebar.test.tsx` and `page-context.test.tsx` already assert the assign path). `navigation.test.ts` still lacks that row; it is a characterization pin, not a RED.
+8. One extra data row outside the task list: `matrix-table.ts` gained the assign page (required by `route-coverage.test.ts`).
+9. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/i18n src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx` -> 1058 passed (RED runs: guards 3 failed of 24; parser and page suites failed to load; parity 41 failed of 298; route-coverage 1 failed) |
+| Runtime harness | N/A: server component rendered by awaiting the page function with the REAL guard on a mocked session and scope source; the reads and the audit helper are mocked. The real-database walk W3 is `[USER][CONFIRM]` after S3b-2 |
+| Rollback boundary | Revert `1a91151`: the `assign/` folder, the two copy subtrees, the parity and guards additions and the matrix row; the list page, the writers and the actions are untouched |
+
+### Gates G (2026-11-21)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 1058/1058 |
+| `npm test` (full suite) | 376 files, 9624 passed, 0 failed (211 s, no flaky failure) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the assign folder, the guards test, the parity test and the matrix | 0 findings |
+| `npx prettier --check --end-of-line auto` on the same files and both locale files | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK; `/catalog/inscripciones/assign` is in the app path routes manifest |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3a3-assign-action...HEAD -- . ':!openspec' ':!.engram'` -> 12 files changed, 1726 insertions(+), 2 deletions(-) = **1728 changed lines, OVER the 800 budget** (forecast ~330 for the whole Phase 14; 5.2x for 14.2-14.4 alone). Per file: `assign/page.test.tsx` 834, `assign/page.tsx` 194, `assign/student-search.tsx` 124, `assign-params.test.ts` 116, `assign-groups.tsx` 100, `catalog-parity.test.ts` 89, `asignatura-picker.tsx` 86, `assign-params.ts` 60, locales 90, `guards.test.ts` 34, `matrix-table.ts` 1. Tests are about 1,070 of the lines, code about 560, copy 90. No comment or test was trimmed. Stop rule applied: 14.5-14.6 (the list links, ~150 more lines at the usual ratio) were NOT started, which is the cut point `tasks.md` already names. PR NOT opened (parent owns it). Decision needed from the owner: ship `1a91151` with `size:exception`, or re-cut it (the search flow with its audit, and the student view with the groups, are the two halves of `page.tsx`; the page test is 834 lines).
+
+### Remaining tasks
+
+14.5, 14.6 (table links, header link, navigation pin, `rowLinks.*` copy in both locales with its parity pin, the PII row-key pin of the page test amended by exactly the one new key) and 14.7 (gates and measure of that part), then Phases 15-17.
+
+
+## Batch 14b: S3b-1 test consolidation and the list links (tasks 14.5-14.7 done)
+
+Branch `feat/catalog-schedule-s3b1-assign-page` (same branch as Batch 14, stacked on S3a-3, PR #137). Date: 2026-11-21. Two new commits on top of `1a91151` and `edd7c09`, nothing amended and nothing pushed: `de8938f` `test(enrollment): consolidate the assign page tests` (owner decision: simplify the S3b-1 tests before shipping, losing no case) and `b217841` `feat(enrollment): link the list to the assign page` (14.5-14.7). Runtime attempt state `proceed` (acquired by the parent, not settled here). PR NOT opened (parent owns it).
+
+### Step 1: consolidation (`de8938f`, tests only, no production file touched, no dead code found)
+
+Safety net before editing (`npx vitest run "src/app/(dashboard)/catalog/inscripciones/assign" src/i18n/catalog-parity.test.ts`): 379/379 (page 53, parser 27, parity file 299 of which 41 are the `assign` block). Titles recorded in the scratchpad (`before-titles.txt`). After: 336/336 (page 48, parser 29, parity file 259 of which 4 are the `assign` block). The count falls because repeated cases became table rows and duplicated assertions were removed, not because a scenario was dropped.
+
+| File | Lines before | Lines after |
+|---|---|---|
+| `assign/page.test.tsx` | 834 | 730 |
+| `assign/assign-params.test.ts` | 116 | 101 |
+| `catalog-parity.test.ts` (assign block) | 89 | 72 |
+| Total of the three | 1039 | 903 (-136 lines; the commit itself churns 822 lines) |
+
+Mapping old block -> new block (`page.test.tsx`):
+
+| Old | New |
+|---|---|
+| four role cases, anonymous, pending password, invalid `estudiante` to a stranger | one `it.each` table of seven identities; every row now also asserts nothing was read and `notFound` was not called (the stranger row used to check only the second) |
+| scope none (3), hostile `estudiante` (6), unknown/out-of-scope, facultad from the session | unchanged |
+| search form without a term; blank or repeated term is no search | one table of three rows (no term, blank, repeated): form, empty box, GET method, no results title, no search, no audit (blank and repeated now also assert the form) |
+| searches once after the results; found nobody (total 0); no text, id, name or CIF in the audit row; failing insert throws | unchanged; the found-nobody case also pins the clear link (href and `data-prefetch="false"`), taken from the old prefetch block |
+| "builds the audit payload once per render" | removed: same `toHaveBeenCalledTimes(1)` as the searches test |
+| lists each student with name and CIF only; keeps the term in the box; opts every result link out of prefetch | one test (term `"  Ana  "` shows `Ana` in the box; two links; hrefs; both `data-prefetch="false"`) |
+| degraded search; degraded student read | one table of two rows asserting the union (one `status`, no audit, no search, link, button, combobox or list, no error text) |
+| chosen student: names and orders subjects; selects subject and lists groups | unchanged, minus the `loadMock` argument pin duplicated by "facultad of the session" (`(SCOPE, 11, 31)`); the `999` subject test lost its `(SCOPE, 11, 999)` pin for the same reason |
+| current group marked and named; current group no longer offered; no active group | one table of three rows, each pinning the notice text and the number of markers (1 in the first item, 0, 0) |
+| no groups for a foreign subject; nothing offered; list truncated | unchanged |
+| "writes no audit row for a student view" | folded into "does not search or audit when a student is chosen" (now with a subject, groups and a term) |
+| props pin (key list, then student, subject, period, current group, group key lists) | one `toStrictEqual` of the whole props object (a key added or let through fails) |
+| two leak tests | one shared `expectNoLeak` helper, one list of leaks for both (the results test now also checks the longer list) |
+| two prefetch tests; one-h1 table (7); one page frame | prefetch folded as above; the seven variants also assert one page frame; the standalone frame test is gone |
+| Spanish render | unchanged |
+
+`assign-params.test.ts`: the valid and invalid `estudiante` tables are one table (expected value per row, including the safe maximum); the valid and bad `asignatura` tables are one table; the three `assignHref` tests are a table plus the base-path pin and the round trip. `catalog-parity.test.ts`: the key list, the es/en placeholder check of 31 keys and the nine named-placeholder checks are one table (`ASSIGN_COPY`, key to its named placeholders) checked per locale, so a key with a placeholder nobody pinned now fails too; the no-draft check is unchanged.
+
+Mutation checks re-run on the consolidated tests (production restored from a copy after each, tree clean afterwards; node script, no `git checkout`). Red tests before -> after: removing the `invalid` not-found 6 -> 6; removing the degraded return (audit written) 1 -> 1; `total: 0` 1 -> 1; searching with a blank term 2 -> 3; raw student rows 1 -> 1; dropping the `current` flag 2 -> 3; removing the `not_found` answer 1 -> 1; removing the own-carrera sort 1 -> 1; removing `prefetch={false}` from the result link 3 -> 3; a `getTranslations` before the guard 1 -> 1. All ten still turn the suites red.
+
+### Step 2: 14.5-14.7 (`b217841`)
+
+- [x] 14.5 RED
+- [x] 14.6 GREEN
+- [x] 14.7 gates and measure (PR is the parent's)
+
+What changed: the row gets exactly ONE new key, `assignHref: string | null`, built on the server with `assignHref()` of `assign-params.ts` (the one place that knows the URL): the link exists only when the group is offered (`writable`) and the row is active (change, EA-CHG-1) or inactive with an active sibling (replace, EA-SIB-1, the S2 hidden reactivation); an inactive offered row with no sibling keeps the in-place reactivation and gets no link; a group not offered gets neither. The table renders `RowLink` in the actions cell next to the toggle (label by `activo`, `prefetch={false}`, `aria-label` with the student and the code). The header carries a "create" link to the assign page through `list-header.tsx` (`InscripcionesHeader withAssign`), only in the normal render (the degraded and no-facultad states keep the bare header). Copy: `catalog.inscripciones.rowLinks.{create,change,changeLabel,replace,replaceLabel}` in `es` and `en`. The navigation needed only the characterization row `trailFor("/catalog/inscripciones/assign")`.
+
+TDD Cycle Evidence:
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 14.5 | `CI/page.test.tsx` | Integration (real guard, mocked reads) | 1279/1279 over the inscripciones folder, navigation, components and i18n before any edit | 9 failed of the file's cases: the five-row table of what a row can do (`assignHref` absent), the PII key pin (one key short), the change links of the table, the header link, the prefetch count (4 links, expected 6) | all green with the page change | five row kinds: inactive no sibling, inactive with a sibling, inactive older period, active offered, active not offered | clean |
+| 14.5 | `CI/inscripciones-table.test.tsx` | Component | in the 1279 | suite failed to load (`rowLinks` copy absent) | 6 new tests (2 locales x change link, replace link, links only on rows that carry one) green | active and inactive row, both locales, mixed rows | clean |
+| 14.5 | `src/i18n/catalog-parity.test.ts` | Unit (JSON) | in the 1279 | 2 failed (`rowLinks` subtree absent) | green with the copy | five keys with their named placeholders in es and en | clean |
+| 14.5 | `src/lib/navigation.test.ts` | Unit | in the 1279 | none: characterization pin, passes at once (the trail already resolves by prefix, see Batch 14 decision 7) | green | n/a | n/a |
+
+Mutation checks on the new code (production restored from a copy): dropping `writable` from the link rule 1 red; dropping the sibling replace link 1; giving every offered inactive row a link 2; removing `prefetch={false}` from the row link 6; from the header link 3; showing the header link in every state 1; one label for every row 2.
+
+### Deviations and notes
+
+1. **New file `list-header.tsx`.** The guard pin forbids `action=` in either `page.tsx` (GET never mutates), and `PageHeader` takes its link through an `action` prop, so the header with its link lives in a tiny server component of the same folder. The guard was not relaxed.
+2. **`page.test.tsx` "table has no links" case changed**: the table now holds the change links, so that case pins the two hrefs of the two active offered rows and nothing for the other two.
+3. **Audit `periodo: ""` of the student search is left as it is** (owner decision pending, see Batch 14 decision 4).
+4. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/lib/navigation.test.ts src/components src/i18n src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx` -> 1571 passed in 45 files (RED run: 11 failed plus the table suite failing to load) |
+| Runtime harness | N/A: the list page and the table are rendered under Testing Library with the real guard on a mocked session; the real-database walk W3 is `[USER][CONFIRM]` after S3b-2 |
+| Rollback boundary | revert `b217841` (list links, header link, `rowLinks` copy, parity pin, navigation row) without touching the assign page; revert `de8938f` to get the long test form back |
+
+### Gates G (2026-11-21)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the touched files | 0 findings |
+| `npx prettier --check --end-of-line auto` on the same files, the inscripciones folder and both locale files | clean |
+| `npm test` (full suite) | 376 files, 9591 passed and 1 timed out under load (`src/lib/signals/evaluate.test.ts` "gives present and absent no reason ...", 15 s timeout, unrelated to this slice); the file re-run alone: 49/49 passed |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3a3-assign-action...HEAD -- . ':!openspec' ':!.engram'`: after `de8938f` 12 files, 1588 insertions, 2 deletions = **1590 lines** (was 1728 after `1a91151`); after `b217841` 18 files, 1824 insertions, 24 deletions = **1848 lines**, OVER the 800 budget (forecast ~330 for the whole phase). Commit sizes: `1a91151` 1728, `de8938f` 822 (342 added, 480 removed; net -138), `b217841` 258 (236 added, 22 removed: code 107, tests 137 with the 31-line parity pin, copy 14). No comment was trimmed and no case was dropped to reach a number. Owner decision still open: `size:exception` or a re-cut (the search flow with its audit, the student view with the groups, and the list links are three natural slices).
+
+### Remaining tasks
+
+Phases 15-17 (S3b-2 assign form with confirmation onward). The "Open PR" step of 14.7 is the parent's.
+
+## Batch 15: S3b-2 assign form with confirmation (tasks 15.1-15.4, complete; Phase 16 NOT started)
+
+Branch `feat/catalog-schedule-s3b2-assign-form`, created from `feat/catalog-schedule-s3b1b-list-links` (S3b-1b, PR #139; chain #99 -> ... -> #138 -> #139). Date: 2026-11-21. Commit `8d3c120` `feat(enrollment): add the confirmed create and change group form`. Nothing was pushed. Runtime attempt state `proceed` (acquired by the parent, not settled here). Next `mutating-data.md` ("Event Handlers": a Server Function is called from an `onClick` in a Client Component) re-read; the action takes explicit arguments, so the form uses `useTransition` and no `<form>`.
+
+### Completed tasks
+
+- [x] 15.1 branch (this one)
+- [x] 15.2 RED `CI/assign/assign-form.test.tsx` (plus the page, guards and parity RED additions)
+- [x] 15.3 GREEN `CI/assign/assign-form.tsx` wired into `assign/page.tsx`, copy `catalog.inscripciones.assign.form.*` in both locales with its parity pin
+- [x] 15.4 gates and measure done; PR NOT opened (parent owns it)
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 15.2/15.3 | `CI/assign/assign-form.test.tsx` (new) | Component (real `AlertDialog`, real catalogs, the action is a double) | 744/744 over the inscripciones folder and `src/i18n` before any edit | Suite failed to load (`assign-form` unresolved), 0 tests ran | 14/14 | choice: the current group is marked and has no control, the others are named by student and number; confirm step table of three rows (no current group, a current group that is offered, a current group no longer offered) pinning the exact sentence AND the exact call `(11, grupoId, expectedReplaced)` with `null` or `21`; cancel sends nothing and leaves the status empty; pending disables confirm and cancel, Escape does not close, one call even on a second click; answers table of four (created, reactivated with a replaced group, stale, gone) with the exact text of the region; success links back to the list (prefetch off) and disables the groups; stale and gone keep the form usable, offer a reload link to the same page and re-open the dialog; touch targets (every control `h-11`), no fixed width, wrapping description, stacked footer, full-width choose control | Dropped a `setAnswer(null)` that no test needed (the next answer replaces the previous one) |
+| 15.2 | `CI/assign/page.test.tsx` | Integration | in the 744 | 3 failed (the group-situation table: no assign control per group) | green with the page change | the table counts one control per group except the current one, in three situations | clean |
+| 15.2 | `CI/guards.test.ts` | Structural | in the 744 | 1 failed (no module under `assign/` reaches an action) | green | exactly `assign-form.tsx` imports `../actions` and it starts with `"use client"`; the existing GET-form pin and the prefetch pin now also scan the new file (my own doc comment first tripped the form pin and was reworded) | clean |
+| 15.3 | `src/i18n/catalog-parity.test.ts` | Unit (JSON) | in the 744 | 2 failed (the 13 new keys absent in es and en) | green | exact leaf set of `assign` including `form.*`, each key with its named placeholders in both locales | clean |
+
+Mutation checks (production restored from an in-memory copy taken just before each, node script, no `git checkout`; 17 mutations, all killed after one fix): always sending `null` as `expectedReplaced` (2 red); sending the target group as `expectedReplaced` (3); offering the current group too (2 files red); sending on choose, before the confirm (13); never naming the replaced group (3); confirm enabled while pending (3); groups still enabled after a success (1); the replaced note always shown (1); the reload link prefetching (4); the back link prefetching (3); `gone` shown as nothing (2); a refusal swallowed (3); no 44 px size on the choose control (1); a fixed width on it (1); a description that cannot wrap (1); the list rendering no action (17). One mutation SURVIVED the first time (Escape closing the dialog while pending); the pending test now presses Escape and the mutation is killed (3 red).
+
+Totals: 14 new tests in the form file, 3 page cases changed (one new assertion in an existing table), 1 guard case, 2 parity cases expanded (full suite 9591 -> 9607). Layers: component, integration, structural, unit.
+
+### Decisions and deviations
+
+1. **Plain button flow, no `<form>`.** `assignInscripcionAction(estudianteId, grupoId, expectedReplaced)` takes explicit arguments (13.2), so a click handler inside `useTransition` calls it; there is nothing to post. The S3b-1 pin "every `<form>` under assign/ is a GET form" is untouched and still non-vacuous (the search and picker forms), and the page keeps no `action=`, `<form` or `onClick`.
+2. **`AssignGroups` is kept** as the list (the props type `AssignGroupsProps` stays pinned by the page test); it gained one optional prop `renderAction(group)`, so the client form renders the control under each group without duplicating the markup. Without the prop it is the read-only list it was in S3b-1 (rollback: revert `assign-form.tsx` and the page import).
+3. **Confirm frame.** `ConfirmChangeDialog` (student enrollment) is tied to `EnrollmentActionResult` and the `enrollment.*` copy, so a local frame was built from the same `AlertDialog` parts: it stays open while the action works, Escape and cancel are blocked while pending, and it closes when the answer arrives.
+4. **`expectedReplaced` has one source.** The replaced group named in the confirm sentence and the third argument both come from `currentGroup` of the props (the id the page displayed), so what she saw is what the server checks (13.6). A current group that is no longer offered is still named and sent.
+5. **Answers.** `done` shows the outcome sentence (created or reactivated, plus a note when a group was replaced) and a prefetch-free link back to `/catalog/inscripciones`, and stops offering the groups (the page behind it is stale; a second submit would only be refused as stale). `error` (stale included, the action returns only the message) and `gone` render in a `role="alert"` with a prefetch-free "Reload this page" link to the same assign URL, and the form stays usable. `gone` reuses `catalog.shared.notFound`. A rejected call (network) is not caught: it reaches the dashboard error boundary like the student dialog.
+6. **Copy** `catalog.inscripciones.assign.form.*` (13 keys, es and en); one extension of the existing parity table, no new pin file. The Spanish done sentence is gender-neutral ("Se inscribió a {student} ...").
+7. **360 px guard** follows the enrollment one: static class checks (no fixed width, `h-11` on every control, `break-words`, stacked footer, `w-full` choose control); the real check is the owner walk W3.
+8. No design change needed.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npx vitest run "src/app/(dashboard)/catalog/inscripciones" src/lib/navigation.test.ts src/components src/i18n src/app/route-coverage.test.ts src/app/access-matrix.pages.test.tsx src/app/access-matrix.actions.test.ts` -> 47 files, 1818 passed (RED runs: 6 failed plus the new suite failing to load) |
+| Runtime harness | N/A: the form is rendered under Testing Library with the real `AlertDialog` and the real catalogs, the action is a double; the real-database walk W3 is `[USER][CONFIRM]` (Phase 16) |
+| Rollback boundary | Revert `8d3c120`: the form, the `renderAction` slot, the page import, the `form.*` copy and the test and pin additions; the page returns to the S3b-1 read-only list |
+
+### Gates G (2026-11-21)
+
+| Gate | Result |
+|---|---|
+| `npx next typegen && npm run typecheck` | clean |
+| focused vitest (above) | 1818/1818 |
+| `npm test` (full suite) | 377 files, 9607 passed, 0 failed (115 s, no flaky failure) |
+| `npx eslint --rule "prettier/prettier: [error, {endOfLine: auto}]"` on the inscripciones folder and `src/i18n` | 0 findings |
+| `npx prettier --check --end-of-line auto` on the same paths and `i18n` | clean |
+| `npm run build` (inline dummy `DATABASE_URL` and 32-char `AUTH_SECRET`, no `.env` written) | OK |
+
+### Measured size
+
+`git diff --shortstat feat/catalog-schedule-s3b1b-list-links...HEAD -- . ':!openspec' ':!.engram'` -> 9 files changed, 565 insertions(+), 13 deletions(-) = **578 changed lines** (forecast ~370; 1.6x), under the 800 budget. Per file: `assign-form.test.tsx` 278, `assign-form.tsx` 191, locales 38, `assign-groups.tsx` 11, `page.tsx` 19, `catalog-parity.test.ts` 19, `guards.test.ts` 14, `page.test.tsx` 8. No comment or test was trimmed.
+
+### Remaining tasks
+
+Open PR for S3b-2 (parent) and Phases 16-17 (the owner walk W3 and the closeout). Not started.

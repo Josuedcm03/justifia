@@ -12,6 +12,10 @@ import type {
 /** The state filter of a catalog list; `active` is the default (CM-LST-1). */
 export type CatalogStatusFilter = "active" | "inactive" | "all";
 
+/** The state filter of the inscripciones list: the RAW state only, so there is
+ *  no `all` (EA-FILT-1). `active` is the default. */
+export type InscripcionStatusFilter = "active" | "inactive";
+
 /** One page of a catalog list; `page` is the CLAMPED page actually read and
  *  `degraded` is true when the database could not be reached. */
 export type CatalogListResult<T> = {
@@ -62,6 +66,39 @@ export type DocenteListItem = {
   login: string;
   correo: string | null;
   activo: boolean;
+};
+
+/**
+ * One row of the staff inscripciones list (EA-LIST-1). The student carries the
+ * name and the CIF only (EA-PII-1). `activo` is the RAW state of the row,
+ * `effective` also needs the group and the asignatura active, and `writable`
+ * means the group is offered now (latest period, group and asignatura active).
+ */
+export type InscripcionListItem = {
+  estudianteId: number;
+  grupoId: number;
+  estudianteNombre: string;
+  estudianteCif: string | null;
+  asignaturaId: number;
+  asignaturaCodigo: string;
+  asignaturaNombre: string;
+  periodo: string;
+  numeroGrupo: string;
+  activo: boolean;
+  effective: boolean;
+  writable: boolean;
+  hasActiveSibling: boolean;
+  dependentRequests: number;
+};
+
+/**
+ * The inscripciones page plus the period the read actually used: the chosen
+ * one when it exists, the latest otherwise, `""` when nothing was read (scope
+ * `none`, no period offered, degraded). The audit row records this value, so
+ * it is never the URL text.
+ */
+export type InscripcionesListResult = CatalogListResult<InscripcionListItem> & {
+  resolvedPeriodo: string;
 };
 
 /** One Grupo as the list and the edit page see it. `dias` is the decoded set in
@@ -150,3 +187,13 @@ export type ActiveToggleState =
   | { kind: "gone" }
   | { kind: "busy" }
   | { kind: "unchanged" };
+
+/** What the staff assign action answers with (EA-CRE-1, EA-CHG-1, EA-SIB-1).
+ *  It is called with explicit arguments, not as form state, so there is no
+ *  `idle` or `busy`. `replaced` is the COUNT of sibling groups it deactivated:
+ *  the ids stay on the server. `message` is already translated; `gone` is both
+ *  "missing" and "out of scope" (CS-2). */
+export type AssignInscripcionState =
+  | { kind: "done"; outcome: "created" | "reactivated"; replaced: number }
+  | { kind: "error"; message: string }
+  | { kind: "gone" };
