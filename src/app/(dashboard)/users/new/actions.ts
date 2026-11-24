@@ -9,7 +9,12 @@ import { canAssignRole, rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { listCarreras } from "@/lib/data/carreras";
 import { RolDesconocidoError } from "@/lib/data/roles";
-import { createUsuario, getUserFacultadId } from "@/lib/data/users";
+import {
+  createUsuario,
+  getUserFacultadId,
+  getUsuarioByCorreo,
+} from "@/lib/data/users";
+import { deriveLogin } from "@/lib/import/normalize";
 import { crearStaffSchema } from "@/lib/validations/users";
 
 export type CreateStaffState = { error: string | null };
@@ -24,7 +29,6 @@ export async function createStaffAction(
   const t = await getTranslations("users.new");
 
   const parsed = crearStaffSchema.safeParse({
-    login: formData.get("login"),
     password: formData.get("password"),
     nombreCompleto: formData.get("nombreCompleto"),
     correo: formData.get("correo"),
@@ -35,7 +39,10 @@ export async function createStaffAction(
     carreraId: formData.get("carreraId") ?? "",
   });
   if (!parsed.success) {
-    return { error: t("errors.invalid") };
+    // An unusable email gets its own message (FE-28); the other fields share
+    // the generic one.
+    const emailIssue = parsed.error.issues.some((i) => i.path[0] === "correo");
+    return { error: t(emailIssue ? "errors.emailInvalid" : "errors.invalid") };
   }
 
   // Check (b): the requested role must be inside the caller's assignable
@@ -43,6 +50,21 @@ export async function createStaffAction(
   // carrera check, hash or write (design.md decisions 9-10).
   if (!canAssignRole(session.rol, parsed.data.rol)) {
     redirect(ACCESS_DENIED_PATH);
+  }
+
+  // The Login is derived from the normalized email, never taken from the
+  // request (FE-27); a Login over its column limit is shown as an email error
+  // and never truncated or suffixed.
+  const derived = deriveLogin(parsed.data.correo);
+  if ("error" in derived) {
+    return { error: t("errors.emailTooLong") };
+  }
+
+  // Correo is UNIQUE only case-sensitively and legacy rows may be mixed-case,
+  // so an email equal to an existing one ignoring case is refused here (FE-22,
+  // FE-28) before anything is hashed or written.
+  if (await getUsuarioByCorreo(parsed.data.correo)) {
+    return { error: t("errors.duplicate") };
   }
 
   const esCoordinacion = parsed.data.rol === "coordinacion";
@@ -74,11 +96,11 @@ export async function createStaffAction(
 
   try {
     await createUsuario({
-      login: parsed.data.login,
+      login: derived.login,
       hashClave,
       rol: parsed.data.rol,
       nombreCompleto: parsed.data.nombreCompleto,
-      correo: parsed.data.correo ?? null,
+      correo: parsed.data.correo,
       telefono: parsed.data.telefono ?? null,
       cif: null,
       carreraId: esCoordinacion ? (parsed.data.carreraId ?? null) : null,
@@ -87,7 +109,8 @@ export async function createStaffAction(
   } catch (err) {
     // A config error (an assignable role missing from the catalog) is not a
     // duplicate login; only rethrow narrows the catch-all (design.md
-    // decision 7).
+    // decision 7). A derived Login or an email that already exists lands in
+    // the catch-all too: an ordinary form error, no redirect, no suffix.
     if (err instanceof RolDesconocidoError) throw err;
     return { error: t("errors.duplicate") };
   }
