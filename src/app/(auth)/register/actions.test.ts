@@ -315,3 +315,30 @@ describe("registerAction by email and CIF (FE-26, FE-28, FE-22)", () => {
     expect(mocks.getUsuarioByCorreo).not.toHaveBeenCalled();
   });
 });
+
+// FE-32 (UX-22), pass at write: a session created by self-registration keeps the
+// 8-hour duration. The page has no checkbox, and nothing posted can ask for more.
+describe("registerAction session duration (FE-32)", () => {
+  it("issues the 8-hour session: no claim and no keep flag", async () => {
+    await expect(submit()).rejects.toThrow("REDIRECT:/");
+
+    expect(signedPayload()).not.toHaveProperty("mantenerSesion");
+    expect(mocks.setSessionCookie).toHaveBeenCalledTimes(1);
+    expect(mocks.setSessionCookie.mock.calls[0]).toEqual(["signed-token"]);
+  });
+
+  it("ignores a mantener field posted by a hand-crafted request", async () => {
+    await expect(submit({ mantener: "on" })).rejects.toThrow("REDIRECT:/");
+
+    expect(signedPayload()).not.toHaveProperty("mantenerSesion");
+    expect(mocks.setSessionCookie.mock.calls[0]).toEqual(["signed-token"]);
+  });
+});
+
+/** The claims of the first signed session (the mock has no typed parameters). */
+function signedPayload() {
+  return (mocks.signSession.mock.calls as unknown[][])[0][0] as Record<
+    string,
+    unknown
+  >;
+}

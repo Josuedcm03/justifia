@@ -610,6 +610,7 @@
       "subtitle": "Sign in with your institutional account",
       "loginLabel": "CIF or institutional email",
       "loginHint": "Students may use their CIF or email; staff use their institutional email.",
+      "keepSession": "Keep me signed in",
       "passwordLabel": "Password",
       "submit": "Sign in",
       "submitting": "Signing in…",

@@ -610,6 +610,7 @@
       "subtitle": "Ingrese con su cuenta institucional",
       "loginLabel": "CIF o correo institucional",
       "loginHint": "Los estudiantes pueden usar su CIF o su correo; el personal, su correo institucional.",
+      "keepSession": "Mantener la sesión iniciada",
       "passwordLabel": "Contraseña",
       "submit": "Ingresar",
       "submitting": "Ingresando…",

@@ -201,7 +201,85 @@ describe("changePasswordAction (FPC)", () => {
         debeCambiarClave: false,
       });
       expect(mocks.setSessionCookie).toHaveBeenCalledTimes(1);
-      expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token");
+      expect(mocks.setSessionCookie).toHaveBeenCalledWith(
+        "signed-token",
+        false,
+      );
+    });
+
+    // FE-32 (UX-22): the re-issue keeps the duration the user chose, and drops
+    // the flag. An unchecked session re-issues exactly as before.
+    it("re-issues a kept session with the claim, the flag cleared and the 30-day cookie", async () => {
+      mocks.requireUserAllowingPasswordChange.mockResolvedValue({
+        ...flaggedSession,
+        mantenerSesion: true,
+      });
+
+      await expect(changePasswordAction(initial, form())).rejects.toThrow(
+        /^REDIRECT:/,
+      );
+
+      expect(mocks.signSession).toHaveBeenCalledWith({
+        sub: "7",
+        login: "maria",
+        rol: "secretaria",
+        nombre: "Maria Perez",
+        debeCambiarClave: false,
+        mantenerSesion: true,
+      });
+      expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token", true);
+    });
+
+    it.each([
+      ["no claim", {}],
+      ["a false claim", { mantenerSesion: false }],
+    ])(
+      "re-issues a session with %s without the claim key and with the 8-hour cookie",
+      async (_label, extra) => {
+        mocks.requireUserAllowingPasswordChange.mockResolvedValue({
+          ...flaggedSession,
+          ...extra,
+        });
+
+        await expect(changePasswordAction(initial, form())).rejects.toThrow(
+          /^REDIRECT:/,
+        );
+
+        expect(signedPayload()).not.toHaveProperty("mantenerSesion");
+        expect(mocks.setSessionCookie).toHaveBeenCalledWith(
+          "signed-token",
+          false,
+        );
+      },
+    );
+
+    it("keeps the duration of a voluntary change by a kept session that is not flagged", async () => {
+      mocks.requireUserAllowingPasswordChange.mockResolvedValue({
+        ...flaggedSession,
+        debeCambiarClave: false,
+        mantenerSesion: true,
+      });
+
+      await expect(changePasswordAction(initial, form())).rejects.toThrow(
+        "REDIRECT:/",
+      );
+
+      expect(mocks.signSession).toHaveBeenCalledWith(
+        expect.objectContaining({ mantenerSesion: true }),
+      );
+      expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token", true);
+    });
+
+    it("never takes the claim from the form", async () => {
+      await expect(
+        changePasswordAction(initial, form({}, { mantener: "on" })),
+      ).rejects.toThrow(/^REDIRECT:/);
+
+      expect(signedPayload()).not.toHaveProperty("mantenerSesion");
+      expect(mocks.setSessionCookie).toHaveBeenCalledWith(
+        "signed-token",
+        false,
+      );
     });
 
     it("updates the row first, then re-signs, then sets the cookie, then redirects to the dashboard", async () => {
@@ -386,3 +464,11 @@ describe("changePasswordAction (FPC)", () => {
     });
   });
 });
+
+/** The claims of the first signed session (the mock has no typed parameters). */
+function signedPayload() {
+  return (mocks.signSession.mock.calls as unknown[][])[0][0] as Record<
+    string,
+    unknown
+  >;
+}
