@@ -325,8 +325,8 @@ equipo), `resuelta` (cubierta por un change).
 - **Hoy:** el paso de documentos no deja ver el contenido de un archivo recién
   elegido antes de confirmar; «Ver» abre el documento ya guardado por la ruta
   del documento y deja registro de descarga. El diálogo de reenvío no lista los
-  archivos que llevará la solicitud. La validación atribuyó el caso al kit: el
-  archivo no era una de las constancias simuladas.
+  archivos que llevará la solicitud. En la validación, el archivo reenviado no
+  era una de las constancias simuladas.
 - **Esperado:** «Vista previa» en el navegador de los archivos elegidos en esa
   visita (imagen o PDF, con nombre y tamaño), sin pedir el documento al servidor
   ni dejar registro de auditoría. En la corrección, el paso de documentos, la
@@ -384,8 +384,9 @@ equipo), `resuelta` (cubierta por un change).
   su diálogo de escalamiento.
 - **Hoy:** cuando la coordinación responde, la solicitud vuelve a «pendiente»
   y la respuesta solo consta en la sección de escalamientos, más abajo en el
-  detalle. La secretaría puede escalar de nuevo sin haberla visto. La validación
-  atribuyó el caso al sistema.
+  detalle. La secretaría puede escalar de nuevo sin haberla visto. En la
+  validación, la secretaria dijo haber leído la respuesta, calificó con 1
+  haberla visto y volvió a escalar con la misma pregunta (5.6).
 - **Esperado:** un aviso «Respuesta de coordinación» sobre todas las secciones,
   con la respuesta completa, su autor y la fecha. El panel de decisión dice que
   la coordinación ya respondió, el diálogo de escalamiento muestra la respuesta
@@ -403,8 +404,8 @@ equipo), `resuelta` (cubierta por un change).
 - **Pantalla:** diálogo «Escalar» del detalle de la solicitud (`/review/[id]`).
 - **Hoy:** el diálogo no rotula la nota como obligatoria, deja visible el error
   del motivo o de la nota después de corregirlo y ofrece solo dos motivos. La
-  validación atribuyó el caso al sistema. La otra ayuda, buscar una solicitud,
-  no forma parte del alcance de `flow-experience`.
+  otra ayuda, buscar una solicitud, no forma parte del alcance de
+  `flow-experience`.
 - **Esperado:** la nota se rotula «Nota para coordinación (obligatoria)» con un
   ejemplo y la aclaración de que solo la ve el personal. El error del motivo
   desaparece al elegirlo y el de la nota al editarla. Un tercer motivo, «Otro»,
