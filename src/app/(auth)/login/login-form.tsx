@@ -52,13 +52,8 @@ export function LoginForm({
             autoFocus
             required
             aria-invalid={state.error ? true : undefined}
-            aria-describedby={
-              state.error ? "login-hint login-error" : "login-hint"
-            }
+            aria-describedby={state.error ? "login-error" : undefined}
           />
-          <p id="login-hint" className="text-muted-foreground text-xs">
-            {t("loginHint")}
-          </p>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -75,12 +70,10 @@ export function LoginForm({
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <Checkbox id="mantener" name="mantener" />
-          <Label htmlFor="mantener" className="min-h-11 cursor-pointer">
-            {t("keepSession")}
-          </Label>
-        </div>
+        <label className="text-foreground -my-1.5 flex min-h-11 w-fit cursor-pointer items-center gap-3 text-sm select-none">
+          <Checkbox name="mantener" />
+          {t("keepSession")}
+        </label>
 
         {state.error ? (
           <p

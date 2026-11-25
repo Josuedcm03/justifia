@@ -63,8 +63,9 @@ still applies. An anonymous visitor MUST see no link and MUST NOT reach
 ### Requirement: FE-21 Sign in with the CIF or the institutional email (UX-21; RN-02, RNF-01)
 
 The sign-in form MUST have one identifier field, labelled "CIF o correo
-institucional" (`en`: "CIF or institutional email"), and the password. It MUST
-NOT show, name or ask for a "Usuario". The identifier MUST be classified by its
+institucional" (`en`: "CIF or institutional email"), and the password. The label says both
+identifiers, so the field MUST NOT carry a hint of its own. The form MUST NOT
+show, name or ask for a "Usuario". The identifier MUST be classified by its
 content: an identifier that contains `@` is an email, and MUST be trimmed and
 matched, ignoring case, against `Usuario.Correo` of any role; any other
 identifier is a CIF, and MUST be trimmed, MUST have its spaces and hyphens

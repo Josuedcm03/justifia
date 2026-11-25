@@ -46,7 +46,42 @@ describe("Checkbox (CM-GRP-6: the control is accessible)", () => {
     expect(box).toBeEnabled();
   });
 
-  it("is 20px, tinted with the primary token and shows the section 7 focus ring", () => {
+  it("is 20px with the surface and border of the form input, in both themes", () => {
+    render(<Checkbox aria-label="Monday" />);
+
+    expect(screen.getByRole("checkbox", { name: "Monday" })).toHaveClass(
+      "size-5",
+      "appearance-none",
+      "border",
+      "border-input",
+      "bg-card",
+      "dark:bg-input/30",
+    );
+  });
+
+  it("is filled with primary and draws a primary-foreground mark when checked", () => {
+    render(<Checkbox aria-label="Monday" />);
+
+    expect(screen.getByRole("checkbox", { name: "Monday" })).toHaveClass(
+      "checked:bg-primary",
+      "dark:checked:bg-primary",
+      "checked:border-primary",
+      "before:bg-primary-foreground",
+      "before:scale-0",
+      "checked:before:scale-100",
+    );
+  });
+
+  it("falls back to the browser's own box in forced colors", () => {
+    render(<Checkbox aria-label="Monday" />);
+
+    expect(screen.getByRole("checkbox", { name: "Monday" })).toHaveClass(
+      "forced-colors:appearance-auto",
+      "forced-colors:before:hidden",
+    );
+  });
+
+  it("shows the section 7 focus ring and the error border of the form input", () => {
     render(<Checkbox aria-label="Monday" />);
 
     const classes = screen
@@ -54,10 +89,10 @@ describe("Checkbox (CM-GRP-6: the control is accessible)", () => {
       .className.split(/\s+/);
     expect(classes).toEqual(
       expect.arrayContaining([
-        "size-5",
-        "accent-primary",
+        "focus-visible:border-primary",
         "focus-visible:ring-3",
         "focus-visible:ring-ring/40",
+        "aria-invalid:border-destructive",
       ]),
     );
   });
@@ -69,7 +104,7 @@ describe("Checkbox (CM-GRP-6: the control is accessible)", () => {
       .getByRole("checkbox", { name: "Monday" })
       .className.split(/\s+/);
     expect(classes).toEqual(
-      expect.arrayContaining(["shrink-0", "size-5", "accent-primary"]),
+      expect.arrayContaining(["shrink-0", "size-5", "border-input"]),
     );
   });
 
