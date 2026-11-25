@@ -4,8 +4,8 @@
 **Archived**: 2026-11-25, to `openspec/changes/archive/2026-11-25-flow-experience/`
 **Artifact store**: openspec (repo-local)
 **Branch**: `feat/flow-experience-14-archive`, from the tip of `main` (38a5b71)
-**Archive mode**: intentional-with-warnings. Of 191 tasks, 190 are done and one closeout task stays open when this report is written: 12.12, deleting the disposable Neon branch `flow-it`, which needs the owner's explicit yes. It is not implementation. Its result is recorded in `tasks.md`.
-**Verdict**: `pass_with_warnings` (`verify-report.md`, at 5078e39): 0 critical, 6 warnings open. Strict coverage: 188 of 199 scenarios and 27 of 33 requirements; 4 scenarios UNTESTED, 7 PARTIAL, none failing. The envelope shows 33/33 and 199/199 by the convention explained in the report.
+**Archive mode**: intentional-with-warnings. The folder was moved with 190 of 191 tasks done. The last one, 12.12 (deleting the disposable Neon branch `flow-it`), was done afterwards, on 2026-11-25 17:49 UTC, with the owner's explicit yes: exit 0, the other six branches remain. All 191 tasks are done.
+**Verdict**: `pass_with_warnings` (`verify-report.md`, at 5078e39): 0 critical, 6 warnings open when it was written, 5 at close. Strict coverage: 188 of 199 scenarios and 27 of 33 requirements; 4 scenarios UNTESTED, 7 PARTIAL, none failing. The envelope shows 33/33 and 199/199 by the convention explained in the report.
 
 ## 1. Final state
 
@@ -24,7 +24,7 @@ The coordination-answer banner (FE-3) was not seen in production, because no req
 
 ## 2. Warnings carried at close
 
-- **W1**: 12.12 only (see above); 14.1 to 14.6 were done by this archive.
+- **W1**: resolved. 14.1 to 14.6 were done by this archive and 12.12 after it.
 - **W2**: the four FE-25 count scenarios are read-only queries run by hand, with no automated test. Counts recorded on 2026-11-20 and 2026-11-25.
 - **W5**: a 30-day session cannot be revoked from the server. Accepted by the owner; live in production. UX-30.
 - **W6**: no login rate limiting. Accepted by the owner. UX-29.
