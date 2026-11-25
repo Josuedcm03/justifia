@@ -7,6 +7,8 @@
 import type {
   AsignaturaActiveResult,
   AsignaturaWriteResult,
+  DocenteActiveResult,
+  DocenteWriteResult,
   GrupoActiveResult,
   GrupoWriteResult,
 } from "@/lib/catalog/types";
@@ -75,7 +77,7 @@ export function importAppliedEvent(summary: ImportSummary): AuditEvent {
 export function accountCreatedEvent(args: {
   usuarioId: number;
   rol: RolUsuario;
-  importacionSha256: string;
+  origin: AuditOrigin;
 }): AuditEvent {
   return {
     accion: "usuario.creado",
@@ -84,8 +86,7 @@ export function accountCreatedEvent(args: {
     datos: {
       campos: AUDITABLE_USER_FIELDS,
       rol: args.rol,
-      origen: "importacion",
-      importacionSha256: args.importacionSha256,
+      ...args.origin,
     },
   };
 }
@@ -94,7 +95,7 @@ export function accountUpdatedEvent(args: {
   usuarioId: number;
   rol: RolUsuario;
   campos: readonly AuditableUserField[];
-  importacionSha256: string;
+  origin: AuditOrigin;
 }): AuditEvent {
   return {
     accion: "usuario.actualizado",
@@ -103,9 +104,24 @@ export function accountUpdatedEvent(args: {
     datos: {
       campos: args.campos,
       rol: args.rol,
-      origen: "importacion",
-      importacionSha256: args.importacionSha256,
+      ...args.origin,
     },
+  };
+}
+
+/** A deactivation or reactivation of an account: the direction is the action
+ *  itself, so the payload names only the field `activo` (DM-AUD-1). */
+export function accountActiveChangedEvent(args: {
+  usuarioId: number;
+  rol: RolUsuario;
+  activo: boolean;
+  origin: AuditOrigin;
+}): AuditEvent {
+  return {
+    accion: args.activo ? "usuario.reactivado" : "usuario.desactivado",
+    entidadTipo: "Usuario",
+    entidadId: args.usuarioId,
+    datos: { campos: ["activo"], rol: args.rol, ...args.origin },
   };
 }
 
@@ -697,6 +713,10 @@ export function buildAuditEvents(
   summary: ImportSummary,
   touched: readonly TouchedAccount[],
 ): AuditEvent[] {
+  const importOrigin: AuditOrigin = {
+    origen: "importacion",
+    importacionSha256: summary.fileSha256,
+  };
   return [
     importAppliedEvent(summary),
     ...touched.map((t) =>
@@ -704,13 +724,13 @@ export function buildAuditEvents(
         ? accountCreatedEvent({
             usuarioId: t.usuarioId,
             rol: t.rol,
-            importacionSha256: summary.fileSha256,
+            origin: importOrigin,
           })
         : accountUpdatedEvent({
             usuarioId: t.usuarioId,
             rol: t.rol,
             campos: t.campos,
-            importacionSha256: summary.fileSha256,
+            origin: importOrigin,
           }),
     ),
   ];
@@ -869,6 +889,44 @@ export function grupoWriteEvents(
     case "asignatura_unavailable":
     case "docente_unavailable":
     case "inactive":
+      return [];
+    default: {
+      const unreachable: never = r;
+      return unreachable;
+    }
+  }
+}
+
+/** Result -> events for a manual docente write; same contract as
+ *  `asignaturaWriteEvents`. The rol is always `docente`: the data layer only
+ *  reads accounts of that role. */
+export function docenteWriteEvents(
+  r: DocenteWriteResult | DocenteActiveResult,
+): AuditEvent[] {
+  switch (r.kind) {
+    case "updated":
+      return [
+        accountUpdatedEvent({
+          usuarioId: r.id,
+          rol: "docente",
+          campos: r.campos,
+          origin: MANUAL_ORIGIN,
+        }),
+      ];
+    case "changed":
+      return [
+        accountActiveChangedEvent({
+          usuarioId: r.id,
+          rol: "docente",
+          activo: r.activo,
+          origin: MANUAL_ORIGIN,
+        }),
+      ];
+    case "unchanged":
+    case "not_found":
+    case "inactive":
+    case "correo_taken":
+    case "has_active_groups":
       return [];
     default: {
       const unreachable: never = r;

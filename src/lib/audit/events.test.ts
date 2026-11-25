@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import type {
   AsignaturaActiveResult,
   AsignaturaWriteResult,
+  DocenteActiveResult,
+  DocenteWriteResult,
   GrupoActiveResult,
   GrupoWriteResult,
 } from "../catalog/types";
@@ -13,6 +15,7 @@ import type { DocumentDataField } from "../document-data/types";
 import type { DropResult, EnrollResult } from "../enrollment/types";
 import { changedFields } from "./diff";
 import {
+  accountActiveChangedEvent,
   accountCancelledEvent,
   accountCreatedEvent,
   accountUpdatedEvent,
@@ -21,6 +24,7 @@ import {
   asignaturaUpdatedEvent,
   asignaturaWriteEvents,
   buildAuditEvents,
+  docenteWriteEvents,
   documentAttachedEvent,
   documentDataRecordedEvent,
   documentDownloadedEvent,
@@ -148,17 +152,34 @@ describe("accountCreatedEvent", () => {
     const event = accountCreatedEvent({
       usuarioId: 42,
       rol: "docente",
-      importacionSha256: "b".repeat(64),
+      origin: { origen: "importacion", importacionSha256: "b".repeat(64) },
     });
     expect(event.accion).toBe("usuario.creado");
     expect(event.entidadTipo).toBe("Usuario");
     expect(event.entidadId).toBe(42);
-    if (event.accion !== "usuario.creado")
-      throw new Error("expected usuario.creado");
-    expect(event.datos.rol).toBe("docente");
-    expect(event.datos.origen).toBe("importacion");
-    expect(event.datos.importacionSha256).toBe("b".repeat(64));
-    expect(event.datos.campos).toEqual(AUDITABLE_USER_FIELDS);
+    expect(event.datos).toEqual({
+      campos: [...AUDITABLE_USER_FIELDS],
+      rol: "docente",
+      origen: "importacion",
+      importacionSha256: "b".repeat(64),
+    });
+  });
+
+  it("a manual creation carries the role and the manual origin, and no digest (DM-AUD-3)", () => {
+    const event = accountCreatedEvent({
+      usuarioId: 43,
+      rol: "coordinacion",
+      origin: MANUAL_ORIGIN,
+    });
+    expect(event.accion).toBe("usuario.creado");
+    expect(event.entidadTipo).toBe("Usuario");
+    expect(event.entidadId).toBe(43);
+    expect(event.datos).toEqual({
+      campos: [...AUDITABLE_USER_FIELDS],
+      rol: "coordinacion",
+      origen: "manual",
+    });
+    expect("importacionSha256" in event.datos).toBe(false);
   });
 });
 
@@ -168,7 +189,7 @@ describe("accountUpdatedEvent", () => {
       usuarioId: 7,
       rol: "docente",
       campos: ["nombreCompleto", "telefono"],
-      importacionSha256: "c".repeat(64),
+      origin: { origen: "importacion", importacionSha256: "c".repeat(64) },
     });
     expect(event.accion).toBe("usuario.actualizado");
     if (event.accion !== "usuario.actualizado")
@@ -178,6 +199,88 @@ describe("accountUpdatedEvent", () => {
       expect(AUDITABLE_USER_FIELDS).toContain(field);
     }
   });
+
+  it("the import payload keeps its four keys, equal key by key", () => {
+    const event = accountUpdatedEvent({
+      usuarioId: 7,
+      rol: "docente",
+      campos: ["nombreCompleto"],
+      origin: { origen: "importacion", importacionSha256: "c".repeat(64) },
+    });
+    expect(event.datos).toEqual({
+      campos: ["nombreCompleto"],
+      rol: "docente",
+      origen: "importacion",
+      importacionSha256: "c".repeat(64),
+    });
+    expect(Object.keys(event.datos).toSorted()).toEqual([
+      "campos",
+      "importacionSha256",
+      "origen",
+      "rol",
+    ]);
+  });
+
+  it("a manual edit names the fields and the role, with the manual origin and no digest (DM-AUD-3)", () => {
+    const event = accountUpdatedEvent({
+      usuarioId: 8,
+      rol: "docente",
+      campos: ["correo", "telefono"],
+      origin: MANUAL_ORIGIN,
+    });
+    expect(event.datos).toEqual({
+      campos: ["correo", "telefono"],
+      rol: "docente",
+      origen: "manual",
+    });
+    expect("importacionSha256" in event.datos).toBe(false);
+  });
+
+  it("a cleared phone is reported as the field telefono, with no value (DM-AUD-3)", () => {
+    const campos = changedFields(
+      ["nombreCompleto", "correo", "telefono"],
+      { nombreCompleto: "Ana", correo: "ana@uni.edu", telefono: "555-0100" },
+      { nombreCompleto: "Ana", correo: "ana@uni.edu", telefono: null },
+    );
+    expect(campos).toEqual(["telefono"]);
+    const event = accountUpdatedEvent({
+      usuarioId: 8,
+      rol: "docente",
+      campos,
+      origin: MANUAL_ORIGIN,
+    });
+    expect(event.datos).toEqual({
+      campos: ["telefono"],
+      rol: "docente",
+      origen: "manual",
+    });
+    expect(JSON.stringify(event.datos)).not.toContain("555");
+  });
+});
+
+describe("accountActiveChangedEvent (DM-AUD-1, DM-AUD-3)", () => {
+  it.each([
+    [false, "usuario.desactivado"],
+    [true, "usuario.reactivado"],
+  ] as const)(
+    "activo %s is %s on the Usuario, field activo, role docente",
+    (activo, accion) => {
+      const event = accountActiveChangedEvent({
+        usuarioId: 9,
+        rol: "docente",
+        activo,
+        origin: MANUAL_ORIGIN,
+      });
+      expect(event.accion).toBe(accion);
+      expect(event.entidadTipo).toBe("Usuario");
+      expect(event.entidadId).toBe(9);
+      expect(event.datos).toEqual({
+        campos: ["activo"],
+        rol: "docente",
+        origen: "manual",
+      });
+    },
+  );
 });
 
 describe("buildAuditEvents", () => {
@@ -251,7 +354,10 @@ describe("buildAuditEvents", () => {
     const accountEvent = events[1];
     if (accountEvent.accion !== "usuario.creado")
       throw new Error("expected usuario.creado");
-    expect(accountEvent.datos.importacionSha256).toBe("d".repeat(64));
+    expect(accountEvent.datos).toMatchObject({
+      origen: "importacion",
+      importacionSha256: "d".repeat(64),
+    });
   });
 });
 
@@ -264,7 +370,7 @@ describe("AUDITABLE_USER_FIELDS includes facultadId (SR-16)", () => {
     const event = accountCreatedEvent({
       usuarioId: 9,
       rol: "secretaria",
-      importacionSha256: "e".repeat(64),
+      origin: { origen: "importacion", importacionSha256: "e".repeat(64) },
     });
     if (event.accion !== "usuario.creado")
       throw new Error("expected usuario.creado");
@@ -286,7 +392,7 @@ describe("credential-leak pins (decision 22)", () => {
       usuarioId: 1,
       rol: "docente",
       campos: ["nombreCompleto"],
-      importacionSha256: "e".repeat(64),
+      origin: { origen: "importacion", importacionSha256: "e".repeat(64) },
       // @ts-expect-error — `clave` is not a member of UserChangedPayload; a
       // credential can never be smuggled onto an update event's `datos`.
       clave: "should-not-typecheck",
@@ -937,6 +1043,80 @@ describe("write results to events (AL-ONE, CM-AUD-1)", () => {
   it("an inactive edit is refused and writes nothing (A-1)", () => {
     expect(asignaturaWriteEvents({ kind: "inactive" })).toEqual([]);
     expect(grupoWriteEvents({ kind: "inactive" })).toEqual([]);
+  });
+
+  describe("docenteWriteEvents (DM-14, DM-AUD-2)", () => {
+    type DocenteResult = DocenteWriteResult | DocenteActiveResult;
+    const DOCENTE_EVENT_COUNT: Record<DocenteResult["kind"], 0 | 1> = {
+      updated: 1,
+      changed: 1,
+      unchanged: 0,
+      not_found: 0,
+      inactive: 0,
+      correo_taken: 0,
+      has_active_groups: 0,
+    };
+    const docenteResults: DocenteResult[] = [
+      { kind: "updated", id: 3, campos: ["correo"] },
+      { kind: "changed", id: 3, activo: false },
+      { kind: "unchanged", id: 3 },
+      { kind: "not_found" },
+      { kind: "inactive" },
+      { kind: "correo_taken" },
+      { kind: "has_active_groups", count: 2 },
+    ];
+
+    it("gives one event per success and [] per refusal and no-op", () => {
+      expect(new Set(docenteResults.map((r) => r.kind))).toEqual(
+        new Set(Object.keys(DOCENTE_EVENT_COUNT)),
+      );
+      for (const result of docenteResults) {
+        expect(docenteWriteEvents(result)).toHaveLength(
+          DOCENTE_EVENT_COUNT[result.kind],
+        );
+      }
+    });
+
+    it("maps each success to its manual-origin builder", () => {
+      expect(
+        docenteWriteEvents({
+          kind: "updated",
+          id: 3,
+          campos: ["nombreCompleto", "telefono"],
+        }),
+      ).toEqual([
+        accountUpdatedEvent({
+          usuarioId: 3,
+          rol: "docente",
+          campos: ["nombreCompleto", "telefono"],
+          origin: MANUAL_ORIGIN,
+        }),
+      ]);
+      for (const activo of [false, true]) {
+        expect(docenteWriteEvents({ kind: "changed", id: 3, activo })).toEqual([
+          accountActiveChangedEvent({
+            usuarioId: 3,
+            rol: "docente",
+            activo,
+            origin: MANUAL_ORIGIN,
+          }),
+        ]);
+      }
+    });
+
+    it("every payload is the three keys campos, rol and origen: no digest, no value (DM-AUD-3)", () => {
+      const events = docenteResults.flatMap((r) => docenteWriteEvents(r));
+      expect(events).toHaveLength(2);
+      for (const event of events) {
+        expect(AUDIT_ACTIONS).toContain(event.accion);
+        expect(event.entidadTipo).toBe("Usuario");
+        expect(Object.keys(event.datos).toSorted()).toEqual([
+          "campos",
+          "origen",
+          "rol",
+        ]);
+      }
+    });
   });
 });
 

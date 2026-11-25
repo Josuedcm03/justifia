@@ -380,6 +380,15 @@
         "dias": {
           "required": "Select at least one day of the week on which the group meets",
           "invalid": "The selected value is not a day of the week. Select the days from the list"
+        },
+        "correo": {
+          "required": "The email is required. Enter the teacher's address.",
+          "invalid": "The email is not valid. Enter an address such as name@domain.edu.",
+          "tooLong": "The email exceeds 160 characters. Enter a shorter address.",
+          "taken": "This email is already used by another account. Enter a different one."
+        },
+        "telefono": {
+          "tooLong": "The phone exceeds 30 characters. Enter a shorter number."
         }
       },
       "noCarrera": {

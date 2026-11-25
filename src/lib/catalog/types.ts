@@ -7,6 +7,7 @@ import type { GrupoOrigen } from "@/lib/catalog/origen";
 import type {
   AuditableAsignaturaField,
   AuditableGrupoField,
+  AuditableUserField,
 } from "@/lib/audit/types";
 
 /** The state filter of a catalog list; `active` is the default (CM-LST-1). */
@@ -163,6 +164,22 @@ export type GrupoActiveResult =
   | { kind: "not_found" }
   | { kind: "asignatura_unavailable" }
   | { kind: "docente_unavailable" };
+
+/** Result of a docente edit (DM-6). `inactive`: editing an inactive docente is
+ *  refused, it must be reactivated first. `correo_taken` is the generic
+ *  duplicate: it never says which account holds the address (DM-4). */
+export type DocenteWriteResult =
+  | { kind: "updated"; id: number; campos: readonly AuditableUserField[] }
+  | { kind: "unchanged"; id: number }
+  | { kind: "not_found" }
+  | { kind: "inactive" }
+  | { kind: "correo_taken" };
+
+export type DocenteActiveResult =
+  | { kind: "changed"; id: number; activo: boolean }
+  | { kind: "unchanged"; id: number }
+  | { kind: "not_found" }
+  | { kind: "has_active_groups"; count: number };
 
 /** What a create or edit form action answers with. `fieldErrors` and `message`
  *  are already translated; `gone` is both "missing" and "out of scope"

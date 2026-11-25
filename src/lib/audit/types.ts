@@ -68,6 +68,8 @@ export const AUDIT_ACTIONS = [
   "escalamiento.cola.consultada",
   "usuario.cancelado",
   "documento.datos_registrados",
+  "usuario.desactivado",
+  "usuario.reactivado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -137,12 +139,10 @@ type ImportAppliedPayload = {
   gruposManualesDesactivados: number;
 };
 
-type UserChangedPayload = {
-  /** FIELD NAMES ONLY — never values (RNF-05, decision 22). */
-  campos: readonly AuditableUserField[];
+/** FIELD NAMES ONLY — never values (RNF-05, decision 22). The origin is the
+ *  import (with its digest) or a manual write (no digest). */
+type UserChangedPayload = CatalogRecordPayload<AuditableUserField> & {
   rol: RolUsuario;
-  origen: "importacion";
-  importacionSha256: string;
 };
 
 /**
@@ -400,7 +400,11 @@ export type AuditEvent =
       datos: ImportAppliedPayload;
     }
   | {
-      accion: "usuario.creado" | "usuario.actualizado";
+      accion:
+        | "usuario.creado"
+        | "usuario.actualizado"
+        | "usuario.desactivado"
+        | "usuario.reactivado";
       entidadTipo: "Usuario";
       entidadId: number;
       datos: UserChangedPayload;
