@@ -451,7 +451,21 @@ describe("catalog parity (CM-I18N-1: shared catalog copy)", () => {
     "codigo.takenInactive",
     "numGrupo.taken",
     "numGrupo.takenInactive",
+    // docente-maintenance DM-4: emitted by the docente edit action.
+    "correo.taken",
   ];
+
+  it("the schema key list gains the four docente keys; correo.taken is emitted by the action (DM-3, DM-4)", () => {
+    expect(CATALOG_FIELD_ERROR_KEYS).toEqual(
+      expect.arrayContaining([
+        "correo.required",
+        "correo.invalid",
+        "correo.tooLong",
+        "telefono.tooLong",
+      ]),
+    );
+    expect(CATALOG_FIELD_ERROR_KEYS).not.toContain("correo.taken");
+  });
 
   it.each(["es", "en"] as const)(
     "%s fieldErrors holds exactly the keys the manual schemas and the duplicate refusals can emit",
@@ -607,6 +621,38 @@ describe("catalog parity (CM-I18N-1: shared catalog copy)", () => {
     "%s dias.invalid says the value is not a day of the week",
     (locale, notADay) => {
       expect(render(locale, "fieldErrors.dias.invalid")).toMatch(notADay);
+    },
+  );
+
+  it.each([
+    ["es", /escribe/i],
+    ["en", /enter/i],
+  ] as const)(
+    "%s docente email and phone errors say what to enter (DM-3, DM-16)",
+    (locale, enter) => {
+      for (const key of [
+        "correo.required",
+        "correo.invalid",
+        "correo.tooLong",
+        "correo.taken",
+        "telefono.tooLong",
+      ]) {
+        expect(render(locale, `fieldErrors.${key}`), key).toMatch(enter);
+      }
+    },
+  );
+
+  it.each([
+    ["es", /ya está en uso por otra cuenta/i],
+    ["en", /already used by another account/i],
+  ] as const)(
+    "%s duplicate email says another account holds it and names no role, name or state (DM-4)",
+    (locale, used) => {
+      const message = render(locale, "fieldErrors.correo.taken");
+      expect(message).toMatch(used);
+      expect(message).not.toMatch(
+        /docente|teacher|estudiante|student|coordinaci|secretar|administrad|activ/i,
+      );
     },
   );
 

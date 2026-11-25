@@ -9,6 +9,7 @@ import {
   grupoUpdateSchema,
   parseRecordId,
 } from "@/lib/validations/catalog";
+import { docenteUpdateSchema } from "@/lib/validations/docente";
 
 type AnySchema = {
   safeParse: (input: unknown) => {
@@ -367,6 +368,20 @@ describe("CATALOG_FIELD_ERROR_KEYS (CM-I18N-1)", () => {
     [grupoUpdateSchema, { docenteId: "x" }],
     [diasSchema, []],
     [diasSchema, "lunes"],
+    // The docente schema shares the namespace (docente-maintenance DM-3).
+    [docenteUpdateSchema, {}],
+    [
+      docenteUpdateSchema,
+      {
+        nombreCompleto: "a".repeat(161),
+        correo: "x",
+        telefono: "5".repeat(31),
+      },
+    ],
+    [
+      docenteUpdateSchema,
+      { nombreCompleto: "Ana", correo: `${"a".repeat(153)}@uni.edu` },
+    ],
   ];
   for (const [schema, input] of battery) {
     for (const m of messages(schema, input)) emitted.add(m);

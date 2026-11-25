@@ -380,6 +380,15 @@
         "dias": {
           "required": "Selecciona al menos un día de la semana en que se reúne el grupo",
           "invalid": "El valor elegido no es un día de la semana. Selecciona los días de la lista"
+        },
+        "correo": {
+          "required": "El correo electrónico es obligatorio. Escribe la dirección del docente.",
+          "invalid": "El correo electrónico no es válido. Escribe una dirección como nombre@dominio.edu.",
+          "tooLong": "El correo electrónico supera los 160 caracteres. Escribe una dirección más corta.",
+          "taken": "Este correo electrónico ya está en uso por otra cuenta. Escribe otro."
+        },
+        "telefono": {
+          "tooLong": "El teléfono supera los 30 caracteres. Escribe un número más corto."
         }
       },
       "noCarrera": {
