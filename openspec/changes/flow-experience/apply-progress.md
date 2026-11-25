@@ -2090,7 +2090,7 @@ Evidence files: "C:\thesis-workspace\bitacora\evidencia_p1_2026-11-18\flow-exper
 | 12.1 | Branch | Conforme | 17 migrations, 0016 the last | - |
 | 12.2 | RF-08, 4.9:22 | Conforme | See "S10b" below: integration test written and run, 4 of 4 | - |
 | 12.3 | Integration suite | Conforme con una falla conocida | 12 files, 173 tests: 172 passed, 1 failed ("queue-index": the plan Postgres chooses with the demo data), 530 s | - |
-| 12.5 | Sign-in | Conforme en lo observado | Student, secretary and coordinator sign in by email; a mixed-case email with spaces works; a student registered with a hyphenated CIF signs in with digits, hyphen or spaces; a CIF of another length, an unknown identifier, a wrong password and the old login give the generic error; cookie of 720 h with "Mantener la sesión iniciada" and 8 h without; logout removes it. Not observed: the forced change of a flagged account. The seeded account 24 cannot sign in by CIF because its demo CIF keeps a hyphen; production had no CIF with anything but digits on 2026-11-24 | - |
+| 12.5 | Sign-in | Conforme | Student, secretary and coordinator sign in by email; a mixed-case email with spaces works; a student registered with a hyphenated CIF signs in with digits, hyphen or spaces; a CIF of another length, an unknown identifier, a wrong password and the old login give the generic error; cookie of 720 h with "Mantener la sesión iniciada" and 8 h without; logout removes it. The forced change of a flagged account: S10c. The seeded account 24 cannot sign in by CIF because its demo CIF keeps a hyphen; production had no CIF with anything but digits on 2026-11-24 | - |
 | 12.6 | RF-16 (c), 4.9:28 | Conforme | Request 36 went back to "pendiente"; the answer with author and date is the first block, the decision panel says that coordination already answered, the escalate dialog shows the answer; "Vence primero" on the first row of the queue | RF-16_c.png, RF-16_c_dialogo.png, RF-06.png |
 | 12.7 | RF-10 (b), 4.9:24 | Conforme | Both errors with nothing filled; the motive error clears on choice; the note reads "(obligatoria)"; "Otro" shows in the secretary and the coordinator details | RF-10_b_1 to RF-10_b_5 |
 | 12.8 | RF-07 (c), 4.9:21 | Conforme después de S9e | First run at bc9828c: the rejected card did not reach the reason. Second run at 468c3f8: dates with the month name, subject codes and reason on the returned and the rejected card; no horizontal scroll at 1440 and 360 px. Seeded requests 34 and 38 show no reason because they have no decision row (checked read-only) | RF-07_c_1_escritorio.png, RF-07_c_2_360.png; first run: RF-07_c_antes_1 and RF-07_c_antes_2 |
@@ -2117,7 +2117,7 @@ With the Blob token empty, "/requests/new" shows "No pudimos cargar tu borrador"
 
 ### Open before the merge gate
 
-12.5 (forced change) as stated above; 12.12 (delete "flow-it"); 8.24, 8.25 and 13.2 on.
+12.12 (delete "flow-it"); 8.24, 8.25 and 13.2 on.
 
 ## S10b: RF-08 on Postgres and the RF-01 presentation (2026-11-24; tasks 12.2 and 12.9)
 
@@ -2143,3 +2143,18 @@ Row 214 of "DocumentoRespaldo" was inserted in draft 534 (name "constancia-ficti
 ### Writes left in "flow-it"
 
 The password of the Id 24; the document 214; the request 534 presented; and, from the three runs of the new test, 20 fictitious accounts (9 students and 11 secretaries) with their audit rows and catalog rows, because the audit log is append-only. No request and no enrollment of those accounts remain. The planned password change of a second account was not needed and was not made. The server was stopped and the credential file deleted.
+
+## S10c: forced password change (2026-11-24; task 12.5)
+
+Branch "flow-it", endpoint asserted, with the owner's explicit yes. One "UPDATE Usuario SET HashClave, DebeCambiarClave = true" on the Id 24. No screen route to a flagged account was usable: "/users/new" does not set the flag, and the catalog import, which does, deactivates every active group absent from the workbook.
+
+| Step | Observed |
+| --- | --- |
+| Sign-in without "Mantener la sesión iniciada" | Sent to "/change-password"; cookie of 8.00 h; "/", "/requests", "/requests/new" and "/enrollment" go back to "/change-password" |
+| Sign-in with it | Sent to "/change-password"; cookie of 720.00 h; the screen says that the password is temporary and offers to log out |
+| Wrong current password | "La contraseña actual no es correcta"; it stays on the screen |
+| Change | Goes to "/"; cookie of 720.00 h; "/requests" opens; the flag is false in the database (read-only check) |
+| New sign-in, new password, without the box | Goes to "/"; cookie of 8.00 h |
+| Sign-in with the earlier password | Refused |
+
+The first run stopped halfway because the script clicked "Cerrar sesión" instead of the submit button; it changed nothing and was repeated. Evidence: UX-21_cambio_obligatorio.png. The server was stopped and the credential file deleted; the new password was not stored.
