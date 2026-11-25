@@ -81,3 +81,9 @@ REFACTOR: none needed (the builders reuse the `AuditOrigin` spread of the asigna
 ### Size and stop line
 
 `git diff --numstat 76574b3 HEAD -- . ':(exclude)openspec' ':(exclude)docs'`: 1232 added, 26 deleted, 1258 total (planned about 710). Production code is about 340 of those lines; about 920 are tests (`docentes.test.ts` alone is 487). Over the 1000 stop line: task 1.12 is left open and the PR (1.13) is not opened. The last unit boundary under 1000 is after unit 2 (597 lines); unit 3 alone is 661. The owner decides the cut or a `size:exception`. Tests were not trimmed.
+
+### Orchestrator review of slice 1 (2026-11-25)
+
+- Code read in full; full run repeated at e8f5973: 394 files, 10510 tests, all pass; typecheck clean; 1258 changed lines measured again.
+- Six further mutations on `docentes.ts`, `docente.ts` and `events.ts`, all reverted, all killed: count without the active filter, any error mapped to `correo_taken`, inactive docente editable, email not lower-cased, subquery counting inactive grupos, toggle direction swapped.
+- Over the 1000 stop line: no PR opened. Waiting for the owner on the cut (proposed: PR 1a units 1 and 2, 597 lines; PR 1b unit 3, 661 lines).
