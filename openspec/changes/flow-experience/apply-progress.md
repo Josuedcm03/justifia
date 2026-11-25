@@ -2214,3 +2214,25 @@ The code in production (de810fb) names no "otro", so it keeps working. The branc
 ### 13.3, merge gate (2026-11-25)
 
 Dated entries: 8.0 (2026-11-20), 8.23 (2026-11-20), 8.25 (above), 9.0 and 9.1 (2026-11-20), 12.11 (2026-11-24), 13.2 (2026-11-25). The tracker contains origin/main (de810fb), adds no dependency and no production environment variable. The gate is open for 13.4, which waits for the owner's OK.
+
+## S9g: sign-in form polish (2026-11-25; task 11.15)
+
+During the smoke test of 13.5, with the change already in production (39dafd9), the owner asked for two adjustments of the sign-in form: remove the hint under the identifier, because the label already names both identifiers, and make the checkbox match the other controls.
+
+| Task | Test file | RED | GREEN |
+| --- | --- | --- | --- |
+| FE-21, no hint | `src/app/(auth)/login/login-form.test.tsx` | 4 failing: hint present (es, en), error description (es, en) | `login-form.tsx` without the hint; the "loginHint" key removed from `es.json` and `en.json` |
+| FE-32, the row | `src/app/(auth)/login/login-form.test.tsx` | 2 failing: the row is not the label (es, en) | The label wraps the box, 44px, body text |
+| Checkbox primitive | `src/components/ui/checkbox.test.tsx`, `src/app/(dashboard)/requests/new/design-system.test.tsx` | 6 failing: surface, mark, forced colors, focus border, base classes, consent row | `checkbox.tsx`: still a native input, with the surface and border of the form input and a mark in "primary-foreground" |
+
+The primitive is shared, so the checkboxes of the group form, the approval dialog, the subjects step and the consent row take the same look. `docs/design-system.md` section 5 and the text of FE-21 say it.
+
+| Gate (2026-11-25) | Result |
+| --- | --- |
+| npm test | 392 files, 10441 tests passed (3 more than S9f) |
+| typecheck | exit 0 |
+| npx eslint src | 0 errors, 1 known warning |
+| next build (dummy environment) | exit 0 |
+| Rendered in Chrome (dummy environment, no database): dark, light, 360px, forced colors | Box 20px, row 44px, no horizontal scroll, keyboard focus and Space work, no console errors |
+
+No migration, dependency or environment variable.
