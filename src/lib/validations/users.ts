@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { normalizeCif } from "@/lib/auth/login-identity";
+import { classifyIdentifier, normalizeCif } from "@/lib/auth/login-identity";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 /**
@@ -20,7 +20,9 @@ export const rolStaffSchema = z.enum(rolesStaff as [string, ...string[]]);
  * trimmed and lower-case, the CIF cleaned by the same rule as the sign-in
  * (`normalizeCif`: trimmed, spaces and hyphens removed, case kept), so the
  * stored value is the one a later sign-in looks up (its verification is out of
- * scope, AEA-4). The length limit applies to the cleaned value.
+ * scope, AEA-4). The length limit applies to the cleaned value. A CIF the
+ * sign-in would take as an email (it contains "@") is refused: it could never
+ * be matched.
  */
 export const registroEstudianteSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres").max(128),
@@ -39,7 +41,15 @@ export const registroEstudianteSchema = z.object({
   cif: z
     .string()
     .transform(normalizeCif)
-    .pipe(z.string().min(1, "Ingresa tu CIF").max(20)),
+    .pipe(
+      z
+        .string()
+        .min(1, "Ingresa tu CIF")
+        .max(20)
+        .refine((cif) => classifyIdentifier(cif)?.kind !== "email", {
+          message: "El CIF no lleva @",
+        }),
+    ),
   carreraId: z.coerce.number().int().positive("Selecciona una carrera"),
 });
 

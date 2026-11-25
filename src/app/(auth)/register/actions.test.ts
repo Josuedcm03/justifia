@@ -262,6 +262,7 @@ describe("registerAction by email and CIF (FE-26, FE-28, FE-22)", () => {
     ["only hyphens", "---"],
     ["only spaces and hyphens", " - - "],
     ["21 characters once cleaned", "1111-1111-1111-1111-1111 1"],
+    ["taken as an email by the sign-in", "2201@0116"],
   ])("refuses a CIF that is %s and creates nothing", async (_l, cif) => {
     await expect(submit({ cif })).resolves.toEqual({
       error: "errors.invalid",

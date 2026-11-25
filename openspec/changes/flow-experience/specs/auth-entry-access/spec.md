@@ -200,7 +200,10 @@ an ambiguous identifier (FE-22), a CIF used by a non-student, an empty, malforme
 or oversized identifier, and a password that fails the length rule. The message
 MUST NOT say which part was wrong, whether an account exists or is inactive, or
 whether the identifier was taken as a CIF or an email, and MUST NOT use the word
-"Usuario". A failure MUST issue no session and set no cookie. The message MUST
+"Usuario". An unknown or ambiguous identifier and an inactive account MUST pay one
+password check against a constant hash, so that the time of the answer does not
+tell them from a wrong password, and the hash of an inactive account MUST NOT be
+checked. A failure MUST issue no session and set no cookie. The message MUST
 exist in `es` and `en`.
 
 #### Scenario: Same response for every cause (table-driven)
@@ -217,6 +220,13 @@ exist in `es` and `en`.
 - GIVEN the case in the row
 - WHEN it is submitted
 - THEN the response is the same message, with no session cookie, and nothing in it tells the cases apart
+
+#### Scenario: An unknown identifier and an inactive account cost one password check
+
+- GIVEN an identifier of no account, or of an inactive account, and a typed password
+- WHEN it is submitted
+- THEN the typed password is checked exactly once, against the constant hash and never against the hash of the inactive account
+- AND the answer is the generic message, with no session, whatever the check says
 
 #### Scenario: Message wording
 
@@ -408,8 +418,9 @@ cleaned by the same rule the sign-in applies to a CIF identifier (FE-21, FE-22):
 trimmed, with its spaces and hyphens removed and its case kept, so that the
 stored value is the one the sign-in looks up for the same typed text. The
 1-to-20 length limit MUST apply to the cleaned value, a CIF that is empty once
-cleaned (only spaces or hyphens) MUST be refused, and no digit count or format
-MUST be required.
+cleaned (only spaces or hyphens) MUST be refused, and no digit count or other
+format MUST be required. A CIF that contains "@" MUST be refused, because the sign-in
+takes any identifier with "@" as an email (FE-21) and could never match it.
 (Previously: the form asked for a "Usuario" and stored it as `Login`, and the CIF
 was stored as typed after the trim.)
 
@@ -447,6 +458,7 @@ was stored as typed after the trim.)
 | `1111-1111-1111-1111-1111` (24 typed, 20 cleaned) | `11111111111111111111` | registered, the limit applies to the cleaned value |
 | `---` or ` - - ` | none | refused, nothing created |
 | `1111-1111-1111-1111-1111 1` (21 cleaned) | none | refused, nothing created |
+| `2201@0116` | none | refused, nothing created; the sign-in would take it as an email |
 
 - GIVEN a valid registration with the typed CIF in the row
 - WHEN `registerAction` runs
