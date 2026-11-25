@@ -43,14 +43,8 @@ describe("LoginForm register link (REGISTRATION_OPEN)", () => {
 // "Usuario" anywhere in the form. The sign-in page is a "usted" screen.
 describe("LoginForm identifier field (FE-21)", () => {
   const copy = {
-    es: {
-      label: "CIF o correo institucional",
-      hint: "Los estudiantes pueden usar su CIF o su correo; el personal, su correo institucional.",
-    },
-    en: {
-      label: "CIF or institutional email",
-      hint: "Students may use their CIF or email; staff use their institutional email.",
-    },
+    es: { label: "CIF o correo institucional" },
+    en: { label: "CIF or institutional email" },
   } as const;
 
   it.each(["es", "en"] as const)(
@@ -68,21 +62,20 @@ describe("LoginForm identifier field (FE-21)", () => {
   );
 
   it.each(["es", "en"] as const)(
-    "explains who uses what with the hint in %s, tied to the field",
+    "has the label alone in %s: no hint under the field, and no description until an error",
     (locale) => {
       renderWithIntl(<LoginForm next="/" registrationOpen={false} />, locale);
 
-      const hint = screen.getByText(copy[locale].hint);
       const field = screen.getByLabelText(copy[locale].label);
-      expect(field.getAttribute("aria-describedby")).toContain(hint.id);
+      expect(field).not.toHaveAttribute("aria-describedby");
+      expect(field.nextElementSibling).toBeNull();
+      expect(messages[locale].auth.login).not.toHaveProperty("loginHint");
     },
   );
 
-  it("pins the catalog values of the label and the hint", () => {
+  it("pins the catalog values of the label", () => {
     expect(messages.es.auth.login.loginLabel).toBe(copy.es.label);
-    expect(messages.es.auth.login.loginHint).toBe(copy.es.hint);
     expect(messages.en.auth.login.loginLabel).toBe(copy.en.label);
-    expect(messages.en.auth.login.loginHint).toBe(copy.en.hint);
   });
 
   it.each(["es", "en"] as const)(
@@ -114,10 +107,9 @@ describe("LoginForm identifier field (FE-21)", () => {
       const alert = await screen.findByRole("alert");
       expect(alert).toHaveTextContent(messages[locale].auth.errors.invalid);
       expect(container.textContent).not.toMatch(forbidden);
-      expect(screen.getByLabelText(copy[locale].label)).toHaveAttribute(
-        "aria-invalid",
-        "true",
-      );
+      const field = screen.getByLabelText(copy[locale].label);
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveAttribute("aria-describedby", alert.id);
     },
   );
 });
@@ -163,6 +155,11 @@ describe("LoginForm keep the session signed in (FE-32)", () => {
       expect(box).not.toBeChecked();
       expect(box).toHaveAttribute("name", "mantener");
       expect(box).toHaveAttribute("type", "checkbox");
+      // The whole row is the target, and its text is a body line like the
+      // other checkbox rows, not a field label.
+      const row = box.closest("label");
+      expect(row).toHaveClass("min-h-11", "text-sm");
+      expect(row).toHaveTextContent(label[locale]);
     },
   );
 

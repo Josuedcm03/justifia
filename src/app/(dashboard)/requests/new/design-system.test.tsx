@@ -131,7 +131,7 @@ describe("design-system fixes (F.3)", () => {
     );
 
     const box = screen.getByRole("checkbox");
-    expect(box).toHaveClass("accent-primary", "size-5");
+    expect(box).toHaveClass("border-input", "size-5");
     const row = box.parentElement;
     expect(row).toHaveClass("flex", "items-start", "gap-3");
     const label = row?.querySelector("label");
