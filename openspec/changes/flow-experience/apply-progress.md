@@ -2193,4 +2193,24 @@ The envelope of `verify-report.md` shows 199 of 199 and 33 of 33 because the val
 
 ### 13.3, read-only preparation (2026-11-25, production, nothing written)
 
-The three 9.0 counts: 0, 0 and 0. Active accounts: administrador 2, coordinacion 3, docente 4, estudiante 1 (with a CIF), secretaria 1, each with an email. Preflight of 8.24: 16 migrations, last 1795134628842; "otro" in none of the three CHECKs nor in the index; "Escalamiento" empty; the journal of the branch adds only 0016 to the 16 entries of main; "/login" answers 200. Both are repeated on the day of the apply and of the merge, so 8.24 and 13.3 stay open.
+The three 9.0 counts: 0, 0 and 0. Active accounts: administrador 2, coordinacion 3, docente 4, estudiante 1 (with a CIF), secretaria 1, each with an email. Preflight of 8.24: 16 migrations, last 1795134628842; "otro" in none of the three CHECKs nor in the index; "Escalamiento" empty; the journal of the branch adds only 0016 to the 16 entries of main; "/login" answers 200. Repeated right before the apply of 8.25, below.
+
+### 8.24 and 8.25, migration 0016 in production (2026-11-25)
+
+#149 (S9f) was merged into the tracker (bae3692) with the owner's OK. The owner then gave an explicit yes for this command, run from that tip against the direct endpoint of the branch "production", with no ".env" file in the worktree: "DATABASE_URL=<production direct URL> npm run db:migrate", 16:46 UTC, exit 0.
+
+| Check (read-only) | Before | After |
+| --- | --- | --- |
+| Rows of "drizzle.__drizzle_migrations" | 16 | 17 |
+| Last "created_at" and hash | 1795134628842, the hash of 0015 | 1795216905153, the hash of 0016 |
+| "otro" in CK_Escalamiento_Tipo, CK_Escalamiento_Kind, CK_Escalamiento_SinRespuesta | no, no, no | yes, yes, yes (validated) |
+| "otro" in UX_Escalamiento_Abierto (unique) | no | yes |
+| Rows of "Escalamiento" | 0 | 0 |
+| The three 9.0 counts | 0, 0, 0 | 0, 0, 0 |
+| "/login" and "/register" | 200 ("/login") | 200 and 200 |
+
+The code in production (de810fb) names no "otro", so it keeps working. The branches "validacion-secretaria" and "dev-arnia" were not touched.
+
+### 13.3, merge gate (2026-11-25)
+
+Dated entries: 8.0 (2026-11-20), 8.23 (2026-11-20), 8.25 (above), 9.0 and 9.1 (2026-11-20), 12.11 (2026-11-24), 13.2 (2026-11-25). The tracker contains origin/main (de810fb), adds no dependency and no production environment variable. The gate is open for 13.4, which waits for the owner's OK.
