@@ -2236,3 +2236,21 @@ The primitive is shared, so the checkboxes of the group form, the approval dialo
 | Rendered in Chrome (dummy environment, no database): dark, light, 360px, forced colors | Box 20px, row 44px, no horizontal scroll, keyboard focus and Space work, no console errors |
 
 No migration, dependency or environment variable.
+
+## 13.4 to 13.6: deploy and smoke test (2026-11-25)
+
+| Step | Merge into main | Counts right before | Vercel production | After |
+| --- | --- | --- | --- | --- |
+| First deploy | #151, 39dafd9 | 0, 0, 0 | success | "/login", "/register" and "/privacy" 200; "/requests" and "/review" redirect to "/login"; 17 migrations; counts 0, 0, 0 |
+| Second deploy (S9g) | #153, 38a5b71 | 0, 0, 0 | success | Same answers; the sign-in page has no hint and serves the new checkbox; counts 0, 0, 0 |
+
+Smoke test of 13.5, by the owner, about 17:18 to 17:24 UTC, on 39dafd9 (S9g is visual and came after):
+
+| Case | Observed |
+| --- | --- |
+| A. Student by CIF (8 digits), box unchecked | Signed in; the cookie expires 2026-11-26 01:19:06 UTC, 8 hours; sign-out works |
+| B. Same student by email, box checked | Signed in; the cookie expires 2026-12-25 17:22:00 UTC, 30 days |
+| C. Former "Usuario" with the password | Refused with the generic message |
+| D. Secretary by email | The queue marks one row "Vence primero"; the dialog lists the three motives, "Otro" included, and the note help changes with "Otro"; cancelled |
+
+Read-only check of "EventoAuditoria" from 16:40 UTC: one "solicitud.cola.consultada" (17:23:01) and one "solicitud.consultada" (17:23:23), nothing else; "Escalamiento" is empty and the two requests are still "pendiente". The banner of FE-3 was not seen in production, because there is no answer to show; its evidence is the one on "flow-it" (RF-16, Phase 12).
