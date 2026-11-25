@@ -101,20 +101,34 @@ value MUST NOT be a plaintext password, and no fixed or pattern-based password
 
 ### Requirement: Temporary password is shown once and never persisted or logged
 
-After a successful apply, the temporary credentials (login and temporary
-password per newly created account) MUST be delivered to the importer only in
-that apply's response, as an exportable file. They MUST NOT be stored in
-plaintext in the database, in any file on the server, in the session, or in any
-log, and MUST NOT be re-displayed by any later request. The credentials MUST NOT
-be delivered when the apply fails or rolls back. The preview MUST NOT generate
-or return any password.
+Spec id FE-29. After a successful apply, the temporary credentials (institutional email and
+temporary password per newly created account) MUST be delivered to the importer
+only in that apply's response, as an exportable file. The file MUST identify
+each account by its normalized email, because the email is what the docente
+types to sign in; it MUST NOT present the derived `Login` as a "Usuario" to type.
+They MUST NOT be stored in plaintext in the database, in any file on the server,
+in the session, or in any log, and MUST NOT be re-displayed by any later request.
+The credentials MUST NOT be delivered when the apply fails or rolls back. The
+preview MUST NOT generate or return any password.
+(Previously: the file carried the login and the temporary password per account.)
 
 #### Scenario: Export accompanies the successful apply
 
 - GIVEN an apply that created 3 accounts
 - WHEN it succeeds
-- THEN the importer receives one export with 3 login and temporary-password
-  pairs
+- THEN the importer receives one export with 3 email and temporary-password pairs
+
+#### Scenario: Export names the account by email
+
+- GIVEN a new docente with the email "Ana.Perez@uni.edu"
+- WHEN the export is built
+- THEN its row carries "ana.perez@uni.edu" as the sign-in identifier, and no column is labelled "Login" or "Usuario"
+
+#### Scenario: The exported pair signs in
+
+- GIVEN a row of the export and the account it names
+- WHEN the email and the temporary password are submitted at sign-in
+- THEN the docente is signed in and sent to the forced password change
 
 #### Scenario: Not retrievable afterwards
 

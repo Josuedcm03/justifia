@@ -121,7 +121,7 @@ in `es` and `en`.
 
 - GIVEN the sign-in page in `es` and in `en`
 - WHEN it renders, including after a failed attempt
-- THEN there is one identifier field labelled with the CIF and the email, and the word "Usuario" does not appear in the form, its hints or its error
+- THEN there is one identifier field labelled with the CIF and the email and it has no hint of its own, and the word "Usuario" does not appear in the form or its error
 
 #### Scenario: Flag and redirect unchanged
 

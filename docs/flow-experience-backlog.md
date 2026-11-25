@@ -243,7 +243,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-20. Enlace a «Cambiar contraseña» desde el perfil
 
-- **Estado:** abierta.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** cambio de contraseña de las cuatro cuentas de producción que
   conservaban la clave de la semilla (punto 0.2 del plan de cierre de
   brechas), 2026-11-20.
@@ -260,7 +260,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-21. Ingresar con el CIF o el correo institucional, no con «Usuario»
 
-- **Estado:** abierta.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** observación del dueño del proyecto, 2026-11-20.
 - **Pantalla:** inicio de sesión (`/login`); también el alta e importación
   de cuentas del administrador (`/users`) y «Mi perfil».
@@ -278,7 +278,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-22. Mantener la sesión iniciada
 
-- **Estado:** abierta.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** observación del dueño del proyecto, 2026-11-20, al definir
   UX-21.
 - **Pantalla:** inicio de sesión (`/login`).
@@ -294,7 +294,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-23. Tarjetas de solicitud que se distingan entre sí
 
-- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 1: «Dos
   consultaron otra solicitud» (estudiante, severidad mayor).
 - **Pantalla:** lista de solicitudes del estudiante (`/requests`).
@@ -316,7 +316,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-24. Vista previa del archivo y nombres de los archivos al reenviar
 
-- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 2: «Uno
   reenvió un archivo ajeno a las constancias simuladas» (estudiante, severidad
   mayor).
@@ -337,7 +337,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-25. Resumen de las fechas y aviso de inicio posterior a hoy
 
-- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 3: «Uno
   registró fechas y asignaturas ajenas» (estudiante, severidad mayor).
 - **Pantalla:** nueva solicitud y corrección (`/requests/new`), pasos 1 a 3.
@@ -358,7 +358,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-26. Indicar el orden de la bandeja y marcar «Vence primero»
 
-- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 4: «No
   nombró la solicitud prioritaria (T-S1)» (secretaría, severidad crítica).
 - **Pantalla:** bandeja de la secretaría, pestaña «Pendientes» (`/review`).
@@ -377,7 +377,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-27. La respuesta de la coordinación, al inicio del detalle
 
-- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 5:
   «Volvió a escalar lo ya contestado (T-S11)» (secretaría, severidad crítica).
 - **Pantalla:** detalle de la solicitud para la secretaría (`/review/[id]`) y
@@ -397,7 +397,7 @@ equipo), `resuelta` (cubierta por un change).
 
 ### UX-28. Nota obligatoria, errores que se borran y motivo «Otro»
 
-- **Estado:** implementada en `flow-experience`, pendiente de despliegue.
+- **Estado:** resuelta (cubierta por `flow-experience`).
 - **Origen:** validación con usuarios, Tabla 19 de la tesis (5.8), fila 6: «Dos
   ayudas en T-S3: buscar una solicitud y escribir la nota» (secretaría,
   severidad mayor).
