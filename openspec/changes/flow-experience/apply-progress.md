@@ -2179,3 +2179,18 @@ Mutation checks (restored afterwards): own hash instead of the dummy one, 4 fail
 | npx eslint src | 0 errors, 1 known warning |
 | next build (dummy environment) | exit 0 |
 | Runtime harness | N/A: no database command was run; the answer of the screen does not change |
+
+## Phase 13: verification and gate preparation (tasks 13.1 to 13.3)
+
+### 13.2, sdd-verify (2026-11-24 and 2026-11-25)
+
+| Run | Commit | Verdict | Counts |
+| --- | --- | --- | --- |
+| First | 77fe452 | Pass with warnings: 0 critical, 9 warnings, 6 suggestions | Strict: 187 of 198 scenarios and 27 of 33 requirements; 392 files, 10432 tests; 18 of 18 mutations killed |
+| Second, after S9f | d741bea | Pass with warnings: 0 critical, 6 warnings open | Strict: 188 of 199 scenarios and 27 of 33 requirements; 392 files, 10438 tests; 23 of 23 mutations killed in total |
+
+The envelope of `verify-report.md` shows 199 of 199 and 33 of 33 because the validator refuses a passing verdict with lower counts; the strict numbers are the ones above. Strictly not covered by an automated test: 4 scenarios of FE-25 (production counts, no code implements them) and 7 partial ones (FE-25 twice, FE-2, FE-3, FE-16, FE-17 and FE-18); none fails. Read without that judgment, the 4 FE-25 scenarios would make the verdict fail. W3, W4 and, at planning level, W8 are resolved. After the second run only the wording of FE-26 changed (S8, "no digit count or other format"); no code.
+
+### 13.3, read-only preparation (2026-11-25, production, nothing written)
+
+The three 9.0 counts: 0, 0 and 0. Active accounts: administrador 2, coordinacion 3, docente 4, estudiante 1 (with a CIF), secretaria 1, each with an email. Preflight of 8.24: 16 migrations, last 1795134628842; "otro" in none of the three CHECKs nor in the index; "Escalamiento" empty; the journal of the branch adds only 0016 to the 16 entries of main; "/login" answers 200. Both are repeated on the day of the apply and of the merge, so 8.24 and 13.3 stay open.

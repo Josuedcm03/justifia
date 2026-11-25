@@ -418,8 +418,8 @@ cleaned by the same rule the sign-in applies to a CIF identifier (FE-21, FE-22):
 trimmed, with its spaces and hyphens removed and its case kept, so that the
 stored value is the one the sign-in looks up for the same typed text. The
 1-to-20 length limit MUST apply to the cleaned value, a CIF that is empty once
-cleaned (only spaces or hyphens) MUST be refused, and no digit count or format
-MUST be required. A CIF that contains "@" MUST be refused, because the sign-in
+cleaned (only spaces or hyphens) MUST be refused, and no digit count or other
+format MUST be required. A CIF that contains "@" MUST be refused, because the sign-in
 takes any identifier with "@" as an email (FE-21) and could never match it.
 (Previously: the form asked for a "Usuario" and stored it as `Login`, and the CIF
 was stored as typed after the trim.)
