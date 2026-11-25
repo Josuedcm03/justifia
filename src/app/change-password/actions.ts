@@ -71,15 +71,19 @@ export async function changePasswordAction(
 
   // The flag travels in the session JWT (design D14): without a fresh cookie
   // the user would keep a token that still says "must change" and bounce back
-  // here until the next login. Only the identity claims are carried over.
+  // here until the next login. Only the identity claims are carried over,
+  // plus the "keep me signed in" choice (FE-32): a kept session keeps its 30
+  // days after the change, and an unchecked one has today's shape.
+  const keep = session.mantenerSesion === true;
   const token = await signSession({
     sub: session.sub,
     login: session.login,
     rol: session.rol,
     nombre: session.nombre,
     debeCambiarClave: false,
+    ...(keep ? { mantenerSesion: true } : {}),
   });
-  await setSessionCookie(token);
+  await setSessionCookie(token, keep);
 
   redirect("/");
 }

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState, useTransition } from "react";
 
 import { saveDetailsAction } from "@/app/(dashboard)/requests/new/actions";
+import { FutureStartNotice } from "@/app/(dashboard)/requests/new/dates-recap";
 import {
   Field,
   FieldErrors,
@@ -13,7 +14,11 @@ import {
   invalidProps,
 } from "@/app/(dashboard)/requests/new/form-field";
 import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
-import { FLOW_PATH, stepHref } from "@/app/(dashboard)/requests/new/steps";
+import {
+  FLOW_PATH,
+  startsAfterToday,
+  stepHref,
+} from "@/app/(dashboard)/requests/new/steps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -34,20 +39,26 @@ const NEW_FLOW: StepFlow<"saveDetails"> = {
 /**
  * Step 1: cause and dates (RF-01 b, RN-01, RN-05, RN-23). Nothing is validated
  * here: the action is the authority and answers with every invalid field at
- * once (RF-03), so the form never disagrees with the server.
+ * once (RF-03), so the form never disagrees with the server. A start after
+ * `today` only adds a note (FE-19): it blocks nothing and is no field error.
  */
 export function CauseDatesStep({
   initial,
   fromReview = false,
   flow = NEW_FLOW,
+  today,
 }: {
   initial: Initial;
   fromReview?: boolean;
   flow?: StepFlow<"saveDetails">;
+  /** The Managua calendar day from the server; absent means no notice. */
+  today?: string;
 }) {
   const t = useTranslations("intake");
   const router = useRouter();
   const [causa, setCausa] = useState(initial.causa ?? "");
+  // Followed only to decide the notice; the field stays uncontrolled.
+  const [start, setStart] = useState(initial.fechaInicio ?? "");
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [pending, startTransition] = useTransition();
 
@@ -122,6 +133,7 @@ export function CauseDatesStep({
               name="fechaInicio"
               type="date"
               defaultValue={initial.fechaInicio ?? ""}
+              onChange={(event) => setStart(event.target.value)}
               {...invalidProps("fechaInicio", startErrors)}
             />
           </Field>
@@ -140,6 +152,10 @@ export function CauseDatesStep({
             />
           </Field>
         </div>
+
+        {today !== undefined && startsAfterToday({ from: start }, today) ? (
+          <FutureStartNotice />
+        ) : null}
 
         <FieldErrors id="form" errors={errorsOf(errors, "form")} />
       </StepShell>

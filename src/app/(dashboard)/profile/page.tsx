@@ -1,9 +1,12 @@
 import { getFormatter, getTranslations } from "next-intl/server";
+import Link from "next/link";
 import { cn } from "cn";
 
 import { PageHeader } from "@/components/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/dal";
+import { PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
 import { listCarreras } from "@/lib/data/carreras";
 import { getUsuarioByLogin } from "@/lib/data/users";
 
@@ -40,20 +43,21 @@ export default async function ProfilePage() {
     ? carreras.find((c) => c.id === usuario.carreraId)
     : null;
 
-  const rows: { label: string; value: string; capitalize?: boolean }[] = [
-    { label: t("loginLabel"), value: usuario?.login ?? session.login },
-    {
-      label: t("roleLabel"),
-      value: usuario?.rol ?? session.rol,
-      capitalize: true,
-    },
-  ];
+  // No "Usuario" row (FE-24): the login is a derived value nobody types. The
+  // rows that identify the account come first, the email and, for a student,
+  // the CIF.
+  const rows: { label: string; value: string; capitalize?: boolean }[] = [];
 
   if (usuario?.correo)
     rows.push({ label: t("emailLabel"), value: usuario.correo });
+  if (usuario?.cif) rows.push({ label: t("cifLabel"), value: usuario.cif });
+  rows.push({
+    label: t("roleLabel"),
+    value: usuario?.rol ?? session.rol,
+    capitalize: true,
+  });
   if (usuario?.telefono)
     rows.push({ label: t("phoneLabel"), value: usuario.telefono });
-  if (usuario?.cif) rows.push({ label: t("cifLabel"), value: usuario.cif });
   if (carrera) rows.push({ label: t("careerLabel"), value: carrera.nombre });
   if (usuario)
     rows.push({
@@ -79,6 +83,16 @@ export default async function ProfilePage() {
           </dl>
         </CardContent>
       </Card>
+
+      <Link
+        href={PASSWORD_CHANGE_PATH}
+        className={cn(
+          buttonVariants({ variant: "outline", size: "lg" }),
+          "w-full sm:w-auto sm:self-start",
+        )}
+      >
+        {t("changePassword")}
+      </Link>
     </div>
   );
 }

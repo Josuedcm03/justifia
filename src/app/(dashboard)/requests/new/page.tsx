@@ -16,6 +16,7 @@ import {
   listEnrollmentFailSoft,
 } from "@/lib/data/enrollment";
 import { type Draft, openDraft } from "@/lib/data/solicitudes";
+import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
 
 // Applies to every Server Action used on this page. The submit hands the
@@ -80,6 +81,8 @@ export default async function NewRequestPage({
       : { data: [], degraded: false, enrolled: true };
   // Only an answered "no enrollment" nudges: a failed read says nothing.
   const hasEnrollment = await hasActiveEnrollmentFailSoft(userId);
+  // The Managua calendar day, decided here and not in the browser (FE-19).
+  const today = managuaToday(new Date());
 
   return (
     <div className="flex flex-col gap-8">
@@ -95,6 +98,7 @@ export default async function NewRequestPage({
         draft={draft}
         enrollment={enrollment}
         fromReview={fromReview}
+        today={today}
       />
     </div>
   );

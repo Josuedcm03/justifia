@@ -1,0 +1,8 @@
+ALTER TABLE "Escalamiento" DROP CONSTRAINT "CK_Escalamiento_Tipo";--> statement-breakpoint
+ALTER TABLE "Escalamiento" DROP CONSTRAINT "CK_Escalamiento_Kind";--> statement-breakpoint
+ALTER TABLE "Escalamiento" DROP CONSTRAINT "CK_Escalamiento_SinRespuesta";--> statement-breakpoint
+DROP INDEX "UX_Escalamiento_Abierto";--> statement-breakpoint
+CREATE UNIQUE INDEX "UX_Escalamiento_Abierto" ON "Escalamiento" USING btree ("SolicitudId") WHERE "Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro') AND "Escalamiento"."RespondidaEn" IS NULL;--> statement-breakpoint
+ALTER TABLE "Escalamiento" ADD CONSTRAINT "CK_Escalamiento_Tipo" CHECK ("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro', 'exceso_inasistencias'));--> statement-breakpoint
+ALTER TABLE "Escalamiento" ADD CONSTRAINT "CK_Escalamiento_Kind" CHECK (("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro') AND "Escalamiento"."EstadoPrevio" = 'pendiente' AND "Escalamiento"."ReporteId" IS NULL AND "Escalamiento"."Nota" IS NOT NULL AND length(btrim("Escalamiento"."Nota")) > 0) OR ("Escalamiento"."Tipo" = 'exceso_inasistencias' AND "Escalamiento"."EstadoPrevio" = 'aprobada' AND "Escalamiento"."ReporteId" IS NOT NULL AND "Escalamiento"."Nota" IS NULL));--> statement-breakpoint
+ALTER TABLE "Escalamiento" ADD CONSTRAINT "CK_Escalamiento_SinRespuesta" CHECK ("Escalamiento"."Tipo" IN ('sospecha_documento', 'caso_especial', 'otro') OR "Escalamiento"."RespondidaEn" IS NULL);

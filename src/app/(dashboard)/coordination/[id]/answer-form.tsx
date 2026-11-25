@@ -11,6 +11,7 @@ import {
   EscalationFormDialog,
   NoteField,
   useEscalationAction,
+  withoutFieldErrors,
 } from "@/app/(dashboard)/review/[id]/dialog-parts";
 
 /**
@@ -63,7 +64,10 @@ export function AnswerForm({ escalamientoId }: { escalamientoId: number }) {
         id={`${ids}-answer`}
         copy={t}
         value={texto}
-        onChange={setTexto}
+        onChange={(value) => {
+          setTexto(value);
+          setFailure((current) => withoutFieldErrors(current, "texto"));
+        }}
         messages={messages}
       />
     </EscalationFormDialog>

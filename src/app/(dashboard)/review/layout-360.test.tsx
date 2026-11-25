@@ -19,10 +19,12 @@ vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
 }));
 
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
+import { AnswerBanner } from "@/app/(dashboard)/review/[id]/answer-banner";
 import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { ApprovedTab } from "@/app/(dashboard)/review/approved-tab";
 import { CoordinationTab } from "@/app/(dashboard)/review/coordination-tab";
+import { FirstDueBadge } from "@/app/(dashboard)/review/deadline-badge";
 import { ReviewTabs } from "@/app/(dashboard)/review/review-tabs";
 
 const VIEWPORT = 360;
@@ -109,6 +111,12 @@ const REPORT = {
 
 const TEACHERS = [{ remisionId: 31, nombre: "Luis Mora" }];
 
+const ANSWER = {
+  text: LONG_NOTE,
+  authorName: "Marta Gomez",
+  answeredAt: new Date("2026-10-09T21:00:00Z"),
+};
+
 describe.each([
   ["the state tabs", () => <ReviewTabs current="en_revision_coordinacion" />],
   [
@@ -119,6 +127,17 @@ describe.each([
   [
     "the escalation section",
     () => <EscalationSection escalations={[ESCALATION]} />,
+  ],
+  ["the answer banner", () => <AnswerBanner answer={ANSWER} />],
+  [
+    "the first-due mark in a queue card",
+    () => (
+      <ul>
+        <li>
+          <FirstDueBadge label="Vence primero" />
+        </li>
+      </ul>
+    ),
   ],
   [
     "the absence reports section",
@@ -215,6 +234,15 @@ describe("long notes at 360 px", () => {
     }
   });
 
+  it("wraps the long answer of the banner instead of widening the page", () => {
+    renderIntl(<AnswerBanner answer={ANSWER} />);
+
+    expect(screen.getByText(LONG_NOTE)).toHaveClass(
+      "break-words",
+      "whitespace-pre-wrap",
+    );
+  });
+
   it("wraps the report note and stacks the facts on one column", () => {
     renderIntl(
       <AbsenceReportsSection
@@ -269,6 +297,32 @@ describe("dialogs at 360 px", () => {
       expect(await violations(dialog)).toEqual([]);
     },
   );
+
+  it("opens the escalate dialog with a long earlier answer inside the viewport and with no axe violation", async () => {
+    renderIntl(
+      <EscalateDialog
+        solicitudId={12}
+        unavailableCareer={null}
+        previousAnswer={{
+          text: LONG_NOTE,
+          byline: "Marta Gomez, Oct 9, 2026, 3:00 PM",
+        }}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: messages.en.review.escalation.dialog.trigger,
+      }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(tooWide(document.body)).toEqual([]);
+    expect(within(dialog).getByText(LONG_NOTE)).toHaveClass(
+      "break-words",
+      "whitespace-pre-wrap",
+    );
+    expect(await violations(dialog)).toEqual([]);
+  });
 
   it("flags a fixed width above the viewport (guard self-test)", () => {
     const { container } = render(

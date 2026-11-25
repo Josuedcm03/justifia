@@ -524,7 +524,6 @@
       "usersLink": "Gestionar cuentas en Usuarios",
       "columns": {
         "name": "Nombre",
-        "login": "Usuario",
         "email": "Correo",
         "status": "Estado"
       },
@@ -705,21 +704,21 @@
     "empty": "Aún no hay usuarios",
     "search": {
       "label": "Buscar usuarios",
-      "placeholder": "Nombre, usuario o correo"
+      "placeholder": "Nombre o correo"
     },
     "tableCaption": "Lista de usuarios",
     "noResults": {
       "title": "Sin resultados para «{q}»",
       "titleStatus": "No hay usuarios con este filtro.",
       "hintStatus": "Prueba con otro estado o quita los filtros.",
-      "hint": "Prueba con otro nombre, usuario o correo."
+      "hint": "Prueba con otro nombre o correo."
     },
     "new": {
       "title": "Crear cuenta de staff",
       "nameLabel": "Nombre completo",
-      "loginLabel": "Usuario",
       "passwordLabel": "Contraseña",
-      "emailLabel": "Correo",
+      "emailLabel": "Correo institucional",
+      "emailHint": "Con este correo la persona ingresa al sistema.",
       "phoneLabel": "Teléfono",
       "roleLabel": "Rol",
       "rolePlaceholder": "Selecciona un rol",
@@ -738,7 +737,9 @@
         "careerRequired": "Selecciona la carrera que coordina",
         "invalidCarrera": "La carrera seleccionada no es válida",
         "facultadRequired": "Tu cuenta no tiene una carrera asignada, por lo que no se puede determinar la facultad de la nueva secretaria",
-        "duplicate": "El usuario o CIF ya existe"
+        "duplicate": "Ya existe una cuenta con ese correo.",
+        "emailTooLong": "El correo no puede superar los 60 caracteres.",
+        "emailInvalid": "Ingresa un correo válido, de hasta 160 caracteres."
       },
       "subtitle": "Crea una cuenta para el personal del backoffice."
     },
@@ -748,7 +749,9 @@
     "login": {
       "title": "Iniciar sesión",
       "subtitle": "Ingrese con su cuenta institucional",
-      "loginLabel": "Usuario",
+      "loginLabel": "CIF o correo institucional",
+      "loginHint": "Los estudiantes pueden usar su CIF o su correo; el personal, su correo institucional.",
+      "keepSession": "Mantener la sesión iniciada",
       "passwordLabel": "Contraseña",
       "submit": "Ingresar",
       "submitting": "Ingresando…",
@@ -759,7 +762,6 @@
       "title": "Crear cuenta de estudiante",
       "subtitle": "Regístrate para enviar tus justificaciones",
       "nameLabel": "Nombre completo",
-      "loginLabel": "Usuario",
       "passwordLabel": "Contraseña",
       "confirmPasswordLabel": "Confirmar contraseña",
       "emailLabel": "Correo",
@@ -774,7 +776,8 @@
       "errors": {
         "invalid": "Revisa los datos ingresados",
         "invalidCarrera": "La carrera seleccionada no es válida",
-        "duplicate": "El usuario o CIF ya existe",
+        "duplicate": "El CIF o el correo ya están registrados.",
+        "emailTooLong": "El correo no puede superar los 60 caracteres.",
         "passwordMismatch": "Las contraseñas no coinciden",
         "closed": "El registro de estudiantes no está habilitado en este momento."
       },
@@ -790,24 +793,25 @@
       }
     },
     "errors": {
-      "invalid": "Usuario o contraseña incorrectos"
+      "invalid": "Los datos de acceso no son correctos. Revise su CIF o correo y su contraseña."
     },
     "userMenu": {
-      "signedInAs": "{login} · {rol}",
+      "roleLine": "{rol}",
       "viewProfile": "Ver perfil",
+      "changePassword": "Cambiar contraseña",
       "logout": "Cerrar sesión"
     }
   },
   "profile": {
     "title": "Mi perfil",
     "subtitle": "Tus datos de cuenta",
-    "loginLabel": "Usuario",
     "roleLabel": "Rol",
     "emailLabel": "Correo",
     "phoneLabel": "Teléfono",
     "cifLabel": "CIF",
     "careerLabel": "Carrera",
-    "memberSinceLabel": "Miembro desde"
+    "memberSinceLabel": "Miembro desde",
+    "changePassword": "Cambiar contraseña"
   },
   "intake": {
     "title": "Nueva solicitud de justificación",
@@ -842,6 +846,12 @@
       "startLabel": "Fecha de inicio",
       "endLabel": "Fecha de fin"
     },
+    "datesRecap": {
+      "label": "Fechas de ausencia",
+      "range": "Del {start} al {end}",
+      "edit": "Editar fechas",
+      "futureStart": "La fecha de inicio es posterior a hoy. Si la ausencia ya ocurrió, corrige las fechas; si es una ausencia prevista, puedes continuar."
+    },
     "enrollmentNotice": {
       "text": "Las asignaturas de tu solicitud salen de tus inscripciones y todavía no tienes ninguna.",
       "link": "Declarar mis inscripciones"
@@ -870,6 +880,11 @@
       "uploading": "Subiendo {name}…",
       "view": "Ver",
       "viewNamed": "Ver {name}",
+      "preview": "Vista previa",
+      "previewNamed": "Vista previa de {name}",
+      "hidePreview": "Ocultar vista previa",
+      "hidePreviewNamed": "Ocultar vista previa de {name}",
+      "previewHint": "Comprueba que este es el documento correcto antes de continuar.",
       "remove": "Quitar {name}",
       "removing": "Quitando…"
     },
@@ -948,8 +963,13 @@
         "button": "Reenviar solicitud",
         "title": "¿Reenviar la solicitud corregida?",
         "description": "La secretaría la revisará de nuevo y el plazo de revisión vuelve a empezar. No podrás editarla mientras esté en revisión.",
+        "filesTitle": "Documentos que se enviarán",
         "confirm": "Sí, reenviar",
-        "pending": "Reenviando…"
+        "pending": "Reenviando…",
+        "marks": {
+          "new": "Nuevo",
+          "previous": "Anterior"
+        }
       },
       "degraded": "No pudimos cargar tu solicitud. Inténtalo de nuevo en unos minutos."
     },
@@ -970,6 +990,10 @@
       "enrollment": "Ir a mis inscripciones",
       "number": "Solicitud {id}",
       "presented": "Presentada el {date}",
+      "absence": "Fechas de ausencia: {period}",
+      "subjects": "Asignaturas: {codes}",
+      "moreSubjects": "{codes} y {count} más",
+      "reason": "Motivo: {reason}",
       "view": "Ver solicitud",
       "viewNamed": "Ver la solicitud {id}"
     },
@@ -1206,8 +1230,9 @@
   "review": {
     "queue": {
       "title": "Cola de revisión",
-      "description": "Solicitudes pendientes de su facultad, de la más antigua a la más reciente.",
+      "description": "Solicitudes pendientes de su facultad, ordenadas por vencimiento del plazo: primero la que vence antes.",
       "caption": "Solicitudes pendientes",
+      "firstDue": "Vence primero",
       "tabs": {
         "label": "Estado de las solicitudes",
         "pendiente": "Pendientes",
@@ -1281,6 +1306,7 @@
       "reasons": {
         "sospecha_documento": "Sospecha sobre un documento",
         "caso_especial": "Caso especial",
+        "otro": "Otro",
         "exceso_inasistencias": "Exceso de inasistencias"
       },
       "notification": {
@@ -1310,10 +1336,16 @@
         "motivoLabel": "Motivo del escalamiento",
         "motivo": {
           "sospecha_documento": "Sospecha sobre un documento",
-          "caso_especial": "Caso especial (fuera de las causas del reglamento)"
+          "caso_especial": "Caso especial (fuera de las causas del reglamento)",
+          "otro": "Otro"
         },
-        "noteLabel": "Nota para coordinación",
-        "noteHint": "Explique por qué escala la solicitud a coordinación. Solo la ve el personal.",
+        "noteLabel": "Nota para coordinación (obligatoria)",
+        "noteHint": "Explique por qué escala la solicitud; por ejemplo, qué dato del documento no coincide o qué situación no prevé el reglamento. Solo la ve el personal.",
+        "noteHintOtro": "Esta nota es la descripción del motivo: explique la situación que lo lleva a escalar la solicitud y por qué no corresponde a los otros dos motivos. Solo la ve el personal.",
+        "previousAnswer": {
+          "title": "La coordinación ya respondió esta solicitud ({byline}):",
+          "hint": "Si la escala de nuevo, vuelve a coordinación y no podrá decidir hasta que responda."
+        },
         "counter": "{count} de 1000",
         "confirm": "Escalar solicitud",
         "pending": "Escalando...",
@@ -1537,10 +1569,19 @@
         "noText": "Sin mensaje",
         "revision": "Versión {number}",
         "revisionDocuments": "{count, plural, one {# documento} other {# documentos}}",
-        "replacedOn": "Reemplazado el {date}"
+        "replacedOn": "Reemplazado el {date}",
+        "escalations": "{count, plural, one {Esta solicitud tiene # escalamiento a coordinación.} other {Esta solicitud tiene # escalamientos a coordinación.}} Los detalles y las respuestas están en la sección «Escalamientos a coordinación».",
+        "escalationsLink": "Ir a los escalamientos"
+      },
+      "answerBanner": {
+        "title": "Respuesta de coordinación",
+        "byline": "{name}, {date}",
+        "hint": "Tenga en cuenta esta respuesta al decidir.",
+        "link": "Ver el escalamiento completo"
       },
       "decisionPanel": {
-        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Si necesita la opinión de la coordinación, use «Escalar a coordinación». Cada decisión le pide confirmarla."
+        "description": "Apruebe, devuelva para corrección o rechace esta solicitud. Si necesita la opinión de la coordinación, use «Escalar a coordinación». Cada decisión le pide confirmarla.",
+        "descriptionAnswered": "La coordinación ya respondió esta solicitud (vea la respuesta al inicio de esta página) y la decisión ahora es suya. Apruebe, devuelva para corrección o rechace la solicitud. Cada decisión le pide confirmarla."
       },
       "goToDecision": "Ir a la decisión",
       "statusNote": {

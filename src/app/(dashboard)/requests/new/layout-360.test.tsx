@@ -334,3 +334,121 @@ describe("consent checkbox at 360 px (RNF-11; scenario: 360 px and accessibility
     expect(results.passes.length).toBeGreaterThan(0);
   });
 });
+
+// FE-18 and FE-19 (RNF-11): the recap and the notice at 360 px. Static guard as
+// above: no fixed width over the viewport, text that wraps, a link that keeps
+// its 44 px target, and no accessibility violation with the notice showing.
+describe("dates recap and future-start notice at 360 px (FE-18, FE-19)", () => {
+  const FUTURE = { from: "2026-11-10", to: "2026-11-12" };
+  const TODAY = "2026-11-02";
+
+  const steps = [
+    [
+      "subjects",
+      () => (
+        <SubjectsStep
+          groups={GROUPS}
+          selected={[]}
+          hasDates
+          degraded={false}
+          range={FUTURE}
+          today={TODAY}
+        />
+      ),
+    ],
+    [
+      "documents",
+      () => (
+        <DocumentsStep
+          draftId={4}
+          documents={[DOC]}
+          range={FUTURE}
+          today={TODAY}
+        />
+      ),
+    ],
+  ] as const;
+
+  it.each(steps)(
+    "sets no width above the viewport on the %s step",
+    (_name, step) => {
+      renderIntl(step());
+      expect(screen.getByRole("note")).toBeInTheDocument();
+      expect(tooWide(document.body)).toEqual([]);
+    },
+  );
+
+  it.each(steps)(
+    "keeps the footer actions on the full row on the %s step",
+    (_name, step) => {
+      renderIntl(step());
+      const actions = footerActions();
+      expect(actions.length).toBeGreaterThan(0);
+      for (const action of actions) {
+        expect(fillsTheRow(action), action.textContent ?? "").toBe(true);
+      }
+    },
+  );
+
+  it("lets the dates and the notice wrap instead of widening the card", () => {
+    renderIntl(steps[0][1]());
+    expect(screen.getByText(/^Del martes/)).toHaveClass("break-words");
+    expect(screen.getByRole("note")).toHaveClass("break-words");
+  });
+
+  it("keeps the edit link at a 44 px target", () => {
+    renderIntl(steps[1][1]());
+    expect(screen.getByRole("link", { name: "Editar fechas" })).toHaveClass(
+      "min-h-11",
+    );
+  });
+
+  it("sets no width above the viewport on step 1 with the notice", () => {
+    renderIntl(
+      <CauseDatesStep
+        initial={{
+          causa: "medica",
+          fechaInicio: FUTURE.from,
+          fechaFin: FUTURE.to,
+        }}
+        today={TODAY}
+      />,
+    );
+    expect(screen.getByRole("note")).toHaveClass("break-words");
+    expect(tooWide(document.body)).toEqual([]);
+  });
+
+  it("sets no width above the viewport on the review with the notice", () => {
+    renderIntl(
+      <ReviewStep
+        draft={{
+          causa: "medica",
+          fechaInicio: FUTURE.from,
+          fechaFin: FUTURE.to,
+        }}
+        groups={GROUPS}
+        documents={[DOC]}
+        degraded={false}
+        today={TODAY}
+      />,
+    );
+    expect(screen.getByRole("note")).toBeInTheDocument();
+    expect(tooWide(document.body)).toEqual([]);
+  });
+
+  it.each(["es", "en"] as const)(
+    "reports no accessibility violation with the recap and the notice in %s",
+    async (locale) => {
+      for (const [, step] of steps) {
+        const { container, unmount } = renderIntl(step(), locale);
+        const results = await axe.run(container, {
+          runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+          rules: { "color-contrast": { enabled: false } },
+        });
+
+        expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        unmount();
+      }
+    },
+  );
+});

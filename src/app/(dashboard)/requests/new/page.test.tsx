@@ -1,6 +1,6 @@
-import { screen } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import { createTranslator } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   messages,
@@ -374,5 +374,187 @@ describe("NewRequestPage fail-soft (A7)", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "No pudimos cargar tu borrador.",
     );
+  });
+});
+
+// FE-18 and FE-19 (RF-01, Table 13 row 15): the server reads "today" in Managua
+// and passes it down. The recap tops steps 2 and 3, the notice sits on steps 1
+// and 4, and none of it blocks anything.
+describe("NewRequestPage dates recap and future-start notice (FE-18, FE-19)", () => {
+  const NOTICE = /posterior a hoy/;
+  const RECAP_LABEL = "Fechas de ausencia";
+
+  function at(instant: string) {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(instant));
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("takes today in Managua: 2026-11-20 05:30 UTC is still 2026-11-19, so a start of 2026-11-20 is ahead", async () => {
+    at("2026-11-20T05:30:00Z");
+    openDraft.mockResolvedValue({
+      ...WITH_DETAILS,
+      fechaInicio: "2026-11-20",
+      fechaFin: "2026-11-21",
+    });
+    await renderPage({ step: "1" });
+
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+  });
+
+  it("shows no notice for a start that is today in Managua, though it is tomorrow in UTC", async () => {
+    at("2026-11-20T05:30:00Z");
+    openDraft.mockResolvedValue({
+      ...WITH_DETAILS,
+      fechaInicio: "2026-11-19",
+      fechaFin: "2026-11-21",
+    });
+    await renderPage({ step: "1" });
+
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("shows the notice at 2026-11-02 02:00 UTC for a start of 2026-11-02 (it is still 2026-11-01 in Managua)", async () => {
+    at("2026-11-02T02:00:00Z");
+    openDraft.mockResolvedValue({
+      ...WITH_DETAILS,
+      fechaInicio: "2026-11-02",
+      fechaFin: "2026-11-03",
+    });
+    await renderPage({ step: "1" });
+
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+  });
+
+  it("keeps step 1 usable with the notice shown", async () => {
+    at("2026-11-02T18:00:00Z");
+    openDraft.mockResolvedValue({
+      ...WITH_DETAILS,
+      fechaInicio: "2026-11-10",
+      fechaFin: "2026-11-12",
+    });
+    await renderPage({ step: "1" });
+
+    expect(screen.getByRole("note")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    expect(screen.getByLabelText("Fecha de inicio")).toBeEnabled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows the recap at step 2 with the draft's dates and a way back to step 1", async () => {
+    at("2026-11-02T18:00:00Z");
+    openDraft.mockResolvedValue(WITH_DETAILS);
+    await renderPage({ step: "2" });
+
+    expect(screen.getByText(RECAP_LABEL)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Del jueves, 1 de octubre de 2026 al sábado, 3 de octubre de 2026",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Editar fechas" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=1",
+    );
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("shows the recap at step 3 too", async () => {
+    at("2026-11-02T18:00:00Z");
+    openDraft.mockResolvedValue(WITH_DETAILS);
+    await renderPage({ step: "3" });
+
+    expect(screen.getByText(RECAP_LABEL)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Editar fechas" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=1",
+    );
+  });
+
+  it.each(["2", "3"])(
+    "carries the notice in the recap at step %s for a future start",
+    async (step) => {
+      at("2026-11-02T18:00:00Z");
+      openDraft.mockResolvedValue({
+        ...WITH_DETAILS,
+        fechaInicio: "2026-11-10",
+        fechaFin: "2026-11-12",
+      });
+      await renderPage({ step });
+
+      expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+      expect(
+        screen.getByText(
+          "Del martes, 10 de noviembre de 2026 al jueves, 12 de noviembre de 2026",
+        ),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("shows no recap at step 2 without dates, and asks for them instead", async () => {
+    openDraft.mockResolvedValue({
+      ...EMPTY,
+      subjects: [{ grupoId: 1, asignaturaId: 10 }],
+    });
+    await renderPage({ step: "2" });
+
+    expect(screen.queryByText(RECAP_LABEL)).toBeNull();
+    expect(
+      screen.getByText(
+        "Indica primero las fechas de la ausencia para ver tus asignaturas.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no recap at step 3 when the dates are not usable (the end is before the start)", async () => {
+    openDraft.mockResolvedValue({
+      ...WITH_DETAILS,
+      fechaInicio: "2026-10-05",
+      fechaFin: "2026-10-03",
+    });
+    await renderPage({ step: "3" });
+
+    expect(screen.queryByText(RECAP_LABEL)).toBeNull();
+    expect(heading("Documentos de respaldo")).toBeInTheDocument();
+  });
+
+  it("puts the recap on steps 2 and 3 only: no recap on step 1 or on the review", async () => {
+    openDraft.mockResolvedValue(WITH_DETAILS);
+
+    await renderPage({ step: "1" });
+    expect(screen.queryByText(RECAP_LABEL)).toBeNull();
+    cleanup();
+
+    await renderPage({ step: "4" });
+    expect(screen.queryByText(RECAP_LABEL)).toBeNull();
+  });
+
+  it("repeats the notice under the period on the review and keeps submit enabled", async () => {
+    at("2026-11-02T18:00:00Z");
+    openDraft.mockResolvedValue({
+      ...WITH_DETAILS,
+      fechaInicio: "2026-11-10",
+      fechaFin: "2026-11-12",
+    });
+    await renderPage({ step: "4" });
+
+    const details = within(
+      screen.getByRole("region", { name: "Causa y fechas" }),
+    );
+    expect(details.getByRole("note")).toHaveTextContent(NOTICE);
+    expect(
+      screen.getByRole("button", { name: "Presentar solicitud" }),
+    ).toBeEnabled();
+  });
+
+  it("shows no notice on the review for a past start", async () => {
+    at("2026-11-02T18:00:00Z");
+    openDraft.mockResolvedValue(WITH_DETAILS);
+    await renderPage({ step: "4" });
+
+    expect(screen.queryByRole("note")).toBeNull();
   });
 });

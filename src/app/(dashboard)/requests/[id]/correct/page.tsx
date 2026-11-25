@@ -24,7 +24,11 @@ import { requireRole } from "@/lib/auth/dal";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
 import { listEnrollmentFailSoft } from "@/lib/data/enrollment";
 import { getLiveDraft } from "@/lib/data/solicitudes";
-import { getCorrectionReason } from "@/lib/data/student-requests";
+import {
+  getCorrectionReason,
+  getReturnedDocumentIds,
+} from "@/lib/data/student-requests";
+import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
 import { isReturnReason } from "@/lib/intake/return-reasons";
 
@@ -60,14 +64,16 @@ export default async function CorrectRequestPage({
   const userId = Number(session.sub);
   const t = await getTranslations("intake");
 
-  // Fail-soft reads (A7): a database failure is an in-page message, and a
-  // reason that cannot be read only costs the guided start and the banner.
-  const [request, reason] = await Promise.all([
+  // Fail-soft reads (A7): a database failure is an in-page message, a reason
+  // that cannot be read only costs the guided start and the banner, and the
+  // returned ids that cannot be read only cost the "Nuevo" and "Anterior" marks.
+  const [request, reason, previousDocumentIds] = await Promise.all([
     getLiveDraft(userId, new Date(), {
       kind: "correction",
       solicitudId: id,
     }).catch(() => undefined),
     getCorrectionReason(userId, id).catch(() => null),
+    getReturnedDocumentIds(userId, id).catch(() => null),
   ]);
   if (request === null) notFound();
 
@@ -109,6 +115,9 @@ export default async function CorrectRequestPage({
       ? await listEnrollmentFailSoft(userId, range, getIntakeDeps().schedule)
       : { data: [], degraded: false, enrolled: true };
 
+  // The Managua calendar day, decided here and not in the browser (FE-19).
+  const today = managuaToday(new Date());
+
   const flow: Flow = {
     basePath: `/requests/${id}/correct`,
     actions: {
@@ -132,6 +141,8 @@ export default async function CorrectRequestPage({
         enrollment={enrollment}
         fromReview={parseFromReview(query.from)}
         flow={flow}
+        previousDocumentIds={previousDocumentIds}
+        today={today}
       />
     </div>
   );

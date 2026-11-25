@@ -524,7 +524,6 @@
       "usersLink": "Manage accounts in Users",
       "columns": {
         "name": "Name",
-        "login": "Username",
         "email": "Email",
         "status": "Status"
       },
@@ -705,21 +704,21 @@
     "empty": "No users yet",
     "search": {
       "label": "Search users",
-      "placeholder": "Name, username or email"
+      "placeholder": "Name or email"
     },
     "tableCaption": "Users list",
     "noResults": {
       "title": "No results for “{q}”",
       "titleStatus": "There are no users with this filter.",
       "hintStatus": "Try another status or clear the filters.",
-      "hint": "Try another name, username or email."
+      "hint": "Try another name or email."
     },
     "new": {
       "title": "Create staff account",
       "nameLabel": "Full name",
-      "loginLabel": "Username",
       "passwordLabel": "Password",
-      "emailLabel": "Email",
+      "emailLabel": "Institutional email",
+      "emailHint": "This person signs in with this email.",
       "phoneLabel": "Phone",
       "roleLabel": "Role",
       "rolePlaceholder": "Select a role",
@@ -738,7 +737,9 @@
         "careerRequired": "Select the coordinated career",
         "invalidCarrera": "The selected career is not valid",
         "facultadRequired": "Your account has no career assigned, so the faculty of the new secretary cannot be determined",
-        "duplicate": "The username or CIF already exists"
+        "duplicate": "An account with that email already exists.",
+        "emailTooLong": "The email cannot exceed 60 characters.",
+        "emailInvalid": "Enter a valid email of up to 160 characters."
       },
       "subtitle": "Create an account for backoffice staff."
     },
@@ -748,7 +749,9 @@
     "login": {
       "title": "Sign in",
       "subtitle": "Sign in with your institutional account",
-      "loginLabel": "Username",
+      "loginLabel": "CIF or institutional email",
+      "loginHint": "Students may use their CIF or email; staff use their institutional email.",
+      "keepSession": "Keep me signed in",
       "passwordLabel": "Password",
       "submit": "Sign in",
       "submitting": "Signing in…",
@@ -759,7 +762,6 @@
       "title": "Create student account",
       "subtitle": "Sign up to submit your absence justifications",
       "nameLabel": "Full name",
-      "loginLabel": "Username",
       "passwordLabel": "Password",
       "confirmPasswordLabel": "Confirm password",
       "emailLabel": "Email",
@@ -774,7 +776,8 @@
       "errors": {
         "invalid": "Check the entered data",
         "invalidCarrera": "The selected career is not valid",
-        "duplicate": "The username or CIF already exists",
+        "duplicate": "The CIF or email is already registered.",
+        "emailTooLong": "The email cannot exceed 60 characters.",
         "passwordMismatch": "Passwords do not match",
         "closed": "Student registration is not open at this time."
       },
@@ -790,24 +793,25 @@
       }
     },
     "errors": {
-      "invalid": "Incorrect username or password"
+      "invalid": "The sign-in details are not correct. Check your CIF or email and your password."
     },
     "userMenu": {
-      "signedInAs": "{login} · {rol}",
+      "roleLine": "{rol}",
       "viewProfile": "View profile",
+      "changePassword": "Change password",
       "logout": "Sign out"
     }
   },
   "profile": {
     "title": "My profile",
     "subtitle": "Your account details",
-    "loginLabel": "Username",
     "roleLabel": "Role",
     "emailLabel": "Email",
     "phoneLabel": "Phone",
     "cifLabel": "CIF",
     "careerLabel": "Career",
-    "memberSinceLabel": "Member since"
+    "memberSinceLabel": "Member since",
+    "changePassword": "Change password"
   },
   "intake": {
     "title": "New justification request",
@@ -842,6 +846,12 @@
       "startLabel": "Start date",
       "endLabel": "End date"
     },
+    "datesRecap": {
+      "label": "Absence dates",
+      "range": "From {start} to {end}",
+      "edit": "Edit dates",
+      "futureStart": "The start date is later than today. If the absence already happened, correct the dates; if it is a planned absence, you can continue."
+    },
     "enrollmentNotice": {
       "text": "The subjects of your request come from your enrollment, and you have none yet.",
       "link": "Declare my enrollment"
@@ -870,6 +880,11 @@
       "uploading": "Uploading {name}…",
       "view": "View",
       "viewNamed": "View {name}",
+      "preview": "Preview",
+      "previewNamed": "Preview of {name}",
+      "hidePreview": "Hide preview",
+      "hidePreviewNamed": "Hide preview of {name}",
+      "previewHint": "Check that this is the right document before you continue.",
       "remove": "Remove {name}",
       "removing": "Removing…"
     },
@@ -948,8 +963,13 @@
         "button": "Resubmit request",
         "title": "Resubmit the corrected request?",
         "description": "The secretary will review it again and the review period starts over. You will not be able to edit it while it is under review.",
+        "filesTitle": "Documents that will be sent",
         "confirm": "Yes, resubmit",
-        "pending": "Resubmitting…"
+        "pending": "Resubmitting…",
+        "marks": {
+          "new": "New",
+          "previous": "Previous"
+        }
       },
       "degraded": "We could not load your request. Try again in a few minutes."
     },
@@ -970,6 +990,10 @@
       "enrollment": "Go to my enrollment",
       "number": "Request {id}",
       "presented": "Presented {date}",
+      "absence": "Absence dates: {period}",
+      "subjects": "Subjects: {codes}",
+      "moreSubjects": "{codes} and {count} more",
+      "reason": "Reason: {reason}",
       "view": "View request",
       "viewNamed": "View request {id}"
     },
@@ -1206,8 +1230,9 @@
   "review": {
     "queue": {
       "title": "Review queue",
-      "description": "Pending requests from your faculty, oldest first.",
+      "description": "Pending requests of your faculty, ordered by deadline: the one due first comes first.",
       "caption": "Pending requests",
+      "firstDue": "Due first",
       "tabs": {
         "label": "Request status",
         "pendiente": "Pending",
@@ -1281,6 +1306,7 @@
       "reasons": {
         "sospecha_documento": "Suspicion about a document",
         "caso_especial": "Special case",
+        "otro": "Other",
         "exceso_inasistencias": "Excess absences"
       },
       "notification": {
@@ -1310,10 +1336,16 @@
         "motivoLabel": "Escalation reason",
         "motivo": {
           "sospecha_documento": "Suspicion about a document",
-          "caso_especial": "Special case (outside the causes of the regulation)"
+          "caso_especial": "Special case (outside the causes of the regulation)",
+          "otro": "Other"
         },
-        "noteLabel": "Note for coordination",
-        "noteHint": "Explain why you are escalating the request to coordination. Only staff can see it.",
+        "noteLabel": "Note for coordination (required)",
+        "noteHint": "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it.",
+        "noteHintOtro": "This note is the description of the reason: explain the situation that leads you to escalate the request and why it fits neither of the other two reasons. Only staff can see it.",
+        "previousAnswer": {
+          "title": "Coordination already answered this request ({byline}):",
+          "hint": "If you escalate it again, it goes back to coordination and you cannot decide until it answers."
+        },
         "counter": "{count} of 1000",
         "confirm": "Escalate request",
         "pending": "Escalating...",
@@ -1537,10 +1569,19 @@
         "noText": "No message",
         "revision": "Version {number}",
         "revisionDocuments": "{count, plural, one {# document} other {# documents}}",
-        "replacedOn": "Replaced {date}"
+        "replacedOn": "Replaced {date}",
+        "escalations": "{count, plural, one {This request has # escalation to coordination.} other {This request has # escalations to coordination.}} The details and answers are in the “Escalations to coordination” section.",
+        "escalationsLink": "Go to the escalations"
+      },
+      "answerBanner": {
+        "title": "Coordination answer",
+        "byline": "{name}, {date}",
+        "hint": "Take this answer into account when you decide.",
+        "link": "See the full escalation"
       },
       "decisionPanel": {
-        "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it."
+        "description": "Approve, return for correction or reject this request. If you need the coordination's opinion, use “Escalate to coordination”. Each decision asks you to confirm it.",
+        "descriptionAnswered": "Coordination has already answered this request (see the answer at the top of this page) and the decision is now yours. Approve, return for correction or reject the request. Each decision asks you to confirm it."
       },
       "goToDecision": "Go to the decision",
       "statusNote": {

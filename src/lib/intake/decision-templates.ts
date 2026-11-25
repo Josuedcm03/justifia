@@ -79,6 +79,12 @@ export function formatDateRange(start: string, end: string): string {
 const LEAD =
   "Buenos días, {estudiante}. Su solicitud de justificación de la inasistencia por motivos {causa} {fechas}";
 
+// What joins the introduction of a rejection to its reason. The templates below
+// and `withoutRejectionIntro` share them, so they cannot drift apart.
+const REJECTED = " no ha sido aprobada ";
+const REASON_FOLLOWS = "por el siguiente motivo: ";
+const BECAUSE = "porque ";
+
 export const DECISION_TEMPLATES: readonly DecisionTemplate[] = [
   {
     codigo: "aprobacion.general",
@@ -88,12 +94,12 @@ export const DECISION_TEMPLATES: readonly DecisionTemplate[] = [
   {
     codigo: "rechazo.general",
     tipo: "rechazada",
-    cuerpo: `${LEAD} no ha sido aprobada por el siguiente motivo: [indique el motivo]. Gracias por su atención.`,
+    cuerpo: `${LEAD}${REJECTED}${REASON_FOLLOWS}[indique el motivo]. Gracias por su atención.`,
   },
   {
     codigo: "rechazo.documento_no_acredita",
     tipo: "rechazada",
-    cuerpo: `${LEAD} no ha sido aprobada porque el documento de respaldo no acredita la inasistencia en las fechas indicadas. Gracias por su atención.`,
+    cuerpo: `${LEAD}${REJECTED}${BECAUSE}el documento de respaldo no acredita la inasistencia en las fechas indicadas. Gracias por su atención.`,
   },
   {
     codigo: "devolucion.fecha_incorrecta",
@@ -114,6 +120,24 @@ export const DECISION_TEMPLATES: readonly DecisionTemplate[] = [
     cuerpo: `${LEAD} fue devuelta para corrección: el documento de respaldo no es legible. Le solicitamos adjuntar una copia legible y reenviar la solicitud. Gracias de antemano.`,
   },
 ];
+
+// The introduction of a rejection: any value in the place of a placeholder, up
+// to the first words that open a reason.
+const REJECTION_INTRO = new RegExp(
+  `^${(LEAD + REJECTED).replace(/[.]/g, "[.]").replace(/{[^}]*}/g, ".+?")}(?:${REASON_FOLLOWS}|${BECAUSE})`,
+);
+
+/**
+ * A rejection text from its reason on, without the fixed introduction of the
+ * templates (FE-15): the request card has room for an excerpt only. A text that
+ * does not open with that introduction, or has nothing after it, comes back as
+ * it is.
+ */
+export function withoutRejectionIntro(text: string): string {
+  const trimmed = text.trim();
+  const intro = REJECTION_INTRO.exec(trimmed)?.[0];
+  return intro === undefined ? text : trimmed.slice(intro.length) || text;
+}
 
 export function getTemplate(codigo: string): DecisionTemplate | undefined {
   return DECISION_TEMPLATES.find((t) => t.codigo === codigo);

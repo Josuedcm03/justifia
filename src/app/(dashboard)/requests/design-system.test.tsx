@@ -140,6 +140,8 @@ describe("design system: cards, targets and sections (§4.1, §5, §7)", () => {
     fechaFin: "2026-10-07",
     presentadaEn: new Date("2026-10-08T15:00:00Z"),
     reenviadaEn: null,
+    asignaturas: [{ codigo: "MAT101", nombre: "Matematica I" }],
+    decision: { motivoCodigo: "documento_ilegible", texto: null },
   };
 
   it("frames a request as a card: surface, 1px border, soft shadow, 12px radius", () => {
@@ -156,6 +158,22 @@ describe("design system: cards, targets and sections (§4.1, §5, §7)", () => {
       "shadow-soft",
       "rounded-xl",
     );
+  });
+
+  it("labels the absence dates and the subjects in muted ink and the reason in the body ink", () => {
+    renderIntl(
+      <ul>
+        <RequestCard request={request} />
+      </ul>,
+    );
+
+    expect(screen.getByText(/^Absence dates:/)).toHaveClass(
+      "text-muted-foreground",
+    );
+    expect(screen.getByText(/^Subjects:/)).toHaveClass("text-muted-foreground");
+    const reason = screen.getByText(/^Reason:/);
+    expect(reason).toHaveClass("line-clamp-2");
+    expect(reason).not.toHaveClass("text-muted-foreground");
   });
 
   it("gives the view link a 44px target on the outline variant", () => {
@@ -260,6 +278,8 @@ describe("design system: 360px (RNF-11, §4.3)", () => {
     fechaFin: "2026-10-07",
     presentadaEn: new Date("2026-10-08T15:00:00Z"),
     reenviadaEn: null,
+    asignaturas: [{ codigo: "MAT101", nombre: "Matematica I" }],
+    decision: { motivoCodigo: "documento_ilegible", texto: null },
   };
 
   it("flags a fixed width above the viewport and passes the ones below", () => {
@@ -294,6 +314,28 @@ describe("design system: 360px (RNF-11, §4.3)", () => {
     );
 
     expect(screen.getByRole("link")).toHaveClass("w-full", "sm:w-auto");
+    expect(tooWide(document.body)).toEqual([]);
+  });
+
+  it("keeps five long subject codes and a rejected reason inside the viewport", () => {
+    renderIntl(
+      <ul>
+        <RequestCard
+          request={{
+            ...request,
+            estado: "rechazada",
+            asignaturas: Array.from({ length: 5 }, (_, i) => ({
+              codigo: "ASIGNATURA-DE-CODIGO-MUY-LARGO-" + i,
+              nombre: "Nombre",
+            })),
+            decision: { motivoCodigo: null, texto: "z".repeat(140) },
+          }}
+        />
+      </ul>,
+    );
+
+    expect(screen.getByText(/^Subjects:/)).toHaveClass("break-words");
+    expect(screen.getByText(/^Reason:/)).toHaveClass("break-words");
     expect(tooWide(document.body)).toEqual([]);
   });
 

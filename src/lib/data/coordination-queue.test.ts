@@ -126,7 +126,7 @@ describe("listCoordinationEscalations (E1, E10, RNF-01)", () => {
     ]);
   });
 
-  it("keeps only open escalations of either motive of a request still in coordination", async () => {
+  it("keeps only open escalations of any motive of a request still in coordination", async () => {
     const double = use([
       { kind: "select", rows: [] },
       { kind: "select", rows: [] },
@@ -135,12 +135,13 @@ describe("listCoordinationEscalations (E1, E10, RNF-01)", () => {
     await listCoordinationEscalations(SCOPE);
 
     const open = render(double.log[0].where);
-    expect(open.sql).toContain('"Escalamiento"."Tipo" in ($1, $2)');
+    expect(open.sql).toContain('"Escalamiento"."Tipo" in ($1, $2, $3)');
     expect(open.sql).toContain('"Escalamiento"."RespondidaEn" is null');
-    expect(open.sql).toContain('"Solicitud"."Estado" = $3');
+    expect(open.sql).toContain('"Solicitud"."Estado" = $4');
     expect(open.params).toEqual([
       "sospecha_documento",
       "caso_especial",
+      "otro",
       "en_revision_coordinacion",
       CAREER,
     ]);

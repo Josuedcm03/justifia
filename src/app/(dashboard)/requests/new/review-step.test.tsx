@@ -2,6 +2,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DatesRecap } from "@/app/(dashboard)/requests/new/dates-recap";
 import { renderIntl } from "@/app/(dashboard)/requests/new/test-support";
 
 const { submitRequestAction, discardDraftAction } = vi.hoisted(() => ({
@@ -501,5 +502,206 @@ describe("ReviewStep inside the correction flow", () => {
         "Adjunta al menos un documento de respaldo.",
       ),
     ).toBeInTheDocument();
+  });
+});
+
+// FE-16 (RF-08 a, c): the review step and the resubmit dialog name each file
+// with where it comes from.
+describe("ReviewStep: where each document comes from, in the correction (FE-16)", () => {
+  const flow = {
+    basePath: "/requests/31/correct",
+    actions: { resubmit: vi.fn() },
+  };
+  const KEPT = { id: 5, nombreOriginal: "constancia.pdf", tamanoBytes: 2048 };
+  const ADDED = { id: 6, nombreOriginal: "foto-nueva.png", tamanoBytes: 4096 };
+  const documentRow = (name: string) =>
+    within(section("Documentos")).getByText(name).closest("li") as HTMLElement;
+
+  it("marks the kept document Anterior and the added one Nuevo", () => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: [5, 9] }),
+    );
+
+    expect(documentRow("constancia.pdf")).toHaveTextContent("Anterior");
+    expect(documentRow("foto-nueva.png")).toHaveTextContent("Nuevo");
+  });
+
+  it("keeps the audited Ver link on both", () => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: [5] }),
+    );
+
+    expect(
+      within(section("Documentos")).getByRole("link", {
+        name: "Ver foto-nueva.png",
+      }),
+    ).toHaveAttribute("href", "/api/intake/documents/6");
+  });
+
+  it.each([
+    ["could not be read", null],
+    ["do not apply (a new request)", undefined],
+  ])("shows no mark when the returned ids %s", (_why, previous) => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: previous }),
+    );
+
+    expect(screen.queryByText("Nuevo")).toBeNull();
+    expect(screen.queryByText("Anterior")).toBeNull();
+  });
+
+  it("passes the same names and marks to the resubmit dialog", async () => {
+    renderIntl(
+      ui({ flow, documents: [KEPT, ADDED], previousDocumentIds: [5] }),
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    const items = within(dialog).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("constancia.pdf");
+    expect(items[0]).toHaveTextContent("Anterior");
+    expect(items[1]).toHaveTextContent("foto-nueva.png");
+    expect(items[1]).toHaveTextContent("Nuevo");
+  });
+
+  it("lists no files in the submit dialog of a new request", async () => {
+    submitRequestAction.mockResolvedValue({ ok: true });
+    renderIntl(ui({ documents: [KEPT, ADDED] }));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Presentar solicitud" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+
+    expect(within(dialog).queryByRole("list")).toBeNull();
+    expect(screen.queryByText("Documentos que se enviarán")).toBeNull();
+  });
+});
+
+// FE-18 and FE-19 (RF-01): the review shows the same dates as the recap and
+// repeats the future-start notice under the period. The notice never blocks the
+// submit or the resubmit.
+describe("ReviewStep: the future-start notice under the period (FE-19)", () => {
+  const FUTURE = {
+    causa: "medica",
+    fechaInicio: "2026-11-10",
+    fechaFin: "2026-11-12",
+  };
+  const NOTICE =
+    "La fecha de inicio es posterior a hoy. Si la ausencia ya ocurrió, corrige las fechas; si es una ausencia prevista, puedes continuar.";
+  const TODAY = "2026-11-02";
+
+  it("shows the notice inside the dates section, after the period", () => {
+    renderIntl(ui({ draft: FUTURE, today: TODAY }));
+
+    const details = within(section("Causa y fechas"));
+    const period = details.getByText(
+      "Del 10 de noviembre de 2026 al 12 de noviembre de 2026",
+    );
+    const note = details.getByRole("note");
+    expect(note).toHaveTextContent(NOTICE);
+    expect(
+      period.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("says it in English", () => {
+    renderIntl(ui({ draft: FUTURE, today: TODAY }), "en");
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "The start date is later than today.",
+    );
+  });
+
+  it.each([
+    ["tomorrow", "2026-11-03", true],
+    ["today", "2026-11-02", false],
+    ["yesterday", "2026-11-01", false],
+  ])("for a start %s the notice is shown: %s", (_l, fechaInicio, shown) => {
+    renderIntl(
+      ui({
+        draft: { ...FUTURE, fechaInicio, fechaFin: "2026-11-20" },
+        today: TODAY,
+      }),
+    );
+    expect(screen.queryByRole("note") !== null).toBe(shown);
+  });
+
+  it("shows no notice without today, or while a date is not set", () => {
+    const { unmount } = renderIntl(ui({ draft: FUTURE }));
+    expect(screen.queryByRole("note")).toBeNull();
+    unmount();
+
+    renderIntl(ui({ draft: { ...FUTURE, fechaFin: null }, today: TODAY }));
+    expect(screen.getByText("Sin completar")).toBeInTheDocument();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("is informational: no alert, and the submit button stays enabled", () => {
+    renderIntl(ui({ draft: FUTURE, today: TODAY }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Presentar solicitud" }),
+    ).toBeEnabled();
+  });
+
+  it("still submits, with the notice shown and nothing from it sent", async () => {
+    submitRequestAction.mockResolvedValue({ ok: true });
+    renderIntl(ui({ draft: FUTURE, today: TODAY }));
+
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Presentar solicitud" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sí, presentar" }),
+    );
+
+    await vi.waitFor(() =>
+      expect(submitRequestAction).toHaveBeenCalledWith({
+        consentVersion: CONSENT_VERSION,
+      }),
+    );
+  });
+
+  it("keeps the resubmit enabled in the correction flow", () => {
+    renderIntl(
+      ui({
+        draft: FUTURE,
+        today: TODAY,
+        flow: {
+          basePath: "/requests/31/correct",
+          actions: { resubmit: vi.fn() },
+        },
+      }),
+    );
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+    expect(
+      screen.getByRole("button", { name: "Reenviar solicitud" }),
+    ).toBeEnabled();
+  });
+
+  it("shows the same days as the recap of the earlier steps (4.9 RF-01 c)", () => {
+    renderIntl(
+      <>
+        <DatesRecap
+          range={{ from: FILLED.fechaInicio, to: FILLED.fechaFin }}
+          today={TODAY}
+          editHref="/requests/new?step=1"
+        />
+        {ui({ today: TODAY })}
+      </>,
+    );
+
+    const recapText = screen.getByText(/^Del jueves/).textContent ?? "";
+    const reviewText = within(section("Causa y fechas")).getByText(
+      /^Del 1 de octubre/,
+    ).textContent;
+    for (const day of ["1 de octubre de 2026", "3 de octubre de 2026"]) {
+      expect(recapText).toContain(day);
+      expect(reviewText).toContain(day);
+    }
   });
 });

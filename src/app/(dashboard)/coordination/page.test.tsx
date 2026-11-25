@@ -215,6 +215,34 @@ describe("CoordinationListPage content (E1, E10)", () => {
     ).toHaveAttribute("href", "/coordination/10");
   });
 
+  it("lists the motive otro with its own label beside the other motives (FE-9)", async () => {
+    listMock.mockResolvedValue({
+      open: [
+        open(),
+        open({ id: 10, motivo: "caso_especial" }),
+        open({ id: 11, motivo: "otro" }),
+      ],
+      notices: [],
+    });
+
+    await renderPage();
+
+    const items = within(
+      screen.getByRole("region", { name: en.open.title }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items[2]).toHaveTextContent(
+      messages.en.review.escalation.reasons.otro,
+    );
+    expect(messages.en.review.escalation.reasons.otro).toBe("Other");
+    expect(items[2]).not.toHaveTextContent(
+      messages.en.review.escalation.reasons.caso_especial,
+    );
+    expect(
+      within(items[2]).getByRole("link", { name: /Handle the request of/ }),
+    ).toHaveAttribute("href", "/coordination/11");
+  });
+
   it("lists the notices apart, with the teacher and the communicated date, and a link that never prefetches", async () => {
     await renderPage();
 

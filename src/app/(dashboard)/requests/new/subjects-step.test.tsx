@@ -368,3 +368,145 @@ describe("SubjectsStep inside another flow (the correction)", () => {
     );
   });
 });
+
+// FE-18 and FE-19 (RF-01, RF-04 a): once the dates are valid the step shows
+// them, read only, with a way back to step 1. Without valid dates it shows no
+// recap and keeps asking for them.
+describe("SubjectsStep: the dates recap (FE-18)", () => {
+  const RANGE = { from: "2026-10-29", to: "2026-10-30" };
+  const RECAP = "Fechas de ausencia";
+  const NOTICE = /posterior a hoy/;
+
+  it("shows the dates with weekday and month name above the subjects, and a link back to step 1", () => {
+    renderIntl(ui({ range: RANGE, today: "2026-11-02" }));
+
+    expect(screen.getByText(RECAP)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Del jueves, 29 de octubre de 2026 al viernes, 30 de octubre de 2026",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Editar fechas" })).toHaveAttribute(
+      "href",
+      "/requests/new?step=1",
+    );
+    const label = screen.getByText(RECAP);
+    const firstSubject = subjectBox("Cálculo I");
+    expect(
+      label.compareDocumentPosition(firstSubject) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText("MAT-101 · Cálculo I")).toBeInTheDocument();
+  });
+
+  it("shows one date with its weekday for a one-day absence", () => {
+    renderIntl(
+      ui({
+        range: { from: "2026-10-29", to: "2026-10-29" },
+        today: "2026-11-02",
+      }),
+    );
+    expect(
+      screen.getByText("jueves, 29 de octubre de 2026"),
+    ).toBeInTheDocument();
+  });
+
+  it("says it in English", () => {
+    renderIntl(ui({ range: RANGE, today: "2026-11-02" }), "en");
+    expect(screen.getByText("Absence dates")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Edit dates" }),
+    ).toBeInTheDocument();
+  });
+
+  it("is read only: the only added action is the edit link", () => {
+    renderIntl(ui({ range: RANGE, today: "2026-11-02" }));
+    expect(screen.getAllByRole("link").map((a) => a.textContent)).toEqual([
+      "Editar fechas",
+      "Atrás",
+    ]);
+    expect(screen.queryByLabelText("Fecha de inicio")).toBeNull();
+  });
+
+  it("carries the future-start notice for a start after today, and no other", () => {
+    const { unmount } = renderIntl(
+      ui({
+        range: { from: "2026-11-10", to: "2026-11-12" },
+        today: "2026-11-02",
+      }),
+    );
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICE);
+    unmount();
+
+    renderIntl(ui({ range: RANGE, today: "2026-11-02" }));
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("keeps the step usable with the notice shown: the subjects save as before", async () => {
+    saveSubjectsAction.mockResolvedValue({ ok: true });
+    renderIntl(
+      ui({
+        range: { from: "2026-11-10", to: "2026-11-12" },
+        today: "2026-11-02",
+        selected: [{ asignaturaId: 10, grupoId: 1 }],
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/requests/new?step=3"),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("still shows the recap when the enrollment has no class in those dates", () => {
+    renderIntl(ui({ groups: [], range: RANGE, today: "2026-11-02" }));
+    expect(screen.getByText(RECAP)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Ninguno de tus grupos tiene clase en estas fechas/),
+    ).toBeInTheDocument();
+  });
+
+  it("still shows the recap when the enrollment could not be read", () => {
+    renderIntl(ui({ degraded: true, range: RANGE, today: "2026-11-02" }));
+    expect(screen.getByText(RECAP)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No pudimos cargar tus asignaturas.",
+    );
+  });
+
+  it("shows no recap without valid dates, and asks for them instead", () => {
+    renderIntl(ui({ hasDates: false, range: null, today: "2026-11-02" }));
+    expect(screen.queryByText(RECAP)).toBeNull();
+    expect(screen.queryByRole("link", { name: "Editar fechas" })).toBeNull();
+    expect(
+      screen.getByText(
+        "Indica primero las fechas de la ausencia para ver tus asignaturas.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no recap when the caller gives no range", () => {
+    renderIntl(ui());
+    expect(screen.queryByText(RECAP)).toBeNull();
+  });
+
+  it("points the edit link inside the correction flow", () => {
+    renderIntl(
+      ui({
+        range: RANGE,
+        today: "2026-11-02",
+        flow: {
+          basePath: "/requests/31/correct",
+          actions: { saveSubjects: vi.fn() },
+        },
+      }),
+    );
+    expect(screen.getByRole("link", { name: "Editar fechas" })).toHaveAttribute(
+      "href",
+      "/requests/31/correct?step=1",
+    );
+  });
+});

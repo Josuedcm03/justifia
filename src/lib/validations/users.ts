@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { classifyIdentifier, normalizeCif } from "@/lib/auth/login-identity";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 /**
@@ -12,13 +13,24 @@ export const rolesStaff = rolesUsuario.filter(
 
 export const rolStaffSchema = z.enum(rolesStaff as [string, ...string[]]);
 
+/**
+ * Student self-registration (FE-26, FE-28). There is no `login` key: the server
+ * derives the Login from the email, and any `login` in the request is dropped
+ * by the parse. The email and the CIF are both required; the email is stored
+ * trimmed and lower-case, the CIF cleaned by the same rule as the sign-in
+ * (`normalizeCif`: trimmed, spaces and hyphens removed, case kept), so the
+ * stored value is the one a later sign-in looks up (its verification is out of
+ * scope, AEA-4). The length limit applies to the cleaned value. A CIF the
+ * sign-in would take as an email (it contains "@") is refused: it could never
+ * be matched.
+ */
 export const registroEstudianteSchema = z.object({
-  login: z.string().trim().min(1, "Ingresa un usuario").max(60),
   password: z.string().min(8, "Mínimo 8 caracteres").max(128),
   nombreCompleto: z.string().trim().min(1, "Ingresa tu nombre").max(160),
   correo: z
     .string()
     .trim()
+    .toLowerCase()
     .min(1, "Ingresa tu correo")
     .email("Correo inválido")
     .max(160),
@@ -26,20 +38,39 @@ export const registroEstudianteSchema = z.object({
     .union([z.literal(""), z.string().trim().max(30)])
     .optional()
     .transform((v) => (v ? v : undefined)),
-  cif: z.string().trim().min(1, "Ingresa tu CIF").max(20),
+  cif: z
+    .string()
+    .transform(normalizeCif)
+    .pipe(
+      z
+        .string()
+        .min(1, "Ingresa tu CIF")
+        .max(20)
+        .refine((cif) => classifyIdentifier(cif)?.kind !== "email", {
+          message: "El CIF no lleva @",
+        }),
+    ),
   carreraId: z.coerce.number().int().positive("Selecciona una carrera"),
 });
 
 export type RegistroEstudianteInput = z.infer<typeof registroEstudianteSchema>;
 
+/**
+ * Staff creation (FE-27, FE-28). There is no `login` key: the server derives the
+ * Login from the email, and any `login` in the request is dropped by the parse.
+ * The email is required for every role, stored trimmed and lower-case, and at
+ * most the 160 characters of `Usuario.Correo`.
+ */
 export const crearStaffSchema = z.object({
-  login: z.string().trim().min(1, "Ingresa un usuario").max(60),
   password: z.string().min(8, "Mínimo 8 caracteres").max(128),
   nombreCompleto: z.string().trim().min(1, "Ingresa el nombre").max(160),
   correo: z
-    .union([z.literal(""), z.string().trim().email("Correo inválido").max(160)])
-    .optional()
-    .transform((v) => (v ? v : undefined)),
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, "Ingresa el correo")
+    .email("Correo inválido")
+    .max(160),
   telefono: z
     .union([z.literal(""), z.string().trim().max(30)])
     .optional()

@@ -22,6 +22,8 @@ export function FlowSteps({
   enrollment,
   fromReview,
   flow,
+  previousDocumentIds,
+  today,
 }: {
   step: StepNumber;
   draft: Draft;
@@ -32,7 +34,12 @@ export function FlowSteps({
   };
   fromReview: boolean;
   flow?: Flow;
+  /** The ids of the version just returned; set by the correction (FE-16). */
+  previousDocumentIds?: readonly number[] | null;
+  /** The Managua calendar day, read on the server (FE-19). */
+  today: string;
 }) {
+  const range = draftRange(draft);
   const validDocuments = draft.documents.filter((d) => d.estado === "valido");
   const heldGroups = new Set(draft.subjects.map((s) => s.grupoId));
 
@@ -48,13 +55,16 @@ export function FlowSteps({
           }}
           fromReview={fromReview}
           flow={flow}
+          today={today}
         />
       ) : null}
       {step === 2 ? (
         <SubjectsStep
           groups={enrollment.data}
           selected={draft.subjects}
-          hasDates={draftRange(draft) !== null}
+          hasDates={range !== null}
+          range={range}
+          today={today}
           degraded={enrollment.degraded}
           enrolled={enrollment.enrolled}
           fromReview={fromReview}
@@ -67,6 +77,9 @@ export function FlowSteps({
           documents={validDocuments}
           fromReview={fromReview}
           flow={flow}
+          previousDocumentIds={previousDocumentIds}
+          range={range}
+          today={today}
         />
       ) : null}
       {step === 4 ? (
@@ -76,6 +89,8 @@ export function FlowSteps({
           documents={validDocuments}
           degraded={enrollment.degraded}
           flow={flow}
+          previousDocumentIds={previousDocumentIds}
+          today={today}
         />
       ) : null}
     </>

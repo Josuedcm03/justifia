@@ -442,6 +442,31 @@ describe("OwnRequestDetailPage in coordination (ES-14, E13)", () => {
     expect(correctLink()).toBeNull();
   });
 
+  it("looks the same for the motive otro: no code, label, description or answer (FE-9, E13)", async () => {
+    const description = "Descripcion privada del motivo otro";
+    detailMock.mockResolvedValue(
+      detail({
+        estado: "en_revision_coordinacion",
+        decision: null,
+        ...STAFF_LEAK,
+        motivo: "otro",
+        tipo: "otro",
+        nota: description,
+      }),
+    );
+
+    const { container } = await renderPage();
+
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/otro/i);
+    expect(text).not.toContain(description);
+    expect(text).not.toContain("Coordinator answer");
+    expect(callout()).not.toBeNull();
+    expect(section(en.detail.sections.request)).toHaveTextContent(
+      en.states.en_revision_coordinacion,
+    );
+  });
+
   it("shows only the state after an answer returned the request to pendiente", async () => {
     detailMock.mockResolvedValue(
       detail({ estado: "pendiente", decision: null, ...STAFF_LEAK }),

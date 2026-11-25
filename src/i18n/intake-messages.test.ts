@@ -164,3 +164,95 @@ describe("intake messages", () => {
     expect(en.nav.newRequest).toEqual(expect.any(String));
   });
 });
+
+// FE-17 (RF-08 a): the preview copy of the documents step. The student screens
+// address the student as "tú"; the labels with no verb are neutral. The
+// accessible names keep the visible label inside them (WCAG 2.5.3).
+describe("intake messages: the local preview (FE-17)", () => {
+  it("words the preview controls and the hint in Spanish, in the informal address", () => {
+    expect(es.intake.documents).toMatchObject({
+      preview: "Vista previa",
+      previewNamed: "Vista previa de {name}",
+      hidePreview: "Ocultar vista previa",
+      hidePreviewNamed: "Ocultar vista previa de {name}",
+      previewHint:
+        "Comprueba que este es el documento correcto antes de continuar.",
+    });
+    expect(es.intake.documents.previewHint).not.toMatch(/Compruebe/);
+  });
+
+  it("words the preview controls and the hint in English", () => {
+    expect(en.intake.documents).toMatchObject({
+      preview: "Preview",
+      previewNamed: "Preview of {name}",
+      hidePreview: "Hide preview",
+      hidePreviewNamed: "Hide preview of {name}",
+      previewHint: "Check that this is the right document before you continue.",
+    });
+  });
+
+  it.each([
+    ["es", es],
+    ["en", en],
+  ] as const)(
+    "%s keeps the visible label inside each accessible name",
+    (_l, m) => {
+      const { preview, previewNamed, hidePreview, hidePreviewNamed } =
+        m.intake.documents;
+      expect(previewNamed.toLowerCase()).toContain(preview.toLowerCase());
+      expect(hidePreviewNamed.toLowerCase()).toContain(
+        hidePreview.toLowerCase(),
+      );
+      expect(previewNamed).toContain("{name}");
+      expect(hidePreviewNamed).toContain("{name}");
+    },
+  );
+});
+
+// FE-16: a student tells a kept file from an added one by the word, so the two
+// marks must differ and exist in both locales.
+describe("intake messages: the file origin marks (FE-16)", () => {
+  it.each([
+    ["es", es],
+    ["en", en],
+  ] as const)("%s has two different mark words and a list title", (_l, m) => {
+    const { filesTitle, marks } = m.intake.correction.resubmit;
+
+    expect(marks.new.trim().length).toBeGreaterThan(0);
+    expect(marks.previous.trim().length).toBeGreaterThan(0);
+    expect(marks.new).not.toBe(marks.previous);
+    expect(filesTitle.trim().length).toBeGreaterThan(0);
+  });
+});
+
+// FE-18 and FE-19 (RF-01): the dates recap and the future-start notice. Student
+// screen: the notice speaks to the student as "tú"; the other lines are labels.
+describe("intake messages: the dates recap (FE-18, FE-19)", () => {
+  it("words the recap and the notice in Spanish, in the informal address", () => {
+    expect(es.intake.datesRecap).toEqual({
+      label: "Fechas de ausencia",
+      range: "Del {start} al {end}",
+      edit: "Editar fechas",
+      futureStart:
+        "La fecha de inicio es posterior a hoy. Si la ausencia ya ocurrió, corrige las fechas; si es una ausencia prevista, puedes continuar.",
+    });
+    expect(es.intake.datesRecap.futureStart).not.toMatch(/corrija|puede /);
+  });
+
+  it("words the recap and the notice in English", () => {
+    expect(en.intake.datesRecap).toEqual({
+      label: "Absence dates",
+      range: "From {start} to {end}",
+      edit: "Edit dates",
+      futureStart:
+        "The start date is later than today. If the absence already happened, correct the dates; if it is a planned absence, you can continue.",
+    });
+  });
+
+  it("uses the label of the request card, not the design's older wording", () => {
+    expect(
+      es.requests.list.absence.startsWith(es.intake.datesRecap.label),
+    ).toBe(true);
+    expect(es.intake.datesRecap.label).not.toBe("Fechas de la ausencia");
+  });
+});

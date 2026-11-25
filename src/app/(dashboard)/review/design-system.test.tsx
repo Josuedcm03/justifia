@@ -25,7 +25,10 @@ vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
   attachSpecialFormatAction: vi.fn(),
 }));
 
-import { DeadlineBadge } from "@/app/(dashboard)/review/deadline-badge";
+import {
+  DeadlineBadge,
+  FirstDueBadge,
+} from "@/app/(dashboard)/review/deadline-badge";
 import { DecisionDialog } from "@/app/(dashboard)/review/[id]/decision-dialog";
 import {
   ChangesSection,
@@ -37,6 +40,7 @@ import {
 import { RemissionSection } from "@/app/(dashboard)/review/[id]/remission-section";
 import { AbsenceReportsSection } from "@/app/(dashboard)/review/[id]/absence-reports-section";
 import { EscalateDialog } from "@/app/(dashboard)/review/[id]/escalate-dialog";
+import { AnswerBanner } from "@/app/(dashboard)/review/[id]/answer-banner";
 import { EscalationSection } from "@/app/(dashboard)/review/[id]/escalation-section";
 import { ReviewTabs } from "@/app/(dashboard)/review/review-tabs";
 
@@ -137,6 +141,43 @@ describe("design system: status pills (§2.5, §5 Badge, §7)", () => {
       expect(pill).toHaveClass("rounded-full", tint, ink);
     },
   );
+});
+
+describe("design system: first-due mark (FE-2, §2.5, §5 Badge, §7)", () => {
+  it("draws the mark as a neutral pill with the foreground ink, and always with text", () => {
+    renderIntl(<FirstDueBadge label="Due first" />);
+
+    const pill = screen.getByText("Due first");
+    expect(pill).toHaveClass(
+      "rounded-full",
+      "bg-muted",
+      "text-foreground",
+      "text-xs",
+      "font-semibold",
+      "px-3",
+      "py-1",
+    );
+    // Neutral: it is not a state, so it never takes a warning or alarm tint.
+    expect(pill.className).not.toMatch(/warning|destructive|success/);
+  });
+
+  it("is told apart from the muted on-time state by weight and ink, not by colour alone", () => {
+    renderIntl(
+      <>
+        <DeadlineBadge status="en_plazo" label="On time" />
+        <FirstDueBadge label="Due first" />
+      </>,
+    );
+
+    expect(screen.getByText("On time")).toHaveClass(
+      "font-medium",
+      "text-muted-foreground",
+    );
+    expect(screen.getByText("Due first")).toHaveClass(
+      "font-semibold",
+      "text-foreground",
+    );
+  });
 });
 
 describe("design system: cards and sections (§4.1, §5 Card)", () => {
@@ -421,6 +462,7 @@ describe("design system: 360px (RNF-11, §4.3)", () => {
         ]}
         revisions={[]}
         retired={[]}
+        escalations={0}
       />,
     );
 
@@ -779,6 +821,37 @@ describe("design system: escalation and report screens (§2.5, §5 Badge, Dialog
     expect(
       screen.getByRole("heading", { level: 2, name: esc.section.title }),
     ).toHaveClass("text-headline");
+  });
+
+  it("frames the answer banner as a card with the callout tokens, the headline title and a 44px link", () => {
+    renderIntl(
+      <AnswerBanner
+        answer={{
+          text: "Verified.",
+          authorName: "Marta Gomez",
+          answeredAt: new Date("2026-10-09T21:00:00Z"),
+        }}
+      />,
+    );
+
+    const banner = screen.getByRole("region", {
+      name: messages.en.review.detail.answerBanner.title,
+    });
+    expect(banner).toHaveClass(
+      "bg-primary/5",
+      "border-l-primary",
+      "shadow-soft",
+      "rounded-xl",
+      "p-6",
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Coordination answer" }),
+    ).toHaveClass("text-headline");
+    expect(
+      screen.getByRole("link", {
+        name: messages.en.review.detail.answerBanner.link,
+      }),
+    ).toHaveClass("min-h-11");
   });
 
   it("draws the escalate trigger as a 44px outline button and the confirm as the primary action", async () => {

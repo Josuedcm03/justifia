@@ -4,10 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { clearSessionCookie, setSessionCookie } from "@/lib/auth/cookies";
+import { DUMMY_PASSWORD_HASH } from "@/lib/auth/dummy-hash";
 import { verifyPassword } from "@/lib/auth/password";
 import { safeNextPath } from "@/lib/auth/safe-next";
 import { signSession } from "@/lib/auth/session";
-import { getUsuarioByLogin } from "@/lib/data/users";
+import { findLoginAccount } from "@/lib/data/users";
 import { loginSchema } from "@/lib/validations/auth";
 
 export type LoginState = { error: string | null };
@@ -26,8 +27,16 @@ export async function loginAction(
     return { error: t("errors.invalid") };
   }
 
-  const user = await getUsuarioByLogin(parsed.data.login);
-  if (!user || !user.activo) {
+  // The identifier is a CIF or an institutional email (FE-21); the stored
+  // Login is never a key. Every failure below answers with the same message
+  // (FE-23), and none sets a cookie.
+  const user = await findLoginAccount(parsed.data.login);
+  if (!user?.activo) {
+    // No rate limiter exists (D13), so an unknown or ambiguous identifier and
+    // an inactive account still pay one password check, and the time of the
+    // answer does not tell them from a wrong password. It runs against a
+    // constant hash: no password opens an inactive account.
+    await verifyPassword(parsed.data.password, DUMMY_PASSWORD_HASH);
     return { error: t("errors.invalid") };
   }
 
@@ -36,14 +45,20 @@ export async function loginAction(
     return { error: t("errors.invalid") };
   }
 
+  // "Mantener la sesión iniciada" (FE-32): a native checkbox posts "on"; any
+  // other value is not the box. The claim is added only when true, so an
+  // unchecked token has today's shape. Every failure above returned before
+  // this point, so a failed attempt never signs or sets a cookie.
+  const keep = formData.get("mantener") === "on";
   const token = await signSession({
     sub: String(user.id),
     login: user.login,
     rol: user.rol,
     nombre: user.nombreCompleto,
     debeCambiarClave: user.debeCambiarClave,
+    ...(keep ? { mantenerSesion: true } : {}),
   });
-  await setSessionCookie(token);
+  await setSessionCookie(token, keep);
 
   redirect(safeNextPath(formData.get("next")));
 }

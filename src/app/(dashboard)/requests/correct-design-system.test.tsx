@@ -22,17 +22,22 @@ const {
   requireRole,
   getLiveDraft,
   getCorrectionReason,
+  getReturnedDocumentIds,
   listEnrollmentFailSoft,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   getLiveDraft: vi.fn(),
   getCorrectionReason: vi.fn(),
+  getReturnedDocumentIds: vi.fn(),
   listEnrollmentFailSoft: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/dal", () => ({ requireRole }));
 vi.mock("@/lib/data/solicitudes", () => ({ getLiveDraft }));
-vi.mock("@/lib/data/student-requests", () => ({ getCorrectionReason }));
+vi.mock("@/lib/data/student-requests", () => ({
+  getCorrectionReason,
+  getReturnedDocumentIds,
+}));
 vi.mock("@/lib/data/enrollment", () => ({ listEnrollmentFailSoft }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => ({}) }));
 vi.mock("next-intl/server", () => ({
@@ -195,6 +200,9 @@ beforeEach(() => {
   requireRole.mockReset().mockResolvedValue({ sub: "7", rol: "estudiante" });
   getLiveDraft.mockReset().mockResolvedValue(RETURNED);
   getCorrectionReason.mockReset().mockResolvedValue(LONG_REASON);
+  // An empty returned version: every file is marked "New", so the pins below
+  // also cover the marks (FE-16).
+  getReturnedDocumentIds.mockReset().mockResolvedValue([]);
   listEnrollmentFailSoft
     .mockReset()
     .mockResolvedValue({ data: [GROUP], degraded: false });

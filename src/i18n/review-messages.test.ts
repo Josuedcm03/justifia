@@ -294,8 +294,10 @@ describe("review messages", () => {
         e.dialog.motivoLabel,
         e.dialog.motivo.sospecha_documento,
         e.dialog.motivo.caso_especial,
+        e.dialog.motivo.otro,
         e.dialog.noteLabel,
         e.dialog.noteHint,
+        e.dialog.noteHintOtro,
         e.dialog.counter,
         e.dialog.confirm,
         e.dialog.pending,
@@ -303,6 +305,7 @@ describe("review messages", () => {
         e.dialog.backToQueue,
         e.reasons.sospecha_documento,
         e.reasons.caso_especial,
+        e.reasons.otro,
         e.reasons.exceso_inasistencias,
         m.review.queue.result.escalada,
       ]) {
@@ -331,12 +334,22 @@ describe("review messages", () => {
     expect(e.dialog.motivo).toEqual({
       sospecha_documento: "Sospecha sobre un documento",
       caso_especial: "Caso especial (fuera de las causas del reglamento)",
+      otro: "Otro",
     });
     expect(e.errors.motivo_invalid).toBe(
       "Seleccione el motivo del escalamiento.",
     );
     expect(e.reasons.caso_especial).toBe("Caso especial");
+    expect(e.reasons.otro).toBe("Otro");
     expect(JSON.stringify(e)).not.toMatch(/escalación/i);
+  });
+
+  // FE-9: the English twins of the third motive.
+  it("words the third motive in English", () => {
+    const e = en.review.escalation;
+
+    expect(e.dialog.motivo.otro).toBe("Other");
+    expect(e.reasons.otro).toBe("Other");
   });
 
   it.each(catalogs)(
@@ -974,6 +987,239 @@ describe("review manual document data messages (manual-document-data, MD-25, RNF
     );
     expect(text).not.toMatch(
       /\b(tu|tus|tienes|puedes|escribe|selecciona|indica)\b/i,
+    );
+  });
+});
+
+// flow-experience S1 (RF-16 c, FE-3): the answer banner of the staff detail.
+// Staff screens address the secretary as "usted"; the labels carry no verb.
+describe("coordination answer banner messages (FE-3, RF-16 c)", () => {
+  it("words the banner in neutral Spanish with the label of the requirement", () => {
+    expect(es.review.detail.answerBanner).toEqual({
+      title: "Respuesta de coordinación",
+      byline: "{name}, {date}",
+      hint: "Tenga en cuenta esta respuesta al decidir.",
+      link: "Ver el escalamiento completo",
+    });
+  });
+
+  it("words the banner in English with the label of the requirement", () => {
+    expect(en.review.detail.answerBanner).toEqual({
+      title: "Coordination answer",
+      byline: "{name}, {date}",
+      hint: "Take this answer into account when you decide.",
+      link: "See the full escalation",
+    });
+  });
+
+  it("uses the same label as the escalation section's answer", () => {
+    expect(es.review.detail.answerBanner.title).toBe(
+      es.review.escalation.section.fields.answer,
+    );
+    expect(en.review.detail.answerBanner.title).toBe(
+      en.review.escalation.section.fields.answer,
+    );
+  });
+
+  it.each(catalogs)("%s keeps the placeholders of the byline", (_l, m) => {
+    expect(m.review.detail.answerBanner.byline).toContain("{name}");
+    expect(m.review.detail.answerBanner.byline).toContain("{date}");
+  });
+
+  it("never words the banner with the informal address or the legacy voseo", () => {
+    const text = JSON.stringify(es.review.detail.answerBanner);
+
+    expect(text).not.toMatch(/\b(tu|tus|tienes|puedes|ten|vos|tené)\b/i);
+  });
+});
+
+describe("decision panel copy after a coordination answer (FE-4, RF-16 c)", () => {
+  it("words it in Spanish with usted and without sending the secretary to escalate", () => {
+    const text = es.review.detail.decisionPanel.descriptionAnswered;
+
+    expect(text).toBe(
+      "La coordinación ya respondió esta solicitud (vea la respuesta al inicio de esta página) y la decisión ahora es suya. Apruebe, devuelva para corrección o rechace la solicitud. Cada decisión le pide confirmarla.",
+    );
+    expect(text).not.toContain(es.review.escalation.dialog.trigger);
+    expect(text).not.toMatch(/escal/i);
+  });
+
+  it("words it in English without sending the secretary to escalate", () => {
+    const text = en.review.detail.decisionPanel.descriptionAnswered;
+
+    expect(text).toBe(
+      "Coordination has already answered this request (see the answer at the top of this page) and the decision is now yours. Approve, return for correction or reject the request. Each decision asks you to confirm it.",
+    );
+    expect(text).not.toMatch(/escalat/i);
+  });
+});
+
+describe("escalate dialog notice and history pointer messages (FE-5, FE-12, RF-16 c)", () => {
+  it("words the earlier-answer notice in Spanish with usted", () => {
+    expect(es.review.escalation.dialog.previousAnswer).toEqual({
+      title: "La coordinación ya respondió esta solicitud ({byline}):",
+      hint: "Si la escala de nuevo, vuelve a coordinación y no podrá decidir hasta que responda.",
+    });
+  });
+
+  it("words the earlier-answer notice in English", () => {
+    expect(en.review.escalation.dialog.previousAnswer).toEqual({
+      title: "Coordination already answered this request ({byline}):",
+      hint: "If you escalate it again, it goes back to coordination and you cannot decide until it answers.",
+    });
+  });
+
+  it("words the history pointer in Spanish, naming the escalations section", () => {
+    const history = es.review.detail.history;
+
+    expect(history.escalations).toBe(
+      "{count, plural, one {Esta solicitud tiene # escalamiento a coordinación.} other {Esta solicitud tiene # escalamientos a coordinación.}} Los detalles y las respuestas están en la sección «Escalamientos a coordinación».",
+    );
+    expect(history.escalations).toContain(
+      `«${es.review.escalation.section.title}»`,
+    );
+    expect(history.escalationsLink).toBe("Ir a los escalamientos");
+  });
+
+  it("words the history pointer in English, naming the escalations section", () => {
+    const history = en.review.detail.history;
+
+    expect(history.escalations).toBe(
+      "{count, plural, one {This request has # escalation to coordination.} other {This request has # escalations to coordination.}} The details and answers are in the “Escalations to coordination” section.",
+    );
+    expect(history.escalations).toContain(
+      `“${en.review.escalation.section.title}”`,
+    );
+    expect(history.escalationsLink).toBe("Go to the escalations");
+  });
+});
+
+// flow-experience S2 (RF-06 a, FE-1, FE-2): the order of the Pendientes queue
+// and its "Vence primero" mark. Staff screens address the secretary as
+// "usted"; the mark is a label with no verb.
+describe("queue order messages (FE-1, FE-2, RF-06 a)", () => {
+  it("words the Pendientes description in Spanish by the deadline, soonest first", () => {
+    expect(es.review.queue.description).toBe(
+      "Solicitudes pendientes de su facultad, ordenadas por vencimiento del plazo: primero la que vence antes.",
+    );
+  });
+
+  it("words the Pendientes description in English by the deadline, soonest first", () => {
+    expect(en.review.queue.description).toBe(
+      "Pending requests of your faculty, ordered by deadline: the one due first comes first.",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s never describes the Pendientes order by presentation age",
+    (_l, m) => {
+      expect(m.review.queue.description).not.toMatch(
+        /antigua|reciente|oldest|newest|latest|earliest/i,
+      );
+    },
+  );
+
+  it("keeps the descriptions of the other two tabs as they were", () => {
+    expect(es.review.queue.coordination.description).toBe(
+      "Solicitudes escaladas a la coordinación de la carrera, de la más antigua a la más reciente.",
+    );
+    expect(en.review.queue.coordination.description).toBe(
+      "Requests escalated to the career coordination, oldest first.",
+    );
+    expect(es.review.queue.approved.description).toBe(
+      "Solicitudes aprobadas de su facultad, de la más reciente a la más antigua.",
+    );
+    expect(en.review.queue.approved.description).toBe(
+      "Approved requests from your faculty, newest first.",
+    );
+  });
+
+  it("words the first-due mark in both languages", () => {
+    expect(es.review.queue.firstDue).toBe("Vence primero");
+    expect(en.review.queue.firstDue).toBe("Due first");
+  });
+});
+
+// flow-experience S3 (RF-10 a, b; FE-10): the escalate dialog marks the note as
+// required. Staff screens address the secretary as "usted". The report dialog
+// (optional note) and the coordinator answer keep their own labels.
+describe("escalate dialog note messages (FE-10, RF-10 a, b)", () => {
+  it("words the required note and its example hint in Spanish with usted", () => {
+    expect(es.review.escalation.dialog.noteLabel).toBe(
+      "Nota para coordinación (obligatoria)",
+    );
+    expect(es.review.escalation.dialog.noteHint).toBe(
+      "Explique por qué escala la solicitud; por ejemplo, qué dato del documento no coincide o qué situación no prevé el reglamento. Solo la ve el personal.",
+    );
+  });
+
+  it("words the required note and its example hint in English", () => {
+    expect(en.review.escalation.dialog.noteLabel).toBe(
+      "Note for coordination (required)",
+    );
+    expect(en.review.escalation.dialog.noteHint).toBe(
+      "Explain why you are escalating the request; for example, which document detail does not match or which situation the regulation does not cover. Only staff can see it.",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s keeps the staff-only statement and no informal address in the hint",
+    (_l, m) => {
+      expect(m.review.escalation.dialog.noteHint).toMatch(
+        /only staff|solo la ve el personal/i,
+      );
+      expect(m.review.escalation.dialog.noteHint).not.toMatch(
+        /\b(tu|tus|tienes|puedes|vos|tené|explica)\b/i,
+      );
+    },
+  );
+
+  it("leaves the labels of the other note fields as they were", () => {
+    expect(es.review.report.dialog.noteLabel).toBe("Nota (opcional)");
+    expect(en.review.report.dialog.noteLabel).toBe("Note (optional)");
+    expect(es.coordination.answer.dialog.noteLabel).toBe(
+      "Respuesta para la secretaría",
+    );
+    expect(en.coordination.answer.dialog.noteLabel).toBe(
+      "Answer for the secretary",
+    );
+  });
+});
+
+// flow-experience S8 (RF-10 a, b; FE-9, FE-10): the motive "otro" has its own
+// hint, because its note is the description of the reason. Staff screens speak
+// "usted".
+describe("escalate dialog hint for the motive otro (FE-9, FE-10)", () => {
+  it("words the hint in Spanish with usted", () => {
+    expect(es.review.escalation.dialog.noteHintOtro).toBe(
+      "Esta nota es la descripción del motivo: explique la situación que lo lleva a escalar la solicitud y por qué no corresponde a los otros dos motivos. Solo la ve el personal.",
+    );
+  });
+
+  it("words the hint in English", () => {
+    expect(en.review.escalation.dialog.noteHintOtro).toBe(
+      "This note is the description of the reason: explain the situation that leads you to escalate the request and why it fits neither of the other two reasons. Only staff can see it.",
+    );
+  });
+
+  it.each(catalogs)(
+    "%s keeps the staff-only statement and no informal address in the hint",
+    (_l, m) => {
+      expect(m.review.escalation.dialog.noteHintOtro).toMatch(
+        /only staff|solo la ve el personal/i,
+      );
+      expect(m.review.escalation.dialog.noteHintOtro).not.toMatch(
+        /\b(tu|tus|tienes|puedes|vos|tené|explica|describe)\b/i,
+      );
+    },
+  );
+
+  it("leaves the standard hint as it was", () => {
+    expect(es.review.escalation.dialog.noteHint).not.toBe(
+      es.review.escalation.dialog.noteHintOtro,
+    );
+    expect(en.review.escalation.dialog.noteHint).not.toBe(
+      en.review.escalation.dialog.noteHintOtro,
     );
   });
 });
