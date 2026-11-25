@@ -2158,3 +2158,24 @@ Branch "flow-it", endpoint asserted, with the owner's explicit yes. One "UPDATE 
 | Sign-in with the earlier password | Refused |
 
 The first run stopped halfway because the script clicked "Cerrar sesión" instead of the submit button; it changed nothing and was repeated. Evidence: UX-21_cambio_obligatorio.png. The server was stopped and the credential file deleted; the new password was not stored.
+
+## S9f: sign-in hardening (2026-11-25; task 11.14)
+
+The first sdd-verify run (77fe452, 2026-11-24, pass with warnings) reported W3 and W4. The owner asked for both to be fixed before the deploy.
+
+| Task | Test file | RED | GREEN | Refactor |
+| --- | --- | --- | --- | --- |
+| W3, FE-23 | `src/app/(auth)/login/actions.test.ts` | 4 failing: an inactive account pays no check (2 cases), and the two retention accounts | `src/app/(auth)/login/actions.ts`: one branch for "no account" and "inactive", with the dummy check | The two branches became one |
+| W4, FE-26 | `src/lib/validations/users.test.ts`, `src/app/(auth)/register/actions.test.ts` | 4 failing: a CIF with "@" is accepted | `src/lib/validations/users.ts`: refused when `classifyIdentifier` takes it as an email, so the rule is the one of the sign-in | None |
+
+The retention pin (DR-3) changed on purpose: it asserted that no password check ran for a system or cancelled account; it now asserts exactly one, against the dummy hash and never against the hash of the account. W3 existed on "main" before this change.
+
+Mutation checks (restored afterwards): own hash instead of the dummy one, 4 fail; inactive accounts let through to their own check, 7 fail; the "@" rule removed, 4 fail.
+
+| Gate (2026-11-25) | Result |
+| --- | --- |
+| npm test | 392 files, 10438 tests passed (6 more than at 77fe452) |
+| typecheck | exit 0 |
+| npx eslint src | 0 errors, 1 known warning |
+| next build (dummy environment) | exit 0 |
+| Runtime harness | N/A: no database command was run; the answer of the screen does not change |
