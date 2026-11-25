@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, two inscripcion read, three escalation, four escalation notice one coordinator read three report ones, one retention one and one manual document data one", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, two inscripcion read, three escalation, four escalation notice one coordinator read three report ones, one retention one, one manual document data one and two docente toggle ones", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -82,13 +82,26 @@ describe("AUDIT_ACTIONS", () => {
         "escalamiento.cola.consultada",
         "usuario.cancelado",
         "documento.datos_registrados",
+        "usuario.desactivado",
+        "usuario.reactivado",
       ].sort(),
     );
+    expect(AUDIT_ACTIONS).toHaveLength(49);
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([
       "catalogo.importacion.aplicada",
       "usuario.creado",
       "usuario.actualizado",
     ]);
+  });
+
+  it("registers the two docente toggle actions once each, under the Usuario entity (DM-AUD-1)", () => {
+    // Compile-time pin: the assignment fails typecheck if either action leaves
+    // the Usuario members of the union.
+    const toggles: Extract<AuditEvent, { entidadTipo: "Usuario" }>["accion"][] =
+      ["usuario.desactivado", "usuario.reactivado"];
+    for (const action of toggles) {
+      expect(AUDIT_ACTIONS.filter((code) => code === action)).toHaveLength(1);
+    }
   });
 
   it("adds no inscripcion write action: the write set stays the three of student-enrollment (audit-log)", () => {
