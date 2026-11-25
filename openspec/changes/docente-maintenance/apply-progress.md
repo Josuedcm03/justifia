@@ -86,4 +86,5 @@ REFACTOR: none needed (the builders reuse the `AuditOrigin` spread of the asigna
 
 - Code read in full; full run repeated at e8f5973: 394 files, 10510 tests, all pass; typecheck clean; 1258 changed lines measured again.
 - Six further mutations on `docentes.ts`, `docente.ts` and `events.ts`, all reverted, all killed: count without the active filter, any error mapped to `correo_taken`, inactive docente editable, email not lower-cased, subquery counting inactive grupos, toggle direction swapped.
-- Over the 1000 stop line: no PR opened. Waiting for the owner on the cut (proposed: PR 1a units 1 and 2, 597 lines; PR 1b unit 3, 661 lines).
+- Over the 1000 stop line: cut by the owner's yes (2026-11-25) into PR 1a (#155, units 1 and 2, 597 lines, green on its own: 393 files, 10479 tests) and PR 1b (#156, unit 3, 661 lines).
+- Standing rule from the owner (2026-11-25): a slice over 1000 lines is cut at unit boundaries into PRs of at most 1000 lines, without touching code or tests, and reported at the pause.
