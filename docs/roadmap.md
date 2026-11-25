@@ -19,7 +19,7 @@ remiten a ese archivo.
 | 10  | `secretary-templates`      | Plantillas propias de la secretaría (RF-07)                                          | Por asignar | No                   | pendiente |
 | 11  | `backoffice-ui-refresh`    | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué       | No                   | archivado |
 | 12  | `printable-forms`          | Formato especial prellenado e impresión (RN-19); requiere RF nuevo                   | Por asignar | No                   | pendiente |
-| 13  | `flow-experience`          | Mejoras de experiencia del flujo; insumo en `docs/flow-experience-backlog.md`        | Por asignar | No                   | pendiente |
+| 13  | `flow-experience`          | RF-01, RF-02, RF-03 (a, b), RF-04 (a), RF-06, RF-07 (c), RF-08, RF-10, RF-16 (c); RN-02, RN-05, RN-08, RN-16, RN-17, RN-20, RN-22, RN-23; RNF-01, RNF-06, RNF-10, RNF-11, RNF-12 | Armando     | No                   | archivado |
 | 14  | `student-enrollment`       | RF-17 (antes RF-16), RF-12, RF-04; RN-21, RN-22; RNF-06, RNF-12                      | Josué       | No                   | archivado |
 | 15  | `rest-signals-cause-scope` | RF-05 (a), (b); RN-09, RN-10, RN-15                                                  | Armando     | No                   | archivado |
 | 16  | `auth-route-tests`         | RNF-01 (c)                                                                           | Armando     | Si alcanza el tiempo | archivado |
@@ -156,12 +156,21 @@ remiten a ese archivo.
   no hay un RF en la línea base, por lo que hay que agregarlo a
   `docs/requirements.md` antes de planificarlo. Lleva el número 12 porque el
   11 lo usa `backoffice-ui-refresh` en la rama de Josué.
-- `flow-experience` reúne las mejoras de experiencia de uso que se detectan
-  en los recorridos y en el piloto. Su insumo vivo es
-  [`docs/flow-experience-backlog.md`](./flow-experience-backlog.md): cada
-  mejora nueva se anota ahí y el change se planifica desde ese archivo. Cubre
-  RF y RN ya existentes; si alguna entrada cambia un requisito, se actualiza
-  `docs/requirements.md` antes de planificarlo.
+- `flow-experience` (archivado el 2026-11-25) entrega los ajustes de la
+  Tabla 19 de la tesis (RF-01, RF-06, RF-07, RF-08, RF-10 y RF-16; UX-23 a
+  UX-28), el enlace a «Cambiar contraseña» (UX-20), el ingreso con el CIF o el
+  correo institucional (UX-21) y la sesión de 30 días con «Mantener la sesión
+  iniciada» (UX-22). Agrega el motivo de escalamiento «Otro» (RN-20) con la
+  migración `0016_escalation_otro`, aplicada en la base de producción el
+  2026-11-25. Por decisión del propietario (2026-11-20) no queda ningún ingreso
+  con el «Usuario» anterior: la columna `Login` se conserva, pero ya no
+  identifica a nadie. Los desajustes con el texto de la tesis quedan listados en
+  el informe de archivo. Siguen abiertas UX-29 (límite de intentos de ingreso),
+  UX-30 (revocar las sesiones de 30 días) y UX-31 (buscar por CIF con guion o
+  espacio). El insumo vivo sigue siendo
+  [`docs/flow-experience-backlog.md`](./flow-experience-backlog.md): las mejoras
+  nuevas se anotan ahí y se planifican en otro change; si alguna cambia un
+  requisito, se actualiza `docs/requirements.md` antes de planificarla.
 - El calendario de días no hábiles de RN-08 (2026 y 2027) se validó contra el
   calendario académico de la UAM el 2026-10-12. Debe extenderse cada año antes
   de que empiece: `src/lib/intake/calendar.test.ts` falla cuando el año en

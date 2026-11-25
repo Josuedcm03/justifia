@@ -825,7 +825,7 @@ Sorting MUST be single-column, held in the `sort` (column key) and `dir`
 | List | Sortable columns |
 |---|---|
 | Asignaturas | code, name, hours, status |
-| Docentes | name, login, email, status |
+| Docentes | name, email, status |
 
 The Asignaturas "Groups" column (CM-ASG-8) and every action column MUST NOT be
 sortable. With no valid `sort` each list MUST keep its existing default order.
@@ -833,12 +833,14 @@ Every sorted order MUST end with the record `id` as final tie-break, so no row i
 skipped or repeated across pages. Sorting MUST be applied inside the same scoped
 query and MUST NOT change the scope, the search results, the total or the page
 count. The sort keys are `code`, `name`, `hours`, `status` (Asignaturas) and
-`name`, `login`, `email`, `status` (Docentes); the default is `code` ascending
-for Asignaturas and `name` ascending for Docentes, and a valid `sort` without a
-valid `dir` is ascending. Rows tied on the chosen column MUST appear in the
-list's default order, then by `id`. Names and logins sort with Spanish-aware
-collation (accented letters sort with their base letter, case does not decide);
-codes sort by the database default; Docentes without a `Correo` (absent or
+`name`, `email`, `status` (Docentes); the Docentes list also still accepts
+`login` as a `sort` value, which orders by the stored login, although no column
+offers it because the list does not show the login (FE-24). The default is
+`code` ascending for Asignaturas and `name` ascending for Docentes, and a valid
+`sort` without a valid `dir` is ascending. Rows tied on the chosen column MUST
+appear in the list's default order, then by `id`. Names and logins sort with
+Spanish-aware collation (accented letters sort with their base letter, case does
+not decide); codes sort by the database default; Docentes without a `Correo` (absent or
 empty) MUST come last in both directions; `status` ascending means active
 first. Because the Docentes default order is by name, accented or
 lowercase-initial names may sit in a different place than before this change
@@ -854,9 +856,14 @@ the status filter, the sort or the page size MUST return to page 1. The Docentes
 list MUST show active and inactive users with role `docente` (default active)
 and is not carrera-scoped; it is read-only and MUST link to `/users` for account
 management; it MUST NOT expose any credential field (`HashClave`, a password or
-a temporary password), nor `Cif`, including in the data delivered to the browser.
+a temporary password), nor `Cif`, nor the login (`Login`), including in the data
+delivered to the browser. The Docentes list MUST show exactly three columns:
+name, `Correo` and state; it MUST NOT show the login, because nobody types a
+"Usuario" to sign in (FE-24).
 (Previously: no sorting existed; page size was "the same as in `/users`" with
-only previous and next; the fallback covered `status` and page only.)
+only previous and next; the fallback covered `status` and page only. Docentes
+also showed a login column, sortable, and the login was delivered to the
+browser.)
 
 #### Scenario: Default shows active only
 
@@ -913,8 +920,19 @@ only previous and next; the fallback covered `status` and page only.)
 
 - GIVEN the Docentes list rendered and its data serialized, including the data
   delivered to the browser
-- WHEN searched for `HashClave`, a password, a temporary password or `Cif`
+- WHEN searched for `HashClave`, a password, a temporary password, `Cif` or the
+  login
 - THEN none is present
+
+#### Scenario: Docentes list shows no login
+
+- GIVEN docentes whose stored `Login` is "aperez" and whose `Correo` is
+  "ana@uni.edu"
+- WHEN `/catalog/docentes` is opened by an allowed role
+- THEN the columns are name, email and status, all sortable, with no login
+  column and no action column
+- AND "aperez" appears neither in the rows nor in the data delivered to the
+  browser, while "ana@uni.edu" does
 
 #### Scenario: Database unavailable
 
@@ -931,7 +949,8 @@ only previous and next; the fallback covered `status` and page only.)
 |---|---|---|
 | Asignaturas | `code`, `name`, `hours`, `status` | by that column, ascending |
 | Asignaturas | `code` with `dir=desc` | code descending |
-| Docentes | `name`, `login`, `email`, `status` | by that column, ascending |
+| Docentes | `name`, `email`, `status` | by that column, ascending |
+| Docentes | `login` (accepted in the URL; no column offers it) | by the stored login, ascending |
 | Docentes | `email` with `dir=desc` | email descending |
 
 - GIVEN rows with distinct values in each column
@@ -1735,9 +1754,9 @@ owner to overrule.
   side). *Assumption.*
 - **A-NOOP.** A no-change submit and a repeated deactivation or reactivation
   write nothing and no audit row. *Assumption.*
-- **A-DOC-FIELDS.** The Docentes list shows name, `login`, `Correo`, state, and
-  a link to `/users`; no `Cif`, no phone, no credential field. *Assumption (data
-  minimisation); `login` follows the design's list item.*
+- **A-DOC-FIELDS.** The Docentes list shows name, `Correo`, state, and a link to
+  `/users`; no `login` (FE-24), no `Cif`, no phone, no credential field.
+  *Assumption (data minimisation).*
 - **A-CONC.** Concurrency is last-write-wins; no optimistic version check. The
   simpler option was chosen. Catalog writers are serialised (CM-NFR-4), so a
   precondition checked by a write cannot be invalidated before it commits. This

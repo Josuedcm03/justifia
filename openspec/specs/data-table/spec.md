@@ -40,7 +40,7 @@ URL parameters, in canonical order: `q`, `status` (lists that have a filter),
 |---|---|---|
 | `q` | trimmed, whitespace collapsed, capped at 100 characters | empty |
 | `status` | `active`, `inactive`, `all` | users `all`; catalog lists `active` |
-| `sort` | users `name`, `login`, `role`, `status`, `created`; asignaturas `code`, `name`, `hours`, `status`; docentes `name`, `login`, `email`, `status` | users `created`; asignaturas `code`; docentes `name` |
+| `sort` | users `name`, `login`, `role`, `status`, `created`; asignaturas `code`, `name`, `hours`, `status`; docentes `name`, `email`, `status`, and `login` (accepted in the URL; no column offers it, CM-LST-1) | users `created`; asignaturas `code`; docentes `name` |
 | `dir` | `asc`, `desc` | users `desc`; catalog lists `asc` |
 | `size` | `10`, `25`, `50` | `10` |
 | `page` | ASCII digits, at least 1 | `1` |
