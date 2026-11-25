@@ -187,6 +187,10 @@ describe("registroEstudianteSchema (FE-26, FE-28)", () => {
     ["only spaces and hyphens", " - - "],
     ["21 characters", "1".repeat(21)],
     ["21 characters once cleaned", "1111-1111-1111-1111-1111 1"],
+    // The sign-in takes anything with "@" as an email, so it could never match.
+    ["an email", "ana@uni.edu"],
+    ["digits with an at sign", "2201@0116"],
+    ["an at sign among spaces and hyphens", " - @ - "],
   ])("refuses a CIF that is %s, with the error on the CIF", (_l, cif) => {
     const input: Record<string, unknown> = { ...registro, cif };
     if (cif === undefined) delete input.cif;

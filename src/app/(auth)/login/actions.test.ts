@@ -266,6 +266,31 @@ describe("loginAction failures are generic (FE-23)", () => {
     expectNoSession();
   });
 
+  // The same holds for an inactive account: answering it before any password
+  // check would tell it apart by the time of the answer. Its own hash is never
+  // used, so not even the right password changes the outcome.
+  it.each([true, false])(
+    "pays one check against the dummy hash, and never its own, for an inactive account (verifier says %s)",
+    async (accepted) => {
+      mocks.findLoginAccount.mockResolvedValue({
+        ...account(false),
+        activo: false,
+      });
+      mocks.verifyPassword.mockResolvedValue(accepted);
+
+      await expect(
+        loginAction({ error: null }, form("maria@uni.edu", "typed-password")),
+      ).resolves.toEqual(GENERIC);
+
+      expect(mocks.verifyPassword).toHaveBeenCalledTimes(1);
+      expect(mocks.verifyPassword).toHaveBeenCalledWith(
+        "typed-password",
+        DUMMY_PASSWORD_HASH,
+      );
+      expectNoSession();
+    },
+  );
+
   it("checks a known account against its own hash and not the dummy one", async () => {
     mocks.findLoginAccount.mockResolvedValue(account(false));
     mocks.verifyPassword.mockResolvedValue(false);
@@ -409,7 +434,10 @@ describe("loginAction on retention accounts (DR-3)", () => {
       await expect(loginAction({ error: null }, f)).resolves.toEqual({
         error: "errors.invalid",
       });
-      expect(mocks.verifyPassword).not.toHaveBeenCalled();
+      // One check against the dummy hash (FE-23) and never against its own.
+      expect(mocks.verifyPassword.mock.calls).toEqual([
+        [f.get("password"), DUMMY_PASSWORD_HASH],
+      ]);
       expect(mocks.signSession).not.toHaveBeenCalled();
       expect(mocks.setSessionCookie).not.toHaveBeenCalled();
     },

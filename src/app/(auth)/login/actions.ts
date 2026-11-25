@@ -31,14 +31,12 @@ export async function loginAction(
   // Login is never a key. Every failure below answers with the same message
   // (FE-23), and none sets a cookie.
   const user = await findLoginAccount(parsed.data.login);
-  if (!user) {
-    // No rate limiter exists (D13), so an unknown or ambiguous identifier
-    // still pays one password check against a constant hash, and the time of
-    // the answer does not tell it from a wrong password.
+  if (!user?.activo) {
+    // No rate limiter exists (D13), so an unknown or ambiguous identifier and
+    // an inactive account still pay one password check, and the time of the
+    // answer does not tell them from a wrong password. It runs against a
+    // constant hash: no password opens an inactive account.
     await verifyPassword(parsed.data.password, DUMMY_PASSWORD_HASH);
-    return { error: t("errors.invalid") };
-  }
-  if (!user.activo) {
     return { error: t("errors.invalid") };
   }
 
