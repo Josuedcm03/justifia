@@ -551,7 +551,7 @@
       "tableCaption": "Teachers list",
       "errors": {
         "unexpected": "The change could not be saved. Try again in a few minutes.",
-        "activeGrupos": "{count, plural, one {Cannot deactivate: this teacher has # active group. Reassign it to another teacher or deactivate it first, then try again. Deactivate the groups of closed periods and reassign the current ones.} other {Cannot deactivate: this teacher has # active groups. Reassign them to another teacher or deactivate them first, then try again. Deactivate the groups of closed periods and reassign the current ones.}}"
+        "activeGrupos": "{count, plural, one {Cannot deactivate: this teacher has # active group. Reassign it to another teacher or deactivate it first, then try again. Deactivate the groups of closed periods and reassign the current ones. Search the teacher's name in Subjects to find it.} other {Cannot deactivate: this teacher has # active groups. Reassign them to another teacher or deactivate them first, then try again. Deactivate the groups of closed periods and reassign the current ones. Search the teacher's name in Subjects to find them.}}"
       }
     },
     "inscripciones": {

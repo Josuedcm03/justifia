@@ -1135,8 +1135,9 @@ describe("catalog parity (CM-I18N-1, DM-16: Docente action copy)", () => {
   );
 
   // DM-8 "The refusal message is actionable": count, singular or plural
-  // wording, both remedies, the closed-period versus current hint, and no
-  // other account named (the only placeholder is the count).
+  // wording, both remedies, the closed-period versus current hint, the pointer
+  // to the Asignaturas search (CM-ASG-9), and no other account named (the only
+  // placeholder is the count).
   it.each([
     [
       "es",
@@ -1186,6 +1187,11 @@ describe("catalog parity (CM-I18N-1, DM-16: Docente action copy)", () => {
       expect(message).toMatch(remedy);
       expect(message).toMatch(closed);
       expect(message).toMatch(current);
+      expect(message).toMatch(
+        locale === "es"
+          ? /nombre del docente en Asignaturas\.$/
+          : /teacher's name in Subjects to find (it|them)\.$/,
+      );
       expect(message).not.toMatch(/[@{}]|#/);
     },
   );
