@@ -534,8 +534,10 @@
       "columns": {
         "name": "Nombre",
         "email": "Correo",
-        "status": "Estado"
+        "status": "Estado",
+        "actions": "Acciones"
       },
+      "edit": "Editar",
       "noEmail": "Sin correo",
       "empty": "Aún no hay docentes activos.",
       "noResults": {
@@ -552,6 +554,27 @@
       "errors": {
         "unexpected": "No se pudo guardar el cambio. Inténtalo de nuevo en unos minutos.",
         "activeGrupos": "{count, plural, one {No se puede desactivar: el docente tiene # grupo activo. Reasígnalo a otro docente o desactívalo primero, e inténtalo de nuevo. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual. Lo encuentras buscando el nombre del docente en Asignaturas.} other {No se puede desactivar: el docente tiene # grupos activos. Reasígnalos a otro docente o desactívalos primero, e inténtalo de nuevo. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual. Los encuentras buscando el nombre del docente en Asignaturas.}}"
+      },
+      "form": {
+        "nombreLabel": "Nombre completo",
+        "correoLabel": "Correo electrónico",
+        "correoHint": "Las remisiones nuevas de este docente se envían a esta dirección y con ella inicia sesión. La dirección anterior deja de funcionar.",
+        "correoNote": "La lista de Usuarios sigue mostrando el usuario anterior, la dirección anterior queda reservada mientras exista la cuenta y la plantilla de importación debe actualizarse con el correo nuevo.",
+        "telefonoLabel": "Teléfono",
+        "submitSave": "Guardar cambios",
+        "submitting": "Guardando…"
+      },
+      "state": {
+        "title": "Estado",
+        "kept": "Los grupos y las remisiones del docente se conservan.",
+        "activeGroups": "{count, plural, =0 {Este docente no tiene grupos activos.} one {Este docente tiene # grupo activo. Reasígnalo a otro docente o desactívalo primero. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual.} other {Este docente tiene # grupos activos. Reasígnalos a otro docente o desactívalos primero. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual.}}",
+        "findGroups": "Buscar al docente en Asignaturas",
+        "alreadyActive": "El docente ya estaba activo. No se hizo ningún cambio.",
+        "alreadyInactive": "El docente ya estaba inactivo. No se hizo ningún cambio."
+      },
+      "breadcrumb": {
+        "label": "Ruta de navegación",
+        "edit": "Editar {nombre}"
       }
     },
     "inscripciones": {
