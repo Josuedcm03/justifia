@@ -154,7 +154,7 @@
           "carreraExists": "The Carrera of each subject must already exist in the system; the import does not create careers.",
           "horasPositive": "HorasTotales must be a whole number greater than zero.",
           "periodoFormat": "Periodo must use the format YYYY-S1 or YYYY-S2, for example 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match a teacher on the Docentes sheet or one already in the system.",
+          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match an active teacher on the Docentes sheet or one already in the system; the import does not reactivate teachers.",
           "diasTokens": "Dias, on the Grupos sheet, takes the Spanish day names (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) or their three-letter abbreviations (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separated by commas. Case and accents are ignored.",
           "diasEffect": "Dias: if you leave the column out, the stored days of every group are kept. A cell with days replaces the stored days; an empty cell leaves them as they are. The import never removes days."
         },
@@ -276,7 +276,8 @@
           "inactive": "The subject is inactive and is not on the workbook's Asignaturas sheet. Add it to that sheet to reactivate it, or remove this group"
         },
         "docente": {
-          "unresolved": "The teacher is in neither the workbook nor the system"
+          "unresolved": "The teacher is in neither the workbook nor the system",
+          "inactive": "The teacher {value} is inactive and the import does not reactivate teachers. Reactivate them in Teachers or name another teacher in this row"
         },
         "grupo": {
           "duplicate": "The group is repeated on the sheet"

@@ -154,7 +154,7 @@
           "carreraExists": "La Carrera de cada asignatura debe existir ya en el sistema; la importación no crea carreras.",
           "horasPositive": "HorasTotales debe ser un número entero mayor que cero.",
           "periodoFormat": "Periodo debe tener el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente de la hoja Docentes o ya registrado en el sistema.",
+          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente activo de la hoja Docentes o ya registrado en el sistema; la importación no reactiva docentes.",
           "diasTokens": "Dias, en la hoja Grupos, acepta los nombres de los días (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) o sus abreviaturas de tres letras (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separados por comas. No distingue mayúsculas ni acentos.",
           "diasEffect": "Dias: si omites la columna, se conservan los días guardados de cada grupo. Una celda con días reemplaza los días guardados; una celda vacía los deja como están. La importación nunca quita días."
         },
@@ -276,7 +276,8 @@
           "inactive": "La asignatura está inactiva y no aparece en la hoja Asignaturas del libro. Inclúyela en esa hoja para reactivarla, o quita este grupo"
         },
         "docente": {
-          "unresolved": "El docente no existe en el libro ni en el sistema"
+          "unresolved": "El docente no existe en el libro ni en el sistema",
+          "inactive": "El docente {value} está inactivo y la importación no reactiva docentes. Reactívalo en Docentes o indica otro docente en esta fila"
         },
         "grupo": {
           "duplicate": "El grupo está repetido en la hoja"

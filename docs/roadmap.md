@@ -25,6 +25,7 @@ remiten a ese archivo.
 | 16  | `auth-route-tests`         | RNF-01 (c)                                                                           | Armando     | Si alcanza el tiempo | archivado |
 | 17  | `data-retention`           | RNF-04, RN-27                                                                        | Armando     | No                   | archivado |
 | 18  | `manual-document-data`     | RF-14 (a) a (d); RF-05 (e); RN-11, RN-12, RN-13, RN-24; RNF-14 (solo el mapa tipo-causa) | Armando | No                | archivado |
+| 19  | `docente-maintenance`      | RF-12 (a), (b) de docentes; RNF-01, RNF-06 (a), RNF-12, RNF-13 (b)                   | Armando     | No                   | pendiente |
 
 **Notas:**
 
@@ -42,9 +43,9 @@ remiten a ese archivo.
   grupo y alta. Cubre RF-12 (a) a (c), RF-17 (b), (d), (e), RN-21, RNF-01,
   RNF-02, RNF-06 y RNF-12, y se relaciona con RN-27 (una inscripción activa
   retiene los datos del estudiante). Usa el permiso `canManageEnrollments`
-  (solo la secretaría) y no `canManageCatalog`. No cubre la brecha de
-  mantenimiento de docentes de RF-12 (a) ni los horarios con hora de reloj de
-  RN-22.
+  (solo la secretaría) y no `canManageCatalog`. El mantenimiento de docentes
+  de RF-12 (a) lo cubre `docente-maintenance` (fila 19). No cubre los horarios
+  con hora de reloj de RN-22.
 - RF-12 y RNF-13 (mantenimiento e importación de catálogos) los cubren los
   changes en curso de Josué: `catalog-excel-import` y `catalog-management`.
 - RNF-08, RNF-09 y RNF-10 se verifican en el piloto o en la operación, no en un
@@ -228,3 +229,18 @@ remiten a ese archivo.
   `src/lib/signals/document-type-causes.ts` asigna la constancia médica a
   maternidad y paternidad. RNF-14 en su conjunto sigue «No cumple» hasta que
   `normative-parameters` (fila 8) cierre la constante de umbrales.
+- `docente-maintenance` (fila 19, pendiente hasta su archivo) da a la
+  secretaría el mantenimiento de los docentes que faltaba en RF-12 (a) y (b):
+  editar el nombre, el correo y el teléfono, y desactivar y reactivar al
+  docente desde `/catalog/docentes`. Solo la secretaría puede hacerlo (permiso
+  derivado de `canAssignRole`); administración y coordinación siguen con la
+  lista de solo lectura. Un docente con grupos activos no se desactiva: primero
+  se reasignan o se desactivan sus grupos. La importación nunca reactiva a un
+  docente y rechaza con un error de fila (`docente.inactive`) los grupos que
+  nombran a uno inactivo, lo que cierra el supuesto A-C12 de `catalog-management`.
+  La creación de cuentas de `/users/new` registra una fila de auditoría
+  `usuario.creado`. No hay migración ni variable de entorno nueva. RF-09, RN-18,
+  RN-19, RN-02 y RN-27 no cambian: las remisiones ya generadas conservan el
+  correo con el que se enviaron y las nuevas leen el nombre y el correo
+  vigentes. La prueba contra Postgres y el recorrido RF-12 se hacen en una rama
+  desechable de Neon antes de llevar el change a `main`.
