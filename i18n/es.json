@@ -277,7 +277,7 @@
         },
         "docente": {
           "unresolved": "El docente no existe en el libro ni en el sistema",
-          "inactive": "El docente {value} está inactivo y la importación no reactiva docentes. Reactívalo en Docentes (/catalog/docentes) o indica otro docente en esta fila"
+          "inactive": "El docente {value} está inactivo y la importación no reactiva docentes. Reactívalo en Docentes o indica otro docente en esta fila"
         },
         "grupo": {
           "duplicate": "El grupo está repetido en la hoja"

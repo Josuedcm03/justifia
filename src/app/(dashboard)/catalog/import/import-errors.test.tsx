@@ -154,7 +154,7 @@ describe("ImportErrors (CEI: Preview with errors blocks confirmation)", () => {
       "en",
       /inactive/i,
       /does not reactivate/i,
-      /Reactivate .* in Docentes/,
+      /Reactivate .* in Teachers/,
       /another teacher/,
     ],
     [

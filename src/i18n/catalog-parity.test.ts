@@ -421,7 +421,7 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
       "en",
       /inactive/i,
       /does not reactivate/i,
-      /Reactivate (them|it) in Docentes/,
+      /Reactivate (them|it) in Teachers/,
       /another teacher/,
     ],
   ] as const)(

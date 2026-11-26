@@ -277,7 +277,7 @@
         },
         "docente": {
           "unresolved": "The teacher is in neither the workbook nor the system",
-          "inactive": "The teacher {value} is inactive and the import does not reactivate teachers. Reactivate them in Docentes (/catalog/docentes) or name another teacher in this row"
+          "inactive": "The teacher {value} is inactive and the import does not reactivate teachers. Reactivate them in Teachers or name another teacher in this row"
         },
         "grupo": {
           "duplicate": "The group is repeated on the sheet"
