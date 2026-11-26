@@ -25,7 +25,7 @@ remiten a ese archivo.
 | 16  | `auth-route-tests`         | RNF-01 (c)                                                                           | Armando     | Si alcanza el tiempo | archivado |
 | 17  | `data-retention`           | RNF-04, RN-27                                                                        | Armando     | No                   | archivado |
 | 18  | `manual-document-data`     | RF-14 (a) a (d); RF-05 (e); RN-11, RN-12, RN-13, RN-24; RNF-14 (solo el mapa tipo-causa) | Armando | No                | archivado |
-| 19  | `docente-maintenance`      | RF-12 (a), (b) de docentes; RNF-01, RNF-06 (a), RNF-12, RNF-13 (b)                   | Armando     | No                   | pendiente |
+| 19  | `docente-maintenance`      | RF-12 (a), (b) de docentes; RNF-01, RNF-06 (a), RNF-12, RNF-13 (b)                   | Armando     | No                   | archivado |
 
 **Notas:**
 
@@ -229,7 +229,7 @@ remiten a ese archivo.
   `src/lib/signals/document-type-causes.ts` asigna la constancia médica a
   maternidad y paternidad. RNF-14 en su conjunto sigue «No cumple» hasta que
   `normative-parameters` (fila 8) cierre la constante de umbrales.
-- `docente-maintenance` (fila 19, pendiente hasta su archivo) da a la
+- `docente-maintenance` (fila 19, archivado el 2026-11-26) da a la
   secretaría el mantenimiento de los docentes que faltaba en RF-12 (a) y (b):
   editar el nombre, el correo y el teléfono, y desactivar y reactivar al
   docente desde `/catalog/docentes`. Solo la secretaría puede hacerlo (permiso

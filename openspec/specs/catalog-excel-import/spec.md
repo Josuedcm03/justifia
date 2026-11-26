@@ -195,6 +195,15 @@ reactivates only Asignaturas the workbook declares.
 A Grupos row whose Asignatura is declared in the workbook MUST NOT be an error
 on account of that Asignatura being inactive in the database (the declared
 Asignatura is reactivated, see "Natural-key upserts").
+A Grupos row whose docente resolves to an existing docente that is **inactive**
+in the database MUST be a row-level error with the reason code `docente.inactive`,
+naming the docente (the email written in the row). This holds even when the same
+workbook lists that docente in its Docentes sheet, because the import never
+reactivates a docente (see "Natural-key upserts"), and even when the grupo already
+exists and nothing else about it would change. A docente that is active in the
+database, or created by the same workbook, is not affected.
+(Previously: a Grupos row naming an inactive docente resolved normally; this was the
+known gap C12 and A-C12 of `catalog-management`.)
 
 #### Scenario: Invalid rows are reported with location
 
@@ -257,6 +266,45 @@ Asignatura is reactivated, see "Natural-key upserts").
   carrera
 - WHEN it is planned
 - THEN the asignatura and the grupo are valid creates
+
+#### Scenario: Grupos row naming an inactive docente is a row error
+
+- GIVEN an inactive docente "ana@uni.edu" in the database, not listed in the
+  workbook's Docentes sheet, and a Grupos row for a new grupo with
+  `CorreoDocente` "ana@uni.edu"
+- WHEN it is planned
+- THEN that row is an error with reason `docente.inactive` naming "ana@uni.edu",
+  no grupo is written for it, and the docente stays inactive
+- AND the report offers no confirm control
+
+#### Scenario: Listing the inactive docente in the Docentes sheet does not help
+
+- GIVEN the same inactive docente and a workbook that lists "ana@uni.edu" in its
+  Docentes sheet (with a different name) and names it in a Grupos row
+- WHEN it is planned
+- THEN the Grupos row is a `docente.inactive` error
+- AND the Docentes row is not an error and is counted `update`
+
+#### Scenario: An unchanged grupo under an inactive docente is also an error
+
+- GIVEN an active grupo whose docente is inactive (created before this change)
+  and a workbook that lists the same grupo with the same docente
+- WHEN it is planned
+- THEN the row is a `docente.inactive` error, even though nothing about the grupo
+  would change
+
+#### Scenario: Active and same-workbook docentes are unaffected
+
+- GIVEN an active docente in the database, and a docente created by the same
+  workbook, each named by a Grupos row
+- WHEN it is planned
+- THEN neither row is a `docente.inactive` error
+
+#### Scenario: Docente reactivated before the import
+
+- GIVEN the inactive docente of the first scenario, reactivated by a `secretaria`
+- WHEN the same workbook is planned again
+- THEN the Grupos row is valid
 
 ### Requirement: Dry-run report persists nothing
 
@@ -409,11 +457,18 @@ updated in place, never duplicated; a non-matching row MUST be created. A row
 whose non-key values equal the stored values MUST be counted as `unchanged` and
 MUST NOT be written. An Asignaturas row matching an **inactive** `Asignatura`
 MUST reactivate it (`Activo` true) and MUST be counted as `update` even when
-name, carrera and hours equal the stored values. A Grupo created by the import
+name, carrera and hours equal the stored values. A Docentes row matching an
+existing docente, active or inactive, MUST update only the name and the phone, in
+place, and MUST NOT write `Activo`, `Correo`, `Login`, `HashClave`,
+`DebeCambiarClave` or the role; in particular it MUST NOT reactivate an inactive
+docente (it is counted `update` when the name or the phone differ, `unchanged`
+otherwise). A Grupo created by the import
 MUST get origin `importacion`; a Grupo updated by the import keeps its existing
 origin. `Facultad` and `Carrera` have no upsert key here because the
 import never writes them — an Asignatura's `Carrera` is resolved by name against
 existing rows only.
+(Previously: nothing said whether a Docentes row could change `Activo`; the
+asymmetry with Asignaturas, which the import does reactivate, is intended.)
 
 #### Scenario: New rows are created
 
@@ -453,6 +508,22 @@ existing rows only.
 - WHEN applied
 - THEN the grupo is updated if its values differ and its origin is still
   `manual`
+
+#### Scenario: An inactive docente stays inactive [PG]
+
+- GIVEN a docente deactivated by a `secretaria` and a workbook whose Docentes
+  sheet lists the same email with the stored name and phone and no Grupos row for
+  that docente
+- WHEN applied
+- THEN the docente is still inactive and the row is counted `unchanged`
+
+#### Scenario: An inactive docente still gets its name and phone [PG]
+
+- GIVEN the same inactive docente and a workbook that lists a different name and
+  phone
+- WHEN applied
+- THEN the name and phone are updated, counted `update`, and `Activo`, `Correo`,
+  `Login` and `HashClave` are unchanged
 
 ### Requirement: Idempotent re-import
 
@@ -532,8 +603,14 @@ required and optional columns from `SHEETS`, and the validation rules that
 most commonly reject a file — no `Id` column accepted (natural keys only),
 `Carrera` in Asignaturas must already exist in the system, `HorasTotales` must
 be a positive integer, `Periodo` must match `YYYY-S1`/`YYYY-S2`, and
-`CorreoDocente` in Grupos must match a docente in the same workbook or already
-in the system. This is static copy, not derived from parsing an uploaded file.
+`CorreoDocente` in Grupos must match an active docente in the same workbook or
+already in the system. This is static copy, not derived from parsing an uploaded
+file. The row error `docente.inactive` MUST have a message in both catalogs that
+names the docente's email, says the docente is inactive and that the import does
+not reactivate docentes, and tells the `secretaria` to reactivate the docente in
+Docentes (`/catalog/docentes`) or to name another docente in the row.
+(Previously: the contract said "a docente in the same workbook or already in the
+system", without "active", and no message for an inactive docente existed.)
 
 #### Scenario: Locales
 
@@ -547,7 +624,15 @@ in the system. This is static copy, not derived from parsing an uploaded file.
 - WHEN the page renders, before any file is selected
 - THEN the three sheet names, their required/optional columns, and the
   validation rules above are visible
+- AND the rule for `CorreoDocente` says the docente must be active
 
+#### Scenario: Inactive docente message is actionable
+
+- GIVEN a preview with a `docente.inactive` row error for "ana@uni.edu"
+- WHEN the errors block renders in either locale
+- THEN the message contains "ana@uni.edu", says the docente is inactive and that
+  the import does not reactivate it, and says to reactivate it in Docentes or to
+  name another docente
 ### Requirement: Import precedence over manual edits
 
 When the import and manual management (`catalog-management`) have changed the

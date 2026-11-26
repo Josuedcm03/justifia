@@ -11,7 +11,7 @@
 Staff manage individual `Asignatura` and `Grupo` records from a back-office
 "Catálogos" module instead of re-uploading the whole Excel workbook. Records are
 never physically deleted: "delete" means `Activo` false. The module also shows a
-read-only list of docentes that links to the users module. Because the Excel
+list of docentes that links to the users module; it is read-only for `administrador` and `coordinacion`, and the `secretaria` edits, deactivates and reactivates docentes from it (`docente-maintenance`). Creating a docente stays in the users module and the import. Because the Excel
 import (`catalog-excel-import`) writes the same rows, the import wins on
 conflict; its side of that rule is specified in the sibling deltas.
 
@@ -26,28 +26,34 @@ Vocabulary used below:
   password is first sent to the forced password change, as for every other
   guarded screen.
 - **Entry point**: any page, form load or server action of the module.
+- **Docente maintainer**: `secretaria`. Docentes have no Carrera or Facultad, so the scoped/unscoped distinction does not apply to them.
 
 ## Requirements
 
 ### Requirement: CM-ACC-1 Role matrix for every operation
 
 The module MUST be available to the staff roles only. Operations are list, view,
-create, edit, deactivate and reactivate on `Asignatura` and on `Grupo`, and list
-on Docentes. The right MUST be a predicate derived from the existing role
-hierarchy in `permissions.ts` (the roles for which account creation is
-available), not a second hand-written role list. Authorization MUST be enforced
-on the server for every entry point, independently of what the sidebar shows.
+create, edit, deactivate and reactivate on `Asignatura` and on `Grupo`, list on
+Docentes, and edit, deactivate and reactivate on a docente (`docente-maintenance`).
+The right MUST be a predicate derived from the existing role hierarchy in
+`permissions.ts` (the roles for which account creation is available), not a
+second hand-written role list. The right to edit, deactivate and reactivate a
+docente MUST be its own predicate, derived from the roles that may assign the role
+`docente` (`canAssignRole(rol, "docente")`), which admits `secretaria` only.
+Authorization MUST be enforced on the server for every entry point, independently
+of what the sidebar shows.
+(Previously: the only Docentes operation was "list" and there was one predicate.)
 
 #### Scenario: Role matrix (table-driven)
 
-| Role | Asignatura / Grupo (all six operations) | Docentes list |
-|---|---|---|
-| `administrador` | allowed, all records | allowed |
-| `coordinacion` | allowed, only within own `Carrera` (CM-SCOPE) | allowed |
-| `secretaria` | allowed, all records | allowed |
-| `docente` | denied | denied |
-| `estudiante` | denied | denied |
-| anonymous | denied (to `/login`) | denied (to `/login`) |
+| Role | Asignatura / Grupo (all six operations) | Docentes list | Docente edit, deactivate, reactivate |
+|---|---|---|---|
+| `administrador` | allowed, all records | allowed | denied |
+| `coordinacion` | allowed, only within own `Carrera` (CM-SCOPE) | allowed | denied |
+| `secretaria` | allowed, all records | allowed | allowed, every docente |
+| `docente` | denied | denied | denied |
+| `estudiante` | denied | denied | denied |
+| anonymous | denied (to `/login`) | denied (to `/login`) | denied (to `/login`) |
 
 - GIVEN a caller with the role from the row
 - WHEN they invoke an operation through its page or its server action,
@@ -66,6 +72,13 @@ on the server for every entry point, independently of what the sidebar shows.
 - GIVEN a staff user whose account requires a password change
 - WHEN they request any module page or action
 - THEN they are sent to the forced password change and nothing is read or written
+
+#### Scenario: Coordinacion can list docentes but not maintain them
+
+- GIVEN a `coordinacion` actor
+- WHEN they request `/catalog/docentes` and then `/catalog/docentes/7/edit`
+- THEN the list is shown and the edit page redirects to `/denied`, with no docente
+  data read for the second request
 
 ### Requirement: CM-ACC-2 Authorization precedes the request body
 
@@ -854,16 +867,24 @@ shown once, in the toolbar, and not repeated in the footer (`data-table`
 DT-PAG-1, DT-TOOL-1). Changing the search,
 the status filter, the sort or the page size MUST return to page 1. The Docentes
 list MUST show active and inactive users with role `docente` (default active)
-and is not carrera-scoped; it is read-only and MUST link to `/users` for account
-management; it MUST NOT expose any credential field (`HashClave`, a password or
-a temporary password), nor `Cif`, nor the login (`Login`), including in the data
-delivered to the browser. The Docentes list MUST show exactly three columns:
-name, `Correo` and state; it MUST NOT show the login, because nobody types a
-"Usuario" to sign in (FE-24).
+and is not carrera-scoped; it MUST link to `/users` for account management, for
+every role that may open it; it MUST NOT expose any credential field (`HashClave`,
+a password or a temporary password), nor `Cif`, nor the login (`Login`), nor the
+phone, including in the data delivered to the browser. The Docentes list MUST show
+exactly three data columns: name, `Correo` and state; it MUST NOT show the login,
+because nobody types a "Usuario" to sign in (FE-24). For `secretaria` only, the
+list MUST also show a fourth and last column, "Actions", that is not sortable and
+holds, in every row (active or inactive), a link to that docente's edit page
+`/catalog/docentes/{id}/edit` (`docente-maintenance`). Every other role MUST see
+exactly the three data columns and no control that edits, deactivates or
+reactivates; the list MUST NOT offer a create control for docentes (creating one
+stays in `/users/new` and the import).
 (Previously: no sorting existed; page size was "the same as in `/users`" with
 only previous and next; the fallback covered `status` and page only. Docentes
 also showed a login column, sortable, and the login was delivered to the
-browser.)
+browser. Latest edit: the Docentes list was read-only for every role and showed
+exactly three columns with no actions column; now the actions column exists for
+`secretaria` only, and the phone is named among the data that is never delivered.)
 
 #### Scenario: Default shows active only
 
@@ -903,12 +924,24 @@ browser.)
 - WHEN the list renders
 - THEN a "no results" empty state with a way to clear the filter is shown
 
-#### Scenario: Docentes list is read-only and unscoped
+#### Scenario: Docentes list is read-only and unscoped for the other roles
 
-- GIVEN a `coordinacion` actor of Carrera X
+- GIVEN a `coordinacion` actor of Carrera X, and separately an `administrador`
 - WHEN they open `/catalog/docentes`
-- THEN docentes are listed regardless of Carrera, there is no create, edit or
-  deactivate control, and a link to `/users` is present
+- THEN docentes are listed regardless of Carrera, there is no create, edit,
+  deactivate or reactivate control and no actions column, and a link to `/users`
+  is present
+- AND (Previously: the same scenario was titled "Docentes list is read-only and
+  unscoped" and named only the `coordinacion` actor)
+
+#### Scenario: Secretaria sees the actions column
+
+- GIVEN a `secretaria`, an active docente with id 7 and an inactive docente with
+  id 9
+- WHEN she opens `/catalog/docentes` with the filter `all`
+- THEN each row has, in a last "Actions" column, a link to
+  `/catalog/docentes/7/edit` and `/catalog/docentes/9/edit` respectively
+- AND there is no create control and the link to `/users` is present
 
 #### Scenario: Unrecognised status falls back
 
@@ -918,21 +951,25 @@ browser.)
 
 #### Scenario: Docentes list carries no credential
 
-- GIVEN the Docentes list rendered and its data serialized, including the data
-  delivered to the browser
-- WHEN searched for `HashClave`, a password, a temporary password, `Cif` or the
-  login
+- GIVEN the Docentes list rendered for each staff role and its data serialized,
+  including the data delivered to the browser
+- WHEN searched for `HashClave`, a password, a temporary password, `Cif`, the
+  login or the phone
 - THEN none is present
+- AND (Previously: the phone was not in the list of searched values)
 
 #### Scenario: Docentes list shows no login
 
 - GIVEN docentes whose stored `Login` is "aperez" and whose `Correo` is
   "ana@uni.edu"
-- WHEN `/catalog/docentes` is opened by an allowed role
+- WHEN `/catalog/docentes` is opened by `administrador` or `coordinacion`
 - THEN the columns are name, email and status, all sortable, with no login
   column and no action column
 - AND "aperez" appears neither in the rows nor in the data delivered to the
   browser, while "ana@uni.edu" does
+- AND when it is opened by `secretaria` the columns are the same three, sortable,
+  plus the last non-sortable "Actions" column, and still no login column
+- AND (Previously: "by an allowed role" and "no action column" for all roles)
 
 #### Scenario: Database unavailable
 
@@ -1040,7 +1077,6 @@ browser.)
   `sort=name&dir=desc&size=25&page=2`
 - WHEN either list is opened by an allowed role
 - THEN the degraded notice is shown and the page does not crash
-
 ### Requirement: CM-UX-1 Deactivation needs an explicit confirmation
 
 Deactivation (and reactivation) MUST be a mutation submitted by a form POST or
@@ -1741,9 +1777,10 @@ owner to overrule.
   have to accept.
 - **A-GRP-4.** Reactivating a Grupo whose Asignatura or docente is inactive is
   refused (not auto-fixed). Because editing an inactive Grupo is also refused,
-  a Grupo whose docente became inactive can only return through a re-import or
-  after the docente is reactivated in the users module (which does not exist
-  yet). The owner may prefer to allow changing the docente during reactivation.
+  a Grupo whose docente is inactive returns only after the `secretaria`
+  reactivates the docente from the Docentes module (`docente-maintenance`), then
+  reactivates the Grupo; a re-import no longer reactivates the docente (D3). The
+  owner may prefer to allow changing the docente during reactivation.
   *Assumption.*
 - **A-EDIT-INACTIVE.** Inactive records are read-only until reactivated
   (CM-ASG-3, CM-GRP-2). *Assumption introduced by this spec; the design does
@@ -1754,9 +1791,10 @@ owner to overrule.
   side). *Assumption.*
 - **A-NOOP.** A no-change submit and a repeated deactivation or reactivation
   write nothing and no audit row. *Assumption.*
-- **A-DOC-FIELDS.** The Docentes list shows name, `Correo`, state, and a link to
-  `/users`; no `login` (FE-24), no `Cif`, no phone, no credential field.
-  *Assumption (data minimisation).*
+- **A-DOC-FIELDS.** The Docentes list shows name, `Correo`, state and a link to
+  `/users`; for `secretaria` only it also has an actions column with an edit link.
+  No `login` (FE-24), no `Cif`, no phone (the phone is shown only on the docente
+  edit page), no credential field. *Assumption (data minimisation).*
 - **A-CONC.** Concurrency is last-write-wins; no optimistic version check. The
   simpler option was chosen. Catalog writers are serialised (CM-NFR-4), so a
   precondition checked by a write cannot be invalidated before it commits. This
@@ -1775,8 +1813,10 @@ owner to overrule.
   `audit-log` and `catalog-excel-import` deltas). Proposal open question 1 left
   this to the spec. *Assumption taken from the design (departure P3); not
   confirmed by the owner.*
-- **A-C12.** An inactive docente can still resolve in the import (known gap C12
-  of the exploration); the module does not change that.
+- **A-C12.** Closed by `docente-maintenance` D3: the import refuses a Grupos row
+  that names an inactive docente (`docente.inactive`) and never reactivates a
+  docente. An active Grupo that already names an inactive docente (created before
+  this change) is not repaired automatically.
 - **Amendment 2026-10-07 (meeting days of a Grupo).** Decided by the owner: the
   days belong to the `Grupo`, not to the `Asignatura`; days only, no hours.
   On 2026-10-07 the owner confirmed the items below as written:

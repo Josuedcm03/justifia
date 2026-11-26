@@ -367,8 +367,16 @@ reactivation of a `Grupo` MUST require that its `Asignatura` is active and that
 its docente is an active `Usuario` whose role is `docente`. This is enforced by
 the application, on top of "Docente role integrity of Grupo.DocenteId". A manual
 deactivation of a `Grupo` and a manual reactivation of an `Asignatura` are never
-refused on account of another record's state. The import is not subject to the docente-active check (known gap: an inactive
-matched docente still resolves in the import).
+refused on account of another record's state. The import is subject to the same
+docente rule: a Grupos row that names an inactive docente is a row-level error and
+no grupo is written for it (`catalog-excel-import`), and the import never
+reactivates a docente. The reverse direction is guarded too: a manual deactivation
+of a docente MUST be refused while any active `Grupo` names it
+(`docente-maintenance`), so the application never leaves an active `Grupo` with an
+inactive docente.
+(Previously: "The import is not subject to the docente-active check (known gap: an
+inactive matched docente still resolves in the import)", and nothing guarded the
+deactivation of a docente because no manual deactivation existed.)
 
 #### Scenario: Inactive parents are refused (table-driven)
 
@@ -384,6 +392,26 @@ matched docente still resolves in the import).
 - WHEN the manual write is attempted
 - THEN it is refused and nothing is stored
 
+#### Scenario: A docente with an active grupo cannot be deactivated [PG]
+
+- GIVEN an active docente named by one active `Grupo`
+- WHEN a `secretaria` confirms the deactivation of the docente
+- THEN it is refused with the number of active grupos, and the docente and the
+  grupo are unchanged
+
+#### Scenario: The import does not reactivate and does not accept an inactive docente [PG]
+
+- GIVEN an inactive docente D and a workbook whose Docentes sheet lists D and
+  whose Grupos sheet names D
+- WHEN it is planned
+- THEN the Grupos row is a row error, no grupo is written for it and D stays
+  inactive
+
+#### Scenario: The invariant holds after any order of writers [PG]
+
+- GIVEN a docente D with no active grupo
+- WHEN a grupo create naming D and the deactivation of D run in either order
+- THEN the stored state has no active grupo naming an inactive docente
 ### Requirement: Additive schema for catalog management
 
 The schema change of this capability MUST be additive: a boolean `Activo` on
@@ -489,3 +517,4 @@ representation is a design decision.
   bind that writer.
   (Previously: no code in this change wrote `Inscripcion`, so the role and duplicate
   scenarios were deferred until a writer existed.)
+- Invariant kept by the application (`docente-maintenance`): no active `Grupo` names an inactive docente. A docente with active grupos cannot be deactivated, and the import never reactivates one. Active grupos that already named an inactive docente before that change are not repaired by it.
