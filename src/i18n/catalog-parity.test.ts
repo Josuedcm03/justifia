@@ -1055,6 +1055,212 @@ describe("catalog parity (CM-I18N-1: Grupo action copy)", () => {
   // proves the Grupo actions choose only keys that exist.
 });
 
+describe("catalog parity (CM-I18N-1, DM-16: Docente action copy)", () => {
+  // Same scan as the Asignatura and Grupo ones: the test translator of the
+  // action suite echoes keys, so only the source proves every chosen key exists.
+  const source = readFileSync(
+    join(process.cwd(), "src/app/(dashboard)/catalog/docentes/actions.ts"),
+    "utf8",
+  );
+  const used = [
+    ...new Set(
+      [...source.matchAll(/"((?:shared|docentes)\.[A-Za-z.]+)"/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  ];
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+  // Rendered through the real translator, so a mistyped placeholder or an
+  // unbalanced plural throws here instead of reaching a user.
+  const render = (
+    locale: "es" | "en",
+    namespace: string,
+    key: string,
+    values?: Record<string, string | number>,
+  ) =>
+    createTranslator({
+      locale,
+      messages: messagesOf(locale),
+      namespace: namespace as "catalog.shared",
+      onError: (error: Error) => {
+        throw error;
+      },
+    })(key as never, values as never) as string;
+
+  it("the scan finds the keys the docente actions choose, reusing the shared copy", () => {
+    expect(used).toEqual(
+      expect.arrayContaining([
+        "docentes.errors.unexpected",
+        "docentes.errors.activeGrupos",
+        "shared.fieldErrors.correo.taken",
+      ]),
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every message key the docente action source uses",
+    (locale) => {
+      for (const key of used) {
+        expect(typeof resolve(messagesOf(locale), `catalog.${key}`), key).toBe(
+          "string",
+        );
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s action errors hold the generic message and the count refusal, with no raw error wording",
+    (locale) => {
+      const errors = resolve(messagesOf(locale), "catalog.docentes.errors");
+
+      expect(leafPaths(errors).sort()).toEqual(["activeGrupos", "unexpected"]);
+      expect((errors as Record<string, string>).unexpected).not.toMatch(
+        /exception|ECONN|stack|sql/i,
+      );
+    },
+  );
+
+  it.each([
+    ["es", /no se pudo guardar/i, /inténtalo de nuevo/i],
+    ["en", /could not be saved/i, /try again/i],
+  ] as const)(
+    "%s generic docente error says the change was not saved and to try again",
+    (locale, notSaved, retry) => {
+      const message = render(locale, "catalog.docentes", "errors.unexpected");
+
+      expect(message).toMatch(notSaved);
+      expect(message).toMatch(retry);
+    },
+  );
+
+  // DM-8 "The refusal message is actionable": count, singular or plural
+  // wording, both remedies, the closed-period versus current hint, the pointer
+  // to the Asignaturas search (CM-ASG-9), and no other account named (the only
+  // placeholder is the count).
+  it.each([
+    [
+      "es",
+      1,
+      /tiene 1 grupo activo\./,
+      /Reasígnalo a otro docente o desactívalo primero/,
+      /periodos cerrados/,
+      /periodo actual/,
+    ],
+    [
+      "es",
+      3,
+      /tiene 3 grupos activos\./,
+      /Reasígnalos a otro docente o desactívalos primero/,
+      /periodos cerrados/,
+      /periodo actual/,
+    ],
+    [
+      "en",
+      1,
+      /has 1 active group\./,
+      /Reassign it to another teacher or deactivate it first/,
+      /closed periods/,
+      /current ones/,
+    ],
+    [
+      "en",
+      3,
+      /has 3 active groups\./,
+      /Reassign them to another teacher or deactivate them first/,
+      /closed periods/,
+      /current ones/,
+    ],
+  ] as const)(
+    "%s active-grupos refusal for %i: count, wording, both remedies and the period hint",
+    (locale, count, counted, remedy, closed, current) => {
+      const message = render(
+        locale,
+        "catalog.docentes",
+        "errors.activeGrupos",
+        {
+          count,
+        },
+      );
+
+      expect(message).toMatch(counted);
+      expect(message).toMatch(remedy);
+      expect(message).toMatch(closed);
+      expect(message).toMatch(current);
+      expect(message).toMatch(
+        locale === "es"
+          ? /nombre del docente en Asignaturas\.$/
+          : /teacher's name in Subjects to find (it|them)\.$/,
+      );
+      expect(message).not.toMatch(/[@{}]|#/);
+    },
+  );
+
+  // DM-16 "Refusals are actionable": each row's message says what happened and
+  // what to do. The text is the shared copy the form and the toggle already
+  // render; the row for reactivating an already active docente is the toggle's
+  // own wording and is pinned with the toggle copy of the interface slice.
+  it.each([
+    [
+      "email already used",
+      "fieldErrors.correo.taken",
+      [/ya está en uso por otra cuenta/i, /escribe otro/i],
+      [/already used by another account/i, /enter a different one/i],
+    ],
+    [
+      "edit of an inactive docente",
+      "refusals.inactive",
+      [/reactívalo primero/i],
+      [/reactivate it first/i],
+    ],
+    [
+      "deactivate an inactive docente",
+      "refusals.alreadyInactive",
+      [/ya estaba inactivo/i],
+      [/already inactive/i],
+    ],
+    [
+      "write cannot start (busy)",
+      "busy",
+      [/no se guardó nada/i, /inténtalo de nuevo/i],
+      [/nothing was saved/i, /try again/i],
+    ],
+    [
+      "not found",
+      "notFound.message",
+      [/no exista|no esté disponible/i],
+      [/may not exist|not be available/i],
+    ],
+    ["no change", "refusals.unchanged", [/no hay cambios/i], [/no changes/i]],
+  ] as const)(
+    "refusal %s says what happened and what to do, in both locales",
+    (_row, key, es, en) => {
+      for (const [locale, patterns] of [
+        ["es", es],
+        ["en", en],
+      ] as const) {
+        const message = render(locale, "catalog.shared", key);
+        for (const pattern of patterns) expect(message).toMatch(pattern);
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s duplicate email text names no account, role or state (DM-4)",
+    (locale) => {
+      const message = render(
+        locale,
+        "catalog.shared",
+        "fieldErrors.correo.taken",
+      );
+
+      expect(message).not.toMatch(
+        /coordinaci|secretar|administrador|estudiante|student|docente|teacher|inactiv|active|activ[ao]/i,
+      );
+    },
+  );
+});
+
 describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
   // The test translator of `actions.test.ts` echoes keys, so only a scan of the
   // action source proves every message key it chooses exists in the catalogs.
@@ -1719,10 +1925,13 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     "search.label",
     "search.placeholder",
     "tableCaption",
+    // docente-maintenance (DM-8, DM-16): the copy of the edit and toggle actions.
+    "errors.unexpected",
+    "errors.activeGrupos",
   ];
 
   it.each(["es", "en"] as const)(
-    "%s pins exactly the Docentes list keys",
+    "%s pins exactly the Docentes list and action keys",
     (locale) => {
       expect(leafPaths(section(locale, "catalog.docentes")).sort()).toEqual(
         [...DOCENTES_KEYS].sort(),

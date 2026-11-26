@@ -149,6 +149,13 @@ export const ACTIONS: Record<string, Row & { exports: readonly string[] }> = {
     "updateGrupoAction",
     "setGrupoActivoAction",
   ),
+  // docente-maintenance DM-1: secretaria only; administrador and coordinacion
+  // keep the read-only list and are denied here.
+  [`${CATALOG}/docentes/actions.ts`]: actions(
+    SECRETARIA,
+    "updateDocenteAction",
+    "setDocenteActivoAction",
+  ),
   [`${CATALOG}/inscripciones/actions.ts`]: actions(
     SECRETARIA,
     "setInscripcionActivoAction",

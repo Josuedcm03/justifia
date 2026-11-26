@@ -88,3 +88,80 @@ REFACTOR: none needed (the builders reuse the `AuditOrigin` spread of the asigna
 - Six further mutations on `docentes.ts`, `docente.ts` and `events.ts`, all reverted, all killed: count without the active filter, any error mapped to `correo_taken`, inactive docente editable, email not lower-cased, subquery counting inactive grupos, toggle direction swapped.
 - Over the 1000 stop line: cut by the owner's yes (2026-11-25) into PR 1a (#155, units 1 and 2, 597 lines, green on its own: 393 files, 10479 tests) and PR 1b (#156, unit 3, 661 lines).
 - Standing rule from the owner (2026-11-25): a slice over 1000 lines is cut at unit boundaries into PRs of at most 1000 lines, without touching code or tests, and reported at the pause.
+
+## Slice 2 (actions), branch `feat/docente-maintenance-2-actions` (base tracker 041c475, which holds slice 1), 2026-11-25
+
+Mode: Strict TDD (vitest). Tasks 2.0 to 2.11 done. Task 2.12 (PR) is not started: the orchestrator opens and merges it. The slice measures 1929 changed lines, over the 1000 stop line (see "Size and stop line"). No database command of any kind was run.
+
+### Rule applied for Next
+
+`node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidatePath.md` read again before the actions: a literal path omits `type`, a pattern with a dynamic segment REQUIRES `"page"`. The actions revalidate `/catalog/docentes`, `/catalog/docentes/{id}/edit`, `/users` and `/catalog/asignaturas` as literals and the three Asignatura pattern pages with `"page"`. `redirect` runs after the `try`, never inside it.
+
+### TDD cycle evidence
+
+| Unit | Task | RED (test written first, run, failed) | GREEN | MC |
+|------|------|----------------------------------------|-------|----|
+| 4 | 2.1 | `npm test -- auth/permissions docente-access`: 2 files failed, 11 tests failed, 157 passed. `canManageDocentes` "is not a function", `rolesQueGestionanDocentes` "is not iterable", `docente-access.ts` missing (ENOENT in the restatement scan, import not resolved in the guard test) | 2.2: `permissions.ts` and `docente-access.ts`; 2 files, 194 tests pass; typecheck clean | 2.3: MC-4a, MC-4b |
+| 5 | 2.4 | `action-helpers.test.ts`: 17 failed ("addressedRecord is not a function"), 16 passed at write time (the `addressed` wrapper cases pin existing behaviour, so they carry a revert-only check, MC-A1) | 2.5: `addressedRecord` plus the `addressed` wrapper; T(action-helpers asignaturas/actions grupos/actions): 3 files, 222 tests pass, the existing tests unedited | MC-A1, MC-A2 |
+| 5 | 2.6, 2.7, 2.8 | `docentes/actions.test.ts`: "Failed to resolve import ... docentes/actions"; `audit-leak.test.ts`: "Cannot find package ... docentes/actions"; `catalog-parity.test.ts`: ENOENT on the actions source (whole file); `guards.test.ts`: "covers every expected actions module" (2 vs 3 files); `route-coverage.test.ts`: the table lists a stale actions row; `access-matrix.actions.test.ts`: "no module loader for (dashboard)/catalog/docentes/actions.ts" | 2.9: `docentes/actions.ts` and the copy; T(auth/permissions docente-access action-helpers docentes/actions audit-leak catalog/guards access src/i18n catalog-parity): 20 files, 1406 tests pass; typecheck clean | 2.10: MC-5a to MC-5d |
+
+REFACTOR: none needed. Two test-side fixes happened before the commits, both found by the first GREEN run of the new tests: the guard test pinned the absence of the text "requireCatalogAccess" but the guard's doc comment names it (narrowed to the import path and the call), and the "email of 161 characters" row of the action test was built with 158 (fixed to 153 plus the 8-character domain).
+
+### Mutation checks
+
+Each applied to the production file, run, reverted, `git status` clean before every commit. Unit 4's MC-4a was reverted by the exact reverse edit because the unit was not staged yet (a `git restore` would have dropped the unit); the diff was compared with the green one and the focused run repeated (168 tests pass). Every later check was reverted with `git restore` after staging the unit.
+
+| MC | Mutation | Failing tests |
+|----|----------|---------------|
+| 4a | `canManageDocentes` returns `rol === "secretaria" \|\| rol === "coordinacion"` | `permissions.test.ts`: `canManageDocentes ... denies coordinacion`, `... equals canAssignRole(rol, 'docente') for the five roles and for none`, `... is not the catalog predicate: it is narrower than canManageCatalog`, `rolesQueGestionanDocentes ... is exactly secretaria`; `docente-access.test.ts`: `sends coordinacion to /denied`, `does not look at the subject of a denied caller: the redirect wins` (6 tests) |
+| 4b | `await getCatalogActor(0)` before `requireRole` | `docente-access.test.ts`, 23 tests, among them `a denial makes no read > propagates the /login redirect before any other root is touched` (and `/denied`, `/change-password`), `... is a guard with no database read at all: even an admitted caller reads nothing`, `source: requireRole is the first await and nothing is read before it` and every role-table case |
+| A1 | `addressed` hands a fixed scope to the reader instead of its own | `action-helpers.test.ts > addressed ... hands the scope and the id to the reader, in that order`; `asignaturas/actions.test.ts > updateAsignaturaAction > pre-check: a missing and a foreign record are the identical gone, without the lock` and `setAsignaturaActivoAction > pre-check: a missing or foreign record is gone without taking the lock, even when busy`; the `updateGrupoAction` pre-check case (8 tests in all) |
+| A2 | `addressedRecord` passes a second argument to the reader | `action-helpers.test.ts > addressedRecord ... reads by the id alone: the reader receives no scope and no second argument` |
+| 5a | `formData.get("id")` before `requireDocenteAccess()` in `updateDocenteAction` | `guards.test.ts > docentes/actions.ts: every exported action awaits its guard first, before any form read`; in `actions.test.ts` the six denied-identity cases (`administrador`, `coordinacion`, `docente`, `estudiante`, `anonymous`, `flagged`), `a coordinacion with a valid form is denied and writes no row (DM-1)` and `busy does not bypass the guard ...` (42 tests in the three files) |
+| 5b (update) | `withCatalogWrite` gets `() => []` instead of `docenteWriteEvents` | `audit-leak.test.ts > updateDocenteAction leaks nothing > a success writes exactly one manual event of field names`; `actions.test.ts > updated: one manual event of field names in the same transaction, after the write`, `the actor is the session user, never a value of the body`, `an audit failure rejects the whole write: generic error, nothing revalidated` |
+| 5b (toggle) | same, in `setDocenteActivoAction` | `audit-leak.test.ts` both `setDocenteActivoAction (deactivate / reactivate) leaks nothing > a success writes exactly one manual event`; `actions.test.ts > deactivate / reactivate changes the state, audits one manual event of names only ...`, `the actor is the session user and a crafted activo or actor field is ignored` |
+| 5c | intent normalised with `.toLowerCase()` (accepts "DEACTIVATE") | `actions.test.ts > setDocenteActivoAction > an unknown intent (DEACTIVATE) answers gone and writes nothing` and `... (Reactivate) ...` |
+| 5d (update) | actor taken from `formData.get("actorId")` | `actions.test.ts > updateDocenteAction > the actor is the session user, never a value of the body` and `mass assignment: login, hashClave, ... never reach the data layer` (the action must read only four keys) |
+| 5d (toggle) | same, in `setDocenteActivoAction` | `actions.test.ts > setDocenteActivoAction > the actor is the session user and a crafted activo or actor field is ignored` and `runs in the design order: guard, translations, intent, pre-check, write` |
+
+### Work unit evidence
+
+| Unit | Focused test command and result | Runtime harness | Rollback boundary |
+|------|---------------------------------|-----------------|-------------------|
+| 4 | `DATABASE_URL=postgres://u:p@localhost:5432/x npm test -- src/lib/auth`: 11 files, 334 tests, pass | The guard runs over the REAL `requireRole` with a doubled session source for the six non-admitted identities and the admitted one; the access matrix covers it end to end from unit 5 (no entry point calls the guard in this unit) | revert `df11aca`: the predicate, the list and the guard; nothing calls them yet |
+| 5 | `npm test -- auth/permissions docente-access action-helpers docentes/actions audit-leak catalog/guards access src/i18n catalog-parity`: 20 files, 1406 tests, pass | Access matrix (`access-matrix.actions.test.ts`, the real guard over the seven identities, now with the two new exports) and `route-coverage.test.ts`; the actions run end to end on Postgres only at the system test ST-3 to ST-11 and the suite of slice 4 (no database command allowed here) | revert `f2052d5`: the actions, the helper, the matrix row, the pins and the copy; nothing calls the actions yet (the form is slice 3) |
+
+### Commits
+
+- `df11aca` feat(auth): add the secretaria-only docente access guard (4 files, 310 changed lines)
+- `f2052d5` feat(docentes): add the docente edit and toggle actions (10 files, 1619 changed lines)
+
+### Deviations
+
+1. `src/i18n/catalog-parity.test.ts`: the existing pin "pins exactly the Docentes list keys" holds the exact key set of `catalog.docentes`, so it went red on the new copy. Changed minimally: `DOCENTES_KEYS` gained `errors.unexpected` and `errors.activeGrupos` and the title says "list and action keys". Task 3.8 adds the slice 3 keys the same way.
+2. `src/app/(dashboard)/catalog/guards.test.ts`: the existing per-file test "every exported action awaits requireCatalogAccess() first, before any form read" now picks the expected guard by path (`expectedGuard`) and is titled "awaits its guard first". For asignaturas and grupos nothing changed in effect. Added "calls only its own guard" (the docente actions never contain `requireCatalogAccess(` and the catalog actions never contain `requireDocenteAccess(`).
+3. `docentes/actions.test.ts` runs the REAL `requireDocenteAccess` over the real `requireRole` with a doubled session source; the existing catalog action tests double the guard. It proves the production redirects (`/denied`, `/login`, `/change-password`) and the scenario "coordinacion with a valid form". `audit-leak.test.ts` keeps its doubled `requireRole`, so the real docente guard resolves to its session there.
+4. Gap for slice 3 (not fixed here): DM-16 asks that reactivating an already active docente says it is "already active". No catalog holds that text: the shared `ActiveToggle` shows `refusals.unchanged` ("no changes to save") for a reactivation no-op and `refusals.alreadyInactive` for a deactivation no-op, and the design copy list has no key for it. The actions return `{ kind: "unchanged" }` with no text, so slice 2 adds none; the refusal-table parity test says so in a comment. Slice 3 (3.5, the toggle in `bound-controls.tsx` and the `state.*` keys) needs a docente-specific text or a prop on the shared toggle.
+5. The "no other source file restates the list" scan of task 2.1 reads `docente-access.ts` and every non-test source under `catalog/docentes` for any role literal; the slice 3 files join it automatically.
+6. Unit 5's commit lists `action-helpers.ts` and its new test (tasks 2.4 and 2.5) and the two catalogs next to the actions, the pins and the matrix row; unit 4's commit lists exactly four files.
+7. Revalidation is asserted as the exact ordered list of the design: record list, record edit page, `/users`, `/catalog/asignaturas`, then the three pattern pages with `"page"`.
+8. New files were created LF and converted to CRLF to match the working tree; the index holds LF (autocrlf).
+
+### Gate results (slice tip `f2052d5`)
+
+- `npm test` (dummy DB): 397 files, 10711 tests, all pass (257 s). Slice 1 tip was 394 files, 10510 tests: +3 files (`docente-access`, `action-helpers`, `docentes/actions`) and +201 tests.
+- `npm run typecheck`: clean.
+- `npx eslint src` with the prettier end-of-line rule set to auto: 0 errors, 1 warning (`SidebarGroupLabel` unused in `src/components/app-sidebar.tsx`, not touched by this slice). Touched files individually: 0 problems; `npx prettier --check <touched> --end-of-line auto` (including both catalogs): clean.
+- `npm run build` (dummy DATABASE_URL and AUTH_SECRET): compiled, route table printed.
+
+### Size and stop line
+
+`git diff --numstat 041c475 HEAD -- . ':(exclude)openspec' ':(exclude)docs'`: 1908 added, 21 deleted, 1929 total (planned about 700). Per unit: unit 4 (`df11aca`) 310, unit 5 (`f2052d5`) 1619. Production code is about 263 of those lines; about 1666 are tests (`docentes/actions.test.ts` alone is 864, `catalog-parity.test.ts` +205, `audit-leak.test.ts` +140, `action-helpers.test.ts` 147). Over the 1000 stop line, and unit 5 alone is over it, so no unit boundary lands under 1000 for the actions. Inside unit 5 the pieces are: helper (tasks 2.4 and 2.5) 175, actions module with its test and copy 1045, pins (audit-leak, guards, parity, matrix) 399. Tests were not trimmed; the cut is left to the owner and the orchestrator.
+
+### Orchestrator review of slice 2 (2026-11-25)
+
+- Code read in full. Full run at the slice tip: 397 files, 10711 tests, all pass; typecheck clean; ESLint 0 errors.
+- Nine further mutations, all reverted, all killed: no revalidation after a toggle, `correo_taken` mapped to unexpected, `/users` not revalidated, count 0 in the refusal, intent check removed, safe-integer check removed in the guard, `addressedRecord` returning a null record, `inactive` falling through to the redirect, the Asignaturas edit page not revalidated.
+- One reviewer commit (`fix(docentes): point the active-grupos refusal to the Asignaturas search`): the DM-8 refusal now ends with the pointer to the Asignaturas search (CM-ASG-9, a SHOULD of DM-8), red first in `catalog-parity.test.ts`. Slice total 1935 lines.
+- Cut by the owner's choice (2026-11-25) into PR 2a (#157: unit 4 plus the `addressedRecord` helper as its own commit, 485 lines, green on its own: 396 files, 10580 tests) and PR 2b (#158: the actions, pins and copy, about 1450 lines, over 1000 with the owner's explicit yes). The 2b branch was rebased onto 2a; its tree is byte-identical to the reviewed tip.
+- Open for slice 3: DM-16 "already active" has no copy yet; the toggle of task 3.5 must supply it.

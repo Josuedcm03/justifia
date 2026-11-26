@@ -2,17 +2,19 @@
 //
 // Characterization pin (task 12.9): no value ever reaches an audit payload or a
 // log line. Drives all eight catalog actions (three Asignatura, three Grupo and
-// the two import actions) with fixtures that carry sentinel strings, then
-// serialises every audit event handed to `insertAuditEvents` and every console
-// line and asserts none contains a sentinel. Real: the action modules,
-// `withCatalogWrite`, the audit event mappers, the import planner and
-// `applyImport`. Doubles: the guards, the data layer and the database handle.
-// Specs: AL-PAY, CM-AUD-1.
+// the two import actions) and the two docente actions (edit, toggle) with
+// fixtures that carry sentinel strings, then serialises every audit event
+// handed to `insertAuditEvents` and every console line and asserts none
+// contains a sentinel. Real: the action modules, `withCatalogWrite`, the audit
+// event mappers, the import planner and `applyImport`. Doubles: the guards, the
+// data layer and the database handle. Specs: AL-PAY, CM-AUD-1, DM-15,
+// DM-AUD-3.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   AUDITABLE_ASIGNATURA_FIELDS,
   AUDITABLE_GRUPO_FIELDS,
+  AUDITABLE_USER_FIELDS,
   type AuditEvent,
 } from "@/lib/audit/types";
 import {
@@ -43,6 +45,9 @@ const m = vi.hoisted(() => ({
   updateGrupo: vi.fn(),
   setGrupoActivo: vi.fn(),
   getGrupo: vi.fn(),
+  getDocente: vi.fn(),
+  updateDocente: vi.fn(),
+  setDocenteActivo: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: m.redirect }));
@@ -78,12 +83,21 @@ vi.mock("@/lib/data/grupos", () => ({
   setGrupoActivo: m.setGrupoActivo,
   getGrupoById: m.getGrupo,
 }));
+vi.mock("@/lib/data/docentes", () => ({
+  getDocenteById: m.getDocente,
+  updateDocente: m.updateDocente,
+  setDocenteActivo: m.setDocenteActivo,
+}));
 
 import {
   createAsignaturaAction,
   setAsignaturaActivoAction,
   updateAsignaturaAction,
 } from "@/app/(dashboard)/catalog/asignaturas/actions";
+import {
+  setDocenteActivoAction,
+  updateDocenteAction,
+} from "@/app/(dashboard)/catalog/docentes/actions";
 import {
   createGrupoAction,
   setGrupoActivoAction,
@@ -104,6 +118,8 @@ const DOCENTE = "ZZ-DOCENTE NOMBRE";
 const CORREO = "zz.docente@zz-correo.edu";
 const HASH = "$2a$12$ZZhashZZhashZZhashZZhashZZhashZZhashZZhashZZha";
 const CLAVE = "ZZ-TEMP-PASSWORD-7Q";
+// The docente actions carry a name, an email and a phone (DM-15).
+const TELEFONO = "ZZ-TEL-5550001";
 const SENTINELS = [
   NOMBRE,
   CODIGO,
@@ -113,6 +129,7 @@ const SENTINELS = [
   HASH,
   "$2a$",
   CLAVE,
+  TELEFONO,
   "miercoles",
   "Miércoles",
   "Mié",
@@ -128,6 +145,8 @@ const LEAK = {
   numeroGrupo: NUMERO,
   docenteNombre: DOCENTE,
   correo: CORREO,
+  telefono: TELEFONO,
+  nombreCompleto: DOCENTE,
   dias: 85,
   diasCount: 4,
 };
@@ -202,6 +221,12 @@ beforeEach(() => {
     docenteNombre: DOCENTE,
     activo: true,
     dias: [],
+  });
+  m.getDocente.mockResolvedValue({
+    id: 12,
+    activo: true,
+    gruposActivos: 0,
+    ...LEAK,
   });
   m.hashPassword.mockResolvedValue(HASH);
   m.generatePassword.mockReturnValue(CLAVE);
@@ -285,14 +310,21 @@ function expectNoSentinel(serialised: string) {
 
 /** The shape every MANUAL event must have: exactly `campos` and `origen`
  *  (so no mask, count or value key can exist), origin `manual`, and only
- *  field names from the closed lists. */
+ *  field names from the closed lists. A `Usuario` event also carries the role
+ *  of the account, and nothing else (DM-AUD-3). */
 function expectManualShape(event: AuditEvent) {
   const datos = event.datos as Record<string, unknown>;
-  expect(Object.keys(datos).sort()).toEqual(["campos", "origen"]);
+  if (event.entidadTipo === "Usuario") {
+    expect(Object.keys(datos).sort()).toEqual(["campos", "origen", "rol"]);
+    expect(datos.rol).toBe("docente");
+  } else {
+    expect(Object.keys(datos).sort()).toEqual(["campos", "origen"]);
+  }
   expect(datos.origen).toBe("manual");
   const closed: readonly string[] = [
     ...AUDITABLE_ASIGNATURA_FIELDS,
     ...AUDITABLE_GRUPO_FIELDS,
+    ...AUDITABLE_USER_FIELDS,
   ];
   for (const campo of datos.campos as string[]) {
     expect(closed).toContain(campo);
@@ -332,6 +364,12 @@ const GRUPO_CREATE = {
   dias: ["miercoles", "lunes"],
 };
 const GRUPO_EDIT = { id: "5", docenteId: "31", dias: ["miercoles", "lunes"] };
+const DOCENTE_EDIT = {
+  id: "12",
+  nombreCompleto: DOCENTE,
+  correo: CORREO,
+  telefono: TELEFONO,
+};
 
 type Scenario = {
   name: string;
@@ -395,6 +433,32 @@ const MANUAL: Scenario[] = [
     accion: "grupo.reactivado",
     refusal: { kind: "asignatura_unavailable" },
   },
+  {
+    name: "updateDocenteAction",
+    data: m.updateDocente,
+    run: () => updateDocenteAction(IDLE, form(DOCENTE_EDIT)),
+    ok: { kind: "updated", id: 12, campos: ["correo", "telefono"] },
+    accion: "usuario.actualizado",
+    refusal: { kind: "correo_taken" },
+  },
+  {
+    name: "setDocenteActivoAction (deactivate)",
+    data: m.setDocenteActivo,
+    run: () =>
+      setDocenteActivoAction(IDLE, form({ id: "12", intent: "deactivate" })),
+    ok: { kind: "changed", id: 12, activo: false },
+    accion: "usuario.desactivado",
+    refusal: { kind: "has_active_groups", count: 3 },
+  },
+  {
+    name: "setDocenteActivoAction (reactivate)",
+    data: m.setDocenteActivo,
+    run: () =>
+      setDocenteActivoAction(IDLE, form({ id: "12", intent: "reactivate" })),
+    ok: { kind: "changed", id: 12, activo: true },
+    accion: "usuario.reactivado",
+    refusal: { kind: "unchanged", id: 12 },
+  },
 ];
 
 describe.each(MANUAL)("$name leaks nothing", (scenario) => {
@@ -426,6 +490,66 @@ describe.each(MANUAL)("$name leaks nothing", (scenario) => {
     expect(events()).toEqual([]);
     expect(consoleSpies.error).toHaveBeenCalledTimes(1);
     expect(logs()).toContain("catalog.write.failed");
+    expectCleanTrail();
+  });
+});
+
+describe("the docente actions log the actor, the error name and the SQLSTATE only (DM-15)", () => {
+  it.each([
+    [
+      "updateDocenteAction",
+      m.updateDocente,
+      () => updateDocenteAction(IDLE, form(DOCENTE_EDIT)),
+    ],
+    [
+      "setDocenteActivoAction",
+      m.setDocenteActivo,
+      () =>
+        setDocenteActivoAction(IDLE, form({ id: "12", intent: "deactivate" })),
+    ],
+  ] as const)(
+    "%s: the failure line has exactly those keys",
+    async (_n, data, run) => {
+      data.mockRejectedValue(leakyError());
+
+      const state = await settle(run);
+
+      expect(state).toEqual({
+        kind: "error",
+        message: "docentes.errors.unexpected",
+      });
+      expect(consoleSpies.error).toHaveBeenCalledTimes(1);
+      const line = JSON.parse(String(consoleSpies.error.mock.calls[0][0]));
+      expect(line).toEqual({
+        event: "catalog.write.failed",
+        actor: 7,
+        errorName: "Error",
+        errorCode: "23505",
+      });
+      expectCleanTrail();
+    },
+  );
+
+  it("a failing pre-check read logs the same line and writes nothing", async () => {
+    m.getDocente.mockRejectedValue(leakyError());
+
+    const state = await settle(() =>
+      updateDocenteAction(IDLE, form(DOCENTE_EDIT)),
+    );
+
+    expect(state).toEqual({
+      kind: "error",
+      message: "docentes.errors.unexpected",
+    });
+    const line = JSON.parse(String(consoleSpies.error.mock.calls[0][0]));
+    expect(Object.keys(line).sort()).toEqual([
+      "actor",
+      "errorCode",
+      "errorName",
+      "event",
+    ]);
+    expect(m.updateDocente).not.toHaveBeenCalled();
+    expect(events()).toEqual([]);
     expectCleanTrail();
   });
 });
