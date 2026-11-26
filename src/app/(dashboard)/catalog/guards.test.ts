@@ -109,8 +109,16 @@ describe("catalog pages (structure)", () => {
 
 // Server actions (CM-ACC-2: a denied caller's body is never read). Every
 // exported action must resolve the guard before anything else and must not
-// touch the form data until it has.
-const ACTION_SEGMENTS = ["asignaturas", "grupos"] as const;
+// touch the form data until it has. The docente actions (docente-maintenance,
+// DM-1) are secretaria-only and use their own guard, never the catalog one.
+const ACTION_SEGMENTS = ["asignaturas", "grupos", "docentes"] as const;
+
+/** The guard an actions module must await first, chosen by its path. */
+function expectedGuard(path: string): string {
+  return path.includes("/catalog/docentes/")
+    ? "requireDocenteAccess"
+    : "requireCatalogAccess";
+}
 
 const actionFiles = ACTION_SEGMENTS.map((segment) =>
   join(CATALOG_DIR, segment, "actions.ts"),
@@ -149,7 +157,20 @@ describe("catalog server actions (structure)", () => {
     expect(actionFiles.map((f) => f.path)).toEqual([
       "src/app/(dashboard)/catalog/asignaturas/actions.ts",
       "src/app/(dashboard)/catalog/grupos/actions.ts",
+      "src/app/(dashboard)/catalog/docentes/actions.ts",
     ]);
+  });
+
+  it("chooses the guard by path: only the docentes actions use the secretaria-only one", () => {
+    expect(
+      expectedGuard("src/app/(dashboard)/catalog/docentes/actions.ts"),
+    ).toBe("requireDocenteAccess");
+    expect(
+      expectedGuard("src/app/(dashboard)/catalog/asignaturas/actions.ts"),
+    ).toBe("requireCatalogAccess");
+    expect(expectedGuard("src/app/(dashboard)/catalog/grupos/actions.ts")).toBe(
+      "requireCatalogAccess",
+    );
   });
 
   it.each([
@@ -165,21 +186,39 @@ describe("catalog server actions (structure)", () => {
   });
 
   it.each(actionFiles.map((f) => [f.path, f] as const))(
-    "%s: every exported action awaits requireCatalogAccess() first, before any form read",
+    "%s: every exported action awaits its guard first, before any form read",
     (_path, file) => {
       const actions = exportedFunctions(file.text);
       expect(actions.length).toBeGreaterThan(0);
+      const guard = expectedGuard(file.path);
 
       for (const action of actions) {
         const firstAwait = action.body.indexOf("await ");
         expect(firstAwait, action.name).toBeGreaterThanOrEqual(0);
         expect(action.body.slice(firstAwait), action.name).toMatch(
-          /^await requireCatalogAccess\(\)/,
+          new RegExp(`^await ${guard}\\(\\)`),
         );
         expect(action.body.slice(0, firstAwait), action.name).not.toMatch(
           FORM_READ,
         );
       }
+    },
+  );
+
+  // DM-1: the docente actions are secretaria-only. `requireCatalogAccess`
+  // admits administrador and coordinacion, so it must not appear in them, and
+  // the docente guard must not leak into the catalog actions either.
+  it.each(actionFiles.map((f) => [f.path, f] as const))(
+    "%s: calls only its own guard",
+    (_path, file) => {
+      const own = expectedGuard(file.path);
+      const other =
+        own === "requireDocenteAccess"
+          ? "requireCatalogAccess"
+          : "requireDocenteAccess";
+
+      expect(file.text).toContain(`${own}(`);
+      expect(file.text).not.toContain(`${other}(`);
     },
   );
 
