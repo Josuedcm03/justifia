@@ -149,6 +149,54 @@ describe("ImportErrors (CEI: Preview with errors blocks confirmation)", () => {
     },
   );
 
+  it.each([
+    [
+      "en",
+      /inactive/i,
+      /does not reactivate/i,
+      /Reactivate .* in Docentes/,
+      /another teacher/,
+    ],
+    [
+      "es",
+      /inactivo/i,
+      /no reactiva/i,
+      /Reactívalo en Docentes/,
+      /otro docente/,
+    ],
+  ] as const)(
+    "a docente.inactive row error names the email, says the docente is inactive, that the import does not reactivate it, and both remedies, in %s (CEI-UI)",
+    (locale, inactive, notReactivated, remedy, other) => {
+      renderErrors(
+        [
+          {
+            sheet: "Grupos",
+            row: 6,
+            reason: "docente.inactive",
+            value: "ana@uni.edu",
+          },
+        ],
+        locale,
+      );
+
+      const table = screen.getByRole("table", {
+        name: (locale === "en" ? en : es).errorsPanel.caption,
+      });
+      const [sheet, row, reason, value] = cellsOf(table)[1];
+      expect(sheet).toBe("Grupos");
+      expect(row).toBe("6");
+      expect(value).toBe("ana@uni.edu");
+      // The reason text names the docente by the email of the row.
+      expect(reason).toContain("ana@uni.edu");
+      expect(reason).not.toContain("docente.inactive");
+      expect(reason).not.toContain("{value}");
+      expect(reason).toMatch(inactive);
+      expect(reason).toMatch(notReactivated);
+      expect(reason).toMatch(remedy);
+      expect(reason).toMatch(other);
+    },
+  );
+
   it("falls back to the raw code for a reason the catalog does not know", () => {
     renderErrors([{ sheet: "Grupos", row: 2, reason: "Invalid input" }]);
 

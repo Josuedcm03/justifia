@@ -281,6 +281,7 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
     "asignatura.unresolved",
     "asignatura.inactive",
     "docente.unresolved",
+    "docente.inactive",
     "grupo.duplicate",
     "dias.invalid",
     "accountsToCreate.capExceeded",
@@ -305,6 +306,7 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
     "result.asignaturasReactivated",
     "result.manualGruposDeactivated",
     "reasons.asignatura.inactive",
+    "reasons.docente.inactive",
   ];
   const text = (locale: "es" | "en", key: string) =>
     resolve(locale === "es" ? esMessages : enMessages, `catalog.import.${key}`);
@@ -401,6 +403,64 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
       expect(message).toMatch(replaces);
       expect(message).toMatch(empty);
       expect(message).toMatch(never);
+    },
+  );
+
+  // CEI-UI (docente.inactive): the message names the email of the row, says
+  // the docente is inactive and the import does not reactivate it, and offers
+  // both ways out (DM-13).
+  it.each([
+    [
+      "es",
+      /inactivo/i,
+      /no .*reactiva/i,
+      /Reactívalo en Docentes/,
+      /otro docente/,
+    ],
+    [
+      "en",
+      /inactive/i,
+      /does not reactivate/i,
+      /Reactivate (them|it) in Docentes/,
+      /another teacher/,
+    ],
+  ] as const)(
+    "%s docente.inactive names the email, says the docente is inactive and not reactivated, and offers both remedies",
+    (locale, inactive, notReactivated, remedy, other) => {
+      const raw = text(locale, "reasons.docente.inactive") as string;
+      const t = createTranslator({
+        locale,
+        messages: locale === "es" ? esMessages : enMessages,
+        namespace: "catalog.import",
+        onError: (error) => {
+          throw error;
+        },
+      });
+
+      const rendered = t("reasons.docente.inactive", {
+        value: "ana@uni.edu",
+      });
+
+      expect(raw).toContain("{value}");
+      expect(rendered).toContain("ana@uni.edu");
+      expect(rendered).not.toContain("{value}");
+      expect(rendered).toMatch(inactive);
+      expect(rendered).toMatch(notReactivated);
+      expect(rendered).toMatch(remedy);
+      expect(rendered).toMatch(other);
+    },
+  );
+
+  // The CorreoDocente rule says the docente must be active (CEI-UI).
+  it.each([
+    ["es", /docente activo/],
+    ["en", /active teacher/],
+  ] as const)(
+    "%s correoDocenteResolves says the docente must be active",
+    (locale, active) => {
+      expect(text(locale, "contract.rules.correoDocenteResolves")).toMatch(
+        active,
+      );
     },
   );
 

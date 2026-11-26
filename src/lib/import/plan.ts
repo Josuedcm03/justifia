@@ -53,6 +53,10 @@ type DocenteIdentity = {
   id?: number;
   login: string;
   isNew: boolean;
+  /** Whether the account is active. A docente created by this workbook is
+   *  (accounts are born active); an existing one carries its stored state, and
+   *  the import never changes it (D3, CEI-VAL). */
+  activo: boolean;
 };
 
 export function planImport(
@@ -248,7 +252,11 @@ export function planImport(
       });
       counts.Usuario.create++;
       accountsToCreate++;
-      docenteByCorreo.set(correo, { login: derived.login, isNew: true });
+      docenteByCorreo.set(correo, {
+        login: derived.login,
+        isNew: true,
+        activo: true,
+      });
       usuarioLoginsInUse.add(derived.login);
     } else {
       const changedFields: AuditableUserField[] = [];
@@ -272,6 +280,7 @@ export function planImport(
         id: existing.id,
         login: existing.login,
         isNew: false,
+        activo: existing.activo,
       });
     }
   }
@@ -355,7 +364,12 @@ export function planImport(
       (() => {
         const existing = usuarioByCorreo.get(docenteCorreo);
         return existing && existing.rol === "docente"
-          ? { id: existing.id, login: existing.login, isNew: false }
+          ? {
+              id: existing.id,
+              login: existing.login,
+              isNew: false,
+              activo: existing.activo,
+            }
           : undefined;
       })();
 
@@ -364,6 +378,21 @@ export function planImport(
         sheet: "Grupos",
         row: r.row,
         reason: "docente.unresolved",
+        value: CorreoDocente,
+      });
+      counts.Grupo.error++;
+      continue;
+    }
+
+    // A grupo may not name an inactive docente, whether the row would create,
+    // update, reactivate or leave the grupo unchanged, and even when the same
+    // workbook lists the docente: the import never reactivates one, so the
+    // block of a deactivation would otherwise be reopened (D3, CEI-VAL).
+    if (!docente.activo) {
+      errors.push({
+        sheet: "Grupos",
+        row: r.row,
+        reason: "docente.inactive",
         value: CorreoDocente,
       });
       counts.Grupo.error++;
