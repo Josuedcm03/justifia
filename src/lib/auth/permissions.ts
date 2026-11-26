@@ -71,6 +71,21 @@ export const rolesQueGestionanCatalogo: RolUsuario[] =
   rolesUsuario.filter(canManageCatalog);
 
 /**
+ * Who may edit, deactivate and reactivate a docente (docente-maintenance,
+ * DM-1, CM-ACC-1). Its own predicate, distinct from `canManageCatalog`:
+ * administrador and coordinacion keep the read-only list. Derived from the
+ * hierarchy (the roles that provision `docente` accounts), never a second role
+ * list.
+ */
+export function canManageDocentes(rol: RolUsuario | undefined): boolean {
+  return canAssignRole(rol, "docente");
+}
+
+/** Derived, never hand-listed — spread into `requireRole` at every call site. */
+export const rolesQueGestionanDocentes: RolUsuario[] =
+  rolesUsuario.filter(canManageDocentes);
+
+/**
  * One predicate, not a list: the only role tied to a single carrera.
  * `coordinacion` is scoped to its own carrera in the catalog.
  */
