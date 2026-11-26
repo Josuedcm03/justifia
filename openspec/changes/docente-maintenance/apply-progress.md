@@ -242,3 +242,10 @@ Each applied to the production file after staging the unit, run, reverted with `
 ### Size and stop line
 
 `git diff --numstat b397f74 HEAD -- . ':(exclude)openspec' ':(exclude)docs'`: 2640 added, 29 deleted, 2669 total (planned about 770). Per unit: unit 6 (`0e3e3b6`) 326, unit 7 (`8824fa3`) 1372, unit 8 (`8d0eb54`) 971. Production code is about 520 of those lines (form 179, bound controls 75, page 118, table and page changes 48, toggle 25, catalogs 58 and the matrix row); about 2150 are tests (`docente-form.test.tsx` 786, the edit page test 623, `catalog-parity.test.ts` +261, `page.test.tsx` +152, `docentes-table.test.tsx` +101, `phone-exposure.test.ts` 89, `active-toggle.test.tsx` +59). Over the 1000 stop line. The last boundary under 1000 is after unit 6 (326); unit 7 alone is over it (1372), and units 6 plus 7 are 1698. Unit 8 (971) fits on its own but depends on units 6 and 7. Tests were not trimmed; the cut is left to the orchestrator and the owner.
+
+### Orchestrator review of slice 3 (2026-11-25)
+
+- Production code read in full (list page and table, form, bound controls, edit page, shared toggle). Full run at the slice tip: 400 files, 10893 tests, all pass; typecheck clean; ESLint 0 errors.
+- Ten further mutations, all reverted, all killed: Edit link without the id, email field not locked when inactive, Asignaturas search link shown with zero grupos, toggle always told the docente is active, the two DM-16 texts swapped, the form still submittable after `gone`, no `notFound()` for a malformed id, hidden id removed, phone not delivered to the form, `unchangedText` ignored by the shared toggle.
+- Cut by the owner's choice (2026-11-25) into PR 3a (#159: units 6 and 7, about 1700 lines, over 1000 with the owner's explicit yes; green on its own: 398 files, 10817 tests, typecheck clean after `next typegen`) and PR 3b (unit 8, the edit page, 971 lines).
+- Note: `npm run typecheck` reads the generated `.next/types`; on a tree older than the last build run `npx next typegen` first, or a stale route type for a page that does not exist yet fails the check.
