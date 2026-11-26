@@ -575,6 +575,11 @@
       "breadcrumb": {
         "label": "Ruta de navegación",
         "edit": "Editar {nombre}"
+      },
+      "page": {
+        "editTitle": "Editar docente",
+        "editSubtitle": "Actualiza el nombre, el correo y el teléfono del docente.",
+        "reactivateHint": "Para editarlo, reactívalo primero en la sección Estado."
       }
     },
     "inscripciones": {

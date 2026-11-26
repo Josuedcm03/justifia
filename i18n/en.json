@@ -575,6 +575,11 @@
       "breadcrumb": {
         "label": "Breadcrumb",
         "edit": "Edit {nombre}"
+      },
+      "page": {
+        "editTitle": "Edit teacher",
+        "editSubtitle": "Update the teacher's name, email and phone.",
+        "reactivateHint": "To edit this teacher, reactivate them first in the Status section."
       }
     },
     "inscripciones": {

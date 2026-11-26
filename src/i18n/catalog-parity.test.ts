@@ -1949,6 +1949,10 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     "state.alreadyInactive",
     "breadcrumb.label",
     "breadcrumb.edit",
+    // docente-maintenance (DM-1, DM-2, DM-6): the edit page.
+    "page.editTitle",
+    "page.editSubtitle",
+    "page.reactivateHint",
   ];
 
   it.each(["es", "en"] as const)(
@@ -2013,6 +2017,7 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
         "page.tsx",
         "docente-form.tsx",
         "bound-controls.tsx",
+        "[id]/edit/page.tsx",
       ].flatMap(keysUsedBy),
     ),
   ];
@@ -2221,6 +2226,42 @@ describe("catalog parity (CM-I18N-1, DM-16, DM-17: Docente form, toggle and stat
       expect(text).toMatch(locale === "es" ? /ningún cambio/i : /no changes/i);
       expect(text).not.toBe(
         section(locale, "catalog.shared.refusals.unchanged"),
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s pins exactly the edit page keys",
+    (locale) => {
+      expect(keysOf(locale, "catalog.docentes.page")).toEqual([
+        "editSubtitle",
+        "editTitle",
+        "reactivateHint",
+      ]);
+    },
+  );
+
+  it.each([
+    ["es", /react[ií]v/i, /estado/i],
+    ["en", /reactivate/i, /status/i],
+  ] as const)(
+    "%s inactive hint points to the State section to reactivate",
+    (locale, reactivate, stateWord) => {
+      const text = section(locale, "catalog.docentes.page.reactivateHint");
+
+      expect(text).toMatch(reactivate);
+      expect(text).toMatch(stateWord);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s edit page title and subtitle are not the Asignatura ones",
+    (locale) => {
+      expect(section(locale, "catalog.docentes.page.editTitle")).not.toBe(
+        section(locale, "catalog.asignaturas.page.editTitle"),
+      );
+      expect(section(locale, "catalog.docentes.page.editSubtitle")).not.toBe(
+        section(locale, "catalog.asignaturas.page.editSubtitle"),
       );
     },
   );

@@ -20,6 +20,15 @@ function pagesUnder(dir: string): string[] {
   });
 }
 
+/** The guard a page must await first, chosen by its path (DM-1): only the
+ *  docente edit page is secretaria-only; the lists and the other edit pages
+ *  keep the catalog guard. */
+function expectedPageGuard(path: string): string {
+  return path.endsWith("/catalog/docentes/[id]/edit/page.tsx")
+    ? "requireDocenteAccess"
+    : "requireCatalogAccess";
+}
+
 const pages = SEGMENTS.flatMap((segment) =>
   pagesUnder(join(CATALOG_DIR, segment)).map((path) => ({
     path: relative(ROOT, path).replace(/\\/g, "/"),
@@ -48,6 +57,7 @@ describe("catalog pages (structure)", () => {
         "asignaturas/[id]/grupos/new/page.tsx",
         "asignaturas/[id]/grupos/[grupoId]/edit/page.tsx",
         "docentes/page.tsx",
+        "docentes/[id]/edit/page.tsx",
         "grupos/[id]/edit/page.tsx",
       ]
         .map((path) => `${base}/${path}`)
@@ -67,22 +77,55 @@ describe("catalog pages (structure)", () => {
     ]);
   });
 
+  it("chooses the page guard by path: only the docente edit page uses the secretaria-only one", () => {
+    expect(
+      expectedPageGuard(
+        "src/app/(dashboard)/catalog/docentes/[id]/edit/page.tsx",
+      ),
+    ).toBe("requireDocenteAccess");
+    for (const path of [
+      "src/app/(dashboard)/catalog/docentes/page.tsx",
+      "src/app/(dashboard)/catalog/asignaturas/[id]/edit/page.tsx",
+      "src/app/(dashboard)/catalog/grupos/[id]/edit/page.tsx",
+    ]) {
+      expect(expectedPageGuard(path), path).toBe("requireCatalogAccess");
+    }
+  });
+
   it.each(pages.map((p) => [p.path, p] as const))(
-    "%s calls requireCatalogAccess( before any other await",
+    "%s calls its guard before any other await",
     (_path, page) => {
-      const guard = page.text.indexOf("requireCatalogAccess(");
+      const name = expectedPageGuard(page.path);
+      const guard = page.text.indexOf(`${name}(`);
       expect(guard).toBeGreaterThanOrEqual(0);
 
       const firstAwait = page.text.indexOf("await ");
       expect(firstAwait).toBeGreaterThanOrEqual(0);
       expect(page.text.slice(firstAwait)).toMatch(
-        /^await requireCatalogAccess\(/,
+        new RegExp(`^await ${name}\\(`),
       );
 
       for (const request of ["await searchParams", "await params"]) {
         const at = page.text.indexOf(request);
         if (at >= 0) expect(guard).toBeLessThan(at);
       }
+    },
+  );
+
+  // DM-1: the docente edit page is secretaria-only. `requireCatalogAccess`
+  // admits administrador and coordinacion, so it must not appear there, and the
+  // docente guard must not leak into the catalog pages either.
+  it.each(pages.map((p) => [p.path, p] as const))(
+    "%s calls only its own guard",
+    (_path, page) => {
+      const own = expectedPageGuard(page.path);
+      const other =
+        own === "requireDocenteAccess"
+          ? "requireCatalogAccess"
+          : "requireDocenteAccess";
+
+      expect(page.text).toContain(`${own}(`);
+      expect(page.text).not.toContain(`${other}(`);
     },
   );
 
