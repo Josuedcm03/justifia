@@ -1,5 +1,28 @@
 # Pendientes del software para la validación de la tesis
 
+> **Documento histórico, no se mantiene desde el 26 de noviembre de 2026.** La
+> validación de OE-4 ya se aplicó: estudiantes el 1 de noviembre (instancia en
+> `5775aad`) y secretaría académica el 14 de noviembre. Se conserva como
+> registro de lo que se planificó; el estado vigente está en `docs/roadmap.md`,
+> `docs/requirements.md` y los changes archivados de `openspec/changes/archive/`.
+
+## Estado de cada punto al 26 de noviembre de 2026
+
+| Punto | Estado |
+| --- | --- |
+| 1. `validation-signals` | En `main` y archivado el 2 de noviembre. RF-14, RF-05 (e), RN-11, RN-12, RN-13 y RN-24 llegaron con `manual-document-data`, en producción desde el 20 de noviembre. La migración `0013` está aplicada en producción (17 migraciones en total). NS-12 sigue fuera. El estado de la revisión jurídica de la UAM sobre la huella no consta aquí |
+| 2. Servidor del modelo | NuExtract3 desplegado en Modal; RNF-03 cerrado |
+| 3. Instancia de estudiantes | Usada el 31 de octubre y el 1 de noviembre con `5775aad`; su rama de Neon se borró el 24 de noviembre |
+| 4. Ambiente de la prueba | La sesión de la secretaría usó la rama `validacion-secretaria`, que se conserva hasta 30 días después de la defensa |
+| 4 (bis). Script de siembra | Existe `npm run db:seed:walk` (cuentas y datos ficticios, con verificación del host) |
+| 5. Versión visible en la interfaz | No implementada: la interfaz no muestra el commit. La versión de cada sesión quedó registrada aparte: `5775aad` (estudiantes) y `e603493` (secretaría) |
+| 6. Exportación de métricas | Sin comprobar |
+| Desfase: `escalation` pendiente en el roadmap | Resuelto: archivado |
+| Desfase: RF-17 en la tesis | Resuelto: RF-17 está en 4.2 y en la matriz de requisitos |
+| Desfase: Tesseract.js en la tesis | Resuelto en el Capítulo IV, que ya no lo nombra |
+| Hallazgo: tema claro por defecto | No aplicado: el tema por defecto sigue el del sistema operativo (`defaultTheme="system"`) |
+| Hallazgos: rango de fechas y numeración de solicitudes | Sin comprobar en este repaso |
+
 Anotado el 2026-10-28 desde el repositorio de la tesis. Resume lo que la
 validación del Capítulo V necesita del sistema, lo que ya existe y lo que falta.
 Retomarlo antes de planificar el próximo change.
