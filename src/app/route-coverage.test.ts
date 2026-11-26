@@ -22,14 +22,15 @@ import {
 
 const ENTRIES = listAppEntries();
 
-// `requireCatalogAccess` and `requireEnrollmentAccess` are the named helpers of
-// the catalog and inscripciones pages: each calls `requireRole` before it reads
-// anything.
+// `requireCatalogAccess`, `requireDocenteAccess` and `requireEnrollmentAccess`
+// are the named helpers of the catalog, docente-edit and inscripciones pages:
+// each calls `requireRole` before it reads anything.
 const GUARDS = [
   "requireUser",
   "requireUserAllowingPasswordChange",
   "requireRole",
   "requireCatalogAccess",
+  "requireDocenteAccess",
   "requireEnrollmentAccess",
 ];
 

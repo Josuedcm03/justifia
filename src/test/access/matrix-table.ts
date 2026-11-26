@@ -56,6 +56,9 @@ export const PAGES: Record<string, Row> = {
   [`${CATALOG}/asignaturas/[id]/grupos/new/page.tsx`]: row(STAFF),
   [`${CATALOG}/asignaturas/[id]/grupos/[grupoId]/edit/page.tsx`]: row(STAFF),
   [`${CATALOG}/docentes/page.tsx`]: row(STAFF),
+  // docente-maintenance DM-1: the list stays open to the three staff roles; the
+  // edit page is secretaria only.
+  [`${CATALOG}/docentes/[id]/edit/page.tsx`]: row(SECRETARIA),
   [`${CATALOG}/grupos/[id]/edit/page.tsx`]: row(STAFF),
   [`${CATALOG}/inscripciones/page.tsx`]: row(SECRETARIA),
   [`${CATALOG}/inscripciones/assign/page.tsx`]: row(SECRETARIA),
