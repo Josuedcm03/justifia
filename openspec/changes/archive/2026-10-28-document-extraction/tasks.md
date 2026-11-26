@@ -203,3 +203,9 @@ Chain: each child PR targets the previous slice branch while open (clean diff) a
 - [x] 10.3 `docs/roadmap.md` row 4 `Estado` = `archivado`; Notas: `EXTRACTION_API_URL` rollout order (migrate, deploy unset, set when the model server is deployed), serverless GPU deployment out of scope, `validation-signals` adds manual entry for `fallida` documents **Done 2026-10-28**: row 4 archived; the note adds the rollout order, the GPU deployment out of scope, the `MAX_IMAGE_TOKENS` / `-c 8192` coupling (verify W5), the manual entry in `validation-signals`, and the team note that `escalation` must regenerate its `0011` (verify W4); the old `0011` team note is marked fulfilled
 - [x] 10.4 Archive to `openspec/changes/archive/<date>-document-extraction/` with `git mv` and an `archive-report.md` (`diff -r` readback) **Done 2026-10-28**: moved to `openspec/changes/archive/2026-10-28-document-extraction/` with `git mv`; `diff -r` readbacks against the pre-move snapshot (empty) and against HEAD (only CR bytes differ, see `archive-report.md`); the report is `archive-report.md` in that folder
 - [ ] 10.5 Owner: merge the tracker PR into `main` with a merge commit only after S5b is merged, M1 is applied and 9.5 passed; keep the tracker branch; delete merged slice branches
+
+## Close-out review (2026-11-26)
+
+| Task | State on 2026-11-26 | Evidence |
+|---|---|---|
+| 10.5 | Done: the tracker merged into `main` with a merge commit (PR #65, dc97d76) and the tracker branch is kept. The merged slice branches were not deleted; that part is optional housekeeping and is left to the owner | `git log origin/main`; `feat/document-extraction` is an ancestor of `main` |
