@@ -384,3 +384,12 @@ S1 = `walk.sec.a` (secretaria with facultad), S2 = `walk.sec.sinfacultad`, A = "
 Observation (not a defect): an inactive record's edit page shows the generic refusal and the reactivate hint one under the other; the grupo edit page has the same pair, so it is the existing catalog pattern and is kept.
 
 Branch `docente-it` is kept until the archive (task 7.x); the server is stopped.
+
+### Merge gate (2026-11-26, tracker 9f747d0)
+
+| Task | Evidence | Result |
+|---|---|---|
+| 6.0 | `git merge-base --is-ancestor origin/main HEAD` with `origin/main` = c5ea22e; `git diff origin/main --stat -- drizzle package.json` | The tracker contains `origin/main`; no schema or dependency change |
+| 6.1 | `sdd-verify` at 9f747d0 (full `npm test` 400 files, 10943 tests, exit 0; focused run 37 files, 2049 tests; typecheck and ESLint on the 49 changed `src` files exit 0); `npm run build` rerun by the orchestrator at 9f747d0 (dummy `DATABASE_URL`, throwaway `AUTH_SECRET`) | PASS WITH WARNINGS, 0 CRITICAL, 7 WARNING (see `verify-report.md`); build exit 0, which closes W5 |
+| 6.2 | Tasks 5.2 to 5.10 have dated entries; the code tree is the one the suite (4067564) and the system test (2f2e85b) ran on; only `openspec/` and `docs/` changed since | Gate items 1 and 2 hold |
+| 6.3 | The two gate queries run read-only on the `production` branch (host asserted) by the orchestrator, 2026-11-26 19:50 UTC | Grupo under an inactive docente: 0. Duplicate emails: 0. Migrations: 17 |
