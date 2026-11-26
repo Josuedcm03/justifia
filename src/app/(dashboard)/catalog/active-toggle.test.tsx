@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import enMessages from "../../../../i18n/en.json";
@@ -55,6 +56,7 @@ function renderToggle(
     activo?: boolean;
     action?: ActiveToggleAction;
     notice?: string;
+    unchangedText?: ComponentProps<typeof ActiveToggle>["unchangedText"];
   } = {},
   locale: "es" | "en" = "en",
 ) {
@@ -75,6 +77,7 @@ function renderToggle(
         recordLabel={RECORD}
         activo={props.activo ?? true}
         notice={props.notice}
+        unchangedText={props.unchangedText}
       />
     </NextIntlClientProvider>,
   );
@@ -354,5 +357,61 @@ describe("ActiveToggle outcomes (CM-NFR-3, CM-NFR-4)", () => {
       await pending;
     });
     await screen.findByRole("button", { name: LABELS.en.reactivate });
+  });
+});
+
+describe("ActiveToggle unchangedText (DM-16: a no-op answer in the entity's own words)", () => {
+  const OWN = {
+    deactivate: "The teacher was already inactive.",
+    reactivate: "The teacher was already active.",
+  };
+
+  async function answerUnchanged(
+    activo: boolean,
+    unchangedText?: ComponentProps<typeof ActiveToggle>["unchangedText"],
+  ) {
+    const { action } = renderToggle({
+      activo,
+      unchangedText,
+      action: vi.fn<ActiveToggleAction>(async () => ({ kind: "unchanged" })),
+    });
+    const user = userEvent.setup();
+    if (activo) {
+      await user.click(
+        await screen.findByRole("button", { name: LABELS.en.deactivate }),
+      );
+      await user.click(
+        await screen.findByRole("button", { name: LABELS.en.confirm }),
+      );
+    } else {
+      await user.click(
+        await screen.findByRole("button", { name: LABELS.en.reactivate }),
+      );
+    }
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    return screen.findByRole("status");
+  }
+
+  it("says the supplied text for a no-op deactivation, not the shared one", async () => {
+    const region = await answerUnchanged(true, OWN);
+
+    await waitFor(() => expect(region.textContent).toContain(OWN.deactivate));
+    expect(region.textContent).not.toContain(LABELS.en.alreadyInactive);
+  });
+
+  it("says the supplied text for a no-op reactivation, not the shared one", async () => {
+    const region = await answerUnchanged(false, OWN);
+
+    await waitFor(() => expect(region.textContent).toContain(OWN.reactivate));
+    expect(region.textContent).not.toContain(LABELS.en.unchanged);
+  });
+
+  it("falls back to the shared text for the direction it does not supply", async () => {
+    const region = await answerUnchanged(true, { reactivate: OWN.reactivate });
+
+    await waitFor(() =>
+      expect(region.textContent).toContain(LABELS.en.alreadyInactive),
+    );
+    expect(region.textContent).not.toContain(OWN.reactivate);
   });
 });

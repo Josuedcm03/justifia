@@ -1198,8 +1198,9 @@ describe("catalog parity (CM-I18N-1, DM-16: Docente action copy)", () => {
 
   // DM-16 "Refusals are actionable": each row's message says what happened and
   // what to do. The text is the shared copy the form and the toggle already
-  // render; the row for reactivating an already active docente is the toggle's
-  // own wording and is pinned with the toggle copy of the interface slice.
+  // render; the two rows for an already active or already inactive docente are
+  // the docente toggle's own wording, pinned with the toggle copy below
+  // (catalog.docentes.state.alreadyActive and .alreadyInactive).
   it.each([
     [
       "email already used",
@@ -1931,6 +1932,23 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     // docente-maintenance (CM-LST-1): the secretaria's actions column.
     "columns.actions",
     "edit",
+    // docente-maintenance (DM-3, DM-6, DM-7, DM-16, DM-17): the edit form, its
+    // State section and the breadcrumb.
+    "form.nombreLabel",
+    "form.correoLabel",
+    "form.correoHint",
+    "form.correoNote",
+    "form.telefonoLabel",
+    "form.submitSave",
+    "form.submitting",
+    "state.title",
+    "state.kept",
+    "state.activeGroups",
+    "state.findGroups",
+    "state.alreadyActive",
+    "state.alreadyInactive",
+    "breadcrumb.label",
+    "breadcrumb.edit",
   ];
 
   it.each(["es", "en"] as const)(
@@ -1989,7 +2007,14 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
   }
 
   const used = [
-    ...new Set(["docentes-table.tsx", "page.tsx"].flatMap(keysUsedBy)),
+    ...new Set(
+      [
+        "docentes-table.tsx",
+        "page.tsx",
+        "docente-form.tsx",
+        "bound-controls.tsx",
+      ].flatMap(keysUsedBy),
+    ),
   ];
 
   it("the scan finds the keys the Docentes table and page choose, all reused", () => {
@@ -2049,6 +2074,181 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
       expect(resolve(messages, "catalog.docentes.noResults.hint")).toMatch(
         status,
       );
+    },
+  );
+});
+
+describe("catalog parity (CM-I18N-1, DM-16, DM-17: Docente form, toggle and state copy)", () => {
+  const section = (locale: "es" | "en", path: string) =>
+    resolve(locale === "es" ? esMessages : enMessages, path);
+  const keysOf = (locale: "es" | "en", path: string) =>
+    leafPaths(section(locale, path)).sort();
+  // The real translator, so a mistyped placeholder or an unbalanced plural
+  // throws here instead of reaching a user.
+  const translate = (locale: "es" | "en", namespace: string) => {
+    const t = createTranslator({
+      locale,
+      messages: locale === "es" ? esMessages : enMessages,
+      namespace: namespace as "catalog.shared",
+      onError: (error: Error) => {
+        throw error;
+      },
+    });
+    return (key: string, values?: Record<string, string | number>) =>
+      t(key as never, values as never) as string;
+  };
+
+  it.each(["es", "en"] as const)("%s pins exactly the form keys", (locale) => {
+    expect(keysOf(locale, "catalog.docentes.form")).toEqual(
+      [
+        "correoHint",
+        "correoLabel",
+        "correoNote",
+        "nombreLabel",
+        "submitSave",
+        "submitting",
+        "telefonoLabel",
+      ].sort(),
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s pins exactly the state and breadcrumb keys",
+    (locale) => {
+      expect(keysOf(locale, "catalog.docentes.state")).toEqual(
+        [
+          "activeGroups",
+          "alreadyActive",
+          "alreadyInactive",
+          "findGroups",
+          "kept",
+          "title",
+        ].sort(),
+      );
+      expect(keysOf(locale, "catalog.docentes.breadcrumb")).toEqual([
+        "edit",
+        "label",
+      ]);
+    },
+  );
+
+  // DM-7 and DM-8: the confirmation shows the count, says to reassign or
+  // deactivate first and gives the closed-period versus current hint; the
+  // only placeholder is the count, so no other account can be named.
+  it.each([
+    [
+      "es",
+      1,
+      /tiene 1 grupo activo\./,
+      /Reasígnalo a otro docente o desactívalo primero/,
+    ],
+    [
+      "es",
+      3,
+      /tiene 3 grupos activos\./,
+      /Reasígnalos a otro docente o desactívalos primero/,
+    ],
+    [
+      "en",
+      1,
+      /has 1 active group\./,
+      /Reassign it to another teacher or deactivate it first/,
+    ],
+    [
+      "en",
+      3,
+      /has 3 active groups\./,
+      /Reassign them to another teacher or deactivate them first/,
+    ],
+  ] as const)(
+    "%s active-groups notice for %i: count, remedy and the period hint",
+    (locale, count, counted, remedy) => {
+      const text = translate(locale, "catalog.docentes.state")("activeGroups", {
+        count,
+      });
+
+      expect(text).toMatch(counted);
+      expect(text).toMatch(remedy);
+      expect(text).toMatch(
+        locale === "es" ? /periodos cerrados/ : /closed periods/,
+      );
+      expect(text).toMatch(locale === "es" ? /periodo actual/ : /current ones/);
+      expect(text).not.toMatch(/[@{}]|#/);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s active-groups notice for none states there are none, with no digit",
+    (locale) => {
+      const text = translate(locale, "catalog.docentes.state")("activeGroups", {
+        count: 0,
+      });
+
+      expect(text).toMatch(
+        locale === "es" ? /no tiene grupos activos/ : /has no active groups/,
+      );
+      expect(text).not.toMatch(/\d/);
+    },
+  );
+
+  it.each([
+    ["es", /grupos y las remisiones/i, /se conservan/i],
+    ["en", /groups and remissions/i, /are kept/i],
+  ] as const)(
+    "%s kept sentence says grupos and remissions are kept",
+    (locale, what, kept) => {
+      const text = section(locale, "catalog.docentes.state.kept");
+
+      expect(text).toMatch(what);
+      expect(text).toMatch(kept);
+    },
+  );
+
+  // DM-16 rows "deactivate an inactive docente" and "reactivate an active
+  // docente": the toggle knows which intent it sent, so each direction has its
+  // own text, and neither is the shared "no changes" sentence.
+  it.each([
+    ["alreadyInactive", "es", /ya estaba inactivo/i],
+    ["alreadyInactive", "en", /already inactive/i],
+    ["alreadyActive", "es", /ya estaba activo/i],
+    ["alreadyActive", "en", /already active/i],
+  ] as const)(
+    "state.%s in %s says what happened and that nothing changed",
+    (key, locale, pattern) => {
+      const text = section(locale, `catalog.docentes.state.${key}`) as string;
+
+      expect(text).toMatch(pattern);
+      expect(text).toMatch(locale === "es" ? /ningún cambio/i : /no changes/i);
+      expect(text).not.toBe(
+        section(locale, "catalog.shared.refusals.unchanged"),
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s breadcrumb names the docente being edited",
+    (locale) => {
+      expect(
+        translate(locale, "catalog.docentes.breadcrumb")("edit", {
+          nombre: "Ana Pérez",
+        }),
+      ).toContain("Ana Pérez");
+    },
+  );
+
+  it.each([
+    ["es", "Buscar", /Asignaturas/],
+    ["en", "Search", /Subjects/],
+  ] as const)(
+    "%s find-groups link text points to the Asignaturas search",
+    (locale, verb, where) => {
+      const text = section(
+        locale,
+        "catalog.docentes.state.findGroups",
+      ) as string;
+
+      expect(text).toContain(verb);
+      expect(text).toMatch(where);
     },
   );
 });
