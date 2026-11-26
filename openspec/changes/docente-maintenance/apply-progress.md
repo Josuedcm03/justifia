@@ -249,3 +249,89 @@ Each applied to the production file after staging the unit, run, reverted with `
 - Ten further mutations, all reverted, all killed: Edit link without the id, email field not locked when inactive, Asignaturas search link shown with zero grupos, toggle always told the docente is active, the two DM-16 texts swapped, the form still submittable after `gone`, no `notFound()` for a malformed id, hidden id removed, phone not delivered to the form, `unchangedText` ignored by the shared toggle.
 - Cut by the owner's choice (2026-11-25) into PR 3a (#159: units 6 and 7, about 1700 lines, over 1000 with the owner's explicit yes; green on its own: 398 files, 10817 tests, typecheck clean after `next typegen`) and PR 3b (unit 8, the edit page, 971 lines).
 - Note: `npm run typecheck` reads the generated `.next/types`; on a tree older than the last build run `npx next typegen` first, or a stale route type for a page that does not exist yet fails the check.
+
+## Slice 4 (closing), branch `feat/docente-maintenance-4-closing` (base tracker 5546906, which holds slices 1 to 3), 2026-11-26
+
+Mode: Strict TDD (vitest) for units 9 and 10; units 11 (docs) and 12 (Postgres suite) carry no behavior change and are proved by structural readback and by typecheck, eslint and the skipped integration run. Tasks 4.0 to 4.15 done. Task 4.16 (PR) is not started: the orchestrator opens and merges it. The slice measures 3242 changed lines, over the 1000 stop line (see "Size and stop line"); the cut is left to the orchestrator. No database command of any kind was run (no INTEGRATION env, no drizzle-kit, no seed, no neon, no SQL), no env file was read, the dev server was not started.
+
+### Rule applied for Next
+
+No new Next API: `createStaffAction` keeps `redirect("/users")` after the `try`, never inside it; the catch only gained a log line.
+
+### TDD cycle evidence
+
+| Unit | Task | RED (test written first, run, failed) | GREEN | MC |
+|------|------|----------------------------------------|-------|----|
+| 9 | 4.1 | `users.test.ts`: 9 failed, 69 passed ("createStaffUsuario is not a function"; the `createUsuario` pin passed at write time). `users/new/actions.test.ts`: 23 failed, 47 passed (the action still called the removed `createUsuario`, so the new mock was never reached and every case ended in the catch-all). `register/actions.test.ts`: 2 new A8 pins passed at write time (they pin existing behavior, revert-only check below) | 4.2: `createStaffUsuario` plus the private `insertUsuario` in `users.ts`, the call and `logCreateFailure` in the action; T(data/users users/new auth/register): 6 files, 201 tests pass; typecheck clean | 4.3: MC-9a to MC-9c plus four extra checks |
+| 10 | 4.4 | `plan.test.ts` 8 failed, `catalog-parity` 8 failed (`ROW_REASONS`, the new key, the wording of `docente.inactive`, the contract rule in es and en), `import-errors.test.tsx` 2 failed, `workbook-contract.test.tsx` 2 failed (20 in all). Passed at write time (they pin behavior the change must keep): an active docente and a docente created by the same workbook give no error, a secretaria listed as a docente stays `docente.unresolved`, a reactivated docente resolves | 4.5: `plan.ts` (`DocenteIdentity.activo`, the check), the reason and the contract rule in both catalogs; T(import/ catalog/import src/i18n catalog-parity): 31 files, 1086 tests pass; typecheck clean | 4.6: MC-10a to MC-10c plus two extra checks |
+| 11 | 4.7 | N/A: docs only | N/A | N/A |
+| 12 | 4.8 to 4.14 | N/A: the Postgres cases are skipped without the INTEGRATION env, so their RED/GREEN proof is the Phase 5 run and the PG-only mutation checks of task 5.3 | `npm run test:integration -- docente-maintenance` without the env: 1 file skipped, 62 tests skipped; typecheck, eslint and prettier clean | MC-PG-a to MC-PG-c are task 5.3 |
+
+REFACTOR: none needed. Test-side fixes of my own before the commits: the mocked `PostgresError` of the failure-line case did not set `name` (the action logs `error.name`), and a duplicate plan case ("an active grupo ... unchanged") was merged into the table that already covers it.
+
+### Mutation checks
+
+Each applied to the production file after staging the unit, run, reverted with `git restore`; `git status` clean of it before every commit.
+
+| MC | Mutation | Failing tests |
+|----|----------|---------------|
+| 9a | the audit insert runs in a second transaction after the first one | `users.test.ts > createStaffUsuario ... resolves the role before the transaction, inserts the account, then audits as the last statement`; `... rejects when the audit insert fails, so the transaction rolls the account back` |
+| 9b | the role lookup moves inside the transaction | the two above plus `... throws RolDesconocidoError as createUsuario does, before any transaction opens` |
+| 9c | the audit error is swallowed | `users.test.ts > ... rejects when the audit insert fails, so the transaction rolls the account back` |
+| 9d (extra) | the actor is read from `formData.get("actorId")` | `actions.test.ts > createStaffAction audit contract > hands the session user to createStaffUsuario as the actor, never a value of the body` |
+| 9e (extra) | every failure is logged, 23505 included | `... a derived Login already in use (unique violation): the ordinary duplicate error, no redirect and no failure line`; `... also reads the unique violation when the driver wraps it in a cause` |
+| 9f (extra) | the log line carries the error message | `... writes one sanitised line with the actor, the error name and the SQLSTATE ...`; `... names the actor from the session and omits the SQLSTATE ...`; `... logs the type of a value that is not an error, never the value` |
+| 9g (extra, revert-only) | `register/actions.ts` creates through `createStaffUsuario` | `register/actions.test.ts > is not audited (A8): it creates through createUsuario and writes no audit row`, `... its source never names the audited creator or the audit writer`, and the existing registration pins |
+| 10a | the `!docente.activo` check is `if (false)` | 8 cases of `plan.test.ts > planImport — Grupos rows that name an inactive docente`, among them `a row that would create a grupo is a docente.inactive error ...` and the three "also an error" rows (reassign, reactivate, unchanged) |
+| 10b | the check sits after the duplicate key check | `... is checked right after the docente is resolved and before the duplicate key: two rows of one grupo naming the inactive docente are both docente.inactive` |
+| 10c | Stage B writes `activo: true` into the usuario update | `... never reactivates the docente: no usuario write names the state ...`; `plan.test.ts > existing accounts keep their credentials: an update carries no password/login change` |
+| 10d (extra) | the Stage C fallback treats every snapshot docente as active | 6 cases of the new block (create, the three "also an error" rows, the duplicate-key order, the case-insensitive email) |
+| 10e (extra) | Stage B treats every listed docente as active | `... listing the inactive docente in the Docentes sheet does not help ...`; `... never reactivates the docente ...` |
+
+### Work unit evidence
+
+| Unit | Focused test command and result | Runtime harness | Rollback boundary |
+|------|---------------------------------|-----------------|-------------------|
+| 9 | `DATABASE_URL=postgres://u:p@localhost:5432/x npx vitest run data/users users/new auth/register`: 6 files, 201 tests, pass | The action over the real validation and the doubled data layer; the transaction, the rollback and the FK failure run on Postgres only in SC-6, SC-8 and SC-3b of the suite (no database command allowed here) | revert `f0529ec`: `/users/new` returns to its unaudited `createUsuario`; self-registration was never touched |
+| 10 | `npx vitest run import/ catalog/import src/i18n catalog-parity`: 31 files, 1086 tests, pass | The pure planner over hand-built snapshots; the plan over real rows and the confirm after a deactivation run on Postgres only in SC-9 | revert `fc8939f`: A-C12 is reopened and nothing else; `apply.ts` was not edited |
+| 11 | structural readback of the two docs | N/A: no runtime boundary | revert `b6f0971`: the roadmap row and the requirements note |
+| 12 | `env -u INTEGRATION_DATABASE_URL -u INTEGRATION_ALLOW_WRITES npm run test:integration -- docente-maintenance` with a dummy `DATABASE_URL`: 1 file skipped, 62 tests skipped | The suite itself, on a disposable Neon branch with the owner's yes (Phase 5); not run here | revert `1129f15`: test-only; the fixtures keep their earlier behavior for every other suite |
+
+### Commits
+
+- `f0529ec` feat(users): audit the account creation of the staff form (5 files, 699 changed lines)
+- `fc8939f` feat(import): refuse grupo rows that name an inactive docente (7 files, 362 changed lines)
+- `b6f0971` docs(docente-maintenance): record the change in the roadmap and requirements (2 files, docs only)
+- `1129f15` test(docentes): add the Postgres suite for docente maintenance (2 files, 2181 changed lines)
+
+### Deviations
+
+1. `src/app/(dashboard)/users/new/actions.test.ts`: the existing mock of `@/lib/data/users` named `createUsuario`; the action now calls `createStaffUsuario`, so the mock and every existing `toHaveBeenCalledWith(expect.objectContaining(...))` were renamed and gained the actor as first argument (the session `sub` of the helper is "1"). A file-level `console.error` spy swallows the new failure line in the existing failure cases. No assertion was weakened or deleted.
+2. The sanitised log helper `logCreateFailure` lives in `users/new/actions.ts` (the design says only the call and the log change there) and reuses `sqlStateOf` of `catalog-write.ts`. A `23505` (email or derived Login taken) is an expected refusal and writes no line; any other failure, a failed audit insert included, writes one.
+3. `createUsuario` now resolves the role and calls the private `insertUsuario`, as `createStaffUsuario` does; its behavior and its existing tests are unchanged.
+4. A Grupos row refused as `docente.inactive` leaves the planner before `matchedGrupoIds.add`, so an existing active grupo named by that row is counted among the absent grupos of the preview. Harmless (a plan with a row error is never confirmable) and the same as every other row error of Stage C; not changed.
+5. The contract rule `correoDocenteResolves` kept its key and gained "active" and "the import does not reactivate teachers"; the new key is `catalog.import.reasons.docente.inactive`, which names the email through `{value}`.
+6. Docs (task 4.7): row 19 names "Armando" as responsable (the author of the last archived changes and of this branch; assumption, the owner may change it). `docs/roadmap.md` and `docs/requirements.md` already fail `npx prettier --check` on `main` (the table rows 0, 13 and 18 of the roadmap and the history row of 2026-11-20 are wider than their column); my rows follow the existing style (the roadmap row 19 is aligned to the header widths; the history row of the requirements is padded to the width of its neighbours); the check still fails on the same files for the same pre-existing alignment, and the new roadmap row shares the table realignment that prettier wants. `docs/design-system.md`: none (the interface introduced no token, radius, size or step).
+7. Fixtures (task 4.8): `addGroup` also takes `asignaturaId`, `numeroGrupo` and `activo`; `addAccount({ rol, correo?, activo?, telefono? })` is an extra helper (holders of an email, an administrador as creator); the draft helpers of the existing methods moved into local functions that the old methods delegate to (same statements). `cleanup()` also deletes adopted accounts and adopted requests; the bulk delete of docentes is unchanged. It does NOT delete enrollments: the first full run of this slice failed `inscripcion-writes.test.ts` ("Only the allowlisted writer writes Inscripcion", which scans every non-test source, `fixtures.ts` included, for `.delete(inscripcion`), so the delete lives in the `afterAll` of the suite file, before `fixtures.cleanup()`. Fixed and amended into the unit 12 commit before it was reported.
+8. Suite (tasks 4.9 to 4.14): scaled down from the spec examples without losing a branch: the "deactivation touches nothing else" case uses 2 grupos, 3 enrollments, 2 requests and 2 remissions (spec: 4, 12, 2, 3). The remission mail draft carries no teacher name (`buildRemissionMessage` takes none); the teacher name of a remission is the snapshot column `Remision.DocenteNombre`, so SC-10a asserts that column and `Remision.Correo` for R1 (old) and R2 (current), and SC-10b asserts the address the dispatcher sends to. SC-7 asserts the invariant and "exactly one wins" for either order of the queue, not which writer wins (see the open points of the report). The import is only planned or rejected: `runImportApply` is called only after a plan guard proves the workbook is not confirmable.
+9. New files were created LF and converted to CRLF to match the working tree (prettier `--end-of-line crlf`); the index holds LF (autocrlf). `plan.ts` was LF in the working tree already and stays so.
+
+### Gate results (slice tip `1129f15`)
+
+- `npm test` (dummy DB): 400 files, 10943 tests, all pass (284 s). Slice 3 tip was 400 files, 10893 tests: +50 tests (units 9 and 10) and no new file, because the Postgres suite is excluded from `npm test`. The first full run of the slice found one real failure, `inscripcion-writes.test.ts` (see deviation 7), fixed before the report; the run above is the second one.
+- `npm run typecheck`: clean.
+- `npx eslint src` with the prettier end-of-line rule set to auto: 0 errors, 1 warning (`SidebarGroupLabel` unused in `src/components/app-sidebar.tsx`, not touched by this slice). Touched files individually: 0 problems; `npx prettier --check <touched> --end-of-line auto`: clean for every source, test, catalog and fixture file (the two docs files fail as on `main`, deviation 6).
+- `npm run build` (dummy DATABASE_URL and AUTH_SECRET): compiled, route table printed.
+- `npm run test:integration -- docente-maintenance` with no INTEGRATION env (names checked unset, dummy DATABASE_URL): 1 file skipped, 62 tests skipped, nothing connected.
+
+### Size and stop line
+
+`git diff --numstat 5546906 HEAD -- . ':(exclude)openspec' ':(exclude)docs'`: 3146 added, 96 deleted, 3242 total (planned about 710). Per unit: unit 9 (`f0529ec`) 699, unit 10 (`fc8939f`) 362, unit 12 (`1129f15`) 2181; unit 11 is docs only. Production code is about 130 of those lines (`users.ts` 57, the action 27, `plan.ts` 33, the catalogs 10); the fixtures (test support) are 322; about 2790 are tests (the suite alone is 1859 lines, `users/new/actions.test.ts` +371, `plan.test.ts` +196, `users.test.ts` +213, `catalog-parity.test.ts` +60). Over the 1000 stop line. Units 9 and 10 together are 1061, unit 12 alone is 2181. Tasks 4.15 names the cut (unit 12 into "-5-integration-suite"); per the instruction of this run the branches were not moved and no test was trimmed: the cut is left to the orchestrator.
+
+### Phase 5 command for the owner
+
+```
+$env:INTEGRATION_DATABASE_URL='<direct URL of docente-it>'; $env:INTEGRATION_ALLOW_WRITES='1'; npm run test:integration -- docente-maintenance
+```
+
+Only the two variable names are listed here; the values are set by the owner in the shell and never written down.
