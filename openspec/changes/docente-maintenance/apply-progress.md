@@ -342,3 +342,14 @@ Only the two variable names are listed here; the values are set by the owner in 
 - Six further mutations, all reverted, all killed: wrong role in the creation event, empty value in the `docente.inactive` error, the error not counted, the account inserted outside the transaction, actor 0 instead of the session user, the refused row not skipped.
 - One reviewer commit (`fix(import): drop the raw path from the inactive-docente refusal and name the Teachers section in English`): the refusal no longer shows "/catalog/docentes", and the English text says "Teachers" (the English section title); the two English pins follow.
 - Cut at unit boundaries (standing rule): PR 4a (#161, unit 9, 699 lines), PR 4b (#162, unit 10, the copy fix and unit 11, 362 lines plus docs), and unit 12 (the Postgres suite, about 2180 lines) on `feat/docente-maintenance-5-integration-suite`. The suite PR is opened and left unmerged until the suite runs green on the disposable Neon branch (Phase 5); merging it needs the owner's yes (over 1000).
+
+## Phase 5: disposable branch and Postgres suite (2026-11-26)
+
+| Task | What | Result |
+|---|---|---|
+| 5.0 | Source chosen by the owner: `dev-arnia` (as for `flow-it`). Read-only check | 14 migrations (0000 to 0013, last `when` 1793660241921); PostgreSQL 18.7. Never `validacion-secretaria` or `validacion-estudiantes` |
+| 5.1 | `npx neonctl branches create --name docente-it --parent dev-arnia --project-id damp-recipe-21839554`, owner's yes | Branch `docente-it` (`br-silent-dream-ayfr3yd6`), endpoint `ep-wandering-rice-ayexzgpn` |
+| 5.1b | `npm run db:migrate` with `DATABASE_URL` set to the direct URL of `docente-it` (host asserted, not production, not pooler), from the tracker tip 5aeaf0b, owner's yes | Applied; read-only: 17 migrations, last `when` 1795216905153 (0016). One harmless PostgreSQL notice (42P07, "already exists, skipping") from the creation of the migrations table |
+| 5.2 | First run of `docente-maintenance` at e2d230c, owner's yes | 61 of 62 passed; SC-8 docente case failed with 23505 on `Usuario_Correo_unique`: the suite's `mail()` and the fixture `addDocente` both produced `it-docente-<run>-<n>` with independent counters (test defect, not a product defect). Fix 4067564 (prefix `it-sc-`), no assertion changed |
+| 5.2 | Rerun of `docente-maintenance` at 4067564, owner's yes | 1 file, 62 tests, all pass (301 s): SC-1 to SC-13, including SC-3 (two connections, A4), SC-6 (real FK failure, no change), SC-7 (lock queue), SC-10 (remission snapshot) |
+| 5.2 | Whole integration suite once at 4067564, owner's yes | 14 files, 239 tests: 238 passed, 1 failed, `queue-index` ("Bitmap Heap Scan" instead of an index scan with the demo data), the known failure of the flow-experience baseline (its task 12.3). 913 s |
