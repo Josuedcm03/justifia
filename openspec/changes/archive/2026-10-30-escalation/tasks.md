@@ -314,3 +314,15 @@ Chain: tracker `feat/escalation` exists. Each slice branches from the tracker he
 - [x] 16.11 [OWNER] Merge the tracker PR into `main` with a merge commit only after S1-S5, 14.1, phase 15 and 16.10; keep `feat/escalation`; delete merged slice branches (as split) with the owner's yes; the failing Vercel preview check is the known non-team-author block DONE 2026-10-30: PR #42 merged into `main` as `afb7894` (merge commit); `feat/escalation` kept; 18 merged slice branches (`feat/escalation-s*`) deleted locally and on `origin` with the owner's yes
 - [ ] 16.12 Record every result and date next to its step; delete `backup-before-escalation` only on the owner's explicit yes after production is stable
 - [ ] 16.13 [OWNER] Outside the change: UAM legal review of consent v2 and the privacy notice before production use (joins request-consent 9.7; changed wording means a new `CONSENT_VERSION` and pin)
+
+## Close-out review (2026-11-26)
+
+Read-only review of the tasks left open at archive. Boxes are left as they were; this section records each one's state.
+
+| Task | State on 2026-11-26 | Evidence |
+|---|---|---|
+| 13b.8 | Still open, follow-up. A teacher remission whose mail answers `not_configured` gives the attempt back (`attemptGivenBack`) but still writes a `remision.fallida` audit row (`src/lib/data/remision.ts`, `completeFailed`). Escalation dispatch already treats `not_configured` apart. Production has the mail key set, so the case does not arise there | Source read at `main` 2e2eebf |
+| 15.3 | Done for production and preview: `APP_BASE_URL` exists in Vercel for Production and Preview (names listed with `vercel env ls`, values not read). Development uses the local env file | `vercel env ls`, 2026-11-26 |
+| 16.6 | Done for the RF-10 (a) deviation: the thesis states that the excess report notifies coordination without changing the state and that the secretaria escalates only while resolving (4.5, RN-20). E17 and consent v2 were not compared in this review; the `docs/requirements.md` entry of 2026-10-22 still says "Pendiente de sincronizar" | Thesis text read, 2026-11-26 |
+| 16.12 | Production has been stable since 2026-10-30. The Neon branch `backup-before-escalation` still exists; deleting it needs the owner's explicit yes | `neon branches list`, 2026-11-26 |
+| 16.13 | Still open, outside the system: the UAM legal review of consent v2 and the privacy notice. Declared as a limitation | Owner |

@@ -195,3 +195,14 @@ Forecast vs the 800 budget (stop rule: measure the authored diff before opening 
 - [x] 14.3 `docs/roadmap.md` row 14 state `archivado`; Notas: self-declared and unverified (RN-15 gate remains), staff view and `Origen` column out of scope (D9, D10), thesis matrix sync pending **Done: row 14 set to `archivado`; the Notas bullet records the archive date and the partial walk.**
 - [x] 14.4 Archive to `openspec/changes/archive/<date>-student-enrollment/` with `git mv` and an `archive-report.md` **Done: `git mv` to `openspec/changes/archive/2026-10-25-student-enrollment/`; `archive-report.md` written.**
 - [x] 14.5 Owner: merge the tracker PR into `main` with a merge commit after all three slices are in it; keep the tracker branch; delete merged slice branches **Done: tracker PR #44 merged into `main` (5e9c40a); children #46 to #51 landed through #52 (4abd752). Deletion of merged slice branches not verified.**
+
+## Close-out review (2026-11-26)
+
+Read-only review of the tasks left open at archive. Boxes are left as they were; this section records each one's state.
+
+| Task | State on 2026-11-26 | Evidence |
+|---|---|---|
+| 0.4, 5.3, 8.3 | Superseded: the work reached `main` through the slice PRs and the archive PR #53 (merged), not through a tracker PR | `git log origin/main` (#52, #53) |
+| 12.3 | Superseded: the code has been on `main` since 2026-10-25 and the full suite passes there (400 files, 10943 tests at 9f747d0, `docente-maintenance` verification, 2026-11-26) | `openspec/changes/archive/2026-11-26-docente-maintenance/verify-report.md` |
+| 13.2, 13.3, 13.4 | Not redone as written. The enrollment flow was used afterwards by the student validation (2026-11-01) and by later system tests; the enrollment offer was checked again in RF-12 ST-8 (2026-11-26). The secretaria walk and the 360 px / `en` walk of this change remain unrecorded | `openspec/changes/archive/2026-11-26-docente-maintenance/apply-progress.md` (ST-8) |
+| 13.5 | Done: the Neon branch `walk-student-enrollment` no longer exists (date of deletion not recorded here) | `neon branches list`, 2026-11-26 |
