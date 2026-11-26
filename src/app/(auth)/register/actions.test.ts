@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -10,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   listCarreras: vi.fn(),
   createUsuario: vi.fn(),
   getUsuarioByCorreo: vi.fn(),
+  // Forbidden spies of the staff form's audited path (A8): self-registration
+  // is not audited and never reaches them.
+  createStaffUsuario: vi.fn(),
+  insertAuditEvents: vi.fn(),
   // Forbidden spies: registration runs no guard and never reads the session.
   getSession: vi.fn(),
   requireUser: vi.fn(),
@@ -32,7 +39,11 @@ vi.mock("@/lib/auth/session", () => ({ signSession: mocks.signSession }));
 vi.mock("@/lib/data/carreras", () => ({ listCarreras: mocks.listCarreras }));
 vi.mock("@/lib/data/users", () => ({
   createUsuario: mocks.createUsuario,
+  createStaffUsuario: mocks.createStaffUsuario,
   getUsuarioByCorreo: mocks.getUsuarioByCorreo,
+}));
+vi.mock("@/lib/data/audit", () => ({
+  insertAuditEvents: mocks.insertAuditEvents,
 }));
 vi.mock("@/env", () => ({ env: mocks.env }));
 vi.mock("@/lib/auth/dal", () => ({
@@ -126,6 +137,26 @@ describe("registerAction pins with registration open (AEA-4)", () => {
       }),
     );
     expect(mocks.setSessionCookie).toHaveBeenCalledWith("signed-token");
+  });
+
+  it("is not audited (A8): it creates through createUsuario and writes no audit row", async () => {
+    await expect(submit()).rejects.toThrow("REDIRECT:/");
+
+    expect(mocks.createUsuario).toHaveBeenCalledTimes(1);
+    expect(mocks.createStaffUsuario).not.toHaveBeenCalled();
+    expect(mocks.insertAuditEvents).not.toHaveBeenCalled();
+  });
+
+  it("is not audited (A8): its source never names the audited creator or the audit writer", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/app/(auth)/register/actions.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain("createUsuario(");
+    expect(source).not.toMatch(
+      /createStaffUsuario|insertAuditEvents|withCatalogWrite|accountCreatedEvent/,
+    );
   });
 
   it("runs no guard and never reads the session", async () => {
