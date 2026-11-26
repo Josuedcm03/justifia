@@ -8,11 +8,12 @@ import type { CatalogScope } from "@/lib/catalog/scope";
 import { CatalogBusyError, logCatalogFailure } from "@/lib/data/catalog-write";
 import { parseRecordId } from "@/lib/validations/catalog";
 
-// Plumbing shared by the Asignatura and Grupo Server Action modules. This is
-// NOT a "use server" module: it exports plain helpers, so it can never be
-// reached by a POST. It performs no authorization and reads no form data;
-// `requireCatalogAccess()` and every `formData` read stay visible in each
-// action file, in that order (guards.test.ts proves it from the source).
+// Plumbing shared by the Asignatura, Grupo and Docente Server Action modules.
+// This is NOT a "use server" module: it exports plain helpers, so it can never
+// be reached by a POST. It performs no authorization and reads no form data;
+// `requireCatalogAccess()` (`requireDocenteAccess()` for docentes) and every
+// `formData` read stay visible in each action file, in that order
+// (guards.test.ts proves it from the source).
 
 export type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
@@ -65,10 +66,25 @@ export async function addressed<T>(
   rawId: unknown,
   read: (scope: CatalogScope, id: number) => Promise<T | null | undefined>,
 ): Promise<{ id: number; item: T } | "gone" | "failed"> {
+  return addressedRecord(actorId, rawId, (id) => read(scope, id));
+}
+
+/**
+ * The same lock-free pre-check for a record that has no scope: docentes have
+ * no Facultad or Carrera, so the reader takes the id alone and a fake
+ * `{ kind: "all" }` scope is never invented to fit `addressed` (design A2).
+ * The reader itself must answer `null` for an account that is not addressable
+ * (another role), so a missing and a foreign id give the same `gone`.
+ */
+export async function addressedRecord<T>(
+  actorId: number,
+  rawId: unknown,
+  read: (id: number) => Promise<T | null | undefined>,
+): Promise<{ id: number; item: T } | "gone" | "failed"> {
   const id = parseRecordId(rawId);
   if (id === null) return "gone";
   try {
-    const item = await read(scope, id);
+    const item = await read(id);
     return item ? { id, item } : "gone";
   } catch (error) {
     logCatalogFailure({ actor: actorId, error });
