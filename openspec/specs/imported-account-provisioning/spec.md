@@ -171,9 +171,13 @@ specified in `forced-password-change`.
 ### Requirement: Existing accounts keep their credentials
 
 An account matched by `Correo` MUST be updated only in its non-credential
-attributes (for example name). Its `HashClave` MUST NOT change,
+attributes (for example name and phone). Its `HashClave` MUST NOT change,
 `DebeCambiarClave` MUST NOT be set true by the import, no temporary password MUST
-be generated for it, and its role MUST NOT change.
+be generated for it, its role MUST NOT change, and its `Activo` MUST NOT change
+(an inactive account stays inactive and an active one stays active). Its `Correo`
+and `Login` MUST NOT be written either.
+(Previously: `Activo`, `Correo` and `Login` were not named; the assumption that an
+inactive account is not reactivated was left to be confirmed at design.)
 
 #### Scenario: Re-import does not reset a password
 
@@ -190,6 +194,19 @@ be generated for it, and its role MUST NOT change.
 - THEN the name is updated and counted as `update`, and the password is
   unchanged
 
+#### Scenario: An inactive account is updated but not reactivated [PG]
+
+- GIVEN an inactive docente whose name and phone differ in the workbook
+- WHEN applied
+- THEN the name and phone are updated, `Activo` is still false, `HashClave` and
+  `DebeCambiarClave` are unchanged, no temporary password is generated and the
+  export has no entry for the docente
+
+#### Scenario: An active account stays active [PG]
+
+- GIVEN an active docente listed in the workbook
+- WHEN applied
+- THEN `Activo` is still true and `Correo` and `Login` are unchanged
 ### Requirement: Provisioning is part of the all-or-nothing apply
 
 Account creation MUST occur inside the same transaction as the catalog writes. If
@@ -254,8 +271,7 @@ any credential field.
   student identity resolution left to assume.
 - Assumption: a workbook email matching an account of the wrong role is a row
   error; the import never changes an existing account's role.
-- Assumption: an existing account matched by the import that is inactive is
-  updated but not reactivated by this change. Confirm at design.
+- Decision (`docente-maintenance`, D3): an existing account matched by the import is updated in its non-credential attributes only and its `Activo` never changes; an inactive docente is not reactivated by the import, and a Grupos row that names it is a row error.
 - Assumption: the export file format, the password length and alphabet, and the
   `Login` normalization are design decisions; the requirements above constrain
   only the observable properties.
