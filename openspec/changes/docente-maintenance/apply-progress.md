@@ -335,3 +335,10 @@ $env:INTEGRATION_DATABASE_URL='<direct URL of docente-it>'; $env:INTEGRATION_ALL
 ```
 
 Only the two variable names are listed here; the values are set by the owner in the shell and never written down.
+
+### Orchestrator review of slice 4 (2026-11-26)
+
+- Production code read in full (`createStaffUsuario`, the staff action and its sanitised log, the planner rule). Full runs: 400 files and 10943 tests at the suite tip and at 4b; 400 files and 10924 tests at 4a alone; typecheck clean; ESLint 0 errors; build compiled; `npm run test:integration -- docente-maintenance` without the INTEGRATION env: 1 file and 62 tests skipped.
+- Six further mutations, all reverted, all killed: wrong role in the creation event, empty value in the `docente.inactive` error, the error not counted, the account inserted outside the transaction, actor 0 instead of the session user, the refused row not skipped.
+- One reviewer commit (`fix(import): drop the raw path from the inactive-docente refusal and name the Teachers section in English`): the refusal no longer shows "/catalog/docentes", and the English text says "Teachers" (the English section title); the two English pins follow.
+- Cut at unit boundaries (standing rule): PR 4a (#161, unit 9, 699 lines), PR 4b (#162, unit 10, the copy fix and unit 11, 362 lines plus docs), and unit 12 (the Postgres suite, about 2180 lines) on `feat/docente-maintenance-5-integration-suite`. The suite PR is opened and left unmerged until the suite runs green on the disposable Neon branch (Phase 5); merging it needs the owner's yes (over 1000).
