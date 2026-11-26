@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider, createTranslator } from "next-intl";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -542,6 +545,155 @@ describe("DocentesPage is read-only (CM-LST-1: read-only; CM-ACC-1)", () => {
     expect(serializedProps(ui)).toContain("ana@uni.edu");
     // The login is read by the data layer and never delivered (FE-24).
     expect(serializedProps(ui)).not.toContain("aperez");
+  });
+});
+
+describe("DocentesPage actions column (CM-ACC-1, CM-LST-1: only the secretaria edits; DM-15, DM-17)", () => {
+  const heads = () =>
+    within(screen.getByRole("table"))
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent);
+
+  beforeEach(() => {
+    listMock.mockResolvedValue(
+      result({
+        total: 2,
+        data: [
+          row(),
+          row({ id: 6, nombreCompleto: "Luis Gómez", activo: false }),
+        ],
+      }),
+    );
+  });
+
+  it("gives the secretaria four columns and an Edit link in every row, active or inactive", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+
+    await renderPage({ status: "all" });
+
+    expect(heads()).toEqual([
+      expect.stringContaining(en.columns.name),
+      expect.stringContaining(en.columns.email),
+      expect.stringContaining(en.columns.status),
+      en.columns.actions,
+    ]);
+    const links = within(screen.getByRole("table")).getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      `${BASE}/5/edit`,
+      `${BASE}/6/edit`,
+    ]);
+    expect(links[0]).toHaveAccessibleName(`${en.edit} Ana Pérez`);
+    expect(links[1]).toHaveAccessibleName(`${en.edit} Luis Gómez`);
+  });
+
+  it.each(["administrador", "coordinacion"] as const)(
+    "gives %s exactly the three data columns and no edit entry",
+    async (rol) => {
+      getSessionMock.mockResolvedValue(sessionFor(rol));
+      getCatalogActorMock.mockResolvedValue({
+        carreraId: rol === "coordinacion" ? 3 : null,
+      });
+
+      await renderPage({ status: "all" });
+
+      expect(heads()).toEqual([
+        expect.stringContaining(en.columns.name),
+        expect.stringContaining(en.columns.email),
+        expect.stringContaining(en.columns.status),
+      ]);
+      expect(screen.queryByText(en.columns.actions)).toBeNull();
+      expect(within(screen.getByRole("table")).queryAllByRole("link")).toEqual(
+        [],
+      );
+      expect(
+        screen
+          .getAllByRole("link")
+          .map((a) => a.getAttribute("href") ?? "")
+          .filter((href) => /edit/i.test(href)),
+      ).toEqual([]);
+    },
+  );
+
+  it("keeps the guard first and passes canEdit from the derived predicate, never a role list", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/app/(dashboard)/catalog/docentes/page.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("await requireCatalogAccess()");
+    expect(source).toContain("canEdit={canManageDocentes(session.rol)}");
+    expect(source).not.toContain("requireDocenteAccess");
+  });
+
+  it("keeps the link to /users and offers no create control for the secretaria", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+
+    await renderPage();
+
+    expect(screen.getByRole("link", { name: en.usersLink })).toHaveAttribute(
+      "href",
+      "/users",
+    );
+    const hrefs = screen
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href") ?? "");
+    expect(hrefs.filter((href) => /\/new|create/i.test(href))).toEqual([]);
+    for (const href of hrefs) {
+      expect(
+        href === "/users" ||
+          href.startsWith(BASE) ||
+          /^\/catalog\/docentes\/\d+\/edit$/.test(href),
+        href,
+      ).toBe(true);
+    }
+  });
+
+  it("delivers no login, phone, hash or Cif to the browser, even with the column on", async () => {
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+    listMock.mockResolvedValue(
+      result({
+        total: 1,
+        data: [
+          row({
+            hashClave: "$2b$12$LEAKEDHASH",
+            cif: "CIF-0001",
+            telefono: "555-0100",
+            rol: "docente",
+          }),
+        ],
+      }),
+    );
+
+    const ui = await buildPage();
+    const { container } = renderUi(ui);
+
+    for (const text of [container.innerHTML, serializedProps(ui)]) {
+      expect(text.length).toBeGreaterThan(0);
+      for (const leak of [
+        "HashClave",
+        "hashClave",
+        "LEAKEDHASH",
+        "CIF-0001",
+        "555-0100",
+        "aperez",
+      ]) {
+        expect(text).not.toContain(leak);
+      }
+    }
+    expect(serializedProps(ui)).toContain("ana@uni.edu");
+  });
+
+  it("renders the column header and the link in Spanish", async () => {
+    state.locale = "es";
+    getSessionMock.mockResolvedValue(sessionFor("secretaria"));
+
+    await renderPage({ status: "all" });
+
+    const es = esMessages.catalog.docentes;
+    expect(screen.getByText(es.columns.actions)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: `${es.edit} Ana Pérez` }),
+    ).toHaveAttribute("href", `${BASE}/5/edit`);
   });
 });
 

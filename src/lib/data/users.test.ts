@@ -6,11 +6,15 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: {} }));
 
 import { db } from "@/db";
+import { eventoAuditoria } from "@/db/audit-schema";
 import { carrera, rol, usuario } from "@/db/schema";
+import { AUDITABLE_USER_FIELDS } from "@/lib/audit/types";
 import { CATALOG_OPTIONS_MAX } from "@/lib/catalog/list-params";
 import type { CatalogExecutor } from "@/lib/data/catalog";
+import { RolDesconocidoError } from "@/lib/data/roles";
 import {
   buildDocentesWhere,
+  createStaffUsuario,
   createUsuario,
   createUsuariosBulk,
   findLoginAccount,
@@ -913,5 +917,214 @@ describe("findLoginAccount (FE-21, FE-22, FE-25)", () => {
     };
 
     await expect(findLoginAccount("ana@uni.edu")).rejects.toThrow("db down");
+  });
+});
+
+describe("createStaffUsuario (SAC-AUD-1, D5: audited staff creation)", () => {
+  const input = {
+    login: "rosa@uni.edu",
+    hashClave: "$2b$12$hashhashhashhashhashhash",
+    rol: "secretaria" as const,
+    nombreCompleto: "Rosa Lopez",
+    correo: "rosa@uni.edu",
+    telefono: "8888-0000",
+    facultadId: 3,
+  };
+
+  type Recorded = { table: unknown; values: unknown };
+
+  /**
+   * Doubles the pooled client and the transaction it opens. `steps` is the
+   * order of everything that touched the database, so the tests can pin that
+   * the role lookup runs before the transaction and the audit insert is the
+   * last statement inside it.
+   */
+  function stubStaff(
+    options: {
+      roles?: { id: number }[];
+      insertError?: Error;
+      auditError?: Error;
+    } = {},
+  ) {
+    const steps: string[] = [];
+    const writes: Recorded[] = [];
+    (db as unknown as Record<string, unknown>).select = () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            steps.push("role lookup");
+            return options.roles ?? [{ id: 4 }];
+          },
+        }),
+      }),
+    });
+    const tx = {
+      insert: (table: unknown) => ({
+        values: (values: unknown) => {
+          writes.push({ table, values });
+          if (table === eventoAuditoria) {
+            steps.push("insert audit");
+            return options.auditError
+              ? Promise.reject(options.auditError)
+              : Promise.resolve();
+          }
+          steps.push("insert usuario");
+          return {
+            returning: async () => {
+              if (options.insertError) throw options.insertError;
+              return [{ ...(values as object), id: 77 }];
+            },
+          };
+        },
+      }),
+    };
+    (db as unknown as Record<string, unknown>).transaction = async (
+      work: (handle: typeof tx) => Promise<unknown>,
+    ) => {
+      steps.push("begin");
+      try {
+        const result = await work(tx);
+        steps.push("commit");
+        return result;
+      } catch (error) {
+        steps.push("rollback");
+        throw error;
+      }
+    };
+    return { steps, writes };
+  }
+
+  it("resolves the role before the transaction, inserts the account, then audits as the last statement", async () => {
+    const { steps } = stubStaff();
+
+    await createStaffUsuario(9, input);
+
+    expect(steps).toEqual([
+      "role lookup",
+      "begin",
+      "insert usuario",
+      "insert audit",
+      "commit",
+    ]);
+  });
+
+  it("throws RolDesconocidoError as createUsuario does, before any transaction opens", async () => {
+    const { steps, writes } = stubStaff({ roles: [] });
+
+    await expect(createStaffUsuario(9, input)).rejects.toBeInstanceOf(
+      RolDesconocidoError,
+    );
+
+    expect(steps).toEqual(["role lookup"]);
+    expect(writes).toEqual([]);
+  });
+
+  it("inserts the account with the resolved role id and the code removed, and returns the same DTO as createUsuario", async () => {
+    const { writes } = stubStaff({ roles: [{ id: 6 }] });
+
+    const created = await createStaffUsuario(9, input);
+
+    const [account] = writes;
+    expect(account.table).toBe(usuario);
+    expect(account.values).toMatchObject({
+      login: "rosa@uni.edu",
+      hashClave: input.hashClave,
+      nombreCompleto: "Rosa Lopez",
+      correo: "rosa@uni.edu",
+      facultadId: 3,
+      rolId: 6,
+    });
+    expect(account.values).not.toHaveProperty("rol");
+    expect(created).toMatchObject({
+      id: 77,
+      login: "rosa@uni.edu",
+      facultadId: 3,
+      rol: "secretaria",
+    });
+  });
+
+  it.each(["docente", "coordinacion", "secretaria"] as const)(
+    "audits one usuario.creado for a %s, with the creator as actor, the new id as entity and field names only",
+    async (rolCode) => {
+      const { writes } = stubStaff();
+
+      await createStaffUsuario(9, { ...input, rol: rolCode });
+
+      const audits = writes.filter((w) => w.table === eventoAuditoria);
+      expect(audits).toHaveLength(1);
+      expect(audits[0].values).toEqual([
+        {
+          actorId: 9,
+          accion: "usuario.creado",
+          entidadTipo: "Usuario",
+          entidadId: 77,
+          datos: {
+            campos: AUDITABLE_USER_FIELDS,
+            rol: rolCode,
+            origen: "manual",
+          },
+        },
+      ]);
+    },
+  );
+
+  it("puts no value of the account in the audit row: no name, email, phone, login or hash", async () => {
+    const { writes } = stubStaff();
+
+    await createStaffUsuario(9, input);
+
+    const audit = JSON.stringify(
+      writes.find((w) => w.table === eventoAuditoria)?.values,
+    );
+    for (const secret of [
+      "Rosa Lopez",
+      "rosa@uni.edu",
+      "8888-0000",
+      input.hashClave,
+    ]) {
+      expect(audit).not.toContain(secret);
+    }
+    expect(audit).not.toContain("importacionSha256");
+  });
+
+  it("rejects when the audit insert fails, so the transaction rolls the account back", async () => {
+    const { steps } = stubStaff({ auditError: new Error("audit down") });
+
+    await expect(createStaffUsuario(9, input)).rejects.toThrow("audit down");
+
+    expect(steps).toEqual([
+      "role lookup",
+      "begin",
+      "insert usuario",
+      "insert audit",
+      "rollback",
+    ]);
+  });
+
+  it("writes no audit row when the account insert fails", async () => {
+    const { steps } = stubStaff({ insertError: new Error("unique violation") });
+
+    await expect(createStaffUsuario(9, input)).rejects.toThrow(
+      "unique violation",
+    );
+
+    expect(steps).not.toContain("insert audit");
+    expect(steps.at(-1)).toBe("rollback");
+  });
+
+  it("leaves createUsuario unchanged: no transaction and no audit row", async () => {
+    const { steps, writes } = stubStaff();
+    (db as unknown as Record<string, unknown>).insert = (table: unknown) => ({
+      values: (values: object) => {
+        writes.push({ table, values });
+        steps.push("insert usuario");
+        return { returning: async () => [{ ...values, id: 78 }] };
+      },
+    });
+
+    await createUsuario(input);
+
+    expect(steps).toEqual(["role lookup", "insert usuario"]);
+    expect(writes.map((w) => w.table)).toEqual([usuario]);
   });
 });

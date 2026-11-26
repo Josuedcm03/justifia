@@ -65,6 +65,7 @@ const BREADCRUMB_PAGES = [
   "catalog/asignaturas/[id]/edit/page.tsx",
   "catalog/asignaturas/[id]/grupos/new/page.tsx",
   "catalog/asignaturas/[id]/grupos/[grupoId]/edit/page.tsx",
+  "catalog/docentes/[id]/edit/page.tsx",
 ];
 
 describe("current-marker usage (characterization)", () => {

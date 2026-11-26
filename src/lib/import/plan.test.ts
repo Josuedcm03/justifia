@@ -1671,3 +1671,199 @@ describe("planImport — Grupo days, part 2 (CEI-DIAS-3, CEI-PREC)", () => {
     expect(JSON.stringify(plan)).not.toMatch(/dias/i);
   });
 });
+
+describe("planImport — Grupos rows that name an inactive docente (CEI-VAL, CEI-UPS, IAP-KEEP, AC-MW, DM-13)", () => {
+  /** doc@uam.edu (id 2) is inactive: a docente deactivated by hand. */
+  const inactiveDocente = (): UsuarioRow => ({
+    ...docente(2, "doc@uam.edu"),
+    activo: false,
+  });
+  const snapshotWith = (grupos: GrupoRow[] = [], extra: UsuarioRow[] = []) =>
+    makeSnapshot({
+      asignaturas: [makeAsignaturaRow(MAT)],
+      usuarios: [inactiveDocente(), ...extra],
+      grupos,
+    });
+  const inactiveError = (row = 2, value = "doc@uam.edu") => ({
+    sheet: "Grupos",
+    row,
+    reason: "docente.inactive",
+    value,
+  });
+
+  it("a row that would create a grupo is a docente.inactive error naming the email of the row, with no write", () => {
+    const plan = planImport(
+      makeWorkbook({ grupos: [grupoCells()] }),
+      snapshotWith(),
+    );
+
+    expect(plan.ok).toBe(false);
+    expect(plan.errors).toEqual([inactiveError()]);
+    expect(plan.counts.Grupo).toMatchObject({
+      error: 1,
+      create: 0,
+      update: 0,
+      unchanged: 0,
+    });
+    expect(plan.writes.grupos).toEqual([]);
+    expect(plan.writes.usuarios).toEqual([]);
+  });
+
+  it.each([
+    [
+      "would reassign the grupo to the inactive docente",
+      [grupo(10, { docenteId: 3 })],
+      [docente(3, "otro@uam.edu")],
+    ],
+    [
+      "would reactivate the inactive grupo of the inactive docente",
+      [grupo(10, { activo: false })],
+      [],
+    ],
+    [
+      "would leave the active grupo of the inactive docente unchanged",
+      [grupo(10)],
+      [],
+    ],
+  ] as const)(
+    "a row that %s is also an error and counts Grupo.error, never create, update or unchanged",
+    (_label, grupos, extra) => {
+      const plan = planImport(
+        makeWorkbook({ grupos: [grupoCells({ NumGrupo: "10" })] }),
+        snapshotWith([...grupos], [...extra]),
+      );
+
+      expect(plan.errors).toEqual([inactiveError()]);
+      expect(plan.counts.Grupo).toMatchObject({
+        error: 1,
+        create: 0,
+        update: 0,
+        unchanged: 0,
+      });
+      expect(plan.writes.grupos).toEqual([]);
+    },
+  );
+
+  it("listing the inactive docente in the Docentes sheet does not help: the Grupos row is an error, the Docentes row is an update and not an error", () => {
+    const plan = planImport(
+      makeWorkbook({
+        docentes: [{ Correo: "doc@uam.edu", Nombre: "Otro nombre" }],
+        grupos: [grupoCells()],
+      }),
+      snapshotWith(),
+    );
+
+    expect(plan.errors).toEqual([inactiveError()]);
+    expect(plan.counts.Usuario).toMatchObject({ update: 1, error: 0 });
+    expect(plan.writes.usuarios).toEqual([
+      expect.objectContaining({
+        kind: "update",
+        id: 2,
+        nombreCompleto: "Otro nombre",
+        changedFields: ["nombreCompleto"],
+      }),
+    ]);
+  });
+
+  it("never reactivates the docente: no usuario write names the state, whether the row changes data or not", () => {
+    const changed = planImport(
+      makeWorkbook({
+        docentes: [{ Correo: "doc@uam.edu", Nombre: "Otro nombre" }],
+        grupos: [grupoCells()],
+      }),
+      snapshotWith(),
+    );
+    const same = planImport(
+      makeWorkbook({
+        docentes: [{ Correo: "doc@uam.edu", Nombre: "Doc" }],
+        grupos: [grupoCells()],
+      }),
+      snapshotWith(),
+    );
+
+    for (const plan of [changed, same]) {
+      for (const write of plan.writes.usuarios) {
+        expect(write).not.toHaveProperty("activo");
+        expect(write).not.toHaveProperty("reactivated");
+      }
+      expect(plan.errors).toEqual([inactiveError()]);
+    }
+    expect(same.writes.usuarios).toEqual([]);
+    expect(same.counts.Usuario).toMatchObject({ unchanged: 1, update: 0 });
+  });
+
+  it("a docente created by the same workbook is not an error, and neither is an active docente of the database", () => {
+    const created = planImport(
+      makeWorkbook({
+        docentes: [{ Correo: "nuevo@uam.edu", Nombre: "Nuevo" }],
+        grupos: [grupoCells({ CorreoDocente: "nuevo@uam.edu" })],
+      }),
+      snapshotWith(),
+    );
+    const active = planImport(
+      makeWorkbook({ grupos: [grupoCells({ CorreoDocente: "otro@uam.edu" })] }),
+      snapshotWith([], [docente(3, "otro@uam.edu")]),
+    );
+
+    expect(created.ok).toBe(true);
+    expect(created.counts.Grupo).toMatchObject({ create: 1, error: 0 });
+    expect(active.ok).toBe(true);
+    expect(active.counts.Grupo).toMatchObject({ create: 1, error: 0 });
+  });
+
+  it("is checked right after the docente is resolved and before the duplicate key: two rows of one grupo naming the inactive docente are both docente.inactive", () => {
+    const plan = planImport(
+      makeWorkbook({ grupos: [grupoCells(), grupoCells()] }),
+      snapshotWith(),
+    );
+
+    expect(plan.errors).toEqual([inactiveError(2), inactiveError(3)]);
+    expect(plan.counts.Grupo.error).toBe(2);
+  });
+
+  it("an account that is not a docente keeps docente.unresolved even when inactive", () => {
+    const plan = planImport(
+      makeWorkbook({ grupos: [grupoCells({ CorreoDocente: "sec@uam.edu" })] }),
+      makeSnapshot({
+        asignaturas: [makeAsignaturaRow(MAT)],
+        usuarios: [
+          {
+            ...docente(5, "sec@uam.edu"),
+            rol: "secretaria",
+            activo: false,
+          },
+        ],
+      }),
+    );
+
+    expect(reasons(plan)).toEqual(["docente.unresolved"]);
+  });
+
+  it("matches the email ignoring case, and reports every row of the sheet", () => {
+    const plan = planImport(
+      makeWorkbook({
+        grupos: [
+          grupoCells({ CorreoDocente: "DOC@UAM.EDU" }),
+          grupoCells({ NumGrupo: "2" }),
+        ],
+      }),
+      snapshotWith(),
+    );
+
+    expect(reasons(plan)).toEqual(["docente.inactive", "docente.inactive"]);
+    expect(plan.errors.map((e) => e.row)).toEqual([2, 3]);
+  });
+
+  it("a docente reactivated before the import resolves normally", () => {
+    const plan = planImport(
+      makeWorkbook({ grupos: [grupoCells()] }),
+      makeSnapshot({
+        asignaturas: [makeAsignaturaRow(MAT)],
+        usuarios: [docente(2, "doc@uam.edu")],
+      }),
+    );
+
+    expect(plan.ok).toBe(true);
+    expect(plan.counts.Grupo).toMatchObject({ create: 1, error: 0 });
+  });
+});

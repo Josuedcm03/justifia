@@ -16,7 +16,7 @@ const {
   redirectMock,
   requireRoleMock,
   hashPasswordMock,
-  createUsuarioMock,
+  createStaffUsuarioMock,
   getUsuarioByCorreoMock,
   listCarrerasMock,
   getUserFacultadIdMock,
@@ -26,7 +26,7 @@ const {
   }),
   requireRoleMock: vi.fn(),
   hashPasswordMock: vi.fn(),
-  createUsuarioMock: vi.fn(),
+  createStaffUsuarioMock: vi.fn(),
   getUsuarioByCorreoMock: vi.fn(),
   listCarrerasMock: vi.fn(),
   getUserFacultadIdMock: vi.fn(),
@@ -49,7 +49,7 @@ vi.mock("@/lib/auth/password", () => ({
 }));
 
 vi.mock("@/lib/data/users", () => ({
-  createUsuario: createUsuarioMock,
+  createStaffUsuario: createStaffUsuarioMock,
   getUsuarioByCorreo: getUsuarioByCorreoMock,
   getUserFacultadId: getUserFacultadIdMock,
 }));
@@ -59,6 +59,10 @@ vi.mock("@/lib/data/carreras", () => ({
 }));
 
 import { createStaffAction } from "@/app/(dashboard)/users/new/actions";
+
+// The action logs one sanitised line for an unexpected creation failure
+// (SAC-AUD-1); the tests that exercise failures read it, the rest swallow it.
+const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
 function sessionFor(rol: RolUsuario) {
   return { sub: "1", login: "caller", rol, nombre: "Caller" };
@@ -93,14 +97,14 @@ describe("createStaffAction", () => {
     redirectMock.mockClear();
     requireRoleMock.mockReset();
     hashPasswordMock.mockReset();
-    createUsuarioMock.mockReset();
+    createStaffUsuarioMock.mockReset();
     getUsuarioByCorreoMock.mockReset();
     listCarrerasMock.mockReset();
     getUserFacultadIdMock.mockReset();
     getUsuarioByCorreoMock.mockResolvedValue(null);
     getUserFacultadIdMock.mockResolvedValue(5);
     hashPasswordMock.mockResolvedValue("hashed");
-    createUsuarioMock.mockResolvedValue({});
+    createStaffUsuarioMock.mockResolvedValue({});
     listCarrerasMock.mockResolvedValue([]);
   });
 
@@ -127,7 +131,7 @@ describe("createStaffAction", () => {
 
       expect(requireRoleMock).toHaveBeenCalledWith(...rolesQueCreanUsuarios);
       expect(hashPasswordMock).not.toHaveBeenCalled();
-      expect(createUsuarioMock).not.toHaveBeenCalled();
+      expect(createStaffUsuarioMock).not.toHaveBeenCalled();
     },
   );
 
@@ -145,7 +149,7 @@ describe("createStaffAction", () => {
 
       await expect(result).rejects.toThrow(`REDIRECT:${ACCESS_DENIED_PATH}`);
       expect(hashPasswordMock).not.toHaveBeenCalled();
-      expect(createUsuarioMock).not.toHaveBeenCalled();
+      expect(createStaffUsuarioMock).not.toHaveBeenCalled();
     },
   );
 
@@ -175,7 +179,7 @@ describe("createStaffAction", () => {
 
       expect(result).toEqual({ error: "errors.invalid" });
       expect(redirectMock).not.toHaveBeenCalled();
-      expect(createUsuarioMock).not.toHaveBeenCalled();
+      expect(createStaffUsuarioMock).not.toHaveBeenCalled();
     },
   );
 
@@ -184,7 +188,7 @@ describe("createStaffAction", () => {
     ["coordinacion", "secretaria"],
     ["secretaria", "docente"],
   ] as const)(
-    "allowed pair %s -> %s reaches createUsuario with the expected rol",
+    "allowed pair %s -> %s reaches createStaffUsuario with the expected rol",
     async (caller, target) => {
       allowSession(caller);
       listCarrerasMock.mockResolvedValue([{ id: 7, nombre: "Ingeniería" }]);
@@ -198,7 +202,8 @@ describe("createStaffAction", () => {
         "REDIRECT:/users",
       );
 
-      expect(createUsuarioMock).toHaveBeenCalledWith(
+      expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+        1,
         expect.objectContaining({ rol: target }),
       );
     },
@@ -214,8 +219,9 @@ describe("createStaffAction", () => {
       );
 
       expect(getUserFacultadIdMock).toHaveBeenCalledWith(1);
-      expect(createUsuarioMock).toHaveBeenCalledTimes(1);
-      expect(createUsuarioMock).toHaveBeenCalledWith(
+      expect(createStaffUsuarioMock).toHaveBeenCalledTimes(1);
+      expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+        1,
         expect.objectContaining({
           rol: "secretaria",
           facultadId: 5,
@@ -231,7 +237,8 @@ describe("createStaffAction", () => {
 
       await expect(createStaffAction({ error: null }, fd)).rejects.toThrow();
 
-      expect(createUsuarioMock).toHaveBeenCalledWith(
+      expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+        1,
         expect.objectContaining({ facultadId: 9 }),
       );
     });
@@ -249,7 +256,8 @@ describe("createStaffAction", () => {
         "REDIRECT:/users",
       );
 
-      expect(createUsuarioMock).toHaveBeenCalledWith(
+      expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+        1,
         expect.objectContaining({ facultadId: 5, carreraId: null }),
       );
     });
@@ -262,7 +270,7 @@ describe("createStaffAction", () => {
       const result = await createStaffAction({ error: null }, fd);
 
       expect(result).toEqual({ error: "errors.facultadRequired" });
-      expect(createUsuarioMock).not.toHaveBeenCalled();
+      expect(createStaffUsuarioMock).not.toHaveBeenCalled();
       expect(hashPasswordMock).not.toHaveBeenCalled();
       expect(redirectMock).not.toHaveBeenCalled();
     });
@@ -298,17 +306,18 @@ describe("createStaffAction", () => {
         );
 
         expect(getUserFacultadIdMock).not.toHaveBeenCalled();
-        expect(createUsuarioMock).toHaveBeenCalledWith(
+        expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+          1,
           expect.objectContaining({ facultadId: null }),
         );
       },
     );
   });
 
-  it("rethrows RolDesconocidoError from createUsuario (decision 7: a config error is not a duplicate)", async () => {
+  it("rethrows RolDesconocidoError from createStaffUsuario (decision 7: a config error is not a duplicate)", async () => {
     allowSession("administrador");
     listCarrerasMock.mockResolvedValue([{ id: 7, nombre: "Ingeniería" }]);
-    createUsuarioMock.mockRejectedValue(
+    createStaffUsuarioMock.mockRejectedValue(
       new RolDesconocidoError("coordinacion"),
     );
     const fd = buildFormData({
@@ -322,9 +331,9 @@ describe("createStaffAction", () => {
     );
   });
 
-  it("keeps errors.duplicate for any other createUsuario failure", async () => {
+  it("keeps errors.duplicate for any other createStaffUsuario failure", async () => {
     allowSession("secretaria");
-    createUsuarioMock.mockRejectedValue(new Error("duplicate key value"));
+    createStaffUsuarioMock.mockRejectedValue(new Error("duplicate key value"));
     const fd = buildFormData({ ...validPayload, rol: "docente" });
 
     const result = await createStaffAction({ error: null }, fd);
@@ -340,20 +349,20 @@ describe("createStaffAction by email (FE-27, FE-28)", () => {
     redirectMock.mockClear();
     requireRoleMock.mockReset();
     hashPasswordMock.mockReset();
-    createUsuarioMock.mockReset();
+    createStaffUsuarioMock.mockReset();
     getUsuarioByCorreoMock.mockReset();
     listCarrerasMock.mockReset();
     getUserFacultadIdMock.mockReset();
     getUsuarioByCorreoMock.mockResolvedValue(null);
     getUserFacultadIdMock.mockResolvedValue(5);
     hashPasswordMock.mockResolvedValue("hashed");
-    createUsuarioMock.mockResolvedValue({});
+    createStaffUsuarioMock.mockResolvedValue({});
     listCarrerasMock.mockResolvedValue([{ id: 7, nombre: "Ingeniería" }]);
     allowSession("secretaria");
   });
 
   function nothingCreated() {
-    expect(createUsuarioMock).not.toHaveBeenCalled();
+    expect(createStaffUsuarioMock).not.toHaveBeenCalled();
     expect(hashPasswordMock).not.toHaveBeenCalled();
     expect(redirectMock).not.toHaveBeenCalled();
   }
@@ -369,8 +378,9 @@ describe("createStaffAction by email (FE-27, FE-28)", () => {
       "REDIRECT:/users",
     );
 
-    expect(createUsuarioMock).toHaveBeenCalledTimes(1);
-    expect(createUsuarioMock).toHaveBeenCalledWith(
+    expect(createStaffUsuarioMock).toHaveBeenCalledTimes(1);
+    expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+      1,
       expect.objectContaining({
         login: "ana.perez@uni.edu",
         correo: "ana.perez@uni.edu",
@@ -390,7 +400,8 @@ describe("createStaffAction by email (FE-27, FE-28)", () => {
       "REDIRECT:/users",
     );
 
-    expect(createUsuarioMock).toHaveBeenCalledWith(
+    expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+      1,
       expect.objectContaining({ login: "nuevo@uni.edu" }),
     );
   });
@@ -461,7 +472,8 @@ describe("createStaffAction by email (FE-27, FE-28)", () => {
       "REDIRECT:/users",
     );
 
-    expect(createUsuarioMock).toHaveBeenCalledWith(
+    expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+      1,
       expect.objectContaining({ login: correo, correo }),
     );
   });
@@ -483,15 +495,16 @@ describe("createStaffAction by email (FE-27, FE-28)", () => {
   });
 
   it("returns a form error, without a redirect or a suffix, when the derived Login is taken", async () => {
-    createUsuarioMock.mockRejectedValue(new Error("duplicate key value"));
+    createStaffUsuarioMock.mockRejectedValue(new Error("duplicate key value"));
     const fd = buildFormData({ ...validPayload, rol: "docente" });
 
     await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
       error: "errors.duplicate",
     });
 
-    expect(createUsuarioMock).toHaveBeenCalledTimes(1);
-    expect(createUsuarioMock).toHaveBeenCalledWith(
+    expect(createStaffUsuarioMock).toHaveBeenCalledTimes(1);
+    expect(createStaffUsuarioMock).toHaveBeenCalledWith(
+      1,
       expect.objectContaining({ login: "nuevo@uni.edu" }),
     );
     expect(redirectMock).not.toHaveBeenCalled();
@@ -506,6 +519,302 @@ describe("createStaffAction by email (FE-27, FE-28)", () => {
     );
 
     expect(getUsuarioByCorreoMock).not.toHaveBeenCalled();
-    expect(createUsuarioMock).not.toHaveBeenCalled();
+    expect(createStaffUsuarioMock).not.toHaveBeenCalled();
+  });
+});
+
+// SAC-AUD-1 (D5): the form creates the account through the audited path. The
+// transaction and its audit row are proved in users.test.ts (units) and in the
+// Postgres suite; here the action only has to hand over the right actor and the
+// right account, in the same order of checks as before.
+describe("createStaffAction audit contract (SAC-AUD-1)", () => {
+  beforeEach(() => {
+    redirectMock.mockClear();
+    requireRoleMock.mockReset();
+    hashPasswordMock.mockReset();
+    createStaffUsuarioMock.mockReset();
+    getUsuarioByCorreoMock.mockReset();
+    listCarrerasMock.mockReset();
+    getUserFacultadIdMock.mockReset();
+    errorSpy.mockClear();
+    getUsuarioByCorreoMock.mockResolvedValue(null);
+    getUserFacultadIdMock.mockResolvedValue(5);
+    hashPasswordMock.mockResolvedValue("hashed");
+    createStaffUsuarioMock.mockResolvedValue({});
+    listCarrerasMock.mockResolvedValue([{ id: 7, nombre: "Ingeniería" }]);
+  });
+
+  it("hands the session user to createStaffUsuario as the actor, never a value of the body", async () => {
+    requireRoleMock.mockResolvedValue({
+      ...sessionFor("secretaria"),
+      sub: "42",
+    });
+    const fd = buildFormData({
+      ...validPayload,
+      rol: "docente",
+      actorId: "7",
+      actor: "7",
+    });
+
+    await expect(createStaffAction({ error: null }, fd)).rejects.toThrow(
+      "REDIRECT:/users",
+    );
+
+    expect(createStaffUsuarioMock).toHaveBeenCalledTimes(1);
+    expect(createStaffUsuarioMock.mock.calls[0][0]).toBe(42);
+  });
+
+  it.each([
+    ["administrador", "coordinacion", { carreraId: "7" }, 7, null],
+    ["coordinacion", "secretaria", {}, null, 5],
+    ["secretaria", "docente", {}, null, null],
+  ] as const)(
+    "creates exactly one account for %s -> %s, with the derived Login, the hash and the facultad rule, then redirects to /users",
+    async (caller, target, extra, carreraId, facultadId) => {
+      allowSession(caller);
+      const fd = buildFormData({ ...validPayload, rol: target, ...extra });
+
+      await expect(createStaffAction({ error: null }, fd)).rejects.toThrow(
+        "REDIRECT:/users",
+      );
+
+      expect(createStaffUsuarioMock).toHaveBeenCalledTimes(1);
+      expect(createStaffUsuarioMock).toHaveBeenCalledWith(1, {
+        login: "nuevo@uni.edu",
+        hashClave: "hashed",
+        rol: target,
+        nombreCompleto: "Nueva Persona",
+        correo: "nuevo@uni.edu",
+        telefono: null,
+        cif: null,
+        carreraId,
+        facultadId,
+      });
+      expect(errorSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps every check in its order and creates last", async () => {
+    allowSession("coordinacion");
+    const fd = buildFormData({ ...validPayload, rol: "secretaria" });
+
+    await expect(createStaffAction({ error: null }, fd)).rejects.toThrow(
+      "REDIRECT:/users",
+    );
+
+    const order = [
+      requireRoleMock,
+      getUsuarioByCorreoMock,
+      getUserFacultadIdMock,
+      hashPasswordMock,
+      createStaffUsuarioMock,
+    ].map((mock) => mock.mock.invocationCallOrder[0]);
+    expect(order).toEqual(order.toSorted((a, b) => a - b));
+    expect(order.every((n) => n > 0)).toBe(true);
+  });
+
+  describe("a refusal writes no account and no audit row", () => {
+    it.each([
+      [
+        "check (a): a caller who may not create",
+        "docente",
+        { rol: "docente" },
+        "REDIRECT:" + ACCESS_DENIED_PATH,
+      ],
+      [
+        "check (b): a role outside the assignable set of the caller",
+        "secretaria",
+        { rol: "administrador" },
+        "REDIRECT:" + ACCESS_DENIED_PATH,
+      ],
+      [
+        "invalid data: the role estudiante",
+        "administrador",
+        { rol: "estudiante" },
+        { error: "errors.invalid" },
+      ],
+      [
+        "invalid data: a password that is too short",
+        "secretaria",
+        { rol: "docente", password: "short" },
+        { error: "errors.invalid" },
+      ],
+      [
+        "a coordinacion account without a career",
+        "administrador",
+        { rol: "coordinacion" },
+        { error: "errors.careerRequired" },
+      ],
+      [
+        "a coordinacion account with an unknown career",
+        "administrador",
+        { rol: "coordinacion", carreraId: "99" },
+        { error: "errors.invalidCarrera" },
+      ],
+    ] as const)("%s", async (_label, caller, fields, outcome) => {
+      allowSession(caller);
+      const fd = buildFormData({ ...validPayload, ...fields });
+
+      const result = createStaffAction({ error: null }, fd);
+
+      if (typeof outcome === "string") {
+        await expect(result).rejects.toThrow(outcome);
+      } else {
+        await expect(result).resolves.toEqual(outcome);
+        expect(redirectMock).not.toHaveBeenCalled();
+      }
+      expect(createStaffUsuarioMock).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("an email already held by another account, in any case", async () => {
+      allowSession("secretaria");
+      getUsuarioByCorreoMock.mockResolvedValue({ id: 3 });
+      const fd = buildFormData({
+        ...validPayload,
+        correo: "NUEVO@uni.edu",
+        rol: "docente",
+      });
+
+      await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
+        error: "errors.duplicate",
+      });
+
+      expect(getUsuarioByCorreoMock).toHaveBeenCalledWith("nuevo@uni.edu");
+      expect(createStaffUsuarioMock).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("a coordinacion caller without a career creating a secretaria", async () => {
+      allowSession("coordinacion");
+      getUserFacultadIdMock.mockResolvedValue(null);
+      const fd = buildFormData({ ...validPayload, rol: "secretaria" });
+
+      await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
+        error: "errors.facultadRequired",
+      });
+
+      expect(createStaffUsuarioMock).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("a derived Login already in use (unique violation): the ordinary duplicate error, no redirect and no failure line", async () => {
+      allowSession("secretaria");
+      createStaffUsuarioMock.mockRejectedValue(
+        Object.assign(new Error("duplicate key value"), { code: "23505" }),
+      );
+      const fd = buildFormData({ ...validPayload, rol: "docente" });
+
+      await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
+        error: "errors.duplicate",
+      });
+
+      expect(redirectMock).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("also reads the unique violation when the driver wraps it in a cause", async () => {
+      allowSession("secretaria");
+      createStaffUsuarioMock.mockRejectedValue(
+        new Error("Failed query", { cause: { code: "23505" } }),
+      );
+      const fd = buildFormData({ ...validPayload, rol: "docente" });
+
+      await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
+        error: "errors.duplicate",
+      });
+
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("any other failure (an audit insert that fails included)", () => {
+    const SENTINELS = [
+      "nuevo@uni.edu",
+      "Nueva Persona",
+      "password123",
+      "hashed",
+    ];
+
+    it("writes one sanitised line with the actor, the error name and the SQLSTATE, and shows the ordinary error with no redirect", async () => {
+      allowSession("secretaria");
+      class PostgresError extends Error {
+        name = "PostgresError";
+        code = "23503";
+      }
+      createStaffUsuarioMock.mockRejectedValue(
+        new PostgresError(
+          "insert into Usuario (Correo) values ($1) nuevo@uni.edu Nueva Persona password123 hashed",
+        ),
+      );
+      const fd = buildFormData({ ...validPayload, rol: "docente" });
+
+      await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
+        error: "errors.duplicate",
+      });
+
+      expect(redirectMock).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      const [line] = errorSpy.mock.calls[0];
+      expect(typeof line).toBe("string");
+      expect(JSON.parse(line as string)).toEqual({
+        event: "usuario.create.failed",
+        actor: 1,
+        errorName: "PostgresError",
+        errorCode: "23503",
+      });
+      for (const sentinel of SENTINELS) {
+        expect(line).not.toContain(sentinel);
+      }
+      expect(line).not.toContain("insert into");
+    });
+
+    it("names the actor from the session and omits the SQLSTATE when the error has none", async () => {
+      requireRoleMock.mockResolvedValue({
+        ...sessionFor("secretaria"),
+        sub: "42",
+      });
+      createStaffUsuarioMock.mockRejectedValue(new Error("audit down"));
+      const fd = buildFormData({ ...validPayload, rol: "docente" });
+
+      await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
+        error: "errors.duplicate",
+      });
+
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(errorSpy.mock.calls[0][0] as string)).toEqual({
+        event: "usuario.create.failed",
+        actor: 42,
+        errorName: "Error",
+      });
+    });
+
+    it("logs the type of a value that is not an error, never the value", async () => {
+      allowSession("secretaria");
+      createStaffUsuarioMock.mockRejectedValue("nuevo@uni.edu");
+      const fd = buildFormData({ ...validPayload, rol: "docente" });
+
+      await expect(createStaffAction({ error: null }, fd)).resolves.toEqual({
+        error: "errors.duplicate",
+      });
+
+      const [line] = errorSpy.mock.calls[0];
+      expect(JSON.parse(line as string).errorName).toBe("string");
+      expect(line).not.toContain("nuevo@uni.edu");
+    });
+
+    it("still rethrows RolDesconocidoError instead of showing the form error", async () => {
+      allowSession("secretaria");
+      createStaffUsuarioMock.mockRejectedValue(
+        new RolDesconocidoError("docente"),
+      );
+      const fd = buildFormData({ ...validPayload, rol: "docente" });
+
+      await expect(
+        createStaffAction({ error: null }, fd),
+      ).rejects.toBeInstanceOf(RolDesconocidoError);
+
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
   });
 });

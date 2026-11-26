@@ -8,9 +8,10 @@ import { hashPassword } from "@/lib/auth/password";
 import { canAssignRole, rolesQueCreanUsuarios } from "@/lib/auth/permissions";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { listCarreras } from "@/lib/data/carreras";
+import { sqlStateOf } from "@/lib/data/catalog-write";
 import { RolDesconocidoError } from "@/lib/data/roles";
 import {
-  createUsuario,
+  createStaffUsuario,
   getUserFacultadId,
   getUsuarioByCorreo,
 } from "@/lib/data/users";
@@ -18,6 +19,26 @@ import { deriveLogin } from "@/lib/import/normalize";
 import { crearStaffSchema } from "@/lib/validations/users";
 
 export type CreateStaffState = { error: string | null };
+
+/** SQLSTATE `unique_violation`: the email or the derived Login is taken. */
+const UNIQUE_VIOLATION = "23505";
+
+/**
+ * One sanitised line for an unexpected failure of the creation, which now
+ * includes a failed audit insert: actor, error name and SQLSTATE only. No
+ * message, query or parameter ever reaches the line (SAC-AUD-1).
+ */
+function logCreateFailure(actor: number, error: unknown): void {
+  const errorCode = sqlStateOf(error);
+  console.error(
+    JSON.stringify({
+      event: "usuario.create.failed",
+      actor,
+      errorName: error instanceof Error ? error.name : typeof error,
+      ...(errorCode === undefined ? {} : { errorCode }),
+    }),
+  );
+}
 
 export async function createStaffAction(
   _prev: CreateStaffState,
@@ -94,8 +115,9 @@ export async function createStaffAction(
 
   const hashClave = await hashPassword(parsed.data.password);
 
+  const actorId = Number(session.sub);
   try {
-    await createUsuario({
+    await createStaffUsuario(actorId, {
       login: derived.login,
       hashClave,
       rol: parsed.data.rol,
@@ -112,6 +134,7 @@ export async function createStaffAction(
     // decision 7). A derived Login or an email that already exists lands in
     // the catch-all too: an ordinary form error, no redirect, no suffix.
     if (err instanceof RolDesconocidoError) throw err;
+    if (sqlStateOf(err) !== UNIQUE_VIOLATION) logCreateFailure(actorId, err);
     return { error: t("errors.duplicate") };
   }
 

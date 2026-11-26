@@ -154,7 +154,7 @@
           "carreraExists": "The Carrera of each subject must already exist in the system; the import does not create careers.",
           "horasPositive": "HorasTotales must be a whole number greater than zero.",
           "periodoFormat": "Periodo must use the format YYYY-S1 or YYYY-S2, for example 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match a teacher on the Docentes sheet or one already in the system.",
+          "correoDocenteResolves": "CorreoDocente, on the Grupos sheet, must match an active teacher on the Docentes sheet or one already in the system; the import does not reactivate teachers.",
           "diasTokens": "Dias, on the Grupos sheet, takes the Spanish day names (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) or their three-letter abbreviations (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separated by commas. Case and accents are ignored.",
           "diasEffect": "Dias: if you leave the column out, the stored days of every group are kept. A cell with days replaces the stored days; an empty cell leaves them as they are. The import never removes days."
         },
@@ -276,7 +276,8 @@
           "inactive": "The subject is inactive and is not on the workbook's Asignaturas sheet. Add it to that sheet to reactivate it, or remove this group"
         },
         "docente": {
-          "unresolved": "The teacher is in neither the workbook nor the system"
+          "unresolved": "The teacher is in neither the workbook nor the system",
+          "inactive": "The teacher {value} is inactive and the import does not reactivate teachers. Reactivate them in Teachers or name another teacher in this row"
         },
         "grupo": {
           "duplicate": "The group is repeated on the sheet"
@@ -380,6 +381,15 @@
         "dias": {
           "required": "Select at least one day of the week on which the group meets",
           "invalid": "The selected value is not a day of the week. Select the days from the list"
+        },
+        "correo": {
+          "required": "The email is required. Enter the teacher's address.",
+          "invalid": "The email is not valid. Enter an address such as name@domain.edu.",
+          "tooLong": "The email exceeds 160 characters. Enter a shorter address.",
+          "taken": "This email is already used by another account. Enter a different one."
+        },
+        "telefono": {
+          "tooLong": "The phone exceeds 30 characters. Enter a shorter number."
         }
       },
       "noCarrera": {
@@ -525,8 +535,10 @@
       "columns": {
         "name": "Name",
         "email": "Email",
-        "status": "Status"
+        "status": "Status",
+        "actions": "Actions"
       },
+      "edit": "Edit",
       "noEmail": "No email",
       "empty": "There are no active teachers yet.",
       "noResults": {
@@ -539,7 +551,37 @@
         "label": "Search teachers",
         "placeholder": "Name or email"
       },
-      "tableCaption": "Teachers list"
+      "tableCaption": "Teachers list",
+      "errors": {
+        "unexpected": "The change could not be saved. Try again in a few minutes.",
+        "activeGrupos": "{count, plural, one {Cannot deactivate: this teacher has # active group. Reassign it to another teacher or deactivate it first, then try again. Deactivate the groups of closed periods and reassign the current ones. Search the teacher's name in Subjects to find it.} other {Cannot deactivate: this teacher has # active groups. Reassign them to another teacher or deactivate them first, then try again. Deactivate the groups of closed periods and reassign the current ones. Search the teacher's name in Subjects to find them.}}"
+      },
+      "form": {
+        "nombreLabel": "Full name",
+        "correoLabel": "Email",
+        "correoHint": "New remissions for this teacher are sent to this address, and the teacher signs in with it. The previous address stops working.",
+        "correoNote": "The Users list keeps showing the earlier login, the earlier address stays reserved for as long as the account exists, and the import workbook must be updated with the new email.",
+        "telefonoLabel": "Phone",
+        "submitSave": "Save changes",
+        "submitting": "Saving…"
+      },
+      "state": {
+        "title": "Status",
+        "kept": "The teacher's groups and remissions are kept.",
+        "activeGroups": "{count, plural, =0 {This teacher has no active groups.} one {This teacher has # active group. Reassign it to another teacher or deactivate it first. Deactivate the groups of closed periods and reassign the current ones.} other {This teacher has # active groups. Reassign them to another teacher or deactivate them first. Deactivate the groups of closed periods and reassign the current ones.}}",
+        "findGroups": "Search for this teacher in Subjects",
+        "alreadyActive": "The teacher was already active. No changes were made.",
+        "alreadyInactive": "The teacher was already inactive. No changes were made."
+      },
+      "breadcrumb": {
+        "label": "Breadcrumb",
+        "edit": "Edit {nombre}"
+      },
+      "page": {
+        "editTitle": "Edit teacher",
+        "editSubtitle": "Update the teacher's name, email and phone.",
+        "reactivateHint": "To edit this teacher, reactivate them first in the Status section."
+      }
     },
     "inscripciones": {
       "title": "Enrollments",

@@ -1,12 +1,14 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { StatusPill } from "@/components/status-pill";
 import { ListNavigationProvider } from "@/components/tables/list-navigation";
 import { ListTable } from "@/components/tables/list-table";
+import { buttonVariants } from "@/components/ui/button";
 import {
   catalogListHref,
   parseDocentesListParams,
@@ -32,20 +34,27 @@ export type DocenteRow = Pick<
 const DEFAULT_STATE = parseDocentesListParams({});
 
 /**
- * The docentes list as a client table. It is read-only: no action column and
- * no create action; accounts are managed in Users. The column ids are the URL
- * sort keys (`name`, `email`, `status`; there is no login column, FE-24). Columns carry function-valued
- * renderers, so they are built here and never cross a server boundary. Every
- * URL is composed by the pure `catalogListHref`, never here.
+ * The docentes list as a client table. It has no create action (accounts are
+ * created in Users and by the import) and, by default, no action column: the
+ * page sets `canEdit` only for the role that may maintain docentes, and then a
+ * fourth, last, non-sortable column holds an Edit link per row. The column ids
+ * of the data columns are the URL sort keys (`name`, `email`, `status`; there
+ * is no login column, FE-24). Columns carry function-valued renderers, so they
+ * are built here and never cross a server boundary. Every URL is composed by
+ * the pure `catalogListHref`, never here.
  */
 export function DocentesTable({
   rows,
   total,
   state,
+  canEdit = false,
 }: {
   rows: readonly DocenteRow[];
   total: number;
   state: CatalogListState<DocentesSortKey>;
+  /** Draws the actions column. The page decides it from the server-side
+   *  predicate; the table never looks at a role. */
+  canEdit?: boolean;
 }) {
   const t = useTranslations("catalog.docentes");
   const tStatus = useTranslations("catalog.shared.status");
@@ -85,8 +94,28 @@ export function DocentesTable({
           />
         ),
       },
+      ...(canEdit
+        ? [
+            {
+              id: "actions",
+              header: t("columns.actions"),
+              // Active or inactive: the edit page shows an inactive docente
+              // read-only with the reactivate action (DM-6).
+              cell: ({ row }) => (
+                <Link
+                  href={`${BASE}/${row.original.id}/edit`}
+                  aria-label={`${t("edit")} ${row.original.nombreCompleto}`}
+                  className={buttonVariants({ variant: "ghost", size: "lg" })}
+                >
+                  {t("edit")}
+                </Link>
+              ),
+              meta: { align: "end" },
+            } satisfies ColumnDef<DocenteRow>,
+          ]
+        : []),
     ],
-    [t, tStatus],
+    [t, tStatus, canEdit],
   );
 
   return (

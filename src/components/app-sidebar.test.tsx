@@ -491,6 +491,7 @@ describe("AppSidebar Asignaturas item (CM-NAV-1)", () => {
     ["/catalog/asignaturas/3/grupos/new", "Asignaturas"],
     ["/catalog/asignaturas/3/grupos/5/edit", "Asignaturas"],
     ["/catalog/docentes", "Docentes"],
+    ["/catalog/docentes/7/edit", "Docentes"],
   ])(
     "marks exactly one item current on %s, and it is %s",
     (pathname, current) => {
@@ -621,6 +622,35 @@ describe("AppSidebar Docentes item (CM-NAV-1)", () => {
     expect(screen.getByRole("link", { name: "Docentes" })).not.toHaveAttribute(
       "aria-current",
     );
+  });
+
+  // docente-maintenance DM-1 "The menu is unchanged". Characterization of the
+  // prefix rule (no code change): cannot be RED. It was proved by narrowing
+  // `isCurrentPath` to an exact match, which failed this case, and restoring it.
+  it("shows the same items on a docente edit page as on the list, with Docentes current and Asignaturas not", () => {
+    const hrefs = () =>
+      Array.from(document.querySelectorAll("a[href]")).map((a) =>
+        a.getAttribute("href"),
+      );
+    env.pathname = "/catalog/docentes";
+    renderSidebar("secretaria");
+    const onList = hrefs();
+    cleanup();
+
+    env.pathname = "/catalog/docentes/7/edit";
+    renderSidebar("secretaria");
+
+    expect(hrefs()).toEqual(onList);
+    expect(onList).toContain("/catalog/docentes");
+    expect(document.querySelectorAll("[aria-current]")).toHaveLength(1);
+    const docentes = screen.getByRole("link", { name: "Docentes" });
+    expect(docentes).toHaveAttribute("aria-current", "page");
+    expect(docentes).toHaveAttribute("data-active");
+    expect(docentes).toHaveClass(CURRENT_MARKER);
+    expect(
+      screen.getByRole("link", { name: "Asignaturas" }),
+    ).not.toHaveAttribute("aria-current");
+    expect(getTrigger()).toHaveAttribute("aria-expanded", "true");
   });
 
   it("opens the group when landing on the Docentes route", () => {

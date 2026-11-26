@@ -21,6 +21,7 @@ import {
   type NuevoUsuario,
   type Usuario,
 } from "@/db/schema";
+import { accountCreatedEvent, MANUAL_ORIGIN } from "@/lib/audit/events";
 import { classifyIdentifier } from "@/lib/auth/login-identity";
 import { rolesVisiblesPara } from "@/lib/auth/permissions";
 import {
@@ -42,6 +43,7 @@ import {
   type SortExpr,
 } from "@/lib/data/sort-sql";
 import { containsPattern } from "@/lib/data/sql-like";
+import { insertAuditEvents } from "@/lib/data/audit";
 import type { CatalogExecutor } from "@/lib/data/catalog";
 import { getRolIdByCodigo } from "@/lib/data/roles";
 import { WRITE_CHUNK_ROWS } from "@/lib/import/limits";
@@ -540,12 +542,20 @@ export async function updateClaveAndClearFlag(
     .where(eq(usuario.id, id));
 }
 
-export async function createUsuario(
+/**
+ * What `db` and a transaction handle share for the one account insert, so
+ * `createUsuario` and `createStaffUsuario` write the row the same way.
+ */
+type InsertExecutor = Pick<typeof db, "insert">;
+
+/** Inserts one account and returns it in the `UsuarioConRol` shape. */
+async function insertUsuario(
+  executor: InsertExecutor,
   data: NuevoUsuarioConRol,
+  rolId: number,
 ): Promise<UsuarioConRol> {
   const { rol: codigo, ...resto } = data;
-  const rolId = await getRolIdByCodigo(codigo);
-  const [row] = await db
+  const [row] = await executor
     .insert(usuario)
     .values({ ...resto, rolId })
     .returning();
@@ -564,6 +574,47 @@ export async function createUsuario(
     creadoEn: row.creadoEn,
     rol: codigo,
   };
+}
+
+/**
+ * Self-registration only (A8): a student account is not audited, and no
+ * authenticated actor exists at that insert. Staff accounts are created
+ * through `createStaffUsuario`.
+ */
+export async function createUsuario(
+  data: NuevoUsuarioConRol,
+): Promise<UsuarioConRol> {
+  const rolId = await getRolIdByCodigo(data.rol);
+  return insertUsuario(db, data, rolId);
+}
+
+/**
+ * The account creation of the staff form (SAC-AUD-1, D5): the account and its
+ * one `usuario.creado` row (field names only, origin manual) share one short
+ * transaction, the audit insert being the last statement, so a failure on
+ * either side leaves no account. The role id is resolved BEFORE the
+ * transaction: `RolDesconocidoError` surfaces as it does for `createUsuario`
+ * and no second pool connection is taken while one is held. The catalog lock is
+ * not taken (A9): a new account is active and has no grupo, and the unique
+ * email closes concurrent creations. `actorId` is the session user, never a
+ * value of the request.
+ */
+export async function createStaffUsuario(
+  actorId: number,
+  data: NuevoUsuarioConRol,
+): Promise<UsuarioConRol> {
+  const rolId = await getRolIdByCodigo(data.rol);
+  return db.transaction(async (tx) => {
+    const created = await insertUsuario(tx, data, rolId);
+    await insertAuditEvents(tx, actorId, [
+      accountCreatedEvent({
+        usuarioId: created.id,
+        rol: created.rol,
+        origin: MANUAL_ORIGIN,
+      }),
+    ]);
+    return created;
+  });
 }
 
 /**

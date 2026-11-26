@@ -281,6 +281,7 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
     "asignatura.unresolved",
     "asignatura.inactive",
     "docente.unresolved",
+    "docente.inactive",
     "grupo.duplicate",
     "dias.invalid",
     "accountsToCreate.capExceeded",
@@ -305,6 +306,7 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
     "result.asignaturasReactivated",
     "result.manualGruposDeactivated",
     "reasons.asignatura.inactive",
+    "reasons.docente.inactive",
   ];
   const text = (locale: "es" | "en", key: string) =>
     resolve(locale === "es" ? esMessages : enMessages, `catalog.import.${key}`);
@@ -404,6 +406,64 @@ describe("catalog parity (CEI: Import UI flow and copy, Locales)", () => {
     },
   );
 
+  // CEI-UI (docente.inactive): the message names the email of the row, says
+  // the docente is inactive and the import does not reactivate it, and offers
+  // both ways out (DM-13).
+  it.each([
+    [
+      "es",
+      /inactivo/i,
+      /no .*reactiva/i,
+      /Reactívalo en Docentes/,
+      /otro docente/,
+    ],
+    [
+      "en",
+      /inactive/i,
+      /does not reactivate/i,
+      /Reactivate (them|it) in Teachers/,
+      /another teacher/,
+    ],
+  ] as const)(
+    "%s docente.inactive names the email, says the docente is inactive and not reactivated, and offers both remedies",
+    (locale, inactive, notReactivated, remedy, other) => {
+      const raw = text(locale, "reasons.docente.inactive") as string;
+      const t = createTranslator({
+        locale,
+        messages: locale === "es" ? esMessages : enMessages,
+        namespace: "catalog.import",
+        onError: (error) => {
+          throw error;
+        },
+      });
+
+      const rendered = t("reasons.docente.inactive", {
+        value: "ana@uni.edu",
+      });
+
+      expect(raw).toContain("{value}");
+      expect(rendered).toContain("ana@uni.edu");
+      expect(rendered).not.toContain("{value}");
+      expect(rendered).toMatch(inactive);
+      expect(rendered).toMatch(notReactivated);
+      expect(rendered).toMatch(remedy);
+      expect(rendered).toMatch(other);
+    },
+  );
+
+  // The CorreoDocente rule says the docente must be active (CEI-UI).
+  it.each([
+    ["es", /docente activo/],
+    ["en", /active teacher/],
+  ] as const)(
+    "%s correoDocenteResolves says the docente must be active",
+    (locale, active) => {
+      expect(text(locale, "contract.rules.correoDocenteResolves")).toMatch(
+        active,
+      );
+    },
+  );
+
   it.each(["es", "en"] as const)(
     "%s dias.invalid carries the {value} placeholder",
     (locale) => {
@@ -451,7 +511,21 @@ describe("catalog parity (CM-I18N-1: shared catalog copy)", () => {
     "codigo.takenInactive",
     "numGrupo.taken",
     "numGrupo.takenInactive",
+    // docente-maintenance DM-4: emitted by the docente edit action.
+    "correo.taken",
   ];
+
+  it("the schema key list gains the four docente keys; correo.taken is emitted by the action (DM-3, DM-4)", () => {
+    expect(CATALOG_FIELD_ERROR_KEYS).toEqual(
+      expect.arrayContaining([
+        "correo.required",
+        "correo.invalid",
+        "correo.tooLong",
+        "telefono.tooLong",
+      ]),
+    );
+    expect(CATALOG_FIELD_ERROR_KEYS).not.toContain("correo.taken");
+  });
 
   it.each(["es", "en"] as const)(
     "%s fieldErrors holds exactly the keys the manual schemas and the duplicate refusals can emit",
@@ -607,6 +681,38 @@ describe("catalog parity (CM-I18N-1: shared catalog copy)", () => {
     "%s dias.invalid says the value is not a day of the week",
     (locale, notADay) => {
       expect(render(locale, "fieldErrors.dias.invalid")).toMatch(notADay);
+    },
+  );
+
+  it.each([
+    ["es", /escribe/i],
+    ["en", /enter/i],
+  ] as const)(
+    "%s docente email and phone errors say what to enter (DM-3, DM-16)",
+    (locale, enter) => {
+      for (const key of [
+        "correo.required",
+        "correo.invalid",
+        "correo.tooLong",
+        "correo.taken",
+        "telefono.tooLong",
+      ]) {
+        expect(render(locale, `fieldErrors.${key}`), key).toMatch(enter);
+      }
+    },
+  );
+
+  it.each([
+    ["es", /ya está en uso por otra cuenta/i],
+    ["en", /already used by another account/i],
+  ] as const)(
+    "%s duplicate email says another account holds it and names no role, name or state (DM-4)",
+    (locale, used) => {
+      const message = render(locale, "fieldErrors.correo.taken");
+      expect(message).toMatch(used);
+      expect(message).not.toMatch(
+        /docente|teacher|estudiante|student|coordinaci|secretar|administrad|activ/i,
+      );
     },
   );
 
@@ -1007,6 +1113,213 @@ describe("catalog parity (CM-I18N-1: Grupo action copy)", () => {
   // inactive group, no Carrera, busy) all live in `catalog.shared`; their
   // content is asserted by the shared copy tests above, and the scan here
   // proves the Grupo actions choose only keys that exist.
+});
+
+describe("catalog parity (CM-I18N-1, DM-16: Docente action copy)", () => {
+  // Same scan as the Asignatura and Grupo ones: the test translator of the
+  // action suite echoes keys, so only the source proves every chosen key exists.
+  const source = readFileSync(
+    join(process.cwd(), "src/app/(dashboard)/catalog/docentes/actions.ts"),
+    "utf8",
+  );
+  const used = [
+    ...new Set(
+      [...source.matchAll(/"((?:shared|docentes)\.[A-Za-z.]+)"/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  ];
+  const messagesOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+  // Rendered through the real translator, so a mistyped placeholder or an
+  // unbalanced plural throws here instead of reaching a user.
+  const render = (
+    locale: "es" | "en",
+    namespace: string,
+    key: string,
+    values?: Record<string, string | number>,
+  ) =>
+    createTranslator({
+      locale,
+      messages: messagesOf(locale),
+      namespace: namespace as "catalog.shared",
+      onError: (error: Error) => {
+        throw error;
+      },
+    })(key as never, values as never) as string;
+
+  it("the scan finds the keys the docente actions choose, reusing the shared copy", () => {
+    expect(used).toEqual(
+      expect.arrayContaining([
+        "docentes.errors.unexpected",
+        "docentes.errors.activeGrupos",
+        "shared.fieldErrors.correo.taken",
+      ]),
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s carries every message key the docente action source uses",
+    (locale) => {
+      for (const key of used) {
+        expect(typeof resolve(messagesOf(locale), `catalog.${key}`), key).toBe(
+          "string",
+        );
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s action errors hold the generic message and the count refusal, with no raw error wording",
+    (locale) => {
+      const errors = resolve(messagesOf(locale), "catalog.docentes.errors");
+
+      expect(leafPaths(errors).sort()).toEqual(["activeGrupos", "unexpected"]);
+      expect((errors as Record<string, string>).unexpected).not.toMatch(
+        /exception|ECONN|stack|sql/i,
+      );
+    },
+  );
+
+  it.each([
+    ["es", /no se pudo guardar/i, /inténtalo de nuevo/i],
+    ["en", /could not be saved/i, /try again/i],
+  ] as const)(
+    "%s generic docente error says the change was not saved and to try again",
+    (locale, notSaved, retry) => {
+      const message = render(locale, "catalog.docentes", "errors.unexpected");
+
+      expect(message).toMatch(notSaved);
+      expect(message).toMatch(retry);
+    },
+  );
+
+  // DM-8 "The refusal message is actionable": count, singular or plural
+  // wording, both remedies, the closed-period versus current hint, the pointer
+  // to the Asignaturas search (CM-ASG-9), and no other account named (the only
+  // placeholder is the count).
+  it.each([
+    [
+      "es",
+      1,
+      /tiene 1 grupo activo\./,
+      /Reasígnalo a otro docente o desactívalo primero/,
+      /periodos cerrados/,
+      /periodo actual/,
+    ],
+    [
+      "es",
+      3,
+      /tiene 3 grupos activos\./,
+      /Reasígnalos a otro docente o desactívalos primero/,
+      /periodos cerrados/,
+      /periodo actual/,
+    ],
+    [
+      "en",
+      1,
+      /has 1 active group\./,
+      /Reassign it to another teacher or deactivate it first/,
+      /closed periods/,
+      /current ones/,
+    ],
+    [
+      "en",
+      3,
+      /has 3 active groups\./,
+      /Reassign them to another teacher or deactivate them first/,
+      /closed periods/,
+      /current ones/,
+    ],
+  ] as const)(
+    "%s active-grupos refusal for %i: count, wording, both remedies and the period hint",
+    (locale, count, counted, remedy, closed, current) => {
+      const message = render(
+        locale,
+        "catalog.docentes",
+        "errors.activeGrupos",
+        {
+          count,
+        },
+      );
+
+      expect(message).toMatch(counted);
+      expect(message).toMatch(remedy);
+      expect(message).toMatch(closed);
+      expect(message).toMatch(current);
+      expect(message).toMatch(
+        locale === "es"
+          ? /nombre del docente en Asignaturas\.$/
+          : /teacher's name in Subjects to find (it|them)\.$/,
+      );
+      expect(message).not.toMatch(/[@{}]|#/);
+    },
+  );
+
+  // DM-16 "Refusals are actionable": each row's message says what happened and
+  // what to do. The text is the shared copy the form and the toggle already
+  // render; the two rows for an already active or already inactive docente are
+  // the docente toggle's own wording, pinned with the toggle copy below
+  // (catalog.docentes.state.alreadyActive and .alreadyInactive).
+  it.each([
+    [
+      "email already used",
+      "fieldErrors.correo.taken",
+      [/ya está en uso por otra cuenta/i, /escribe otro/i],
+      [/already used by another account/i, /enter a different one/i],
+    ],
+    [
+      "edit of an inactive docente",
+      "refusals.inactive",
+      [/reactívalo primero/i],
+      [/reactivate it first/i],
+    ],
+    [
+      "deactivate an inactive docente",
+      "refusals.alreadyInactive",
+      [/ya estaba inactivo/i],
+      [/already inactive/i],
+    ],
+    [
+      "write cannot start (busy)",
+      "busy",
+      [/no se guardó nada/i, /inténtalo de nuevo/i],
+      [/nothing was saved/i, /try again/i],
+    ],
+    [
+      "not found",
+      "notFound.message",
+      [/no exista|no esté disponible/i],
+      [/may not exist|not be available/i],
+    ],
+    ["no change", "refusals.unchanged", [/no hay cambios/i], [/no changes/i]],
+  ] as const)(
+    "refusal %s says what happened and what to do, in both locales",
+    (_row, key, es, en) => {
+      for (const [locale, patterns] of [
+        ["es", es],
+        ["en", en],
+      ] as const) {
+        const message = render(locale, "catalog.shared", key);
+        for (const pattern of patterns) expect(message).toMatch(pattern);
+      }
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s duplicate email text names no account, role or state (DM-4)",
+    (locale) => {
+      const message = render(
+        locale,
+        "catalog.shared",
+        "fieldErrors.correo.taken",
+      );
+
+      expect(message).not.toMatch(
+        /coordinaci|secretar|administrador|estudiante|student|docente|teacher|inactiv|active|activ[ao]/i,
+      );
+    },
+  );
 });
 
 describe("catalog parity (EA-UI-1: inscripciones action copy)", () => {
@@ -1673,10 +1986,37 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     "search.label",
     "search.placeholder",
     "tableCaption",
+    // docente-maintenance (DM-8, DM-16): the copy of the edit and toggle actions.
+    "errors.unexpected",
+    "errors.activeGrupos",
+    // docente-maintenance (CM-LST-1): the secretaria's actions column.
+    "columns.actions",
+    "edit",
+    // docente-maintenance (DM-3, DM-6, DM-7, DM-16, DM-17): the edit form, its
+    // State section and the breadcrumb.
+    "form.nombreLabel",
+    "form.correoLabel",
+    "form.correoHint",
+    "form.correoNote",
+    "form.telefonoLabel",
+    "form.submitSave",
+    "form.submitting",
+    "state.title",
+    "state.kept",
+    "state.activeGroups",
+    "state.findGroups",
+    "state.alreadyActive",
+    "state.alreadyInactive",
+    "breadcrumb.label",
+    "breadcrumb.edit",
+    // docente-maintenance (DM-1, DM-2, DM-6): the edit page.
+    "page.editTitle",
+    "page.editSubtitle",
+    "page.reactivateHint",
   ];
 
   it.each(["es", "en"] as const)(
-    "%s pins exactly the Docentes list keys",
+    "%s pins exactly the Docentes list and action keys",
     (locale) => {
       expect(leafPaths(section(locale, "catalog.docentes")).sort()).toEqual(
         [...DOCENTES_KEYS].sort(),
@@ -1731,7 +2071,15 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
   }
 
   const used = [
-    ...new Set(["docentes-table.tsx", "page.tsx"].flatMap(keysUsedBy)),
+    ...new Set(
+      [
+        "docentes-table.tsx",
+        "page.tsx",
+        "docente-form.tsx",
+        "bound-controls.tsx",
+        "[id]/edit/page.tsx",
+      ].flatMap(keysUsedBy),
+    ),
   ];
 
   it("the scan finds the keys the Docentes table and page choose, all reused", () => {
@@ -1744,6 +2092,8 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
         "catalog.docentes.columns.name",
         "catalog.docentes.columns.email",
         "catalog.docentes.columns.status",
+        "catalog.docentes.columns.actions",
+        "catalog.docentes.edit",
         "catalog.docentes.noEmail",
         "catalog.docentes.tableCaption",
         "catalog.docentes.empty",
@@ -1754,6 +2104,18 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
       ]),
     );
   });
+
+  // The Edit link and its header read like the Asignaturas ones, per locale.
+  it.each([
+    ["es", "Acciones", "Editar"],
+    ["en", "Actions", "Edit"],
+  ] as const)(
+    "%s Docentes actions header is %s and the Edit link says %s",
+    (locale, header, edit) => {
+      expect(section(locale, "catalog.docentes.columns.actions")).toBe(header);
+      expect(section(locale, "catalog.docentes.edit")).toBe(edit);
+    },
+  );
 
   it.each(["es", "en"] as const)(
     "%s carries every key the Docentes table and page use",
@@ -1777,6 +2139,217 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
       expect(resolve(messages, "catalog.docentes.noResults.hint")).toMatch(
         status,
       );
+    },
+  );
+});
+
+describe("catalog parity (CM-I18N-1, DM-16, DM-17: Docente form, toggle and state copy)", () => {
+  const section = (locale: "es" | "en", path: string) =>
+    resolve(locale === "es" ? esMessages : enMessages, path);
+  const keysOf = (locale: "es" | "en", path: string) =>
+    leafPaths(section(locale, path)).sort();
+  // The real translator, so a mistyped placeholder or an unbalanced plural
+  // throws here instead of reaching a user.
+  const translate = (locale: "es" | "en", namespace: string) => {
+    const t = createTranslator({
+      locale,
+      messages: locale === "es" ? esMessages : enMessages,
+      namespace: namespace as "catalog.shared",
+      onError: (error: Error) => {
+        throw error;
+      },
+    });
+    return (key: string, values?: Record<string, string | number>) =>
+      t(key as never, values as never) as string;
+  };
+
+  it.each(["es", "en"] as const)("%s pins exactly the form keys", (locale) => {
+    expect(keysOf(locale, "catalog.docentes.form")).toEqual(
+      [
+        "correoHint",
+        "correoLabel",
+        "correoNote",
+        "nombreLabel",
+        "submitSave",
+        "submitting",
+        "telefonoLabel",
+      ].sort(),
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s pins exactly the state and breadcrumb keys",
+    (locale) => {
+      expect(keysOf(locale, "catalog.docentes.state")).toEqual(
+        [
+          "activeGroups",
+          "alreadyActive",
+          "alreadyInactive",
+          "findGroups",
+          "kept",
+          "title",
+        ].sort(),
+      );
+      expect(keysOf(locale, "catalog.docentes.breadcrumb")).toEqual([
+        "edit",
+        "label",
+      ]);
+    },
+  );
+
+  // DM-7 and DM-8: the confirmation shows the count, says to reassign or
+  // deactivate first and gives the closed-period versus current hint; the
+  // only placeholder is the count, so no other account can be named.
+  it.each([
+    [
+      "es",
+      1,
+      /tiene 1 grupo activo\./,
+      /Reasígnalo a otro docente o desactívalo primero/,
+    ],
+    [
+      "es",
+      3,
+      /tiene 3 grupos activos\./,
+      /Reasígnalos a otro docente o desactívalos primero/,
+    ],
+    [
+      "en",
+      1,
+      /has 1 active group\./,
+      /Reassign it to another teacher or deactivate it first/,
+    ],
+    [
+      "en",
+      3,
+      /has 3 active groups\./,
+      /Reassign them to another teacher or deactivate them first/,
+    ],
+  ] as const)(
+    "%s active-groups notice for %i: count, remedy and the period hint",
+    (locale, count, counted, remedy) => {
+      const text = translate(locale, "catalog.docentes.state")("activeGroups", {
+        count,
+      });
+
+      expect(text).toMatch(counted);
+      expect(text).toMatch(remedy);
+      expect(text).toMatch(
+        locale === "es" ? /periodos cerrados/ : /closed periods/,
+      );
+      expect(text).toMatch(locale === "es" ? /periodo actual/ : /current ones/);
+      expect(text).not.toMatch(/[@{}]|#/);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s active-groups notice for none states there are none, with no digit",
+    (locale) => {
+      const text = translate(locale, "catalog.docentes.state")("activeGroups", {
+        count: 0,
+      });
+
+      expect(text).toMatch(
+        locale === "es" ? /no tiene grupos activos/ : /has no active groups/,
+      );
+      expect(text).not.toMatch(/\d/);
+    },
+  );
+
+  it.each([
+    ["es", /grupos y las remisiones/i, /se conservan/i],
+    ["en", /groups and remissions/i, /are kept/i],
+  ] as const)(
+    "%s kept sentence says grupos and remissions are kept",
+    (locale, what, kept) => {
+      const text = section(locale, "catalog.docentes.state.kept");
+
+      expect(text).toMatch(what);
+      expect(text).toMatch(kept);
+    },
+  );
+
+  // DM-16 rows "deactivate an inactive docente" and "reactivate an active
+  // docente": the toggle knows which intent it sent, so each direction has its
+  // own text, and neither is the shared "no changes" sentence.
+  it.each([
+    ["alreadyInactive", "es", /ya estaba inactivo/i],
+    ["alreadyInactive", "en", /already inactive/i],
+    ["alreadyActive", "es", /ya estaba activo/i],
+    ["alreadyActive", "en", /already active/i],
+  ] as const)(
+    "state.%s in %s says what happened and that nothing changed",
+    (key, locale, pattern) => {
+      const text = section(locale, `catalog.docentes.state.${key}`) as string;
+
+      expect(text).toMatch(pattern);
+      expect(text).toMatch(locale === "es" ? /ningún cambio/i : /no changes/i);
+      expect(text).not.toBe(
+        section(locale, "catalog.shared.refusals.unchanged"),
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s pins exactly the edit page keys",
+    (locale) => {
+      expect(keysOf(locale, "catalog.docentes.page")).toEqual([
+        "editSubtitle",
+        "editTitle",
+        "reactivateHint",
+      ]);
+    },
+  );
+
+  it.each([
+    ["es", /react[ií]v/i, /estado/i],
+    ["en", /reactivate/i, /status/i],
+  ] as const)(
+    "%s inactive hint points to the State section to reactivate",
+    (locale, reactivate, stateWord) => {
+      const text = section(locale, "catalog.docentes.page.reactivateHint");
+
+      expect(text).toMatch(reactivate);
+      expect(text).toMatch(stateWord);
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s edit page title and subtitle are not the Asignatura ones",
+    (locale) => {
+      expect(section(locale, "catalog.docentes.page.editTitle")).not.toBe(
+        section(locale, "catalog.asignaturas.page.editTitle"),
+      );
+      expect(section(locale, "catalog.docentes.page.editSubtitle")).not.toBe(
+        section(locale, "catalog.asignaturas.page.editSubtitle"),
+      );
+    },
+  );
+
+  it.each(["es", "en"] as const)(
+    "%s breadcrumb names the docente being edited",
+    (locale) => {
+      expect(
+        translate(locale, "catalog.docentes.breadcrumb")("edit", {
+          nombre: "Ana Pérez",
+        }),
+      ).toContain("Ana Pérez");
+    },
+  );
+
+  it.each([
+    ["es", "Buscar", /Asignaturas/],
+    ["en", "Search", /Subjects/],
+  ] as const)(
+    "%s find-groups link text points to the Asignaturas search",
+    (locale, verb, where) => {
+      const text = section(
+        locale,
+        "catalog.docentes.state.findGroups",
+      ) as string;
+
+      expect(text).toContain(verb);
+      expect(text).toMatch(where);
     },
   );
 });

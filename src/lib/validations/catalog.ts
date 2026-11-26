@@ -143,6 +143,11 @@ export const CATALOG_FIELD_ERROR_KEYS = [
   "numGrupo.tooLong",
   "dias.required",
   "dias.invalid",
+  // `docenteUpdateSchema` (validations/docente.ts) shares this namespace.
+  "correo.required",
+  "correo.invalid",
+  "correo.tooLong",
+  "telefono.tooLong",
 ] as const;
 
 export type CatalogFieldErrorKey = (typeof CATALOG_FIELD_ERROR_KEYS)[number];

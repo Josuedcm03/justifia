@@ -164,6 +164,21 @@ describe("WorkbookContract (CEI: Contract shown before upload)", () => {
     },
   );
 
+  it.each([
+    ["en", en, /active teacher/],
+    ["es", es, /docente activo/],
+  ] as const)(
+    "the CorreoDocente rule says the docente must be active, before any file is chosen, in %s (CEI-UI)",
+    (locale, copy, active) => {
+      renderContract(locale);
+
+      const rule = screen.getByText(copy.rules.correoDocenteResolves);
+      expect(rule.tagName).toBe("LI");
+      expect(rule.textContent).toMatch(active);
+      expect(rule.textContent).toContain("CorreoDocente");
+    },
+  );
+
   it("offers the template through the guarded route", () => {
     renderContract();
 

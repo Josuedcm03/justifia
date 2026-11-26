@@ -6,6 +6,7 @@ import { PageFrame } from "@/components/page-frame";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireCatalogAccess } from "@/lib/auth/catalog-access";
+import { canManageDocentes } from "@/lib/auth/permissions";
 import { parseDocentesListParams } from "@/lib/catalog/list-params";
 import { listDocentes } from "@/lib/data/users";
 
@@ -17,8 +18,9 @@ export default async function DocentesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // The guard runs first. Its scope is deliberately ignored: the Docentes list
-  // is not Carrera-scoped, so every allowed role sees the same list.
-  await requireCatalogAccess();
+  // is not Carrera-scoped, so every allowed role sees the same rows. Only the
+  // roles that may maintain docentes also get the Edit column (DM-1).
+  const { session } = await requireCatalogAccess();
   const t = await getTranslations("catalog.docentes");
   const state = parseDocentesListParams(await searchParams);
   const result = await listDocentes({
@@ -59,6 +61,7 @@ export default async function DocentesPage({
         <DocentesTable
           rows={rows}
           total={result.total}
+          canEdit={canManageDocentes(session.rol)}
           // The page the read clamped to, so the paging links never point
           // past the last page (DT-URL-3).
           state={{ ...state, page: result.page }}

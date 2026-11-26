@@ -20,6 +20,15 @@ function pagesUnder(dir: string): string[] {
   });
 }
 
+/** The guard a page must await first, chosen by its path (DM-1): only the
+ *  docente edit page is secretaria-only; the lists and the other edit pages
+ *  keep the catalog guard. */
+function expectedPageGuard(path: string): string {
+  return path.endsWith("/catalog/docentes/[id]/edit/page.tsx")
+    ? "requireDocenteAccess"
+    : "requireCatalogAccess";
+}
+
 const pages = SEGMENTS.flatMap((segment) =>
   pagesUnder(join(CATALOG_DIR, segment)).map((path) => ({
     path: relative(ROOT, path).replace(/\\/g, "/"),
@@ -48,6 +57,7 @@ describe("catalog pages (structure)", () => {
         "asignaturas/[id]/grupos/new/page.tsx",
         "asignaturas/[id]/grupos/[grupoId]/edit/page.tsx",
         "docentes/page.tsx",
+        "docentes/[id]/edit/page.tsx",
         "grupos/[id]/edit/page.tsx",
       ]
         .map((path) => `${base}/${path}`)
@@ -67,22 +77,55 @@ describe("catalog pages (structure)", () => {
     ]);
   });
 
+  it("chooses the page guard by path: only the docente edit page uses the secretaria-only one", () => {
+    expect(
+      expectedPageGuard(
+        "src/app/(dashboard)/catalog/docentes/[id]/edit/page.tsx",
+      ),
+    ).toBe("requireDocenteAccess");
+    for (const path of [
+      "src/app/(dashboard)/catalog/docentes/page.tsx",
+      "src/app/(dashboard)/catalog/asignaturas/[id]/edit/page.tsx",
+      "src/app/(dashboard)/catalog/grupos/[id]/edit/page.tsx",
+    ]) {
+      expect(expectedPageGuard(path), path).toBe("requireCatalogAccess");
+    }
+  });
+
   it.each(pages.map((p) => [p.path, p] as const))(
-    "%s calls requireCatalogAccess( before any other await",
+    "%s calls its guard before any other await",
     (_path, page) => {
-      const guard = page.text.indexOf("requireCatalogAccess(");
+      const name = expectedPageGuard(page.path);
+      const guard = page.text.indexOf(`${name}(`);
       expect(guard).toBeGreaterThanOrEqual(0);
 
       const firstAwait = page.text.indexOf("await ");
       expect(firstAwait).toBeGreaterThanOrEqual(0);
       expect(page.text.slice(firstAwait)).toMatch(
-        /^await requireCatalogAccess\(/,
+        new RegExp(`^await ${name}\\(`),
       );
 
       for (const request of ["await searchParams", "await params"]) {
         const at = page.text.indexOf(request);
         if (at >= 0) expect(guard).toBeLessThan(at);
       }
+    },
+  );
+
+  // DM-1: the docente edit page is secretaria-only. `requireCatalogAccess`
+  // admits administrador and coordinacion, so it must not appear there, and the
+  // docente guard must not leak into the catalog pages either.
+  it.each(pages.map((p) => [p.path, p] as const))(
+    "%s calls only its own guard",
+    (_path, page) => {
+      const own = expectedPageGuard(page.path);
+      const other =
+        own === "requireDocenteAccess"
+          ? "requireCatalogAccess"
+          : "requireDocenteAccess";
+
+      expect(page.text).toContain(`${own}(`);
+      expect(page.text).not.toContain(`${other}(`);
     },
   );
 
@@ -109,8 +152,16 @@ describe("catalog pages (structure)", () => {
 
 // Server actions (CM-ACC-2: a denied caller's body is never read). Every
 // exported action must resolve the guard before anything else and must not
-// touch the form data until it has.
-const ACTION_SEGMENTS = ["asignaturas", "grupos"] as const;
+// touch the form data until it has. The docente actions (docente-maintenance,
+// DM-1) are secretaria-only and use their own guard, never the catalog one.
+const ACTION_SEGMENTS = ["asignaturas", "grupos", "docentes"] as const;
+
+/** The guard an actions module must await first, chosen by its path. */
+function expectedGuard(path: string): string {
+  return path.includes("/catalog/docentes/")
+    ? "requireDocenteAccess"
+    : "requireCatalogAccess";
+}
 
 const actionFiles = ACTION_SEGMENTS.map((segment) =>
   join(CATALOG_DIR, segment, "actions.ts"),
@@ -149,7 +200,20 @@ describe("catalog server actions (structure)", () => {
     expect(actionFiles.map((f) => f.path)).toEqual([
       "src/app/(dashboard)/catalog/asignaturas/actions.ts",
       "src/app/(dashboard)/catalog/grupos/actions.ts",
+      "src/app/(dashboard)/catalog/docentes/actions.ts",
     ]);
+  });
+
+  it("chooses the guard by path: only the docentes actions use the secretaria-only one", () => {
+    expect(
+      expectedGuard("src/app/(dashboard)/catalog/docentes/actions.ts"),
+    ).toBe("requireDocenteAccess");
+    expect(
+      expectedGuard("src/app/(dashboard)/catalog/asignaturas/actions.ts"),
+    ).toBe("requireCatalogAccess");
+    expect(expectedGuard("src/app/(dashboard)/catalog/grupos/actions.ts")).toBe(
+      "requireCatalogAccess",
+    );
   });
 
   it.each([
@@ -165,21 +229,39 @@ describe("catalog server actions (structure)", () => {
   });
 
   it.each(actionFiles.map((f) => [f.path, f] as const))(
-    "%s: every exported action awaits requireCatalogAccess() first, before any form read",
+    "%s: every exported action awaits its guard first, before any form read",
     (_path, file) => {
       const actions = exportedFunctions(file.text);
       expect(actions.length).toBeGreaterThan(0);
+      const guard = expectedGuard(file.path);
 
       for (const action of actions) {
         const firstAwait = action.body.indexOf("await ");
         expect(firstAwait, action.name).toBeGreaterThanOrEqual(0);
         expect(action.body.slice(firstAwait), action.name).toMatch(
-          /^await requireCatalogAccess\(\)/,
+          new RegExp(`^await ${guard}\\(\\)`),
         );
         expect(action.body.slice(0, firstAwait), action.name).not.toMatch(
           FORM_READ,
         );
       }
+    },
+  );
+
+  // DM-1: the docente actions are secretaria-only. `requireCatalogAccess`
+  // admits administrador and coordinacion, so it must not appear in them, and
+  // the docente guard must not leak into the catalog actions either.
+  it.each(actionFiles.map((f) => [f.path, f] as const))(
+    "%s: calls only its own guard",
+    (_path, file) => {
+      const own = expectedGuard(file.path);
+      const other =
+        own === "requireDocenteAccess"
+          ? "requireCatalogAccess"
+          : "requireDocenteAccess";
+
+      expect(file.text).toContain(`${own}(`);
+      expect(file.text).not.toContain(`${other}(`);
     },
   );
 

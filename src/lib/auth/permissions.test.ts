@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,11 +9,13 @@ import {
   canCreateUsers,
   canImportCatalog,
   canManageCatalog,
+  canManageDocentes,
   canReviewRequests,
   isCarreraScopedRole,
   rolesAsignablesPor,
   rolesQueCreanUsuarios,
   rolesQueGestionanCatalogo,
+  rolesQueGestionanDocentes,
   rolesVisibles,
   rolesVisiblesPara,
   signalsAccess,
@@ -618,3 +623,77 @@ describe("signalsAccess (validation-signals, RNF-01)", () => {
     }
   });
 });
+
+describe("canManageDocentes (DM-1, CM-ACC-1: only secretaria)", () => {
+  it("allows secretaria", () => {
+    expect(canManageDocentes("secretaria")).toBe(true);
+  });
+
+  it.each([
+    "administrador",
+    "coordinacion",
+    "docente",
+    "estudiante",
+    undefined,
+  ] as const)("denies %s", (rol) => {
+    expect(canManageDocentes(rol)).toBe(false);
+  });
+
+  it("equals canAssignRole(rol, 'docente') for the five roles and for none", () => {
+    for (const rol of [...rolesUsuario, undefined]) {
+      expect(canManageDocentes(rol)).toBe(canAssignRole(rol, "docente"));
+    }
+  });
+
+  it("is not the catalog predicate: it is narrower than canManageCatalog", () => {
+    expect(canManageDocentes("administrador")).toBe(false);
+    expect(canManageCatalog("administrador")).toBe(true);
+    expect(canManageDocentes("coordinacion")).toBe(false);
+    expect(canManageCatalog("coordinacion")).toBe(true);
+  });
+});
+
+describe("rolesQueGestionanDocentes (DM-1: derived, never hand-listed)", () => {
+  it("is exactly secretaria", () => {
+    expect([...rolesQueGestionanDocentes]).toEqual(["secretaria"]);
+  });
+
+  it("equals rolesUsuario filtered by canManageDocentes", () => {
+    expect(rolesQueGestionanDocentes).toEqual(
+      rolesUsuario.filter(canManageDocentes),
+    );
+  });
+
+  // "No other file restates the list": the guard and everything under the
+  // docentes catalog folder reach the roles only through the derived list, so
+  // none of them may carry a literal role name of its own.
+  it("no source file of the docente guard or its pages and actions restates a role", () => {
+    const files = [
+      "src/lib/auth/docente-access.ts",
+      ...sourcesUnder("src/app/(dashboard)/catalog/docentes"),
+    ];
+
+    expect(files.length).toBeGreaterThan(1);
+    for (const file of files) {
+      const text = readFileSync(join(process.cwd(), file), "utf8");
+      for (const rol of rolesUsuario) {
+        expect(text, `${file} restates "${rol}"`).not.toMatch(
+          new RegExp(`["']${rol}["']`),
+        );
+      }
+    }
+  });
+});
+
+/** Non-test `.ts` and `.tsx` sources below a folder, as repo-relative paths. */
+function sourcesUnder(dir: string): string[] {
+  return readdirSync(join(process.cwd(), dir), { withFileTypes: true }).flatMap(
+    (entry) => {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) return sourcesUnder(path);
+      return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+        ? [path]
+        : [];
+    },
+  );
+}

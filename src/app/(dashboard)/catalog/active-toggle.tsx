@@ -44,6 +44,11 @@ const IDLE: ActiveToggleState = { kind: "idle" };
  * `confirmIn` places the confirmation step: `inline` (default) below the
  * control, for a wide edit page; `dialog` in a modal alert dialog, for a
  * control inside a table cell, where an inline panel would stretch the row.
+ *
+ * `unchangedText` lets an entity say a no-op in its own words, per direction
+ * (a deactivation of a record that already is inactive, a reactivation of one
+ * that already is active). A direction left out keeps the shared text, so a
+ * caller that passes nothing behaves exactly as before.
  */
 export function ActiveToggle({
   action,
@@ -52,6 +57,7 @@ export function ActiveToggle({
   activo,
   notice,
   confirmIn = "inline",
+  unchangedText,
 }: {
   action: ActiveToggleAction;
   id: number;
@@ -59,6 +65,7 @@ export function ActiveToggle({
   activo: boolean;
   notice?: string;
   confirmIn?: "inline" | "dialog";
+  unchangedText?: Partial<Record<Intent, string>>;
 }) {
   const t = useTranslations("catalog.shared");
   const [state, dispatch, isPending] = useActionState(action, IDLE);
@@ -116,11 +123,13 @@ export function ActiveToggle({
       };
     } else if (state.kind === "unchanged") {
       outcome = {
-        text: t(
-          intent === "reactivate"
-            ? "refusals.unchanged"
-            : "refusals.alreadyInactive",
-        ),
+        text:
+          unchangedText?.[intent] ??
+          t(
+            intent === "reactivate"
+              ? "refusals.unchanged"
+              : "refusals.alreadyInactive",
+          ),
         failed: false,
       };
     } else if (state.kind === "error") {
@@ -226,13 +235,13 @@ export function ActiveToggle({
           aria-labelledby={titleId}
           className="border-border bg-card flex flex-col gap-3 rounded-lg border p-4"
         >
-          <p id={titleId} className="font-medium">
+          <p id={titleId} className="font-medium break-words">
             {t("toggle.confirmTitle", { record: recordLabel })}
           </p>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm break-words">
             {t("toggle.nothingDeleted")}
           </p>
-          {notice ? <p className="text-sm">{notice}</p> : null}
+          {notice ? <p className="text-sm break-words">{notice}</p> : null}
           <div className="flex flex-wrap gap-3">
             <Button
               ref={confirmRef}

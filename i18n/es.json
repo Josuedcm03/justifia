@@ -154,7 +154,7 @@
           "carreraExists": "La Carrera de cada asignatura debe existir ya en el sistema; la importación no crea carreras.",
           "horasPositive": "HorasTotales debe ser un número entero mayor que cero.",
           "periodoFormat": "Periodo debe tener el formato AAAA-S1 o AAAA-S2, por ejemplo 2026-S1.",
-          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente de la hoja Docentes o ya registrado en el sistema.",
+          "correoDocenteResolves": "CorreoDocente, en la hoja Grupos, debe corresponder a un docente activo de la hoja Docentes o ya registrado en el sistema; la importación no reactiva docentes.",
           "diasTokens": "Dias, en la hoja Grupos, acepta los nombres de los días (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo) o sus abreviaturas de tres letras (Lun, Mar, Mié, Jue, Vie, Sáb, Dom), separados por comas. No distingue mayúsculas ni acentos.",
           "diasEffect": "Dias: si omites la columna, se conservan los días guardados de cada grupo. Una celda con días reemplaza los días guardados; una celda vacía los deja como están. La importación nunca quita días."
         },
@@ -276,7 +276,8 @@
           "inactive": "La asignatura está inactiva y no aparece en la hoja Asignaturas del libro. Inclúyela en esa hoja para reactivarla, o quita este grupo"
         },
         "docente": {
-          "unresolved": "El docente no existe en el libro ni en el sistema"
+          "unresolved": "El docente no existe en el libro ni en el sistema",
+          "inactive": "El docente {value} está inactivo y la importación no reactiva docentes. Reactívalo en Docentes o indica otro docente en esta fila"
         },
         "grupo": {
           "duplicate": "El grupo está repetido en la hoja"
@@ -380,6 +381,15 @@
         "dias": {
           "required": "Selecciona al menos un día de la semana en que se reúne el grupo",
           "invalid": "El valor elegido no es un día de la semana. Selecciona los días de la lista"
+        },
+        "correo": {
+          "required": "El correo electrónico es obligatorio. Escribe la dirección del docente.",
+          "invalid": "El correo electrónico no es válido. Escribe una dirección como nombre@dominio.edu.",
+          "tooLong": "El correo electrónico supera los 160 caracteres. Escribe una dirección más corta.",
+          "taken": "Este correo electrónico ya está en uso por otra cuenta. Escribe otro."
+        },
+        "telefono": {
+          "tooLong": "El teléfono supera los 30 caracteres. Escribe un número más corto."
         }
       },
       "noCarrera": {
@@ -525,8 +535,10 @@
       "columns": {
         "name": "Nombre",
         "email": "Correo",
-        "status": "Estado"
+        "status": "Estado",
+        "actions": "Acciones"
       },
+      "edit": "Editar",
       "noEmail": "Sin correo",
       "empty": "Aún no hay docentes activos.",
       "noResults": {
@@ -539,7 +551,37 @@
         "label": "Buscar docentes",
         "placeholder": "Nombre o correo"
       },
-      "tableCaption": "Lista de docentes"
+      "tableCaption": "Lista de docentes",
+      "errors": {
+        "unexpected": "No se pudo guardar el cambio. Inténtalo de nuevo en unos minutos.",
+        "activeGrupos": "{count, plural, one {No se puede desactivar: el docente tiene # grupo activo. Reasígnalo a otro docente o desactívalo primero, e inténtalo de nuevo. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual. Lo encuentras buscando el nombre del docente en Asignaturas.} other {No se puede desactivar: el docente tiene # grupos activos. Reasígnalos a otro docente o desactívalos primero, e inténtalo de nuevo. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual. Los encuentras buscando el nombre del docente en Asignaturas.}}"
+      },
+      "form": {
+        "nombreLabel": "Nombre completo",
+        "correoLabel": "Correo electrónico",
+        "correoHint": "Las remisiones nuevas de este docente se envían a esta dirección y con ella inicia sesión. La dirección anterior deja de funcionar.",
+        "correoNote": "La lista de Usuarios sigue mostrando el usuario anterior, la dirección anterior queda reservada mientras exista la cuenta y la plantilla de importación debe actualizarse con el correo nuevo.",
+        "telefonoLabel": "Teléfono",
+        "submitSave": "Guardar cambios",
+        "submitting": "Guardando…"
+      },
+      "state": {
+        "title": "Estado",
+        "kept": "Los grupos y las remisiones del docente se conservan.",
+        "activeGroups": "{count, plural, =0 {Este docente no tiene grupos activos.} one {Este docente tiene # grupo activo. Reasígnalo a otro docente o desactívalo primero. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual.} other {Este docente tiene # grupos activos. Reasígnalos a otro docente o desactívalos primero. Desactiva los grupos de periodos cerrados y reasigna los del periodo actual.}}",
+        "findGroups": "Buscar al docente en Asignaturas",
+        "alreadyActive": "El docente ya estaba activo. No se hizo ningún cambio.",
+        "alreadyInactive": "El docente ya estaba inactivo. No se hizo ningún cambio."
+      },
+      "breadcrumb": {
+        "label": "Ruta de navegación",
+        "edit": "Editar {nombre}"
+      },
+      "page": {
+        "editTitle": "Editar docente",
+        "editSubtitle": "Actualiza el nombre, el correo y el teléfono del docente.",
+        "reactivateHint": "Para editarlo, reactívalo primero en la sección Estado."
+      }
     },
     "inscripciones": {
       "title": "Inscripciones",
