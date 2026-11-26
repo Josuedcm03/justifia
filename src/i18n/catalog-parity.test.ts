@@ -1928,6 +1928,9 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
     // docente-maintenance (DM-8, DM-16): the copy of the edit and toggle actions.
     "errors.unexpected",
     "errors.activeGrupos",
+    // docente-maintenance (CM-LST-1): the secretaria's actions column.
+    "columns.actions",
+    "edit",
   ];
 
   it.each(["es", "en"] as const)(
@@ -1999,6 +2002,8 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
         "catalog.docentes.columns.name",
         "catalog.docentes.columns.email",
         "catalog.docentes.columns.status",
+        "catalog.docentes.columns.actions",
+        "catalog.docentes.edit",
         "catalog.docentes.noEmail",
         "catalog.docentes.tableCaption",
         "catalog.docentes.empty",
@@ -2009,6 +2014,18 @@ describe("catalog parity (CM-I18N-1, CM-UX-1: Docentes list copy)", () => {
       ]),
     );
   });
+
+  // The Edit link and its header read like the Asignaturas ones, per locale.
+  it.each([
+    ["es", "Acciones", "Editar"],
+    ["en", "Actions", "Edit"],
+  ] as const)(
+    "%s Docentes actions header is %s and the Edit link says %s",
+    (locale, header, edit) => {
+      expect(section(locale, "catalog.docentes.columns.actions")).toBe(header);
+      expect(section(locale, "catalog.docentes.edit")).toBe(edit);
+    },
+  );
 
   it.each(["es", "en"] as const)(
     "%s carries every key the Docentes table and page use",

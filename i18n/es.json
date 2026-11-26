@@ -534,8 +534,10 @@
       "columns": {
         "name": "Nombre",
         "email": "Correo",
-        "status": "Estado"
+        "status": "Estado",
+        "actions": "Acciones"
       },
+      "edit": "Editar",
       "noEmail": "Sin correo",
       "empty": "Aún no hay docentes activos.",
       "noResults": {

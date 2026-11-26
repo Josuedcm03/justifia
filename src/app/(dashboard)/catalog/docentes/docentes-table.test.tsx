@@ -64,14 +64,16 @@ function renderTable({
   total = rows.length,
   state = DEFAULT_STATE,
   locale = "en",
+  canEdit,
 }: {
   rows?: readonly DocenteRow[];
   total?: number;
   state?: State;
   locale?: TestLocale;
+  canEdit?: boolean;
 } = {}) {
   return renderWithIntl(
-    <DocentesTable rows={rows} total={total} state={state} />,
+    <DocentesTable rows={rows} total={total} state={state} canEdit={canEdit} />,
     locale,
   );
 }
@@ -108,7 +110,14 @@ describe.each(["es", "en"] as const)("DocentesTable in %s", (locale) => {
       expect.stringContaining(copy.columns.email),
       expect.stringContaining(copy.columns.status),
     ]);
-    expect(Object.keys(copy.columns)).toEqual(["name", "email", "status"]);
+    // The catalog also holds the secretaria's "actions" header; it is drawn
+    // only with `canEdit` (see the actions column describe below).
+    expect(Object.keys(copy.columns)).toEqual([
+      "name",
+      "email",
+      "status",
+      "actions",
+    ]);
     expect(screen.queryByText("aperez")).not.toBeInTheDocument();
     const labels = [copy.columns.name, copy.columns.email, copy.columns.status];
     headers.forEach((header, index) => {
@@ -198,6 +207,94 @@ describe("DocentesTable is read-only (CM-LST-1, CM-ACC-1)", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 });
+
+describe.each(["es", "en"] as const)(
+  "DocentesTable actions column for the secretaria in %s (CM-LST-1, DM-15, DM-17)",
+  (locale) => {
+    const copy = messages[locale].catalog.docentes;
+    const shared = messages[locale].catalog.shared;
+
+    it("defaults canEdit to false: exactly the three data columns and no link in the body", () => {
+      renderTable({ locale });
+
+      expect(
+        screen.getAllByRole("columnheader").map((header) => header.textContent),
+      ).toEqual([
+        expect.stringContaining(copy.columns.name),
+        expect.stringContaining(copy.columns.email),
+        expect.stringContaining(copy.columns.status),
+      ]);
+      expect(screen.queryByText(copy.columns.actions)).not.toBeInTheDocument();
+      expect(screen.queryByText(copy.edit)).not.toBeInTheDocument();
+      for (const tr of screen.getAllByRole("row").slice(1)) {
+        expect(within(tr).queryAllByRole("link")).toHaveLength(0);
+      }
+    });
+
+    it("an explicit false draws the same three columns", () => {
+      renderTable({ locale, canEdit: false });
+
+      expect(screen.getAllByRole("columnheader")).toHaveLength(3);
+      for (const tr of screen.getAllByRole("row").slice(1)) {
+        expect(within(tr).queryAllByRole("link")).toHaveLength(0);
+      }
+    });
+
+    it("canEdit adds a fourth, last, non-sortable actions column", () => {
+      renderTable({ locale, canEdit: true });
+
+      const headers = screen.getAllByRole("columnheader");
+      expect(headers).toHaveLength(4);
+      expect(headers[3]).toHaveTextContent(copy.columns.actions);
+      expect(within(headers[3]).queryByRole("button")).toBeNull();
+      expect(headers[3]).not.toHaveAttribute("aria-sort");
+      // The three data columns keep sorting.
+      for (const index of [0, 1, 2]) {
+        expect(within(headers[index]).getByRole("button")).toBeVisible();
+      }
+    });
+
+    it("holds one Edit link per row, active or inactive, named after the docente", () => {
+      renderTable({ locale, canEdit: true });
+
+      const body = screen.getAllByRole("row").slice(1);
+      expect(body).toHaveLength(3);
+      for (const tr of body) {
+        expect(within(tr).queryByRole("button")).toBeNull();
+        expect(within(tr).getAllByRole("link")).toHaveLength(1);
+      }
+      const links = body.map((tr) => within(tr).getByRole("link"));
+      expect(links.map((a) => a.getAttribute("href"))).toEqual([
+        `${BASE}/5/edit`,
+        `${BASE}/6/edit`,
+        `${BASE}/7/edit`,
+      ]);
+      expect(links[0]).toHaveAccessibleName(`${copy.edit} Ana Pérez`);
+      // The inactive row is editable too (the page shows it read-only).
+      expect(links[1]).toHaveAccessibleName(`${copy.edit} Luis Gómez`);
+      expect(links[2]).toHaveAccessibleName(`${copy.edit} Eva Ríos`);
+    });
+
+    it("keeps the state as a word in every row and offers no create control", () => {
+      renderTable({ locale, canEdit: true });
+
+      const [, first, second] = screen.getAllByRole("row");
+      expect(within(first).getByText(shared.status.active)).toBeVisible();
+      expect(within(second).getByText(shared.status.inactive)).toBeVisible();
+      const hrefs = screen
+        .getAllByRole("link")
+        .map((a) => a.getAttribute("href") ?? "");
+      expect(hrefs.filter((href) => /\/new|create/i.test(href))).toEqual([]);
+    });
+
+    it("offers no create action in the empty state either", () => {
+      renderTable({ locale, canEdit: true, rows: [], total: 0 });
+
+      expect(screen.getByText(copy.empty)).toBeVisible();
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+  },
+);
 
 describe("DocentesTable controls (CM-LST-1, DT-URL-2, DT-NAV-1)", () => {
   it("offers the status filter as links that keep the view and reset the page", () => {
