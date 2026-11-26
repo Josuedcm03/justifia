@@ -157,3 +157,11 @@ Each applied to the production file, run, reverted, `git status` clean before ev
 ### Size and stop line
 
 `git diff --numstat 041c475 HEAD -- . ':(exclude)openspec' ':(exclude)docs'`: 1908 added, 21 deleted, 1929 total (planned about 700). Per unit: unit 4 (`df11aca`) 310, unit 5 (`f2052d5`) 1619. Production code is about 263 of those lines; about 1666 are tests (`docentes/actions.test.ts` alone is 864, `catalog-parity.test.ts` +205, `audit-leak.test.ts` +140, `action-helpers.test.ts` 147). Over the 1000 stop line, and unit 5 alone is over it, so no unit boundary lands under 1000 for the actions. Inside unit 5 the pieces are: helper (tasks 2.4 and 2.5) 175, actions module with its test and copy 1045, pins (audit-leak, guards, parity, matrix) 399. Tests were not trimmed; the cut is left to the owner and the orchestrator.
+
+### Orchestrator review of slice 2 (2026-11-25)
+
+- Code read in full. Full run at the slice tip: 397 files, 10711 tests, all pass; typecheck clean; ESLint 0 errors.
+- Nine further mutations, all reverted, all killed: no revalidation after a toggle, `correo_taken` mapped to unexpected, `/users` not revalidated, count 0 in the refusal, intent check removed, safe-integer check removed in the guard, `addressedRecord` returning a null record, `inactive` falling through to the redirect, the Asignaturas edit page not revalidated.
+- One reviewer commit (`fix(docentes): point the active-grupos refusal to the Asignaturas search`): the DM-8 refusal now ends with the pointer to the Asignaturas search (CM-ASG-9, a SHOULD of DM-8), red first in `catalog-parity.test.ts`. Slice total 1935 lines.
+- Cut by the owner's choice (2026-11-25) into PR 2a (#157: unit 4 plus the `addressedRecord` helper as its own commit, 485 lines, green on its own: 396 files, 10580 tests) and PR 2b (#158: the actions, pins and copy, about 1450 lines, over 1000 with the owner's explicit yes). The 2b branch was rebased onto 2a; its tree is byte-identical to the reviewed tip.
+- Open for slice 3: DM-16 "already active" has no copy yet; the toggle of task 3.5 must supply it.
