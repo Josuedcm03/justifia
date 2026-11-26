@@ -268,8 +268,10 @@ describe.skipIf(gate.mode !== "run")(
   () => {
     const fixtures = createFixtures();
     let serial = 0;
+    // "it-sc-" keeps these addresses apart from the fixture ones
+    // ("it-docente-<run>-<n>"), whose counter is independent of `serial`.
     const mail = (label: string) =>
-      `it-${label}-${fixtures.run}-${++serial}@integration.invalid`;
+      `it-sc-${label}-${fixtures.run}-${++serial}@integration.invalid`;
 
     let actor: { id: number; facultadId: number };
     let before: Record<string, number>;
