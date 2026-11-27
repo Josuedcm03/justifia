@@ -233,3 +233,93 @@ PG-only mutation checks to run in task 14.5 (not run here: they need a database)
 ### Next
 
 2.8: open PR 2b to the tracker and merge it under the standing approval (it is under 1000 lines and the gates are green). Then the owner's yes to run the suite on a disposable Neon branch (task 14.5), and slice 3 (task 3.0) from the tracker.
+
+## Slice 3: on-read signals (PR 3 of 13, branch `feat/normative-parameters-3-on-read-signals`; 2026-11-27)
+
+Mode: Strict TDD. Tasks 3.0 to 3.7 done (units 5 and 6 committed); 3.8 (open and merge the PR into the tracker) is not assigned to apply. The branch is cut from the tracker, which already holds slices 1 and 2 (PRs 170, 171, 172). **No database command of any kind was run**: this slice lists no Postgres case (its PG rows are tasks 9.5 and 12.3), and no INTEGRATION env was set.
+
+### Framework rule
+
+No Next API is used in this slice: the changes are in pure rule modules and in one server data module. `loadSignals` reaches the parameters only through `getNormativeParameters` (React `cache()`, the rule recorded in task 0.3: no `unstable_cache`, no `use cache`, no module-level store, no timer). The two pages and the coordination page keep their `loadSignals` calls unchanged.
+
+### Files
+
+| File | Action | Authored lines (added / deleted) |
+|---|---|---|
+| `src/lib/signals/timing.ts` | Modified: required `timing: TimingParams`; the deadline is `addBusinessDays(absenceTo, timing.lateFilingBusinessDays, calendar)` | 16 / 7 |
+| `src/lib/signals/evaluate.ts` | Modified: required `timing` argument passed to RN-07 | 6 / 2 |
+| `src/lib/signals/params.ts` | Modified: comment only (the values come from the loader; registry defaults point here; shape and values stable) | 5 / 2 |
+| `src/lib/data/signals.ts` | Modified: `resolveInputs`; `loadSignals(input)` builds params, calendar and timing from the loader when the caller passes none; `timing?` added to `LoadSignalsInput`; no constant calendar and no code params left | 50 / 10 |
+| `src/lib/signals/timing.test.ts` | Modified: third argument everywhere, new RN-07 days table (6 rows), third-business-day case, own-key case, holiday case, longer deadline reaching an uncovered year | 106 / 0 |
+| `src/lib/signals/evaluate.test.ts` | Modified: `evaluateWith` takes timing; 3 new tests (days reach RN-07, only RN-07 changes, shape pin) | 64 / 2 |
+| `src/lib/signals/rf-05-e.test.ts` | Modified: the one call site passes the timing | 3 / 1 |
+| `src/lib/data/signals.test.ts` | Modified: loader double (`vi.mock` of `@/lib/parameters/loader`), 11 new cases | 221 / 1 |
+| `src/lib/parameters/no-constants.test.ts` | Modified: constant-path scan of `src/lib/signals` and of the reader, with its own detector table (15 new tests) | 157 / 0 |
+
+Commits: unit 5 "feat(signals): take the late-filing days as an explicit input" (timing, evaluate, the `rf-05-e` test call site, the interim call site in `data/signals.ts`, their tests); unit 6 "feat(signals): read the recurrence threshold, the map and the late-filing days from the loader" (signals.ts, params.ts, signals.test.ts, no-constants.test.ts). `SignalParams`, `DEFAULT_SIGNAL_PARAMS` and every `issuer.ts` export are untouched in shape and value (pinned by a test).
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 3.1 | `timing.test.ts` and `evaluate.test.ts`: 9 failed (3-day and 1-day rows, third business day, own key, longer deadline reaching 2028, evaluate passes the days, only RN-07 changes); the 2-day rows and the shape pin passed at write time | n/a | n/a |
+| 3.2 | n/a | `T(signals/ data/signals)`: 15 files, 371 passed with the other signals tests unedited (only the `rf-05-e` call site gained the argument) | n/a |
+| 3.3 | n/a | n/a | prettier, eslint, typegen plus typecheck clean; MC-4a and the shape-pin mutation; commit unit 5 |
+| 3.4 | `signals.test.ts` and `no-constants.test.ts`: 10 failed (RN-14 threshold, RN-13 flipped cell, RN-07 days, calendar holiday, calendar year, one read, injected wins, loader rejects, and the two reader scans) | n/a | n/a |
+| 3.5 | n/a | `T(signals/ data/signals parameters/)`: 19 files, 536 passed | n/a |
+| 3.6 | n/a | n/a | prettier, eslint, typegen plus typecheck clean; MC-5a to MC-5f; commit unit 6 |
+
+Passing at write time (pins of existing behaviour, each with a revert-only mutation check below): the 2-day timing rows, the shape pin of `SignalParams`, `DEFAULT_SIGNAL_PARAMS` and the `issuer.ts` exports, "falls back to the default behaviour when the loader read failed", "keeps RN-07 apart from the remission days", "rest signals and marks ignore the active flag", and the scan of the signals rule modules.
+
+### Mutation checks (files staged first; each reverted with `git restore`, `git diff` clean before every commit)
+
+| Check | Mutation | Failing tests |
+|---|---|---|
+| MC-4a | `evaluateLatePresentation` counts 2 days whatever `timing` says | 9: the 3-day and 1-day rows of `timing.test.ts`, "files on the third business day", "has its own key", "is not evaluable when a longer deadline reaches a year the calendar lacks", and the two `evaluate.test.ts` days cases |
+| MC-4b (shape pin) | `lateFilingBusinessDays: 2` added to `DEFAULT_SIGNAL_PARAMS` | "keeps the shape of SignalParams, DEFAULT_SIGNAL_PARAMS and the issuer exports" |
+| MC-5a | `loadSignals` passes `DEFAULT_SIGNAL_PARAMS` instead of `signalParamsOf(values)` | "evaluates RN-14 with the threshold in force: 3 by default, 2 once saved", "evaluates RN-13 with the stored map: a flipped cell makes it absent", and the reader scan "holds no constant path" |
+| MC-5b | the loader is read twice | "reads the loader once per read" and "lets an injected value win, and reads the loader only for what is missing" |
+| MC-5c | rest signals cut to `not_applicable` (`false && admitsRest(...)` in `evaluate.ts`) | "evaluates the rest signals and the marks whatever the active flag of a cause" plus three existing assembly tests |
+| MC-5d | `timing.ts` imports `DEFAULT_PARAMETERS` from the registry | "the signals rule modules take no constant path ... imports no registry default, no constant calendar and no RN-08 number" |
+| MC-5e | `timingParamsOf` reads `remissionBusinessDays` | "evaluates RN-07 with the late-filing days in force", "keeps RN-07 apart from the remission days of RN-08", "lets an injected value win ...", and `derive.test.ts` "follows the values it is given and nothing else" |
+| MC-5f | a `degraded` loader read throws in `resolveInputs` | "falls back to the default behaviour when the loader read failed, and does not throw" |
+
+### Work Unit Evidence
+
+| Evidence | Unit 5 | Unit 6 |
+|---|---|---|
+| Focused test command and exact result | `DATABASE_URL=postgres://u:p@localhost:5432/x npm test -- signals/timing signals/evaluate`: 2 files, 72 tests passed after GREEN | `DATABASE_URL=postgres://u:p@localhost:5432/x npm test -- signals/ data/signals parameters/`: 19 files, 536 tests passed |
+| Runtime harness | N/A: pure functions, proven by the day tables; no runtime boundary | The loader is a scripted double here; the real read against Postgres is the PG-2 signals rows (tasks 9.5 and 12.3) and task 14.5, not run in this slice |
+| Rollback boundary | Revert unit 5: timing, evaluate and their tests, the `rf-05-e` call site and the interim default in `data/signals.ts`; RN-07 returns to the constant 2 | Revert unit 6: `data/signals.ts`, `params.ts` (comment), the scans and the loader double; signals return to constants |
+
+### Gates (without `npm run build`)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full, foreground): 405 files, 11140 tests, all passed (slice 2b left 405 files and 11101 tests; plus 39 tests, no new file).
+- `npx next typegen` then `npm run typecheck`: clean.
+- `npx eslint <the nine changed files>` with the `prettier/prettier` rule at `endOfLine: auto`: 0 errors, 0 warnings.
+- `npx prettier --check <the nine changed files> --end-of-line auto`: clean.
+
+### Size (task 3.7)
+
+`git diff --numstat feat/normative-parameters HEAD` excluding `openspec`, `docs` and `drizzle/meta`: **628 added plus 25 deleted = 653 changed lines** (planned about 550). Unit 5 alone is 212 (200 added, 12 deleted), unit 6 alone is 447 (431 added, 16 deleted); the lines of `data/signals.ts` written in unit 5 and rewritten in unit 6 do not count twice in the total. Under the 1000 stop line; no `size:exception` needed.
+
+### Deviations from design and tasks
+
+1. Task 3.1 says "`LATE_WINDOW_DAYS` no longer exists". That constant (`src/lib/intake/limits.ts`) is the RN-23 filing window, removed in slice 5 (task 5.2), and RN-07 never read it. The RN-07 number was the private `BUSINESS_DAYS_TO_REMIT` reached through `deadlineOf`, which stays until slice 4. The pin was replaced by two checks that prove the intent: the days table (a 3-day and a 1-day deadline) and a structural scan that no `src/lib/signals` module uses `deadlineOf` or `BUSINESS_DAYS_TO_REMIT` and that `timing.ts` counts `timing.lateFilingBusinessDays`.
+2. `evaluateLatePresentation` uses the existing `addBusinessDays(start, days, calendar)` instead of `deadlineOf`, because `deadlineOf` still carries the RN-08 constant until slice 4 and the spec requires that the remission days never move RN-07. Same day-counting semantics and the same calendar as the queue.
+3. Task 3.2 says the other signals tests stay unedited; `rf-05-e.test.ts` gained the new required argument at its single call site (3 lines), as typecheck flagged.
+4. Between the two commits `loadSignals` carried an interim default (`timingParamsOf(DEFAULT_PARAMETERS)`) so that every commit typechecks and passes; unit 6 removes it, and the final reader imports no registry default (scanned).
+5. `loadSignals` now takes the whole input object (the destructured defaults are gone), reads the loader once and only when the caller left params, calendar or timing out, and does it after the other reads, so a request that fails early never costs the extra read. A rejection of the loader itself stays fail-soft (`{ data: null, degraded: true }`, VS-3); the real loader never throws.
+6. `TimingParams` is imported as a type from `src/lib/parameters/derive.ts` (a type-only cycle with `derive.ts`, erased at build); it is not re-exported from `timing.ts`.
+7. The NP-15 scan covers the signals rule modules as the task says and also the reader `src/lib/data/signals.ts` (no registry default, no constant calendar, no `DEFAULT_SIGNAL_PARAMS`, loader imported), because A11 says no constant path remains.
+8. Touched files were written with LF endings (the index is LF); git warns that the working copy converts on checkout. Prettier runs with `--end-of-line auto`.
+
+### Risks and notes for later slices
+
+- `rf-14-support.ts` and `validation-signals.integration.test.ts` call `loadSignals` without injecting anything, so on the disposable Neon branch (task 14.5) they now read the real loader. With 0017 applied they read the nine seeds (defaults); without it the loader fails soft to defaults and logs `parameters_read_failed`.
+- The coordination report keeps its own defaults and the `SignalParams`, `DEFAULT_SIGNAL_PARAMS` and `issuer.ts` shapes (pinned by a test).
+- Slice 4 deletes `src/lib/intake/calendar.ts`; this slice already removed the import from `src/lib/data/signals.ts`. The review detail page, the review queue page and the coordination action still import it until slice 4.
+
+### Next
+
+3.8: open PR 3 against the tracker and merge it under the standing approval (653 lines, gates green); then slice 4 (task 4.0) from the tracker.

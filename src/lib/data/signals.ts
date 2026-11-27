@@ -23,12 +23,18 @@ import {
 } from "@/db/schema";
 import { listExtractions } from "@/lib/data/extraction";
 import { requestInScope } from "@/lib/data/request-scope-sql";
-import { calendar as defaultCalendar } from "@/lib/intake/calendar";
 import { isCausa, type Causa } from "@/lib/intake/causes";
 import type { NonWorkingDaysProvider } from "@/lib/intake/ports";
 import type { RequestScope } from "@/lib/intake/request-scope";
+import {
+  calendarOf,
+  signalParamsOf,
+  timingParamsOf,
+  type TimingParams,
+} from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 import { evaluateSignals } from "@/lib/signals/evaluate";
-import { DEFAULT_SIGNAL_PARAMS, type SignalParams } from "@/lib/signals/params";
+import type { SignalParams } from "@/lib/signals/params";
 import type { RepeatedDocumentInput } from "@/lib/signals/repeated-document";
 import type { IssuerHistoryRow, SignalReport } from "@/lib/signals/types";
 
@@ -53,9 +59,40 @@ export type LoadSignalsInput = {
    * applied inside the database, so an out-of-scope id never leaves it.
    */
   referenceScope: RequestScope;
+  /**
+   * The three inputs of the evaluation (A11). Each one the caller leaves out is
+   * built from the normative parameters in force at read time; an injected one
+   * wins, which is how the tests and the coordination report pass their own.
+   */
   params?: SignalParams;
   calendar?: NonWorkingDaysProvider;
+  timing?: TimingParams;
 };
+
+type EvaluationInputs = {
+  params: SignalParams;
+  calendar: NonWorkingDaysProvider;
+  timing: TimingParams;
+};
+
+/**
+ * Params, calendar and RN-07 days for one evaluation. The loader is read once,
+ * and only when the caller left something out. It never throws: a failed read
+ * is every default (NP-4), so the signals keep today's behaviour.
+ */
+async function resolveInputs(
+  given: LoadSignalsInput,
+): Promise<EvaluationInputs> {
+  const { params, calendar, timing } = given;
+  if (params && calendar && timing) return { params, calendar, timing };
+
+  const { values } = await getNormativeParameters();
+  return {
+    params: params ?? signalParamsOf(values),
+    calendar: calendar ?? calendarOf(values),
+    timing: timing ?? timingParamsOf(values),
+  };
+}
 
 type RequestBase = {
   presentadaEn: Date;
@@ -262,16 +299,14 @@ export async function readEarlierMatches(
 
 /**
  * Reads and evaluates the signals of one request, computed on every read from
- * current data (SNAP). The caller has already proven the request is in its
- * scope. Never throws: a failure of any query, or a degraded extraction read,
+ * current data (SNAP) and the parameters in force at read time (RNF-14). The
+ * caller has already proven the request is in its scope. Never throws: a failure of any query, or a degraded extraction read,
  * is `{ data: null, degraded: true }`.
  */
-export async function loadSignals({
-  solicitudId,
-  referenceScope,
-  params = DEFAULT_SIGNAL_PARAMS,
-  calendar = defaultCalendar,
-}: LoadSignalsInput): Promise<SignalsRead> {
+export async function loadSignals(
+  input: LoadSignalsInput,
+): Promise<SignalsRead> {
+  const { solicitudId, referenceScope } = input;
   try {
     const base = await readRequestBase(solicitudId);
     const extractions = await listExtractions(solicitudId);
@@ -295,6 +330,10 @@ export async function loadSignals({
       hashes.length === 0
         ? []
         : await readEarlierMatches({ solicitudId, hashes, referenceScope });
+
+    // The parameters are read last, once, so a request that fails early never
+    // costs the extra read.
+    const { params, calendar, timing } = await resolveInputs(input);
 
     return {
       degraded: false,
@@ -322,6 +361,7 @@ export async function loadSignals({
         },
         params,
         calendar,
+        timing,
       ),
     };
   } catch (error) {
