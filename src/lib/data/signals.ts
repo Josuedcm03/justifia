@@ -27,6 +27,8 @@ import { calendar as defaultCalendar } from "@/lib/intake/calendar";
 import { isCausa, type Causa } from "@/lib/intake/causes";
 import type { NonWorkingDaysProvider } from "@/lib/intake/ports";
 import type { RequestScope } from "@/lib/intake/request-scope";
+import { timingParamsOf, type TimingParams } from "@/lib/parameters/derive";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 import { evaluateSignals } from "@/lib/signals/evaluate";
 import { DEFAULT_SIGNAL_PARAMS, type SignalParams } from "@/lib/signals/params";
 import type { RepeatedDocumentInput } from "@/lib/signals/repeated-document";
@@ -55,6 +57,7 @@ export type LoadSignalsInput = {
   referenceScope: RequestScope;
   params?: SignalParams;
   calendar?: NonWorkingDaysProvider;
+  timing?: TimingParams;
 };
 
 type RequestBase = {
@@ -271,6 +274,7 @@ export async function loadSignals({
   referenceScope,
   params = DEFAULT_SIGNAL_PARAMS,
   calendar = defaultCalendar,
+  timing = timingParamsOf(DEFAULT_PARAMETERS),
 }: LoadSignalsInput): Promise<SignalsRead> {
   try {
     const base = await readRequestBase(solicitudId);
@@ -322,6 +326,7 @@ export async function loadSignals({
         },
         params,
         calendar,
+        timing,
       ),
     };
   } catch (error) {

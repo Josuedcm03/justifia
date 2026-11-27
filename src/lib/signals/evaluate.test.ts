@@ -5,8 +5,11 @@ import { constantCalendar } from "@/lib/intake/adapters/constant-calendar";
 import { CAUSAS, type Causa } from "@/lib/intake/causes";
 import type { ExtractionRowView } from "@/lib/extraction/display";
 
+import type { TimingParams } from "@/lib/parameters/derive";
+
 import { DOCUMENT_TYPE_CAUSES } from "./document-type-causes";
 import { evaluateSignals } from "./evaluate";
+import * as issuerModule from "./issuer";
 import { DEFAULT_SIGNAL_PARAMS, type SignalParams } from "./params";
 import type { RepeatedDocumentInput } from "./repeated-document";
 import {
@@ -92,8 +95,20 @@ function input(overrides: FixtureInput = {}): SignalInput {
   };
 }
 
-const evaluateWith = (value: SignalInput, params: Partial<SignalParams>) =>
-  evaluateSignals(value, { ...DEFAULT_SIGNAL_PARAMS, ...params }, calendar);
+// RN-07 days (key `presentacion_tardia_dias`, default 2): an explicit input.
+const TIMING: TimingParams = { lateFilingBusinessDays: 2 };
+
+const evaluateWith = (
+  value: SignalInput,
+  params: Partial<SignalParams>,
+  timing: TimingParams = TIMING,
+) =>
+  evaluateSignals(
+    value,
+    { ...DEFAULT_SIGNAL_PARAMS, ...params },
+    calendar,
+    timing,
+  );
 
 const evaluate = (value: SignalInput, threshold?: number) =>
   evaluateWith(
@@ -795,5 +810,52 @@ describe("evaluateSignals marks (RN-11, RN-12, RN-13)", () => {
         }
       }
     }
+  });
+});
+
+// validation-signals: "Late presentation, RN-07" and design A10. The days of
+// RN-07 travel as their own argument; the shape of `SignalParams` is the one a
+// teammate's report already reads.
+describe("evaluateSignals late-filing days (RN-07)", () => {
+  // Fri 2026-10-09 is the end date; Wed 14th is the third business day after.
+  const wednesday = input({ presentedAt: new Date("2026-10-14T15:00:00Z") });
+  const rn07 = (timing: TimingParams) =>
+    result(evaluateWith(wednesday, {}, timing), "rn07");
+
+  it("passes the late-filing days to RN-07: late with 2, on time with 3", () => {
+    expect(rn07({ lateFilingBusinessDays: 2 })).toMatchObject({
+      outcome: "present",
+      evidence: { deadline: "2026-10-13" },
+    });
+    expect(rn07({ lateFilingBusinessDays: 3 })).toMatchObject({
+      outcome: "absent",
+      evidence: { deadline: "2026-10-14" },
+    });
+  });
+
+  it("changes only RN-07 when the days change", () => {
+    const two = evaluateWith(wednesday, {}, { lateFilingBusinessDays: 2 });
+    const three = evaluateWith(wednesday, {}, { lateFilingBusinessDays: 3 });
+
+    expect(three.results.slice(1)).toEqual(two.results.slice(1));
+    expect(three.results[0]).not.toEqual(two.results[0]);
+  });
+
+  it("keeps the shape of SignalParams, DEFAULT_SIGNAL_PARAMS and the issuer exports", () => {
+    // Pinned for the coordination report (design A10): no field is added, the
+    // days of RN-07 never enter `SignalParams`.
+    expect(Object.keys(DEFAULT_SIGNAL_PARAMS).sort()).toEqual([
+      "documentTypeCauses",
+      "issuerRecurrenceThreshold",
+    ]);
+    expect(DEFAULT_SIGNAL_PARAMS).toEqual({
+      issuerRecurrenceThreshold: 3,
+      documentTypeCauses: DOCUMENT_TYPE_CAUSES,
+    });
+    expect(Object.keys(issuerModule).sort()).toEqual([
+      "evaluateRecurrence",
+      "issuerKey",
+      "normalizeIssuer",
+    ]);
   });
 });

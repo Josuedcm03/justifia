@@ -1,5 +1,6 @@
 import { admitsRest } from "@/lib/intake/causes";
 import type { NonWorkingDaysProvider } from "@/lib/intake/ports";
+import type { TimingParams } from "@/lib/parameters/derive";
 
 import {
   evaluateMissingSeal,
@@ -17,8 +18,9 @@ import { suggestVerdict } from "./verdict";
 /**
  * Evaluates the eight signals (RN-09 and RN-10 only for a cause that admits
  * rest, otherwise `not_applicable`) over plain data (computed on every read,
- * SNAP) and builds the suggested verdict. Pure: the calendar and the parameters
- * are injected, and the report is never stored. Nothing outside the display
+ * SNAP) and builds the suggested verdict. Pure: the calendar, the parameters
+ * and the RN-07 days (`timing`, required, kept apart from `SignalParams`) are
+ * injected, and the report is never stored. Nothing outside the display
  * reads it (RN-15). RN-11, RN-12 and RN-13 read the marks of the documents and
  * are evaluated for every cause: the cut below never touches them.
  */
@@ -26,6 +28,7 @@ export function evaluateSignals(
   input: SignalInput,
   params: SignalParams,
   calendar: NonWorkingDaysProvider,
+  timing: TimingParams,
 ): SignalReport {
   // RN-09 and RN-10 read a rest period, which only some causes can carry. The
   // cut comes first and never touches the extraction: the slots keep their
@@ -46,6 +49,7 @@ export function evaluateSignals(
     evaluateLatePresentation(
       { absenceTo: input.absenceTo, presentedAt: input.presentedAt },
       calendar,
+      timing,
     ),
     ...restSignals,
     evaluateMissingSignature(input.documents),
