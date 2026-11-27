@@ -86,3 +86,8 @@ Stop line: 1012 is 12 lines over 1000. Per the stop line and the skill, nothing 
 ### Next
 
 Remaining for this slice: 1.7 (slice close: `npm run build` by the orchestrator, then the owner's decision on the 12 lines) and 1.8 (open and merge the PR to the tracker). Slice 2 starts from this branch once slice 1 is merged.
+
+### Slice 1 close (orchestrator, 2026-11-27)
+
+- `npm run build` with a dummy `DATABASE_URL` and a throwaway `AUTH_SECRET`: green.
+- Owner decision on the stop line: one PR with a `size:exception` of 12 lines (1012 changed lines). The two units stay separate commits for review.
