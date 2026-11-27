@@ -166,3 +166,70 @@ Owner decision on the size (options above), then unit 4 (tasks 2.5 and 2.6: the 
 
 - Owner decision: slice 2 ships as two PRs. PR 2a holds unit 3 (loader and derive adapters, 1184 changed lines: 212 code, 972 tests) under a `size:exception`; PR 2b holds unit 4 (the Postgres read suite, tasks 2.5 and 2.6) on its own.
 - `npm run build` on PR 2a: green.
+
+## Slice 2b: Postgres read suite (PR 2b, branch `feat/normative-parameters-2b-pg-suite`; 2026-11-27)
+
+Mode: Strict TDD, tests-only unit. Tasks 2.5, 2.6 and 2.7 done; 2.8 (open and merge PR 2b into the tracker) is not assigned to apply. The branch is cut from the tracker, which already holds slice 1 (PR 170) and slice 2a (PR 171). **No database command of any kind was run**: no migrate, push, seed or SQL, and no INTEGRATION env was set to any database. The suite is proven on a disposable Neon branch in task 14.5, with the owner's yes.
+
+### Framework rule
+
+No Next code in this unit (test files only), so no Next guide applied beyond the rule recorded in task 0.3 (React `cache()` only in the loader under test).
+
+### Files
+
+| File | Action | Authored lines |
+|---|---|---|
+| `src/lib/data/integration/normative-parameters-support.ts` | Created: `SEED_DATE`, `seedValue`, `putRow`, `dropKey`, `restoreSeeds`, `databaseError`, `refusal` and the two SQLSTATE constants | 109 |
+| `src/lib/data/integration/normative-parameters.integration.test.ts` | Created: 23 cases in two groups, gated by the decision of `guard.ts` (`INTEGRATION_GATE_MODE`, as every other suite) | 457 |
+
+Commit: unit 4 "test(parameters): add the Postgres read suite" (the two files only). No existing file was edited.
+
+### Cases (23, all skipped without the INTEGRATION env)
+
+- PG-1 (NP-1, NP-16), 5 cases: the nine seed rows as the migration stored them (date `2026-01-01`, value equal to the code default); the loader reads every key from its stored row with `fallback` empty, `degraded` false and no log line; a second row for the same key and day is refused (`23505`, constraint `UQ_ParametroNormativo_Clave_Vigencia`) while another day is accepted; the same refusal for a seeded key on the seed day; a key of 61 characters is refused (`22001`) and one of 60 is accepted.
+- PG-3 read part (NP-3, NP-4), 18 cases: rows at -10, -1 and +1 days give the -1 value; a row dated today is in force; today is the Managua date (a row dated the UTC date of 03:00 UTC is not yet in force, it is at 07:00 UTC); `readInForce` returns one row per key, newest first, over real `DISTINCT ON`; the six rows of the NP-4 per-key table (valid, no row, 99 MiB, `"3"`, newest invalid over an older valid 7, only tomorrow), each run with valid non-default rows for the other five scalar keys, which must keep their own values, and `fallback` must be exactly the key under test; six structured-key rows (calendar sorted and a repeated date refused; causes reordered by position and all-inactive refused; a flipped map cell read and `otro` mapped refused); an unknown key `otra_cosa` ignored with no log; the fallback log carries the key and a code (`invalid_type`, `no_row`) and never a sentinel stored value.
+
+### Design of the fixtures
+
+- Every case reads with one fixed instant (`2026-11-28T03:00:00Z`, 2026-11-27 21:00 in Managua), so no case depends on the clock or on midnight, and the Managua date rule is exercised by all of them.
+- `restoreSeeds` runs after every case and at the end: it deletes the rows dated after the seed date and the rows of keys outside the registry, and re-inserts a deleted seed row with `ON CONFLICT DO NOTHING`. It never overwrites a seed row that is still there, and it is not run before the first case, so the first run on a fresh branch proves what migration 0017 really stored, and no case can mask a bad seed. Audit rows are not touched (none are written by this unit).
+- SQL order is never asserted on keys (the collation of the branch decides it): key lists are compared sorted.
+
+### TDD cycle evidence
+
+| Task | RED | GREEN | REFACTOR |
+|---|---|---|---|
+| 2.5 | Postgres cases cannot fail or pass in the default run: they are skipped without the env, so, as the Conventions of tasks.md say, their RED/GREEN proof is the run of task 14.5 plus its PG-only mutation checks | the suite compiles against the real loader, registry and schema (typecheck clean) | none |
+| 2.6 | n/a | `npm run test:integration -- normative-parameters` without the env: 1 file skipped, 23 tests skipped | prettier, eslint clean; an unused helper (`dropRow`) removed |
+
+PG-only mutation checks to run in task 14.5 (not run here: they need a database): MC-PG-1 drop the unique constraint on the branch inside a transaction that is rolled back (the duplicate case must fail); MC-PG-2 edit `readInForce` to drop `DISTINCT ON` (the one-row-per-key case must fail); MC-PG-3 make the loader scan back to an older valid row (the "newest invalid" case must fail).
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npm run test:integration -- normative-parameters` without the INTEGRATION env: 1 file skipped, 23 tests skipped |
+| Runtime harness | Task 14.5 (disposable Neon branch with 0017 applied, the owner's yes for that command) |
+| Rollback boundary | Test-only revert of the two files; nothing imports them |
+
+### Gates (without `npm run build`)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full, foreground): 405 files, 11101 tests, all passed; identical to slice 2a, so the integration file is not loaded by `npm test`.
+- `npx next typegen` then `npm run typecheck`: clean.
+- `npx eslint <the two files> --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}'`: 0 errors, 0 warnings.
+- `npx prettier --check <the two files> --end-of-line auto`: clean.
+- `npm run test:integration -- normative-parameters` without the INTEGRATION env: 1 file skipped, 23 tests skipped.
+
+### Size (task 2.7)
+
+`git diff --numstat feat/normative-parameters HEAD -- . ':(exclude)openspec' ':(exclude)docs' ':(exclude)drizzle/meta'`: **566 added plus 0 deleted = 566 changed lines** (109 support, 457 suite; planned 250 to 350 for the unit, about 650 for the whole slice before the split). Under the 1000 stop line; no `size:exception` needed for PR 2b.
+
+### Deviations from design and tasks
+
+1. The suite adds a few cases the task text does not list, all inside PG-1 and PG-3 read: a row dated today, the Managua-versus-UTC date, the real `readInForce` statement, the six structured-key outcomes and the log content on a real read. They are the NP-4 and NP-10 to NP-12 scenarios marked [PG] that need only the loader.
+2. `restoreSeeds` restores a deleted seed row but does not overwrite a present one (tasks.md 2.5 says "restore the seeds"); that keeps the first run a proof of the migration's own seed values. No case edits a seed row, so nothing needs overwriting.
+3. The support file exports `databaseError` and `refusal` (SQLSTATE and constraint of a refused statement, as the other suites do locally); slices 6 and 8 reuse them for PG-6 and PG-4.
+
+### Next
+
+2.8: open PR 2b to the tracker and merge it under the standing approval (it is under 1000 lines and the gates are green). Then the owner's yes to run the suite on a disposable Neon branch (task 14.5), and slice 3 (task 3.0) from the tracker.
