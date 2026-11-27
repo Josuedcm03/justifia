@@ -71,7 +71,9 @@ describe("escalation-otro migration (FE-8, FE-9)", () => {
     expect(entries[0].idx).toBe((previous?.idx ?? -1) + 1);
     expect(entries[0].tag).toBe("0016_escalation_otro");
     expect(entries[0].when).toBeGreaterThan(LAST_APPLIED_WHEN);
-    expect(all.at(-1)?.tag).toBe(entries[0].tag);
+    // Later migrations may follow it; the journal must keep them later.
+    const after = all.filter((e) => e.idx > entries[0].idx);
+    expect(after.every((e) => e.when > entries[0].when)).toBe(true);
   });
 
   it("holds exactly eight statements, all on Escalamiento", () => {
