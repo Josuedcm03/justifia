@@ -91,3 +91,78 @@ Remaining for this slice: 1.7 (slice close: `npm run build` by the orchestrator,
 
 - `npm run build` with a dummy `DATABASE_URL` and a throwaway `AUTH_SECRET`: green.
 - Owner decision on the stop line: one PR with a `size:exception` of 12 lines (1012 changed lines). The two units stay separate commits for review.
+
+## Slice 2: loader (PR 2 of 13, branch `feat/normative-parameters-2-loader`; 2026-11-27)
+
+Mode: Strict TDD. Tasks 2.0 to 2.4 done (unit 3 committed). Tasks 2.5 and 2.6 (unit 4, the Postgres read suite) are NOT started and 2.7 (slice close) is OPEN: unit 3 alone already measures over the stop line, so the work stopped at the cut point defined in tasks.md ("Unit 4 moves out"). No database command of any kind was run.
+
+### Framework rule (task 0.3 rule applied)
+
+- Read again this slice: `node_modules/next/dist/docs/01-app/02-guides/caching-without-cache-components.md` (`unstable_cache` is the opt-in data cache that survives across requests, which NP-5 forbids). The loader uses React `cache()` only: no `unstable_cache`, no `use cache`, no module-level store, no timer, no `revalidate*`.
+- React fact verified in `node_modules/react/cjs`: the default (client) build makes `cache()` a pass-through (`return fn.apply(null, arguments)`); only the `react-server` build deduplicates, through the request scope the renderer installs on `ReactSharedInternals.A`. `react-dom/server` renders with the default build, so it cannot prove "one read per render".
+
+### Files
+
+| File | Action | Authored lines |
+|---|---|---|
+| `src/lib/parameters/loader.ts` | Created ("server-only"): `Executor`, `ParametersRead`, `readInForce`, `loadNormativeParameters`, `getNormativeParameters = cache(...)` | 123 |
+| `src/lib/parameters/derive.ts` | Created (pure): `calendarOf`, `deadlineRulesOf`, `timingParamsOf`, `signalParamsOf`, `activeCausesOf`, `filingRulesOf`, `maxDocumentBytesOf`, `intakeLimitsOf` and the types `DeadlineRules`, `TimingParams`, `FilingRules`, `IntakeLimits` | 89 |
+| `src/lib/parameters/loader.test.ts` | Created: 25 tests | 664 |
+| `src/lib/parameters/derive.test.ts` | Created: 12 tests | 194 |
+| `src/lib/parameters/no-constants.test.ts` | Created: 17 tests (the scan, its own detector table, the sources) | 114 |
+
+Commit: unit 3 "feat(parameters): add the fail-soft loader and the derive adapters" (the five files above only). No existing file was edited, no rule code was touched, and nothing imports the loader yet.
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 2.1 | `loader.test.ts`: whole file failed, import of `./loader` unresolved (module missing) | `T(parameters/loader)`: 25 passed (after one expectation of the pinned SQL text was corrected to drizzle's emitted `asc`) | prettier, eslint, typegen plus typecheck clean |
+| 2.2 | `derive.test.ts`: whole file failed, `./derive` unresolved; `no-constants.test.ts`: the loader and derive entries not found (the detector table passed at write time, as it tests the detector itself) | `T(parameters/derive parameters/no-constants)`: 12 and 17 passed | one typecheck fix in the test (a typed map literal) |
+| 2.3 | n/a (GREEN of 2.1 and 2.2) | `T(parameters/)`: 4 files, 139 tests passed (85 registry plus 54 new) | n/a |
+| 2.4 | n/a | n/a | MC-3a, MC-3b, MC-3c, each reverted; commit unit 3 |
+
+### Mutation checks (new files staged first; each reverted with `git restore`, `git diff` clean before the commit)
+
+| Check | Mutation | Failing tests |
+|---|---|---|
+| MC-3a | `readInForce` selects every row not after today (no DISTINCT ON) and the loader keeps only the valid ones, so it scans back to an older valid row | "an invalid newest row with an older valid one gives the default, not the older row; the other keys keep their own rows", the two `readInForce` tests (statement text, rows in force) and the "statement cannot even be built" test (4 failures) |
+| MC-3b | `getNormativeParameters` wrapped around a module-level `let memo` | 6 failures: "reads again in the next render, so a saved value is seen by the next request", "reads twice for two renders", "reads on every call outside a render scope", "keeps nothing inside the cached function itself", and in `no-constants.test.ts` "loader.ts uses no data cache, no module-level store and no timer" and "every parameters source is clean" |
+| MC-3c | the fallback `code` also carries `JSON.stringify` of the stored value | 6 failures: five rows of the per-key table (the `code` equality) and "the log never carries a stored value: names the key and a code only, whatever the invalid row holds" |
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `DATABASE_URL=postgres://u:p@localhost:5432/x npm test -- parameters/`: 4 files, 139 tests passed (loader 25, derive 12, no-constants 17, registry 85) |
+| Runtime harness | PG-3 read part runs in unit 4 (task 2.5), which is not started; the loader itself is proven on the in-memory table double and the pinned SQL text |
+| Rollback boundary | Revert unit 3: five new files under `src/lib/parameters/`; nothing imports them |
+
+### Gates (without `npm run build`)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full, foreground): 405 files, 11101 tests, all passed (slice 1 left 402 files and 11047 tests; plus 3 files and 54 tests).
+- `npx next typegen` then `npm run typecheck`: clean.
+- `npx eslint src --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}'`: 0 errors, the same 1 pre-existing warning (`SidebarGroupLabel` in `src/components/app-sidebar.tsx`).
+- `npx prettier --check <touched files> --end-of-line auto`: clean.
+
+### Size (task 2.7 not closed): OVER THE STOP LINE WITH UNIT 3 ALONE
+
+`git diff --numstat feat/normative-parameters HEAD -- . ':(exclude)openspec' ':(exclude)docs' ':(exclude)drizzle/meta'`: **1184 added plus 0 deleted = 1184 changed lines** (planned about 650 for units 3 and 4 together). Per file: loader.test.ts 664, derive.test.ts 194, no-constants.test.ts 114, loader.ts 123, derive.ts 89. Nothing was trimmed. The cut point of tasks.md (unit 4 moves out) cannot bring the slice under 1000 because unit 3 alone is over; unit 4 would add roughly 250 to 350 more lines. Options for the owner: (a) accept a `size:exception` for this PR with unit 3 only (1184) and open unit 4 as its own PR; (b) split unit 3 at a file boundary (derive.ts, derive.test.ts and no-constants.test.ts are 397 lines; the loader and its test are 787), which keeps every PR under 1000 but redoes the 2.1 to 2.3 history as two commits; (c) another cut the owner prefers. Tasks 2.5 to 2.7 stay open until then.
+
+### Deviations from design and tasks
+
+1. `constantCalendar` lives in `src/lib/intake/adapters/constant-calendar.ts`, not in `business-days.ts` as task 2.3 says; `derive.ts` imports it from there (`business-days.ts` was not touched).
+2. The "one read per render" cases do not use `react-dom/server`: it renders with the default React build, whose `cache()` is a pass-through, so it can never show deduplication. The test loads the real `react-server` build of React and installs a request scope by hand (the `getCacheForType` shape the renderer provides), so the deduplication logic under test is React's own. Two reads for two renders, a read per call outside a render, and "nothing kept inside the cached function" are asserted too.
+3. Fallback log lines: `parameter_invalid { clave, code }` where `code` is the first Zod issue code (`too_big`, `invalid_type`, `custom`, ...) or `no_row` when no row is in force; a missing row is logged too, because NP-4 says every fallback is logged. `parameters_read_failed { code }` is the error name, or `typeof` for a thrown non-Error. Both are `console.error(JSON.stringify(...))` lines with an `event` field (the shape of `logCatalogFailure`).
+4. The adapter types `DeadlineRules`, `TimingParams`, `FilingRules` and `IntakeLimits` are defined and exported by `derive.ts` (the design names them but no file owned them). Slice 3 may re-export `TimingParams` from `signals/timing.ts`.
+5. `Executor` is an alias of the existing `CatalogExecutor` (`src/lib/data/catalog.ts`), type-only import, so `db` and a transaction both fit.
+6. `no-constants.test.ts` is a source-text scan (comments stripped, with a detector table proving it flags each violation) rather than an AST parse, as no test in the repository parses TypeScript.
+
+### Next
+
+Owner decision on the size (options above), then unit 4 (tasks 2.5 and 2.6: the Postgres read suite and its support file, skipped without the INTEGRATION env), then 2.7 (slice close with `npm run build` by the orchestrator) and 2.8 (PR).
+
+### Slice 2 split (orchestrator, 2026-11-27)
+
+- Owner decision: slice 2 ships as two PRs. PR 2a holds unit 3 (loader and derive adapters, 1184 changed lines: 212 code, 972 tests) under a `size:exception`; PR 2b holds unit 4 (the Postgres read suite, tasks 2.5 and 2.6) on its own.
+- `npm run build` on PR 2a: green.
