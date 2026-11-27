@@ -161,3 +161,8 @@ Commit: unit 3 "feat(parameters): add the fail-soft loader and the derive adapte
 ### Next
 
 Owner decision on the size (options above), then unit 4 (tasks 2.5 and 2.6: the Postgres read suite and its support file, skipped without the INTEGRATION env), then 2.7 (slice close with `npm run build` by the orchestrator) and 2.8 (PR).
+
+### Slice 2 split (orchestrator, 2026-11-27)
+
+- Owner decision: slice 2 ships as two PRs. PR 2a holds unit 3 (loader and derive adapters, 1184 changed lines: 212 code, 972 tests) under a `size:exception`; PR 2b holds unit 4 (the Postgres read suite, tasks 2.5 and 2.6) on its own.
+- `npm run build` on PR 2a: green.
