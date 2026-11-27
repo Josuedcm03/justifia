@@ -5,9 +5,10 @@ import { createDbDouble, type Step } from "./test-support/db-double";
 
 vi.mock("server-only", () => ({}));
 
-const { holder, listExtractionsMock } = vi.hoisted(() => ({
+const { holder, listExtractionsMock, getParametersMock } = vi.hoisted(() => ({
   holder: { current: null as unknown },
   listExtractionsMock: vi.fn(),
+  getParametersMock: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
@@ -22,6 +23,12 @@ vi.mock("@/db", () => ({
 vi.mock("@/lib/data/extraction", () => ({
   listExtractions: listExtractionsMock,
 }));
+// The loader is the only source of the parameters (NP-4, A11). Its own SQL is
+// covered by `loader.test.ts`; here it is a scripted double, so the statements
+// of the signals read stay exactly the five of `fullScript`.
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: getParametersMock,
+}));
 vi.mock("@/lib/data/request-scope-sql", async (importOriginal) => {
   const original =
     await importOriginal<typeof import("@/lib/data/request-scope-sql")>();
@@ -33,6 +40,12 @@ vi.mock("@/lib/data/request-scope-sql", async (importOriginal) => {
 
 import { requestInScope } from "@/lib/data/request-scope-sql";
 import { loadSignals } from "@/lib/data/signals";
+import { constantCalendar } from "@/lib/intake/adapters/constant-calendar";
+import {
+  DEFAULT_PARAMETERS,
+  PARAMETER_KEYS,
+  type NormativeParameters,
+} from "@/lib/parameters/registry";
 
 // validation-signals: "Signals are fail-soft and add no audit row", "Computed
 // on read, nothing persisted". The real SQL is covered by `signals-sql.test.ts`;
@@ -118,10 +131,19 @@ function fullScript(
 const load = (solicitudId = 42) =>
   loadSignals({ solicitudId, referenceScope: SCOPE });
 
+/** What the loader returns when every key is in force at the given values. */
+const read = (values: Partial<NormativeParameters> = {}) => ({
+  values: { ...DEFAULT_PARAMETERS, ...values },
+  fallback: [] as readonly string[],
+  degraded: false,
+});
+
 beforeEach(() => {
   holder.current = null;
   listExtractionsMock.mockReset();
   listExtractionsMock.mockResolvedValue(extractions(COMPLETE));
+  getParametersMock.mockReset();
+  getParametersMock.mockResolvedValue(read());
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
@@ -628,5 +650,203 @@ describe("loadSignals marks (RN-11, RN-12, RN-13)", () => {
     expect(text).not.toContain("constancia_institucional");
     expect(text).not.toContain("constancia-privada");
     expect(text).not.toMatch(/hasSignature|hasSeal|tieneFirma|tieneSello/);
+  });
+});
+
+// validation-signals: "The parameter in force is read, with its default", "The
+// stored table is read, with the default as fallback", "Late-filing days change
+// the deadline" (design A10, A11). `loadSignals` takes the three inputs of the
+// evaluation from the loader when the caller passes none, and reads it once.
+describe("loadSignals reads the parameters from the loader (A11)", () => {
+  // Presented Wednesday 14th in Managua: the third business day after the end
+  // date Friday 9th, so late with 2 days and on time with 3.
+  const WEDNESDAY = { ...BASE, presentadaEn: new Date("2026-10-14T15:00:00Z") };
+  const onWednesday = (history: unknown[] = []): Step[] => [
+    { kind: "select", rows: [WEDNESDAY] },
+    { kind: "select", rows: [{ periodo: "2026-S2" }] },
+    { kind: "select", rows: history },
+    { kind: "select", rows: HASHED },
+    { kind: "select", rows: [] },
+  ];
+  const SAME_ISSUER = [{ solicitudId: 10, emisor: "Clinica Central" }];
+
+  it("evaluates RN-14 with the threshold in force: 3 by default, 2 once saved", async () => {
+    use(fullScript(SAME_ISSUER));
+    const byDefault = await load();
+
+    getParametersMock.mockResolvedValue(read({ issuerRecurrenceThreshold: 2 }));
+    use(fullScript(SAME_ISSUER));
+    const saved = await load();
+
+    // The second request of one issuer.
+    expect(find(byDefault, "rn14")).toMatchObject({ outcome: "absent" });
+    expect(find(saved, "rn14")).toMatchObject({
+      outcome: "present",
+      evidence: { threshold: 2 },
+    });
+  });
+
+  it("evaluates RN-13 with the stored map: a flipped cell makes it absent", async () => {
+    // A medica request with an institutional certificate: present by default.
+    listExtractionsMock.mockResolvedValue(
+      extractions(COMPLETE, false, {
+        type: "constancia_institucional",
+        hasSignature: true,
+        hasSeal: true,
+      }),
+    );
+    use(fullScript());
+    const byDefault = await load();
+
+    getParametersMock.mockResolvedValue(
+      read({
+        documentTypeCauses: {
+          ...DEFAULT_PARAMETERS.documentTypeCauses,
+          constancia_institucional: [
+            ...DEFAULT_PARAMETERS.documentTypeCauses.constancia_institucional,
+            "medica",
+          ],
+        },
+      }),
+    );
+    use(fullScript());
+    const flipped = await load();
+
+    expect(find(byDefault, "rn13")).toMatchObject({ outcome: "present" });
+    expect(find(flipped, "rn13")).toMatchObject({ outcome: "absent" });
+  });
+
+  it("evaluates RN-07 with the late-filing days in force: late with 2, on time with 3", async () => {
+    use(onWednesday());
+    const byDefault = await load();
+
+    getParametersMock.mockResolvedValue(read({ lateFilingBusinessDays: 3 }));
+    use(onWednesday());
+    const saved = await load();
+
+    expect(find(byDefault, "rn07")).toMatchObject({ outcome: "present" });
+    expect(find(saved, "rn07")).toMatchObject({ outcome: "absent" });
+  });
+
+  it("keeps RN-07 apart from the remission days of RN-08", async () => {
+    getParametersMock.mockResolvedValue(read({ remissionBusinessDays: 3 }));
+    use(onWednesday());
+
+    expect(find(await load(), "rn07")).toMatchObject({ outcome: "present" });
+  });
+
+  it("reads the calendar in force: a listed holiday moves the RN-07 deadline", async () => {
+    // Tuesday 13th listed as non-working: the deadline moves to Wednesday 14th.
+    getParametersMock.mockResolvedValue(
+      read({ nonWorkingDays: [{ fecha: "2026-10-13", descripcion: null }] }),
+    );
+    use(onWednesday());
+
+    expect(find(await load(), "rn07")).toMatchObject({
+      outcome: "absent",
+      evidence: { deadline: "2026-10-14" },
+    });
+  });
+
+  it("is not evaluable when the stored calendar has no date of the deadline year", async () => {
+    getParametersMock.mockResolvedValue(
+      read({ nonWorkingDays: [{ fecha: "2027-01-01", descripcion: null }] }),
+    );
+    use(onWednesday());
+
+    expect(find(await load(), "rn07")).toEqual({
+      signal: "rn07",
+      outcome: "not_evaluable",
+      reason: "calendar_not_covering_year",
+    });
+  });
+
+  it("reads the loader once per read, whatever the number of signals", async () => {
+    use(fullScript());
+
+    await load();
+
+    expect(getParametersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets an injected value win, and reads the loader only for what is missing", async () => {
+    getParametersMock.mockResolvedValue(
+      read({ issuerRecurrenceThreshold: 2, lateFilingBusinessDays: 3 }),
+    );
+    const params = {
+      issuerRecurrenceThreshold: 3,
+      documentTypeCauses: DEFAULT_PARAMETERS.documentTypeCauses,
+    };
+
+    // The three injected: the loader is not read at all.
+    use(onWednesday(SAME_ISSUER));
+    const injected = await loadSignals({
+      solicitudId: 42,
+      referenceScope: SCOPE,
+      params,
+      timing: { lateFilingBusinessDays: 2 },
+      calendar: constantCalendar({ 2026: ["2026-12-26"] }),
+    });
+    expect(getParametersMock).not.toHaveBeenCalled();
+    expect(find(injected, "rn14")).toMatchObject({ outcome: "absent" });
+    expect(find(injected, "rn07")).toMatchObject({ outcome: "present" });
+
+    // Only the params injected: the days and the calendar come from the loader.
+    use(onWednesday(SAME_ISSUER));
+    const partial = await loadSignals({
+      solicitudId: 42,
+      referenceScope: SCOPE,
+      params,
+    });
+    expect(getParametersMock).toHaveBeenCalledTimes(1);
+    expect(find(partial, "rn14")).toMatchObject({ outcome: "absent" });
+    expect(find(partial, "rn07")).toMatchObject({ outcome: "absent" });
+  });
+
+  it("falls back to the default behaviour when the loader read failed, and does not throw", async () => {
+    getParametersMock.mockResolvedValue({
+      values: DEFAULT_PARAMETERS,
+      fallback: PARAMETER_KEYS,
+      degraded: true,
+    });
+    use(onWednesday(SAME_ISSUER));
+
+    const result = await load();
+
+    expect(result.degraded).toBe(false);
+    expect(find(result, "rn07")).toMatchObject({ outcome: "present" });
+    expect(find(result, "rn14")).toMatchObject({ outcome: "absent" });
+    expect(find(result, "rn13")).toMatchObject({ outcome: "absent" });
+  });
+
+  it("stays fail-soft when the loader itself rejects", async () => {
+    getParametersMock.mockRejectedValue(new Error("boom"));
+    use(fullScript());
+
+    await expect(load()).resolves.toEqual({ data: null, degraded: true });
+  });
+
+  it("evaluates the rest signals and the marks whatever the active flag of a cause", async () => {
+    use(fullScript());
+    const allActive = await load();
+
+    getParametersMock.mockResolvedValue(
+      read({
+        causes: DEFAULT_PARAMETERS.causes.map((c) => ({
+          ...c,
+          activa: c.codigo !== "medica" && c.codigo !== "fuerza_mayor",
+        })),
+      }),
+    );
+    use(fullScript());
+    const deactivated = await load();
+
+    // The request is `medica`, now deactivated: RN-09, RN-10 and RN-13 are
+    // evaluated as before (NP-11).
+    for (const signal of ["rn09", "rn10", "rn13"]) {
+      expect(find(deactivated, signal)).toEqual(find(allActive, signal));
+    }
+    expect(find(deactivated, "rn09")).toMatchObject({ outcome: "absent" });
+    expect(find(deactivated, "rn10")).toMatchObject({ outcome: "absent" });
   });
 });
