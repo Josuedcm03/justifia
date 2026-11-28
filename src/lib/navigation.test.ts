@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Settings,
+  SlidersHorizontal,
   Users,
 } from "lucide-react";
 import { describe, expect, it } from "vitest";
@@ -24,6 +25,7 @@ import {
   canManageCatalog,
   canManageEnrollments,
   canManageOwnEnrollment,
+  canManageParameters,
   canReviewRequests,
   canViewReports,
 } from "@/lib/auth/permissions";
@@ -130,6 +132,12 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
             icon: Users,
             visibleTo: canCreateUsers,
           },
+          {
+            key: "parameters",
+            href: "/parameters",
+            icon: SlidersHorizontal,
+            visibleTo: canManageParameters,
+          },
         ],
       },
       { key: "settings", href: "/settings", icon: Settings },
@@ -187,6 +195,7 @@ describe("NAV_ITEMS (BS-NAV-1 characterization)", () => {
       "catalogInscripciones",
       "catalogImport",
       "users",
+      "parameters",
     ]);
   });
 
@@ -277,6 +286,7 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
     ["catalogInscripciones", ["secretaria"]],
     ["catalogImport", ["secretaria"]],
     ["users", STAFF],
+    ["parameters", ["secretaria"]],
   ] as const)("%s is visible to exactly %j", (key, visible) => {
     for (const rol of ALL_ROLES) {
       expect(isNavVisible(leaf(key), rol), `${key} for ${rol}`).toBe(
@@ -289,6 +299,15 @@ describe("isNavVisible (same predicates as the sidebar)", () => {
 describe("trailFor (BS-CTX-1)", () => {
   it.each([
     ["/", { key: "dashboard", href: "/", exact: true }],
+    [
+      "/parameters",
+      {
+        groupKey: "administration",
+        key: "parameters",
+        href: "/parameters",
+        exact: true,
+      },
+    ],
     [
       "/users",
       { groupKey: "administration", key: "users", href: "/users", exact: true },
@@ -480,6 +499,7 @@ describe("shortcutsFor (BS-HOME-1 inputs)", () => {
         "/catalog/inscripciones",
         "/catalog/import",
         "/users",
+        "/parameters",
       ],
     ],
   ] as const)("%s gets exactly its destinations, in order", (rol, hrefs) => {

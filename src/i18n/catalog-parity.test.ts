@@ -205,7 +205,7 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
     ),
   ].sort();
 
-  it("offers shortcuts for the eleven destinations the roles reach", () => {
+  it("offers shortcuts for the twelve destinations the roles reach", () => {
     expect(SHORTCUT_KEYS).toEqual([
       "catalogAsignaturas",
       "catalogDocentes",
@@ -215,6 +215,7 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
       "enrollment",
       "myRequests",
       "newRequest",
+      "parameters",
       "reports",
       "review",
       "users",

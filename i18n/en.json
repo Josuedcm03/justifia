@@ -67,7 +67,8 @@
       "catalogInscripciones": "Browse the enrollments of the students in your faculty.",
       "catalogImport": "Load the catalog from an Excel file.",
       "users": "Manage user accounts.",
-      "reports": "See which students, teachers and subjects of your career have the most justified absences."
+      "reports": "See which students, teachers and subjects of your career have the most justified absences.",
+      "parameters": "Change the deadlines, calendar, causes and limits the system applies."
     },
     "featured": {
       "description": "Start here: review the pending requests of your faculty.",
@@ -1927,6 +1928,26 @@
     }
   },
   "parameters": {
+    "page": {
+      "title": "Normative parameters",
+      "subtitle": "The deadlines, calendar, causes and document types the system applies.",
+      "effectNote": "Changes apply from the next request, with no new deployment. Deadlines, the calendar, the recurrence threshold and the document type table change the result for every request, including those already filed, which keep their deadline start date. The filing window, the active causes and the maximum size apply only to the next drafts and document uploads."
+    },
+    "actions": {
+      "save": "Save changes",
+      "saving": "Saving…"
+    },
+    "scalars": {
+      "title": "Deadlines and limits",
+      "fields": {
+        "plazo_remision_dias": "Remission deadline (business days)",
+        "alerta_dias": "Due-soon alert (business days)",
+        "presentacion_tardia_dias": "Late filing (business days)",
+        "ventana_presentacion_dias": "Filing window (days)",
+        "umbral_reincidencia": "Recurrence threshold (requests)",
+        "tamano_maximo_mib": "Maximum document size (MB)"
+      }
+    },
     "state": {
       "saved": "The changes were saved.",
       "unchanged": "There are no changes to save.",

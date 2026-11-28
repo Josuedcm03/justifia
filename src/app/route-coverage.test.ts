@@ -22,7 +22,8 @@ import {
 
 const ENTRIES = listAppEntries();
 
-// `requireCatalogAccess`, `requireDocenteAccess` and `requireEnrollmentAccess`
+// `requireCatalogAccess`, `requireDocenteAccess`, `requireEnrollmentAccess` and
+// `requireParameterAccess`
 // are the named helpers of the catalog, docente-edit and inscripciones pages:
 // each calls `requireRole` before it reads anything.
 const GUARDS = [
@@ -32,6 +33,7 @@ const GUARDS = [
   "requireCatalogAccess",
   "requireDocenteAccess",
   "requireEnrollmentAccess",
+  "requireParameterAccess",
 ];
 
 /** Callee of the first `await` after the default export, or why there is none. */
