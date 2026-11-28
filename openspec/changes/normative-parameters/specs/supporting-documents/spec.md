@@ -2,8 +2,12 @@
 
 Change `normative-parameters`. Requirements covered: RNF-14, RN-04. Thesis: CU-13,
 Annex D Table D19. The maximum document size is the `tamano_maximo_mib` parameter of
-`normative-parameters` (NP-2, default 10 MiB, range 1 to 25 MiB). [PG] marks a
+`normative-parameters` (NP-2, default 10 MiB, range 1 to 10 MiB). [PG] marks a
 scenario that MUST run on a real PostgreSQL.
+
+Scope cut (owner, 2026-11-27): no 25 MiB ceiling and no migration 0018. The
+existing database check `CK_Documento_Tamano` (10 MiB) stays and is the upper end
+of the range, so the size can be lowered but not raised above 10 MiB.
 
 ## Notes for archive
 
@@ -54,19 +58,19 @@ for a correction, the `devuelta` state on every call.
 |---|---|
 | 1 | 1 048 576 |
 | 5 | 5 242 880 |
-| 25 | 26 214 400 |
+| 10 | 10 485 760 |
 
 - GIVEN the parameter in the row and a student with an open draft
 - WHEN they request an upload token
 - THEN the token's maximum size is as shown
 
-#### Scenario: A parameter change applies to the next token [PG]
+#### Scenario: A parameter change applies to the next token
 
 - GIVEN a token issued under the default and then `tamano_maximo_mib` saved as 5
 - WHEN the student requests another token
 - THEN the new token carries 5 242 880 and the first token still carries 10 485 760
 
-#### Scenario: Invalid stored size falls back to 10 MiB [PG]
+#### Scenario: Invalid stored size falls back to 10 MiB
 
 - GIVEN a stored `tamano_maximo_mib` row with value 99
 - WHEN the student requests an upload token
@@ -153,20 +157,19 @@ Rejection reasons (distinct, translatable): `unsupported_format`, `too_large`,
 | 10 | 10 485 761 | `too_large` |
 | 5 | 5 242 880 | accepted |
 | 5 | 5 242 881 | `too_large` |
-| 25 | 26 214 400 | accepted |
 | 1 | 2 097 152 | `too_large` |
 
 - GIVEN a valid PDF of the stored size in the row and the parameter in the row
 - WHEN finalize runs
 - THEN the outcome is as shown, and a refusal deletes the stored file and creates no record
 
-#### Scenario: Limit lowered between upload and finalize [PG]
+#### Scenario: Limit lowered between upload and finalize
 
 - GIVEN a 8 MiB file uploaded under the default limit and `tamano_maximo_mib` then saved as 5
 - WHEN finalize runs
 - THEN it is rejected with `too_large`, the stored file is deleted and no record exists
 
-#### Scenario: Limit raised between upload and finalize [PG]
+#### Scenario: Limit raised between upload and finalize
 
 - GIVEN a 4 MiB file uploaded under a limit of 5 MiB
 - WHEN `tamano_maximo_mib` is saved as 3 and then as 10, and finalize runs after the second save
@@ -221,7 +224,7 @@ Rejection reasons (distinct, translatable): `unsupported_format`, `too_large`,
 
 ## ADDED Requirements
 
-### Requirement: Maximum size reaches every upload path, the client and the database (RN-04, RNF-14, RNF-12; CU-13, Table D19)
+### Requirement: Maximum size reaches every upload path and the client, within the database check (RN-04, RNF-14, RNF-12; CU-13, Table D19)
 
 The maximum size in force MUST be the single limit of every upload of a supporting
 document: the student token route, the secretary token route for the special-format
@@ -229,11 +232,11 @@ upload, the finalize of both, and the inspection of the stored file. The browser
 checks of the documents step and of the special-format upload, and the size hint
 they show, MUST take the maximum size from the server as input; no client module may
 hold its own copy of the limit. The database MUST accept a document size greater
-than zero and at most 25 MiB (26 214 400 bytes), so every value in the range of
-`tamano_maximo_mib` can be stored; the check `CK_Documento_Tamano` is replaced by
-that ceiling (migration of slice S3, applied to production only after the owner's
-explicit confirmation). Documents already stored MUST NOT be changed, hidden or
-refused by a lower limit.
+than zero and at most 10 MiB (10 485 760 bytes) through the existing check
+`CK_Documento_Tamano`, which this change does not alter: it is the upper end of the
+range of `tamano_maximo_mib`, so every value in the range can be stored and no
+migration is needed. The size can be lowered but not raised above 10 MiB. Documents
+already stored MUST NOT be changed, hidden or refused by a lower limit.
 
 #### Scenario: Secretary token uses the same limit
 
@@ -253,7 +256,7 @@ refused by a lower limit.
 |---|---|---|---|
 | documents step | 5 MB | 6 MB | refused before upload, message states 5 MB |
 | documents step | 5 MB | 4 MB | accepted for upload |
-| special-format upload | 25 MB | 20 MB | accepted for upload |
+| special-format upload | 10 MB | 8 MB | accepted for upload |
 | special-format upload | 2 MB | 3 MB | refused before upload, message states 2 MB |
 
 - GIVEN the screen rendered with the limit in the row
@@ -266,18 +269,11 @@ refused by a lower limit.
 - WHEN their imports are scanned
 - THEN neither imports a size constant and the limit arrives only as a prop
 
-#### Scenario: Database ceiling (table-driven) [PG]
+#### Scenario: The registry maximum equals the database check
 
-| Stored size (bytes) | Result |
-|---|---|
-| 26 214 400 | accepted |
-| 26 214 401 | refused by the check |
-| 10 485 761 | accepted |
-| 0 | refused by the check |
-
-- GIVEN a document row with the size in the row
-- WHEN it is inserted
-- THEN the outcome is as shown
+- GIVEN the registry maximum of `tamano_maximo_mib` and the number in `CK_Documento_Tamano` of `src/db/schema.ts`
+- WHEN a source scan multiplies the maximum in MiB by 1 048 576
+- THEN the result equals the number of the check (10 485 760), and the check is unchanged by this change
 
 #### Scenario: A lower limit does not touch stored documents [PG]
 

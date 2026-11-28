@@ -425,3 +425,44 @@ The alternative is to accept the overshoot as a `size:exception` (1108 of 1000, 
 ### Next
 
 Owner decision on the size (split into PR 4 and PR 4b, or `size:exception`); then 4.8 (open PR 4 against the tracker) and merge under the standing approval, then slice 5 (task 5.0).
+
+## Scope cuts (owner, 2026-11-27)
+
+Planning change only (no code touched). The owner approved eight cuts under one principle: "just what is necessary to declare RNF-14 met, no more, no less". They supersede D6 (range 1 to 25 MiB with the ceiling migration) and the 13-slice plan recorded in unit 0. Slices 1 to 4 are merged and their checked tasks stay as written; `tasks.md` carries a "Scope cut note" under Phases 0, 1 and 4. The updated artifacts are `proposal.md` ("Scope cuts (2026-11-27)"), `design.md` (A17 removed, A18 revised, A19 new, file list, testing strategy, rollout), `tasks.md` and the delta specs (`normative-parameters`, `supporting-documents`, `audit-log`, and the `[PG]` marks of `request-review`, `validation-signals`, `justification-intake`).
+
+### Thesis basis (cited for every cut)
+
+- RNF-14 acceptance (thesis 5.3 Table 16, verified by inspection): a change to the deadlines, the non-working-day calendar, the causes, the recurrence threshold or the maximum file size needs no new deploy.
+- CU-13 (thesis 4.3) is a single row: "Configure normative parameters", actor secretaria académica, RNF-14. It has no steps.
+- RNF-12 asks for a confirmation dialog only to reject a request and to deactivate a record.
+- RNF-06 asks for one audit entry per catalog modification.
+- RNF-11 (360 px) applies to student screens.
+
+### The eight cuts
+
+| # | Cut | Basis | Effect on the plan |
+|---|---|---|---|
+| 1 | `tamano_maximo_mib` is 1 to 10 MiB (default 10). No migration 0018, no `CK_Documento_Tamano` at 26214400, no `DOCUMENT_BYTES_CEILING`, no PG-6, no 25 MiB copy; the existing 10485760 check stays the ceiling | RNF-14 asks that a change of the maximum size needs no deploy, not that it can exceed the current bound | Tasks 6.4 to 6.6, 14.3, 15.4 removed; 0018 removed from 15.0, 15.8, 14.0 and the Merge gate; NP-16 kept for the 0017 seeds only; A17 removed, A19 new; slice 7 gains unit 14b (tasks 7.7 to 7.9): registry maximum 25 to 10 plus a source-scan test that registry maximum MiB times 1048576 equals the number in the check of `src/db/schema.ts`, no migration |
+| 2 | No mutation checks from slice 5 on (MC-* and MC-PG-*); task 14.6 removed. Strict TDD stays | RNF-14 is verified by inspection; mutation testing is not a requirement | Every MC step removed from tasks 5.3 to 9.x; commit steps now read "REFACTOR and gates G; commit unit N" |
+| 3 | Work after slice 8 is two PRs: 9 (access guard and ALL server actions with tests and copy) and 10 (page, four sections, menu entry, docs); each with a pre-approved size exception up to 1500 lines ("owner pre-approved up to 1500 on 2026-11-27") | CU-13 is one row; one screen with its actions | 10 numbered slices (1, 2 with 2a and 2b, 3 to 10); "PR n of 13" is "of 10" from slice 5; gate wording "all 10 slices"; old Phases 11 to 13 deleted (numbers unused); branches `-6-causes`, `-9-actions`, `-10-page` |
+| 4 | System test from 14 to 7 steps: permission, deadlines with alert, RN-07 and RN-23, calendar, causes with the RN-13 map, recurrence threshold, maximum size, audit | RNF-14 acceptance has five criteria categories (thesis 5.3 Table 16) plus RNF-01 and RNF-06 | ST-1..ST-7; tasks 14.9 (ST-1 to ST-4) and 14.10 (ST-5 to ST-7); the 360/320 px step is gone; the restore-all step is a cleanup note of ST-7 |
+| 5 | No two-step confirmation on every save: no `confirm-changes.tsx`, no hidden `confirmado=1` and server check, no before/after list, no `unconfirmed` outcome. Only deactivating a cause asks, in the existing `AlertDialog` primitive (`src/components/ui/alert-dialog.tsx`, used by `DecisionDialog` to reject a request and by `ActiveToggle` with `confirmIn="dialog"` to deactivate a record) | RNF-12 | NP-8 rewritten; A18 revised; threat-matrix row "write without the confirmation marker" removed; new `deactivate-cause-dialog.tsx` in unit 25 |
+| 6 | No extra display: no Reglamento default, no range in words, no per-year date badges, no current-year warning, no "default in use" badge, no degraded locked forms (and no degraded alert). Each field shows its value in force; validation errors state the allowed range | CU-13 is one row; the requirement text asks the value in force and errors that say what to enter | NP-7, NP-10, NP-17 reworded; design page table rewritten; ST-1 checks the value in force only |
+| 7 | No per-section PG-2 "effect without redeploy" Postgres cases (old 9.5, 11.3, 12.3, 13.3). The write and audit Postgres cases of slice 8 (PG-3 write part, PG-4, PG-5) and the suite already written (PG-1, PG-3 read) stay | RNF-14 is verified by inspection (system test) | NP-14 rewritten as the owner system test; `[PG]` marks dropped from the "applies to the next read" scenarios of the consumer specs |
+| 8 | No 360/320 px or 44 px target tests for the staff parameters page | RNF-11 applies to student screens | Removed from NP-17 and the tasks; es/en copy parity and no-voseo stay (task 9.3) |
+
+### Conflicts with merged work (repaired by slice 7, tasks 7.7 to 7.9)
+
+- Slice 1 built `tamano_maximo_mib` with range 1 to 25 (`src/lib/parameters/registry.ts`, `scalarEntry("maxDocumentMib", 1, 25)`; range row and MC-1a in `registry.test.ts`). Slice 7 lowers it to 10.
+- Merged fixtures hold a valid non-default size above 10 that would become invalid: 20 in `src/lib/parameters/registry.test.ts` and `src/lib/parameters/loader.test.ts`, 25 in `src/lib/parameters/derive.test.ts` (the arithmetic still passes, kept consistent), and 12 in `OTHER_VALUES` of `src/lib/data/integration/normative-parameters.integration.test.ts` (slice 2b; it would read back as a fallback on a branch). Task 7.8 changes them to values inside 1 to 10.
+- `src/db/schema.ts` still imports `MAX_DOCUMENT_BYTES` from `src/lib/intake/limits.ts`; task 7.5 removes that constant, so the schema keeps the same check with the literal 10485760 (no migration; `npm run db:generate` must report no schema change).
+- Task 4.5 (done) says the staleness test becomes the coverage notice of slice 11. That warning is cut; the queue coverage note of slice 4 stays as the only calendar staleness signal.
+- The "13" in the bodies of the merged PRs and in tasks 2.8, 3.8, 4.8 ("PR n of 13") is left as it was.
+
+### Points that go beyond the letter of the cuts (for the owner to confirm)
+
+- Cut 6 names the degraded locked forms; the page also drops the degraded alert, because with no lock it would have nothing to say. A failing write ends in the "unexpected" outcome.
+- The type-to-cause map (RN-13) is not one of the five RNF-14 families, so it has no step of its own: it is checked inside ST-4 with the causes.
+- The thesis flag: the maximum size can be lowered but not raised above 10 MiB without a migration; the owner may want that sentence in thesis 5.3 or accept it as stated (the Thesis Sync list in task 10.14 carries it).
+- The thesis Sync item "Anexo E, CU-13 steps" is dropped because CU-13 has no steps (cut basis above).
+- The cut display and confirmation extras are listed as follow-ups in task 16.3; the owner may add them to `docs/flow-experience-backlog.md` (roadmap row 13), which this planning change does not touch.

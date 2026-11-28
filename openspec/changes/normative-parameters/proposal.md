@@ -15,15 +15,46 @@ app and the next request applies it, proven on Postgres.
 |---|---|
 | RNF-14 | Covered: the five families and the RN-13 map become data |
 | RN-01 | The five causes (art. 34) can be activated, deactivated and reordered |
-| RN-04 | Maximum size configurable, 1 to 25 MiB (default 10) |
+| RN-04 | Maximum size configurable, 1 to 10 MiB (default 10; scope cut 2026-11-27, was 1 to 25) |
 | RN-07, RN-08 | Late-filing days, remission days (both default 2) and alert days (default 1) |
 | RN-13 | Type-to-cause map is a parameter (`otro` stays mapped to no cause) |
 | RN-14 | Recurrence threshold (default 3) |
 | RN-23 | Filing window (default 30 calendar days) |
 | RNF-01 | Only `secretaria` edits; every other role is denied on the server |
 | RNF-06 | One `EventoAuditoria` row per change, key and before/after, no personal data |
-| RNF-12 | Every change asks for confirmation before it is applied |
+| RNF-12 | Deactivating a cause asks for confirmation in the existing alert dialog (scope cut 2026-11-27, was every change) |
 | Thesis | CU-13, Anexo D Table D19, 5.1 Table 14 |
+
+## Scope cuts (2026-11-27)
+
+The owner approved eight cuts, under one principle: "just what is necessary to
+declare RNF-14 met, no more, no less". The thesis basis is RNF-14's acceptance
+(thesis 5.3 Table 16, verified by inspection: a change to the deadlines, the
+calendar, the causes, the recurrence threshold or the maximum file size needs no
+new deploy); CU-13 in thesis 4.3 is one row (Configure normative parameters,
+actor secretaria academica, RNF-14) with no steps; RNF-12 asks a confirmation
+dialog only to reject a request and to deactivate a record; RNF-06 asks one audit
+entry per catalog modification; RNF-11 (360 px) applies to student screens.
+
+1. `tamano_maximo_mib` is 1 to 10 MiB (default 10). No 25 MiB ceiling, no
+   migration 0018, no `DOCUMENT_BYTES_CEILING`; the existing 10 MiB check stays.
+   Slice 7 lowers the registry maximum built in slice 1 and pins it to the check.
+2. No mutation checks from slice 5 on. Strict TDD stays.
+3. Work after slice 8 is two PRs: 9 (access guard and every server action) and 10
+   (page, four sections, menu entry, docs), each with a pre-approved size
+   exception up to 1500 lines. Ten numbered slices instead of thirteen.
+4. The owner system test has seven steps (permission, deadlines with alert, RN-07
+   and RN-23, calendar, causes with the RN-13 map, recurrence threshold, maximum
+   size, audit) instead of fourteen.
+5. No two-step confirmation of every save: no `confirm-changes.tsx`, no hidden
+   marker, no diff list, no `unconfirmed` outcome. Only deactivating a cause asks,
+   in the existing alert dialog.
+6. No extra display: no Reglamento default, no range in words, no per-year date
+   badges, no current-year warning, no "default in use" badge, no degraded locked
+   forms. Each field shows its value in force; errors state the allowed range.
+7. No per-section "effect without redeploy" Postgres cases (the owner system test
+   is the proof). The write and audit Postgres cases of slice 8 stay.
+8. No 360/320 px or 44 px target tests for the staff page.
 
 ## Scope
 
@@ -47,18 +78,19 @@ app and the next request applies it, proven on Postgres.
 - **D5 effect**: on-read rules (RN-07, RN-08 deadline and alert, RN-13, RN-14,
   calendar) use the value in force at read time; filing-time rules (RN-23, size)
   apply at the action; no snapshot; stored `PlazoInicioEn` not recomputed.
-- **D6**: migration replaces `CK_Documento_Tamano` (10 MiB) with a 25 MiB
-  ceiling; "10 MB" copy takes the value.
+- **D6** (revised 2026-11-27): range 1 to 10 MiB; `CK_Documento_Tamano`
+  (10 MiB) is not changed; "10 MB" copy takes the value.
 - Docs: roadmap row 8, RNF-14 status note.
 
 ### Out of Scope
 - New causes, cause label editing (future work); retention RNF-04 (D7);
   operational constants (`MAX_DOCUMENTS_PER_DRAFT`, draft TTL, import 5 MiB);
-  switching the teammate's RF-13 (c) report to the loader.
+  switching the teammate's RF-13 (c) report to the loader; raising the maximum
+  size above 10 MiB; the display and confirmation extras of the scope cuts above.
 
-**DB schema: YES.** Migration `0017` (table plus seed rows from current
-defaults) and the size CHECK change. Each applied to production only after the
-owner's explicit yes for that command.
+**DB schema: YES.** Migration `0017` only (table plus seed rows from current
+defaults), applied to production only after the owner's explicit yes for that
+command.
 
 ## Capabilities
 
@@ -95,11 +127,13 @@ exports stay stable. Strict TDD.
 |---|---|
 | S1 Migration 0017, schema, registry, loader, fallback, unit and Postgres read tests | 700-850 |
 | S2 On-read consumers: deadlines, alert, RN-07, threshold, map, calendar; coverage notice | 750-900 |
-| S3 Filing-time consumers: window, causes filter and refusal, size (routes, server, client props, copy), size CHECK migration | 800-950 |
-| S4 Predicate, audit, write, actions, `/parameters` scalars section, nav, access matrix | 850-950 |
-| S5 Calendar, map and causes sections; docs | 750-900 |
+| S3 Filing-time consumers: window, causes filter and refusal, size (routes, server, client props, copy); registry maximum lowered to 10 and pinned to the existing check | 800-950 |
+| S4 Predicate, audit, write; then the guard and every server action | 850-1500 |
+| S5 `/parameters` page, four sections, nav, access matrix; docs | up to 1500 |
 
-Total about 3900-4500, by analogy. Each slice fits 1000 lines.
+Estimates by analogy. `tasks.md` cuts these into ten numbered slices (the design
+estimates ran 2x to 3x in practice); slices 9 and 10 carry a pre-approved size
+exception up to 1500 lines (owner, 2026-11-27).
 
 ## Affected Areas
 
@@ -127,9 +161,7 @@ Total about 3900-4500, by analogy. Each slice fits 1000 lines.
 ## Rollback Plan
 
 Revert slice PRs in reverse order or the tracker merge; redeploy `main`. The
-table is additive and ignored by old code. The size CHECK reverts by migration
-(owner yes) only if no stored document exceeds 10 MiB; otherwise keep 25 MiB.
-Audit rows stay.
+table is additive and ignored by old code. Audit rows stay.
 
 ## Dependencies
 
@@ -138,15 +170,17 @@ Audit rows stay.
 
 ## Success Criteria
 
-- [ ] Postgres integration: each key written, consumer called in-process
-  reflects it; invalid or missing row falls back; one audit row per change.
-- [ ] Owner system test: each family changed in the running app, effect seen on
-  the next request.
-- [ ] RNF-01 matrix denies all non-secretaria roles; RNF-12 cancel changes nothing.
+- [ ] Postgres integration: seeds and the per-key fallback of the loader; the
+  write path writes one audit row per changed key, in one transaction.
+- [ ] Owner system test (seven steps): each family changed in the running app,
+  effect seen on the next request.
+- [ ] RNF-01 matrix denies all non-secretaria roles; RNF-12: deactivating a cause
+  asks for confirmation and cancel changes nothing.
 - [ ] `npm test`, `npm run typecheck`, `npx eslint src`, `npm run build` green.
 
 ## Thesis Sync (thesis session)
 
 - 5.1 Table 14: "Parámetros normativos" module built.
 - 5.3 Table 16 and Anexo F: RNF-14 row to "Cumple" after the system test.
-- Anexo E: CU-13 steps (open screen, change, confirm, observe effect).
+- CU-13 stays the single row of 4.3 (no steps, so no Anexo E sync; owner,
+  2026-11-27). Flag only: the maximum size is configurable from 1 to 10 MiB.

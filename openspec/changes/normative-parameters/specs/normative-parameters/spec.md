@@ -5,6 +5,14 @@
 > `openspec/specs/normative-parameters/spec.md`. Deltas of the consumers sit
 > beside it: `request-review`, `validation-signals`, `justification-intake`,
 > `supporting-documents`, `audit-log`, `backoffice-shell`.
+>
+> Scope cuts (owner, 2026-11-27): this spec carries only what is needed to
+> declare RNF-14 met. Removed from the earlier text: the 25 MiB ceiling and
+> migration 0018 (the range of `tamano_maximo_mib` is 1 to 10 MiB), the
+> two-step confirmation of every save, the Reglamento default and the range in
+> words on the screen, the per-year date counts, the current-year warning, the
+> degraded locked forms, the narrow-width requirement of the staff page and the
+> per-family Postgres cases of NP-14. See `proposal.md`, "Scope cuts".
 
 ## Purpose
 
@@ -14,8 +22,8 @@ deployment". This capability turns those five families, plus the RN-13
 type-to-cause map, into data stored in the table of thesis Table D19
 (`ParametroNormativo`), read on every request with a per-key fallback to the
 Reglamento default, and edited by the `secretaria` on one screen (thesis CU-13).
-Each change asks for confirmation (RNF-12), writes one audit row (RNF-06) and is
-applied by the next request, with no restart and no deploy.
+Deactivating a cause asks for confirmation (RNF-12); each change writes one audit
+row (RNF-06) and is applied by the next request, with no restart and no deploy.
 
 Requirements covered: RNF-14, RN-01, RN-04, RN-07, RN-08, RN-13, RN-14, RN-23,
 RNF-01, RNF-06, RNF-12. Thesis: CU-13, Annex D Table D19, section 5.1 Table 14
@@ -24,7 +32,8 @@ RNF-01, RNF-06, RNF-12. Thesis: CU-13, Annex D Table D19, section 5.1 Table 14
 Out of scope: creating causes and editing cause labels (codes stay fixed, future
 work); the retention period (RNF-04, RN-27); operational constants
 (`MAX_DOCUMENTS_PER_DRAFT`, draft expiry, import file limit); the coordination
-report (RF-13 c) keeps reading its own defaults.
+report (RF-13 c) keeps reading its own defaults; raising the maximum file size
+above 10 MiB (it needs a migration of the database check, not part of RNF-14).
 
 Vocabulary:
 
@@ -71,8 +80,8 @@ that is additive: existing tables and rows are untouched by it.
 
 - GIVEN the migration text
 - WHEN it is scanned for statements that alter or drop an existing table or column
-- THEN the only such statement is the document-size check of NP-16 (migration of
-  slice S3), and none is in the migration that creates `ParametroNormativo`
+- THEN none is found in the migration that creates `ParametroNormativo`, and this
+  change adds no other migration (the document-size check is not touched)
 
 ### Requirement: NP-2 A closed registry fixes each key, default and range (RNF-14, RN-01, RN-04, RN-07, RN-08, RN-13, RN-14, RN-23; CU-13, Table D19)
 
@@ -89,7 +98,7 @@ fail validation. The registry MUST be:
 | `presentacion_tardia_dias` | RN-07 | business days after the end date before a filing is late | 2 | 1 to 10 |
 | `ventana_presentacion_dias` | RN-23 | calendar days an end date may precede filing | 30 | 1 to 365 |
 | `umbral_reincidencia` | RN-14 | requests of one issuer that raise recurrence | 3 | 2 to 20 |
-| `tamano_maximo_mib` | RN-04 | maximum document size in MiB (1 MiB = 1 048 576 bytes) | 10 | 1 to 25 |
+| `tamano_maximo_mib` | RN-04 | maximum document size in MiB (1 MiB = 1 048 576 bytes) | 10 | 1 to 10 |
 | `calendario` | RN-08 | non-business dates (NP-10) | the 2026 and 2027 dates of the current calendar | see NP-10 |
 | `causas` | RN-01 | active flag and order of the five causes (NP-11) | five causes active, current order | see NP-11 |
 | `tipo_documento_causa` | RN-13 | causes each document type corresponds to (NP-12) | the current table | see NP-12 |
@@ -103,11 +112,17 @@ fail validation. The registry MUST be:
 | `presentacion_tardia_dias` | 1, 10 | 0, 11 |
 | `ventana_presentacion_dias` | 1, 365 | 0, 366 |
 | `umbral_reincidencia` | 2, 20 | 1, 21 |
-| `tamano_maximo_mib` | 1, 25 | 0, 26 |
+| `tamano_maximo_mib` | 1, 10 | 0, 11 |
 
 - GIVEN the validation schema of the key in the row
 - WHEN each value is validated
 - THEN the accepted values pass and the refused values fail
+
+#### Scenario: The size range ends at the existing database check
+
+- GIVEN the registry maximum of `tamano_maximo_mib` and the document-size check in `src/db/schema.ts` (`CK_Documento_Tamano`, 10 485 760 bytes)
+- WHEN a source scan multiplies the registry maximum in MiB by 1 048 576 and reads the number of the check
+- THEN both are 10 485 760, so every accepted value can be stored and no migration is needed
 
 #### Scenario: The alert stays below the remission deadline
 
@@ -289,21 +304,23 @@ point and MUST NOT be gated by role.
 
 `/parameters` MUST present four sections: deadlines and limits (the six scalar
 keys), calendar (NP-10), document type to cause (NP-12) and causes (NP-11). Each
-scalar MUST show its value in force, its Reglamento default and its allowed range
-in words. Validation MUST run on the server, show every field error at once, keep
-the submitted values and say what to enter. Opening the page MUST write no audit
-row and no data.
+scalar MUST show its value in force. Validation MUST run on the server, show every
+field error at once, keep the submitted values and say what to enter, stating the
+allowed range (minimum and maximum) in the message. The screen MUST NOT show the
+Reglamento default, the range in words, a "default in use" mark, per-year date
+counts or a current-year warning, and MUST NOT lock its forms when a read falls
+back. Opening the page MUST write no audit row and no data.
 
-#### Scenario: Scalars shown with default and range
+#### Scenario: Scalars shown with the value in force
 
 - GIVEN a `secretaria` and `umbral_reincidencia` with value 4
 - WHEN she opens the page
-- THEN the field shows 4, the default 3 and the range 2 to 20
+- THEN the field shows 4
 
 #### Scenario: Valid save
 
 - GIVEN the scalars form
-- WHEN `plazo_remision_dias` = 3 is confirmed
+- WHEN `plazo_remision_dias` = 3 is saved
 - THEN the value is stored, the page shows 3 and the next request applies it
 
 #### Scenario: Errors together, values kept (table-driven)
@@ -312,12 +329,12 @@ row and no data.
 |---|---|---|
 | `plazo_remision_dias` | empty | required |
 | `ventana_presentacion_dias` | `abc` | not a whole number |
-| `tamano_maximo_mib` | 26 | above the maximum of 25 |
+| `tamano_maximo_mib` | 11 | above the maximum of 10 |
 | `umbral_reincidencia` | 1 | below the minimum of 2 |
 
 - GIVEN one submit carrying two of the rows
 - WHEN the action answers
-- THEN both errors show at once, the typed values are kept and nothing is stored
+- THEN both errors show at once, each message states the allowed range of its field, the typed values are kept and nothing is stored
 
 #### Scenario: Opening the page writes nothing
 
@@ -325,34 +342,45 @@ row and no data.
 - WHEN she opens `/parameters`
 - THEN no parameter row and no audit row is written
 
-### Requirement: NP-8 Every change asks for confirmation (RNF-12, RNF-14; CU-13)
+### Requirement: NP-8 Deactivating a cause asks for confirmation (RNF-12, RNF-14; CU-13)
 
-Before any write the screen MUST show what will change (for each changed key the
-value in force and the new value) and MUST require an explicit confirmation.
-Cancelling MUST change nothing: no parameter row and no audit row. The server MUST
-refuse a write that does not carry the confirmation, even when every value is valid.
+RNF-12 asks for a confirmation dialog only to reject a request and to deactivate
+a record. Accordingly, a save that deactivates a cause MUST first ask for explicit
+confirmation in the application's existing confirmation dialog (the alert dialog
+that the review screen uses to reject a request and the catalog uses to deactivate
+a record), which MUST name the cause. Cancelling MUST submit nothing: no parameter
+row and no audit row. Every other save (the six scalars, the calendar, the
+type-to-cause map, and a causes save that only reorders or activates) MUST be
+submitted directly: no confirmation step, no hidden confirmation field, no list of
+the changes. The server MUST NOT require a confirmation marker.
 
-#### Scenario: Confirmation lists the change
+#### Scenario: Deactivation asks first
 
-- GIVEN `alerta_dias` changed from 1 to 2
-- WHEN the maintainer submits the form
-- THEN a confirmation step shows the key, 1 and 2, and nothing has been stored yet
+- GIVEN `medica` active and the causes form with `medica` unchecked
+- WHEN the maintainer presses save
+- THEN the confirmation dialog names `medica`, and nothing has been stored yet
 
 #### Scenario: Cancel changes nothing
 
-- GIVEN the confirmation step
+- GIVEN the confirmation dialog of a deactivation
 - WHEN the maintainer cancels
-- THEN no parameter row and no audit row exists for it, and the form still shows the typed values
+- THEN no action is called, no parameter row and no audit row exists for it, and the form still shows the typed values
 
-#### Scenario: Client bypass
+#### Scenario: Confirm saves
 
-- GIVEN a direct action call with a valid value and no confirmation
-- WHEN the server processes it
-- THEN it is refused, nothing is stored and no audit row exists
+- GIVEN the confirmation dialog of a deactivation
+- WHEN the maintainer confirms
+- THEN the causes form is submitted once and the save proceeds as in NP-9
+
+#### Scenario: Other saves are direct
+
+- GIVEN `alerta_dias` changed from 1 to 2, or a causes form that only reorders
+- WHEN the maintainer submits the form
+- THEN the save runs at once, with no confirmation step, and the outcome is shown
 
 ### Requirement: NP-9 A save is one guarded transaction with its audit row (RNF-06, RNF-14; CU-13)
 
-A confirmed save MUST run through the catalog write lock and one transaction that
+A save MUST run through the catalog write lock and one transaction that
 holds the parameter rows and their audit rows (per `audit-log` NP-AUD-1 to
 NP-AUD-3). A save that changes several keys MUST write one parameter row and one
 audit row per changed key, all in that transaction. A save whose validated value
@@ -366,12 +394,12 @@ own audit row.
 #### Scenario: No change writes nothing
 
 - GIVEN `alerta_dias` in force with value 1
-- WHEN the maintainer confirms a save of 1
+- WHEN the maintainer saves 1
 - THEN no parameter row and no audit row is written and a "no changes" message shows
 
 #### Scenario: Two keys in one save [PG]
 
-- GIVEN a confirmed save changing `alerta_dias` and `umbral_reincidencia`
+- GIVEN a save changing `alerta_dias` and `umbral_reincidencia`
 - WHEN it commits
 - THEN two parameter rows and exactly two audit rows exist, one per key
 
@@ -393,25 +421,26 @@ own audit row.
 - WHEN the action runs
 - THEN the caller is redirected to `/denied`, not shown the busy outcome
 
-### Requirement: NP-10 The calendar of non-business days is data, with coverage by year (RN-08, RN-07, RNF-14, RNF-12; CU-13, Table D19)
+### Requirement: NP-10 The calendar of non-business days is data (RN-08, RN-07, RNF-14; CU-13, Table D19)
 
 The key `calendario` MUST hold a list of entries, each with an ISO calendar date
 and an optional description of at most 120 characters. A date MUST be a real
 calendar date and MUST NOT appear twice. The maintainer MUST be able to add and
 remove dates. Business-day logic MUST read the list through the existing
 `NonWorkingDaysProvider` port: a date in the list is not a business day, and
-`coversYear(y)` MUST be true when the list holds at least one date of year `y`.
-The screen MUST show the number of dates per year of the list and MUST warn when
-the current Managua year has no date. A save that removes or adds a date changes
-the deadlines and signals of every request on the next read (NP-13).
+`coversYear(y)` MUST be true when the list holds at least one date of year `y`
+(the review queue keeps its calendar coverage notice, `request-review`). The
+screen does not show counts per year and does not warn about the current year. A
+save that removes or adds a date changes the deadlines and signals of every
+request on the next read (NP-13).
 
-#### Scenario: Added date is not a business day [PG]
+#### Scenario: Added date is not a business day
 
 - GIVEN a `pendiente` request presented Monday with remission days 2 and no listed holidays
 - WHEN Tuesday is added to the calendar and the queue is read
 - THEN the deadline moves from Wednesday to Thursday
 
-#### Scenario: Removed date becomes a business day [PG]
+#### Scenario: Removed date becomes a business day
 
 - GIVEN Tuesday listed and the same request
 - WHEN Tuesday is removed and the queue is read
@@ -439,14 +468,8 @@ the deadlines and signals of every request on the next read (NP-13).
 #### Scenario: Coverage by year
 
 - GIVEN a list with 15 dates of 2026 and 15 of 2027
-- WHEN the section renders
-- THEN it shows 2026: 15 and 2027: 15, `coversYear(2026)` and `coversYear(2027)` are true and `coversYear(2028)` is false
-
-#### Scenario: Current year without dates warns
-
-- GIVEN a list with no date of the current Managua year
-- WHEN the section renders
-- THEN a warning stated as text says the current year has no non-working dates
+- WHEN the calendar is derived from the list
+- THEN `coversYear(2026)` and `coversYear(2027)` are true and `coversYear(2028)` is false
 
 #### Scenario: Default is the current calendar
 
@@ -466,7 +489,8 @@ chosen. A deactivated cause MUST NOT be offered for a new choice and MUST be
 refused for a draft (`justification-intake`), but MUST keep rendering, with its
 label, in every existing request, decision, remission, report and audit row. The
 `Causa` database checks stay unchanged. Behaviour tied to a code (rest causes,
-special format) MUST NOT depend on whether the cause is active.
+special format) MUST NOT depend on whether the cause is active. Deactivating a
+cause asks for confirmation (NP-8).
 
 #### Scenario: Validation of the value (table-driven)
 
@@ -540,7 +564,7 @@ whatever its active flag.
 - WHEN the server validates it
 - THEN the outcome is as shown
 
-#### Scenario: Toggling a cell flips RN-13 on the next read [PG]
+#### Scenario: Toggling a cell flips RN-13 on the next read
 
 - GIVEN a `fuerza_mayor` request with a document registered as `constancia_medica`, RN-13 `present` with the default map
 - WHEN the cell (`constancia_medica`, `fuerza_mayor`) is enabled and the signals are read
@@ -566,13 +590,13 @@ A parameter change MUST apply as follows, with no per-request snapshot:
 The stored `PlazoInicioEn` of a request MUST NOT be recomputed by a parameter change.
 An upload token already issued MUST keep the limit it was issued with until it expires.
 
-#### Scenario: Read-time values reach existing requests [PG]
+#### Scenario: Read-time values reach existing requests
 
 - GIVEN a request presented last week and `plazo_remision_dias` raised from 2 to 3
 - WHEN the queue is read
 - THEN its deadline is one business day later than before
 
-#### Scenario: Window applies to drafts, not corrections [PG]
+#### Scenario: Window applies to drafts, not corrections
 
 - GIVEN `ventana_presentacion_dias` lowered from 30 to 10, a draft with an end date 20 days ago, and a returned request whose end date is 20 days ago
 - WHEN the draft is saved at step 1 and the correction is resubmitted
@@ -598,35 +622,36 @@ An upload token already issued MUST keep the limit it was issued with until it e
 
 ### Requirement: NP-14 Every family is proven to change without a deploy (RNF-14; CU-13)
 
-For each family there MUST be a Postgres integration test that writes the value
-through the write function and then calls the consumer in the same process, with
-nothing re-imported, restarted or redeployed, and observes the new behaviour; it
-MUST also observe the fallback when the row is invalid or missing and one audit
-row per change.
+The proof of RNF-14 is the owner system test, verified by inspection (thesis 5.3
+Table 16): on one running build, each family is changed through the screen and
+the new behaviour is seen on the next request, with nothing re-imported,
+restarted or redeployed. It is backed by the structural proof of NP-5 (no
+module-level store, no cross-request cache) and by the Postgres suites of NP-3,
+NP-4 and NP-9. There is no Postgres case per family.
 
-#### Scenario: Write then consume (table-driven) [PG]
+#### Scenario: Change then observe (table-driven, owner system test)
 
-| Key written | Consumer called in the same process | Observed after the write |
-|---|---|---|
-| `plazo_remision_dias` 2 to 3 | review queue read | deadline one business day later |
-| `alerta_dias` 1 to 2 | review queue read | alert one business day earlier |
-| `presentacion_tardia_dias` 2 to 3 | signals read | RN-07 `absent` for a filing on the third business day |
-| `ventana_presentacion_dias` 30 to 10 | submission validation | end date 20 days old refused |
-| `umbral_reincidencia` 3 to 2 | signals read | RN-14 `present` on the 2nd request |
-| `tamano_maximo_mib` 10 to 1 | upload token and finalize | token limit 1 048 576; a 2 MiB file refused |
-| `calendario` plus a date | review queue read | deadline moves |
-| `causas` one deactivated | cause options and submission validation | cause absent and refused |
-| `tipo_documento_causa` one cell | signals read | RN-13 flips |
+| Key written through the screen | Observed on the next request |
+|---|---|
+| `plazo_remision_dias` 2 to 3 | review queue deadline one business day later |
+| `alerta_dias` 1 to 2 | review queue alert one business day earlier |
+| `presentacion_tardia_dias` 2 to 3 | RN-07 `absent` for a filing on the third business day |
+| `ventana_presentacion_dias` 30 to 10 | end date 20 days old refused on a draft |
+| `umbral_reincidencia` 3 to 2 | RN-14 `present` on the 2nd request |
+| `tamano_maximo_mib` 10 to 1 | upload of a 2 MiB file refused before upload, stating 1 MB |
+| `calendario` plus a date | review queue deadline moves |
+| `causas` one deactivated | cause not offered, existing request keeps its label |
+| `tipo_documento_causa` one cell | RN-13 flips |
 
-- GIVEN the row's key in force at its default
-- WHEN the write function stores the new value and the consumer is called
-- THEN the observed effect holds and exactly one audit row exists for the write
+- GIVEN the key in force at its default in a running build
+- WHEN the maintainer saves the new value through the screen
+- THEN the observed effect holds on the next request and exactly one audit row exists for the save
 
 #### Scenario: Invalid or missing row falls back [PG]
 
 - GIVEN, per key, a row with an invalid value and a deleted row
-- WHEN the consumer is called
-- THEN it behaves as with the default and does not throw
+- WHEN the loader runs (NP-4, read suite)
+- THEN the key returns its default and the read does not throw
 
 ### Requirement: NP-15 Code constants survive only as defaults (RNF-14)
 
@@ -653,12 +678,11 @@ once at the page, action or route boundary.
 
 The migration that creates `ParametroNormativo` MUST insert one row per key of
 the registry, with the default as value and a `VigenteDesde` not after the
-migration date, so the loader reads data from the first request. A later migration
-(slice S3) MUST replace the document size check `CK_Documento_Tamano` (maximum 10 MiB)
-with a ceiling of 25 MiB (26 214 400 bytes) that keeps the lower bound of more
-than zero bytes. The ceiling is the upper end of the range of `tamano_maximo_mib`.
-Each migration MUST be applied to production only after the owner's explicit
-confirmation of that command.
+migration date, so the loader reads data from the first request. This is the only
+migration of the change: the document size check `CK_Documento_Tamano` (10 MiB)
+is not altered, and it is the upper bound of the range of `tamano_maximo_mib`
+(NP-2). The migration MUST be applied to production only after the owner's
+explicit confirmation of that command.
 
 #### Scenario: Seed equals defaults [PG]
 
@@ -666,27 +690,16 @@ confirmation of that command.
 - WHEN the loader runs
 - THEN every key returns a value equal to its code default, from a stored row
 
-#### Scenario: Size ceiling [PG]
+### Requirement: NP-17 Copy and accessibility (RNF-12, RNF-14; CU-13)
 
-- GIVEN a document row with `Tamano` 26 214 400, then one with 26 214 401, then one with 0
-- WHEN each is inserted
-- THEN the first is accepted and the other two are refused by the check
-
-#### Scenario: Existing documents satisfy the new check [PG]
-
-- GIVEN documents stored before the migration (all at most 10 MiB)
-- WHEN the migration is applied
-- THEN it succeeds and no row changes
-
-### Requirement: NP-17 Copy, accessibility and narrow width (RNF-12, RNF-14; CU-13)
-
-Every text of the screen, its confirmation, its errors and its sidebar entry MUST
-exist in `i18n/es.json` and `i18n/en.json` with identical key sets; `es` MUST be
-neutral professional Spanish with no voseo. Messages that state a parameter value
+Every text of the screen, its deactivation dialog, its errors and its sidebar entry
+MUST exist in `i18n/es.json` and `i18n/en.json` with identical key sets; `es` MUST
+be neutral professional Spanish with no voseo. Messages that state a parameter value
 (the window in days, the size limit) MUST take the value as a placeholder and MUST
 NOT hard-code it. State and errors MUST be text, never colour alone; the page MUST
-have one `h1`, errors tied to their fields and announced, and MUST NOT scroll
-horizontally at 360 px.
+have one `h1` and errors tied to their fields and announced. The 360 px rule of
+RNF-11 applies to student screens: the staff `/parameters` page has no narrow-width
+or touch-target requirement and no test for it.
 
 #### Scenario: Key parity
 
@@ -705,9 +718,3 @@ horizontally at 360 px.
 - GIVEN the page with an invalid submit
 - WHEN it renders
 - THEN there is exactly one `h1`, no skipped level, and each error is associated with its field
-
-#### Scenario: Narrow viewport
-
-- GIVEN a 360 px viewport
-- WHEN the page and its confirmation render
-- THEN the page does not scroll horizontally

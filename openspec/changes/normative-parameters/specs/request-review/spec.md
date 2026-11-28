@@ -3,7 +3,9 @@
 Change `normative-parameters`. Requirements covered: RNF-14, RN-08. Thesis: CU-13,
 Annex D Table D19. The remission days, the alert days and the calendar of
 non-business days come from `normative-parameters` (NP-2, NP-10) instead of code
-constants. [PG] marks a scenario that MUST run on a real PostgreSQL.
+constants. [PG] marks a scenario that MUST run on a real PostgreSQL. The effect of a
+saved change on the next read is proven by unit tests that inject the loader value
+and by the owner system test (NP-14), not by a Postgres case (scope cut, 2026-11-27).
 
 ## Notes for archive
 
@@ -98,13 +100,13 @@ MUST NOT appear in the queue and MUST NOT be flagged.
 - WHEN the queue is read
 - THEN the state is as shown
 
-#### Scenario: A parameter change applies to the next read [PG]
+#### Scenario: A parameter change applies to the next read
 
 - GIVEN a request presented Monday, remission days 2, and today Tuesday so the request is flagged alert
 - WHEN the maintainer saves remission days 3 and the queue is read again
 - THEN the same request is not flagged and its deadline is Thursday
 
-#### Scenario: A calendar change moves the deadline [PG]
+#### Scenario: A calendar change moves the deadline
 
 - GIVEN a request presented Monday with deadline Wednesday
 - WHEN Tuesday is added to the calendar and the queue is read
