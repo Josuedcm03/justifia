@@ -41,6 +41,8 @@ import { DECISION_KINDS } from "@/lib/intake/decision-templates";
 import { reviewTabOf, type ReviewTab } from "@/lib/intake/review-tabs";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { parseQ } from "@/lib/list-params";
+import { deadlineRulesOf } from "@/lib/parameters/derive";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
 const BASE = "/review";
 /** The cap every list applies to `q` (the data-table URL contract). */
@@ -65,7 +67,16 @@ async function loadTab(
 ): Promise<TabData> {
   switch (tab) {
     case "pendiente":
-      return { tab, queue: await listReviewQueue(scope, now, calendar) };
+      // Interim: the unit that follows loads the rules and the calendar.
+      return {
+        tab,
+        queue: await listReviewQueue(
+          scope,
+          now,
+          calendar,
+          deadlineRulesOf(DEFAULT_PARAMETERS),
+        ),
+      };
     case "en_revision_coordinacion":
       return { tab, ...(await listCoordinationQueue(scope)) };
     case "aprobada":

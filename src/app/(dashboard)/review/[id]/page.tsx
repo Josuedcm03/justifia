@@ -53,6 +53,8 @@ import {
 import { diffRevision, type RevisionDiff } from "@/lib/intake/revision-diff";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { isVisibleState } from "@/lib/intake/states";
+import { deadlineRulesOf } from "@/lib/parameters/derive";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 /** The states that show a short note where the decision panel would be. */
@@ -196,6 +198,8 @@ export default async function ReviewDetailPage({
           managuaToday(clockStartOf(detail)),
           managuaToday(now),
           calendar,
+          // Interim: the unit that follows loads the rules.
+          deadlineRulesOf(DEFAULT_PARAMETERS),
         )
       : null;
   const templatesFor = pending ? renderedTemplates(detail) : null;

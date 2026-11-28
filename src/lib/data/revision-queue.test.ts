@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { constantCalendar } from "@/lib/intake/adapters/constant-calendar";
 import type { RequestScope } from "@/lib/intake/request-scope";
+import type { DeadlineRules } from "@/lib/parameters/derive";
 
 import {
   createDbDouble,
@@ -38,6 +39,11 @@ const SCOPE: RequestScope = { kind: "facultad", facultadId: 3 };
 // Wednesday 2026-10-14, 09:00 in Managua (UTC-6).
 const NOW = new Date("2026-10-14T15:00:00.000Z");
 const CALENDAR = constantCalendar({ 2026: ["2026-12-25"] });
+/** The Reglamento values: remit in 2 business days, alert at 1 left. */
+const RULES: DeadlineRules = {
+  remissionBusinessDays: 2,
+  alertBusinessDays: 1,
+};
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -87,7 +93,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
   it("selects only pendiente requests inside the scope", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
-    await listReviewQueue(SCOPE, NOW, CALENDAR);
+    await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
     const query = render(double.log[0].where);
     expect(query.sql).toContain('"Solicitud"."Estado" = $1');
@@ -97,7 +103,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
 
   it("runs the exported query builder, the one the real-Postgres index proof plans", async () => {
     const listed = use([{ kind: "select", rows: [] }]);
-    await listReviewQueue(SCOPE, NOW, CALENDAR);
+    await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
     const shared = use([{ kind: "select", rows: [] }]);
     await reviewQueueQuery(SCOPE);
 
@@ -109,7 +115,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
   it("matches nothing for the none scope", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
-    const queue = await listReviewQueue({ kind: "none" }, NOW, CALENDAR);
+    const queue = await listReviewQueue({ kind: "none" }, NOW, CALENDAR, RULES);
 
     expect(render(double.log[0].where).sql).toContain("and false");
     expect(queue.rows).toEqual([]);
@@ -118,7 +124,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
   it("orders by the three-way effective start then id, the queue index expression (ES-5)", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
-    await listReviewQueue(SCOPE, NOW, CALENDAR);
+    await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
     expect(renderedOrder(double.log[0]).sql).toBe(
       'coalesce("Solicitud"."PlazoInicioEn", "Solicitud"."ReenviadaEn", "Solicitud"."PresentadaEn") asc, "Solicitud"."Id" asc',
@@ -141,7 +147,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR)).rows;
+    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR, RULES)).rows;
 
     // Without the pause the deadline is Wednesday 14th and the row is due
     // today; with it the deadline is Monday 19th.
@@ -165,7 +171,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR)).rows;
+    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR, RULES)).rows;
 
     expect(first.deadline).toBe("2026-10-16");
     expect(first.reenviada).toBe(true);
@@ -180,7 +186,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR);
+    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
     expect(queue.rows.map((r) => r.id)).toEqual([5, 2, 9]);
   });
@@ -201,7 +207,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR);
+    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
     expect(queue.rows.map((r) => [r.id, r.status, r.deadline])).toEqual([
       [1, "vencida", "2026-10-13"],
@@ -224,7 +230,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR)).rows;
+    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR, RULES)).rows;
 
     expect(first.status).toBe("en_plazo");
     expect(first.deadline).toBe("2026-10-16");
@@ -242,7 +248,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR)).rows;
+    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR, RULES)).rows;
 
     expect(first.deadline).toBe("2026-10-13");
     expect(first.status).toBe("vencida");
@@ -261,7 +267,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       },
     ]);
 
-    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR);
+    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
     expect(queue.rows.map((r) => r.asignaturas)).toEqual([2, 1]);
     expect(double.log).toHaveLength(2);
@@ -273,7 +279,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR);
+    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
     expect(queue.rows[0].asignaturas).toBe(0);
   });
@@ -284,7 +290,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
       { kind: "select", rows: [] },
     ]);
 
-    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR)).rows;
+    const [first] = (await listReviewQueue(SCOPE, NOW, CALENDAR, RULES)).rows;
 
     expect(first).toMatchObject({
       estudianteNombre: "Ana Perez",
@@ -297,7 +303,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
   it("issues no class read for an empty queue", async () => {
     const double = use([{ kind: "select", rows: [] }]);
 
-    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR);
+    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
     expect(queue).toEqual({ rows: [], calendarLoaded: true });
     expect(double.log).toHaveLength(1);
@@ -307,7 +313,7 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
     it("surfaces that the current year is loaded", async () => {
       use([{ kind: "select", rows: [] }]);
 
-      const queue = await listReviewQueue(SCOPE, NOW, CALENDAR);
+      const queue = await listReviewQueue(SCOPE, NOW, CALENDAR, RULES);
 
       expect(queue.calendarLoaded).toBe(true);
     });
@@ -318,7 +324,12 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
         { kind: "select", rows: [] },
       ]);
 
-      const queue = await listReviewQueue(SCOPE, NOW, constantCalendar({}));
+      const queue = await listReviewQueue(
+        SCOPE,
+        NOW,
+        constantCalendar({}),
+        RULES,
+      );
 
       expect(queue.calendarLoaded).toBe(false);
       expect(queue.rows[0].deadline).toBe("2026-10-16");
@@ -331,10 +342,127 @@ describe("listReviewQueue (RF-06, SR-5, SR-6)", () => {
         SCOPE,
         new Date("2027-01-01T03:00:00.000Z"),
         constantCalendar({ 2026: ["2026-12-25"] }),
+        RULES,
       );
 
       expect(queue.calendarLoaded).toBe(true);
     });
+  });
+});
+
+describe("listReviewQueue reads the rules in force (RR-QUEUE, NP-10, NP-13)", () => {
+  beforeEach(() => {
+    holder.current = null;
+  });
+
+  // Presented Monday 12th; NOW is Wednesday 14th. With 2 and 1 the deadline is
+  // today and the row is flagged; remission 3 gives Thursday 15th.
+  const MONDAY = row({ presentadaEn: new Date("2026-10-12T16:00:00.000Z") });
+
+  async function firstWith(rules: DeadlineRules, calendar = CALENDAR) {
+    holder.current = createDbDouble([
+      { kind: "select", rows: [MONDAY] },
+      { kind: "select", rows: [] },
+    ]).db;
+    return (await listReviewQueue(SCOPE, NOW, calendar, rules)).rows[0];
+  }
+
+  it.each([
+    // remission, alert, deadline, status
+    [2, 1, "2026-10-14", "por_vencer"],
+    [3, 1, "2026-10-15", "por_vencer"],
+    [3, 0, "2026-10-15", "en_plazo"],
+    [4, 1, "2026-10-16", "en_plazo"],
+    [4, 2, "2026-10-16", "por_vencer"],
+    [1, 0, "2026-10-13", "vencida"],
+    [2, 0, "2026-10-14", "por_vencer"],
+  ] as const)(
+    "remission %d and alert %d give the deadline %s and the state %s",
+    async (remissionBusinessDays, alertBusinessDays, deadline, status) => {
+      const first = await firstWith({
+        remissionBusinessDays,
+        alertBusinessDays,
+      });
+
+      expect(first.deadline).toBe(deadline);
+      expect(first.status).toBe(status);
+    },
+  );
+
+  it("moves the deadline from Wednesday to Thursday when a calendar date is added", async () => {
+    const before = await firstWith(RULES);
+    const after = await firstWith(
+      RULES,
+      constantCalendar({ 2026: ["2026-10-13", "2026-12-25"] }),
+    );
+
+    expect(before.deadline).toBe("2026-10-14");
+    expect(after.deadline).toBe("2026-10-15");
+    // The same request, only read differently: nothing else about it moves.
+    expect(after.clockStart).toEqual(before.clockStart);
+  });
+
+  it("never recomputes the stored start: it reads PlazoInicioEn and only counts from it", async () => {
+    // The answer stored Thursday 15th (Managua midnight) under the old calendar.
+    const stored = row({
+      presentadaEn: new Date("2026-10-12T16:00:00.000Z"),
+      plazoInicioEn: new Date("2026-10-15T06:00:00.000Z"),
+    });
+    const read = async (calendar: typeof CALENDAR) => {
+      const double = createDbDouble([
+        { kind: "select", rows: [stored] },
+        { kind: "select", rows: [] },
+      ]);
+      holder.current = double.db;
+      const [first] = (await listReviewQueue(SCOPE, NOW, calendar, RULES)).rows;
+      return { first, double };
+    };
+
+    const old = await read(CALENDAR);
+    // Friday 16th becomes a holiday: the same stored Thursday start now counts
+    // Mon 19th and Tue 20th.
+    const added = await read(
+      constantCalendar({ 2026: ["2026-10-16", "2026-12-25"] }),
+    );
+
+    expect(old.first.deadline).toBe("2026-10-19");
+    expect(added.first.deadline).toBe("2026-10-20");
+    // Both read the same stored value; the receipt date is untouched, and the
+    // read never writes.
+    expect(added.first.clockStart).toEqual(
+      new Date("2026-10-12T16:00:00.000Z"),
+    );
+    expect(added.double.log.map((statement) => statement.kind)).toEqual([
+      "select",
+      "select",
+    ]);
+  });
+
+  it("orders and badges every row by the same rules, one row per request", async () => {
+    use([
+      {
+        kind: "select",
+        rows: [
+          row({ id: 1, presentadaEn: new Date("2026-10-09T16:00:00.000Z") }),
+          row({ id: 2, presentadaEn: new Date("2026-10-12T16:00:00.000Z") }),
+          row({ id: 3, presentadaEn: new Date("2026-10-14T16:00:00.000Z") }),
+        ],
+      },
+      { kind: "select", rows: [] },
+    ]);
+
+    const queue = await listReviewQueue(SCOPE, NOW, CALENDAR, {
+      remissionBusinessDays: 3,
+      alertBusinessDays: 2,
+    });
+
+    // Fri 9th +3 = Wed 14th (due today), Mon 12th +3 = Thu 15th (1 left),
+    // Wed 14th +3 = Mon 19th (3 left).
+    expect(queue.rows.map((r) => [r.id, r.status, r.deadline])).toEqual([
+      [1, "por_vencer", "2026-10-14"],
+      [2, "por_vencer", "2026-10-15"],
+      [3, "en_plazo", "2026-10-19"],
+    ]);
   });
 });
 

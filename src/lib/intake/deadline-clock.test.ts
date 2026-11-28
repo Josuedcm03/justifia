@@ -28,7 +28,7 @@ const NEXT_TUE = "2026-10-13";
 
 /** The effective deadline of a request, as the queue and the detail read it. */
 function effectiveDeadline(row: ClockRow, cal = calendar()): string {
-  return deadlineOf(managuaToday(clockStartOf(row)), cal);
+  return deadlineOf(managuaToday(clockStartOf(row)), cal, 2);
 }
 
 describe("clockStartOf (ES-5)", () => {
