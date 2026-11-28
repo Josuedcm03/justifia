@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { filingRulesOf, type FilingRules } from "@/lib/parameters/derive";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
+
 import {
   documentIdSchema,
   errorKey,
@@ -10,7 +13,12 @@ import {
 } from "./solicitud";
 
 const TODAY = "2026-10-07";
-const details = makeDetailsStepSchema(TODAY);
+const RULES = filingRulesOf(DEFAULT_PARAMETERS);
+const windowOf = (windowDays: number): FilingRules => ({
+  ...RULES,
+  windowDays,
+});
+const details = makeDetailsStepSchema(TODAY, RULES);
 
 function errorsOf(input: unknown) {
   const result = details.safeParse(input);
@@ -85,6 +93,29 @@ describe("details step schema (RN-01, RN-05, RN-23)", () => {
       }),
     ).toEqual([{ field: "fechaFin", key: "intake.errors.end_too_old" }]);
   });
+
+  describe("the window follows the parameter (table-driven)", () => {
+    const rows: [number, string, boolean][] = [
+      [10, "2026-09-27", true], // exactly 10 days before 2026-10-07
+      [10, "2026-09-26", false],
+      [60, "2026-08-08", true], // exactly 60 days
+      [60, "2026-08-07", false],
+    ];
+    it.each(rows)("window %i, end %s -> accepted %s", (days, end, accepted) => {
+      const result = makeDetailsStepSchema(TODAY, windowOf(days)).safeParse({
+        causa: "medica",
+        fechaInicio: end,
+        fechaFin: end,
+      });
+
+      expect(result.success).toBe(accepted);
+      expect(!result.success && toFieldErrors(result.error)).toEqual(
+        accepted
+          ? false
+          : [{ field: "fechaFin", key: "intake.errors.end_too_old" }],
+      );
+    });
+  });
 });
 
 describe("subjects step schema (RF-04)", () => {
@@ -144,7 +175,7 @@ describe("errorKey", () => {
 });
 
 describe("details step schema without the filing window (RN-23 not re-applied on a correction)", () => {
-  const noWindow = makeDetailsStepSchema(TODAY, { filingWindow: false });
+  const noWindow = makeDetailsStepSchema(TODAY, RULES, { filingWindow: false });
   const old = {
     causa: "medica",
     fechaInicio: "2026-08-01",
@@ -154,6 +185,23 @@ describe("details step schema without the filing window (RN-23 not re-applied on
   it("accepts an end date more than 30 days old, which the default refuses", () => {
     expect(details.safeParse(old).success).toBe(false);
     expect(noWindow.safeParse(old).success).toBe(true);
+  });
+
+  it("refuses nothing for the date: an end 20 days old is accepted under a window of 10", () => {
+    const twenty = {
+      causa: "medica",
+      fechaInicio: "2026-09-17",
+      fechaFin: "2026-09-17",
+    };
+
+    expect(
+      makeDetailsStepSchema(TODAY, windowOf(10)).safeParse(twenty).success,
+    ).toBe(false);
+    expect(
+      makeDetailsStepSchema(TODAY, windowOf(10), {
+        filingWindow: false,
+      }).safeParse(twenty).success,
+    ).toBe(true);
   });
 
   it("RN-05 still applies: an end before the start is refused on the end field", () => {

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { isCausa } from "@/lib/intake/causes";
 import { isEndWithinWindow, isIsoDate } from "@/lib/intake/dates";
+import type { FilingRules } from "@/lib/parameters/derive";
 
 // Step schemas of the intake flow (RF-03). Every message is an i18n key, so the
 // UI only translates (`intake.errors.<code>` in es.json / en.json). The codes
@@ -31,11 +32,13 @@ function required(code: string) {
 
 /**
  * Step 1: cause and dates. `today` is the Managua date of the action's `now`.
+ * `rules` are the filing rules in force, loaded once by the action (RN-23).
  * A correction passes `filingWindow: false`: RN-23 was met when the request was
  * first presented and is not re-applied (RF-08 c); RN-05 always applies.
  */
 export function makeDetailsStepSchema(
   today: string,
+  rules: FilingRules,
   { filingWindow = true }: { filingWindow?: boolean } = {},
 ) {
   return z
@@ -55,7 +58,8 @@ export function makeDetailsStepSchema(
       const code =
         value.fechaFin < value.fechaInicio
           ? "end_before_start"
-          : !filingWindow || isEndWithinWindow(value.fechaFin, today)
+          : !filingWindow ||
+              isEndWithinWindow(value.fechaFin, today, rules.windowDays)
             ? null
             : "end_too_old";
       if (code) {

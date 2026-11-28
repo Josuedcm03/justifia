@@ -33,22 +33,29 @@ describe("addDays", () => {
 });
 
 describe("earliestAllowedEndDate (RN-23)", () => {
-  it("is 30 calendar days before the submission date", () => {
-    expect(earliestAllowedEndDate("2026-10-31")).toBe("2026-10-01");
-    expect(earliestAllowedEndDate("2026-03-01")).toBe("2026-01-30");
+  it("is the window in calendar days before the submission date", () => {
+    expect(earliestAllowedEndDate("2026-10-31", 30)).toBe("2026-10-01");
+    expect(earliestAllowedEndDate("2026-03-01", 30)).toBe("2026-01-30");
+    expect(earliestAllowedEndDate("2026-10-31", 10)).toBe("2026-10-21");
   });
 });
 
 describe("isEndWithinWindow table (RN-23)", () => {
-  const rows: [string, string, boolean][] = [
-    ["2026-10-31", "2026-10-01", true], // exactly 30 days
-    ["2026-10-31", "2026-09-30", false], // 31 days
-    ["2026-10-06", "2026-10-20", true], // future allowed
-    ["2026-10-31", "2026-10-31", true], // today
+  const rows: [number, string, string, boolean][] = [
+    [30, "2026-10-31", "2026-10-01", true], // exactly 30 days
+    [30, "2026-10-31", "2026-09-30", false], // 31 days
+    [30, "2026-10-06", "2026-10-20", true], // future allowed
+    [30, "2026-10-31", "2026-10-31", true], // today
+    [10, "2026-10-31", "2026-10-21", true], // exactly 10 days
+    [10, "2026-10-31", "2026-10-20", false], // 11 days
+    [10, "2026-10-31", "2026-10-11", false], // 20 days old, window 10
   ];
-  it.each(rows)("today %s, end %s -> %s", (today, end, expected) => {
-    expect(isEndWithinWindow(end, today)).toBe(expected);
-  });
+  it.each(rows)(
+    "window %i, today %s, end %s -> %s",
+    (windowDays, today, end, expected) => {
+      expect(isEndWithinWindow(end, today, windowDays)).toBe(expected);
+    },
+  );
 });
 
 describe("isIsoDate", () => {
