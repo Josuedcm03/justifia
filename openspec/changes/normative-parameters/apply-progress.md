@@ -718,3 +718,75 @@ Natural split: the plan names unit 14 as the one that moves out (438 lines), but
 Owner decision on the size (split into PR 7 and PR 7b, or `size:exception`); then 7.11 (open PR 7 against the tracker) and merge under the standing approval, then slice 8 (task 8.0).
 
 Orchestrator follow-up (2026-11-27): the extra consumer scan in `no-constants.test.ts` (not named by task 7.4) was removed under the owner's "just what is necessary" rule, which brings the slice to 985 changed lines (865 added, 120 deleted) without openspec, under the 1000 budget; no exception needed.
+
+
+## Slice 8: audit and write path (PR 8 of 10, branch `feat/normative-parameters-8-audit-write`; 2026-11-27)
+
+Mode: Strict TDD. Tasks 8.0 to 8.7 done (units 15 and 16 committed). 8.8 (open and merge the PR) is not assigned to apply and nothing was pushed. The branch is cut from the tracker after slice 7 merged (PR 177, e8eb73a). **No database command of any kind was run**: no INTEGRATION env, no `.env*` file read, no `drizzle-kit`, no migration. The new audit action needs no database change: `EventoAuditoria."Accion"` is `varchar(60)` and `"EntidadTipo"` is `varchar(40)` with no CHECK on either, and the only check on the entity (`CK_EventoAuditoria_Entidad`) concerns `Usuario`; `EntidadId` is nullable. **No mutation checks** (scope cut 2). **The slice measures 1199 changed lines, 199 over the 1000 stop line; it is not split** (see "Size").
+
+### Framework rule
+
+None applied: no Next API is used in this slice. `write.ts` is a plain `server-only` data function with no entry point calling it yet (no action, no route, no `revalidatePath`, no caching).
+
+### Files
+
+| File | Action | Added / deleted |
+|---|---|---|
+| `src/lib/audit/types.ts` | `AUDIT_ACTIONS` gains `parametro.actualizado` last (50); `AuditEntityType` gains `Parametro`; new `AuditParameterValue`, the payload `{ clave, antes, despues }` and the union member with `entidadId: null` | 28 / 1 |
+| `src/lib/audit/events.ts` | `parameterChangedEvent` (per-key mapping: scalar integer, causes by `codigo, activa, posicion`, the type-to-codes table, the calendar as ISO dates only) and `parameterWriteEvents` (one event per applied change, `[]` for unchanged and invalid, exhaustive `never` default) | 78 / 0 |
+| `src/lib/parameters/registry.ts` | Types only: `ParameterChange`, `AppliedChange`, `ParameterWriteResult` (see deviation 1) | 21 / 0 |
+| `src/lib/parameters/write.ts` (new) | `writeParameters(tx, changes, today)`: `readInForce` then `resolveParameters`, registry check by own key, schema re-validation, cross-key rule on the merged values, drop equal values by canonical JSON, one upsert per applied change. Re-exports the three types | 104 / 0 |
+| Tests | `types.test.ts`, `events.test.ts`, `audit-leak.test.ts`, `write.test.ts` (new, 37 cases), and the Postgres suite `normative-parameters.integration.test.ts` (second describe "write side": PG-3 write part, PG-4, PG-5, NP-5) | the rest |
+
+`SignalParams`, `DEFAULT_SIGNAL_PARAMS` and every `issuer.ts` export are untouched. Nothing under `drizzle/` changed. `withCatalogWrite` is unchanged. No call site needed a fix (typecheck found none).
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 8.1 | `T(audit/ catalog/audit-leak)`: 18 failed in 3 files: `types.test` (the action set held 49 and no `parametro.actualizado`, not last), `events.test` (`parameterChangedEvent` and `parameterWriteEvents` did not exist), `audit-leak.test` (`toEvents is not a function`) | n/a | n/a |
+| 8.2 | n/a | `T(audit/ catalog/audit-leak parameters/)`: 9 files, 399 tests passed; typecheck needed no call-site fix | n/a |
+| 8.3 | `T(parameters/write)`: the file failed to load (`./write` did not exist), no test ran | n/a | n/a |
+| 8.4 | n/a | `T(parameters/write)`: 1 file, 37 tests passed on the first run | n/a |
+| 8.5 | Tests only (Postgres, skipped without INTEGRATION env): proven in task 14.5. Typecheck and eslint pass | n/a | n/a |
+| 8.6 | n/a | n/a | The first full run found one failure that was mine: `src/lib/signals/no-persistence.test.ts` scans `src/lib/audit/*.ts` for the word "signal", and `events.ts` imported the `DocumentTypeCauses` type from `@/lib/signals/document-marks`. Replaced by `NormativeParameters["documentTypeCauses"]` from the registry. Prettier fixed four new or touched test files. Commits unit 15 `717d586` and unit 16 `720262a` |
+
+### Work Unit Evidence
+
+| Evidence | Unit 15 | Unit 16 |
+|---|---|---|
+| Focused test command and exact result | `T(audit/ catalog/audit-leak signals/no-persistence)`: 5 files, 215 tests passed | `T(parameters/write)`: 1 file, 37 tests passed |
+| Runtime harness | N/A as a database path. The leak test runs the REAL `withCatalogWrite`, the real builders and the real console spies against the Drizzle double of the existing suite: a calendar write audits the ISO dates only and a failing write that carries the sentinel description logs the actor and the error name only | N/A as a database path: `readInForce` is a double and the transaction is a recorder that builds the REAL Drizzle upsert, so the SQL text and parameters pinned are the ones the database would get; `delete`, `update` and `execute` fail the test if called. The Postgres cases (PG-3 write part, PG-4, PG-5, NP-5) ran nowhere: proof is task 14.5 |
+| Rollback boundary | Revert `717d586` only after `720262a` (the write path imports the types and the suite imports the builders); nothing else depends on it | Revert `720262a`: the write path and its suite go; the audit event stays inert (no caller) |
+
+### Gates (GS)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full): **407 files, 11404 tests**, all passed (slice 7 left 406 files and 11353 tests; one file added, `write.test.ts`; 51 tests added).
+- `npx next typegen` then `npm run typecheck`: clean.
+- `npx eslint --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}' src`: 0 errors, 1 warning (the known unused `SidebarGroupLabel` in `app-sidebar.tsx`). `npx prettier --check --end-of-line auto` on every touched file: clean.
+- `DATABASE_URL=postgres://u:p@localhost:5432/x AUTH_SECRET=throwaway-build-secret-0123456789abcdef npm run build`: exit 0.
+
+### Size (task 8.7): OVER THE STOP LINE
+
+`git diff --shortstat origin/feat/normative-parameters...HEAD -- . ':!openspec'`: **9 files changed, 1189 insertions(+), 10 deletions(-)**, 1199 changed lines (planned about 930; stop line 1000). By unit: unit 15 `717d586` 358 (353 + 5), unit 16 `720262a` 841 (836 + 5). Production code is about 232 lines (`events.ts` 78, `types.ts` 29, `registry.ts` 21, `write.ts` 104); the rest is tests: `write.test.ts` 401, `events.test.ts` 155, `audit-leak.test.ts` 52, `types.test.ts` 23 and the Postgres suite 336.
+
+Natural split: the task names it. The Postgres cases of task 8.5 (336 lines, tests only, never run here, proof in task 14.5) move to PR 9: slice 8 would be 863 changed lines with units 15 and 16 intact, and slice 9 (pre-approved up to 1500) would open with them. They depend on the write path only through its public function, so they can land with the actions that call it. Not split here: awaiting the owner's decision (move task 8.5 to PR 9, or `size:exception` for 199 lines over).
+
+### Deviations from design and tasks
+
+1. **`ParameterChange`, `AppliedChange` and `ParameterWriteResult` are declared in `src/lib/parameters/registry.ts` (pure) and re-exported by `write.ts`, not declared in `write.ts`.** Design lists them under `write.ts`, but `events.ts` (pure, the unit 15 commit) needs `AppliedChange` and `ParameterWriteResult`, and `write.ts` only exists from unit 16. Importing the types from a `server-only` file into the audit module would also have broken commit 15 on its own. `write.ts` keeps the design's public surface through the re-export. Types only, no runtime code in `registry.ts`.
+2. **`writeParameters` returns `invalid` with reason `schema` for a key outside the registry** (the design says "refused" without naming the result). The check uses `Object.hasOwn`, so `__proto__`, `constructor` and `toString` are refused too (mass-assignment row of the threat matrix). The `clave` of that result is the offending string even though its type is `ParameterKey`; it can only differ at runtime when the type is bypassed.
+3. **The `clave` of the cross-key refusal** is `alerta_dias` when that key is in the save, else `plazo_remision_dias` (the design says "a field error" without naming the field). The rule runs only when the save holds one of those two keys, so an unrelated save is never refused because of a pair that manual SQL left inconsistent.
+4. **The Managua-date case** pins `managuaToday(2026-11-28T03:00Z)` giving 2026-11-27 and that value reaching both the read and the `VigenteDesde` parameter. "Never a future date" holds because the function receives `today` once and uses it for both; the action of slice 9 computes it.
+5. **`audit-leak.test.ts` drives `withCatalogWrite` with `parameterWriteEvents` directly**, because the parameter actions arrive in slice 9. It reuses the existing doubles and `expectCleanTrail`; the description sentinel joins `SENTINELS`, so every earlier case now also checks it.
+6. **Line endings**: the working copies of several touched files were CRLF; the edit tool normalised some to LF. The index is LF, so the diffs are clean. Commits created with `engram` off the PATH; none lists an `.engram` path; no `--no-verify`.
+
+### Risks and notes for later slices
+
+- `antes` of a calendar change whose only difference is a description equals `despues` in the audit payload (dates only), but the save still counts as a change and writes a row and an audit row, because the value in force differs. This follows A9 (canonical JSON of the validated value) and NP-AUD-3 (no descriptions in the payload).
+- Two changes of the same key in one save are not rejected: the second upsert replaces the first on the same day. The closed set of each action in slice 9 has one entry per key, so no test covers it.
+- The audit insert and the upsert use the same transaction handle; busy and failure mapping stay in `withCatalogWrite`, which this slice does not change.
+
+### Next
+
+Owner decision on the size (move task 8.5 to PR 9, or `size:exception`); then 8.8 (open PR 8 against the tracker) and merge under the standing approval, then slice 9 (task 9.0).
