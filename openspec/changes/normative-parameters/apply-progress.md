@@ -630,3 +630,89 @@ All five codes (`CAUSAS`), as A14 and NP-13 say. Two places build a correction's
 ### Next
 
 Task 6.8: open PR 6 against the tracker (body "PR 6 of 10 (causes)") and merge it under the standing approval, then slice 7 (task 7.0).
+
+## Slice 7: size (PR 7 of 10, branch `feat/normative-parameters-7-size`; 2026-11-27)
+
+Mode: Strict TDD. Tasks 7.0 to 7.10 done (units 13, 14 and 14b committed). 7.11 (open and merge the PR) is not assigned to apply and nothing was pushed. The branch is cut from the tracker after slice 6 merged (PR 176, 53f0591). **No database command of any kind was run**: no INTEGRATION env, no `.env*` file read, and `drizzle-kit` was not run at all (so `npm run db:generate` was not run; the "no schema change" proof is by inspection, see below). **No mutation checks** (scope cut 2). **The slice measures 1005 changed lines, five over the 1000 stop line; it is not split** (see "Size").
+
+### Framework rule
+
+Re-read `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route.md` (a `POST` route handler is dynamic and never cached) and, from slices 5 and 6, `caching-without-cache-components.md` (with `cacheComponents` off, React `cache()` only deduplicates inside one render and is a pass-through in a route handler or a server action). Applied: both token routes read `getNormativeParameters()` INSIDE `onBeforeGenerateToken`, per request and after every guard, never at module scope; the finalize and attach actions read it inside the action body; the review detail page reads it in the render (deduplicated with the deadline read by `cache()`). No new Next API, no `revalidatePath`, no `redirect` change, no `unstable_cache`, no `use cache`, no module-level store.
+
+### Files
+
+| File | Action | Added / deleted |
+|---|---|---|
+| `src/lib/data/documentos.ts` | `inspectStoredFile`, `fingerprintStoredFile` and the private `refusalFor` take `maxBytes`; `finalizeDocument` input gains `maxBytes`; the `MAX_DOCUMENT_BYTES` import is gone | 17 / 13 |
+| `src/lib/data/special-format.ts` | `attachSpecialFormat` input gains `maxBytes`, handed to `inspectStoredFile` | 3 / 1 |
+| `src/app/api/intake/upload-token/route.ts`, `src/app/api/review/special-format-token/route.ts` | `maximumSizeInBytes: maxDocumentBytesOf(values)` from the loader, read inside `onBeforeGenerateToken` after the guards | 6 / 2 each |
+| `src/app/(dashboard)/requests/new/step-actions.ts` | `finalize` (shared by the new-request and correction finalize actions) reads the loader and passes `maxBytes` | 4 / 2 |
+| `src/app/(dashboard)/review/[id]/remission-actions.ts` | `attachSpecialFormatAction` reads the loader and passes `maxBytes` | 11 / 1 |
+| `src/app/(dashboard)/requests/new/documents-step.tsx`, `flow-steps.tsx` | `DocumentsStep` takes a required `limits: IntakeLimits`; pre-check, hint and refusal copy use it; `FlowSteps` passes its `limits` | 15 / 6 |
+| `src/app/(dashboard)/review/[id]/special-format-upload.tsx`, `remission-section.tsx`, `page.tsx` | `SpecialFormatUpload` takes a required `maxDocumentBytes` (carried inside the `specialFormat` object); the page derives it from the loader only for a marked approval | 30 / 11 |
+| `src/lib/intake/limits.ts`, `src/db/schema.ts` | `MAX_DOCUMENT_BYTES` removed; the check keeps the same SQL with the literal `10485760` | 5 / 7 |
+| `i18n/es.json`, `i18n/en.json` | `intake.errors.too_large` and `review.remission.upload.errors.too_large` take `{size}` | 2 / 2 each |
+| `src/lib/parameters/registry.ts` | `tamano_maximo_mib` range 1 to 25 becomes 1 to 10 | 3 / 1 |
+| Tests (one new: `src/lib/parameters/size-ceiling.test.ts`) | See the TDD table | the rest of the 885 / 120 |
+
+`SignalParams`, `DEFAULT_SIGNAL_PARAMS` and every `issuer.ts` export are untouched. Nothing under `drizzle/` changed.
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 7.1 | 20 failed in 8 files: `documentos.test` (the maximum was the constant: the 5 MiB cases, the lowered-limit pair and `readDigest` called with the constant), `special-format.test` (a 6 MiB file was accepted against 5), both token route tests (the token carried 10485760 for 1 and 5 MiB; the earlier-token case), `remission-actions.test`, `step-actions.test` and `correct/actions.test` (no `maxBytes`). The "read only after the guards" cases of the routes passed at write time (they pin the order the GREEN must keep) | n/a | n/a |
+| 7.2 | n/a | `T(data/documentos data/special-format upload-token special-format-token remission-actions step-actions requests/new/actions correct/actions review/)`: 37 files, 1298 tests passed | n/a |
+| 7.3 | n/a | n/a | Typecheck found two Postgres integration files that call `finalizeDocument` without `maxBytes` (`intake-concurrency.integration.test.ts`, `request-correction.integration.test.ts`); both now pass the literal 10485760. Prettier fixed on `step-actions.test.ts`. Full run: 405 files, 11324 tests. Commit unit 13 `06c9ede` |
+| 7.4 | 19 failed in 5 files: `no-constants.test` 3 (the constant still existed and both components held it), `documents-step.test` 4 (no `limits` prop: limit 5 with 6 MB, limit 2 with 3 MB, hint, server refusal copy), `special-format-upload.test` 3 (limit 2 with 3 MB, hint, server refusal copy), `catalog-parity.test` 8 (`too_large` held a literal 10 and no `{size}`), `new/page.test` 1 (the documents step showed 10). The new `review/[id]/page.test` case (the upload hint states the loader value) was not in that run (my path filter did not match it): its RED was not observed, it passed on its own after GREEN | n/a | n/a |
+| 7.5 | n/a | `T(documents-step special-format-upload review/[id]/page intake/limits parameters/no-constants src/i18n requests/new remission-section review/design-system layout-360 correct)`: 40 files, 1392 tests; the review detail page test alone: 157 passed | n/a |
+| 7.6 | n/a | n/a | Prettier fixed on three test files; typegen plus typecheck clean; full run: 405 files, 11351 tests. Commit unit 14 `99a5afa` |
+| 7.7 | 2 failed: `size-ceiling.test` (registry maximum times 1048576 gave 26214400, not 10485760) and the `tamano_maximo_mib` range row of `registry.test` (11 was accepted). The "finds both numbers" case passes at write time (it proves the scan is not vacuous) | n/a | n/a |
+| 7.8 | n/a | `T(parameters/ migration-normative-parameters no-constants)`: 6 files, 217 tests; `rg -n 'maxDocumentMib: (1[1-9]\|2[0-5])\|tamano_maximo_mib: (1[1-9]\|2[0-5])' src` finds nothing | n/a |
+| 7.9 | n/a | n/a | One fixture beyond the task text: the Postgres read table row "a valid row in force" held 20 (expected 20), which would now read back as a fallback; it is 8. Typecheck, eslint and prettier clean; full run: 406 files, 11353 tests. Commit unit 14b `d6eed2e` |
+
+### Work Unit Evidence
+
+| Evidence | Unit 13 | Unit 14 | Unit 14b |
+|---|---|---|---|
+| Focused test command and exact result | The 7.2 `T(...)`: 37 files, 1298 tests passed | The 7.5 `T(...)`: 40 files, 1392 tests passed | `T(parameters/ migration-normative-parameters no-constants)`: 6 files, 217 tests passed |
+| Runtime harness | N/A as a database path. The routes run through the real `POST` with the SDK's `handleUpload` replaced by a double that calls `onBeforeGenerateToken` like the SDK; the data layer runs on the Drizzle double of the existing suites with the fake store; the loader is a scripted double at the route and action boundary (its own suites are slices 2 and 2b). The Postgres finalize cases ran nowhere (no database): proof is task 14.5. The owner system test ST-6 (task 14.10) proves the effect on a running preview | N/A as a database path. The real `NextIntlClientProvider` with the real es and en catalogs renders the new `{size}` messages; ST-6 proves it on a preview. `npm run build` compiles both pages | N/A: structural scan; the rendered `CK_Documento_Tamano` SQL was checked by inspection (below) |
+| Rollback boundary | Unit 13 alone is not revertible once unit 14 removes the constant it leaves behind; revert the three units newest first, and the 10 MiB constant and the fixed token limit return | Revert `99a5afa` only after `d6eed2e` (the scan reads the schema literal that unit 14 writes): the constant, the client constant copies and the "10 MB" copy return | Revert `d6eed2e`: the range returns to 1 to 25 and the fixtures to their old values; nothing else depends on it |
+
+### Schema: no change, by inspection
+
+`npm run db:generate` was not run (instruction: no drizzle-kit at all). Proof by inspection instead: (1) `git diff origin/feat/normative-parameters...HEAD -- drizzle` is empty; (2) the schema changed from `${sql.raw(String(MAX_DOCUMENT_BYTES))}` to the literal `10485760` inside the same template, so the rendered text is the same; (3) a throwaway vitest (not committed) rendered the `CK_Documento_Tamano` check of `getTableConfig(documentoRespaldo)` through `PgDialect.sqlToQuery` and it contains `<= 10485760`, the number in `drizzle/0007_justification_intake.sql`; (4) the new `size-ceiling.test.ts` pins the schema number to the registry maximum. The owner can confirm with `npm run db:generate` (it reads `src/db/schema.ts` only, no database); it should print "No schema changes".
+
+### Gates (GS)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full): **406 files, 11353 tests**, all passed (slice 6 left 405 files and 11297 tests; one file added, `size-ceiling.test.ts`; 56 tests added).
+- `npx next typegen` then `npm run typecheck`: clean.
+- `npx eslint --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}' src`: 0 errors, 1 warning (the known unused `SidebarGroupLabel` in `app-sidebar.tsx`). `npx prettier --check --end-of-line auto` on every touched file: clean.
+- `DATABASE_URL=postgres://u:p@localhost:5432/x AUTH_SECRET=throwaway-build-secret-0123456789abcdef npm run build`: exit 0.
+
+### Size (task 7.10): OVER THE STOP LINE
+
+`git diff --shortstat origin/feat/normative-parameters...HEAD -- . ':!openspec'`: **42 files changed, 885 insertions(+), 120 deletions(-)**, 1005 changed lines (planned about 950; stop line 1000). By unit: unit 13 `06c9ede` 505 (451 + 54), unit 14 `99a5afa` 438 (382 + 56), unit 14b `d6eed2e` 62 (52 + 10). Production code is about 110 of the 1005 lines; the rest is tests (the SD-UPLOAD, SD-FINALIZE and SD-LIMIT tables, the catalog parity and the scans).
+
+Natural split: the plan names unit 14 as the one that moves out (438 lines), but 14b depends on unit 14 (its scan reads the schema literal that unit 14 writes). The cleanest cut is after unit 14: PR 7 = units 13 and 14 (943 lines, under the stop line) and a small PR 7b = unit 14b (62 lines: the range 1 to 10 and the scan), which the tracker needs before slice 8 anyway. Not split here: awaiting the owner's decision (split as above, or `size:exception` for five lines over).
+
+### Deviations from design and tasks
+
+1. **The staff attach action is `attachSpecialFormatAction` in `remission-actions.ts`, not `review/[id]/actions.ts`.** Task 7.1 names `review/[id]/actions.test.ts` and 7.2 names `review/[id]/actions.ts`; neither holds the attach. The edit and its test are in `remission-actions.ts` and `remission-actions.test.ts`.
+2. **The student finalize is `finalize` in `requests/new/step-actions.ts`** (shared by `finalizeDocumentAction` and `finalizeCorrectionDocumentAction`), not `requests/new/actions.ts`. `actions.ts` is not edited; its test and the correction action test gained the `maxBytes` assertion, and `step-actions.test.ts` holds the table.
+3. **Two Postgres integration files edited in unit 13** (`intake-concurrency` and `request-correction`) because their `finalizeDocument` calls need `maxBytes` to typecheck; they skip in unit runs. In unit 14b the Postgres read suite got a second fix beyond `OTHER_VALUES` (the valid row 20, now 8), found by reading the table, not by the task text.
+4. **`DocumentsStep` takes a required `limits: IntakeLimits`** (the prop slice 5 already threads through `FlowSteps`), not a bare size, so its refusal messages get `{ size }` through `errorValuesOf` like every other step; the 12 test renders of the step were updated. `SpecialFormatUpload` takes `maxDocumentBytes` as the task says and derives MB with the same `1024 * 1024` conversion the component already had (a unit conversion, not a copy of the limit; the scan forbids the constant and the literal 10485760 in both components).
+5. **Extra structural cases beyond the task text, in `no-constants.test.ts`**: the four consumers (both routes, `step-actions`, `remission-actions`) import the loader and derive the limit with `maxDocumentBytesOf`; the two components import neither the loader nor the registry. They follow the pattern of the slice 4 to 6 scans. The owner may drop them.
+6. **Python incident**: while reading a file I started a bare `python` by mistake; it opened an interactive REPL and hung. I stopped it with `taskkill /F /IM python.exe`, which ended every `python.exe` process of the machine, not only mine. Nothing else of this work used Python; if another tool of the owner was running Python it needs a restart.
+7. **Line endings and the `.engram` hook** as in slices 5 and 6: commits created with `engram` off the PATH; none lists an `.engram` path; no `--no-verify`.
+
+### Risks and notes for later slices
+
+- **The size can be lowered but not raised above 10 MiB** without a database migration (scope cut 1; the thesis sentence is on the owner's list). Slice 9's action validates `tamano_maximo_mib` against the registry (1 to 10), which now refuses 11.
+- A stored 8 MiB document stays valid, listed and served when the limit is lowered to 5 (only new uploads and finalizes are refused); the `[PG]` scenario for this is proven in task 14.5.
+- The token limit is fixed at issue time (a token issued earlier keeps its limit until its 10 minutes end); finalize applies the limit in force when it runs. Both are pinned by tests.
+- The review detail page reads the loader a second time for a marked approval (deduplicated with the deadline read by `cache()` inside one render).
+
+### Next
+
+Owner decision on the size (split into PR 7 and PR 7b, or `size:exception`); then 7.11 (open PR 7 against the tracker) and merge under the standing approval, then slice 8 (task 8.0).
