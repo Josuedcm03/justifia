@@ -932,6 +932,7 @@
     "errors": {
       "causa_required": "Choose the cause of your absence.",
       "causa_invalid": "Choose one of the listed causes.",
+      "causa_inactive": "This cause is no longer available. Choose another.",
       "start_required": "Enter the start date.",
       "start_invalid": "Enter a valid start date.",
       "end_required": "Enter the end date.",

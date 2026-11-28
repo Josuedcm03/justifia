@@ -32,7 +32,8 @@ function required(code: string) {
 
 /**
  * Step 1: cause and dates. `today` is the Managua date of the action's `now`.
- * `rules` are the filing rules in force, loaded once by the action (RN-23).
+ * `rules` are the filing rules in force, loaded once by the action (RN-23,
+ * RN-01: the cause must be one of `rules.selectableCauses`).
  * A correction passes `filingWindow: false`: RN-23 was met when the request was
  * first presented and is not re-applied (RF-08 c); RN-05 always applies.
  */
@@ -43,9 +44,13 @@ export function makeDetailsStepSchema(
 ) {
   return z
     .object({
-      causa: required("causa_required").refine(isCausa, {
-        error: errorKey("causa_invalid"),
-      }),
+      causa: required("causa_required")
+        .refine(isCausa, { error: errorKey("causa_invalid") })
+        // Only a code of the five can be inactive; the one above reports the rest.
+        .refine(
+          (causa) => !isCausa(causa) || rules.selectableCauses.includes(causa),
+          { error: errorKey("causa_inactive") },
+        ),
       fechaInicio: required("start_required").refine(isIsoDate, {
         error: errorKey("start_invalid"),
       }),

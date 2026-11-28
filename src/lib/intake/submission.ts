@@ -1,6 +1,6 @@
 import type { FilingRules } from "@/lib/parameters/derive";
 
-import { isCausa } from "./causes";
+import { causeErrors, type CauseErrorCode } from "./causes";
 import { CONSENT_VERSION } from "./consent";
 import { isEndWithinWindow, isIsoDate } from "./dates";
 import {
@@ -37,7 +37,7 @@ export type SubmissionField =
 
 export type SubmissionErrorCode =
   | "causa_required"
-  | "causa_invalid"
+  | CauseErrorCode
   | "start_required"
   | "start_invalid"
   | "end_required"
@@ -76,11 +76,17 @@ export interface SubmissionOptions {
 export type SubmissionResult =
   { ok: true } | { ok: false; errors: SubmissionError[] };
 
-function causeErrors(causa: string | null): SubmissionError[] {
+function causaErrors(
+  causa: string | null,
+  selectable: FilingRules["selectableCauses"],
+): SubmissionError[] {
   if (causa === null || causa === "") {
     return [{ field: "causa", code: "causa_required" }];
   }
-  return isCausa(causa) ? [] : [{ field: "causa", code: "causa_invalid" }];
+  return causeErrors(causa, selectable).map((code) => ({
+    field: "causa",
+    code,
+  }));
 }
 
 function startErrors(start: string | null): SubmissionError[] {
@@ -138,7 +144,7 @@ export function validateSubmission(
   { filingWindow = true, consent = true }: SubmissionOptions = {},
 ): SubmissionResult {
   const errors: SubmissionError[] = [
-    ...causeErrors(input.causa),
+    ...causaErrors(input.causa, rules.selectableCauses),
     ...startErrors(input.fechaInicio),
     ...endErrors(
       input.fechaInicio,

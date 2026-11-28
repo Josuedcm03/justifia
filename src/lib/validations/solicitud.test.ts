@@ -116,6 +116,43 @@ describe("details step schema (RN-01, RN-05, RN-23)", () => {
       );
     });
   });
+
+  describe("the selectable causes follow the parameter (NP-11)", () => {
+    const withCauses = (selectableCauses: FilingRules["selectableCauses"]) =>
+      makeDetailsStepSchema(TODAY, { ...RULES, selectableCauses });
+    const dates = { fechaInicio: "2026-10-01", fechaFin: "2026-10-03" };
+
+    it("refuses a cause that is not selectable, on the cause field", () => {
+      const result = withCauses(["fuerza_mayor"]).safeParse({
+        causa: "medica",
+        ...dates,
+      });
+
+      expect(!result.success && toFieldErrors(result.error)).toEqual([
+        { field: "causa", key: "intake.errors.causa_inactive" },
+      ]);
+    });
+
+    it("accepts a selectable cause", () => {
+      expect(
+        withCauses(["fuerza_mayor"]).safeParse({
+          causa: "fuerza_mayor",
+          ...dates,
+        }).success,
+      ).toBe(true);
+    });
+
+    it("keeps causa_invalid for a code outside the five", () => {
+      const result = withCauses(["fuerza_mayor"]).safeParse({
+        causa: "vacaciones",
+        ...dates,
+      });
+
+      expect(!result.success && toFieldErrors(result.error)).toEqual([
+        { field: "causa", key: "intake.errors.causa_invalid" },
+      ]);
+    });
+  });
 });
 
 describe("subjects step schema (RF-04)", () => {

@@ -17,6 +17,7 @@ import {
   ownedWhere,
   type EditTarget,
 } from "@/lib/data/solicitudes";
+import { CAUSAS } from "@/lib/intake/causes";
 import { isIsoDate, managuaToday } from "@/lib/intake/dates";
 import { MAX_DOCUMENTS_PER_DRAFT } from "@/lib/intake/limits";
 import type { GroupScheduleProvider } from "@/lib/intake/ports";
@@ -86,7 +87,8 @@ export async function resubmitCorrection(
       validDocumentCount: valid,
     },
     managuaToday(now),
-    filingRulesOf(values),
+    // Any of the five causes is accepted: the cause rule is for drafts (A14).
+    { ...filingRulesOf(values), selectableCauses: CAUSAS },
     // Neither rule is re-applied: the window was met, and the consent given (or
     // not recorded for a legacy request) at the first presentation stands.
     { filingWindow: false, consent: false },

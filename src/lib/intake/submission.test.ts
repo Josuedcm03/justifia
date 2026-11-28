@@ -56,6 +56,26 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
     ]);
   });
 
+  it("blocks a draft whose cause is not selectable, on the cause field (NP-11)", () => {
+    const rules: FilingRules = { ...RULES, selectableCauses: ["fuerza_mayor"] };
+
+    expect(fields(valid({ causa: "medica" }), TODAY, rules)).toEqual([
+      "causa:causa_inactive",
+    ]);
+    expect(fields(valid({ causa: "fuerza_mayor" }), TODAY, rules)).toEqual([]);
+    expect(fields(valid({ causa: "vacaciones" }), TODAY, rules)).toEqual([
+      "causa:causa_invalid",
+    ]);
+  });
+
+  it("accepts any of the five when every cause is selectable (a correction, A14)", () => {
+    const rules: FilingRules = { ...RULES, selectableCauses: [...CAUSAS] };
+
+    for (const causa of CAUSAS) {
+      expect(fields(valid({ causa }), TODAY, rules)).toEqual([]);
+    }
+  });
+
   it("requires both dates and rejects malformed ones (RF-03 a)", () => {
     expect(fields(valid({ fechaInicio: null }))).toEqual([
       "fechaInicio:start_required",

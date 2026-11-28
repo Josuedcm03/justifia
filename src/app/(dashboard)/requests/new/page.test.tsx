@@ -174,6 +174,34 @@ describe("NewRequestPage limits (NP-17, A13)", () => {
   });
 });
 
+describe("NewRequestPage causes (NP-11)", () => {
+  it("hands the flow the active causes in the stored order", async () => {
+    getNormativeParameters.mockResolvedValue({
+      values: {
+        ...DEFAULT_PARAMETERS,
+        causes: [
+          { codigo: "medica", activa: true, posicion: 1 },
+          { codigo: "intercambio_academico", activa: false, posicion: 2 },
+          { codigo: "fuerza_mayor", activa: true, posicion: 3 },
+          { codigo: "maternidad_paternidad", activa: true, posicion: 4 },
+          { codigo: "actividad_representativa", activa: true, posicion: 5 },
+        ],
+      },
+      fallback: [],
+      degraded: false,
+    });
+
+    await renderPage();
+
+    expect(vi.mocked(FlowSteps).mock.calls[0][0].causes).toEqual([
+      "medica",
+      "fuerza_mayor",
+      "maternidad_paternidad",
+      "actividad_representativa",
+    ]);
+  });
+});
+
 describe("NewRequestPage step from the URL (A7)", () => {
   it("starts an empty draft at step 1 and shows the header and stepper", async () => {
     await renderPage();

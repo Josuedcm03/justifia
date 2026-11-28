@@ -51,6 +51,19 @@ const twentyDaysOld = {
   fechaFin: "2026-09-17",
 };
 
+/** The loader result when `inactive` causes are deactivated (NP-11). */
+const causesRead = (...inactive: string[]) => ({
+  values: {
+    ...DEFAULT_PARAMETERS,
+    causes: DEFAULT_PARAMETERS.causes.map((c) => ({
+      ...c,
+      activa: !inactive.includes(c.codigo),
+    })),
+  },
+  fallback: [],
+  degraded: false,
+});
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
@@ -89,6 +102,40 @@ describe("saveDetails reads the filing window from the loader (RN-23, JI-CAUSE)"
 
   it("never applies the window to a correction (NP-13)", async () => {
     h.getNormativeParameters.mockResolvedValue(windowRead(10));
+
+    expect(await saveDetails(USER, CORRECTION, twentyDaysOld)).toEqual({
+      ok: true,
+    });
+
+    expect(h.saveDraftDetails).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("saveDetails reads the active causes from the loader (NP-11, JI-CAUSE)", () => {
+  const CAUSE_ERROR = {
+    ok: false,
+    errors: [{ field: "causa", key: "intake.errors.causa_inactive" }],
+  };
+
+  it("refuses a deactivated cause on the cause field and saves nothing", async () => {
+    h.getNormativeParameters.mockResolvedValue(causesRead("medica"));
+
+    expect(await saveDetails(USER, DRAFT, twentyDaysOld)).toEqual(CAUSE_ERROR);
+
+    expect(h.saveDraftDetails).not.toHaveBeenCalled();
+  });
+
+  it("accepts the same cause once it is active again", async () => {
+    h.getNormativeParameters.mockResolvedValue(causesRead("medica"));
+    await saveDetails(USER, DRAFT, twentyDaysOld);
+
+    h.getNormativeParameters.mockResolvedValue(causesRead());
+
+    expect(await saveDetails(USER, DRAFT, twentyDaysOld)).toEqual({ ok: true });
+  });
+
+  it("accepts any of the five in a correction (A14)", async () => {
+    h.getNormativeParameters.mockResolvedValue(causesRead("medica"));
 
     expect(await saveDetails(USER, CORRECTION, twentyDaysOld)).toEqual({
       ok: true,

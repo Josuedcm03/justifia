@@ -932,6 +932,7 @@
     "errors": {
       "causa_required": "Elige la causa de tu ausencia.",
       "causa_invalid": "Elige una de las causas de la lista.",
+      "causa_inactive": "Esta causa ya no está disponible. Elige otra.",
       "start_required": "Indica la fecha de inicio.",
       "start_invalid": "Indica una fecha de inicio válida.",
       "end_required": "Indica la fecha de fin.",

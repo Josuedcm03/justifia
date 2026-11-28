@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { admitsRest, CAUSAS, CAUSAS_CON_REPOSO, isCausa } from "./causes";
+import {
+  admitsRest,
+  causeErrors,
+  CAUSAS,
+  CAUSAS_CON_REPOSO,
+  isCausa,
+} from "./causes";
 
 describe("CAUSAS (RN-01)", () => {
   it("lists exactly five distinct codes", () => {
@@ -67,6 +73,29 @@ describe("admitsRest", () => {
       expect(admitsRest(causa)).toBe(
         (CAUSAS_CON_REPOSO as readonly string[]).includes(causa),
       );
+    }
+  });
+});
+
+describe("causeErrors (RN-01, NP-11)", () => {
+  const SELECTABLE = ["actividad_representativa", "medica"] as const;
+
+  it("accepts a selectable cause", () => {
+    expect(causeErrors("medica", SELECTABLE)).toEqual([]);
+  });
+
+  it("gives causa_invalid for a code outside the five", () => {
+    expect(causeErrors("vacaciones", SELECTABLE)).toEqual(["causa_invalid"]);
+    expect(causeErrors("vacaciones", [])).toEqual(["causa_invalid"]);
+  });
+
+  it("gives causa_inactive for one of the five that is not selectable", () => {
+    expect(causeErrors("fuerza_mayor", SELECTABLE)).toEqual(["causa_inactive"]);
+  });
+
+  it("accepts every one of the five when all are selectable", () => {
+    for (const causa of CAUSAS) {
+      expect(causeErrors(causa, CAUSAS)).toEqual([]);
     }
   });
 });
