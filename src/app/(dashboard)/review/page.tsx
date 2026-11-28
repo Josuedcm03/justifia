@@ -36,11 +36,12 @@ import {
   type QueueRow,
   type ReviewQueue,
 } from "@/lib/data/revision-queue";
-import { calendar } from "@/lib/intake/calendar";
 import { DECISION_KINDS } from "@/lib/intake/decision-templates";
 import { reviewTabOf, type ReviewTab } from "@/lib/intake/review-tabs";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { parseQ } from "@/lib/list-params";
+import { calendarOf, deadlineRulesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 
 const BASE = "/review";
 /** The cap every list applies to `q` (the data-table URL contract). */
@@ -53,19 +54,31 @@ const NOTICE =
   "border-success/30 border-l-success bg-success/8 text-success-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
 
 type TabData =
-  | { tab: "pendiente"; queue: ReviewQueue }
+  | { tab: "pendiente"; queue: ReviewQueue; alertDays: number }
   | { tab: "en_revision_coordinacion"; rows: CoordinationQueueRow[] }
   | { tab: "aprobada"; rows: ApprovedRow[] };
 
-/** Reads only the selected tab; the other two are never queried. */
+/**
+ * Reads only the selected tab; the other two are never queried. The pending
+ * tab is the only one with a deadline, so it alone loads the parameters in
+ * force (once per render): the calendar and the RN-08 rules reach the queue as
+ * arguments (RR-QUEUE, NP-15).
+ */
 async function loadTab(
   tab: ReviewTab,
   scope: RequestScope,
   now: Date,
 ): Promise<TabData> {
   switch (tab) {
-    case "pendiente":
-      return { tab, queue: await listReviewQueue(scope, now, calendar) };
+    case "pendiente": {
+      const { values } = await getNormativeParameters();
+      const rules = deadlineRulesOf(values);
+      return {
+        tab,
+        queue: await listReviewQueue(scope, now, calendarOf(values), rules),
+        alertDays: rules.alertBusinessDays,
+      };
+    }
     case "en_revision_coordinacion":
       return { tab, ...(await listCoordinationQueue(scope)) };
     case "aprobada":
@@ -148,7 +161,7 @@ export default async function ReviewQueuePage({
       </div>
     );
   }
-  const { queue } = data;
+  const { queue, alertDays } = data;
   // The search applies to the pending tab only; the audit counts the whole queue.
   const q = parseQ(rawQ, SEARCH_MAX);
   const visibleRows = filterQueueRows(queue.rows, q);
@@ -171,7 +184,7 @@ export default async function ReviewQueuePage({
   const deadlineLabel = (row: QueueRow) =>
     ({
       en_plazo: t("deadline.onTime"),
-      por_vencer: t("deadline.dueSoon"),
+      por_vencer: t("deadline.dueSoon", { days: alertDays }),
       vencida: t("deadline.overdue"),
     })[row.status];
   const name = (row: QueueRow) => row.estudianteNombre ?? t("unnamed");

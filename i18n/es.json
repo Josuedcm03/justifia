@@ -1314,7 +1314,7 @@
       "unnamed": "Estudiante sin nombre",
       "deadline": {
         "onTime": "En plazo",
-        "dueSoon": "Vence en 1 día hábil o menos",
+        "dueSoon": "{days, plural, =0 {Vence hoy} one {Vence en # día hábil o menos} other {Vence en # días hábiles o menos}}",
         "overdue": "Vencida",
         "due": "Vence el {date}",
         "paused": "Plazo en pausa"

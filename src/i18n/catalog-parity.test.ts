@@ -2724,3 +2724,42 @@ describe("catalog parity (EA-CRE-1, EA-CHG-1, EA-SIB-1: list link copy)", () => 
     },
   );
 });
+
+describe("catalog parity (RR-QUEUE, NP-17: the alert badge states the days in force)", () => {
+  const raw = (locale: "es" | "en") =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      "review.queue.deadline.dueSoon",
+    ) as string;
+
+  const dueSoon = (locale: "es" | "en", days: number) =>
+    createTranslator({
+      locale,
+      messages: locale === "es" ? esMessages : enMessages,
+      namespace: "review.queue",
+      onError: (error: Error) => {
+        throw error;
+      },
+    })("deadline.dueSoon", { days });
+
+  it.each(["es", "en"] as const)(
+    "%s words it as an ICU plural on {days}, with no literal day count",
+    (locale) => {
+      expect(raw(locale)).toMatch(/^\{days, plural,/);
+      expect(raw(locale)).not.toMatch(/(?<!=)\b\d+\b/);
+    },
+  );
+
+  it.each([
+    ["en", 0, "Due today"],
+    ["en", 1, "Due within 1 business day"],
+    ["en", 2, "Due within 2 business days"],
+    ["en", 10, "Due within 10 business days"],
+    ["es", 0, "Vence hoy"],
+    ["es", 1, "Vence en 1 día hábil o menos"],
+    ["es", 2, "Vence en 2 días hábiles o menos"],
+    ["es", 10, "Vence en 10 días hábiles o menos"],
+  ] as const)("%s renders %d days as: %s", (locale, days, expected) => {
+    expect(dueSoon(locale, days)).toBe(expected);
+  });
+});

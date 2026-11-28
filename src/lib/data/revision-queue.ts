@@ -26,6 +26,7 @@ import {
 } from "@/lib/intake/escalation";
 import type { NonWorkingDaysProvider } from "@/lib/intake/ports";
 import type { RequestScope } from "@/lib/intake/request-scope";
+import type { DeadlineRules } from "@/lib/parameters/derive";
 
 // The three review tabs (RF-06, RF-10, RF-15, E14). Each one lists the in-scope
 // requests of one state and nothing else, so `rechazada`, `devuelta` and
@@ -80,10 +81,17 @@ export function reviewQueueQuery(scope: RequestScope) {
     .orderBy(asc(effectiveClockStart(solicitud)), asc(solicitud.id));
 }
 
+/**
+ * The remission deadline and the alert of each row are computed on read from
+ * the calendar and the rules in force the caller loaded (RN-08, RNF-14): a
+ * saved parameter reaches requests presented earlier, and the stored
+ * `PlazoInicioEn` is only read, never recomputed.
+ */
 export async function listReviewQueue(
   scope: RequestScope,
   now: Date,
   calendar: NonWorkingDaysProvider,
+  rules: DeadlineRules,
 ): Promise<ReviewQueue> {
   const today = managuaToday(now);
   const calendarLoaded = calendar.coversYear(Number(today.slice(0, 4)));
@@ -106,6 +114,7 @@ export async function listReviewQueue(
         managuaToday(clockStartOf(r)),
         today,
         calendar,
+        rules,
       );
       return {
         id: r.id,

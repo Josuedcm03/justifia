@@ -8,7 +8,7 @@ import type { NonWorkingDay } from "./registry";
 // STATUS: VALIDATED BY THE OWNER on 2026-10-12 against the UAM academic
 // calendar ("Dias feriados"), which closes the whole Semana Santa and observes
 // Dia de las Madres and the Managua local holidays. Moved here, descriptions
-// included, from `src/lib/intake/calendar.ts`.
+// included, from the former constant calendar module, now deleted.
 //
 // Sources: UAM academic calendar (Semana Santa Monday to Friday, 1 May, 30 May,
 // 19 Jul, 1 and 10 Aug, 14 and 15 Sep, 8 Dec) plus the national holidays of the

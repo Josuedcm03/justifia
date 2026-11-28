@@ -1,3 +1,5 @@
+import type { DeadlineRules } from "@/lib/parameters/derive";
+
 import { addDays } from "./dates";
 import type { NonWorkingDaysProvider } from "./ports";
 
@@ -5,10 +7,9 @@ import type { NonWorkingDaysProvider } from "./ports";
 // (the caller derives them with `managuaToday`) and holidays come from the
 // injected `NonWorkingDaysProvider`. A business day is Monday to Friday that is
 // not a listed non-working day. The deadline is computed on read; an answer
-// from the career coordination stores the shifted start (ES-5).
-
-/** Business days allowed to remit a request, counted after the start date. */
-const BUSINESS_DAYS_TO_REMIT = 2;
+// from the career coordination stores the shifted start (ES-5). The remission
+// days and the alert days are parameters in force (RNF-14), taken as required
+// arguments: this module holds no default for either.
 
 export type DeadlineStatus = "en_plazo" | "por_vencer" | "vencida";
 
@@ -32,31 +33,31 @@ function nextBusinessDay(
 }
 
 /**
- * The 2nd business day strictly after the clock start date; due at the end of
- * that day. A weekend or holiday start therefore counts from the next business
- * day (presented Saturday: Monday is day 1, Tuesday is the deadline).
+ * The `businessDays`-th business day strictly after the clock start date; due
+ * at the end of that day. A weekend or holiday start therefore counts from the
+ * next business day (with 2 days, presented Saturday: Monday is day 1, Tuesday
+ * is the deadline).
  */
 export function deadlineOf(
   start: string,
   calendar: NonWorkingDaysProvider,
+  businessDays: number,
 ): string {
-  let day = start;
-  for (let i = 0; i < BUSINESS_DAYS_TO_REMIT; i += 1) {
-    day = nextBusinessDay(day, calendar);
-  }
-  return day;
+  return addBusinessDays(start, businessDays, calendar);
 }
 
 /**
- * `vencida` once `today` is after the deadline; `por_vencer` when at most one
- * business day remains after today; otherwise `en_plazo` (RF-06 b).
+ * `vencida` once `today` is after the deadline; `por_vencer` when at most
+ * `rules.alertBusinessDays` business days remain after today (0 allowed: the
+ * due day alone); otherwise `en_plazo` (RF-06 b).
  */
 export function deadlineStatus(
   start: string,
   today: string,
   calendar: NonWorkingDaysProvider,
+  rules: DeadlineRules,
 ): { status: DeadlineStatus; deadline: string } {
-  const deadline = deadlineOf(start, calendar);
+  const deadline = deadlineOf(start, calendar, rules.remissionBusinessDays);
   if (today > deadline) return { status: "vencida", deadline };
 
   let remaining = 0;
@@ -64,7 +65,7 @@ export function deadlineStatus(
     if (isBusinessDay(day, calendar)) remaining += 1;
   }
   return {
-    status: remaining <= 1 ? "por_vencer" : "en_plazo",
+    status: remaining <= rules.alertBusinessDays ? "por_vencer" : "en_plazo",
     deadline,
   };
 }

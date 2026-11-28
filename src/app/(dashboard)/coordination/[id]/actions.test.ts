@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sessionFor } from "@/app/(dashboard)/review/test-support";
-import { calendar } from "@/lib/intake/calendar";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
@@ -13,6 +13,7 @@ const {
   scopeMock,
   answerMock,
   revalidatePathMock,
+  parametersMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
@@ -21,6 +22,7 @@ const {
   scopeMock: vi.fn(),
   answerMock: vi.fn(),
   revalidatePathMock: vi.fn(),
+  parametersMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
@@ -32,6 +34,10 @@ vi.mock("@/lib/data/coordination-scope", () => ({
 }));
 vi.mock("@/lib/data/escalation-answer", () => ({
   answerEscalation: answerMock,
+}));
+// The loader is the only source of the calendar of the answer pause (A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: parametersMock,
 }));
 
 import { answerEscalationAction } from "@/app/(dashboard)/coordination/[id]/actions";
@@ -50,6 +56,12 @@ beforeEach(() => {
   scopeMock.mockResolvedValue(SCOPE);
   answerMock.mockReset();
   answerMock.mockResolvedValue({ ok: true, solicitudId: 41 });
+  parametersMock.mockReset();
+  parametersMock.mockResolvedValue({
+    values: DEFAULT_PARAMETERS,
+    fallback: [],
+    degraded: false,
+  });
 });
 
 describe("answerEscalationAction authorisation (RNF-01, ES-9)", () => {
@@ -64,6 +76,7 @@ describe("answerEscalationAction authorisation (RNF-01, ES-9)", () => {
 
       expect(scopeMock).not.toHaveBeenCalled();
       expect(answerMock).not.toHaveBeenCalled();
+      expect(parametersMock).not.toHaveBeenCalled();
     },
   );
 
@@ -74,6 +87,7 @@ describe("answerEscalationAction authorisation (RNF-01, ES-9)", () => {
       "REDIRECT:/login",
     );
     expect(answerMock).not.toHaveBeenCalled();
+    expect(parametersMock).not.toHaveBeenCalled();
   });
 
   it("sends a session that must still change the password to the change screen", async () => {
@@ -90,6 +104,7 @@ describe("answerEscalationAction authorisation (RNF-01, ES-9)", () => {
 
     await expect(answerEscalationAction(INPUT)).resolves.toEqual(NOT_FOUND);
     expect(answerMock).not.toHaveBeenCalled();
+    expect(parametersMock).not.toHaveBeenCalled();
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
@@ -137,8 +152,46 @@ describe("answerEscalationAction (RF-10, E1, E3)", () => {
       escalamientoId: 9,
       respuesta: ANSWER,
       now: expect.any(Date),
-      calendar,
+      calendar: expect.objectContaining({
+        isNonWorkingDay: expect.any(Function),
+        coversYear: expect.any(Function),
+      }),
     });
+  });
+
+  it("reads the calendar of the answer pause from the loader, once, and stores the pause once (ES-5, NP-10)", async () => {
+    parametersMock.mockResolvedValue({
+      values: {
+        ...DEFAULT_PARAMETERS,
+        nonWorkingDays: [{ fecha: "2030-06-15", descripcion: null }],
+      },
+      fallback: [],
+      degraded: false,
+    });
+
+    await expect(answerEscalationAction(INPUT)).rejects.toThrow("REDIRECT:");
+
+    expect(parametersMock).toHaveBeenCalledTimes(1);
+    expect(answerMock).toHaveBeenCalledTimes(1);
+    const { calendar } = answerMock.mock.calls[0][0];
+    expect(calendar.isNonWorkingDay("2030-06-15")).toBe(true);
+    expect(calendar.isNonWorkingDay("2026-12-25")).toBe(false);
+    expect(calendar.coversYear(2030)).toBe(true);
+    expect(calendar.coversYear(2026)).toBe(false);
+  });
+
+  it("answers unexpected, writing nothing, when the loader itself throws", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    parametersMock.mockRejectedValue(new TypeError("password=secret"));
+
+    await expect(answerEscalationAction(INPUT)).resolves.toEqual({
+      ok: false,
+      reason: "unexpected",
+    });
+
+    expect(answerMock).not.toHaveBeenCalled();
+    expect(JSON.stringify(log.mock.calls)).not.toContain("secret");
+    log.mockRestore();
   });
 
   it("hands the raw text to the data layer, which validates it before any write", async () => {
