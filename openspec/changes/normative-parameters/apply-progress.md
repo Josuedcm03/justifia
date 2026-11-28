@@ -716,3 +716,5 @@ Natural split: the plan names unit 14 as the one that moves out (438 lines), but
 ### Next
 
 Owner decision on the size (split into PR 7 and PR 7b, or `size:exception`); then 7.11 (open PR 7 against the tracker) and merge under the standing approval, then slice 8 (task 8.0).
+
+Orchestrator follow-up (2026-11-27): the extra consumer scan in `no-constants.test.ts` (not named by task 7.4) was removed under the owner's "just what is necessary" rule, which brings the slice to 985 changed lines (865 added, 120 deleted) without openspec, under the 1000 budget; no exception needed.
