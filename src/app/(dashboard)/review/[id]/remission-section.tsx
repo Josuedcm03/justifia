@@ -36,6 +36,7 @@ export function RemissionSection({
   specialFormat?: {
     solicitudId: number;
     attached: { id: number; nombreOriginal: string } | null;
+    maxDocumentBytes: number;
   };
 }) {
   const t = useTranslations("review.remission");

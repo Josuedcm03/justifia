@@ -642,7 +642,11 @@ describe("design system: remission section and special-format mark (§2.5, §5 B
           { ...base, id: 1, estado: "bloqueada", motivoCodigo: null },
         ]}
         unassigned={[]}
-        specialFormat={{ solicitudId: 12, attached: null }}
+        specialFormat={{
+          solicitudId: 12,
+          attached: null,
+          maxDocumentBytes: 10_485_760,
+        }}
       />,
     );
 
@@ -672,6 +676,7 @@ describe("design system: remission section and special-format mark (§2.5, §5 B
         specialFormat={{
           solicitudId: 12,
           attached: { id: 30, nombreOriginal: "formato-firmado.pdf" },
+          maxDocumentBytes: 10_485_760,
         }}
       />,
     );

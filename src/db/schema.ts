@@ -37,7 +37,6 @@ import {
   type EscalationNoticeReason,
   type EscalationNoticeState,
 } from "@/lib/intake/escalation";
-import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { ESTADOS_SOLICITUD } from "@/lib/intake/states";
 import {
@@ -451,7 +450,7 @@ export const documentoRespaldo = pgTable(
     ),
     check(
       "CK_Documento_Tamano",
-      sql`${t.tamanoBytes} > 0 AND ${t.tamanoBytes} <= ${sql.raw(String(MAX_DOCUMENT_BYTES))}`,
+      sql`${t.tamanoBytes} > 0 AND ${t.tamanoBytes} <= 10485760`,
     ),
     check("CK_Documento_Estado", sql`${t.estado} IN ('pendiente', 'valido')`),
     check(

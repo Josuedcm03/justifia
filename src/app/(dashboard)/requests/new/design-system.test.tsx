@@ -35,6 +35,7 @@ const DRAFT = {
   fechaFin: "2026-10-03",
 };
 const DOC = { id: 5, nombreOriginal: "constancia.pdf", tamanoBytes: 2048 };
+const LIMITS = { filingWindowDays: 30, maxDocumentMib: 10 };
 const GROUPS = [1, 2].map((n) => ({
   grupoId: n,
   asignaturaId: 10,
@@ -163,7 +164,7 @@ describe("design-system fixes (F.3)", () => {
   });
 
   it("sizes the documents View link to 44px", () => {
-    renderIntl(<DocumentsStep draftId={4} documents={[DOC]} />);
+    renderIntl(<DocumentsStep draftId={4} documents={[DOC]} limits={LIMITS} />);
     expect(screen.getByRole("link", { name: /Ver/ })).toHaveClass("h-11");
   });
 

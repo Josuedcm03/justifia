@@ -2816,3 +2816,78 @@ describe("catalog parity (JI-CAUSE, NP-17: the end-date error states the window 
     },
   );
 });
+
+describe("catalog parity (SD-LIMIT, NP-17: the size refusals state the maximum in force)", () => {
+  const catalogOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  const PATHS = [
+    ["intake.errors", "intake.errors.too_large"],
+    [
+      "review.remission.upload.errors",
+      "review.remission.upload.errors.too_large",
+    ],
+  ] as const;
+
+  const onError = (error: Error) => {
+    throw error;
+  };
+  const refusals = (locale: "es" | "en", size: number) => ({
+    "intake.errors": createTranslator({
+      locale,
+      messages: catalogOf(locale),
+      namespace: "intake.errors",
+      onError,
+    })("too_large", { size }),
+    "review.remission.upload.errors": createTranslator({
+      locale,
+      messages: catalogOf(locale),
+      namespace: "review.remission.upload.errors",
+      onError,
+    })("too_large", { size }),
+  });
+
+  it.each(
+    (["es", "en"] as const).flatMap((locale) =>
+      PATHS.map(([namespace, path]) => [locale, namespace, path] as const),
+    ),
+  )(
+    "%s %s.too_large takes {size} and keeps no literal number",
+    (locale, _ns, path) => {
+      const message = resolve(catalogOf(locale), path) as string;
+
+      expect(message).toContain("{size}");
+      expect(message).not.toMatch(/\b\d+\b/);
+    },
+  );
+
+  it.each(PATHS)("%s renders the maximum it is given", (namespace) => {
+    expect(refusals("en", 5)[namespace]).toBe("The file is larger than 5 MB.");
+    expect(refusals("es", 5)[namespace]).toBe("El archivo supera los 5 MB.");
+    expect(refusals("en", 10)[namespace]).toBe(
+      "The file is larger than 10 MB.",
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s keeps no literal 10 as a limit in any intake or special-format error",
+    (locale) => {
+      const messages = {
+        ...(resolve(catalogOf(locale), "intake.errors") as Record<
+          string,
+          string
+        >),
+        ...(resolve(
+          catalogOf(locale),
+          "review.remission.upload.errors",
+        ) as Record<string, string>),
+      };
+
+      expect(
+        Object.entries(messages)
+          .filter(([, message]) => /\b10\b/.test(message))
+          .map(([code]) => code),
+      ).toEqual([]);
+    },
+  );
+});

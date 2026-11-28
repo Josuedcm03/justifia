@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,10 +14,10 @@ vi.mock("@/app/(dashboard)/review/[id]/remission-actions", () => ({
 }));
 
 import { SpecialFormatUpload } from "@/app/(dashboard)/review/[id]/special-format-upload";
-import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 
 const en = messages.en.review.remission.upload;
 const es = messages.es.review.remission.upload;
+const MIB = 1_048_576;
 const PATHNAME = /^intake\/12\/[0-9a-f-]{36}\.pdf$/;
 
 function pdf(name = "formato.pdf", size = 2048) {
@@ -29,9 +29,14 @@ function pdf(name = "formato.pdf", size = 2048) {
 function show(
   attached: { id: number; nombreOriginal: string } | null = null,
   locale: "en" | "es" = "en",
+  maxDocumentBytes = 10 * MIB,
 ) {
   return renderIntl(
-    <SpecialFormatUpload solicitudId={12} attached={attached} />,
+    <SpecialFormatUpload
+      solicitudId={12}
+      attached={attached}
+      maxDocumentBytes={maxDocumentBytes}
+    />,
     locale,
   );
 }
@@ -52,6 +57,52 @@ beforeEach(() => {
 
 afterEach(() => {
   for (const release of hanging.splice(0)) release();
+});
+
+describe("SpecialFormatUpload: the limit comes from the server (SD-LIMIT, NP-17)", () => {
+  it.each([
+    [10, 8, "accepted"],
+    [2, 3, "refused"],
+    [2, 2, "accepted"],
+  ] as const)(
+    "with a limit of %i MB a %i MB file is %s before upload",
+    async (limit, mib, outcome) => {
+      show(null, "en", limit * MIB);
+
+      await userEvent
+        .setup({ applyAccept: false })
+        .upload(picker(), pdf("a.pdf", mib * MIB));
+
+      if (outcome === "accepted") {
+        await waitFor(() => expect(uploadMock).toHaveBeenCalledTimes(1));
+      } else {
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          `The file is larger than ${limit} MB.`,
+        );
+        expect(uploadMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("states the limit in the hint, in both languages", () => {
+    const { unmount } = show(null, "en", 2 * MIB);
+    expect(screen.getByText(/up to 2 MB/)).toBeInTheDocument();
+    unmount();
+
+    show(null, "es", 5 * MIB);
+    expect(screen.getByText(/hasta 5 MB/)).toBeInTheDocument();
+  });
+
+  it("names the limit in force when the server refuses the stored file", async () => {
+    attachMock.mockResolvedValue({ ok: false, reason: "too_large" });
+    show(null, "en", 5 * MIB);
+
+    await userEvent.upload(picker(), pdf());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The file is larger than 5 MB.",
+    );
+  });
 });
 
 describe("SpecialFormatUpload (RN-19)", () => {
@@ -109,25 +160,27 @@ describe("SpecialFormatUpload (RN-19)", () => {
   });
 
   it.each([
-    ["an empty file", pdf("a.pdf", 0), "empty_file"],
-    ["a file over 10 MB", pdf("a.pdf", MAX_DOCUMENT_BYTES + 1), "too_large"],
+    ["an empty file", pdf("a.pdf", 0), en.errors.empty_file],
+    [
+      "a file over 10 MB",
+      pdf("a.pdf", 10 * MIB + 1),
+      "The file is larger than 10 MB.",
+    ],
     [
       "a type that is not allowed",
       new File(["x"], "a.exe", { type: "application/x-msdownload" }),
-      "unsupported_format",
+      en.errors.unsupported_format,
     ],
   ] as const)(
     "refuses %s before uploading and says why",
-    async (_label, file, code) => {
+    async (_label, file, message) => {
       show();
 
       await userEvent
         .setup({ applyAccept: false })
         .upload(picker(), file as File);
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        en.errors[code],
-      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(message);
       expect(uploadMock).not.toHaveBeenCalled();
       expect(screen.getByRole("button", { name: en.action })).toBeEnabled();
     },

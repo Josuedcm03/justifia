@@ -1137,6 +1137,22 @@ describe("ReviewDetailPage remission section (RF-09 c)", () => {
     ).toBeInTheDocument();
   });
 
+  it("hands the upload the maximum size in force, so its hint and pre-check state it (SD-LIMIT)", async () => {
+    parametersMock.mockResolvedValue({
+      values: { ...DEFAULT_PARAMETERS, maxDocumentMib: 5 },
+      fallback: [],
+      degraded: false,
+    });
+    detailMock.mockResolvedValue(
+      detail({ estado: "aprobada", formatoEspecial: true }),
+    );
+    remissionsMock.mockResolvedValue([REMISSION]);
+
+    await renderPage();
+
+    expect(screen.getByText(/up to 5 MB/)).toBeInTheDocument();
+  });
+
   it("shows the uploaded format by name, apart from the student's documents", async () => {
     detailMock.mockResolvedValue(
       detail({

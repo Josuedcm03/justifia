@@ -52,7 +52,11 @@ import {
 import { diffRevision, type RevisionDiff } from "@/lib/intake/revision-diff";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { isVisibleState } from "@/lib/intake/states";
-import { calendarOf, deadlineRulesOf } from "@/lib/parameters/derive";
+import {
+  calendarOf,
+  deadlineRulesOf,
+  maxDocumentBytesOf,
+} from "@/lib/parameters/derive";
 import { getNormativeParameters } from "@/lib/parameters/loader";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
@@ -219,6 +223,12 @@ export default async function ReviewDetailPage({
   // loaded with the rest, before the single audited read below.
   const remissions =
     detail.estado === "aprobada" ? await listRemissions(detail.id) : null;
+  // The special-format upload pre-checks against the maximum size in force
+  // (SD-LIMIT); only a marked approval shows it.
+  const specialFormatBytes =
+    remissions && detail.formatoEspecial
+      ? maxDocumentBytesOf((await getNormativeParameters()).values)
+      : null;
   // E17: a career without an active coordination account cannot be escalated
   // to. The email is not required here; a notice without recipient is blocked
   // later. The student's live career is read, never the snapshot name.
@@ -346,15 +356,16 @@ export default async function ReviewDetailPage({
             remissions={remissions}
             unassigned={detail.clases.filter((c) => c.docenteNombre === null)}
             specialFormat={
-              detail.formatoEspecial
-                ? {
+              specialFormatBytes === null
+                ? undefined
+                : {
                     solicitudId: detail.id,
                     attached: detail.formato && {
                       id: detail.formato.id,
                       nombreOriginal: detail.formato.nombreOriginal,
                     },
+                    maxDocumentBytes: specialFormatBytes,
                   }
-                : undefined
             }
           />
         ) : null}

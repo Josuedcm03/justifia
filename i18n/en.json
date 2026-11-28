@@ -953,7 +953,7 @@
       "submit_conflict": "The request changed while you were submitting it. Reload the page and review it.",
       "profile_incomplete": "Your account is missing required data. Contact the registrar office.",
       "unsupported_format": "Unsupported format. Upload a PDF, PNG or JPEG.",
-      "too_large": "The file is larger than 10 MB.",
+      "too_large": "The file is larger than {size} MB.",
       "empty_file": "The file is empty.",
       "not_found": "We could not find the file. Please try again.",
       "not_allowed": "You are not allowed to do this.",
@@ -1783,7 +1783,7 @@
           "not_found": "The file was not found after the upload. Try again.",
           "already_attached": "A format is already attached to this request. It cannot be replaced.",
           "empty_file": "The file is empty.",
-          "too_large": "The file is larger than 10 MB.",
+          "too_large": "The file is larger than {size} MB.",
           "unsupported_format": "Unsupported format. Upload a PDF, PNG or JPEG.",
           "upload_failed": "The upload failed. Check the connection and try again.",
           "unexpected": "The format could not be attached. Try again."

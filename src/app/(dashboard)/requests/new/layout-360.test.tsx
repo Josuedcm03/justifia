@@ -58,6 +58,7 @@ const GROUPS = [
   },
 ];
 const DOC = { id: 5, nombreOriginal: LONG_NAME, tamanoBytes: 2048 };
+const LIMITS = { filingWindowDays: 30, maxDocumentMib: 10 };
 
 /** Width in px a base (non-breakpoint) width utility forces, or null. */
 function fixedWidth(token: string): number | null {
@@ -122,7 +123,10 @@ describe.each([
       <SubjectsStep groups={GROUPS} selected={[]} hasDates degraded={false} />
     ),
   ],
-  ["documents", () => <DocumentsStep draftId={4} documents={[DOC]} />],
+  [
+    "documents",
+    () => <DocumentsStep draftId={4} documents={[DOC]} limits={LIMITS} />,
+  ],
   [
     "review",
     () => (
@@ -165,7 +169,7 @@ describe("enrollment notice at 360 px", () => {
 
 describe("long content at 360 px", () => {
   it("truncates a long file name in the documents step", () => {
-    renderIntl(<DocumentsStep draftId={4} documents={[DOC]} />);
+    renderIntl(<DocumentsStep draftId={4} documents={[DOC]} limits={LIMITS} />);
     expect(screen.getByText(LONG_NAME)).toHaveClass("truncate");
   });
 
@@ -186,7 +190,7 @@ describe("long content at 360 px", () => {
   });
 
   it("keeps the view link from squeezing or widening a document row", () => {
-    renderIntl(<DocumentsStep draftId={4} documents={[DOC]} />);
+    renderIntl(<DocumentsStep draftId={4} documents={[DOC]} limits={LIMITS} />);
     const name = screen.getByText(LONG_NAME);
     expect(name.parentElement).toHaveClass("min-w-0");
     const view = screen.getByRole("link", { name: `Ver ${LONG_NAME}` });
@@ -364,6 +368,7 @@ describe("dates recap and future-start notice at 360 px (FE-18, FE-19)", () => {
           documents={[DOC]}
           range={FUTURE}
           today={TODAY}
+          limits={LIMITS}
         />
       ),
     ],

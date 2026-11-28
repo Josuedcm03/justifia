@@ -1,8 +1,7 @@
-// Intake constants (D4, D8, D12). Pure: no imports, so the database schema and
-// route handlers can both read them.
-
-/** RN-04: largest supporting document, in bytes (10 MiB). */
-export const MAX_DOCUMENT_BYTES = 10_485_760;
+// Intake constants (D4, D8, D12). Pure: no imports, so route handlers and
+// client components can read them. The largest supporting document is not here:
+// it is the `tamano_maximo_mib` parameter (RN-04, RNF-14), up to the 10 MiB of
+// the database check `CK_Documento_Tamano`.
 
 /** Content types an upload token may allow (RN-04). */
 export const ALLOWED_CONTENT_TYPES = [
