@@ -1314,7 +1314,7 @@
       "unnamed": "Unnamed student",
       "deadline": {
         "onTime": "On time",
-        "dueSoon": "Due within 1 business day",
+        "dueSoon": "{days, plural, =0 {Due today} one {Due within # business day} other {Due within # business days}}",
         "overdue": "Overdue",
         "due": "Due {date}",
         "paused": "Deadline paused"

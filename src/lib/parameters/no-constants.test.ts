@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -268,4 +268,220 @@ describe("the signals read assembles from the loader only (A11)", () => {
   it("holds no constant path: no registry default, no constant calendar, no code params", () => {
     expect(constantPathViolations(reader, { reader: true })).toEqual([]);
   });
+});
+
+// NP-15 for the on-read deadlines (design A12): the RN-08 rule modules take the
+// remission days, the alert days and the calendar as arguments; the pages and
+// the action that need them load once from the loader and derive each value
+// with a pure adapter. No module holds the calendar, the days or a registry
+// default as a constant.
+
+const SRC_DIR = join(__dirname, "..", "..");
+const DEADLINE_MODULES = [
+  "lib/intake/business-days.ts",
+  "lib/intake/deadline-clock.ts",
+  "lib/data/revision-queue.ts",
+];
+const DEADLINE_CONSUMERS = [
+  "app/(dashboard)/review/page.tsx",
+  "app/(dashboard)/review/[id]/page.tsx",
+  "app/(dashboard)/coordination/[id]/actions.ts",
+];
+
+/** The NP-15 violations of an RN-08 rule module or of one of its consumers. */
+function deadlineConstantViolations(
+  source: string,
+  { consumer = false }: { consumer?: boolean } = {},
+): string[] {
+  const code = withoutComments(source);
+  const found: string[] = [];
+  for (const specifier of valueImports(code)) {
+    if (/^@\/lib\/parameters\/(registry|defaults)$/.test(specifier)) {
+      found.push(`value import of ${specifier}`);
+    }
+    if (specifier === "@/lib/parameters/loader" && !consumer) {
+      found.push("a rule module imports the loader");
+    }
+    if (/(^|\/)intake\/calendar$|^\.\/calendar$/.test(specifier)) {
+      found.push("imports the constant calendar");
+    }
+  }
+  if (/\bBUSINESS_DAYS_TO_REMIT\b/.test(code)) {
+    found.push("holds the remission days as a constant");
+  }
+  if (
+    /\b(?:DEFAULT_PARAMETERS|PARAMETER_REGISTRY|DEFAULT_NON_WORKING_DAYS|NON_WORKING_DAYS)\b/.test(
+      code,
+    )
+  ) {
+    found.push("uses a registry default");
+  }
+  if (
+    /^(?:export\s+)?const\s+\w*calendar\w*\b/im.test(code) ||
+    /^(?:export\s+)?const\s+\w+(?::[^=\n]+)?\s*=\s*constantCalendar\(/m.test(
+      code,
+    )
+  ) {
+    found.push("module-level calendar constant");
+  }
+  return found;
+}
+
+/** Every non-test TypeScript source under `src`, as `[relative path, text]`. */
+function sourceTree(dir = SRC_DIR, base = ""): [string, string][] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    const relative = base ? `${base}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) return sourceTree(path, relative);
+    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+      ? [[relative, readFileSync(path, "utf8")] as [string, string]]
+      : [];
+  });
+}
+
+describe("the deadline scan itself (a vacuous scan would prove nothing)", () => {
+  it.each([
+    [
+      'import { x } from "@/lib/parameters/registry";',
+      "value import of @/lib/parameters/registry",
+    ],
+    [
+      'import { x } from "@/lib/parameters/defaults";',
+      "value import of @/lib/parameters/defaults",
+    ],
+    [
+      'import { getNormativeParameters } from "@/lib/parameters/loader";',
+      "a rule module imports the loader",
+    ],
+    [
+      'import { calendar } from "@/lib/intake/calendar";',
+      "imports the constant calendar",
+    ],
+    ['import { calendar } from "./calendar";', "imports the constant calendar"],
+    [
+      "const BUSINESS_DAYS_TO_REMIT = 2;",
+      "holds the remission days as a constant",
+    ],
+    ["const p = DEFAULT_PARAMETERS;", "uses a registry default"],
+    ["const d = DEFAULT_NON_WORKING_DAYS;", "uses a registry default"],
+    [
+      "const calendar = constantCalendar({});",
+      "module-level calendar constant",
+    ],
+    [
+      "export const HOLIDAYS = constantCalendar(DAYS);",
+      "module-level calendar constant",
+    ],
+    [
+      "const nonWorkingCalendar: Provider = build();",
+      "module-level calendar constant",
+    ],
+  ])("flags %j as %s", (source, violation) => {
+    expect(deadlineConstantViolations(source)).toContain(violation);
+  });
+
+  it("lets a consumer import the loader, and ignores comments, locals and types", () => {
+    const loader =
+      'import { getNormativeParameters } from "@/lib/parameters/loader";';
+    const clean = [
+      'import type { DeadlineRules } from "@/lib/parameters/derive";',
+      "// const calendar = x; BUSINESS_DAYS_TO_REMIT DEFAULT_PARAMETERS",
+      "export async function f() {",
+      "  const calendar = calendarOf(values);",
+      "  return calendar;",
+      "}",
+    ].join("\n");
+
+    expect(deadlineConstantViolations(loader, { consumer: true })).toEqual([]);
+    expect(deadlineConstantViolations(clean)).toEqual([]);
+  });
+});
+
+describe("the RN-08 rule modules take no constant path (NP-15, A12)", () => {
+  it.each(DEADLINE_MODULES)(
+    "%s imports no registry default, no loader, no constant calendar and holds no constant",
+    (path) => {
+      const source = readFileSync(join(SRC_DIR, path), "utf8");
+
+      expect(deadlineConstantViolations(source)).toEqual([]);
+    },
+  );
+
+  it("business-days.ts requires the remission days and the rules as arguments", () => {
+    const code = withoutComments(
+      readFileSync(join(SRC_DIR, DEADLINE_MODULES[0]), "utf8"),
+    );
+
+    expect(code).toMatch(/businessDays: number/);
+    expect(code).toMatch(/rules: DeadlineRules/);
+    expect(code).toContain("rules.alertBusinessDays");
+  });
+});
+
+describe("the constant calendar is gone (NP-15, A12)", () => {
+  const tree = sourceTree();
+
+  it("scans a real tree", () => {
+    expect(tree.length).toBeGreaterThan(300);
+  });
+
+  it("no `src/lib/intake/calendar.ts` module exists, so no `calendar` export remains", () => {
+    expect(tree.map(([path]) => path)).not.toContain("lib/intake/calendar.ts");
+    expect(existsSync(join(SRC_DIR, "lib", "intake", "calendar.ts"))).toBe(
+      false,
+    );
+  });
+
+  it("no source imports the constant calendar or names the remission-days constant", () => {
+    const offenders = tree.flatMap(([path, source]) => {
+      const code = withoutComments(source);
+      return [
+        ...valueImports(code).filter((specifier) =>
+          /(^|\/)intake\/calendar$|^\.\/calendar$/.test(specifier),
+        ),
+        ...(/\bBUSINESS_DAYS_TO_REMIT\b/.test(code)
+          ? ["BUSINESS_DAYS_TO_REMIT"]
+          : []),
+      ].map((what) => `${path}: ${what}`);
+    });
+
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("the queue, the detail and the answer pause read the loader (A11)", () => {
+  const sources = new Map(
+    DEADLINE_CONSUMERS.map((path) => [
+      path,
+      readFileSync(join(SRC_DIR, path), "utf8"),
+    ]),
+  );
+
+  it.each(DEADLINE_CONSUMERS)(
+    "%s holds no constant path: no registry default, no constant calendar, no module-level calendar",
+    (path) => {
+      expect(
+        deadlineConstantViolations(sources.get(path) ?? "", { consumer: true }),
+      ).toEqual([]);
+    },
+  );
+
+  it.each(DEADLINE_CONSUMERS)(
+    "%s imports the loader and derives the calendar from what it returns",
+    (path) => {
+      const code = withoutComments(sources.get(path) ?? "");
+
+      expect(valueImports(code)).toContain("@/lib/parameters/loader");
+      expect(code).toContain("calendarOf");
+    },
+  );
+
+  it.each(DEADLINE_CONSUMERS.slice(0, 2))(
+    "%s derives the deadline rules from the same read",
+    (path) => {
+      const code = withoutComments(sources.get(path) ?? "");
+
+      expect(code).toContain("deadlineRulesOf");
+    },
+  );
 });

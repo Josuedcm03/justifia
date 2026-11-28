@@ -133,7 +133,7 @@ describe("defaults (NP-2, NP-15)", () => {
   });
 });
 
-// The 30 dates and descriptions of `src/lib/intake/calendar.ts` (validated by
+// The 30 dates and descriptions of the former constant calendar (validated by
 // the owner on 2026-10-12), pinned literally so a drift is a visible edit.
 const DEFAULT_CALENDAR = [
   ["2026-01-01", "Anio Nuevo"],

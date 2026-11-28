@@ -1,7 +1,15 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   messages,
@@ -9,6 +17,7 @@ import {
   type Locale,
 } from "@/app/(dashboard)/review/test-support";
 import { ACCESS_DENIED_PATH, PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
@@ -25,6 +34,7 @@ const {
   extractionsMock,
   configuredMock,
   signalsMock,
+  parametersMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -42,6 +52,7 @@ const {
   extractionsMock: vi.fn(),
   configuredMock: vi.fn(),
   signalsMock: vi.fn(),
+  parametersMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -69,6 +80,10 @@ vi.mock("@/app/(dashboard)/review/[id]/escalation-actions", () => ({
 }));
 vi.mock("@/lib/data/extraction", () => ({ listExtractions: extractionsMock }));
 vi.mock("@/lib/data/signals", () => ({ loadSignals: signalsMock }));
+// The loader is the only source of the calendar and the RN-08 rules (A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: parametersMock,
+}));
 vi.mock("@/lib/extraction/configured", () => ({
   isExtractionConfigured: configuredMock,
 }));
@@ -232,6 +247,12 @@ beforeEach(() => {
   configuredMock.mockReturnValue(true);
   signalsMock.mockReset();
   signalsMock.mockResolvedValue({ data: SIGNAL_REPORT, degraded: false });
+  parametersMock.mockReset();
+  parametersMock.mockResolvedValue({
+    values: DEFAULT_PARAMETERS,
+    fallback: [],
+    degraded: false,
+  });
 });
 
 describe("ReviewDetailPage access (RNF-01)", () => {
@@ -249,6 +270,7 @@ describe("ReviewDetailPage access (RNF-01)", () => {
       expect(readMock).not.toHaveBeenCalled();
       expect(extractionsMock).not.toHaveBeenCalled();
       expect(signalsMock).not.toHaveBeenCalled();
+      expect(parametersMock).not.toHaveBeenCalled();
     },
   );
 
@@ -454,6 +476,93 @@ describe("ReviewDetailPage content (RF-06, RF-08 b)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe("the parameters in force (RR-QUEUE, NP-10, NP-15)", () => {
+    // Wednesday 14 October 2026, 09:00 in Managua; presented Monday 12th.
+    const NOW = new Date("2026-10-14T15:00:00Z");
+    const presentedMonday = () =>
+      detail({ presentadaEn: new Date("2026-10-12T16:00:00Z") });
+
+    function inForce(overrides: Partial<typeof DEFAULT_PARAMETERS>) {
+      parametersMock.mockResolvedValue({
+        values: { ...DEFAULT_PARAMETERS, ...overrides },
+        fallback: [],
+        degraded: false,
+      });
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+      detailMock.mockResolvedValue(presentedMonday());
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("loads the parameters once for a pending request", async () => {
+      await renderPage();
+
+      expect(parametersMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("reads no parameters for a request that shows no deadline", async () => {
+      detailMock.mockResolvedValue(detail({ estado: "aprobada" }));
+
+      await renderPage();
+
+      expect(parametersMock).not.toHaveBeenCalled();
+    });
+
+    it("shows the deadline of the queue when remission days are 3 (Thursday, alert)", async () => {
+      inForce({ remissionBusinessDays: 3 });
+
+      await renderPage();
+
+      const request = screen.getByRole("region", { name: en.sections.request });
+      expect(request).toHaveTextContent("Due Oct 15, 2026");
+      expect(request).toHaveTextContent("Due within 1 business day");
+    });
+
+    it("moves the deadline from Wednesday to Thursday when Tuesday joins the calendar", async () => {
+      inForce({
+        nonWorkingDays: [
+          ...DEFAULT_PARAMETERS.nonWorkingDays,
+          { fecha: "2026-10-13", descripcion: null },
+        ],
+      });
+
+      await renderPage();
+
+      expect(
+        screen.getByRole("region", { name: en.sections.request }),
+      ).toHaveTextContent("Due Oct 15, 2026");
+    });
+
+    it.each([
+      ["en", 0, "Due today"],
+      ["en", 2, "Due within 2 business days"],
+      ["es", 1, "Vence en 1 d\u00eda h\u00e1bil o menos"],
+      ["es", 2, "Vence en 2 d\u00edas h\u00e1biles o menos"],
+    ] as const)(
+      "words the alert badge in %s for %d alert days: %s",
+      async (locale, alertBusinessDays, text) => {
+        state.locale = locale;
+        // Remission 3 from Monday is Thursday: with Wednesday as today one
+        // business day is left, inside every alert of 1 or more, and 0 only
+        // on Thursday itself.
+        inForce({ remissionBusinessDays: 3, alertBusinessDays });
+        if (alertBusinessDays === 0) {
+          vi.setSystemTime(new Date("2026-10-15T15:00:00Z"));
+        }
+
+        await renderPage();
+
+        const name = messages[locale].review.detail.sections.request;
+        expect(screen.getByRole("region", { name })).toHaveTextContent(text);
+      },
+    );
   });
 
   it("marks a resubmitted request with its resubmission date", async () => {
