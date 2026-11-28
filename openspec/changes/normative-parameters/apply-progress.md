@@ -972,3 +972,5 @@ Docs: `docs/roadmap.md` row 8 (Responsable "Armando", the new Cubre, Estado stil
 ### Next
 
 Owner decision on the size (move unit 25 out, or `size:exception` above 1500); then 10.15 (open PR 10 against the tracker) and merge under the standing approval.
+
+Owner decision (2026-11-28): slice 10 ships as one PR with size:exception (1686 changed lines without openspec and docs, above the pre-approved 1500).
