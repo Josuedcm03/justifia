@@ -790,3 +790,5 @@ Natural split: the task names it. The Postgres cases of task 8.5 (336 lines, tes
 ### Next
 
 Owner decision on the size (move task 8.5 to PR 9, or `size:exception`); then 8.8 (open PR 8 against the tracker) and merge under the standing approval, then slice 9 (task 9.0).
+
+Owner decision (2026-11-27): slice 8 ships as one PR with size:exception (1199 changed lines without openspec; the overage is tests).
