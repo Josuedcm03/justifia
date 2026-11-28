@@ -6,7 +6,8 @@ import { requireParameterAccess } from "@/lib/auth/parameter-access";
 import { loadNormativeParameters } from "@/lib/parameters/loader";
 import { PARAMETER_KEYS, PARAMETER_REGISTRY } from "@/lib/parameters/registry";
 
-import { saveScalarParametersAction } from "./actions";
+import { saveCalendarAction, saveScalarParametersAction } from "./actions";
+import { CalendarSection } from "./calendar-section";
 import { ScalarsForm } from "./scalars-form";
 
 // The one screen that edits the normative parameters (NP-7, CU-13). The guard
@@ -32,6 +33,10 @@ export default async function ParametersPage() {
         {t("effectNote")}
       </p>
       <ScalarsForm action={saveScalarParametersAction} fields={scalars} />
+      <CalendarSection
+        action={saveCalendarAction}
+        entries={values.nonWorkingDays}
+      />
     </PageFrame>
   );
 }

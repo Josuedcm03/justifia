@@ -1948,6 +1948,22 @@
         "tamano_maximo_mib": "Tamaño máximo por documento (MB)"
       }
     },
+    "calendar": {
+      "title": "Calendario de días no hábiles",
+      "description": "Fechas que no cuentan como días hábiles al calcular los plazos.",
+      "dateColumn": "Fecha",
+      "descriptionColumn": "Descripción",
+      "actionsColumn": "Acciones",
+      "dateLabel": "Fecha, fila {row}",
+      "descriptionLabel": "Descripción, fila {row}",
+      "empty": "El calendario no tiene fechas.",
+      "add": "Agregar fecha",
+      "remove": "Quitar",
+      "removeRow": "Quitar la fila {row}",
+      "restore": "Restaurar",
+      "restoreRow": "Restaurar la fila {row}",
+      "removed": "Se quitará al guardar"
+    },
     "state": {
       "saved": "Los cambios se guardaron.",
       "unchanged": "No hay cambios que guardar.",

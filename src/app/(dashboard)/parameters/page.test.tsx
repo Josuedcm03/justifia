@@ -138,6 +138,14 @@ describe("ParametersPage", () => {
     ]);
   });
 
+  it("mounts the calendar section with every stored date", async () => {
+    await renderPage();
+
+    expect(screen.getAllByLabelText("dateLabel")).toHaveLength(
+      DEFAULT_PARAMETERS.nonWorkingDays.length,
+    );
+  });
+
   it("writes nothing when it opens", async () => {
     await renderPage();
 

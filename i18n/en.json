@@ -1948,6 +1948,22 @@
         "tamano_maximo_mib": "Maximum document size (MB)"
       }
     },
+    "calendar": {
+      "title": "Non-business days calendar",
+      "description": "The dates that do not count as business days when deadlines are calculated.",
+      "dateColumn": "Date",
+      "descriptionColumn": "Description",
+      "actionsColumn": "Actions",
+      "dateLabel": "Date, row {row}",
+      "descriptionLabel": "Description, row {row}",
+      "empty": "The calendar has no dates.",
+      "add": "Add date",
+      "remove": "Remove",
+      "removeRow": "Remove row {row}",
+      "restore": "Restore",
+      "restoreRow": "Restore row {row}",
+      "removed": "Will be removed when you save"
+    },
     "state": {
       "saved": "The changes were saved.",
       "unchanged": "There are no changes to save.",
