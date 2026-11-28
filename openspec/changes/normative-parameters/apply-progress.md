@@ -974,3 +974,7 @@ Docs: `docs/roadmap.md` row 8 (Responsable "Armando", the new Cubre, Estado stil
 Owner decision on the size (move unit 25 out, or `size:exception` above 1500); then 10.15 (open PR 10 against the tracker) and merge under the standing approval.
 
 Owner decision (2026-11-28): slice 10 ships as one PR with size:exception (1686 changed lines without openspec and docs, above the pre-approved 1500).
+
+## Phase 14 finding (2026-11-28): wrong-type fixture
+
+On `params-it`, PG-3 case "a row of the wrong type ("3")" failed: the loader accepted the row as 3. Cause, verified in `node_modules/drizzle-orm`: `postgres-js` parses the jsonb text `"3"` into the string "3", then drizzle's `PgJsonb.mapFromDriverValue` runs `JSON.parse` on any string, turning it into the number 3. No product effect: the write path and the screen never store a string in a scalar, and the decoded value equals the string's digits. Owner decision: the case now uses the non-numeric string "tres" (still a wrong type, still falls back), and the spec NP-4 table carries a note; the loader is unchanged.

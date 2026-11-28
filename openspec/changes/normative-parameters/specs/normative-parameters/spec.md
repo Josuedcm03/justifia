@@ -206,13 +206,15 @@ key only, never the stored value. Rows of keys outside the registry MUST be igno
 | valid row in force | that value |
 | no row | default |
 | row in force invalid (`tamano_maximo_mib` = 99) | default |
-| row in force of the wrong type (`umbral_reincidencia` = "3") | default |
+| row in force of the wrong type (`umbral_reincidencia` = "tres") | default |
 | newest row invalid, older row valid | default (not the older row) |
 | only a row dated tomorrow | default |
 
 - GIVEN the state in the row, and valid rows for the other keys
 - WHEN the loader runs
 - THEN the key returns the value shown and the other keys return their own rows [PG]
+
+Note (Phase 14, 2026-11-28): the database driver decodes a stored JSON string that holds only digits (for example "3") as that number, so such a row reads as the same value; a non-numeric string or another type still falls back to the default.
 
 #### Scenario: Latest row not after today wins [PG]
 

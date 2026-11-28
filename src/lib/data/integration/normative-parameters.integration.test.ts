@@ -295,9 +295,9 @@ describe.skipIf(gate.mode !== "run")(
             fellBack: true,
           },
           {
-            name: 'a row of the wrong type ("3") gives the default',
+            name: 'a row of the wrong type ("tres") gives the default',
             key: "umbral_reincidencia",
-            rows: [{ offset: -1, valor: "3" }],
+            rows: [{ offset: -1, valor: "tres" }],
             expected: 3,
             fellBack: true,
           },
