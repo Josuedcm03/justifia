@@ -1,21 +1,31 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
 
-const { getCurrentUserMock, handleUploadMock, getUploadContextMock } =
-  vi.hoisted(() => ({
-    getCurrentUserMock: vi.fn(),
-    handleUploadMock: vi.fn(),
-    getUploadContextMock: vi.fn(),
-  }));
+const {
+  getCurrentUserMock,
+  handleUploadMock,
+  getUploadContextMock,
+  getNormativeParametersMock,
+} = vi.hoisted(() => ({
+  getCurrentUserMock: vi.fn(),
+  handleUploadMock: vi.fn(),
+  getUploadContextMock: vi.fn(),
+  getNormativeParametersMock: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/dal", () => ({ getCurrentUser: getCurrentUserMock }));
 vi.mock("@vercel/blob/client", () => ({ handleUpload: handleUploadMock }));
 vi.mock("@/lib/data/documentos", () => ({
   getUploadContext: getUploadContextMock,
+}));
+// The loader is the only source of the maximum size (NP-4, A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: getNormativeParametersMock,
 }));
 vi.mock("@/env", () => ({
   env: { BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_test" },
@@ -49,12 +59,20 @@ function tokenRequest(pathname: string = OWN_PATH): Request {
 
 let issuedOptions: unknown;
 
+/** The loader result when the maximum size is in force at `mib`. */
+const sizeRead = (mib: number) => ({
+  values: { ...DEFAULT_PARAMETERS, maxDocumentMib: mib },
+  fallback: [],
+  degraded: false,
+});
+
 describe("POST /api/intake/upload-token", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     getCurrentUserMock.mockReset();
     getUploadContextMock.mockReset();
+    getNormativeParametersMock.mockReset().mockResolvedValue(sizeRead(10));
     handleUploadMock.mockReset();
     issuedOptions = undefined;
     // Run the route's `onBeforeGenerateToken` exactly like the SDK does.
@@ -153,6 +171,59 @@ describe("POST /api/intake/upload-token", () => {
     });
   });
 
+  it.each([
+    [1, 1_048_576],
+    [5, 5_242_880],
+    [10, 10_485_760],
+  ] as const)(
+    "limits the token to the loader value: %i MiB gives %i bytes (SD-UPLOAD)",
+    async (mib, bytes) => {
+      getNormativeParametersMock.mockResolvedValue(sizeRead(mib));
+
+      const res = await POST(tokenRequest());
+
+      expect(res.status).toBe(200);
+      expect(issuedOptions).toMatchObject({ maximumSizeInBytes: bytes });
+    },
+  );
+
+  it("reads the limit again for every token: an earlier token keeps the limit it carries", async () => {
+    const issued: unknown[] = [];
+
+    getNormativeParametersMock.mockResolvedValue(sizeRead(10));
+    await POST(tokenRequest());
+    issued.push(issuedOptions);
+    getNormativeParametersMock.mockResolvedValue(sizeRead(5));
+    await POST(tokenRequest());
+    issued.push(issuedOptions);
+
+    expect(issued).toMatchObject([
+      { maximumSizeInBytes: 10_485_760 },
+      { maximumSizeInBytes: 5_242_880 },
+    ]);
+    expect(getNormativeParametersMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the limit only after every guard has passed", async () => {
+    getCurrentUserMock.mockResolvedValue(session("docente"));
+    await POST(tokenRequest());
+    getCurrentUserMock.mockResolvedValue(session());
+    getUploadContextMock.mockResolvedValue(null);
+    await POST(tokenRequest());
+    getUploadContextMock.mockResolvedValue({
+      solicitudId: DRAFT_ID,
+      documentCount: 5,
+    });
+    await POST(tokenRequest());
+    getUploadContextMock.mockResolvedValue({
+      solicitudId: DRAFT_ID,
+      documentCount: 1,
+    });
+    await POST(tokenRequest("other/4/a.pdf"));
+
+    expect(getNormativeParametersMock).not.toHaveBeenCalled();
+  });
+
   it("passes the store token to the SDK and registers no completion callback (C15)", async () => {
     await POST(tokenRequest());
 
@@ -245,6 +316,7 @@ describe("POST /api/intake/upload-token: correction of a returned request (suppo
     vi.setSystemTime(NOW);
     getCurrentUserMock.mockReset().mockResolvedValue(session());
     getUploadContextMock.mockReset();
+    getNormativeParametersMock.mockReset().mockResolvedValue(sizeRead(10));
     handleUploadMock.mockReset();
     issuedOptions = undefined;
     handleUploadMock.mockImplementation(

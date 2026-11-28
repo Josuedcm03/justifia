@@ -470,6 +470,7 @@ describe("intake actions", () => {
           pathname: "intake/4/x.png",
           nombreOriginal: "foto.png",
           target: TARGET,
+          maxBytes: 10_485_760,
         },
         deps.store,
       );

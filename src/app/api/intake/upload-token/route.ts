@@ -6,11 +6,12 @@ import { canFileRequests } from "@/lib/auth/permissions";
 import { getUploadContext } from "@/lib/data/documentos";
 import {
   ALLOWED_CONTENT_TYPES,
-  MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS_PER_DRAFT,
   UPLOAD_TOKEN_TTL_MINUTES,
 } from "@/lib/intake/limits";
 import { isUnderDraftPrefix, solicitudIdOf } from "@/lib/intake/pathnames";
+import { maxDocumentBytesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 
 // Inbound adapter of the Vercel upload-token protocol (A4, D2). The proxy
 // never sees `/api`, so this handler authenticates itself on every call
@@ -79,9 +80,12 @@ export async function POST(request: Request): Promise<Response> {
         if (draft.documentCount >= MAX_DOCUMENTS_PER_DRAFT) {
           throw new UploadDenied("too_many_documents");
         }
+        // The limit in force when the token is issued (RN-04, NP-14): read per
+        // request, after every guard, never at module scope.
+        const { values } = await getNormativeParameters();
         return {
           allowedContentTypes: [...ALLOWED_CONTENT_TYPES],
-          maximumSizeInBytes: MAX_DOCUMENT_BYTES,
+          maximumSizeInBytes: maxDocumentBytesOf(values),
           validUntil: now.getTime() + UPLOAD_TOKEN_TTL_MINUTES * 60 * 1000,
           addRandomSuffix: false,
           allowOverwrite: false,

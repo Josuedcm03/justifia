@@ -7,10 +7,11 @@ import { resolveRequestScope } from "@/lib/data/request-scope";
 import { getSpecialFormatContext } from "@/lib/data/special-format";
 import {
   ALLOWED_CONTENT_TYPES,
-  MAX_DOCUMENT_BYTES,
   UPLOAD_TOKEN_TTL_MINUTES,
 } from "@/lib/intake/limits";
 import { isUnderDraftPrefix, solicitudIdOf } from "@/lib/intake/pathnames";
+import { maxDocumentBytesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 
 // Token issuer for the special format of RN-19 (teacher-remission, TR-15). The
 // proxy never sees `/api`, so this handler authenticates itself on every call
@@ -67,9 +68,12 @@ export async function POST(request: Request): Promise<Response> {
         if (!(await getSpecialFormatContext(solicitudId, scope))) {
           throw new UploadDenied();
         }
+        // The limit in force when the token is issued (RN-04, NP-14): read per
+        // request, after every guard, never at module scope.
+        const { values } = await getNormativeParameters();
         return {
           allowedContentTypes: [...ALLOWED_CONTENT_TYPES],
-          maximumSizeInBytes: MAX_DOCUMENT_BYTES,
+          maximumSizeInBytes: maxDocumentBytesOf(values),
           validUntil: Date.now() + UPLOAD_TOKEN_TTL_MINUTES * 60 * 1000,
           addRandomSuffix: false,
           allowOverwrite: false,

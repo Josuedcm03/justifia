@@ -7,6 +7,8 @@ vi.mock("server-only", () => ({}));
 
 const h = vi.hoisted(() => ({
   saveDraftDetails: vi.fn(),
+  finalizeDocument: vi.fn(),
+  getIntakeDeps: vi.fn(),
   getNormativeParameters: vi.fn(),
 }));
 
@@ -16,17 +18,17 @@ vi.mock("@/lib/data/solicitudes", () => ({
   saveDraftSubjects: vi.fn(),
 }));
 vi.mock("@/lib/data/documentos", () => ({
-  finalizeDocument: vi.fn(),
+  finalizeDocument: h.finalizeDocument,
   removeDocument: vi.fn(),
 }));
 vi.mock("@/lib/data/enrollment", () => ({ listEligibleGroups: vi.fn() }));
-vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: vi.fn() }));
+vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: h.getIntakeDeps }));
 // The loader is the only source of the filing window (NP-4, A11).
 vi.mock("@/lib/parameters/loader", () => ({
   getNormativeParameters: h.getNormativeParameters,
 }));
 
-import { saveDetails } from "./step-actions";
+import { finalize, saveDetails } from "./step-actions";
 
 const USER = 7;
 // 2026-10-07 09:00 in Managua (UTC-6); 20 days earlier is 2026-09-17.
@@ -64,9 +66,23 @@ const causesRead = (...inactive: string[]) => ({
   degraded: false,
 });
 
+/** The loader result when the maximum size is in force at `mib`. */
+const sizeRead = (mib: number) => ({
+  values: { ...DEFAULT_PARAMETERS, maxDocumentMib: mib },
+  fallback: [],
+  degraded: false,
+});
+
+const STORE = { name: "store" };
+const FILE = { pathname: "intake/4/x.png", nombreOriginal: "foto.png" };
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
+  h.finalizeDocument
+    .mockReset()
+    .mockResolvedValue({ ok: true, documentId: 12 });
+  h.getIntakeDeps.mockReset().mockReturnValue({ store: STORE });
   h.saveDraftDetails.mockReset().mockResolvedValue(true);
   h.getNormativeParameters.mockReset().mockResolvedValue(windowRead(30));
 });
@@ -142,5 +158,49 @@ describe("saveDetails reads the active causes from the loader (NP-11, JI-CAUSE)"
     });
 
     expect(h.saveDraftDetails).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("finalize hands the data layer the maximum size in force (SD-FINALIZE, NP-13)", () => {
+  it.each([
+    [1, 1_048_576],
+    [5, 5_242_880],
+    [10, 10_485_760],
+  ] as const)(
+    "a maximum of %i MiB reaches finalizeDocument as %i bytes",
+    async (mib, bytes) => {
+      h.getNormativeParameters.mockResolvedValue(sizeRead(mib));
+
+      expect(await finalize(USER, DRAFT, FILE)).toEqual({
+        ok: true,
+        documentId: 12,
+      });
+
+      expect(h.finalizeDocument).toHaveBeenCalledWith(
+        { userId: USER, ...FILE, target: DRAFT, maxBytes: bytes },
+        STORE,
+      );
+    },
+  );
+
+  it("reads the limit again for the next finalize, and for a correction too", async () => {
+    h.getNormativeParameters.mockResolvedValue(sizeRead(10));
+    await finalize(USER, DRAFT, FILE);
+    h.getNormativeParameters.mockResolvedValue(sizeRead(5));
+    await finalize(USER, CORRECTION, FILE);
+
+    expect(h.finalizeDocument.mock.calls.map(([arg]) => arg.maxBytes)).toEqual([
+      10_485_760, 5_242_880,
+    ]);
+  });
+
+  it("reads nothing and finalizes nothing for a malformed payload", async () => {
+    expect(await finalize(USER, DRAFT, { pathname: "" })).toEqual({
+      ok: false,
+      errors: [{ field: "form", key: "intake.errors.invalid_input" }],
+    });
+
+    expect(h.getNormativeParameters).not.toHaveBeenCalled();
+    expect(h.finalizeDocument).not.toHaveBeenCalled();
   });
 });

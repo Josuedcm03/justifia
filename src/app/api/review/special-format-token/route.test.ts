@@ -1,23 +1,34 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 import { rolesUsuario, type RolUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
 
-const { getCurrentUserMock, handleUploadMock, scopeMock, contextMock } =
-  vi.hoisted(() => ({
-    getCurrentUserMock: vi.fn(),
-    handleUploadMock: vi.fn(),
-    scopeMock: vi.fn(),
-    contextMock: vi.fn(),
-  }));
+const {
+  getCurrentUserMock,
+  handleUploadMock,
+  scopeMock,
+  contextMock,
+  getNormativeParametersMock,
+} = vi.hoisted(() => ({
+  getCurrentUserMock: vi.fn(),
+  handleUploadMock: vi.fn(),
+  scopeMock: vi.fn(),
+  contextMock: vi.fn(),
+  getNormativeParametersMock: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/dal", () => ({ getCurrentUser: getCurrentUserMock }));
 vi.mock("@vercel/blob/client", () => ({ handleUpload: handleUploadMock }));
 vi.mock("@/lib/data/request-scope", () => ({ resolveRequestScope: scopeMock }));
 vi.mock("@/lib/data/special-format", () => ({
   getSpecialFormatContext: contextMock,
+}));
+// The loader is the only source of the maximum size (NP-4, A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: getNormativeParametersMock,
 }));
 vi.mock("@/env", () => ({
   env: { BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_test" },
@@ -53,10 +64,18 @@ function tokenRequest(pathname: string = OWN_PATH): Request {
 
 let issuedOptions: unknown;
 
+/** The loader result when the maximum size is in force at `mib`. */
+const sizeRead = (mib: number) => ({
+  values: { ...DEFAULT_PARAMETERS, maxDocumentMib: mib },
+  fallback: [],
+  degraded: false,
+});
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   issuedOptions = undefined;
+  getNormativeParametersMock.mockReset().mockResolvedValue(sizeRead(10));
   getCurrentUserMock.mockReset().mockResolvedValue(session());
   scopeMock.mockReset().mockResolvedValue(SCOPE);
   contextMock.mockReset().mockResolvedValue({ solicitudId: REQUEST });
@@ -147,6 +166,49 @@ describe("POST /api/review/special-format-token: the request (RN-19)", () => {
       addRandomSuffix: false,
       allowOverwrite: false,
     });
+  });
+
+  it.each([
+    [1, 1_048_576],
+    [5, 5_242_880],
+    [10, 10_485_760],
+  ] as const)(
+    "limits the token to the loader value: %i MiB gives %i bytes (SD-LIMIT)",
+    async (mib, bytes) => {
+      getNormativeParametersMock.mockResolvedValue(sizeRead(mib));
+
+      const res = await POST(tokenRequest());
+
+      expect(res.status).toBe(200);
+      expect(issuedOptions).toMatchObject({ maximumSizeInBytes: bytes });
+    },
+  );
+
+  it("reads the limit again for every token: an earlier token keeps the limit it carries", async () => {
+    const issued: unknown[] = [];
+
+    await POST(tokenRequest());
+    issued.push(issuedOptions);
+    getNormativeParametersMock.mockResolvedValue(sizeRead(5));
+    await POST(tokenRequest());
+    issued.push(issuedOptions);
+
+    expect(issued).toMatchObject([
+      { maximumSizeInBytes: 10_485_760 },
+      { maximumSizeInBytes: 5_242_880 },
+    ]);
+    expect(getNormativeParametersMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the limit only after the request and the scope are accepted", async () => {
+    await POST(tokenRequest("other/12/a.pdf"));
+    scopeMock.mockResolvedValue({ kind: "none" });
+    await POST(tokenRequest());
+    scopeMock.mockResolvedValue(SCOPE);
+    contextMock.mockResolvedValue(null);
+    await POST(tokenRequest());
+
+    expect(getNormativeParametersMock).not.toHaveBeenCalled();
   });
 
   it("passes the store token and registers no completion callback", async () => {

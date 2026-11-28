@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { carrera, usuario } from "@/db/schema";
 import { createFakeDocumentStore } from "@/lib/intake/fakes";
-import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 
 import { createDbDouble, type Step } from "./test-support/db-double";
 
@@ -38,6 +37,10 @@ import {
   recordDocumentDownload,
   removeDocument,
 } from "@/lib/data/documentos";
+
+const MIB = 1_048_576;
+/** The maximum size in force at the default (10 MiB), handed in by the caller. */
+const MAX_BYTES = 10 * MIB;
 
 const USER = 7;
 const DRAFT = 4;
@@ -74,12 +77,17 @@ const accept: Step = { kind: "update", rows: [{ id: 11 }] };
 const dropClaim: Step = { kind: "delete" };
 
 function input(
-  overrides: Partial<{ pathname: string; nombreOriginal: string }> = {},
+  overrides: Partial<{
+    pathname: string;
+    nombreOriginal: string;
+    maxBytes: number;
+  }> = {},
 ) {
   return {
     userId: USER,
     pathname: PATH,
     nombreOriginal: "scan.pdf",
+    maxBytes: MAX_BYTES,
     ...overrides,
   };
 }
@@ -121,7 +129,7 @@ describe("documentos data layer", () => {
         const store = createFakeDocumentStore();
         store.seed(PATH, bytes);
 
-        expect(await inspectStoredFile(PATH, store)).toEqual({
+        expect(await inspectStoredFile(PATH, store, MAX_BYTES)).toEqual({
           ok: true,
           tipo,
           size: bytes.length,
@@ -133,7 +141,7 @@ describe("documentos data layer", () => {
       const store = createFakeDocumentStore();
       store.seed(PATH, []);
 
-      expect(await inspectStoredFile(PATH, store)).toEqual({
+      expect(await inspectStoredFile(PATH, store, MAX_BYTES)).toEqual({
         ok: false,
         reason: "empty_file",
       });
@@ -143,7 +151,7 @@ describe("documentos data layer", () => {
       const store = createFakeDocumentStore();
       store.seed(PATH, EXE);
 
-      expect(await inspectStoredFile(PATH, store)).toEqual({
+      expect(await inspectStoredFile(PATH, store, MAX_BYTES)).toEqual({
         ok: false,
         reason: "unsupported_format",
       });
@@ -154,34 +162,50 @@ describe("documentos data layer", () => {
       store.readHead = vi
         .fn()
         .mockResolvedValueOnce({
-          size: MAX_DOCUMENT_BYTES + 1,
+          size: MAX_BYTES + 1,
           head: new Uint8Array(PDF),
         })
         .mockResolvedValueOnce({
-          size: MAX_DOCUMENT_BYTES,
+          size: MAX_BYTES,
           head: new Uint8Array(PDF),
         });
 
-      expect(await inspectStoredFile(PATH, store)).toEqual({
+      expect(await inspectStoredFile(PATH, store, MAX_BYTES)).toEqual({
         ok: false,
         reason: "too_large",
       });
-      expect(await inspectStoredFile(PATH, store)).toEqual({
+      expect(await inspectStoredFile(PATH, store, MAX_BYTES)).toEqual({
         ok: true,
         tipo: "pdf",
-        size: MAX_DOCUMENT_BYTES,
+        size: MAX_BYTES,
       });
     });
 
+    it.each([
+      [4, "accepts", { ok: true, tipo: "pdf", size: 4 * MIB }],
+      [6, "refuses", { ok: false, reason: "too_large" }],
+    ] as const)(
+      "takes the maximum from its caller: a %i MiB file against 5 MiB is refused or accepted accordingly (%s)",
+      async (mib, _verdict, expected) => {
+        const store = createFakeDocumentStore();
+        store.readHead = vi.fn().mockResolvedValue({
+          size: mib * MIB,
+          head: new Uint8Array(PDF),
+        });
+
+        expect(await inspectStoredFile(PATH, store, 5 * MIB)).toEqual(expected);
+      },
+    );
+
     it("answers not_found for a missing file and lets a store failure through", async () => {
       const store = createFakeDocumentStore();
-      expect(await inspectStoredFile(PATH, store)).toEqual({
+      expect(await inspectStoredFile(PATH, store, MAX_BYTES)).toEqual({
         ok: false,
         reason: "not_found",
       });
 
       store.readHead = vi.fn().mockRejectedValue(new Error("store down"));
-      await expect(inspectStoredFile(PATH, store)).rejects.toThrow(
+      await expect(inspectStoredFile(PATH, store, MAX_BYTES)).rejects.toThrow(
         "store down",
       );
     });
@@ -276,7 +300,7 @@ describe("documentos data layer", () => {
       const store = createFakeDocumentStore();
       store.seed(PATH, PDF);
       store.readDigest = vi.fn().mockResolvedValue({
-        size: MAX_DOCUMENT_BYTES + 1,
+        size: MAX_BYTES + 1,
         head: new Uint8Array(PDF),
         sha256: null,
       });
@@ -299,7 +323,7 @@ describe("documentos data layer", () => {
         head: new Uint8Array(PDF),
       });
       store.readDigest = vi.fn().mockResolvedValue({
-        size: MAX_DOCUMENT_BYTES + 1,
+        size: MAX_BYTES + 1,
         head: new Uint8Array(PDF),
         sha256: null,
       });
@@ -311,11 +335,76 @@ describe("documentos data layer", () => {
       expect(store.readHead).not.toHaveBeenCalled();
     });
 
+    it.each([
+      [10, 10_485_760, true],
+      [10, 10_485_761, false],
+      [5, 5_242_880, true],
+      [5, 5_242_881, false],
+      [1, 2_097_152, false],
+    ] as const)(
+      "with the maximum at %i MiB a stored size of %i bytes is accepted: %s (SD-FINALIZE)",
+      async (mib, size, accepted) => {
+        const double = use([
+          lookupDraft,
+          ...claim(0),
+          accepted ? accept : dropClaim,
+        ]);
+        const store = createFakeDocumentStore();
+        store.readDigest = vi.fn().mockResolvedValue({
+          size,
+          head: new Uint8Array(PDF),
+          sha256: accepted ? HASH : null,
+        });
+        const deleteSpy = vi.spyOn(store, "delete");
+
+        const result = await finalizeDocument(
+          input({ maxBytes: mib * MIB }),
+          store,
+        );
+
+        expect(result).toMatchObject(
+          accepted ? { ok: true } : { ok: false, reason: "too_large" },
+        );
+        expect(store.readDigest).toHaveBeenCalledWith(PATH, {
+          headBytes: expect.any(Number),
+          maxBytes: mib * MIB,
+        });
+        expect(deleteSpy).toHaveBeenCalledTimes(accepted ? 0 : 1);
+        expect(double.exhausted).toBe(true);
+      },
+    );
+
+    it("refuses a 6 MiB file against 5 MiB and accepts a 4 MiB one (limit lowered after the upload)", async () => {
+      const store = createFakeDocumentStore();
+      store.readDigest = vi
+        .fn()
+        .mockResolvedValueOnce({
+          size: 6 * MIB,
+          head: new Uint8Array(PDF),
+          sha256: null,
+        })
+        .mockResolvedValueOnce({
+          size: 4 * MIB,
+          head: new Uint8Array(PDF),
+          sha256: HASH,
+        });
+
+      use([lookupDraft, ...claim(0), dropClaim]);
+      expect(
+        await finalizeDocument(input({ maxBytes: 5 * MIB }), store),
+      ).toEqual({ ok: false, reason: "too_large" });
+
+      use([lookupDraft, ...claim(0), accept]);
+      expect(
+        await finalizeDocument(input({ maxBytes: 5 * MIB }), store),
+      ).toMatchObject({ ok: true });
+    });
+
     it("accepts a file of exactly 10 MiB", async () => {
       use([lookupDraft, ...claim(0), accept]);
       const store = createFakeDocumentStore();
       store.readDigest = vi.fn().mockResolvedValue({
-        size: MAX_DOCUMENT_BYTES,
+        size: MAX_BYTES,
         head: new Uint8Array(PDF),
         sha256: HASH,
       });

@@ -38,10 +38,7 @@ import {
   type EditTarget,
 } from "@/lib/data/solicitudes";
 import { ESCALATION_REASONS } from "@/lib/intake/escalation";
-import {
-  MAX_DOCUMENT_BYTES,
-  MAX_DOCUMENTS_PER_DRAFT,
-} from "@/lib/intake/limits";
+import { MAX_DOCUMENTS_PER_DRAFT } from "@/lib/intake/limits";
 import { isUnderDraftPrefix } from "@/lib/intake/pathnames";
 import type { DocumentStore } from "@/lib/intake/ports";
 import {
@@ -143,12 +140,17 @@ type Claim =
  * file was inspected and refused (format, size, empty, cap). `not_allowed` and
  * `not_found` write no row: the first is an unauthorized call, the second has
  * nothing stored to report.
+ *
+ * `maxBytes` is the maximum size in force when this call runs (RN-04,
+ * `tamano_maximo_mib`): the caller reads it, so a limit lowered after the
+ * upload applies to the stored file.
  */
 export async function finalizeDocument(
   input: {
     userId: number;
     pathname: string;
     nombreOriginal: string;
+    maxBytes: number;
     target?: EditTarget;
   },
   store: DocumentStore,
@@ -213,7 +215,7 @@ export async function finalizeDocument(
 
   let inspection: StoredFileFingerprint;
   try {
-    inspection = await fingerprintStoredFile(pathname, store);
+    inspection = await fingerprintStoredFile(pathname, store, input.maxBytes);
   } catch (error) {
     // The stored content cannot be read for hashing: fail like any refusal
     // (blob deleted best effort, claim dropped, no fingerprint, a named
@@ -283,11 +285,12 @@ type InspectionRefusal = Extract<
 export async function inspectStoredFile(
   pathname: string,
   store: DocumentStore,
+  maxBytes: number,
 ): Promise<StoredFileInspection> {
   const head = await store.readHead(pathname, SIGNATURE_HEAD_BYTES);
   if (head === null) return { ok: false, reason: "not_found" };
 
-  const refusal = refusalFor(head);
+  const refusal = refusalFor(head, maxBytes);
   if (refusal !== null) return { ok: false, reason: refusal };
   return {
     ok: true,
@@ -312,14 +315,15 @@ export type StoredFileFingerprint =
 export async function fingerprintStoredFile(
   pathname: string,
   store: DocumentStore,
+  maxBytes: number,
 ): Promise<StoredFileFingerprint> {
   const digest = await store.readDigest(pathname, {
     headBytes: SIGNATURE_HEAD_BYTES,
-    maxBytes: MAX_DOCUMENT_BYTES,
+    maxBytes,
   });
   if (digest === null) return { ok: false, reason: "not_found" };
 
-  const refusal = refusalFor(digest);
+  const refusal = refusalFor(digest, maxBytes);
   if (refusal !== null) return { ok: false, reason: refusal };
   // Inside the cap the store always hashes; anything else is an unreadable file.
   if (digest.sha256 === null) {
@@ -333,12 +337,12 @@ export async function fingerprintStoredFile(
   };
 }
 
-function refusalFor(head: {
-  size: number;
-  head: Uint8Array;
-}): Exclude<InspectionRefusal, "not_found"> | null {
+function refusalFor(
+  head: { size: number; head: Uint8Array },
+  maxBytes: number,
+): Exclude<InspectionRefusal, "not_found"> | null {
   if (head.size === 0) return "empty_file";
-  if (head.size > MAX_DOCUMENT_BYTES) return "too_large";
+  if (head.size > maxBytes) return "too_large";
   if (detectSignature(head.head) === null) return "unsupported_format";
   return null;
 }
