@@ -179,7 +179,7 @@ describe("maxDocumentBytesOf, intakeLimitsOf (RN-04, RN-23)", () => {
   it("multiplies MiB by 1048576", () => {
     expect(maxDocumentBytesOf(DEFAULT_PARAMETERS)).toBe(10_485_760);
     expect(maxDocumentBytesOf(params({ maxDocumentMib: 1 }))).toBe(1_048_576);
-    expect(maxDocumentBytesOf(params({ maxDocumentMib: 25 }))).toBe(26_214_400);
+    expect(maxDocumentBytesOf(params({ maxDocumentMib: 10 }))).toBe(10_485_760);
   });
 
   it("gives the two values the client needs and nothing else", () => {

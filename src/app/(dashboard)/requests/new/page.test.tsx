@@ -165,6 +165,19 @@ describe("NewRequestPage limits (NP-17, A13)", () => {
     });
   });
 
+  it("shows the documents step the maximum size in force", async () => {
+    openDraft.mockResolvedValue(WITH_DETAILS);
+    getNormativeParameters.mockResolvedValue({
+      values: { ...DEFAULT_PARAMETERS, maxDocumentMib: 7 },
+      fallback: [],
+      degraded: false,
+    });
+
+    await renderPage({ step: "3" });
+
+    expect(screen.getByText(/de hasta 7 MB/)).toBeInTheDocument();
+  });
+
   it("reads nothing when the draft cannot be opened", async () => {
     openDraft.mockRejectedValue(new Error("down"));
 

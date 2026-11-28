@@ -374,7 +374,12 @@ describe.skipIf(gate.mode !== "run")(
         return Promise.all(
           pathnames.map((pathname, i) =>
             finalizeDocument(
-              { userId: studentId, pathname, nombreOriginal: `doc-${i}.pdf` },
+              {
+                userId: studentId,
+                pathname,
+                nombreOriginal: `doc-${i}.pdf`,
+                maxBytes: 10_485_760,
+              },
               store,
             ),
           ),

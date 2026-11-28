@@ -145,7 +145,7 @@ const VALID: Record<ParameterKey, unknown> = {
   presentacion_tardia_dias: 4,
   ventana_presentacion_dias: 45,
   umbral_reincidencia: 5,
-  tamano_maximo_mib: 20,
+  tamano_maximo_mib: 7,
   calendario: [{ fecha: "2026-05-04", descripcion: "Dia local" }],
   causas: [
     { codigo: "medica", activa: true, posicion: 1 },
@@ -170,7 +170,7 @@ const VALID_VALUES: NormativeParameters = {
   lateFilingBusinessDays: 4,
   filingWindowDays: 45,
   issuerRecurrenceThreshold: 5,
-  maxDocumentMib: 20,
+  maxDocumentMib: 7,
   nonWorkingDays: [{ fecha: "2026-05-04", descripcion: "Dia local" }],
   causes: VALID.causas as NormativeParameters["causes"],
   documentTypeCauses:

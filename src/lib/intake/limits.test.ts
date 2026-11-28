@@ -4,17 +4,12 @@ import {
   ALLOWED_CONTENT_TYPES,
   DRAFT_TTL_DAYS,
   MAX_DOCUMENTS_PER_DRAFT,
-  MAX_DOCUMENT_BYTES,
   ORPHAN_GRACE_HOURS,
   PENDING_GRACE_HOURS,
   UPLOAD_TOKEN_TTL_MINUTES,
 } from "./limits";
 
 describe("intake limits (RN-04, D4, D8, D12)", () => {
-  it("caps a document at 10 MiB", () => {
-    expect(MAX_DOCUMENT_BYTES).toBe(10_485_760);
-  });
-
   it("allows PDF, PNG and JPEG content types only", () => {
     expect([...ALLOWED_CONTENT_TYPES]).toEqual([
       "application/pdf",

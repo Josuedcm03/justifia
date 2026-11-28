@@ -56,7 +56,11 @@ describe("RemissionSection: special format (RN-19)", () => {
   const upload = messages.en.review.remission.upload;
 
   it("offers the upload for a marked request without a format", () => {
-    show([view()], [], "en", { solicitudId: 12, attached: null });
+    show([view()], [], "en", {
+      solicitudId: 12,
+      attached: null,
+      maxDocumentBytes: 10_485_760,
+    });
 
     expect(
       screen.getByRole("heading", { level: 3, name: upload.title }),
@@ -70,6 +74,7 @@ describe("RemissionSection: special format (RN-19)", () => {
     show([view()], [], "en", {
       solicitudId: 12,
       attached: { id: 30, nombreOriginal: "firmado.pdf" },
+      maxDocumentBytes: 10_485_760,
     });
 
     expect(screen.getByRole("link", { name: "firmado.pdf" })).toHaveAttribute(

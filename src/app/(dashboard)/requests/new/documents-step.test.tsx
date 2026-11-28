@@ -6,7 +6,6 @@ import {
   renderIntl,
   stubObjectUrls,
 } from "@/app/(dashboard)/requests/new/test-support";
-import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 
 const { upload, finalizeDocumentAction, removeDocumentAction, refresh } =
   vi.hoisted(() => ({
@@ -25,6 +24,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
 import { DocumentsStep } from "@/app/(dashboard)/requests/new/documents-step";
 
+/** The limits in force, read on the server and handed down as a prop (NP-17). */
+const LIMITS = { filingWindowDays: 30, maxDocumentMib: 10 };
+const MAX_BYTES = LIMITS.maxDocumentMib * 1_048_576;
+
 const DOC = (id: number, nombreOriginal: string, tamanoBytes = 2048) => ({
   id,
   nombreOriginal,
@@ -34,7 +37,12 @@ const DOC = (id: number, nombreOriginal: string, tamanoBytes = 2048) => ({
 
 function ui(documents: ReturnType<typeof DOC>[] = [], fromReview = false) {
   return (
-    <DocumentsStep draftId={42} documents={documents} fromReview={fromReview} />
+    <DocumentsStep
+      draftId={42}
+      documents={documents}
+      fromReview={fromReview}
+      limits={LIMITS}
+    />
   );
 }
 
@@ -264,7 +272,7 @@ describe("DocumentsStep: refused before any upload (RN-04)", () => {
       "El archivo está vacío.",
     ],
     [
-      fileOfSize("grande.pdf", "application/pdf", MAX_DOCUMENT_BYTES + 1),
+      fileOfSize("grande.pdf", "application/pdf", MAX_BYTES + 1),
       "El archivo supera los 10 MB.",
     ],
   ])(
@@ -283,9 +291,65 @@ describe("DocumentsStep: refused before any upload (RN-04)", () => {
     renderIntl(ui());
     await user().upload(
       input(),
-      fileOfSize("justo.pdf", "application/pdf", MAX_DOCUMENT_BYTES),
+      fileOfSize("justo.pdf", "application/pdf", MAX_BYTES),
     );
     await waitFor(() => expect(upload).toHaveBeenCalled());
+  });
+});
+
+describe("DocumentsStep: the limit comes from the server (SD-LIMIT, NP-17)", () => {
+  const withLimit = (maxDocumentMib: number) => (
+    <DocumentsStep
+      draftId={42}
+      documents={[]}
+      limits={{ filingWindowDays: 30, maxDocumentMib }}
+    />
+  );
+
+  it.each([
+    [5, 6, "refused before upload, naming 5 MB"],
+    [5, 4, "accepted for upload"],
+    [2, 3, "refused before upload, naming 2 MB"],
+    [10, 8, "accepted for upload"],
+  ] as const)(
+    "with a limit of %i MB a %i MB file is %s",
+    async (limit, mib, outcome) => {
+      renderIntl(withLimit(limit));
+      await user().upload(
+        input(),
+        fileOfSize("a.pdf", "application/pdf", mib * 1_048_576),
+      );
+
+      if (outcome.startsWith("accepted")) {
+        await waitFor(() => expect(upload).toHaveBeenCalled());
+      } else {
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          `El archivo supera los ${limit} MB.`,
+        );
+        expect(upload).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("states the limit in force in the hint", () => {
+    renderIntl(withLimit(5));
+
+    expect(
+      screen.getByText("PDF, PNG o JPEG de hasta 5 MB. Máximo 5 documentos."),
+    ).toBeInTheDocument();
+  });
+
+  it("names the limit in force when the server refuses a stored file", async () => {
+    finalizeDocumentAction.mockResolvedValue({
+      ok: false,
+      errors: [{ field: "documents", key: "intake.errors.too_large" }],
+    });
+    renderIntl(withLimit(5));
+    await user().upload(input(), PDF);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El archivo supera los 5 MB.",
+    );
   });
 });
 
@@ -335,7 +399,12 @@ describe("DocumentsStep inside another flow (the correction)", () => {
     actions: { finalizeDocument, removeDocument },
   };
   const correction = (documents: ReturnType<typeof DOC>[] = []) => (
-    <DocumentsStep draftId={31} documents={documents} flow={flow} />
+    <DocumentsStep
+      draftId={31}
+      documents={documents}
+      flow={flow}
+      limits={LIMITS}
+    />
   );
 
   beforeEach(() => {
@@ -615,7 +684,12 @@ describe("DocumentsStep: local preview of a file attached in this visit (FE-17)"
       actions: { finalizeDocument, removeDocument: vi.fn() },
     };
     const correction = (documents: ReturnType<typeof DOC>[] = []) => (
-      <DocumentsStep draftId={31} documents={documents} flow={flow} />
+      <DocumentsStep
+        draftId={31}
+        documents={documents}
+        flow={flow}
+        limits={LIMITS}
+      />
     );
     const { rerender } = renderIntl(correction());
     await user().upload(input(), PDF);
@@ -650,6 +724,7 @@ describe("DocumentsStep: where each file comes from, in the correction (FE-16)",
       draftId={31}
       documents={documents}
       previousDocumentIds={previous}
+      limits={LIMITS}
     />
   );
 
@@ -724,6 +799,7 @@ describe("DocumentsStep: the dates recap (FE-18)", () => {
         documents={[DOC(1, "constancia.pdf")]}
         range={RANGE}
         today="2026-11-02"
+        limits={LIMITS}
         {...props}
       />
     );
@@ -791,7 +867,11 @@ describe("DocumentsStep: the dates recap (FE-18)", () => {
     unmount();
 
     renderIntl(
-      <DocumentsStep draftId={42} documents={[DOC(1, "constancia.pdf")]} />,
+      <DocumentsStep
+        draftId={42}
+        documents={[DOC(1, "constancia.pdf")]}
+        limits={LIMITS}
+      />,
     );
     expect(screen.queryByText(RECAP)).toBeNull();
   });

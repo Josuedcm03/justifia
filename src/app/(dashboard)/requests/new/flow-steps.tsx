@@ -90,6 +90,7 @@ export function FlowSteps({
           previousDocumentIds={previousDocumentIds}
           range={range}
           today={today}
+          limits={limits}
         />
       ) : null}
       {step === 4 ? (

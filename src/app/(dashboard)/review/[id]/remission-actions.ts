@@ -13,6 +13,8 @@ import {
 import { resolveRequestScope } from "@/lib/data/request-scope";
 import { attachSpecialFormat } from "@/lib/data/special-format";
 import { getIntakeDeps } from "@/lib/intake/deps";
+import { maxDocumentBytesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 import type { RemissionReason, RemissionState } from "@/lib/remission/states";
 
 // The staff actions on a remission (teacher-remission, RF-09 c, RNF-01). Each
@@ -146,8 +148,16 @@ export async function attachSpecialFormatAction(
 
   try {
     const deps = getIntakeDeps();
+    // The maximum size in force when the attach runs (SD-LIMIT).
+    const { values } = await getNormativeParameters();
     const result = await attachSpecialFormat(
-      { actorId, scope, solicitudId, ...file.data },
+      {
+        actorId,
+        scope,
+        solicitudId,
+        ...file.data,
+        maxBytes: maxDocumentBytesOf(values),
+      },
       deps.store,
     );
     if (!result.ok) return { ok: false, reason: result.reason };

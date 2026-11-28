@@ -6,7 +6,7 @@ import { type ChangeEvent, useRef, useState } from "react";
 
 import { attachSpecialFormatAction } from "@/app/(dashboard)/review/[id]/remission-actions";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ALLOWED_CONTENT_TYPES, MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
+import { ALLOWED_CONTENT_TYPES } from "@/lib/intake/limits";
 import { buildPathname } from "@/lib/intake/pathnames";
 import type { TipoDetectado } from "@/lib/intake/signature";
 
@@ -31,11 +31,14 @@ const EXTENSIONS: Record<string, TipoDetectado> = {
 const ALERT =
   "border-destructive/30 border-l-destructive bg-destructive/8 text-destructive-ink rounded-lg border border-l-4 px-3 py-2 text-sm";
 
-/** Cheap checks that spare a doomed upload; the server repeats them all. */
-function precheck(file: File): string | null {
+/**
+ * Cheap checks that spare a doomed upload; the server repeats them all. The
+ * limit is the maximum size in force, handed down by the server (NP-17).
+ */
+function precheck(file: File, maxBytes: number): string | null {
   if (!Object.hasOwn(EXTENSIONS, file.type)) return "unsupported_format";
   if (file.size === 0) return "empty_file";
-  if (file.size > MAX_DOCUMENT_BYTES) return "too_large";
+  if (file.size > maxBytes) return "too_large";
   return null;
 }
 
@@ -44,10 +47,13 @@ type AttachedFormat = { id: number; nombreOriginal: string };
 export function SpecialFormatUpload({
   solicitudId,
   attached,
+  maxDocumentBytes,
 }: {
   solicitudId: number;
   /** The format already stored for the request, if any. */
   attached: AttachedFormat | null;
+  /** The maximum size in force, read on the server (SD-LIMIT). */
+  maxDocumentBytes: number;
 }) {
   const t = useTranslations("review.remission.upload");
   const picker = useRef<HTMLInputElement>(null);
@@ -55,10 +61,11 @@ export function SpecialFormatUpload({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<AttachedFormat | null>(null);
   const current = attached ?? done;
+  const size = maxDocumentBytes / BYTES_PER_MB;
 
   async function attach(file: File) {
     setError(null);
-    const refused = precheck(file);
+    const refused = precheck(file, maxDocumentBytes);
     if (refused) return setError(refused);
 
     setUploading(file.name);
@@ -113,7 +120,7 @@ export function SpecialFormatUpload({
       ) : (
         <>
           <p className="text-muted-foreground max-w-prose text-sm">
-            {t("hint", { size: MAX_DOCUMENT_BYTES / BYTES_PER_MB })}
+            {t("hint", { size })}
           </p>
           <input
             ref={picker}
@@ -146,7 +153,7 @@ export function SpecialFormatUpload({
       </p>
       {error ? (
         <p role="alert" className={ALERT}>
-          {t(`errors.${error}`)}
+          {t(`errors.${error}`, { size })}
         </p>
       ) : null}
     </div>

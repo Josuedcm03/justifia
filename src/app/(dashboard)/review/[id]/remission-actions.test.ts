@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sessionFor } from "@/app/(dashboard)/review/test-support";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
@@ -17,6 +18,7 @@ const {
   attachMock,
   afterMock,
   depsMock,
+  getNormativeParametersMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
@@ -30,6 +32,7 @@ const {
   attachMock: vi.fn(),
   afterMock: vi.fn(),
   depsMock: vi.fn(),
+  getNormativeParametersMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
@@ -47,6 +50,10 @@ vi.mock("@/lib/data/special-format", () => ({
   attachSpecialFormat: attachMock,
 }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: depsMock }));
+// The loader is the only source of the maximum size (NP-4, A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: getNormativeParametersMock,
+}));
 
 import {
   attachSpecialFormatAction,
@@ -70,6 +77,13 @@ function target(estado: string) {
   return { id: 31, solicitudId: 12, estado };
 }
 
+/** The loader result when the maximum size is in force at `mib`. */
+const sizeRead = (mib: number) => ({
+  values: { ...DEFAULT_PARAMETERS, maxDocumentMib: mib },
+  fallback: [],
+  degraded: false,
+});
+
 beforeEach(() => {
   redirectMock.mockClear();
   revalidatePathMock.mockClear();
@@ -85,6 +99,7 @@ beforeEach(() => {
   dispatchManyMock.mockResolvedValue({});
   attachMock.mockReset();
   attachMock.mockResolvedValue(ATTACHED);
+  getNormativeParametersMock.mockReset().mockResolvedValue(sizeRead(10));
   afterMock.mockReset();
   depsMock.mockReset();
   depsMock.mockReturnValue({ store: "store", mail: "mail" });
@@ -261,9 +276,27 @@ describe("attachSpecialFormatAction (RN-19)", () => {
         solicitudId: 12,
         pathname: PATH,
         nombreOriginal: "formato.pdf",
+        maxBytes: 10_485_760,
       },
       "store",
     );
+  });
+
+  it("hands the data layer the maximum size in force, read for this call (SD-LIMIT)", async () => {
+    getNormativeParametersMock.mockResolvedValue(sizeRead(5));
+
+    await attachSpecialFormatAction(12, FILE);
+
+    expect(attachMock.mock.calls[0][0]).toMatchObject({ maxBytes: 5_242_880 });
+  });
+
+  it("reads the limit only for a caller that is allowed to attach", async () => {
+    scopeMock.mockResolvedValue({ kind: "none" });
+    await attachSpecialFormatAction(12, FILE);
+    await attachSpecialFormatAction(0, FILE);
+    await attachSpecialFormatAction(12, { pathname: "" });
+
+    expect(getNormativeParametersMock).not.toHaveBeenCalled();
   });
 
   it("returns the document and the remissions as pending, and dispatches them after the response", async () => {

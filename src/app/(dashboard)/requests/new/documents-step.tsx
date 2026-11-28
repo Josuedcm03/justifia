@@ -15,6 +15,7 @@ import { DatesRecap } from "@/app/(dashboard)/requests/new/dates-recap";
 import {
   BackLink,
   ContinueLink,
+  errorValuesOf,
   FieldErrors,
   StepShell,
 } from "@/app/(dashboard)/requests/new/form-field";
@@ -25,11 +26,11 @@ import { FLOW_PATH, stepHref } from "@/app/(dashboard)/requests/new/steps";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   ALLOWED_CONTENT_TYPES,
-  MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS_PER_DRAFT,
 } from "@/lib/intake/limits";
 import { buildPathname } from "@/lib/intake/pathnames";
 import type { TipoDetectado } from "@/lib/intake/signature";
+import type { IntakeLimits } from "@/lib/parameters/derive";
 
 const UPLOAD_TOKEN_URL = "/api/intake/upload-token";
 const BYTES_PER_MB = 1024 * 1024;
@@ -46,11 +47,14 @@ const EXTENSIONS: Record<string, TipoDetectado> = {
 // importing `errorKey` so the zod schemas stay out of the client bundle.
 const errorKey = (code: string) => `intake.errors.${code}`;
 
-/** Cheap checks that spare a doomed upload; the server repeats them all. */
-function precheck(file: File): string | null {
+/**
+ * Cheap checks that spare a doomed upload; the server repeats them all. The
+ * limit is the maximum size in force, handed down by the server (NP-17).
+ */
+function precheck(file: File, maxMib: number): string | null {
   if (!Object.hasOwn(EXTENSIONS, file.type)) return "unsupported_format";
   if (file.size === 0) return "empty_file";
-  if (file.size > MAX_DOCUMENT_BYTES) return "too_large";
+  if (file.size > maxMib * BYTES_PER_MB) return "too_large";
   return null;
 }
 
@@ -99,6 +103,7 @@ export function DocumentsStep({
   previousDocumentIds,
   range = null,
   today,
+  limits,
 }: {
   /** The id the files are stored under: the draft's, or the returned request's. */
   draftId: number;
@@ -115,6 +120,8 @@ export function DocumentsStep({
   range?: { from: string; to: string } | null;
   /** The Managua calendar day from the server; absent means no notice. */
   today?: string;
+  /** The limits in force, read on the server; the pre-check and messages state them. */
+  limits: IntakeLimits;
 }) {
   const t = useTranslations("intake");
   const tErrors = useTranslations();
@@ -138,7 +145,7 @@ export function DocumentsStep({
 
   async function attach(file: File) {
     setError(null);
-    const refused = precheck(file);
+    const refused = precheck(file, limits.maxDocumentMib);
     if (refused) return setError(errorKey(refused));
 
     setUploading(file.name);
@@ -227,7 +234,7 @@ export function DocumentsStep({
 
       <p className="text-muted-foreground text-sm">
         {t("documents.hint", {
-          size: MAX_DOCUMENT_BYTES / BYTES_PER_MB,
+          size: limits.maxDocumentMib,
           max: MAX_DOCUMENTS_PER_DRAFT,
         })}
       </p>
@@ -365,6 +372,7 @@ export function DocumentsStep({
       <FieldErrors
         id="documents"
         errors={error ? [{ field: "documents", key: error }] : []}
+        values={errorValuesOf(limits)}
       />
     </StepShell>
   );

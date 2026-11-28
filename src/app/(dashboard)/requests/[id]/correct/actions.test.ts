@@ -265,6 +265,12 @@ describe("saveCorrectionSubjectsAction (step 2)", () => {
 describe("correction documents (step 3)", () => {
   it("finalizes against the returned request for the session user", async () => {
     h.finalizeDocument.mockResolvedValue({ ok: true, documentId: 12 });
+    // The maximum size in force comes from the loader (SD-FINALIZE).
+    h.getNormativeParameters.mockResolvedValue({
+      values: { ...DEFAULT_PARAMETERS, maxDocumentMib: 5 },
+      fallback: [],
+      degraded: false,
+    });
 
     const result = await finalizeCorrectionDocumentAction(REQUEST, {
       pathname: "intake/31/x.png",
@@ -279,6 +285,7 @@ describe("correction documents (step 3)", () => {
         pathname: "intake/31/x.png",
         nombreOriginal: "foto.png",
         target: TARGET,
+        maxBytes: 5_242_880,
       },
       deps.store,
     );

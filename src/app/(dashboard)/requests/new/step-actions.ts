@@ -16,7 +16,7 @@ import {
   validateSubjectSelections,
 } from "@/lib/intake/eligibility";
 import { getIntakeDeps } from "@/lib/intake/deps";
-import { filingRulesOf } from "@/lib/parameters/derive";
+import { filingRulesOf, maxDocumentBytesOf } from "@/lib/parameters/derive";
 import { getNormativeParameters } from "@/lib/parameters/loader";
 import {
   documentIdSchema,
@@ -157,8 +157,10 @@ export async function finalize(
   const parsed = finalizeDocumentSchema.safeParse(input);
   if (!parsed.success) return fail("form", "invalid_input");
 
+  // The maximum size in force when this finalize runs (SD-FINALIZE).
+  const { values } = await getNormativeParameters();
   const result = await finalizeDocument(
-    { userId, ...parsed.data, target },
+    { userId, ...parsed.data, target, maxBytes: maxDocumentBytesOf(values) },
     getIntakeDeps().store,
   );
   return result.ok

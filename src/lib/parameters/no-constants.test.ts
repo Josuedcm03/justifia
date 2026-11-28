@@ -544,3 +544,35 @@ describe("the filing window is a parameter (NP-15, A12)", () => {
     },
   );
 });
+
+// NP-15 for the maximum document size (design A12, A19): the former constant is
+// gone and the two browser components receive the limit as a prop.
+
+const SIZE_CLIENTS = [
+  "app/(dashboard)/requests/new/documents-step.tsx",
+  "app/(dashboard)/review/[id]/special-format-upload.tsx",
+];
+
+describe("the maximum document size is a parameter (NP-15, A12)", () => {
+  it("no source names the former size constant", () => {
+    const offenders = sourceTree()
+      .filter(([, source]) =>
+        /\bMAX_DOCUMENT_BYTES\b/.test(withoutComments(source)),
+      )
+      .map(([path]) => path);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it.each(SIZE_CLIENTS)(
+    "%s receives the limit as a prop: no size constant, no copy of the number",
+    (path) => {
+      const code = withoutComments(readFileSync(join(SRC_DIR, path), "utf8"));
+
+      expect(code).not.toMatch(/\bMAX_DOCUMENT_BYTES\b/);
+      expect(code).not.toMatch(/10_?485_?760/);
+      expect(valueImports(code)).not.toContain("@/lib/parameters/loader");
+      expect(valueImports(code)).not.toContain("@/lib/parameters/registry");
+    },
+  );
+});

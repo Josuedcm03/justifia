@@ -39,6 +39,7 @@ const PATH = `intake/${REQUEST}/0b9f6c1e-4f0a-4d57-9a64-2f3f8f1d2c11.pdf`;
 const PDF = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37];
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00];
 const EXE = [0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00];
+const MIB = 1_048_576;
 
 function use(script: Step[]) {
   const double = createDbDouble(script);
@@ -64,6 +65,7 @@ function input(
     pathname: string;
     nombreOriginal: string;
     solicitudId: number;
+    maxBytes: number;
   }> = {},
 ) {
   return {
@@ -72,6 +74,7 @@ function input(
     solicitudId: REQUEST,
     pathname: PATH,
     nombreOriginal: "formato.pdf",
+    maxBytes: 10 * MIB,
     ...overrides,
   };
 }
@@ -394,6 +397,45 @@ describe("attachSpecialFormat: refused file (RN-04)", () => {
       ]);
     },
   );
+
+  it("refuses a 6 MiB file when the maximum is 5 MiB: nothing attached, remissions stay blocked (SD-LIMIT)", async () => {
+    const double = use([context, unreferenced]);
+    const store = createFakeDocumentStore();
+    store.readHead = vi.fn().mockResolvedValue({
+      size: 6 * MIB,
+      head: new Uint8Array(PDF),
+    });
+    const remove = vi.spyOn(store, "delete");
+
+    expect(
+      await attachSpecialFormat(input({ maxBytes: 5 * MIB }), store),
+    ).toEqual({ ok: false, reason: "too_large" });
+
+    expect(remove).toHaveBeenCalledWith([PATH]);
+    expect(double.log.some((s) => s.kind === "insert")).toBe(false);
+    expect(unblockMock).not.toHaveBeenCalled();
+    expect(insertAuditMock.mock.calls[0][2]).toEqual([
+      {
+        accion: "documento.rechazado",
+        entidadTipo: "Solicitud",
+        entidadId: REQUEST,
+        datos: { reason: "too_large" },
+      },
+    ]);
+  });
+
+  it("accepts a 4 MiB file when the maximum is 5 MiB", async () => {
+    use([context, unreferenced, lock, noFormatYet, insertDoc()]);
+    const store = createFakeDocumentStore();
+    store.readHead = vi.fn().mockResolvedValue({
+      size: 4 * MIB,
+      head: new Uint8Array(PDF),
+    });
+
+    expect(
+      await attachSpecialFormat(input({ maxBytes: 5 * MIB }), store),
+    ).toMatchObject({ ok: true, tamanoBytes: 4 * MIB });
+  });
 
   it("keeps the refusal when the blob delete fails (the orphan sweep is the backstop)", async () => {
     use([context, unreferenced]);

@@ -95,7 +95,7 @@ describe.skipIf(gate.mode !== "run")(
       const pathname = buildPathname(solicitudId, randomUUID(), "pdf");
       store.seed(pathname, PDF_BYTES);
       const result = await finalizeDocument(
-        { userId, pathname, nombreOriginal, target },
+        { userId, pathname, nombreOriginal, target, maxBytes: 10_485_760 },
         store,
       );
       if (!result.ok) throw new Error(`Not attached: ${result.reason}`);

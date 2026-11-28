@@ -171,7 +171,9 @@ export const PARAMETER_REGISTRY: {
   presentacion_tardia_dias: scalarEntry("lateFilingBusinessDays", 1, 10),
   ventana_presentacion_dias: scalarEntry("filingWindowDays", 1, 365),
   umbral_reincidencia: scalarEntry("issuerRecurrenceThreshold", 2, 20),
-  tamano_maximo_mib: scalarEntry("maxDocumentMib", 1, 25),
+  // The upper end is the existing database check `CK_Documento_Tamano`
+  // (10 MiB): a larger value could not be stored (A19, size-ceiling.test.ts).
+  tamano_maximo_mib: scalarEntry("maxDocumentMib", 1, 10),
   calendario: {
     field: "nonWorkingDays",
     schema: calendarSchema,
