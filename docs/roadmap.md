@@ -14,7 +14,7 @@ remiten a ese archivo.
 | 5   | `validation-signals`       | RF-05 (a) a (d), RF-13 (c); RN-07, RN-09, RN-10, RN-14, RN-15, RN-26                | Por asignar | Si alcanza el tiempo | archivado |
 | 6   | `escalation`               | RF-10, RF-15; RN-20                                                                  | Por asignar | No                   | archivado |
 | 7   | `coordination-reports`     | RF-18; RF-13 (a), (b), (d)                                                           | Por asignar | No                   | archivado |
-| 8   | `normative-parameters`     | RNF-14; RN-01, RN-04, RN-07, RN-08, RN-13, RN-14, RN-23; RNF-01, RNF-06, RNF-12      | Armando     | No                   | pendiente |
+| 8   | `normative-parameters`     | RNF-14; RN-01, RN-04, RN-07, RN-08, RN-13, RN-14, RN-23; RNF-01, RNF-06, RNF-12      | Armando     | No                   | archivado |
 | 9   | `request-consent`          | RF-01 (d), RF-03 (f); RN-25                                                          | Por asignar | Sí                   | archivado |
 | 10  | `secretary-templates`      | Plantillas propias de la secretaría (RF-07)                                          | Por asignar | No                   | pendiente |
 | 11  | `backoffice-ui-refresh`    | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué       | No                   | archivado |
