@@ -39,9 +39,13 @@ vi.mock("@/lib/intake/dates", async (original) => ({
 
 import {
   saveCalendarAction,
+  saveDocumentTypeCausesAction,
   saveScalarParametersAction,
 } from "@/app/(dashboard)/parameters/actions";
-import { PARAMETER_REGISTRY } from "@/lib/parameters/registry";
+import {
+  DEFAULT_PARAMETERS,
+  PARAMETER_REGISTRY,
+} from "@/lib/parameters/registry";
 
 const ACTOR = 41;
 const TODAY = "2026-11-27";
@@ -156,6 +160,22 @@ function expectNothingWritten() {
   expect(m.write).not.toHaveBeenCalled();
   expect(m.audit).not.toHaveBeenCalled();
   expect(m.revalidatePath).not.toHaveBeenCalled();
+}
+
+/** A write that applies every change as sent, against the value in force that
+ *  `inForce` gives for its key: the audit mapper then sees what a real save
+ *  would give it. */
+function applyAsSent(inForce: (clave: string) => unknown) {
+  m.write.mockImplementation(
+    async (_tx: unknown, changes: { clave: string; valor: unknown }[]) => ({
+      kind: "updated",
+      changes: changes.map(({ clave, valor }) => ({
+        clave,
+        antes: inForce(clave),
+        despues: valor,
+      })),
+    }),
+  );
 }
 
 /** Consecutive repeats collapsed: the lock is two statements, a form read is
@@ -672,16 +692,7 @@ describe("saveCalendarAction", () => {
 
     it("writes one audit row for the key with the ISO dates only: the description never reaches a payload or a logged line", async () => {
       const SENTINEL = "SENTINEL-DESC-0123";
-      m.write.mockImplementation(
-        async (_tx: unknown, changes: { clave: string; valor: unknown }[]) => ({
-          kind: "updated",
-          changes: changes.map(({ clave, valor }) => ({
-            clave,
-            antes: [],
-            despues: valor,
-          })),
-        }),
-      );
+      applyAsSent(() => []);
 
       await saveCalendarAction(
         IDLE,
@@ -703,6 +714,107 @@ describe("saveCalendarAction", () => {
       });
       expect(JSON.stringify(m.audit.mock.calls)).not.toContain(SENTINEL);
       expect(JSON.stringify(consoleError.mock.calls)).not.toContain(SENTINEL);
+    });
+  });
+});
+
+// ---- saveDocumentTypeCausesAction (unit 20) --------------------------------
+
+/** A whole-value form: its one field holds the value as JSON text. */
+function jsonBody(clave: string, value: unknown): Record<string, string> {
+  return { [clave]: JSON.stringify(value) };
+}
+
+const MAP = DEFAULT_PARAMETERS.documentTypeCauses;
+
+describe("saveDocumentTypeCausesAction", () => {
+  sharedBehaviour(
+    saveDocumentTypeCausesAction,
+    jsonBody("tipo_documento_causa", MAP),
+    [{ clave: "tipo_documento_causa", valor: MAP }],
+  );
+
+  describe("NP-12: validation of the value (table-driven)", () => {
+    it.each([
+      ["the default", MAP],
+      [
+        "an extra cell",
+        {
+          ...MAP,
+          constancia_medica: [...MAP.constancia_medica, "fuerza_mayor"],
+        },
+      ],
+      ["a set emptied", { ...MAP, constancia_medica: [] }],
+    ])("accepts %s", async (_case, value) => {
+      expect(
+        await saveDocumentTypeCausesAction(
+          IDLE,
+          form(jsonBody("tipo_documento_causa", value)),
+        ),
+      ).toEqual({ kind: "saved" });
+    });
+
+    it.each([
+      ["otro mapped", { ...MAP, otro: ["medica"] }],
+      [
+        "a sixth cause code in a set",
+        { ...MAP, constancia_medica: ["medica", "inventada"] },
+      ],
+      ["the type recibo", { ...MAP, recibo: [] }],
+      ["a type missing", { constancia_medica: [], otro: [] }],
+      [
+        "a cause repeated in a set",
+        { ...MAP, constancia_medica: ["medica", "medica"] },
+      ],
+      ["a list instead of the table", []],
+    ])("refuses %s and stores nothing", async (_case, value) => {
+      const body = jsonBody("tipo_documento_causa", value);
+
+      expect(await saveDocumentTypeCausesAction(IDLE, form(body))).toEqual({
+        kind: "invalid",
+        fieldErrors: {
+          tipo_documento_causa: "parameters.errors.map.invalid",
+        },
+        values: body,
+      });
+      expectNothingWritten();
+    });
+
+    it("refuses a text that is not JSON and a missing field", async () => {
+      for (const body of [{ tipo_documento_causa: "{no" }, {}]) {
+        expect(await saveDocumentTypeCausesAction(IDLE, form(body))).toEqual({
+          kind: "invalid",
+          fieldErrors: {
+            tipo_documento_causa: "parameters.errors.map.invalid",
+          },
+          values: { tipo_documento_causa: body.tipo_documento_causa ?? "" },
+        });
+      }
+      expectNothingWritten();
+    });
+  });
+
+  it("reads only the map field and writes one audit row with the map as payload (NP-AUD-3)", async () => {
+    applyAsSent(() => MAP);
+    const next = { ...MAP, constancia_medica: ["medica"] };
+
+    await saveDocumentTypeCausesAction(
+      IDLE,
+      form({
+        ...jsonBody("tipo_documento_causa", next),
+        causas: "[]",
+        inventada: "1",
+      }),
+    );
+
+    expect(reads).toEqual(["tipo_documento_causa"]);
+    expect(m.audit).toHaveBeenCalledTimes(1);
+    const events = m.audit.mock.calls[0][2];
+    expect(events).toHaveLength(1);
+    expect(events[0].datos).toEqual({
+      clave: "tipo_documento_causa",
+      antes: MAP,
+      despues: next,
     });
   });
 });

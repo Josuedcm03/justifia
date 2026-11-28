@@ -1946,6 +1946,9 @@
         "description_too_long": "La descripción no puede superar los 120 caracteres.",
         "too_many": "El calendario admite como máximo {max} fechas.",
         "invalid": "El calendario no es válido. Revise las fechas y las descripciones."
+      },
+      "map": {
+        "invalid": "La tabla no es válida. Cada tipo de documento admite solo las cinco causas, sin repetir, y el tipo «otro» no corresponde a ninguna causa."
       }
     }
   }

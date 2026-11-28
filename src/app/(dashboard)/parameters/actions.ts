@@ -237,3 +237,56 @@ export async function saveCalendarAction(
     t,
   );
 }
+
+// ---- Whole-value forms: the type-to-cause map (NP-12) ----------------------
+
+/**
+ * A form that is one whole value in one field named by its key. The registry
+ * schema is the validation: the first issue whose message has copy in `errors`
+ * picks the text, any other issue gets `errors.invalid`. The refusal sits on
+ * the key's own field.
+ */
+async function saveWholeValue(
+  actorId: number,
+  clave: "causas" | "tipo_documento_causa",
+  errors: Readonly<Record<string, string>> & { invalid: string },
+  formData: FormData,
+  t: Translate,
+): Promise<ParameterFormState> {
+  const { raw, value } = jsonField(formData, clave);
+  const values = { [clave]: raw };
+  const parsed = PARAMETER_REGISTRY[clave].schema.safeParse(value);
+  if (!parsed.success) {
+    const code =
+      parsed.error.issues.find((issue) => Object.hasOwn(errors, issue.message))
+        ?.message ?? "invalid";
+    return {
+      kind: "invalid",
+      fieldErrors: { [clave]: t(errors[code]) },
+      values,
+    };
+  }
+  return save(
+    actorId,
+    [{ clave, valor: parsed.data } as ParameterChange],
+    values,
+    t,
+  );
+}
+
+export async function saveDocumentTypeCausesAction(
+  _prev: ParameterFormState,
+  formData: FormData,
+): Promise<ParameterFormState> {
+  const { actorId } = await requireParameterAccess();
+  const t = await getTranslations();
+
+  // Only the map field is read; `otro` is part of its value and must be empty.
+  return saveWholeValue(
+    actorId,
+    "tipo_documento_causa",
+    { invalid: "parameters.errors.map.invalid" },
+    formData,
+    t,
+  );
+}

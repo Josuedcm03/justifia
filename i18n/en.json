@@ -1946,6 +1946,9 @@
         "description_too_long": "The description cannot exceed 120 characters.",
         "too_many": "The calendar holds at most {max} dates.",
         "invalid": "The calendar is not valid. Check the dates and the descriptions."
+      },
+      "map": {
+        "invalid": "The table is not valid. Each document type accepts only the five causes, without repeats, and the type \"otro\" corresponds to no cause."
       }
     }
   }
