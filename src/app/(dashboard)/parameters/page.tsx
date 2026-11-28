@@ -6,9 +6,14 @@ import { requireParameterAccess } from "@/lib/auth/parameter-access";
 import { loadNormativeParameters } from "@/lib/parameters/loader";
 import { PARAMETER_KEYS, PARAMETER_REGISTRY } from "@/lib/parameters/registry";
 
-import { saveCalendarAction, saveScalarParametersAction } from "./actions";
+import {
+  saveCalendarAction,
+  saveDocumentTypeCausesAction,
+  saveScalarParametersAction,
+} from "./actions";
 import { CalendarSection } from "./calendar-section";
 import { ScalarsForm } from "./scalars-form";
+import { TypeCausesSection } from "./type-causes-section";
 
 // The one screen that edits the normative parameters (NP-7, CU-13). The guard
 // is the first statement: nothing is read for a caller who may not be here.
@@ -36,6 +41,10 @@ export default async function ParametersPage() {
       <CalendarSection
         action={saveCalendarAction}
         entries={values.nonWorkingDays}
+      />
+      <TypeCausesSection
+        action={saveDocumentTypeCausesAction}
+        map={values.documentTypeCauses}
       />
     </PageFrame>
   );

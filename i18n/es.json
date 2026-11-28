@@ -1964,6 +1964,16 @@
       "restoreRow": "Restaurar la fila {row}",
       "removed": "Se quitará al guardar"
     },
+    "map": {
+      "title": "Tipo de documento y causa",
+      "description": "Marque las causas a las que corresponde cada tipo de documento. El sistema avisa cuando el documento de una solicitud no corresponde a su causa.",
+      "otroNote": "Este tipo no corresponde a ninguna causa y no se puede modificar.",
+      "types": {
+        "constancia_medica": "Constancia médica",
+        "constancia_institucional": "Constancia institucional",
+        "otro": "Otro"
+      }
+    },
     "state": {
       "saved": "Los cambios se guardaron.",
       "unchanged": "No hay cambios que guardar.",

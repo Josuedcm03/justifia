@@ -146,6 +146,14 @@ describe("ParametersPage", () => {
     );
   });
 
+  it("mounts the document type to cause section", async () => {
+    await renderPage();
+
+    expect(
+      screen.getByRole("group", { name: "types.constancia_medica" }),
+    ).toBeInTheDocument();
+  });
+
   it("writes nothing when it opens", async () => {
     await renderPage();
 
