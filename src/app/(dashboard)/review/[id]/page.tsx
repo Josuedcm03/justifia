@@ -41,7 +41,6 @@ import {
 } from "@/lib/data/solicitud-detail";
 import { isExtractionConfigured } from "@/lib/extraction/configured";
 import { deadlineStatus } from "@/lib/intake/business-days";
-import { calendar } from "@/lib/intake/calendar";
 import { isCausa } from "@/lib/intake/causes";
 import { managuaToday } from "@/lib/intake/dates";
 import { clockStartOf } from "@/lib/intake/deadline-clock";
@@ -53,6 +52,12 @@ import {
 import { diffRevision, type RevisionDiff } from "@/lib/intake/revision-diff";
 import type { RequestScope } from "@/lib/intake/request-scope";
 import { isVisibleState } from "@/lib/intake/states";
+import {
+  calendarOf,
+  deadlineRulesOf,
+  maxDocumentBytesOf,
+} from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 /** The states that show a short note where the decision panel would be. */
@@ -110,6 +115,24 @@ function changesSinceReturn(detail: RequestDetail): RevisionDiff | null {
     clases: detail.clases,
     documentoIds: detail.documentos.map((doc) => doc.id),
   });
+}
+
+/**
+ * The RN-08 deadline state of a pending request, from the calendar and the
+ * rules in force. `alertDays` is the alert parameter the badge text states.
+ */
+async function pendingDeadline(detail: RequestDetail, now: Date) {
+  const { values } = await getNormativeParameters();
+  const rules = deadlineRulesOf(values);
+  return {
+    ...deadlineStatus(
+      managuaToday(clockStartOf(detail)),
+      managuaToday(now),
+      calendarOf(values),
+      rules,
+    ),
+    alertDays: rules.alertBusinessDays,
+  };
 }
 
 /**
@@ -189,21 +212,23 @@ export default async function ReviewDetailPage({
   // request can carry it; an open or decided request shows none.
   const answer = pending ? latestAnswer(detail.escalamientos) : null;
   // The deadline starts at the effective start: a coordination answer moves it
-  // later by the business days spent there (RN-08, ES-5).
+  // later by the business days spent there (RN-08, ES-5). Only a pending
+  // request shows one, so only then are the parameters in force loaded; the
+  // same calendar and rules as the queue (RR-QUEUE, NP-15).
   const due =
-    pending && detail.presentadaEn
-      ? deadlineStatus(
-          managuaToday(clockStartOf(detail)),
-          managuaToday(now),
-          calendar,
-        )
-      : null;
+    pending && detail.presentadaEn ? await pendingDeadline(detail, now) : null;
   const templatesFor = pending ? renderedTemplates(detail) : null;
   const changes = changesSinceReturn(detail);
   // The remissions exist only once the request is approved (RF-09 c). They are
   // loaded with the rest, before the single audited read below.
   const remissions =
     detail.estado === "aprobada" ? await listRemissions(detail.id) : null;
+  // The special-format upload pre-checks against the maximum size in force
+  // (SD-LIMIT); only a marked approval shows it.
+  const specialFormatBytes =
+    remissions && detail.formatoEspecial
+      ? maxDocumentBytesOf((await getNormativeParameters()).values)
+      : null;
   // E17: a career without an active coordination account cannot be escalated
   // to. The email is not required here; a notice without recipient is blocked
   // later. The student's live career is read, never the snapshot name.
@@ -289,6 +314,7 @@ export default async function ReviewDetailPage({
                       por_vencer: "deadline.dueSoon",
                       vencida: "deadline.overdue",
                     }[due.status],
+                    { days: due.alertDays },
                   ),
                   due: tQueue("deadline.due", {
                     date: format.dateTime(
@@ -330,15 +356,16 @@ export default async function ReviewDetailPage({
             remissions={remissions}
             unassigned={detail.clases.filter((c) => c.docenteNombre === null)}
             specialFormat={
-              detail.formatoEspecial
-                ? {
+              specialFormatBytes === null
+                ? undefined
+                : {
                     solicitudId: detail.id,
                     attached: detail.formato && {
                       id: detail.formato.id,
                       nombreOriginal: detail.formato.nombreOriginal,
                     },
+                    maxDocumentBytes: specialFormatBytes,
                   }
-                : undefined
             }
           />
         ) : null}

@@ -8,14 +8,21 @@ import {
 } from "@/app/(dashboard)/requests/new/test-support";
 import type { Draft } from "@/lib/data/solicitudes";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
-const { requireRole, openDraft, listEnrollmentFailSoft, hasActive } =
-  vi.hoisted(() => ({
-    requireRole: vi.fn(),
-    openDraft: vi.fn(),
-    listEnrollmentFailSoft: vi.fn(),
-    hasActive: vi.fn(),
-  }));
+const {
+  requireRole,
+  openDraft,
+  listEnrollmentFailSoft,
+  hasActive,
+  getNormativeParameters,
+} = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  openDraft: vi.fn(),
+  listEnrollmentFailSoft: vi.fn(),
+  hasActive: vi.fn(),
+  getNormativeParameters: vi.fn(),
+}));
 const deps = vi.hoisted(() => ({
   store: { id: "store" },
   schedule: { id: "schedule" },
@@ -28,6 +35,15 @@ vi.mock("@/lib/data/enrollment", () => ({
   hasActiveEnrollmentFailSoft: hasActive,
 }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => deps }));
+// The loader is the only source of the limits the flow shows (NP-17, A11).
+vi.mock("@/lib/parameters/loader", () => ({ getNormativeParameters }));
+vi.mock("@/app/(dashboard)/requests/new/flow-steps", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/app/(dashboard)/requests/new/flow-steps")
+    >();
+  return { ...actual, FlowSteps: vi.fn(actual.FlowSteps) };
+});
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) =>
     createTranslator({
@@ -48,6 +64,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
+import { FlowSteps } from "@/app/(dashboard)/requests/new/flow-steps";
 import NewRequestPage from "@/app/(dashboard)/requests/new/page";
 
 const EMPTY: Draft = {
@@ -93,6 +110,12 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ data: [GROUP], degraded: false, enrolled: true });
   hasActive.mockReset().mockResolvedValue(true);
+  getNormativeParameters.mockReset().mockResolvedValue({
+    values: DEFAULT_PARAMETERS,
+    fallback: [],
+    degraded: false,
+  });
+  vi.mocked(FlowSteps).mockClear();
 });
 
 describe("NewRequestPage guard (RNF-01)", () => {
@@ -108,6 +131,7 @@ describe("NewRequestPage guard (RNF-01)", () => {
     ).rejects.toThrow("NEXT_REDIRECT");
     expect(openDraft).not.toHaveBeenCalled();
     expect(listEnrollmentFailSoft).not.toHaveBeenCalled();
+    expect(getNormativeParameters).not.toHaveBeenCalled();
   });
 
   it("opens the draft of the session user only, with the store port", async () => {
@@ -117,6 +141,77 @@ describe("NewRequestPage guard (RNF-01)", () => {
     expect(userId).toBe(7);
     expect(now).toBeInstanceOf(Date);
     expect(store).toBe(deps.store);
+  });
+});
+
+describe("NewRequestPage limits (NP-17, A13)", () => {
+  it("reads the parameters once and hands the flow the limits in force", async () => {
+    getNormativeParameters.mockResolvedValue({
+      values: {
+        ...DEFAULT_PARAMETERS,
+        filingWindowDays: 10,
+        maxDocumentMib: 7,
+      },
+      fallback: [],
+      degraded: false,
+    });
+
+    await renderPage();
+
+    expect(getNormativeParameters).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(FlowSteps).mock.calls[0][0].limits).toEqual({
+      filingWindowDays: 10,
+      maxDocumentMib: 7,
+    });
+  });
+
+  it("shows the documents step the maximum size in force", async () => {
+    openDraft.mockResolvedValue(WITH_DETAILS);
+    getNormativeParameters.mockResolvedValue({
+      values: { ...DEFAULT_PARAMETERS, maxDocumentMib: 7 },
+      fallback: [],
+      degraded: false,
+    });
+
+    await renderPage({ step: "3" });
+
+    expect(screen.getByText(/de hasta 7 MB/)).toBeInTheDocument();
+  });
+
+  it("reads nothing when the draft cannot be opened", async () => {
+    openDraft.mockRejectedValue(new Error("down"));
+
+    await renderPage();
+
+    expect(getNormativeParameters).not.toHaveBeenCalled();
+  });
+});
+
+describe("NewRequestPage causes (NP-11)", () => {
+  it("hands the flow the active causes in the stored order", async () => {
+    getNormativeParameters.mockResolvedValue({
+      values: {
+        ...DEFAULT_PARAMETERS,
+        causes: [
+          { codigo: "medica", activa: true, posicion: 1 },
+          { codigo: "intercambio_academico", activa: false, posicion: 2 },
+          { codigo: "fuerza_mayor", activa: true, posicion: 3 },
+          { codigo: "maternidad_paternidad", activa: true, posicion: 4 },
+          { codigo: "actividad_representativa", activa: true, posicion: 5 },
+        ],
+      },
+      fallback: [],
+      degraded: false,
+    });
+
+    await renderPage();
+
+    expect(vi.mocked(FlowSteps).mock.calls[0][0].causes).toEqual([
+      "medica",
+      "fuerza_mayor",
+      "maternidad_paternidad",
+      "actividad_representativa",
+    ]);
   });
 });
 

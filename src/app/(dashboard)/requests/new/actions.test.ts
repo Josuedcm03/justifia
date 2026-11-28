@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { CONSENT_VERSION } from "@/lib/intake/consent";
 import { createFakeIntakeDeps } from "@/lib/intake/fakes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
 vi.mock("server-only", () => ({}));
 
@@ -23,6 +24,7 @@ const h = vi.hoisted(() => ({
   getIntakeDeps: vi.fn(),
   getExtractionDeps: vi.fn(),
   enqueue: vi.fn(),
+  getNormativeParameters: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: h.redirect }));
@@ -44,6 +46,10 @@ vi.mock("@/lib/data/documentos", () => ({
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: h.getIntakeDeps }));
 vi.mock("@/lib/extraction/deps", () => ({
   getExtractionDeps: h.getExtractionDeps,
+}));
+// The loader is the only source of the filing window (NP-4, A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: h.getNormativeParameters,
 }));
 
 import {
@@ -109,6 +115,30 @@ const noDraft = {
   errors: [{ field: "form", key: "intake.errors.no_draft" }],
 };
 
+/** The loader result when the filing window is in force at `days`. */
+function windowRead(days: number) {
+  return {
+    values: { ...DEFAULT_PARAMETERS, filingWindowDays: days },
+    fallback: [],
+    degraded: false,
+  };
+}
+
+/** The loader result when `inactive` causes are deactivated (NP-11). */
+function causesRead(...inactive: string[]) {
+  return {
+    values: {
+      ...DEFAULT_PARAMETERS,
+      causes: DEFAULT_PARAMETERS.causes.map((c) => ({
+        ...c,
+        activa: !inactive.includes(c.codigo),
+      })),
+    },
+    fallback: [],
+    degraded: false,
+  };
+}
+
 let deps: ReturnType<typeof createFakeIntakeDeps>;
 
 describe("intake actions", () => {
@@ -130,6 +160,7 @@ describe("intake actions", () => {
     h.getExtractionDeps.mockReturnValue({ queue: { enqueue: h.enqueue } });
     h.getLiveDraft.mockResolvedValue(draft());
     h.listEligibleGroups.mockResolvedValue([G1, G2A, G2B]);
+    h.getNormativeParameters.mockResolvedValue(windowRead(30));
   });
 
   afterEach(() => {
@@ -172,6 +203,7 @@ describe("intake actions", () => {
           h.finalizeDocument,
           h.removeDocument,
           h.listEligibleGroups,
+          h.getNormativeParameters,
         ]) {
           expect(touched).not.toHaveBeenCalled();
         }
@@ -438,6 +470,7 @@ describe("intake actions", () => {
           pathname: "intake/4/x.png",
           nombreOriginal: "foto.png",
           target: TARGET,
+          maxBytes: 10_485_760,
         },
         deps.store,
       );
@@ -581,6 +614,70 @@ describe("intake actions", () => {
       expect(h.submitDraft.mock.calls[0][0].consentimientoVersion).toBe(
         CONSENT_VERSION,
       );
+    });
+
+    describe("filing window from the loader (RN-23, JI-SUBMIT)", () => {
+      // 20 days before 2026-10-07 (Managua).
+      const twentyDaysOld = draft({
+        fechaInicio: "2026-09-15",
+        fechaFin: "2026-09-17",
+      });
+
+      it("blocks an end date 20 days old when the window is 10, stating the field", async () => {
+        h.getNormativeParameters.mockResolvedValue(windowRead(10));
+        h.getLiveDraft.mockResolvedValue(twentyDaysOld);
+
+        expect(await submitRequestAction(CONSENTED)).toEqual({
+          ok: false,
+          errors: [{ field: "fechaFin", key: "intake.errors.end_too_old" }],
+        });
+
+        expect(h.submitDraft).not.toHaveBeenCalled();
+      });
+
+      it("accepts the same end date when the window is 30", async () => {
+        h.getLiveDraft.mockResolvedValue(twentyDaysOld);
+        h.submitDraft.mockResolvedValue({ ok: true });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+          "REDIRECT:/requests/new/confirmation",
+        );
+      });
+
+      it("reads the parameters once for the whole submit", async () => {
+        h.submitDraft.mockResolvedValue({ ok: true });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+          "REDIRECT:",
+        );
+
+        expect(h.getNormativeParameters).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("active causes from the loader (NP-11, JI-SUBMIT)", () => {
+      it("blocks a draft whose cause was deactivated, on the cause field, and submits nothing", async () => {
+        h.getNormativeParameters.mockResolvedValue(causesRead("medica"));
+
+        expect(await submitRequestAction(CONSENTED)).toEqual({
+          ok: false,
+          errors: [{ field: "causa", key: "intake.errors.causa_inactive" }],
+        });
+
+        expect(h.submitDraft).not.toHaveBeenCalled();
+      });
+
+      it("accepts the same draft once the cause is active again", async () => {
+        h.getNormativeParameters.mockResolvedValue(causesRead("medica"));
+        await submitRequestAction(CONSENTED);
+
+        h.getNormativeParameters.mockResolvedValue(causesRead());
+        h.submitDraft.mockResolvedValue({ ok: true });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+          "REDIRECT:/requests/new/confirmation",
+        );
+      });
     });
 
     describe("consent payload (fail closed, RC-5)", () => {

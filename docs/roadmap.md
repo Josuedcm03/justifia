@@ -14,7 +14,7 @@ remiten a ese archivo.
 | 5   | `validation-signals`       | RF-05 (a) a (d), RF-13 (c); RN-07, RN-09, RN-10, RN-14, RN-15, RN-26                | Por asignar | Si alcanza el tiempo | archivado |
 | 6   | `escalation`               | RF-10, RF-15; RN-20                                                                  | Por asignar | No                   | archivado |
 | 7   | `coordination-reports`     | RF-18; RF-13 (a), (b), (d)                                                           | Por asignar | No                   | archivado |
-| 8   | `normative-parameters`     | RNF-14                                                                               | Por asignar | No                   | pendiente |
+| 8   | `normative-parameters`     | RNF-14; RN-01, RN-04, RN-07, RN-08, RN-13, RN-14, RN-23; RNF-01, RNF-06, RNF-12      | Armando     | No                   | pendiente |
 | 9   | `request-consent`          | RF-01 (d), RF-03 (f); RN-25                                                          | Por asignar | Sí                   | archivado |
 | 10  | `secretary-templates`      | Plantillas propias de la secretaría (RF-07)                                          | Por asignar | No                   | pendiente |
 | 11  | `backoffice-ui-refresh`    | Transversal de interfaz: RNF-01, RNF-11 (pantallas compartidas); contribuye a RNF-10 | Josué       | No                   | archivado |
@@ -114,8 +114,9 @@ remiten a ese archivo.
   solo resultados y veredicto, sin valores extraídos ni número de otra
   solicitud; el estudiante no ve nada. Quedaron fuera de esta entrega: RF-05 (e),
   RN-11, RN-12, RN-13 y RN-24 con RF-14 (la carga manual de datos del
-  documento), que entrega `manual-document-data` (fila 18), y NS-12. El umbral de RN-14 es una constante de código hasta
-  `normative-parameters` (RNF-14). La migración `0013_validation_signals`
+  documento), que entrega `manual-document-data` (fila 18), y NS-12. El umbral de RN-14 era una constante de código hasta
+  `normative-parameters` (RNF-14), que ya lo lee de la tabla de parámetros
+  (fila 8, pendiente de archivo). La migración `0013_validation_signals`
   (huella del archivo) se aplicó en la base de producción el 2026-11-02. La
   revisión jurídica de la UAM (tarea 10.8 del change) quedó diferida por
   decisión del propietario hasta un despliegue real con estudiantes reales; no
@@ -228,7 +229,9 @@ remiten a ese archivo.
   change, no verificado: la correspondencia tipo-causa de
   `src/lib/signals/document-type-causes.ts` asigna la constancia médica a
   maternidad y paternidad. RNF-14 en su conjunto sigue «No cumple» hasta que
-  `normative-parameters` (fila 8) cierre la constante de umbrales.
+  `normative-parameters` (fila 8) cierre la constante de umbrales. El change
+  ya está construido; el cumplimiento se declara cuando la prueba de sistema
+  del change lo confirme.
 - `docente-maintenance` (fila 19, archivado el 2026-11-26) da a la
   secretaría el mantenimiento de los docentes que faltaba en RF-12 (a) y (b):
   editar el nombre, el correo y el teléfono, y desactivar y reactivar al

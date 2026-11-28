@@ -205,7 +205,7 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
     ),
   ].sort();
 
-  it("offers shortcuts for the eleven destinations the roles reach", () => {
+  it("offers shortcuts for the twelve destinations the roles reach", () => {
     expect(SHORTCUT_KEYS).toEqual([
       "catalogAsignaturas",
       "catalogDocentes",
@@ -215,6 +215,7 @@ describe("catalog parity (BS-I18N-1: states and home copy)", () => {
       "enrollment",
       "myRequests",
       "newRequest",
+      "parameters",
       "reports",
       "review",
       "users",
@@ -2721,6 +2722,173 @@ describe("catalog parity (EA-CRE-1, EA-CHG-1, EA-SIB-1: list link copy)", () => 
           `${locale} ${key}`,
         ).toEqual(expected);
       }
+    },
+  );
+});
+
+describe("catalog parity (RR-QUEUE, NP-17: the alert badge states the days in force)", () => {
+  const raw = (locale: "es" | "en") =>
+    resolve(
+      locale === "es" ? esMessages : enMessages,
+      "review.queue.deadline.dueSoon",
+    ) as string;
+
+  const dueSoon = (locale: "es" | "en", days: number) =>
+    createTranslator({
+      locale,
+      messages: locale === "es" ? esMessages : enMessages,
+      namespace: "review.queue",
+      onError: (error: Error) => {
+        throw error;
+      },
+    })("deadline.dueSoon", { days });
+
+  it.each(["es", "en"] as const)(
+    "%s words it as an ICU plural on {days}, with no literal day count",
+    (locale) => {
+      expect(raw(locale)).toMatch(/^\{days, plural,/);
+      expect(raw(locale)).not.toMatch(/(?<!=)\b\d+\b/);
+    },
+  );
+
+  it.each([
+    ["en", 0, "Due today"],
+    ["en", 1, "Due within 1 business day"],
+    ["en", 2, "Due within 2 business days"],
+    ["en", 10, "Due within 10 business days"],
+    ["es", 0, "Vence hoy"],
+    ["es", 1, "Vence en 1 día hábil o menos"],
+    ["es", 2, "Vence en 2 días hábiles o menos"],
+    ["es", 10, "Vence en 10 días hábiles o menos"],
+  ] as const)("%s renders %d days as: %s", (locale, days, expected) => {
+    expect(dueSoon(locale, days)).toBe(expected);
+  });
+});
+
+describe("catalog parity (JI-CAUSE, NP-17: the end-date error states the window in force)", () => {
+  const catalogOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  const raw = (locale: "es" | "en") =>
+    resolve(catalogOf(locale), "intake.errors.end_too_old") as string;
+
+  const tooOld = (locale: "es" | "en", days: number) =>
+    createTranslator({
+      locale,
+      messages: catalogOf(locale),
+      namespace: "intake.errors",
+      onError: (error: Error) => {
+        throw error;
+      },
+    })("end_too_old", { days });
+
+  it.each(["es", "en"] as const)(
+    "%s words it as an ICU plural on {days}, with no literal day count",
+    (locale) => {
+      expect(raw(locale)).toMatch(/\{days, plural,/);
+      expect(raw(locale)).not.toMatch(/(?<!=)\b\d+\b/);
+    },
+  );
+
+  it.each([
+    ["en", 1, "The end date cannot be earlier than 1 day before today."],
+    ["en", 10, "The end date cannot be earlier than 10 days before today."],
+    ["en", 30, "The end date cannot be earlier than 30 days before today."],
+    ["es", 1, "La fecha de fin no puede ser anterior a 1 día antes de hoy."],
+    ["es", 10, "La fecha de fin no puede ser anterior a 10 días antes de hoy."],
+    ["es", 60, "La fecha de fin no puede ser anterior a 60 días antes de hoy."],
+  ] as const)("%s renders %d days as: %s", (locale, days, expected) => {
+    expect(tooOld(locale, days)).toBe(expected);
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s keeps no literal 30 as a limit in any intake error",
+    (locale) => {
+      const errors = resolve(catalogOf(locale), "intake.errors") as Record<
+        string,
+        string
+      >;
+
+      expect(
+        Object.entries(errors)
+          .filter(([, message]) => /\b30\b/.test(message))
+          .map(([code]) => code),
+      ).toEqual([]);
+    },
+  );
+});
+
+describe("catalog parity (SD-LIMIT, NP-17: the size refusals state the maximum in force)", () => {
+  const catalogOf = (locale: "es" | "en") =>
+    locale === "es" ? esMessages : enMessages;
+
+  const PATHS = [
+    ["intake.errors", "intake.errors.too_large"],
+    [
+      "review.remission.upload.errors",
+      "review.remission.upload.errors.too_large",
+    ],
+  ] as const;
+
+  const onError = (error: Error) => {
+    throw error;
+  };
+  const refusals = (locale: "es" | "en", size: number) => ({
+    "intake.errors": createTranslator({
+      locale,
+      messages: catalogOf(locale),
+      namespace: "intake.errors",
+      onError,
+    })("too_large", { size }),
+    "review.remission.upload.errors": createTranslator({
+      locale,
+      messages: catalogOf(locale),
+      namespace: "review.remission.upload.errors",
+      onError,
+    })("too_large", { size }),
+  });
+
+  it.each(
+    (["es", "en"] as const).flatMap((locale) =>
+      PATHS.map(([namespace, path]) => [locale, namespace, path] as const),
+    ),
+  )(
+    "%s %s.too_large takes {size} and keeps no literal number",
+    (locale, _ns, path) => {
+      const message = resolve(catalogOf(locale), path) as string;
+
+      expect(message).toContain("{size}");
+      expect(message).not.toMatch(/\b\d+\b/);
+    },
+  );
+
+  it.each(PATHS)("%s renders the maximum it is given", (namespace) => {
+    expect(refusals("en", 5)[namespace]).toBe("The file is larger than 5 MB.");
+    expect(refusals("es", 5)[namespace]).toBe("El archivo supera los 5 MB.");
+    expect(refusals("en", 10)[namespace]).toBe(
+      "The file is larger than 10 MB.",
+    );
+  });
+
+  it.each(["es", "en"] as const)(
+    "%s keeps no literal 10 as a limit in any intake or special-format error",
+    (locale) => {
+      const messages = {
+        ...(resolve(catalogOf(locale), "intake.errors") as Record<
+          string,
+          string
+        >),
+        ...(resolve(
+          catalogOf(locale),
+          "review.remission.upload.errors",
+        ) as Record<string, string>),
+      };
+
+      expect(
+        Object.entries(messages)
+          .filter(([, message]) => /\b10\b/.test(message))
+          .map(([code]) => code),
+      ).toEqual([]);
     },
   );
 });

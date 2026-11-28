@@ -11,12 +11,14 @@
 // DM-AUD-3.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { parameterWriteEvents } from "@/lib/audit/events";
 import {
   AUDITABLE_ASIGNATURA_FIELDS,
   AUDITABLE_GRUPO_FIELDS,
   AUDITABLE_USER_FIELDS,
   type AuditEvent,
 } from "@/lib/audit/types";
+import { withCatalogWrite } from "@/lib/data/catalog-write";
 import {
   CARRERA,
   makeSnapshot,
@@ -120,7 +122,11 @@ const HASH = "$2a$12$ZZhashZZhashZZhashZZhashZZhashZZhashZZhashZZha";
 const CLAVE = "ZZ-TEMP-PASSWORD-7Q";
 // The docente actions carry a name, an email and a phone (DM-15).
 const TELEFONO = "ZZ-TEL-5550001";
+// A calendar date description is free text and never reaches a payload
+// (NP-AUD-3).
+const DESCRIPCION = "ZZ-DESCRIPCION-FERIADO";
 const SENTINELS = [
+  DESCRIPCION,
   NOMBRE,
   CODIGO,
   NUMERO,
@@ -625,6 +631,52 @@ describe("the import actions leak nothing", () => {
     expect(state).toEqual({ kind: "error", message: "errors.applyFailed" });
     expect(m.audit).not.toHaveBeenCalled();
     expect(consoleSpies.error).toHaveBeenCalledTimes(1);
+    expectCleanTrail();
+  });
+});
+
+describe("the parameter events leak nothing (NP-AUD-3)", () => {
+  const CALENDAR_CHANGE = {
+    clave: "calendario",
+    antes: [{ fecha: "2026-12-08", descripcion: DESCRIPCION }],
+    despues: [
+      { fecha: "2026-12-08", descripcion: DESCRIPCION },
+      { fecha: "2026-12-25", descripcion: DESCRIPCION },
+    ],
+  } as const;
+
+  it("a calendar write audits the ISO dates only, never a description", async () => {
+    await withCatalogWrite(
+      ACTOR,
+      async () => ({ kind: "updated", changes: [CALENDAR_CHANGE] }) as const,
+      parameterWriteEvents,
+    );
+
+    expect(events()).toHaveLength(1);
+    expect(events()[0].datos).toEqual({
+      clave: "calendario",
+      antes: ["2026-12-08"],
+      despues: ["2026-12-08", "2026-12-25"],
+    });
+    expectCleanTrail();
+  });
+
+  it("a failing write that carries the description logs the actor and the error name only", async () => {
+    const error = new Error(`write failed near (${DESCRIPCION})`);
+
+    await expect(
+      withCatalogWrite(
+        ACTOR,
+        async (): Promise<never> => {
+          throw error;
+        },
+        parameterWriteEvents,
+      ),
+    ).rejects.toBe(error);
+
+    expect(events()).toEqual([]);
+    expect(consoleSpies.error).toHaveBeenCalledTimes(1);
+    expect(logs()).toContain("catalog.write.failed");
     expectCleanTrail();
   });
 });

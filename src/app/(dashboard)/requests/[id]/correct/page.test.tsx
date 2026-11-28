@@ -9,6 +9,7 @@ import {
 } from "@/app/(dashboard)/requests/new/test-support";
 import { rolesSolicitantes } from "@/lib/auth/permissions";
 import type { Draft } from "@/lib/data/solicitudes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
 const {
   requireRole,
@@ -17,6 +18,7 @@ const {
   getCorrectionReason,
   getReturnedDocumentIds,
   listEnrollmentFailSoft,
+  getNormativeParameters,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   getLiveDraft: vi.fn(),
@@ -24,6 +26,7 @@ const {
   getCorrectionReason: vi.fn(),
   getReturnedDocumentIds: vi.fn(),
   listEnrollmentFailSoft: vi.fn(),
+  getNormativeParameters: vi.fn(),
 }));
 const deps = vi.hoisted(() => ({
   store: { id: "store" },
@@ -38,6 +41,15 @@ vi.mock("@/lib/data/student-requests", () => ({
 }));
 vi.mock("@/lib/data/enrollment", () => ({ listEnrollmentFailSoft }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => deps }));
+// The loader is the only source of the limits the flow shows (NP-17, A11).
+vi.mock("@/lib/parameters/loader", () => ({ getNormativeParameters }));
+vi.mock("@/app/(dashboard)/requests/new/flow-steps", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/app/(dashboard)/requests/new/flow-steps")
+    >();
+  return { ...actual, FlowSteps: vi.fn(actual.FlowSteps) };
+});
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) =>
     createTranslator({
@@ -69,6 +81,7 @@ vi.mock("@/app/(dashboard)/requests/[id]/correct/actions", () => ({
 }));
 
 import CorrectRequestPage from "@/app/(dashboard)/requests/[id]/correct/page";
+import { FlowSteps } from "@/app/(dashboard)/requests/new/flow-steps";
 
 const RETURNED: Draft = {
   id: 31,
@@ -128,6 +141,88 @@ beforeEach(() => {
   listEnrollmentFailSoft
     .mockReset()
     .mockResolvedValue({ data: [GROUP], degraded: false });
+  getNormativeParameters.mockReset().mockResolvedValue({
+    values: DEFAULT_PARAMETERS,
+    fallback: [],
+    degraded: false,
+  });
+  vi.mocked(FlowSteps).mockClear();
+});
+
+describe("CorrectRequestPage limits (NP-17, A13)", () => {
+  it("reads the parameters once and hands the flow the limits in force", async () => {
+    getNormativeParameters.mockResolvedValue({
+      values: {
+        ...DEFAULT_PARAMETERS,
+        filingWindowDays: 10,
+        maxDocumentMib: 7,
+      },
+      fallback: [],
+      degraded: false,
+    });
+
+    await renderPage();
+
+    expect(getNormativeParameters).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(FlowSteps).mock.calls[0][0].limits).toEqual({
+      filingWindowDays: 10,
+      maxDocumentMib: 7,
+    });
+  });
+
+  describe("the causes the correction offers (NP-11, A14)", () => {
+    /** The loader result with `inactive` causes deactivated. */
+    const causesRead = (...inactive: string[]) => ({
+      values: {
+        ...DEFAULT_PARAMETERS,
+        causes: DEFAULT_PARAMETERS.causes.map((c) => ({
+          ...c,
+          activa: !inactive.includes(c.codigo),
+        })),
+      },
+      fallback: [],
+      degraded: false,
+    });
+    const offered = () => vi.mocked(FlowSteps).mock.calls[0][0].causes;
+
+    it("offers the active causes in the stored order", async () => {
+      getNormativeParameters.mockResolvedValue(
+        causesRead("intercambio_academico"),
+      );
+
+      await renderPage();
+
+      expect(offered()).toEqual([
+        "maternidad_paternidad",
+        "actividad_representativa",
+        "medica",
+        "fuerza_mayor",
+      ]);
+    });
+
+    it("adds the request's own cause when it is deactivated, in the stored order", async () => {
+      getNormativeParameters.mockResolvedValue(
+        causesRead("medica", "intercambio_academico"),
+      );
+
+      await renderPage();
+
+      expect(offered()).toEqual([
+        "maternidad_paternidad",
+        "actividad_representativa",
+        "medica",
+        "fuerza_mayor",
+      ]);
+    });
+  });
+
+  it("reads nothing when the request cannot be read", async () => {
+    getLiveDraft.mockRejectedValue(new Error("db down"));
+
+    await renderPage();
+
+    expect(getNormativeParameters).not.toHaveBeenCalled();
+  });
 });
 
 describe("CorrectRequestPage guard (RNF-01)", () => {

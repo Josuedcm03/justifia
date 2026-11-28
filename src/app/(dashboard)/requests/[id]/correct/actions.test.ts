@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ACCESS_DENIED_PATH } from "@/lib/auth/routes";
 import { createFakeIntakeDeps } from "@/lib/intake/fakes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
 vi.mock("server-only", () => ({}));
 
@@ -21,6 +22,7 @@ const h = vi.hoisted(() => ({
   getIntakeDeps: vi.fn(),
   getExtractionDeps: vi.fn(),
   enqueue: vi.fn(),
+  getNormativeParameters: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: h.redirect }));
@@ -43,6 +45,10 @@ vi.mock("@/lib/data/solicitud-correction", () => ({
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: h.getIntakeDeps }));
 vi.mock("@/lib/extraction/deps", () => ({
   getExtractionDeps: h.getExtractionDeps,
+}));
+// The loader is the only source of the filing window (NP-4, A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: h.getNormativeParameters,
 }));
 
 import {
@@ -90,6 +96,13 @@ beforeEach(() => {
   deps = createFakeIntakeDeps();
   h.getIntakeDeps.mockReturnValue(deps);
   h.getExtractionDeps.mockReturnValue({ queue: { enqueue: h.enqueue } });
+  // A window of 10 days: the 40-day-old end date below is still accepted, so a
+  // correction never applies it (RN-23, NP-13).
+  h.getNormativeParameters.mockResolvedValue({
+    values: { ...DEFAULT_PARAMETERS, filingWindowDays: 10 },
+    fallback: [],
+    degraded: false,
+  });
   h.getLiveDraft.mockResolvedValue({
     id: REQUEST,
     causa: "medica",
@@ -252,6 +265,12 @@ describe("saveCorrectionSubjectsAction (step 2)", () => {
 describe("correction documents (step 3)", () => {
   it("finalizes against the returned request for the session user", async () => {
     h.finalizeDocument.mockResolvedValue({ ok: true, documentId: 12 });
+    // The maximum size in force comes from the loader (SD-FINALIZE).
+    h.getNormativeParameters.mockResolvedValue({
+      values: { ...DEFAULT_PARAMETERS, maxDocumentMib: 5 },
+      fallback: [],
+      degraded: false,
+    });
 
     const result = await finalizeCorrectionDocumentAction(REQUEST, {
       pathname: "intake/31/x.png",
@@ -266,6 +285,7 @@ describe("correction documents (step 3)", () => {
         pathname: "intake/31/x.png",
         nombreOriginal: "foto.png",
         target: TARGET,
+        maxBytes: 5_242_880,
       },
       deps.store,
     );

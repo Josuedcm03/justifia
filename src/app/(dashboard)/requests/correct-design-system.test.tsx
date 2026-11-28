@@ -10,6 +10,7 @@ import {
   renderIntl,
 } from "@/app/(dashboard)/requests/new/test-support";
 import type { Draft } from "@/lib/data/solicitudes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
 // Task 6.11: pins for docs/design-system.md on the correction screens (tokens
 // only, the type scale, the spacing steps, the alert pattern, 44px targets, the
@@ -40,6 +41,14 @@ vi.mock("@/lib/data/student-requests", () => ({
 }));
 vi.mock("@/lib/data/enrollment", () => ({ listEnrollmentFailSoft }));
 vi.mock("@/lib/intake/deps", () => ({ getIntakeDeps: () => ({}) }));
+// The loader is the only source of the limits the flow shows (NP-17, A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: async () => ({
+    values: DEFAULT_PARAMETERS,
+    fallback: [],
+    degraded: false,
+  }),
+}));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) =>
     createTranslator({

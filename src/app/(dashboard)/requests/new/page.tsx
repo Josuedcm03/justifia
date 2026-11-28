@@ -18,6 +18,8 @@ import {
 import { type Draft, openDraft } from "@/lib/data/solicitudes";
 import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
+import { activeCausesOf, intakeLimitsOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 
 // Applies to every Server Action used on this page. The submit hands the
 // request to document extraction, which keeps running after the response (DE-5,
@@ -83,6 +85,10 @@ export default async function NewRequestPage({
   const hasEnrollment = await hasActiveEnrollmentFailSoft(userId);
   // The Managua calendar day, decided here and not in the browser (FE-19).
   const today = managuaToday(new Date());
+  // The limits and the active causes in force, read once here (NP-5: React
+  // `cache()` makes this one read per render); the messages state the limits
+  // (NP-17) and the cause step offers the active causes (NP-11).
+  const { values } = await getNormativeParameters();
 
   return (
     <div className="flex flex-col gap-8">
@@ -99,6 +105,8 @@ export default async function NewRequestPage({
         enrollment={enrollment}
         fromReview={fromReview}
         today={today}
+        limits={intakeLimitsOf(values)}
+        causes={activeCausesOf(values)}
       />
     </div>
   );

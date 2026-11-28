@@ -51,6 +51,51 @@ describe("CauseDatesStep", () => {
     expect(end()).toHaveValue("");
   });
 
+  it("offers only the causes it is given, in that order (NP-11)", () => {
+    renderIntl(
+      <CauseDatesStep
+        initial={EMPTY}
+        causes={["fuerza_mayor", "intercambio_academico", "medica"]}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("radio").map((r) => r.closest("label")?.textContent),
+    ).toEqual([
+      "Otra causa de fuerza mayor",
+      "Intercambio académico",
+      "Causa médica",
+    ]);
+  });
+
+  it("shows no selection and the inactive-cause alert for a draft whose cause is not offered (JI-CAUSE)", async () => {
+    renderIntl(
+      <CauseDatesStep
+        initial={FILLED}
+        causes={["fuerza_mayor", "intercambio_academico"]}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("radio").map((r) => r.getAttribute("aria-checked")),
+    ).toEqual(["false", "false"]);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Esta causa ya no está disponible. Elige otra.",
+    );
+    expect(screen.getByRole("radiogroup")).toBeInvalid();
+  });
+
+  it("says the same in English", () => {
+    renderIntl(
+      <CauseDatesStep initial={FILLED} causes={["fuerza_mayor"]} />,
+      "en",
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This cause is no longer available. Choose another.",
+    );
+  });
+
   it("shows the saved values of a resumed draft (D8)", () => {
     renderIntl(<CauseDatesStep initial={FILLED} />);
     expect(screen.getByRole("radio", { name: "Causa médica" })).toHaveAttribute(
@@ -109,20 +154,26 @@ describe("CauseDatesStep", () => {
         { field: "fechaFin", key: "intake.errors.end_too_old" },
       ],
     });
-    renderIntl(<CauseDatesStep initial={EMPTY} />);
+    // The window in force reaches the message (NP-17): 10, not a literal 30.
+    renderIntl(
+      <CauseDatesStep
+        initial={EMPTY}
+        limits={{ filingWindowDays: 10, maxDocumentMib: 10 }}
+      />,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     const alerts = await screen.findAllByRole("alert");
     expect(alerts.map((a) => a.textContent)).toEqual([
       "Elige la causa de tu ausencia.",
       "Indica la fecha de inicio.",
-      "La fecha de fin no puede ser anterior a 30 días antes de hoy.",
+      "La fecha de fin no puede ser anterior a 10 días antes de hoy.",
     ]);
     expect(push).not.toHaveBeenCalled();
     // Each message is tied to its field for assistive technology.
     expect(end()).toBeInvalid();
     expect(end()).toHaveAccessibleDescription(
-      "La fecha de fin no puede ser anterior a 30 días antes de hoy.",
+      "La fecha de fin no puede ser anterior a 10 días antes de hoy.",
     );
     expect(start()).toHaveAccessibleDescription("Indica la fecha de inicio.");
   });

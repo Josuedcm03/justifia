@@ -564,6 +564,40 @@ describe("canManageEnrollments (EA-ACC-1: only secretaria)", () => {
   });
 });
 
+describe("canManageParameters (NP-6: only secretaria)", () => {
+  it("lists exactly secretaria as the parameter-managing role", () => {
+    expect([...perms.rolesQueGestionanParametros]).toEqual(["secretaria"]);
+  });
+
+  it.each(rolesUsuario)("answers %s as the list does", (rol) => {
+    expect(perms.canManageParameters(rol)).toBe(rol === "secretaria");
+  });
+
+  it("denies a missing role", () => {
+    expect(perms.canManageParameters(undefined)).toBe(false);
+  });
+
+  it("is declared once: no other source restates the list or the predicate", () => {
+    const sources = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) return sources(path);
+        return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+          ? [path]
+          : [];
+      });
+    const declaring = sources(join(process.cwd(), "src")).filter((path) =>
+      /(?:const\s+rolesQueGestionanParametros\b|function\s+canManageParameters\b)/.test(
+        readFileSync(path, "utf8"),
+      ),
+    );
+
+    expect(declaring.map((path) => path.replaceAll("\\", "/"))).toEqual([
+      expect.stringMatching(/src\/lib\/auth\/permissions\.ts$/),
+    ]);
+  });
+});
+
 describe("canViewReports (CR-ACC-1: only coordinacion)", () => {
   it("lists exactly coordinacion as the reporting role", () => {
     expect([...perms.rolesQueVenReportes]).toEqual(["coordinacion"]);

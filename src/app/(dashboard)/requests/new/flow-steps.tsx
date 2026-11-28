@@ -10,6 +10,8 @@ import {
 import { SubjectsStep } from "@/app/(dashboard)/requests/new/subjects-step";
 import type { EnrollmentGroup } from "@/lib/data/enrollment";
 import type { Draft } from "@/lib/data/solicitudes";
+import type { Causa } from "@/lib/intake/causes";
+import type { IntakeLimits } from "@/lib/parameters/derive";
 
 /**
  * The stepper and the current step of an intake flow: a new draft, or (with a
@@ -24,6 +26,8 @@ export function FlowSteps({
   flow,
   previousDocumentIds,
   today,
+  limits,
+  causes,
 }: {
   step: StepNumber;
   draft: Draft;
@@ -38,6 +42,10 @@ export function FlowSteps({
   previousDocumentIds?: readonly number[] | null;
   /** The Managua calendar day, read on the server (FE-19). */
   today: string;
+  /** The limits in force, read on the server; messages state them (NP-17). */
+  limits: IntakeLimits;
+  /** The causes the cause step offers, in the stored order (NP-11). */
+  causes: readonly Causa[];
 }) {
   const range = draftRange(draft);
   const validDocuments = draft.documents.filter((d) => d.estado === "valido");
@@ -56,6 +64,8 @@ export function FlowSteps({
           fromReview={fromReview}
           flow={flow}
           today={today}
+          limits={limits}
+          causes={causes}
         />
       ) : null}
       {step === 2 ? (
@@ -80,6 +90,7 @@ export function FlowSteps({
           previousDocumentIds={previousDocumentIds}
           range={range}
           today={today}
+          limits={limits}
         />
       ) : null}
       {step === 4 ? (
@@ -91,6 +102,7 @@ export function FlowSteps({
           flow={flow}
           previousDocumentIds={previousDocumentIds}
           today={today}
+          limits={limits}
         />
       ) : null}
     </>

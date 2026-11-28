@@ -32,7 +32,7 @@ describe("closed auditable field lists", () => {
 });
 
 describe("AUDIT_ACTIONS", () => {
-  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, two inscripcion read, three escalation, four escalation notice one coordinator read three report ones, one retention one, one manual document data one and two docente toggle ones", () => {
+  it("keeps the existing codes unchanged and adds exactly the eight catalog, five intake, seven review, six remission, three inscripcion, two inscripcion read, three escalation, four escalation notice one coordinator read three report ones, one retention one, one manual document data one two docente toggle ones and one parameter change one", () => {
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         "catalogo.importacion.aplicada",
@@ -84,14 +84,28 @@ describe("AUDIT_ACTIONS", () => {
         "documento.datos_registrados",
         "usuario.desactivado",
         "usuario.reactivado",
+        "parametro.actualizado",
       ].sort(),
     );
-    expect(AUDIT_ACTIONS).toHaveLength(49);
+    expect(AUDIT_ACTIONS).toHaveLength(50);
     expect(AUDIT_ACTIONS.slice(0, 3)).toEqual([
       "catalogo.importacion.aplicada",
       "usuario.creado",
       "usuario.actualizado",
     ]);
+  });
+
+  it("appends parametro.actualizado last, under the Parametro entity with no entity id (NP-AUD-1)", () => {
+    // Compile-time pin: the assignments fail typecheck if the member changes.
+    const member: Extract<AuditEvent, { accion: "parametro.actualizado" }> = {
+      accion: "parametro.actualizado",
+      entidadTipo: "Parametro",
+      entidadId: null,
+      datos: { clave: "alerta_dias", antes: 1, despues: 2 },
+    };
+    expect(AUDIT_ACTIONS.at(-1)).toBe("parametro.actualizado");
+    expect(member.entidadTipo).toBe("Parametro");
+    expect(member.entidadId).toBeNull();
   });
 
   it("registers the two docente toggle actions once each, under the Usuario entity (DM-AUD-1)", () => {
@@ -178,7 +192,7 @@ describe("AuditEvent (manual document data, MD-31)", () => {
     expect(entity).toBe("DocumentoRespaldo");
   });
 
-  it("adds no audit entity type", () => {
+  it("adds exactly one audit entity type, Parametro (NP-AUD-1)", () => {
     // `satisfies Record<AuditEntityType, true>` fails typecheck when a type is
     // added to or removed from the union without this list changing.
     const entityTypes = {
@@ -193,7 +207,8 @@ describe("AuditEvent (manual document data, MD-31)", () => {
       Inscripcion: true,
       Escalamiento: true,
       Carrera: true,
+      Parametro: true,
     } satisfies Record<AuditEntityType, true>;
-    expect(Object.keys(entityTypes)).toHaveLength(11);
+    expect(Object.keys(entityTypes)).toHaveLength(12);
   });
 });

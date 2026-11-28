@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { filingRulesOf, type FilingRules } from "@/lib/parameters/derive";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
+
 import { CAUSAS } from "./causes";
 import { CONSENT_VERSION } from "./consent";
 import type { EligibleGroup } from "./eligibility";
@@ -12,6 +15,12 @@ const ELIGIBLE: EligibleGroup[] = [
 ];
 
 const TODAY = "2026-10-06";
+// The Reglamento values (window 30); a test that needs another window builds it.
+const RULES = filingRulesOf(DEFAULT_PARAMETERS);
+const windowOf = (windowDays: number): FilingRules => ({
+  ...RULES,
+  windowDays,
+});
 
 function valid(overrides: Partial<SubmissionInput> = {}): SubmissionInput {
   return {
@@ -26,14 +35,18 @@ function valid(overrides: Partial<SubmissionInput> = {}): SubmissionInput {
   };
 }
 
-function fields(input: SubmissionInput, today = TODAY): string[] {
-  const result = validateSubmission(input, today);
+function fields(
+  input: SubmissionInput,
+  today = TODAY,
+  rules: FilingRules = RULES,
+): string[] {
+  const result = validateSubmission(input, today, rules);
   return result.ok ? [] : result.errors.map((e) => `${e.field}:${e.code}`);
 }
 
 describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
   it("accepts a complete draft", () => {
-    expect(validateSubmission(valid(), TODAY)).toEqual({ ok: true });
+    expect(validateSubmission(valid(), TODAY, RULES)).toEqual({ ok: true });
   });
 
   it("blocks a missing and an unknown cause (RN-01)", () => {
@@ -41,6 +54,26 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
     expect(fields(valid({ causa: "vacaciones" }))).toEqual([
       "causa:causa_invalid",
     ]);
+  });
+
+  it("blocks a draft whose cause is not selectable, on the cause field (NP-11)", () => {
+    const rules: FilingRules = { ...RULES, selectableCauses: ["fuerza_mayor"] };
+
+    expect(fields(valid({ causa: "medica" }), TODAY, rules)).toEqual([
+      "causa:causa_inactive",
+    ]);
+    expect(fields(valid({ causa: "fuerza_mayor" }), TODAY, rules)).toEqual([]);
+    expect(fields(valid({ causa: "vacaciones" }), TODAY, rules)).toEqual([
+      "causa:causa_invalid",
+    ]);
+  });
+
+  it("accepts any of the five when every cause is selectable (a correction, A14)", () => {
+    const rules: FilingRules = { ...RULES, selectableCauses: [...CAUSAS] };
+
+    for (const causa of CAUSAS) {
+      expect(fields(valid({ causa }), TODAY, rules)).toEqual([]);
+    }
   });
 
   it("requires both dates and rejects malformed ones (RF-03 a)", () => {
@@ -69,6 +102,7 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
       validateSubmission(
         valid({ fechaInicio: "2026-10-06", fechaFin: "2026-10-06" }),
         TODAY,
+        RULES,
       ),
     ).toEqual({ ok: true });
   });
@@ -98,20 +132,53 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
     });
   });
 
+  describe("RN-23 window follows the parameter (table-driven)", () => {
+    const rows: [number, string, string, string[]][] = [
+      [10, "2026-10-31", "2026-10-21", []], // exactly 10 days
+      [10, "2026-10-31", "2026-10-20", ["fechaFin:end_too_old"]],
+      [60, "2026-10-31", "2026-09-01", []], // exactly 60 days
+      [60, "2026-10-31", "2026-08-31", ["fechaFin:end_too_old"]],
+    ];
+    it.each(rows)(
+      "window %i, today %s, end %s",
+      (days, today, end, expected) => {
+        expect(
+          fields(
+            valid({ fechaInicio: end, fechaFin: end }),
+            today,
+            windowOf(days),
+          ),
+        ).toEqual(expected);
+      },
+    );
+  });
+
   describe("filingWindow: false (correction, RN-23 not re-applied)", () => {
     const CORRECTION = { filingWindow: false };
 
     it("accepts an end date older than the filing window", () => {
       const old = valid({ fechaInicio: "2026-08-01", fechaFin: "2026-08-27" });
       expect(fields(old)).toEqual(["fechaFin:end_too_old"]);
-      expect(validateSubmission(old, TODAY, CORRECTION)).toEqual({ ok: true });
+      expect(validateSubmission(old, TODAY, RULES, CORRECTION)).toEqual({
+        ok: true,
+      });
+    });
+
+    it("accepts an end date 20 days old under a window of 10", () => {
+      const old = valid({ fechaInicio: "2026-09-16", fechaFin: "2026-09-16" });
+      expect(fields(old, TODAY, windowOf(10))).toEqual([
+        "fechaFin:end_too_old",
+      ]);
+      expect(validateSubmission(old, TODAY, windowOf(10), CORRECTION)).toEqual({
+        ok: true,
+      });
     });
 
     it("applies the window by default and when set to true", () => {
       const old = valid({ fechaInicio: "2026-08-01", fechaFin: "2026-08-27" });
-      expect(validateSubmission(old, TODAY, { filingWindow: true }).ok).toBe(
-        false,
-      );
+      expect(
+        validateSubmission(old, TODAY, RULES, { filingWindow: true }).ok,
+      ).toBe(false);
     });
 
     it("still applies RN-05 (end before start)", () => {
@@ -119,7 +186,7 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
         fechaInicio: "2026-10-10",
         fechaFin: "2026-10-09",
       });
-      expect(validateSubmission(input, TODAY, CORRECTION)).toEqual({
+      expect(validateSubmission(input, TODAY, RULES, CORRECTION)).toEqual({
         ok: false,
         errors: [{ field: "fechaFin", code: "end_before_start" }],
       });
@@ -133,6 +200,7 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
           validDocumentCount: 0,
         }),
         TODAY,
+        RULES,
         CORRECTION,
       );
       expect(result).toEqual({
@@ -156,6 +224,7 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
     const result = validateSubmission(
       valid({ selections: [{ asignaturaId: 20, grupoId: null }] }),
       TODAY,
+      RULES,
     );
     expect(result).toEqual({
       ok: false,
@@ -189,7 +258,11 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
   describe("consent (RC-4, RF-01 d, RN-25)", () => {
     it("accepts the version the server currently serves", () => {
       expect(
-        validateSubmission(valid({ consentVersion: CONSENT_VERSION }), TODAY),
+        validateSubmission(
+          valid({ consentVersion: CONSENT_VERSION }),
+          TODAY,
+          RULES,
+        ),
       ).toEqual({ ok: true });
     });
 
@@ -215,7 +288,11 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
 
     it("accepts the v2 version of the escalation change", () => {
       expect(
-        validateSubmission(valid({ consentVersion: "2026-10-22" }), TODAY),
+        validateSubmission(
+          valid({ consentVersion: "2026-10-22" }),
+          TODAY,
+          RULES,
+        ),
       ).toEqual({ ok: true });
     });
 
@@ -231,11 +308,11 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
 
     it("is not applied when the caller opts out (correction)", () => {
       const missing = valid({ consentVersion: undefined });
-      expect(validateSubmission(missing, TODAY, { consent: false })).toEqual({
-        ok: true,
-      });
       expect(
-        validateSubmission(valid({ consentVersion: "x" }), TODAY, {
+        validateSubmission(missing, TODAY, RULES, { consent: false }),
+      ).toEqual({ ok: true });
+      expect(
+        validateSubmission(valid({ consentVersion: "x" }), TODAY, RULES, {
           consent: false,
         }),
       ).toEqual({ ok: true });
@@ -243,16 +320,17 @@ describe("validateSubmission (RF-03, RN-01..RN-05, RN-23, D15)", () => {
 
     it("is applied by default and when set to true (fail closed)", () => {
       const missing = valid({ consentVersion: undefined });
-      expect(validateSubmission(missing, TODAY).ok).toBe(false);
-      expect(validateSubmission(missing, TODAY, { consent: true }).ok).toBe(
-        false,
-      );
+      expect(validateSubmission(missing, TODAY, RULES).ok).toBe(false);
+      expect(
+        validateSubmission(missing, TODAY, RULES, { consent: true }).ok,
+      ).toBe(false);
     });
 
     it("keeps applying the other rules when consent is opted out", () => {
       const result = validateSubmission(
         valid({ consentVersion: undefined, validDocumentCount: 0 }),
         TODAY,
+        RULES,
         { consent: false },
       );
       expect(result).toEqual({

@@ -9,12 +9,15 @@ import {
   saveDraftSubjects,
   type EditTarget,
 } from "@/lib/data/solicitudes";
+import { CAUSAS } from "@/lib/intake/causes";
 import { managuaToday } from "@/lib/intake/dates";
 import {
   resolveGroupChoices,
   validateSubjectSelections,
 } from "@/lib/intake/eligibility";
 import { getIntakeDeps } from "@/lib/intake/deps";
+import { filingRulesOf, maxDocumentBytesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 import {
   documentIdSchema,
   errorKey,
@@ -86,10 +89,17 @@ export async function saveDetails(
   input: unknown,
 ): Promise<ActionResult> {
   const now = new Date();
+  // The rules in force, read once for this save. NP-13: the window and the
+  // active-cause rule bind a draft only; a correction offers all five (A14).
+  const { values } = await getNormativeParameters();
+  const isDraft = target.kind === "draft";
+  const rules = filingRulesOf(values);
 
-  const parsed = makeDetailsStepSchema(managuaToday(now), {
-    filingWindow: target.kind === "draft",
-  }).safeParse(input);
+  const parsed = makeDetailsStepSchema(
+    managuaToday(now),
+    isDraft ? rules : { ...rules, selectableCauses: CAUSAS },
+    { filingWindow: isDraft },
+  ).safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: toFieldErrors(parsed.error) };
   }
@@ -147,8 +157,10 @@ export async function finalize(
   const parsed = finalizeDocumentSchema.safeParse(input);
   if (!parsed.success) return fail("form", "invalid_input");
 
+  // The maximum size in force when this finalize runs (SD-FINALIZE).
+  const { values } = await getNormativeParameters();
   const result = await finalizeDocument(
-    { userId, ...parsed.data, target },
+    { userId, ...parsed.data, target, maxBytes: maxDocumentBytesOf(values) },
     getIntakeDeps().store,
   );
   return result.ok

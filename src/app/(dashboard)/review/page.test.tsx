@@ -8,6 +8,7 @@ import {
   type Locale,
 } from "@/app/(dashboard)/review/test-support";
 import { ACCESS_DENIED_PATH, PASSWORD_CHANGE_PATH } from "@/lib/auth/routes";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 import { rolesUsuario } from "@/lib/validations/auth";
 
 vi.mock("server-only", () => ({}));
@@ -21,6 +22,7 @@ const {
   approvedMock,
   queueReadMock,
   signalsMock,
+  parametersMock,
   state,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((path: string) => {
@@ -33,6 +35,7 @@ const {
   approvedMock: vi.fn(),
   queueReadMock: vi.fn(),
   signalsMock: vi.fn(),
+  parametersMock: vi.fn(),
   state: { locale: "en" as Locale },
 }));
 
@@ -56,6 +59,10 @@ vi.mock("@/lib/data/request-reads", () => ({
   recordQueueRead: queueReadMock,
 }));
 vi.mock("@/lib/data/signals", () => ({ loadSignals: signalsMock }));
+// The loader is the only source of the calendar and the RN-08 rules (A11).
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: parametersMock,
+}));
 vi.mock("next-intl/server", async () =>
   (await import("@/app/(dashboard)/review/test-support")).serverIntl(state),
 );
@@ -97,6 +104,8 @@ async function renderPage(
 }
 
 const en = messages.en.review.queue;
+/** The alert badge text at the Reglamento alert of 1 business day. */
+const DUE_SOON = "Due within 1 business day";
 
 beforeAll(async () => {
   // The first dynamic import transforms the whole page tree.
@@ -120,6 +129,12 @@ beforeEach(() => {
   queueReadMock.mockResolvedValue(undefined);
   signalsMock.mockReset();
   signalsMock.mockRejectedValue(new Error("the queue must never read signals"));
+  parametersMock.mockReset();
+  parametersMock.mockResolvedValue({
+    values: DEFAULT_PARAMETERS,
+    fallback: [],
+    degraded: false,
+  });
 });
 
 describe("ReviewQueuePage access (RNF-01)", () => {
@@ -145,6 +160,7 @@ describe("ReviewQueuePage access (RNF-01)", () => {
       expect(scopeMock).not.toHaveBeenCalled();
       expect(queueMock).not.toHaveBeenCalled();
       expect(queueReadMock).not.toHaveBeenCalled();
+      expect(parametersMock).not.toHaveBeenCalled();
     },
   );
 
@@ -153,6 +169,7 @@ describe("ReviewQueuePage access (RNF-01)", () => {
 
     await expect(renderPage()).rejects.toThrow("REDIRECT:/login");
     expect(queueMock).not.toHaveBeenCalled();
+    expect(parametersMock).not.toHaveBeenCalled();
   });
 
   it("sends a flagged secretaria to the change screen first", async () => {
@@ -180,6 +197,7 @@ describe("ReviewQueuePage without a faculty (fail closed)", () => {
     expect(screen.queryByText("Ana Lopez")).toBeNull();
     expect(queueMock).not.toHaveBeenCalled();
     expect(queueReadMock).not.toHaveBeenCalled();
+    expect(parametersMock).not.toHaveBeenCalled();
   });
 });
 
@@ -337,7 +355,7 @@ describe("ReviewQueuePage search", () => {
 describe("ReviewQueuePage deadline badges (RN-08, RF-06 b)", () => {
   it.each([
     ["en_plazo", en.deadline.onTime],
-    ["por_vencer", en.deadline.dueSoon],
+    ["por_vencer", DUE_SOON],
     ["vencida", en.deadline.overdue],
   ] as const)("always writes the %s state as text", async (status, label) => {
     queueMock.mockResolvedValue({
@@ -351,7 +369,7 @@ describe("ReviewQueuePage deadline badges (RN-08, RF-06 b)", () => {
     expect(cell).toHaveTextContent(label);
     for (const other of [
       en.deadline.onTime,
-      en.deadline.dueSoon,
+      DUE_SOON,
       en.deadline.overdue,
     ].filter((text) => text !== label)) {
       expect(cell).not.toHaveTextContent(other);
@@ -377,6 +395,111 @@ describe("ReviewQueuePage deadline badges (RN-08, RF-06 b)", () => {
     await renderPage();
     expect(screen.queryByText(en.calendarNotLoaded)).toBeNull();
   });
+});
+
+describe("ReviewQueuePage reads the parameters in force (RR-QUEUE, NP-10, NP-15)", () => {
+  const inForce = {
+    ...DEFAULT_PARAMETERS,
+    remissionBusinessDays: 3,
+    alertBusinessDays: 2,
+    nonWorkingDays: [{ fecha: "2030-06-15", descripcion: null }],
+  };
+
+  beforeEach(() => {
+    parametersMock.mockResolvedValue({
+      values: inForce,
+      fallback: [],
+      degraded: false,
+    });
+  });
+
+  it("loads the parameters once and hands the queue the calendar and the rules", async () => {
+    await renderPage();
+
+    expect(parametersMock).toHaveBeenCalledTimes(1);
+    expect(queueMock).toHaveBeenCalledTimes(1);
+    const [scope, now, calendar, rules] = queueMock.mock.calls[0];
+    expect(scope).toEqual({ kind: "facultad", facultadId: 4 });
+    expect(now).toBeInstanceOf(Date);
+    expect(calendar.isNonWorkingDay("2030-06-15")).toBe(true);
+    expect(calendar.isNonWorkingDay("2026-12-25")).toBe(false);
+    expect(calendar.coversYear(2030)).toBe(true);
+    expect(calendar.coversYear(2026)).toBe(false);
+    expect(rules).toEqual({ remissionBusinessDays: 3, alertBusinessDays: 2 });
+  });
+
+  it.each(["en_revision_coordinacion", "aprobada"])(
+    "reads no parameters for the %s tab, which has no deadline",
+    async (estado) => {
+      await renderPage({ estado });
+
+      expect(parametersMock).not.toHaveBeenCalled();
+      expect(queueMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("shows the coverage notice when the loaded calendar covers no year of the read, as text and with the rows listed", async () => {
+    queueMock.mockImplementation(async (_scope, _now, calendar) => ({
+      rows: [row()],
+      calendarLoaded: calendar.coversYear(2026),
+    }));
+
+    await renderPage();
+
+    expect(screen.getByText(en.calendarNotLoaded)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("table")).toHaveTextContent("Ana Lopez");
+  });
+
+  it("shows no coverage notice once the loaded calendar covers the year", async () => {
+    parametersMock.mockResolvedValue({
+      values: {
+        ...inForce,
+        nonWorkingDays: [{ fecha: "2026-12-25", descripcion: null }],
+      },
+      fallback: [],
+      degraded: false,
+    });
+    queueMock.mockImplementation(async (_scope, _now, calendar) => ({
+      rows: [row()],
+      calendarLoaded: calendar.coversYear(2026),
+    }));
+
+    await renderPage();
+
+    expect(screen.queryByText(en.calendarNotLoaded)).toBeNull();
+  });
+
+  it.each([
+    ["en", 0, "Due today"],
+    ["en", 1, "Due within 1 business day"],
+    ["en", 2, "Due within 2 business days"],
+    ["en", 5, "Due within 5 business days"],
+    ["es", 0, "Vence hoy"],
+    ["es", 1, "Vence en 1 d\u00eda h\u00e1bil o menos"],
+    ["es", 3, "Vence en 3 d\u00edas h\u00e1biles o menos"],
+  ] as const)(
+    "words the alert badge in %s for %d alert days: %s",
+    async (locale, days, text) => {
+      state.locale = locale;
+      parametersMock.mockResolvedValue({
+        values: { ...inForce, alertBusinessDays: days },
+        fallback: [],
+        degraded: false,
+      });
+      queueMock.mockResolvedValue({
+        rows: [row({ status: "por_vencer" })],
+        calendarLoaded: true,
+      });
+
+      await renderPage();
+
+      const cell = within(screen.getByRole("table")).getAllByRole("row")[1];
+      expect(cell).toHaveTextContent(text);
+      // The rendered text never shows the raw placeholder.
+      expect(cell).not.toHaveTextContent("{days");
+    },
+  );
 });
 
 describe("ReviewQueuePage audited read (SR-11)", () => {
@@ -650,11 +773,7 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
     it("marks no alert or overdue state and links each row to its detail without prefetch", async () => {
       await renderPage({ estado: "en_revision_coordinacion" });
 
-      for (const text of [
-        en.deadline.onTime,
-        en.deadline.dueSoon,
-        en.deadline.overdue,
-      ]) {
+      for (const text of [en.deadline.onTime, DUE_SOON, en.deadline.overdue]) {
         expect(screen.queryByText(text)).toBeNull();
       }
       expect(screen.queryByText(/^Due /)).toBeNull();
@@ -734,7 +853,7 @@ describe("ReviewQueuePage state tabs (RF-06, RF-10, RF-15, E14)", () => {
       await renderPage({ estado: "aprobada" });
 
       expect(screen.queryByText(en.deadline.overdue)).toBeNull();
-      expect(screen.queryByText(en.deadline.dueSoon)).toBeNull();
+      expect(screen.queryByText(DUE_SOON)).toBeNull();
       expect(screen.queryByText(/^Due /)).toBeNull();
     });
 
@@ -1004,7 +1123,7 @@ describe("ReviewQueuePage order and first-due mark (FE-1, FE-2, RF-06)", () => {
       const rows = within(screen.getByRole("table")).getAllByRole("row");
       expect(rows[1]).toHaveTextContent(FIRST_DUE.en);
       expect(rows[1]).toHaveTextContent(en.deadline.overdue);
-      expect(rows[2]).toHaveTextContent(en.deadline.dueSoon);
+      expect(rows[2]).toHaveTextContent(DUE_SOON);
       expect(rows[2]).not.toHaveTextContent(FIRST_DUE.en);
     });
 

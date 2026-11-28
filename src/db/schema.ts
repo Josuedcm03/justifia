@@ -37,7 +37,6 @@ import {
   type EscalationNoticeReason,
   type EscalationNoticeState,
 } from "@/lib/intake/escalation";
-import { MAX_DOCUMENT_BYTES } from "@/lib/intake/limits";
 import { RETURN_REASONS } from "@/lib/intake/return-reasons";
 import { ESTADOS_SOLICITUD } from "@/lib/intake/states";
 import {
@@ -451,7 +450,7 @@ export const documentoRespaldo = pgTable(
     ),
     check(
       "CK_Documento_Tamano",
-      sql`${t.tamanoBytes} > 0 AND ${t.tamanoBytes} <= ${sql.raw(String(MAX_DOCUMENT_BYTES))}`,
+      sql`${t.tamanoBytes} > 0 AND ${t.tamanoBytes} <= 10485760`,
     ),
     check("CK_Documento_Estado", sql`${t.estado} IN ('pendiente', 'valido')`),
     check(
@@ -959,3 +958,29 @@ export const documentoDatoManual = pgTable(
 
 export type DocumentoDatoManual = typeof documentoDatoManual.$inferSelect;
 export type NuevoDocumentoDatoManual = typeof documentoDatoManual.$inferInsert;
+
+/**
+ * Normative parameters (RNF-14, NP-1), exactly the table of thesis Annex D
+ * Table D19: no version, author or timestamp column, because who changed what
+ * and when is the audit log's job. One row per key and effective date; the row
+ * in force is the latest `VigenteDesde` not after today. The key is one of the
+ * closed registry (`src/lib/parameters/registry.ts`); `Valor` holds an integer,
+ * an array or an object, validated by the key's schema on every read and write.
+ */
+export const parametroNormativo = pgTable(
+  "ParametroNormativo",
+  {
+    id: bigint("Id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    clave: varchar("Clave", { length: 60 }).notNull(),
+    valor: jsonb("Valor").notNull(),
+    vigenteDesde: date("VigenteDesde", { mode: "string" }).notNull(),
+  },
+  (t) => [
+    unique("UQ_ParametroNormativo_Clave_Vigencia").on(t.clave, t.vigenteDesde),
+  ],
+);
+
+export type ParametroNormativo = typeof parametroNormativo.$inferSelect;
+export type NuevoParametroNormativo = typeof parametroNormativo.$inferInsert;

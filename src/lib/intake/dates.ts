@@ -1,5 +1,3 @@
-import { LATE_WINDOW_DAYS } from "./limits";
-
 // Calendar-date helpers (A6, RN-05, RN-23). Absence dates are plain ISO
 // `YYYY-MM-DD` strings with no time zone; only "today" depends on the business
 // zone (America/Managua, UTC-6, no DST). All arithmetic runs in UTC so the
@@ -38,14 +36,24 @@ export function inclusiveDays(from: string, to: string): number {
   return Math.round((toUtcMs(to) - toUtcMs(from)) / MS_PER_DAY) + 1;
 }
 
-/** RN-23: earliest end date a submission made on `today` may carry. */
-export function earliestAllowedEndDate(today: string): string {
-  return addDays(today, -LATE_WINDOW_DAYS);
+/**
+ * RN-23: earliest end date a submission made on `today` may carry, with the
+ * filing window in force (`windowDays`, a parameter).
+ */
+export function earliestAllowedEndDate(
+  today: string,
+  windowDays: number,
+): string {
+  return addDays(today, -windowDays);
 }
 
-/** RN-23: exactly `LATE_WINDOW_DAYS` before submission is still allowed. */
-export function isEndWithinWindow(end: string, today: string): boolean {
-  return end >= earliestAllowedEndDate(today);
+/** RN-23: exactly `windowDays` before submission is still allowed. */
+export function isEndWithinWindow(
+  end: string,
+  today: string,
+  windowDays: number,
+): boolean {
+  return end >= earliestAllowedEndDate(today, windowDays);
 }
 
 /** True for a well-formed, real calendar date (rejects 2026-02-30). */

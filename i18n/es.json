@@ -28,7 +28,8 @@
     "sectionLabel": "Navegación",
     "profile": "Mi perfil",
     "trailLabel": "Ubicación de la página",
-    "reports": "Reportes"
+    "reports": "Reportes",
+    "parameters": "Parámetros normativos"
   },
   "roles": {
     "estudiante": "Estudiante",
@@ -66,7 +67,8 @@
       "catalogInscripciones": "Consulte las inscripciones de los estudiantes de su facultad.",
       "catalogImport": "Cargue el catálogo desde un archivo de Excel.",
       "users": "Administre las cuentas de usuario.",
-      "reports": "Consulte qué estudiantes, docentes y asignaturas de su carrera acumulan más inasistencias justificadas."
+      "reports": "Consulte qué estudiantes, docentes y asignaturas de su carrera acumulan más inasistencias justificadas.",
+      "parameters": "Modifique los plazos, el calendario, las causas y los límites que aplica el sistema."
     },
     "featured": {
       "description": "Empiece aquí: revise las solicitudes pendientes de su facultad.",
@@ -932,12 +934,13 @@
     "errors": {
       "causa_required": "Elige la causa de tu ausencia.",
       "causa_invalid": "Elige una de las causas de la lista.",
+      "causa_inactive": "Esta causa ya no está disponible. Elige otra.",
       "start_required": "Indica la fecha de inicio.",
       "start_invalid": "Indica una fecha de inicio válida.",
       "end_required": "Indica la fecha de fin.",
       "end_invalid": "Indica una fecha de fin válida.",
       "end_before_start": "La fecha de fin no puede ser anterior a la de inicio.",
-      "end_too_old": "La fecha de fin no puede ser anterior a 30 días antes de hoy.",
+      "end_too_old": "La fecha de fin no puede ser anterior a {days, plural, one {# día} other {# días}} antes de hoy.",
       "subjects_required": "Marca al menos una asignatura.",
       "subject_not_eligible": "Esta asignatura no está disponible para tu inscripción.",
       "subject_duplicate": "Esta asignatura está repetida.",
@@ -952,7 +955,7 @@
       "submit_conflict": "La solicitud cambió mientras la enviabas. Recarga la página y revísala.",
       "profile_incomplete": "Tu cuenta no tiene todos los datos necesarios. Contacta a la secretaría.",
       "unsupported_format": "Formato no admitido. Sube un PDF, PNG o JPEG.",
-      "too_large": "El archivo supera los 10 MB.",
+      "too_large": "El archivo supera los {size} MB.",
       "empty_file": "El archivo está vacío.",
       "not_found": "No encontramos el archivo. Inténtalo de nuevo.",
       "not_allowed": "No tienes permiso para esta operación.",
@@ -1314,7 +1317,7 @@
       "unnamed": "Estudiante sin nombre",
       "deadline": {
         "onTime": "En plazo",
-        "dueSoon": "Vence en 1 día hábil o menos",
+        "dueSoon": "{days, plural, =0 {Vence hoy} one {Vence en # día hábil o menos} other {Vence en # días hábiles o menos}}",
         "overdue": "Vencida",
         "due": "Vence el {date}",
         "paused": "Plazo en pausa"
@@ -1782,7 +1785,7 @@
           "not_found": "No se encontró el archivo después de subirlo. Inténtalo de nuevo.",
           "already_attached": "Ya hay un formato adjunto a esta solicitud. No se puede reemplazar.",
           "empty_file": "El archivo está vacío.",
-          "too_large": "El archivo supera los 10 MB.",
+          "too_large": "El archivo supera los {size} MB.",
           "unsupported_format": "Formato no admitido. Sube un PDF, PNG o JPEG.",
           "upload_failed": "La subida falló. Revisa la conexión e inténtalo de nuevo.",
           "unexpected": "No se pudo adjuntar el formato. Inténtalo de nuevo."
@@ -1921,6 +1924,94 @@
       "noResults": {
         "title": "Ninguna solicitud coincide con los filtros",
         "hint": "Prueba con otro periodo, docente, estudiante o causa."
+      }
+    }
+  },
+  "parameters": {
+    "page": {
+      "title": "Parámetros normativos",
+      "subtitle": "Plazos, calendario, causas y tipos de documento que aplica el sistema.",
+      "effectNote": "Los cambios se aplican desde la siguiente consulta, sin volver a desplegar el sistema. Los plazos, el calendario, el umbral de reincidencia y la tabla de tipos de documento cambian el resultado de todas las solicitudes, incluidas las ya presentadas, que conservan su fecha de inicio de plazo. La ventana de presentación, las causas activas y el tamaño máximo solo se aplican a los siguientes borradores y cargas de documentos."
+    },
+    "actions": {
+      "save": "Guardar cambios",
+      "saving": "Guardando…"
+    },
+    "scalars": {
+      "title": "Plazos y límites",
+      "fields": {
+        "plazo_remision_dias": "Plazo de remisión (días hábiles)",
+        "alerta_dias": "Alerta de plazo por vencer (días hábiles)",
+        "presentacion_tardia_dias": "Presentación tardía (días hábiles)",
+        "ventana_presentacion_dias": "Ventana de presentación (días)",
+        "umbral_reincidencia": "Umbral de reincidencia (solicitudes)",
+        "tamano_maximo_mib": "Tamaño máximo por documento (MB)"
+      }
+    },
+    "calendar": {
+      "title": "Calendario de días no hábiles",
+      "description": "Fechas que no cuentan como días hábiles al calcular los plazos.",
+      "dateColumn": "Fecha",
+      "descriptionColumn": "Descripción",
+      "actionsColumn": "Acciones",
+      "dateLabel": "Fecha, fila {row}",
+      "descriptionLabel": "Descripción, fila {row}",
+      "empty": "El calendario no tiene fechas.",
+      "add": "Agregar fecha",
+      "remove": "Quitar",
+      "removeRow": "Quitar la fila {row}",
+      "restore": "Restaurar",
+      "restoreRow": "Restaurar la fila {row}",
+      "removed": "Se quitará al guardar"
+    },
+    "causes": {
+      "title": "Causas de justificación",
+      "description": "Marque las causas que se ofrecen y ordénelas como las verá el estudiante. Las causas no se pueden crear, renombrar ni eliminar.",
+      "moveUp": "Subir {cause}",
+      "moveDown": "Bajar {cause}",
+      "deactivate": {
+        "title": "{count, plural, one {¿Desactivar la causa {causes}?} other {¿Desactivar las causas {causes}?}}",
+        "description": "Dejará de ofrecerse en las solicitudes nuevas. Las solicitudes que ya la tienen la conservan y puede activarla de nuevo cuando quiera.",
+        "confirm": "Sí, desactivar",
+        "cancel": "Cancelar"
+      }
+    },
+    "map": {
+      "title": "Tipo de documento y causa",
+      "description": "Marque las causas a las que corresponde cada tipo de documento. El sistema avisa cuando el documento de una solicitud no corresponde a su causa.",
+      "otroNote": "Este tipo no corresponde a ninguna causa y no se puede modificar.",
+      "types": {
+        "constancia_medica": "Constancia médica",
+        "constancia_institucional": "Constancia institucional",
+        "otro": "Otro"
+      }
+    },
+    "state": {
+      "saved": "Los cambios se guardaron.",
+      "unchanged": "No hay cambios que guardar.",
+      "busy": "El sistema está ocupado y no se guardó nada. Intente de nuevo."
+    },
+    "errors": {
+      "unexpected": "No se pudo guardar y no se hizo ningún cambio. Intente de nuevo.",
+      "invalid": "El valor no es válido.",
+      "required": "Este campo es obligatorio. Indique un número entero entre {min} y {max}.",
+      "not_integer": "Indique un número entero entre {min} y {max}.",
+      "too_low": "El valor debe ser como mínimo {min}. Rango permitido: de {min} a {max}.",
+      "too_high": "El valor debe ser como máximo {max}. Rango permitido: de {min} a {max}.",
+      "alert_not_below_remission": "Los días de alerta deben ser menos que los días del plazo de remisión.",
+      "calendar": {
+        "date_invalid": "Indique una fecha real con el formato AAAA-MM-DD.",
+        "date_duplicate": "Una fecha no puede aparecer dos veces en el calendario.",
+        "description_too_long": "La descripción no puede superar los 120 caracteres.",
+        "too_many": "El calendario admite como máximo {max} fechas.",
+        "invalid": "El calendario no es válido. Revise las fechas y las descripciones."
+      },
+      "causes": {
+        "no_active_cause": "Debe quedar al menos una causa activa.",
+        "invalid": "La lista de causas no es válida. Debe incluir las cinco causas, una vez cada una, con posiciones del 1 al 5."
+      },
+      "map": {
+        "invalid": "La tabla no es válida. Cada tipo de documento admite solo las cinco causas, sin repetir, y el tipo «otro» no corresponde a ninguna causa."
       }
     }
   }

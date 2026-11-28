@@ -14,6 +14,7 @@ import type {
   RemissionTrigger,
 } from "@/lib/remission/states";
 import type { EntityCounts, EntityName } from "@/lib/import/types";
+import type { ParameterKey } from "@/lib/parameters/registry";
 import type { RolUsuario } from "@/lib/validations/auth";
 
 // PURE. No db, no clock, no I/O (decisions 18, 22). Types and constants only:
@@ -70,6 +71,7 @@ export const AUDIT_ACTIONS = [
   "documento.datos_registrados",
   "usuario.desactivado",
   "usuario.reactivado",
+  "parametro.actualizado",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -85,7 +87,8 @@ export type AuditEntityType =
   | "Remision"
   | "Inscripcion"
   | "Escalamiento"
-  | "Carrera";
+  | "Carrera"
+  | "Parametro";
 
 /** Coordination report events (coordination-reports, RF-17 e, RNF-06). The
  *  period code (or "all"), and counts only: no name, CIF, request id or search
@@ -329,6 +332,23 @@ type AccountCancelledPayload = {
 type DocumentDataRecordedPayload = {
   solicitudId: number;
   campos: readonly DocumentDataField[];
+};
+
+/** What a parameter payload may hold (normative-parameters, NP-AUD-3): the
+ *  integer of a scalar, the causes with flag and position, the type-to-causes
+ *  table, or the ISO dates of the calendar. Never a description or free text. */
+export type AuditParameterValue =
+  | number
+  | readonly string[]
+  | readonly { codigo: Causa; activa: boolean; posicion: number }[]
+  | Readonly<Record<string, readonly Causa[]>>;
+
+/** The key and its value in force before and after: institutional values, not
+ *  personal data (D4). */
+type ParameterChangedPayload = {
+  clave: ParameterKey;
+  antes: AuditParameterValue;
+  despues: AuditParameterValue;
 };
 
 /** Closed lists for the manual catalog events. A field not named here can
@@ -623,4 +643,11 @@ export type AuditEvent =
       entidadTipo: "DocumentoRespaldo";
       entidadId: number;
       datos: DocumentDataRecordedPayload;
+    }
+  | {
+      // The key is in the payload, so no entity id: the row is not a record.
+      accion: "parametro.actualizado";
+      entidadTipo: "Parametro";
+      entidadId: null;
+      datos: ParameterChangedPayload;
     };

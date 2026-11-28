@@ -143,6 +143,8 @@ export async function attachSpecialFormat(
     solicitudId: number;
     pathname: string;
     nombreOriginal: string;
+    /** The maximum size in force (RN-04), read by the caller for this call. */
+    maxBytes: number;
   },
   store: DocumentStore,
 ): Promise<AttachResult> {
@@ -153,7 +155,7 @@ export async function attachSpecialFormat(
   if (!(await getSpecialFormatContext(solicitudId, scope))) return denied;
   if (await isReferenced(pathname)) return denied;
 
-  const inspection = await inspectStoredFile(pathname, store);
+  const inspection = await inspectStoredFile(pathname, store, input.maxBytes);
   if (!inspection.ok && inspection.reason === "not_found") {
     return { ok: false, reason: "not_found" };
   }

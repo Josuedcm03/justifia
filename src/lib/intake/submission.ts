@@ -1,4 +1,6 @@
-import { isCausa } from "./causes";
+import type { FilingRules } from "@/lib/parameters/derive";
+
+import { causeErrors, type CauseErrorCode } from "./causes";
 import { CONSENT_VERSION } from "./consent";
 import { isEndWithinWindow, isIsoDate } from "./dates";
 import {
@@ -10,7 +12,8 @@ import {
 
 // Submit-time validation (RF-03, RN-01..RN-05, RN-23, D15). Pure and
 // side-effect free: the action passes the draft, the eligible groups and the
-// Managua "today" derived from its single `now` (A5). Every invalid field is
+// Managua "today" derived from its single `now` (A5) and the filing rules in
+// force, loaded once by the caller (RN-23). Every invalid field is
 // reported at once, each with a stable code the UI maps to an i18n message that
 // states the expected correction (`intake.errors.<code>`).
 
@@ -34,7 +37,7 @@ export type SubmissionField =
 
 export type SubmissionErrorCode =
   | "causa_required"
-  | "causa_invalid"
+  | CauseErrorCode
   | "start_required"
   | "start_invalid"
   | "end_required"
@@ -73,11 +76,17 @@ export interface SubmissionOptions {
 export type SubmissionResult =
   { ok: true } | { ok: false; errors: SubmissionError[] };
 
-function causeErrors(causa: string | null): SubmissionError[] {
+function causaErrors(
+  causa: string | null,
+  selectable: FilingRules["selectableCauses"],
+): SubmissionError[] {
   if (causa === null || causa === "") {
     return [{ field: "causa", code: "causa_required" }];
   }
-  return isCausa(causa) ? [] : [{ field: "causa", code: "causa_invalid" }];
+  return causeErrors(causa, selectable).map((code) => ({
+    field: "causa",
+    code,
+  }));
 }
 
 function startErrors(start: string | null): SubmissionError[] {
@@ -93,6 +102,7 @@ function endErrors(
   start: string | null,
   end: string | null,
   today: string,
+  windowDays: number,
   filingWindow: boolean,
 ): SubmissionError[] {
   if (end === null || end === "") {
@@ -102,7 +112,7 @@ function endErrors(
   if (start !== null && isIsoDate(start) && end < start) {
     return [{ field: "fechaFin", code: "end_before_start" }];
   }
-  return !filingWindow || isEndWithinWindow(end, today)
+  return !filingWindow || isEndWithinWindow(end, today, windowDays)
     ? []
     : [{ field: "fechaFin", code: "end_too_old" }];
 }
@@ -130,12 +140,19 @@ function consentErrors(
 export function validateSubmission(
   input: SubmissionInput,
   today: string,
+  rules: FilingRules,
   { filingWindow = true, consent = true }: SubmissionOptions = {},
 ): SubmissionResult {
   const errors: SubmissionError[] = [
-    ...causeErrors(input.causa),
+    ...causaErrors(input.causa, rules.selectableCauses),
     ...startErrors(input.fechaInicio),
-    ...endErrors(input.fechaInicio, input.fechaFin, today, filingWindow),
+    ...endErrors(
+      input.fechaInicio,
+      input.fechaFin,
+      today,
+      rules.windowDays,
+      filingWindow,
+    ),
     ...subjectErrors(input),
     ...(input.validDocumentCount > 0
       ? []

@@ -47,6 +47,8 @@ import {
   inscripcionEvent,
   inscripcionListaConsultadaEvent,
   MANUAL_ORIGIN,
+  parameterChangedEvent,
+  parameterWriteEvents,
   remisionBloqueadaEvent,
   remisionCreadaEvent,
   remisionEnviadaEvent,
@@ -2398,5 +2400,158 @@ describe("document data recorded event (manual-document-data, MD-31, MD-33)", ()
       /Ana|Lopez|Clinica|Santa Fe|\d{4}-\d{2}-\d{2}|"dias"|constancia_medica|true|false/,
     );
     expect(Object.keys(event.datos).sort()).toEqual(["campos", "solicitudId"]);
+  });
+});
+
+describe("parameter change events (normative-parameters, NP-AUD-1, NP-AUD-3)", () => {
+  const CAUSES_BEFORE = [
+    { codigo: "medica", activa: true, posicion: 1 },
+    { codigo: "maternidad_paternidad", activa: true, posicion: 2 },
+    { codigo: "actividad_representativa", activa: true, posicion: 3 },
+    { codigo: "intercambio_academico", activa: true, posicion: 4 },
+    { codigo: "fuerza_mayor", activa: true, posicion: 5 },
+  ];
+  const CAUSES_AFTER = [
+    { codigo: "maternidad_paternidad", activa: true, posicion: 1 },
+    { codigo: "medica", activa: true, posicion: 2 },
+    { codigo: "actividad_representativa", activa: false, posicion: 3 },
+    { codigo: "intercambio_academico", activa: true, posicion: 4 },
+    { codigo: "fuerza_mayor", activa: true, posicion: 5 },
+  ];
+  const MAP_BEFORE = {
+    constancia_medica: ["medica", "maternidad_paternidad"],
+    constancia_institucional: ["fuerza_mayor"],
+    otro: [],
+  };
+  const MAP_AFTER = {
+    constancia_medica: ["medica"],
+    constancia_institucional: ["fuerza_mayor", "intercambio_academico"],
+    otro: [],
+  };
+  const CALENDAR_BEFORE = [
+    { fecha: "2026-12-08", descripcion: "Inmaculada Concepcion" },
+  ];
+  const CALENDAR_AFTER = [
+    { fecha: "2026-12-08", descripcion: "Inmaculada Concepcion" },
+    { fecha: "2026-12-25", descripcion: "SENTINEL-DESC" },
+  ];
+
+  it.each([
+    ["plazo_remision_dias", 2, 3],
+    ["alerta_dias", 1, 2],
+    ["presentacion_tardia_dias", 2, 4],
+    ["ventana_presentacion_dias", 30, 60],
+    ["umbral_reincidencia", 3, 2],
+    ["tamano_maximo_mib", 10, 5],
+    ["causas", CAUSES_BEFORE, CAUSES_AFTER],
+    ["tipo_documento_causa", MAP_BEFORE, MAP_AFTER],
+    [
+      "calendario",
+      CALENDAR_BEFORE.map((d) => d.fecha),
+      CALENDAR_AFTER.map((d) => d.fecha),
+    ],
+  ] as const)(
+    "%s: one event of the closed action and entity type, payload { clave, antes, despues }",
+    (clave, antes, despues) => {
+      const input =
+        clave === "calendario"
+          ? { clave, antes: CALENDAR_BEFORE, despues: CALENDAR_AFTER }
+          : { clave, antes, despues };
+
+      const event = parameterChangedEvent(input);
+
+      expect(event.accion).toBe("parametro.actualizado");
+      expect(event.entidadTipo).toBe("Parametro");
+      expect(event.entidadId).toBeNull();
+      expect(Object.keys(event.datos).sort()).toEqual([
+        "antes",
+        "clave",
+        "despues",
+      ]);
+      expect(event.datos).toEqual({ clave, antes, despues });
+    },
+  );
+
+  it("keeps a scalar as the integer on both sides", () => {
+    const event = parameterChangedEvent({
+      clave: "alerta_dias",
+      antes: 1,
+      despues: 2,
+    });
+
+    expect(JSON.stringify(event.datos)).toBe(
+      '{"clave":"alerta_dias","antes":1,"despues":2}',
+    );
+  });
+
+  it("drops the calendar descriptions, so the free text cannot reach Datos", () => {
+    const event = parameterChangedEvent({
+      clave: "calendario",
+      antes: CALENDAR_BEFORE,
+      despues: CALENDAR_AFTER,
+    });
+
+    expect(event.datos).toEqual({
+      clave: "calendario",
+      antes: ["2026-12-08"],
+      despues: ["2026-12-08", "2026-12-25"],
+    });
+    expect(JSON.stringify(event)).not.toMatch(/SENTINEL-DESC|Inmaculada/);
+  });
+
+  it("copies the cause fields by name, so a field smuggled into an item is dropped", () => {
+    const event = parameterChangedEvent({
+      clave: "causas",
+      antes: CAUSES_BEFORE,
+      despues: CAUSES_AFTER.map((c) => ({ ...c, nota: "SENTINEL-NOTE" })),
+    });
+
+    expect(event.datos).toEqual({
+      clave: "causas",
+      antes: CAUSES_BEFORE,
+      despues: CAUSES_AFTER,
+    });
+    expect(JSON.stringify(event)).not.toContain("SENTINEL-NOTE");
+  });
+
+  describe("parameterWriteEvents", () => {
+    it("emits one event per applied change, in order", () => {
+      const events = parameterWriteEvents({
+        kind: "updated",
+        changes: [
+          { clave: "alerta_dias", antes: 1, despues: 2 },
+          { clave: "umbral_reincidencia", antes: 3, despues: 4 },
+        ],
+      });
+
+      expect(events.map((e) => e.datos)).toEqual([
+        { clave: "alerta_dias", antes: 1, despues: 2 },
+        { clave: "umbral_reincidencia", antes: 3, despues: 4 },
+      ]);
+      expect(events.every((e) => e.accion === "parametro.actualizado")).toBe(
+        true,
+      );
+    });
+
+    it("emits nothing for an unchanged save", () => {
+      expect(parameterWriteEvents({ kind: "unchanged" })).toEqual([]);
+    });
+
+    it("emits nothing for an invalid save", () => {
+      expect(
+        parameterWriteEvents({
+          kind: "invalid",
+          clave: "alerta_dias",
+          reason: "schema",
+        }),
+      ).toEqual([]);
+      expect(
+        parameterWriteEvents({
+          kind: "invalid",
+          clave: "alerta_dias",
+          reason: "alert_not_below_remission",
+        }),
+      ).toEqual([]);
+    });
   });
 });
