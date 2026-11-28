@@ -1964,6 +1964,18 @@
       "restoreRow": "Restaurar la fila {row}",
       "removed": "Se quitará al guardar"
     },
+    "causes": {
+      "title": "Causas de justificación",
+      "description": "Marque las causas que se ofrecen y ordénelas como las verá el estudiante. Las causas no se pueden crear, renombrar ni eliminar.",
+      "moveUp": "Subir {cause}",
+      "moveDown": "Bajar {cause}",
+      "deactivate": {
+        "title": "{count, plural, one {¿Desactivar la causa {causes}?} other {¿Desactivar las causas {causes}?}}",
+        "description": "Dejará de ofrecerse en las solicitudes nuevas. Las solicitudes que ya la tienen la conservan y puede activarla de nuevo cuando quiera.",
+        "confirm": "Sí, desactivar",
+        "cancel": "Cancelar"
+      }
+    },
     "map": {
       "title": "Tipo de documento y causa",
       "description": "Marque las causas a las que corresponde cada tipo de documento. El sistema avisa cuando el documento de una solicitud no corresponde a su causa.",

@@ -154,6 +154,12 @@ describe("ParametersPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("mounts the causes section with a move control per cause", async () => {
+    await renderPage();
+
+    expect(screen.getAllByRole("button", { name: "moveUp" })).toHaveLength(5);
+  });
+
   it("writes nothing when it opens", async () => {
     await renderPage();
 
@@ -177,8 +183,8 @@ describe("ParametersPage", () => {
     for (const input of screen.getAllByRole("spinbutton")) {
       expect(input).toBeEnabled();
     }
-    for (const button of screen.getAllByRole("button")) {
-      expect(button).toBeEnabled();
-    }
+    const saves = screen.getAllByRole("button", { name: /save$/ });
+    expect(saves).toHaveLength(4);
+    for (const button of saves) expect(button).toBeEnabled();
   });
 });

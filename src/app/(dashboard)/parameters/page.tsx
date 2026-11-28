@@ -8,10 +8,12 @@ import { PARAMETER_KEYS, PARAMETER_REGISTRY } from "@/lib/parameters/registry";
 
 import {
   saveCalendarAction,
+  saveCausesAction,
   saveDocumentTypeCausesAction,
   saveScalarParametersAction,
 } from "./actions";
 import { CalendarSection } from "./calendar-section";
+import { CausesSection } from "./causes-section";
 import { ScalarsForm } from "./scalars-form";
 import { TypeCausesSection } from "./type-causes-section";
 
@@ -46,6 +48,7 @@ export default async function ParametersPage() {
         action={saveDocumentTypeCausesAction}
         map={values.documentTypeCauses}
       />
+      <CausesSection action={saveCausesAction} causes={values.causes} />
     </PageFrame>
   );
 }

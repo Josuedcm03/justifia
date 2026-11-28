@@ -1964,6 +1964,18 @@
       "restoreRow": "Restore row {row}",
       "removed": "Will be removed when you save"
     },
+    "causes": {
+      "title": "Absence causes",
+      "description": "Mark the causes that are offered and put them in the order students will see. Causes cannot be created, renamed or deleted.",
+      "moveUp": "Move {cause} up",
+      "moveDown": "Move {cause} down",
+      "deactivate": {
+        "title": "{count, plural, one {Deactivate the cause {causes}?} other {Deactivate the causes {causes}?}}",
+        "description": "It will no longer be offered for new requests. Requests that already have it keep it, and you can activate it again whenever you want.",
+        "confirm": "Yes, deactivate",
+        "cancel": "Cancel"
+      }
+    },
     "map": {
       "title": "Document type and cause",
       "description": "Mark the causes each document type corresponds to. The system warns when the document of a request does not correspond to its cause.",
