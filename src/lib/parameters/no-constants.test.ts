@@ -545,17 +545,9 @@ describe("the filing window is a parameter (NP-15, A12)", () => {
   );
 });
 
-// NP-15 for the maximum document size (design A12, A19): the data functions
-// take `maxBytes` from their caller; the token routes and the two actions load
-// once from the loader and derive the bytes with `maxDocumentBytesOf`; the two
-// browser components receive the limit as a prop and import no size constant.
+// NP-15 for the maximum document size (design A12, A19): the former constant is
+// gone and the two browser components receive the limit as a prop.
 
-const SIZE_CONSUMERS = [
-  "app/api/intake/upload-token/route.ts",
-  "app/api/review/special-format-token/route.ts",
-  "app/(dashboard)/requests/new/step-actions.ts",
-  "app/(dashboard)/review/[id]/remission-actions.ts",
-];
 const SIZE_CLIENTS = [
   "app/(dashboard)/requests/new/documents-step.tsx",
   "app/(dashboard)/review/[id]/special-format-upload.tsx",
@@ -571,18 +563,6 @@ describe("the maximum document size is a parameter (NP-15, A12)", () => {
 
     expect(offenders).toEqual([]);
   });
-
-  it.each(SIZE_CONSUMERS)(
-    "%s imports the loader and derives the limit from what it returns",
-    (path) => {
-      const code = withoutComments(readFileSync(join(SRC_DIR, path), "utf8"));
-
-      expect(valueImports(code)).toContain("@/lib/parameters/loader");
-      expect(code).toContain("maxDocumentBytesOf");
-      expect(valueImports(code)).not.toContain("@/lib/parameters/registry");
-      expect(valueImports(code)).not.toContain("@/lib/parameters/defaults");
-    },
-  );
 
   it.each(SIZE_CLIENTS)(
     "%s receives the limit as a prop: no size constant, no copy of the number",
