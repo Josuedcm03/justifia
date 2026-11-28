@@ -28,6 +28,14 @@ import type {
 import type { ReturnReason } from "@/lib/intake/return-reasons";
 import type { EstadoSolicitud } from "@/lib/intake/states";
 import type {
+  AppliedChange,
+  CauseSetting,
+  NonWorkingDay,
+  NormativeParameters,
+  ParameterKey,
+  ParameterWriteResult,
+} from "@/lib/parameters/registry";
+import type {
   RemissionReason,
   RemissionState,
   RemissionTrigger,
@@ -47,6 +55,7 @@ import type {
   AuditableUserField,
   AuditEvent,
   AuditOrigin,
+  AuditParameterValue,
   DocumentMode,
   DocumentRejectionReason,
   InscripcionReadPayload,
@@ -1008,4 +1017,73 @@ export function accountCancelledEvent(args: {
       documentos: args.documentos,
     },
   };
+}
+
+/** The value of one parameter as the audit payload keeps it (NP-AUD-3): the
+ *  integer of a scalar, each cause by code, flag and position, the type-to-causes
+ *  table, and the calendar as ISO dates only. Each field is copied by name, so
+ *  a description or any other field passed in cannot reach `Datos`. The values
+ *  were validated by the registry schema before they got here. */
+function auditParameterValue(
+  clave: ParameterKey,
+  value: unknown,
+): AuditParameterValue {
+  switch (clave) {
+    case "plazo_remision_dias":
+    case "alerta_dias":
+    case "presentacion_tardia_dias":
+    case "ventana_presentacion_dias":
+    case "umbral_reincidencia":
+    case "tamano_maximo_mib":
+      return value as number;
+    case "causas":
+      return (value as readonly CauseSetting[]).map(
+        ({ codigo, activa, posicion }) => ({ codigo, activa, posicion }),
+      );
+    case "tipo_documento_causa":
+      return Object.fromEntries(
+        Object.entries(value as NormativeParameters["documentTypeCauses"]).map(
+          ([tipo, causas]) => [tipo, [...causas]],
+        ),
+      );
+    case "calendario":
+      return (value as readonly NonWorkingDay[]).map(({ fecha }) => fecha);
+    default: {
+      const unreachable: never = clave;
+      return unreachable;
+    }
+  }
+}
+
+/** A normative parameter was saved with a value other than the one in force.
+ *  The entity is the parameter family and the key is in the payload. */
+export function parameterChangedEvent(change: AppliedChange): AuditEvent {
+  return {
+    accion: "parametro.actualizado",
+    entidadTipo: "Parametro",
+    entidadId: null,
+    datos: {
+      clave: change.clave,
+      antes: auditParameterValue(change.clave, change.antes),
+      despues: auditParameterValue(change.clave, change.despues),
+    },
+  };
+}
+
+/** Result -> events for a parameter write: one per applied change. An unchanged
+ *  or invalid save gives `[]`, so it can never leave a row (NP-AUD-2). */
+export function parameterWriteEvents(
+  result: ParameterWriteResult,
+): AuditEvent[] {
+  switch (result.kind) {
+    case "updated":
+      return result.changes.map(parameterChangedEvent);
+    case "unchanged":
+    case "invalid":
+      return [];
+    default: {
+      const unreachable: never = result;
+      return unreachable;
+    }
+  }
 }

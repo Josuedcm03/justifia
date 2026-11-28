@@ -1,7 +1,8 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, max, sql } from "drizzle-orm";
 import {
   afterAll,
   afterEach,
+  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -11,7 +12,18 @@ import {
 } from "vitest";
 
 import { db } from "@/db";
-import { parametroNormativo } from "@/db/schema";
+import { eventoAuditoria } from "@/db/audit-schema";
+import { documentoRespaldo, parametroNormativo, solicitud } from "@/db/schema";
+import { parameterWriteEvents } from "@/lib/audit/events";
+import {
+  acquireCatalogWriteLock,
+  CatalogBusyError,
+  sqlStateOf,
+  withCatalogWrite,
+} from "@/lib/data/catalog-write";
+import { createFixtures } from "@/lib/data/integration/fixtures";
+import { resolveRequestScope } from "@/lib/data/request-scope";
+import { getRequestDetail } from "@/lib/data/solicitud-detail";
 import {
   dropKey,
   putRow,
@@ -28,10 +40,12 @@ import {
   DEFAULT_PARAMETERS,
   PARAMETER_KEYS,
   PARAMETER_REGISTRY,
+  type ParameterChange,
   type ParameterKey,
 } from "@/lib/parameters/registry";
+import { writeParameters } from "@/lib/parameters/write";
 
-// Real-Postgres suite of the normative parameters, read side (RNF-14). It runs
+// Real-Postgres suite of the normative parameters (RNF-14). It runs
 // the REAL loader against the REAL table, so the database, not JavaScript,
 // decides each constraint and each "newest row not after today" choice:
 //   PG-1  one row per key and day, a key of at most 60 characters, and the nine
@@ -39,8 +53,15 @@ import {
 //   PG-3  (read part) the row in force is the newest one not after today in
 //         Managua; an invalid row, a deleted row or a future row gives the
 //         default of that key only; an unknown key is ignored
-// The write path, the audit rows and the ceiling of 25 MiB arrive with their
-// slices and extend this file (PG-2, PG-3 write part, PG-4, PG-5, PG-6).
+// The second describe, "write side", runs the REAL write path inside the REAL
+// `withCatalogWrite` with its audit rows:
+//   PG-3  (write part) a first save keeps the seed row, a same-day second save
+//         leaves one row, a save on another day adds one
+//   PG-4  one audit row per changed key in the same transaction; none for an
+//         unchanged save, a failed audit insert or a busy lock; `antes` of a
+//         same-day second save is the first `despues`; no description leaks
+//   PG-5  a stored document and a stored `PlazoInicioEn` are untouched by a
+//         later change of the limit or of the calendar
 //
 // HOW TO RUN (never part of `npm test`; owner-run, phase 14):
 //   1. Create a DISPOSABLE Neon branch of the project with migration
@@ -451,6 +472,311 @@ describe.skipIf(gate.mode !== "run")(
           ]),
         );
         expect(JSON.stringify(errorLog.mock.calls)).not.toContain(SENTINEL);
+      });
+    });
+  },
+);
+
+/** An actor id no account has: the audit insert fails with a foreign key error. */
+const NO_SUCH_ACTOR = 9_000_000_000_000;
+const FK_VIOLATION = "23503";
+const SENTINEL_DESCRIPTION = "SENTINEL-DESCRIPTION-5521";
+const EIGHT_MIB = 8 * 1_048_576;
+
+const save = (
+  actorId: number,
+  changes: readonly ParameterChange[],
+  today: string = TODAY,
+) =>
+  withCatalogWrite(
+    actorId,
+    (tx) => writeParameters(tx, changes, today),
+    parameterWriteEvents,
+  );
+
+/** The error a promise rejects with, or null when it resolves. */
+const rejection = (work: Promise<unknown>): Promise<unknown> =>
+  work.then(
+    () => null,
+    (error: unknown) => error,
+  );
+
+async function lastAuditId(): Promise<number> {
+  const [row] = await db
+    .select({ id: max(eventoAuditoria.id) })
+    .from(eventoAuditoria);
+  return row.id ?? 0;
+}
+
+/** The parameter audit rows written after `afterId`, oldest first. */
+async function parameterAudit(afterId: number) {
+  return db
+    .select({
+      accion: eventoAuditoria.accion,
+      actorId: eventoAuditoria.actorId,
+      entidadTipo: eventoAuditoria.entidadTipo,
+      entidadId: eventoAuditoria.entidadId,
+      datos: eventoAuditoria.datos,
+    })
+    .from(eventoAuditoria)
+    .where(
+      and(
+        eq(eventoAuditoria.entidadTipo, "Parametro"),
+        gt(eventoAuditoria.id, afterId),
+      ),
+    )
+    .orderBy(asc(eventoAuditoria.id));
+}
+
+async function rowsOf(clave: ParameterKey) {
+  return db
+    .select({
+      vigenteDesde: parametroNormativo.vigenteDesde,
+      valor: parametroNormativo.valor,
+    })
+    .from(parametroNormativo)
+    .where(eq(parametroNormativo.clave, clave))
+    .orderBy(asc(parametroNormativo.vigenteDesde));
+}
+
+/** A third connection that holds the catalog write lock until `release()`. */
+async function holdCatalogLock(): Promise<{ release: () => Promise<void> }> {
+  let open!: () => void;
+  const gateOpen = new Promise<void>((resolve) => (open = resolve));
+  let held!: () => void;
+  const ready = new Promise<void>((resolve) => (held = resolve));
+  const settled = rejection(
+    db.transaction(async (tx) => {
+      await acquireCatalogWriteLock(tx);
+      held();
+      await gateOpen;
+    }),
+  );
+  await Promise.race([ready, settled]);
+  return {
+    release: async () => {
+      open();
+      const error = await settled;
+      if (error !== null) throw error;
+    },
+  };
+}
+
+describe.skipIf(gate.mode !== "run")(
+  "normative parameters, write side (real Postgres)",
+  () => {
+    const fixtures = createFixtures();
+    let actor: { id: number; facultadId: number };
+
+    beforeAll(async () => {
+      actor = await fixtures.addSecretaria();
+    });
+
+    afterEach(async () => {
+      await restoreSeeds();
+    });
+
+    afterAll(async () => {
+      await restoreSeeds();
+      await fixtures.cleanup();
+    });
+
+    describe("PG-3 write part: effective from today, history kept (NP-3)", () => {
+      it("keeps the seed row on a first save and adds the row of today", async () => {
+        const result = await save(actor.id, [
+          { clave: "umbral_reincidencia", valor: 2 },
+        ]);
+
+        expect(result.kind).toBe("updated");
+        expect(await rowsOf("umbral_reincidencia")).toEqual([
+          { vigenteDesde: SEED_DATE, valor: 3 },
+          { vigenteDesde: TODAY, valor: 2 },
+        ]);
+      });
+
+      it("replaces the row of today on a same-day second save", async () => {
+        await save(actor.id, [{ clave: "umbral_reincidencia", valor: 2 }]);
+        await save(actor.id, [{ clave: "umbral_reincidencia", valor: 4 }]);
+
+        expect(await rowsOf("umbral_reincidencia")).toEqual([
+          { vigenteDesde: SEED_DATE, valor: 3 },
+          { vigenteDesde: TODAY, valor: 4 },
+        ]);
+      });
+
+      it("adds a row on another day and keeps the earlier one", async () => {
+        await save(
+          actor.id,
+          [{ clave: "umbral_reincidencia", valor: 2 }],
+          at(-1),
+        );
+        await save(actor.id, [{ clave: "umbral_reincidencia", valor: 4 }]);
+
+        expect(await rowsOf("umbral_reincidencia")).toEqual([
+          { vigenteDesde: SEED_DATE, valor: 3 },
+          { vigenteDesde: at(-1), valor: 2 },
+          { vigenteDesde: TODAY, valor: 4 },
+        ]);
+      });
+
+      it("is seen by the next read of the loader (NP-5)", async () => {
+        await save(actor.id, [{ clave: "alerta_dias", valor: 0 }]);
+
+        const read = await loadNormativeParameters(NOW);
+
+        expect(read.values.alertBusinessDays).toBe(0);
+      });
+    });
+
+    describe("PG-4: one audit row per changed key, same transaction (NP-9, NP-AUD-2, NP-AUD-3)", () => {
+      it("writes two parameter rows and two audit rows for two keys in one save", async () => {
+        const before = await lastAuditId();
+
+        await save(actor.id, [
+          { clave: "alerta_dias", valor: 0 },
+          { clave: "umbral_reincidencia", valor: 4 },
+        ]);
+
+        expect(await parameterAudit(before)).toEqual([
+          {
+            accion: "parametro.actualizado",
+            actorId: actor.id,
+            entidadTipo: "Parametro",
+            entidadId: null,
+            datos: { clave: "alerta_dias", antes: 1, despues: 0 },
+          },
+          {
+            accion: "parametro.actualizado",
+            actorId: actor.id,
+            entidadTipo: "Parametro",
+            entidadId: null,
+            datos: { clave: "umbral_reincidencia", antes: 3, despues: 4 },
+          },
+        ]);
+        expect(await rowsOf("alerta_dias")).toHaveLength(2);
+        expect(await rowsOf("umbral_reincidencia")).toHaveLength(2);
+      });
+
+      it("writes no row at all for a value equal to the one in force", async () => {
+        const before = await lastAuditId();
+
+        const result = await save(actor.id, [
+          { clave: "umbral_reincidencia", valor: 3 },
+        ]);
+
+        expect(result).toEqual({ kind: "unchanged" });
+        expect(await parameterAudit(before)).toEqual([]);
+        expect(await rowsOf("umbral_reincidencia")).toEqual([
+          { vigenteDesde: SEED_DATE, valor: 3 },
+        ]);
+      });
+
+      it("leaves no parameter row when the audit insert fails", async () => {
+        const before = await lastAuditId();
+
+        const error = await rejection(
+          save(NO_SUCH_ACTOR, [{ clave: "umbral_reincidencia", valor: 2 }]),
+        );
+
+        expect(sqlStateOf(error)).toBe(FK_VIOLATION);
+        expect(await parameterAudit(before)).toEqual([]);
+        expect(await rowsOf("umbral_reincidencia")).toEqual([
+          { vigenteDesde: SEED_DATE, valor: 3 },
+        ]);
+      });
+
+      it("is busy while a third connection holds the lock, and writes nothing", async () => {
+        const before = await lastAuditId();
+
+        const holder = await holdCatalogLock();
+        const error = await rejection(
+          save(actor.id, [{ clave: "umbral_reincidencia", valor: 2 }]),
+        );
+        await holder.release();
+
+        expect(error).toBeInstanceOf(CatalogBusyError);
+        expect(await parameterAudit(before)).toEqual([]);
+        expect(await rowsOf("umbral_reincidencia")).toEqual([
+          { vigenteDesde: SEED_DATE, valor: 3 },
+        ]);
+      });
+
+      it("shows the first save as the before of a same-day second save", async () => {
+        const before = await lastAuditId();
+
+        await save(actor.id, [{ clave: "umbral_reincidencia", valor: 2 }]);
+        await save(actor.id, [{ clave: "umbral_reincidencia", valor: 4 }]);
+
+        expect((await parameterAudit(before)).map((row) => row.datos)).toEqual([
+          { clave: "umbral_reincidencia", antes: 3, despues: 2 },
+          { clave: "umbral_reincidencia", antes: 2, despues: 4 },
+        ]);
+      });
+
+      it("keeps a calendar description out of every payload", async () => {
+        const before = await lastAuditId();
+
+        await save(actor.id, [
+          {
+            clave: "calendario",
+            valor: [{ fecha: "2026-12-25", descripcion: SENTINEL_DESCRIPTION }],
+          },
+        ]);
+
+        const rows = await parameterAudit(before);
+        expect(rows).toHaveLength(1);
+        expect(JSON.stringify(rows)).not.toContain(SENTINEL_DESCRIPTION);
+        // The description is stored with the parameter row, which is not audit.
+        expect(JSON.stringify(await rowsOf("calendario"))).toContain(
+          SENTINEL_DESCRIPTION,
+        );
+      });
+    });
+
+    describe("PG-5: stored data is not rewritten by a later change (NP-13)", () => {
+      it("still lists an 8 MiB document after the limit is lowered to 5", async () => {
+        const group = await fixtures.addGroup();
+        const request = await fixtures.addSubmittedRequest(group);
+        await db
+          .update(documentoRespaldo)
+          .set({ tamanoBytes: EIGHT_MIB })
+          .where(eq(documentoRespaldo.pathname, request.pathname));
+
+        await save(actor.id, [{ clave: "tamano_maximo_mib", valor: 5 }]);
+
+        const read = await loadNormativeParameters(NOW);
+        expect(read.values.maxDocumentMib).toBe(5);
+        const scope = await resolveRequestScope(actor.id, "secretaria");
+        const detail = await getRequestDetail(scope, request.requestId);
+        expect(detail?.documentos.map((doc) => doc.tamanoBytes)).toEqual([
+          EIGHT_MIB,
+        ]);
+      });
+
+      it("leaves a stored PlazoInicioEn byte-identical after a calendar change", async () => {
+        const group = await fixtures.addGroup();
+        const request = await fixtures.addSubmittedRequest(group);
+        await db
+          .update(solicitud)
+          .set({ plazoInicioEn: new Date("2099-01-01T12:34:56.789Z") })
+          .where(eq(solicitud.id, request.requestId));
+        const stored = async () => {
+          const [row] = await db
+            .select({ text: sql<string>`${solicitud.plazoInicioEn}::text` })
+            .from(solicitud)
+            .where(eq(solicitud.id, request.requestId));
+          return row.text;
+        };
+        const before = await stored();
+
+        await save(actor.id, [
+          {
+            clave: "calendario",
+            valor: [{ fecha: "2026-12-24", descripcion: null }],
+          },
+        ]);
+
+        expect(await stored()).toBe(before);
       });
     });
   },

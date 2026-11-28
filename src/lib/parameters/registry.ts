@@ -42,6 +42,27 @@ export type CauseSetting = {
   posicion: number;
 };
 
+/** One requested change of a key (the write path validates `valor`). */
+export type ParameterChange = {
+  [K in ParameterKey]: { clave: K; valor: unknown };
+}[ParameterKey];
+
+/** A change that was written: the effective value before and after (A9). */
+export type AppliedChange = {
+  clave: ParameterKey;
+  antes: unknown;
+  despues: unknown;
+};
+
+export type ParameterWriteResult =
+  | { kind: "updated"; changes: readonly AppliedChange[] }
+  | { kind: "unchanged" }
+  | {
+      kind: "invalid";
+      clave: ParameterKey;
+      reason: "schema" | "alert_not_below_remission";
+    };
+
 export type NormativeParameters = {
   remissionBusinessDays: number;
   alertBusinessDays: number;
