@@ -1009,3 +1009,21 @@ ST-1 was run by the owner in the browser. ST-2 to ST-6 and the ST-7 cleanup were
 | ST-7 Audit | One `parametro.actualizado` per changed key, none for refusals, cancels or opens; payload `{clave, antes, despues}`; calendar dates only; same-day saves keep one row per key | 12 `parametro.actualizado` rows after Id 696 (700-702 the three ST-2c keys, 705 remission 6, 707 alert 2, 709 and 711 calendar, 713 and 714 causes, 717 map, 719 threshold, 722 size), entity `Parametro`, null id, keys exactly `antes,clave,despues`; 0 payloads contain the sentinel description; the calendar payload holds ISO date strings; `ParametroNormativo` has 2 rows per key (seed plus today) although remission was saved twice. Cleanup: every parameter restored to its default through the screen, confirmed on reload; history rows remain | Pass |
 
 Screenshots stay in `.st-local/evidence/` on the owner's machine and are not committed. The review queue inherits rows from `dev-arnia` that may carry real names; any screenshot used as thesis evidence must be checked or cropped first. Branch `params-it` is kept until the archive.
+
+## Phase 15: merge gate and production (2026-11-28)
+
+Recorded by the orchestrator and the owner after the tracker merge. Facts as reported; tasks 15.3, 15.5 to 15.8 are checked in `tasks.md`. Task 15.4 is "Removed" (scope cut 2026-11-27: no migration 0018).
+
+- **15.3 (migration 0017 to production)**: owner's explicit yes for the exact command `npm run db:migrate`, with `DATABASE_URL` set to the direct (non-pooler) URL of the Neon branch `production` (endpoint `ep-orange-math-ay4rhpc0`; host asserted), run from tracker `4fc02cc`.
+  - Before: read-only check showed 17 migrations (0000 to 0016) and no `ParametroNormativo` table.
+  - After: 18 migrations; last journal `when` 1795817587621.
+  - Output: one harmless notice, `42P07` (relation already exists).
+- **15.5 (seed count on production)**: read-only count of `ParametroNormativo` on production = 9, all rows dated 2026-01-01. Run by the orchestrator at the owner's request; date 2026-11-28.
+- **15.6 (merge to main)**: owner's explicit yes. PR 184 `feat/normative-parameters` into `main`, merged as `9f10c13`. Vercel production deploy: success. `https://justifia-gt-s.vercel.app/login` answers 200. All branches kept (tracker and slice branches not deleted).
+- **15.7 (production smoke test)**: run by the owner on 2026-11-28 against build `9f10c13`, on fictitious data.
+  - A secretaria opened `/parameters` and saw the nine default values.
+  - A coordinacion opening `/parameters` was sent to `/denied`.
+  - No value was saved.
+  - Owner's remark (Spanish): "todo bien al igual que en las pruebas" (all fine, as in the tests).
+- **15.8 (rollback)**: revert PR 184 (or the slice PRs in reverse order) and redeploy `main`. The old code ignores `ParametroNormativo`. There is no 0018 to revert. Audit rows stay. The table can stay in place.
+- **sdd-verify (15.1)**: PASS WITH WARNINGS, 0 CRITICAL, 7 WARNING, 3 SUGGESTION (`verify-report.md`, verification time). The owner accepted the warnings.

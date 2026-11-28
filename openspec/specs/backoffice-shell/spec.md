@@ -28,7 +28,7 @@ Role vocabulary: staff roles are `administrador`, `coordinacion`, `secretaria`.
 `estudiante` and `docente` are the other roles. Entry visibility uses the same
 predicates as the sidebar: `canFileRequests` (My requests, New request),
 `canReviewRequests` (Review requests), `canManageCatalog` (Asignaturas,
-Docentes), `canImportCatalog` (import), `canCreateUsers` (Users).
+Docentes), `canImportCatalog` (import), `canCreateUsers` (Users), `canManageParameters` (Parámetros normativos).
 
 ## Requirements
 
@@ -93,9 +93,10 @@ satisfying their own scenarios.
 
 ### Requirement: BS-NAV-1 Sidebar entries are unchanged
 
-The sidebar body MUST show the same entries, in the same order, with the same
+Traceability: RNF-01 (b), RNF-14, CU-13. The sidebar body MUST show the same
+entries, in the same order, with the same
 group and the same visibility predicates as before the backoffice refresh, and
-the same active marker (the 4px bar paired with `aria-current`), with four
+the same active marker (the 4px bar paired with `aria-current`), with five
 additions: the Enrollment entry for `estudiante` (BS-NAV-3); the Escalated
 requests entry for `coordinacion`, a top-level entry placed after Review
 requests, visible through the `canCoordinate` predicate and not prefetched
@@ -103,12 +104,16 @@ because its pages are audited on render (added by the `escalation` change); the
 Reports entry for `coordinacion` (RF-17, RNF-01 b), a top-level entry placed
 after Escalated requests and before the Administration group, visible through
 the `canViewReports` predicate and not prefetched, because its page is audited
-on render; and the Inscripciones entry for `secretaria` (BS-NAV-4), inside the
+on render; the Inscripciones entry for `secretaria` (BS-NAV-4), inside the
 Administration group, after Docentes and before Import, visible through the
-`canManageEnrollments` predicate. The `/settings` entry MUST stay exactly as it
+`canManageEnrollments` predicate; and the Normative parameters entry for
+`secretaria` (RNF-14, CU-13), inside the Administration group, after Users (the
+last child), visible through the `canManageParameters` predicate, with the label
+"Parámetros normativos" (`es`) and "Normative parameters" (`en`), linking to
+`/parameters`. The `/settings` entry MUST stay exactly as it
 is (D7), including its target. The "Administration" group MUST still render only
 when at least one child is visible.
-(Previously: three additions, without the Inscripciones entry.)
+(Previously: four additions, without the Normative parameters entry.)
 
 #### Scenario: Entries per role (table-driven)
 
@@ -118,12 +123,30 @@ when at least one child is visible.
 | `docente` | Dashboard, Settings |
 | `administrador` | Dashboard, Administration (Asignaturas, Docentes, Users), Settings |
 | `coordinacion` | Dashboard, Escalated requests, Reports, Administration (Asignaturas, Docentes, Users), Settings |
-| `secretaria` | Dashboard, Review requests, Administration (Asignaturas, Docentes, Inscripciones, Import, Users), Settings |
+| `secretaria` | Dashboard, Review requests, Administration (Asignaturas, Docentes, Inscripciones, Import, Users, Normative parameters), Settings |
 
 - GIVEN a signed-in user with the role from the row
 - WHEN the sidebar renders
 - THEN exactly the entries in the row are shown, in that order
 - AND no Grupos destination is offered (CM-NAV-1)
+
+#### Scenario: Normative parameters entry only for the secretaria
+
+- GIVEN signed-in users of each of the five roles
+- WHEN the sidebar renders for each
+- THEN only the `secretaria` sees the Normative parameters entry, and its link target is `/parameters`
+
+#### Scenario: Entry label per locale
+
+- GIVEN a `secretaria` in `es` and then in `en`
+- WHEN the sidebar renders
+- THEN the entry reads "Parámetros normativos" and then "Normative parameters"
+
+#### Scenario: Active marker on the parameters page
+
+- GIVEN a `secretaria` on `/parameters`
+- WHEN the sidebar renders
+- THEN only the Normative parameters entry is active and carries `aria-current`
 
 #### Scenario: Settings entry unchanged
 
@@ -156,7 +179,6 @@ when at least one child is visible.
 - WHEN the sidebar and the top bar render
 - THEN Reports is the active entry in both cases
 - AND the trail shows Reports as text with `aria-current` on `/reports`, and as a link to it without `aria-current` on `/reports/requests`
-
 ### Requirement: BS-NAV-2 Sidebar brand block and identity footer
 
 The sidebar header MUST keep its existing content (logo and application name)
