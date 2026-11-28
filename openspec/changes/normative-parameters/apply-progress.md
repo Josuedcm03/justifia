@@ -553,3 +553,80 @@ Commits: unit 9 `237f0e8` "feat(intake): take the filing window from the loader"
 ### Next
 
 Task 5.8: open PR 5 against the tracker (body "PR 5 of 10 (filing window)") and merge it under the standing approval, then slice 6 (task 6.0).
+
+## Slice 6: causes (PR 6 of 10, branch `feat/normative-parameters-6-causes`; 2026-11-27)
+
+Mode: Strict TDD. Tasks 6.0 to 6.3 and 6.7 done (unit 11 committed). Tasks 6.4 to 6.6 are removed by the scope cut and were skipped. 6.8 (open and merge the PR) is not assigned to apply and nothing was pushed. The branch is cut from the tracker after slice 5 merged (PR 175, 1892d4c). **No database command of any kind was run**: no INTEGRATION env, no `.env*` file read. **No mutation checks** (scope cut 2). The review label pin of task 6.1 names no revert-only check in its text, so none was run.
+
+### Framework rule
+
+Same rule as slice 5, re-read in `node_modules/next/dist/docs/01-app/02-guides/caching-without-cache-components.md` ("Deduplicating requests"): with `cacheComponents` off, React `cache()` deduplicates a read inside one render. Applied: the two intake pages already read `getNormativeParameters` once (slice 5); this slice only derives the cause list from the same read. No new Next API, no `revalidatePath`, no `redirect` change, no new route or action export, no `unstable_cache`, no `use cache`, no module-level store.
+
+### Decision: what `selectableCauses` a correction carries (slice 5 note)
+
+All five codes (`CAUSAS`), as A14 and NP-13 say. Two places build a correction's rules and both spread the loader's rules and override only the causes: `saveDetails` in `step-actions.ts` (when `target.kind` is `correction`) and `resubmitCorrection` in `solicitud-correction.ts`. A draft keeps `filingRulesOf(values)`, whose `selectableCauses` are the active causes in stored order. The correction page offers the active causes plus the request's own cause, in stored order, so a returned request whose cause was deactivated still shows it chosen and the student can keep it (the server accepts it) or pick another. `submitRequestAction` needed no change: slice 5 already hands it `filingRulesOf(values)`.
+
+### Files
+
+| File | Action | Authored lines (added / deleted) |
+|---|---|---|
+| `src/lib/intake/causes.ts` | `causeErrors(causa, selectable)` returns `["causa_invalid"]` (outside the five), `["causa_inactive"]` (one of the five, not selectable) or `[]`; `CauseErrorCode` | 16 / 0 |
+| `src/lib/intake/submission.ts` | The cause check delegates to `causeErrors` with `rules.selectableCauses` (`causa_required` stays local); `SubmissionErrorCode` gains `causa_inactive` through `CauseErrorCode` | 11 / 6 |
+| `src/lib/validations/solicitud.ts` | The cause field refines `isCausa` (`causa_invalid`) then the selectable check (`causa_inactive`, only for a valid code) | 9 / 4 |
+| `src/app/(dashboard)/requests/new/step-actions.ts` | `saveDetails`: a correction builds its schema with all five causes | 7 / 3 |
+| `src/lib/data/solicitud-correction.ts` | `resubmitCorrection`: validates with all five causes | 3 / 0 |
+| `src/app/(dashboard)/requests/new/cause-dates-step.tsx` | Optional `causes` prop (default `CAUSAS`), offered in the given order; a saved cause not among them starts unselected with the `causa_inactive` alert | 21 / 4 |
+| `src/app/(dashboard)/requests/new/flow-steps.tsx` | Required `causes: readonly Causa[]` passed to the cause step | 4 / 0 |
+| `src/app/(dashboard)/requests/new/page.tsx` | `causes={activeCausesOf(values)}` | 5 / 3 |
+| `src/app/(dashboard)/requests/[id]/correct/page.tsx` | `causes` = stored order filtered by active or the request's own cause | 6 / 0 |
+| `i18n/es.json`, `i18n/en.json` | `intake.errors.causa_inactive` | 1 / 0 each |
+| Tests (12 files) | See the RED table | the rest of the 416 / 22 |
+
+`src/app/(dashboard)/requests/new/actions.ts` (named by task 6.2) needed no edit: its submit already validates with `filingRulesOf(values)`, which carries the active causes since slice 5. `SignalParams`, `DEFAULT_SIGNAL_PARAMS` and every `issuer.ts` export are untouched; no schema or migration change.
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 6.1 | 18 failed in 10 of 11 files: `causes.test` 4 (`causeErrors` did not exist), `submission.test` 1, `validations/solicitud.test` 1 (the schema reported nothing for a deactivated cause), `step-actions.test` 1, `actions.test` 2 (submit accepted a deactivated cause), `cause-dates-step.test` 3 (no `causes` prop, no alert), `new/page.test` 1 and `correct/page.test` 2 (`FlowSteps` got no `causes`), `solicitud-correction.test` 1 (the rules carried the four active causes), `intake-messages.test` 2 (no `intake.errors.causa_inactive`). Passed at write time, as pins of existing behavior: the `request-sections` label pin, the `submission` and `step-actions` "correction accepts any of the five", the "active again" re-saves and the accepted and invalid rows of the schema table | n/a | n/a |
+| 6.2 | n/a | `T(intake/causes validations/solicitud intake/submission requests/new/step-actions requests/new/actions cause-dates-step correct/page requests/new/page request-sections solicitud-correction src/i18n parameters/no-constants)`: 20 files, 959 tests passed | n/a |
+| 6.3 | n/a | n/a | One regression found by the full run and fixed: the first schema form used `refine(..., { abort: true })`, which in zod aborts the whole object parse, so `end_before_start` vanished beside an invalid cause (existing `actions.test` case "returns every invalid field and saves nothing"). Replaced by two non-aborting refines, the second only for a valid code. Prettier on two test files, eslint, typegen plus typecheck clean; commit unit 11 `f3476dd` |
+
+### Work Unit Evidence
+
+| Evidence | Unit 11 |
+|---|---|
+| Focused test command and exact result | The focused `T(...)` of task 6.2 above: 20 files, 959 tests passed |
+| Runtime harness | N/A as a database path (nothing here touches Postgres). The real `NextIntlClientProvider` with the real catalogs renders the new message in es and en; the loader is a scripted double at the page and action boundary (the loader's own suites are slices 2 and 2b); the owner system test ST-4 (task 14.9) proves the effect on a running preview. `npm run build` compiles both pages |
+| Rollback boundary | Revert unit 11 (`f3476dd`): the five causes are offered again, a deactivated cause is no longer refused, `causeErrors` and `causa_inactive` disappear; slices 1 to 5 stand |
+
+### Gates
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full): **405 files, 11297 tests**, all passed (slice 5 left 405 files and 11275 tests; no file added, 22 tests added).
+- `npx next typegen` then `npm run typecheck`: clean.
+- `npx eslint --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}' src`: 0 errors, 1 warning (the known unused `SidebarGroupLabel` in `app-sidebar.tsx`). `npx prettier --check --end-of-line auto` on every touched file and both catalogs: clean.
+- `DATABASE_URL=postgres://u:p@localhost:5432/x AUTH_SECRET=throwaway-build-secret-0123456789abcdef npm run build`: exit 0.
+
+### Size (task 6.7)
+
+`git diff --shortstat origin/feat/normative-parameters...HEAD -- . ':!openspec'`: **22 files changed, 416 insertions(+), 22 deletions(-)**, 438 changed lines (planned about 400; stop line 1000). Nothing to split.
+
+### Deviations from design and tasks
+
+1. **One file outside task 6.2's list: `src/lib/data/solicitud-correction.ts`.** A14 says a correction accepts all five codes. Slice 5 made `resubmitCorrection` hand `filingRulesOf(values)` to the validation, so without this edit a returned request whose cause was deactivated could not be resubmitted. One line overrides `selectableCauses`; one test pins it in `solicitud-correction.test.ts` (task 6.1 names the `submission.test.ts` row only, which exercises the validator, not the correction path).
+2. **`requests/new/actions.ts` (named by 6.2) is not edited**: the active causes already reach the submit through the rules of slice 5.
+3. **Two tests beyond the 6.1 list**: `requests/new/page.test.tsx` (the page hands the flow the active causes in stored order; the task names the correction page but not the new-request page, which is the path that makes JI-CAUSE "not offered" real) and `src/i18n/intake-messages.test.ts` (`causa_inactive` added to its error-code list, so the catalogs are pinned; the task ran `src/i18n` without naming a file). The owner may drop either; both are small.
+4. **`causes` is optional on `CauseDatesStep` (default the five codes) and required on `FlowSteps`**, the precedent of `limits` in slice 5: the two pages are the only production callers and both go through `FlowSteps`, so a forgotten value is a compile error where it matters, and about 28 step renders in tests did not need to change.
+5. **The cause alert is not cleared when the student picks another cause**, only after a save (the same lifecycle as every other field error of the step); the spec scenario "Choosing another cause clears the error" is about the save.
+6. **`causeErrors` returns a list** (zero or one code), in the shape of the other error helpers of `submission.ts`, so the submission maps it straight to `SubmissionError`.
+7. **Line endings and the `.engram` hook** as in slice 5: the commit was created with `engram` off the PATH and lists no `.engram` path; no `--no-verify`.
+
+### Risks and notes for later slices
+
+- A draft whose cause was deactivated opens the cause step with no selection and the alert; the review step (step 4) still lists the saved cause and the submit refuses it with the same message. The student goes back to step 1 through the existing edit link.
+- Slice 7 adds `maxBytes` to the upload paths and the `{size}` copy through the same `limits` prop; this slice did not touch `limits`.
+- The type-to-cause map and the rest-causes rules ignore the active flag by construction (NP-11); no test of this slice changed that.
+
+### Next
+
+Task 6.8: open PR 6 against the tracker (body "PR 6 of 10 (causes)") and merge it under the standing approval, then slice 7 (task 7.0).
