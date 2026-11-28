@@ -878,3 +878,5 @@ Natural split: the task names it. Units 20 and 21 (394 changed lines) move to PR
 ### Next
 
 Owner decision on the size (move units 20 and 21 to PR 10, or `size:exception` above 1500); then 9.13 (open PR 9 against the tracker) and merge under the standing approval, then slice 10 (task 10.0).
+
+Owner decision (2026-11-28): slice 9 ships as one PR with size:exception (1808 changed lines without openspec, above the pre-approved 1500; about 1350 are tests).
