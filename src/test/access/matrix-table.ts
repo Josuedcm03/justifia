@@ -46,6 +46,7 @@ const forbidden: Outcome = { status: 403, error: "forbidden" };
 const CATALOG = "(dashboard)/catalog";
 const REQUESTS = "(dashboard)/requests";
 const REVIEW = "(dashboard)/review";
+const PARAMETERS = "(dashboard)/parameters";
 
 export const PAGES: Record<string, Row> = {
   "(dashboard)/(home)/page.tsx": row(ALL),
@@ -210,6 +211,12 @@ export const ACTIONS: Record<string, Row & { exports: readonly string[] }> = {
     SECRETARIA,
     "resendRemissionAction",
     "attachSpecialFormatAction",
+  ),
+  // normative-parameters NP-6: secretaria only, by URL and by direct request;
+  // parameters have no facultad scope, so every secretaria is admitted.
+  [`${PARAMETERS}/actions.ts`]: actions(
+    SECRETARIA,
+    "saveScalarParametersAction",
   ),
   "(dashboard)/users/new/actions.ts": actions(STAFF, "createStaffAction"),
   "change-password/actions.ts": actions(ANY_SESSION, "changePasswordAction"),

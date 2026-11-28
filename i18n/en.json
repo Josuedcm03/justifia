@@ -28,7 +28,8 @@
     "sectionLabel": "Navigation",
     "profile": "My profile",
     "trailLabel": "Page location",
-    "reports": "Reports"
+    "reports": "Reports",
+    "parameters": "Normative parameters"
   },
   "roles": {
     "estudiante": "Student",
@@ -1923,6 +1924,22 @@
         "title": "No request matches the filters",
         "hint": "Try another period, teacher, student or cause."
       }
+    }
+  },
+  "parameters": {
+    "state": {
+      "saved": "The changes were saved.",
+      "unchanged": "There are no changes to save.",
+      "busy": "The system is busy and nothing was saved. Try again."
+    },
+    "errors": {
+      "unexpected": "Could not save, and nothing was changed. Try again.",
+      "invalid": "The value is not valid.",
+      "required": "This field is required. Enter a whole number between {min} and {max}.",
+      "not_integer": "Enter a whole number between {min} and {max}.",
+      "too_low": "The value must be at least {min}. Allowed range: {min} to {max}.",
+      "too_high": "The value must be at most {max}. Allowed range: {min} to {max}.",
+      "alert_not_below_remission": "The alert days must be fewer than the days of the remission deadline."
     }
   }
 }
