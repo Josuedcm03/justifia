@@ -58,6 +58,8 @@ const REQUIRED_KEYS = [
   "errors.calendar.too_many",
   "errors.calendar.invalid",
   "errors.map.invalid",
+  "errors.causes.no_active_cause",
+  "errors.causes.invalid",
 ];
 
 describe("parameters copy: key parity (NP-17)", () => {

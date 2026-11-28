@@ -1947,6 +1947,10 @@
         "too_many": "El calendario admite como máximo {max} fechas.",
         "invalid": "El calendario no es válido. Revise las fechas y las descripciones."
       },
+      "causes": {
+        "no_active_cause": "Debe quedar al menos una causa activa.",
+        "invalid": "La lista de causas no es válida. Debe incluir las cinco causas, una vez cada una, con posiciones del 1 al 5."
+      },
       "map": {
         "invalid": "La tabla no es válida. Cada tipo de documento admite solo las cinco causas, sin repetir, y el tipo «otro» no corresponde a ninguna causa."
       }

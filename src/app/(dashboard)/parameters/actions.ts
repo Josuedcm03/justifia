@@ -290,3 +290,26 @@ export async function saveDocumentTypeCausesAction(
     t,
   );
 }
+
+// ---- Causes (NP-11) --------------------------------------------------------
+
+export async function saveCausesAction(
+  _prev: ParameterFormState,
+  formData: FormData,
+): Promise<ParameterFormState> {
+  const { actorId } = await requireParameterAccess();
+  const t = await getTranslations();
+
+  // Only the list is read. Deactivating a cause is confirmed in the browser,
+  // before the form is submitted: the server takes no marker for it (NP-8).
+  return saveWholeValue(
+    actorId,
+    "causas",
+    {
+      no_active_cause: "parameters.errors.causes.no_active_cause",
+      invalid: "parameters.errors.causes.invalid",
+    },
+    formData,
+    t,
+  );
+}

@@ -1947,6 +1947,10 @@
         "too_many": "The calendar holds at most {max} dates.",
         "invalid": "The calendar is not valid. Check the dates and the descriptions."
       },
+      "causes": {
+        "no_active_cause": "At least one cause must stay active.",
+        "invalid": "The list of causes is not valid. It must include the five causes, once each, with positions 1 to 5."
+      },
       "map": {
         "invalid": "The table is not valid. Each document type accepts only the five causes, without repeats, and the type \"otro\" corresponds to no cause."
       }

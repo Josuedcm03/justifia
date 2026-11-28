@@ -219,6 +219,7 @@ export const ACTIONS: Record<string, Row & { exports: readonly string[] }> = {
     "saveScalarParametersAction",
     "saveCalendarAction",
     "saveDocumentTypeCausesAction",
+    "saveCausesAction",
   ),
   "(dashboard)/users/new/actions.ts": actions(STAFF, "createStaffAction"),
   "change-password/actions.ts": actions(ANY_SESSION, "changePasswordAction"),

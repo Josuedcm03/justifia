@@ -39,6 +39,7 @@ vi.mock("@/lib/intake/dates", async (original) => ({
 
 import {
   saveCalendarAction,
+  saveCausesAction,
   saveDocumentTypeCausesAction,
   saveScalarParametersAction,
 } from "@/app/(dashboard)/parameters/actions";
@@ -815,6 +816,170 @@ describe("saveDocumentTypeCausesAction", () => {
       clave: "tipo_documento_causa",
       antes: MAP,
       despues: next,
+    });
+  });
+});
+
+// ---- saveCausesAction (unit 21) --------------------------------------------
+
+const CAUSES = DEFAULT_PARAMETERS.causes;
+
+/** The default list with one change, so each row of the table is one fact. */
+function causesWith(change: (list: (typeof CAUSES)[number][]) => unknown[]) {
+  return change(CAUSES.map((cause) => ({ ...cause })));
+}
+
+describe("saveCausesAction", () => {
+  sharedBehaviour(saveCausesAction, jsonBody("causas", CAUSES), [
+    { clave: "causas", valor: CAUSES },
+  ]);
+
+  describe("NP-11: validation of the value (table-driven)", () => {
+    it.each([
+      ["the five codes in the stored order", CAUSES],
+      ["the five codes in any order of the list", [...CAUSES].reverse()],
+      [
+        "four active and one inactive",
+        causesWith((list) => [
+          { ...list[3], activa: false },
+          ...list.slice(0, 3),
+          list[4],
+        ]),
+      ],
+      [
+        "the positions swapped",
+        causesWith((list) => [
+          { ...list[0], posicion: 5 },
+          ...list.slice(1, 4),
+          { ...list[4], posicion: 1 },
+        ]),
+      ],
+    ])("accepts %s", async (_case, value) => {
+      expect(
+        await saveCausesAction(IDLE, form(jsonBody("causas", value))),
+      ).toEqual({ kind: "saved" });
+    });
+
+    it("hands the list over by position, whatever the order it came in", async () => {
+      await saveCausesAction(
+        IDLE,
+        form(jsonBody("causas", [...CAUSES].reverse())),
+      );
+
+      expect(m.write.mock.calls[0][1]).toEqual([
+        { clave: "causas", valor: CAUSES },
+      ]);
+    });
+
+    it.each([
+      [
+        "all five inactive",
+        causesWith((list) =>
+          list.map((cause) => ({ ...cause, activa: false })),
+        ),
+        "no_active_cause",
+      ],
+      [
+        "a sixth code",
+        causesWith((list) => [
+          ...list,
+          { codigo: "inventada", activa: true, posicion: 6 },
+        ]),
+        "invalid",
+      ],
+      [
+        "a code outside the five in place of one",
+        causesWith((list) => [
+          { ...list[0], codigo: "inventada" },
+          ...list.slice(1),
+        ]),
+        "invalid",
+      ],
+      [
+        "a code repeated",
+        causesWith((list) => [
+          { ...list[0], posicion: 5 },
+          ...list.slice(1, 4),
+          { ...list[0] },
+        ]),
+        "invalid",
+      ],
+      ["a code omitted", causesWith((list) => list.slice(1)), "invalid"],
+      [
+        "positions that are not a permutation",
+        causesWith((list) => list.map((cause) => ({ ...cause, posicion: 1 }))),
+        "invalid",
+      ],
+      [
+        "a position above 5",
+        causesWith((list) => [{ ...list[0], posicion: 6 }, ...list.slice(1)]),
+        "invalid",
+      ],
+      ["a table instead of the list", { medica: true }, "invalid"],
+    ])("refuses %s and stores nothing", async (_case, value, code) => {
+      const body = jsonBody("causas", value);
+
+      expect(await saveCausesAction(IDLE, form(body))).toEqual({
+        kind: "invalid",
+        fieldErrors: { causas: `parameters.errors.causes.${code}` },
+        values: body,
+      });
+      expectNothingWritten();
+    });
+
+    it("refuses a text that is not JSON and a missing field", async () => {
+      for (const body of [{ causas: "[no" }, {}]) {
+        expect(await saveCausesAction(IDLE, form(body))).toMatchObject({
+          kind: "invalid",
+          fieldErrors: { causas: "parameters.errors.causes.invalid" },
+        });
+      }
+      expectNothingWritten();
+    });
+  });
+
+  it("takes no deactivation marker: a save that deactivates a cause is submitted directly and only the list is read", async () => {
+    const next = causesWith((list) => [
+      { ...list[3], activa: false },
+      ...list.slice(0, 3),
+      list[4],
+    ]);
+
+    expect(
+      await saveCausesAction(
+        IDLE,
+        form({
+          ...jsonBody("causas", next),
+          desactivar: "medica",
+          confirmado: "1",
+        }),
+      ),
+    ).toEqual({ kind: "saved" });
+
+    expect(reads).toEqual(["causas"]);
+  });
+
+  it("writes one audit row with the list of codes, flags and positions as payload (NP-AUD-3)", async () => {
+    applyAsSent(() => CAUSES);
+    const next = causesWith((list) => [
+      { ...list[3], activa: false },
+      ...list.slice(0, 3),
+      list[4],
+    ]);
+
+    await saveCausesAction(IDLE, form(jsonBody("causas", next)));
+
+    expect(m.audit).toHaveBeenCalledTimes(1);
+    const events = m.audit.mock.calls[0][2];
+    expect(events).toHaveLength(1);
+    expect(events[0].datos).toEqual({
+      clave: "causas",
+      antes: CAUSES,
+      despues: [
+        ...CAUSES.slice(0, 3),
+        { ...CAUSES[3], activa: false },
+        CAUSES[4],
+      ],
     });
   });
 });
