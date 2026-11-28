@@ -78,6 +78,8 @@ export const PAGES: Record<string, Row> = {
   [`${REVIEW}/[id]/page.tsx`]: row(SECRETARIA),
   "(dashboard)/users/page.tsx": row(STAFF),
   "(dashboard)/users/new/page.tsx": row(STAFF),
+  // normative-parameters NP-6: secretaria only; no facultad scope.
+  [`${PARAMETERS}/page.tsx`]: row(SECRETARIA),
   "change-password/page.tsx": row(ANY_SESSION),
 };
 

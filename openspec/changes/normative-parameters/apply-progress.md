@@ -880,3 +880,97 @@ Natural split: the task names it. Units 20 and 21 (394 changed lines) move to PR
 Owner decision on the size (move units 20 and 21 to PR 10, or `size:exception` above 1500); then 9.13 (open PR 9 against the tracker) and merge under the standing approval, then slice 10 (task 10.0).
 
 Owner decision (2026-11-28): slice 9 ships as one PR with size:exception (1808 changed lines without openspec, above the pre-approved 1500; about 1350 are tests).
+
+## Slice 10: page and docs (PR 10 of 10, branch `feat/normative-parameters-10-page`; 2026-11-28)
+
+Mode: Strict TDD. Tasks 10.0 to 10.14 done (units 22 to 26: four code commits and one docs commit). 10.15 (open and merge the PR) is not assigned to apply and nothing was pushed. The branch is cut from the tracker after slice 9 merged (PR 179, 47d167c). **No database command of any kind was run** (no INTEGRATION env, no `.env*` read, no `drizzle-kit`, no migration, no Neon). **No mutation checks** (scope cut 2). `SignalParams`, `DEFAULT_SIGNAL_PARAMS` and every `issuer.ts` export are untouched. **The slice measures 1686 changed lines, 186 over the 1500 stop line; it is not split** (see "Size").
+
+### Framework rule (`AGENTS.md`)
+
+Read again in `node_modules/next/dist/docs/01-app/02-guides/forms.md` (the sections on `useActionState` and the `pending` flag) on top of the guides recorded in slice 9. Rule applied:
+
+- The page is a Server Component: `requireParameterAccess()` is its first await and the loader read comes after, so a denied caller reads nothing. Opening the page only reads; no action, write path or audit writer is reachable from it.
+- Each section is a Client Component that receives its Server Action as a prop and runs it with `useActionState` (`(prevState, formData)`), the outcome coming back as state, as the catalog forms do. The forms are submitted by hand (`onSubmit` with `startTransition(() => dispatch(formData))`, never a form `action`), because React resets the fields of a form action once it settles, which would discard the typed values after an error.
+- A Server Action is reachable by a direct POST, so nothing about the page's own checks is trusted: the four actions of slice 9 still authorize first. `cacheComponents` is off: no `use cache`, no `unstable_cache`; the page keeps no value between requests.
+- Only plain data crosses to the client components (numbers, strings, the entry lists); no function but the actions.
+
+### Files
+
+| File | Action | What |
+|---|---|---|
+| `src/app/(dashboard)/parameters/page.tsx` (new) | Created | Guard, `loadNormativeParameters(new Date())`, `PageHeader` (one `h1`), one note on effect (NP-13), the four sections. No degraded alert, no locked form. The six scalar fields are the registry entries that carry a range, so there is no second key list |
+| `src/app/(dashboard)/parameters/parameter-form.tsx` (new) | Created | Not in the task list: what the four sections share (the section card with its `h2`, `useParameterForm`, the mounted `aria-live` outcome region, the error panel class). It avoids four copies |
+| `src/app/(dashboard)/parameters/scalars-form.tsx` (new) | Created | Six number inputs in the `FormField` pattern, each with its value in force only; errors tied by `aria-describedby`, `role="alert"`; one press saves |
+| `src/app/(dashboard)/parameters/calendar-section.tsx` (new) | Created | Editable list in a `TableCard`: add a row (date input, optional description), mark a row removed (it stays struck on screen with a restore button and is left out of the list sent); the list goes in one hidden field `calendario`; row errors `fecha.<n>` and `descripcion.<n>` count the rows still listed, as the action does |
+| `src/app/(dashboard)/parameters/type-causes-section.tsx` (new) | Created | One `CheckboxGroup` fieldset per editable document type, `otro` as a fieldset with its note and no cell; the table is read from the form at submit and sent as the one field `tipo_documento_causa` |
+| `src/app/(dashboard)/parameters/causes-section.tsx`, `deactivate-cause-dialog.tsx` (new) | Created | The five causes in stored order: active checkbox, move up and down (`icon-lg`, 44 px); the list goes as `causas` with `posicion` equal to the place on screen. A save that unchecks a cause that is active in the stored value opens the shared `AlertDialog` naming the cause(s); confirm sends once; cancel closes it, sends nothing, keeps the typed state and focuses the save button |
+| `src/lib/navigation.ts` | Modified | `parameters` entry, last child of `administration`, `SlidersHorizontal`, `canManageParameters` |
+| `src/test/access/matrix-table.ts` | Modified | page row `(dashboard)/parameters/page.tsx` for SECRETARIA |
+| `i18n/es.json`, `i18n/en.json` | Modified | `parameters.page`, `.actions`, `.scalars`, `.calendar`, `.map`, `.causes` (with `.deactivate`), and `dashboard.shortcuts.parameters` |
+| Tests | Created / extended | `page.test.tsx`, `scalars-form.test.tsx`, `calendar-section.test.tsx`, `type-causes-section.test.tsx`, `causes-section.test.tsx` (new); `navigation.test.ts`, `app-sidebar.test.tsx`, `catalog-parity.test.ts`, `(home)/page.test.tsx`, `route-coverage.test.ts` (extended) |
+| Docs | Modified | `docs/roadmap.md` row 8 and two notes; `docs/requirements.md` one history row |
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 10.1 to 10.3 (unit 22) | `T(parameters/scalars-form parameters/page navigation app-sidebar access-matrix.pages route-coverage)`: 11 failed (nav entry missing in the list, the trail, the sidebar for secretaria, the shortcuts; no module loader for the page row; the stale-table count of `route-coverage`), the two new files failed to load (modules missing) | `T(parameters/ navigation app-sidebar access route-coverage src/i18n (home))`: 33 files, 1969 tests passed, after four test-side fixes: the save button name, the `requireParameterAccess` guard name in `route-coverage`, and the shortcut lists of the home page and catalog parity tests that the new entry also extends | prettier on `parameter-form.tsx`; commit unit 22 `4a85760` |
+| 10.5, 10.6 (unit 23) | `calendar-section` module missing; page test "mounts the calendar section" failed (no label `dateLabel`) | `T(parameters/ access src/i18n)`: 27 files, 1566 tests passed | commit unit 23 `5fce493` |
+| 10.7, 10.8 (unit 24) | `type-causes-section` module missing; page test "mounts the document type to cause section" failed (no group) | 28 files, 1572 tests passed | commit unit 24 `cd863f6` |
+| 10.9, 10.10 (unit 25) | `causes-section` module missing; page test "mounts the causes section" failed (no move buttons) | 29 files, 1579 tests passed after one test fix (the first move-up and the last move-down are disabled by design, so the fallback case now checks the four save buttons) | `send()` helper so the form is built only on submit; commit unit 25 `0a3b315` |
+| 10.12, 10.13 (unit 26) | N/A (docs) | structural readback; prettier: `docs/roadmap.md` 42 differing lines before and after, `docs/requirements.md` 2 before and after (both already fail on main, no new failure) | commit unit 26 `14e3a00` |
+
+### Work Unit Evidence
+
+| Evidence | Units 22 to 25 |
+|---|---|
+| Focused test command and exact result | Unit 25, last: `T(parameters/ access src/i18n)`: 29 files, 1579 tests passed. Unit 22: `T(parameters/ navigation app-sidebar access route-coverage src/i18n (home))`: 33 files, 1969 tests passed |
+| Runtime harness | N/A as a database path (no database access at all). The page test runs the REAL page and the REAL sections; the loader, the guard's `requireRole`, translations and the actions are doubles, and the write path and the audit writer are spies asserted not called when the page opens. The access matrix (`access-matrix.pages`) runs the page as seven identities through the real guard (7 more cases). The sections run against the real catalogs (es/en key parity is asserted by `parameters-parity` and `catalog-parity`) |
+| Rollback boundary | Revert by unit, in reverse order: unit 25 (causes section and dialog: the page loses one section), 24, 23, 22 (page, scalars form, menu entry, shared `parameter-form.tsx`); unit 26 (docs) is independent. Nothing outside `parameters/` depends on a section; the menu entry and its shortcut copy go with unit 22 |
+
+### Gates (GS)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full, before the last code commit, same bytes): **415 files, 11641 tests, all passed**.
+- `npx next typegen` then `npm run typecheck`: clean (run at each unit).
+- `npx eslint --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}' src`: 0 errors, 1 warning (the known unused `SidebarGroupLabel` in `app-sidebar.tsx`). Prettier clean on every touched code file.
+- `DATABASE_URL=postgres://u:p@localhost:5432/x AUTH_SECRET=throwaway-build-secret-0123456789abcdef npm run build`: completed; `/parameters` is in the route table.
+
+### Size (task 10.11): OVER THE STOP LINE
+
+`git diff --shortstat origin/feat/normative-parameters...HEAD -- . ':!openspec' ':!docs'`: **21 files changed, 1682 insertions(+), 4 deletions(-)**, 1686 changed lines (planned about 1400; pre-approved up to 1500: "owner pre-approved up to 1500 on 2026-11-27"). By commit: unit 22 `4a85760` 619, unit 23 `5fce493` 411, unit 24 `cd863f6` 235, unit 25 `0a3b315` 431 (the four sum to 1696; 10 lines of `page.tsx`, `page.test.tsx` and the catalogs are touched by more than one unit). By kind: components and page about 817 (calendar 227, causes 180, shared form 107, type-causes 96, scalars 77, dialog 66, page 54, navigation 10), tests about 745, es and en copy 122.
+
+Natural split: the task names it. Unit 25 (causes section and dialog, 431 changed lines) moves out: the slice would be about 1255 changed lines (page, scalars, calendar, type-causes map, menu entry), under 1500. The cost is that the causes section, and with it the only confirmation of the page (RNF-12), would land in another PR, so the page would ship without a way to deactivate or reorder causes until that PR merges; the owner system test step ST-4 needs it. Not split here: awaiting the owner's decision (move unit 25 out, or `size:exception` above the pre-approved 1500 for this PR). The two causes files and their test are self-contained: `page.tsx` mounts the section with one import and one line, and unit 25's catalog keys are the `parameters.causes` block.
+
+### Deviations from design and tasks
+
+1. **`parameter-form.tsx` is a file the tasks do not list.** The four sections share the section card, the dispatch of the action, the live outcome region and the error panel; without it each repeated about 40 lines.
+2. **Hidden input only for the calendar.** The action protocol is one field named by key. The calendar keeps its list in a hidden input `calendario`; the causes list is built from state and the type-to-cause table from the form's checkboxes, each into a fresh `FormData` holding only that one field at submit. The result for the action is the same one field; it avoids a hidden input that would have to be kept in sync with state that the submit already reads.
+3. **The menu entry is also a dashboard shortcut.** `shortcutsFor` lists every child of the group, so unit 22 adds `dashboard.shortcuts.parameters` (es and en) and updates the shortcut lists of `catalog-parity.test.ts` ("twelve destinations") and `(home)/page.test.tsx`; `route-coverage.test.ts` accepts `requireParameterAccess` as a page guard.
+4. **Scalars are `type="number"` inputs** (the tasks say "number inputs"). A browser does not let a letter be typed into one, so the "abc" row of the NP-7 table is only reachable by a direct POST; the action still answers it with the range message (tested in slice 9).
+5. **Sections keep their own client state after a save.** The page revalidates and the server passes the new values, but a section is not remounted (that would lose the "saved" message), so what is on screen is what was just saved. The calendar is shown in the order typed; the stored order is ascending by date and shows from the next open.
+6. **The causes dialog compares with the stored value.** A cause counts as deactivated when it is active in the `causes` prop and unchecked in the form; after a save the revalidated prop becomes the new baseline. A confirmed save that fails keeps the baseline, so the next press asks again.
+7. **Dialog title is an ICU plural** over the number of causes unchecked in one save, naming them all (`{count, plural, one {...} other {...}}`).
+8. **The page does not show the allowed range, the default or a hint beside a field** (scope cuts): a scalar's only text is its label with its unit.
+
+### Risks and notes for Phase 14
+
+- ST-1: the secretaria sees the four sections and nothing is written on open; the page test asserts it with spies, the access matrix covers the roles.
+- ST-4: deactivating a cause shows the dialog naming it; cancel sends nothing; all five inactive is refused by the action (`parameters.errors.causes.no_active_cause`) and shown as an alert in the section.
+- The calendar date input is a native `type="date"`: an invalid calendar date such as 2026-02-30 cannot be picked in a browser, so ST-3's refusal is only reachable by a direct POST or by typing in a browser that allows free text; the action refuses it either way.
+
+### Thesis Sync list (task 10.14; the thesis is not touched)
+
+1. 5.1 Table 14: the "Parámetros normativos" module is built.
+2. 5.3 Table 16: RNF-14 moves to "Cumple" only after the system test of Phase 14 passes.
+3. Anexo F: the RNF-14 row follows the same evidence.
+4. Flag: the maximum document size is configurable from 1 to 10 MiB; it cannot be raised above 10 MiB without a migration (the existing database check is the ceiling).
+5. No Anexo E item: CU-13 in thesis 4.3 is a single row (Configure normative parameters, actor secretaria académica, RNF-14) with no steps.
+6. Build hash of the system test: to be recorded by Phase 14 (not available at apply time).
+
+Docs: `docs/roadmap.md` row 8 (Responsable "Armando", the new Cubre, Estado still "pendiente" until task 16.2) and two notes that said RNF-14 was open; `docs/requirements.md` one history row of 2026-11-28 (no RNF status notes exist in that file: "none"); `docs/design-system.md` unchanged ("none": no new token, radius, size or step).
+
+### Next
+
+Owner decision on the size (move unit 25 out, or `size:exception` above 1500); then 10.15 (open PR 10 against the tracker) and merge under the standing approval.
+
+Owner decision (2026-11-28): slice 10 ships as one PR with size:exception (1686 changed lines without openspec and docs, above the pre-approved 1500).

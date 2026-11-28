@@ -13,6 +13,7 @@ import {
   ListChecks,
   type LucideIcon,
   Settings,
+  SlidersHorizontal,
   Users,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ import {
   canManageCatalog,
   canManageEnrollments,
   canManageOwnEnrollment,
+  canManageParameters,
   canReviewRequests,
   canViewReports,
 } from "@/lib/auth/permissions";
@@ -130,6 +132,14 @@ export const NAV_ITEMS = [
         visibleTo: canImportCatalog,
       },
       { key: "users", href: "/users", icon: Users, visibleTo: canCreateUsers },
+      {
+        // Secretaria only (NP-6, BS-NAV-1): the last child, after Users. The
+        // page only reads, so it may be prefetched.
+        key: "parameters",
+        href: "/parameters",
+        icon: SlidersHorizontal,
+        visibleTo: canManageParameters,
+      },
     ],
   },
   { key: "settings", href: "/settings", icon: Settings },

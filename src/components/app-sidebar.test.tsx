@@ -145,6 +145,7 @@ describe("AppSidebar", () => {
         "/catalog/inscripciones",
         "/catalog/import",
         "/users",
+        "/parameters",
       ],
     ],
   ] as const)(
@@ -251,6 +252,7 @@ describe("AppSidebar", () => {
         "/catalog/inscripciones",
         "/catalog/import",
         "/users",
+        "/parameters",
         "/settings",
       ],
     ],
@@ -898,6 +900,7 @@ describe("AppSidebar copy (both locales)", () => {
         group: "Administración",
         catalogImport: "Carga de catálogo",
         users: "Usuarios",
+        parameters: "Parámetros normativos",
         settings: "Configuración",
       },
     ],
@@ -909,6 +912,7 @@ describe("AppSidebar copy (both locales)", () => {
         group: "Administration",
         catalogImport: "Catalog import",
         users: "Users",
+        parameters: "Normative parameters",
         settings: "Settings",
       },
     ],
@@ -931,6 +935,9 @@ describe("AppSidebar copy (both locales)", () => {
       "href",
       "/users",
     );
+    expect(
+      screen.getByRole("link", { name: labels.parameters }),
+    ).toHaveAttribute("href", "/parameters");
   });
 });
 
@@ -973,6 +980,7 @@ describe("AppSidebar entries per role (BS-NAV-1, table-driven)", () => {
         "Inscripciones",
         "Carga de catálogo",
         "Usuarios",
+        "Parámetros normativos",
       ],
     ],
   ] as const)(

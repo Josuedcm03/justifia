@@ -127,6 +127,7 @@ const HOME_PER_ROLE: readonly (readonly [RolUsuario, string[], boolean])[] = [
       "/catalog/inscripciones",
       "/catalog/import",
       "/users",
+      "/parameters",
     ],
     true,
   ],
@@ -449,6 +450,7 @@ describe("DashboardPage (BS-HOME-1)", () => {
         "/catalog/inscripciones",
         "/catalog/import",
         "/users",
+        "/parameters",
       ]);
       expect([...sidebarHrefs].sort()).toEqual([...homeHrefs].sort());
     });
@@ -475,6 +477,7 @@ describe("DashboardPage copy", () => {
         "catalogInscripciones",
         "catalogImport",
         "users",
+        "parameters",
       ]) {
         expect(shortcuts[key]?.trim()).toBeTruthy();
       }

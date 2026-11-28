@@ -67,7 +67,8 @@
       "catalogInscripciones": "Browse the enrollments of the students in your faculty.",
       "catalogImport": "Load the catalog from an Excel file.",
       "users": "Manage user accounts.",
-      "reports": "See which students, teachers and subjects of your career have the most justified absences."
+      "reports": "See which students, teachers and subjects of your career have the most justified absences.",
+      "parameters": "Change the deadlines, calendar, causes and limits the system applies."
     },
     "featured": {
       "description": "Start here: review the pending requests of your faculty.",
@@ -1927,6 +1928,64 @@
     }
   },
   "parameters": {
+    "page": {
+      "title": "Normative parameters",
+      "subtitle": "The deadlines, calendar, causes and document types the system applies.",
+      "effectNote": "Changes apply from the next request, with no new deployment. Deadlines, the calendar, the recurrence threshold and the document type table change the result for every request, including those already filed, which keep their deadline start date. The filing window, the active causes and the maximum size apply only to the next drafts and document uploads."
+    },
+    "actions": {
+      "save": "Save changes",
+      "saving": "Saving…"
+    },
+    "scalars": {
+      "title": "Deadlines and limits",
+      "fields": {
+        "plazo_remision_dias": "Remission deadline (business days)",
+        "alerta_dias": "Due-soon alert (business days)",
+        "presentacion_tardia_dias": "Late filing (business days)",
+        "ventana_presentacion_dias": "Filing window (days)",
+        "umbral_reincidencia": "Recurrence threshold (requests)",
+        "tamano_maximo_mib": "Maximum document size (MB)"
+      }
+    },
+    "calendar": {
+      "title": "Non-business days calendar",
+      "description": "The dates that do not count as business days when deadlines are calculated.",
+      "dateColumn": "Date",
+      "descriptionColumn": "Description",
+      "actionsColumn": "Actions",
+      "dateLabel": "Date, row {row}",
+      "descriptionLabel": "Description, row {row}",
+      "empty": "The calendar has no dates.",
+      "add": "Add date",
+      "remove": "Remove",
+      "removeRow": "Remove row {row}",
+      "restore": "Restore",
+      "restoreRow": "Restore row {row}",
+      "removed": "Will be removed when you save"
+    },
+    "causes": {
+      "title": "Absence causes",
+      "description": "Mark the causes that are offered and put them in the order students will see. Causes cannot be created, renamed or deleted.",
+      "moveUp": "Move {cause} up",
+      "moveDown": "Move {cause} down",
+      "deactivate": {
+        "title": "{count, plural, one {Deactivate the cause {causes}?} other {Deactivate the causes {causes}?}}",
+        "description": "It will no longer be offered for new requests. Requests that already have it keep it, and you can activate it again whenever you want.",
+        "confirm": "Yes, deactivate",
+        "cancel": "Cancel"
+      }
+    },
+    "map": {
+      "title": "Document type and cause",
+      "description": "Mark the causes each document type corresponds to. The system warns when the document of a request does not correspond to its cause.",
+      "otroNote": "This type corresponds to no cause and cannot be edited.",
+      "types": {
+        "constancia_medica": "Medical certificate",
+        "constancia_institucional": "Institutional certificate",
+        "otro": "Other"
+      }
+    },
     "state": {
       "saved": "The changes were saved.",
       "unchanged": "There are no changes to save.",

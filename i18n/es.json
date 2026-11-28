@@ -67,7 +67,8 @@
       "catalogInscripciones": "Consulte las inscripciones de los estudiantes de su facultad.",
       "catalogImport": "Cargue el catálogo desde un archivo de Excel.",
       "users": "Administre las cuentas de usuario.",
-      "reports": "Consulte qué estudiantes, docentes y asignaturas de su carrera acumulan más inasistencias justificadas."
+      "reports": "Consulte qué estudiantes, docentes y asignaturas de su carrera acumulan más inasistencias justificadas.",
+      "parameters": "Modifique los plazos, el calendario, las causas y los límites que aplica el sistema."
     },
     "featured": {
       "description": "Empiece aquí: revise las solicitudes pendientes de su facultad.",
@@ -1927,6 +1928,64 @@
     }
   },
   "parameters": {
+    "page": {
+      "title": "Parámetros normativos",
+      "subtitle": "Plazos, calendario, causas y tipos de documento que aplica el sistema.",
+      "effectNote": "Los cambios se aplican desde la siguiente consulta, sin volver a desplegar el sistema. Los plazos, el calendario, el umbral de reincidencia y la tabla de tipos de documento cambian el resultado de todas las solicitudes, incluidas las ya presentadas, que conservan su fecha de inicio de plazo. La ventana de presentación, las causas activas y el tamaño máximo solo se aplican a los siguientes borradores y cargas de documentos."
+    },
+    "actions": {
+      "save": "Guardar cambios",
+      "saving": "Guardando…"
+    },
+    "scalars": {
+      "title": "Plazos y límites",
+      "fields": {
+        "plazo_remision_dias": "Plazo de remisión (días hábiles)",
+        "alerta_dias": "Alerta de plazo por vencer (días hábiles)",
+        "presentacion_tardia_dias": "Presentación tardía (días hábiles)",
+        "ventana_presentacion_dias": "Ventana de presentación (días)",
+        "umbral_reincidencia": "Umbral de reincidencia (solicitudes)",
+        "tamano_maximo_mib": "Tamaño máximo por documento (MB)"
+      }
+    },
+    "calendar": {
+      "title": "Calendario de días no hábiles",
+      "description": "Fechas que no cuentan como días hábiles al calcular los plazos.",
+      "dateColumn": "Fecha",
+      "descriptionColumn": "Descripción",
+      "actionsColumn": "Acciones",
+      "dateLabel": "Fecha, fila {row}",
+      "descriptionLabel": "Descripción, fila {row}",
+      "empty": "El calendario no tiene fechas.",
+      "add": "Agregar fecha",
+      "remove": "Quitar",
+      "removeRow": "Quitar la fila {row}",
+      "restore": "Restaurar",
+      "restoreRow": "Restaurar la fila {row}",
+      "removed": "Se quitará al guardar"
+    },
+    "causes": {
+      "title": "Causas de justificación",
+      "description": "Marque las causas que se ofrecen y ordénelas como las verá el estudiante. Las causas no se pueden crear, renombrar ni eliminar.",
+      "moveUp": "Subir {cause}",
+      "moveDown": "Bajar {cause}",
+      "deactivate": {
+        "title": "{count, plural, one {¿Desactivar la causa {causes}?} other {¿Desactivar las causas {causes}?}}",
+        "description": "Dejará de ofrecerse en las solicitudes nuevas. Las solicitudes que ya la tienen la conservan y puede activarla de nuevo cuando quiera.",
+        "confirm": "Sí, desactivar",
+        "cancel": "Cancelar"
+      }
+    },
+    "map": {
+      "title": "Tipo de documento y causa",
+      "description": "Marque las causas a las que corresponde cada tipo de documento. El sistema avisa cuando el documento de una solicitud no corresponde a su causa.",
+      "otroNote": "Este tipo no corresponde a ninguna causa y no se puede modificar.",
+      "types": {
+        "constancia_medica": "Constancia médica",
+        "constancia_institucional": "Constancia institucional",
+        "otro": "Otro"
+      }
+    },
     "state": {
       "saved": "Los cambios se guardaron.",
       "unchanged": "No hay cambios que guardar.",
