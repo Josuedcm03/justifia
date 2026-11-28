@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import type { IntakeLimits } from "@/lib/parameters/derive";
 import type { FieldError } from "@/lib/validations/solicitud";
 
 // Shared pieces of the intake steps. Errors come from the server actions as
@@ -29,12 +30,28 @@ export function invalidProps(id: string, errors: readonly FieldError[]) {
     : {};
 }
 
+/**
+ * The values a message may state (NP-17, A13): the filing window in days and
+ * the size limit in MB. Error keys stay parameterless on the wire; the server
+ * hands the values in force down as props and a message uses the ones it names.
+ */
+export type ErrorValues = { days: number; size: number };
+
+/** The values of the limits in force; absent where there is nothing to state. */
+export function errorValuesOf(limits?: IntakeLimits): ErrorValues | undefined {
+  return limits
+    ? { days: limits.filingWindowDays, size: limits.maxDocumentMib }
+    : undefined;
+}
+
 export function FieldErrors({
   id,
   errors,
+  values,
 }: {
   id: string;
   errors: readonly FieldError[];
+  values?: ErrorValues;
 }) {
   const t = useTranslations();
   if (errors.length === 0) return null;
@@ -46,7 +63,7 @@ export function FieldErrors({
       className="text-destructive-ink flex flex-col gap-1 text-sm"
     >
       {errors.map((error, index) => (
-        <p key={`${error.key}-${index}`}>{t(error.key)}</p>
+        <p key={`${error.key}-${index}`}>{t(error.key, values)}</p>
       ))}
     </div>
   );
@@ -57,12 +74,15 @@ export function Field({
   id,
   label,
   errors,
+  values,
   htmlFor,
   children,
 }: {
   id: string;
   label: string;
   errors: readonly FieldError[];
+  /** The values the field's messages may state. */
+  values?: ErrorValues;
   /** Omitted for a group of controls, which `aria-labelledby` the label. */
   htmlFor?: string;
   children: ReactNode;
@@ -73,7 +93,7 @@ export function Field({
         {label}
       </Label>
       {children}
-      <FieldErrors id={id} errors={errors} />
+      <FieldErrors id={id} errors={errors} values={values} />
     </div>
   );
 }

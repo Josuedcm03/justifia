@@ -13,11 +13,13 @@ import {
 
 vi.mock("server-only", () => ({}));
 
-const { holder, insertAuditMock, listEligibleGroupsMock } = vi.hoisted(() => ({
-  holder: { current: null as unknown },
-  insertAuditMock: vi.fn(),
-  listEligibleGroupsMock: vi.fn(),
-}));
+const { holder, insertAuditMock, listEligibleGroupsMock, getParametersMock } =
+  vi.hoisted(() => ({
+    holder: { current: null as unknown },
+    insertAuditMock: vi.fn(),
+    listEligibleGroupsMock: vi.fn(),
+    getParametersMock: vi.fn(),
+  }));
 
 vi.mock("@/db", () => ({
   db: new Proxy(
@@ -33,6 +35,12 @@ vi.mock("@/lib/data/enrollment", () => ({
   listEligibleGroups: listEligibleGroupsMock,
 }));
 
+// The loader is the only source of the filing rules (NP-4, A11); a scripted
+// double keeps the statements of the resubmission exactly the scripted ones.
+vi.mock("@/lib/parameters/loader", () => ({
+  getNormativeParameters: getParametersMock,
+}));
+
 vi.mock("@/lib/intake/submission", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/lib/intake/submission")>();
@@ -40,6 +48,8 @@ vi.mock("@/lib/intake/submission", async (importOriginal) => {
 });
 
 import { validateSubmission } from "@/lib/intake/submission";
+import { filingRulesOf } from "@/lib/parameters/derive";
+import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
 
 import { resubmitCorrection } from "./solicitud-correction";
 
@@ -105,10 +115,18 @@ const params = (statement: LoggedStatement) =>
     statement.where as Parameters<PgDialect["sqlToQuery"]>[0],
   ).params;
 
+/** What the loader returns when the filing window is in force at `days`. */
+const windowRead = (days: number) => ({
+  values: { ...DEFAULT_PARAMETERS, filingWindowDays: days },
+  fallback: [] as readonly string[],
+  degraded: false,
+});
+
 beforeEach(() => {
   vi.mocked(validateSubmission).mockClear();
   insertAuditMock.mockReset().mockResolvedValue(undefined);
   listEligibleGroupsMock.mockReset().mockResolvedValue([GROUP]);
+  getParametersMock.mockReset().mockResolvedValue(windowRead(30));
 });
 
 describe("resubmitCorrection: success (RF-08 a, RF-08 c, RN-16)", () => {
@@ -313,10 +331,25 @@ describe("resubmitCorrection: consent is never asked (RC-4, RN-25, C4, C12)", ()
     await resubmitCorrection(input);
 
     expect(validateSubmission).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(validateSubmission).mock.calls[0][2]).toEqual({
+    expect(vi.mocked(validateSubmission).mock.calls[0][3]).toEqual({
       filingWindow: false,
       consent: false,
     });
+  });
+
+  it("accepts an end date 20 days old under a window of 10, reading the loader once (RN-23, NP-13)", async () => {
+    getParametersMock.mockResolvedValue(windowRead(10));
+    use([
+      ...loaded({ row: { fechaInicio: "2026-09-15", fechaFin: "2026-09-17" } }),
+      ...transaction(),
+    ]);
+
+    expect(await resubmitCorrection(input)).toEqual({ ok: true });
+
+    expect(getParametersMock).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(validateSubmission).mock.calls[0][2]).toEqual(
+      filingRulesOf(windowRead(10).values),
+    );
   });
 
   it("never sends a consent version to the validation", async () => {

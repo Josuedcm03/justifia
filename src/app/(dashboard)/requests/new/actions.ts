@@ -24,6 +24,8 @@ import { CONSENT_VERSION } from "@/lib/intake/consent";
 import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
 import { validateSubmission } from "@/lib/intake/submission";
+import { filingRulesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 import {
   submitPayloadSchema,
   type FieldError,
@@ -103,6 +105,8 @@ export async function submitRequestAction(
     draftRange(draft),
     getIntakeDeps().schedule,
   );
+  // The parameters are read once and serve every field check of this submit.
+  const { values } = await getNormativeParameters();
   const validation = validateSubmission(
     {
       causa: draft.causa,
@@ -115,6 +119,7 @@ export async function submitRequestAction(
       consentVersion,
     },
     managuaToday(now),
+    filingRulesOf(values),
   );
   if (!validation.ok) {
     return { ok: false, errors: submissionErrors(validation.errors) };

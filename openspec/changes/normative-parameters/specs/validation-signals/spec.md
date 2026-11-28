@@ -4,7 +4,9 @@ Change `normative-parameters`. Requirements covered: RNF-14, RN-07, RN-08, RN-13
 RN-14. Thesis: CU-13, Annex D Table D19. The RN-07 deadline days, the RN-14
 threshold, the RN-13 type-to-cause map and the calendar come from
 `normative-parameters` (NP-2, NP-10, NP-12) and are read when the signals are read.
-[PG] marks a scenario that MUST run on a real PostgreSQL.
+[PG] marks a scenario that MUST run on a real PostgreSQL. The effect of a saved
+change on the next read is proven by unit tests that inject the loader value and by
+the owner system test (NP-14), not by a Postgres case (scope cut, 2026-11-27).
 
 ## Notes for archive
 
@@ -85,7 +87,7 @@ NOT change the queue.
 - WHEN the signal is evaluated
 - THEN the deadline is Wed 2026-10-14 and the outcome is `absent`
 
-#### Scenario: A parameter change applies to the next read [PG]
+#### Scenario: A parameter change applies to the next read
 
 - GIVEN a presented request whose RN-07 is `present` with late-filing days 2
 - WHEN the maintainer saves late-filing days 3 and the signals are read again
@@ -204,7 +206,7 @@ outcome MUST carry the threshold that was applied.
 - WHEN the signals read assembles the evaluation for the 2nd request of one issuer
 - THEN the threshold passed is 3 and then 2, and the evidence of a `present` outcome carries the applied threshold
 
-#### Scenario: A parameter change applies to the next read [PG]
+#### Scenario: A parameter change applies to the next read
 
 - GIVEN a presented request that is the 2nd of its issuer and period, RN-14 `absent` with threshold 3
 - WHEN the maintainer saves the threshold 2 and the signals are read again
@@ -289,7 +291,7 @@ does not require a deployment: RNF-14 is covered for this mapping.
 - WHEN the signals read assembles the evaluation for a `fuerza_mayor` request with a `constancia_medica` document
 - THEN the table passed is the default, and then the stored one
 
-#### Scenario: A parameter change flips the signal on the next read [PG]
+#### Scenario: A parameter change flips the signal on the next read
 
 - GIVEN a `fuerza_mayor` request with a `constancia_medica` document and RN-13 `present`
 - WHEN the maintainer enables the cell (`constancia_medica`, `fuerza_mayor`) and the signals are read again

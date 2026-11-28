@@ -23,8 +23,5 @@ export const ORPHAN_GRACE_HOURS = 24;
 /** A `pendiente` document older than this is a failed finalize and is swept. */
 export const PENDING_GRACE_HOURS = 1;
 
-/** RN-23: the end date may not be earlier than this many days before submission. */
-export const LATE_WINDOW_DAYS = 30;
-
 /** D2: lifetime of a client upload token. */
 export const UPLOAD_TOKEN_TTL_MINUTES = 10;

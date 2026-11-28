@@ -52,7 +52,7 @@ change of the audit log is required (the log has no check on action or entity ty
 | `causas` | `parametro.actualizado` |
 | `tipo_documento_causa` | `parametro.actualizado` |
 
-- GIVEN a confirmed save of the key in the row
+- GIVEN a save of the key in the row
 - WHEN its audit row is read
 - THEN the action is as shown and the key is in the payload
 
@@ -69,7 +69,7 @@ the same transaction as the parameter row (per "Audit record is written in the s
 transaction as its change"). A save that changes several keys MUST write one row per
 changed key. A second save of the same key on the same day replaces that day's
 parameter row but MUST write its own audit row. A refused, invalid, unauthorized,
-unconfirmed, no-change, busy or failed write MUST write no audit row and leave no data
+no-change, busy or failed write MUST write no audit row and leave no data
 change. The actor MUST be the authenticated session user, never a value from the
 request. Opening `/parameters` and every loader read MUST write no audit row.
 
@@ -78,13 +78,13 @@ request. Opening `/parameters` and every loader read MUST write no audit row.
 | Write | Audit rows added |
 |---|---|
 | one scalar changed | 1 |
-| two scalars changed in one confirmed save | 2 |
+| two scalars changed in one save | 2 |
 | a calendar save that adds two dates and removes one | 1 (the key `calendario`) |
 | a causes save that deactivates one cause and reorders another | 1 (the key `causas`) |
 | a map save that changes three cells | 1 (the key `tipo_documento_causa`) |
 | same key saved twice the same day | 2 (one per save) |
 
-- GIVEN a confirmed valid save by a `secretaria`
+- GIVEN a valid save by a `secretaria`
 - WHEN it commits
 - THEN exactly the audit rows in the row exist, with the session user as actor
 
@@ -93,7 +93,6 @@ request. Opening `/parameters` and every loader read MUST write no audit row.
 | Case |
 |---|
 | validation failure (out of range, not an integer, invalid date, invalid causes or map) |
-| no confirmation carried |
 | value equal to the value in force |
 | unauthorized role, anonymous, flagged for password change |
 | the write cannot start because catalog writes are busy |

@@ -31,6 +31,8 @@ import {
 import { managuaToday } from "@/lib/intake/dates";
 import { getIntakeDeps } from "@/lib/intake/deps";
 import { isReturnReason } from "@/lib/intake/return-reasons";
+import { intakeLimitsOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 
@@ -117,6 +119,9 @@ export default async function CorrectRequestPage({
 
   // The Managua calendar day, decided here and not in the browser (FE-19).
   const today = managuaToday(new Date());
+  // The limits in force, read once here and stated by the error messages
+  // (NP-17); React `cache()` makes this one read per render (NP-5).
+  const { values } = await getNormativeParameters();
 
   const flow: Flow = {
     basePath: `/requests/${id}/correct`,
@@ -143,6 +148,7 @@ export default async function CorrectRequestPage({
         flow={flow}
         previousDocumentIds={previousDocumentIds}
         today={today}
+        limits={intakeLimitsOf(values)}
       />
     </div>
   );

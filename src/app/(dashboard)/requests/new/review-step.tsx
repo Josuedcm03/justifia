@@ -13,8 +13,10 @@ import {
   BackLink,
   FieldErrors,
   StepShell,
+  errorValuesOf,
   errorsOf,
   invalidProps,
+  type ErrorValues,
 } from "@/app/(dashboard)/requests/new/form-field";
 import type { StepFlow } from "@/app/(dashboard)/requests/new/flow";
 import { ResubmitDialog } from "@/app/(dashboard)/requests/new/resubmit-dialog";
@@ -30,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { EnrollmentGroup } from "@/lib/data/enrollment";
 import { CONSENT_VERSION } from "@/lib/intake/consent";
+import type { IntakeLimits } from "@/lib/parameters/derive";
 import type { FieldError } from "@/lib/validations/solicitud";
 
 type ReviewDraft = {
@@ -60,6 +63,7 @@ function Section({
   step,
   basePath,
   errors,
+  values,
   children,
 }: {
   id: string;
@@ -67,6 +71,7 @@ function Section({
   step: number;
   basePath: string;
   errors: readonly FieldError[];
+  values?: ErrorValues;
   children: ReactNode;
 }) {
   const t = useTranslations("intake.review");
@@ -89,7 +94,7 @@ function Section({
         </Link>
       </div>
       {children}
-      <FieldErrors id={id} errors={errors} />
+      <FieldErrors id={id} errors={errors} values={values} />
     </section>
   );
 }
@@ -108,6 +113,7 @@ export function ReviewStep({
   flow,
   previousDocumentIds,
   today,
+  limits,
 }: {
   /** Set by the correction: resubmit replaces submit and discard of a draft. */
   flow?: StepFlow<"resubmit">;
@@ -124,6 +130,8 @@ export function ReviewStep({
   previousDocumentIds?: readonly number[] | null;
   /** The Managua calendar day from the server; absent means no notice. */
   today?: string;
+  /** The limits in force, which the error messages state (NP-17, A13). */
+  limits?: IntakeLimits;
 }) {
   const t = useTranslations("intake");
   const format = useFormatter();
@@ -141,6 +149,7 @@ export function ReviewStep({
   const notSet = t("review.notSet");
   const { causa, fechaInicio, fechaFin } = draft;
   const consentErrors = errorsOf(errors, "consent");
+  const values = errorValuesOf(limits);
 
   return (
     <StepShell
@@ -176,6 +185,7 @@ export function ReviewStep({
         errors={errors.filter((e) =>
           ["causa", "fechaInicio", "fechaFin"].includes(e.field),
         )}
+        values={values}
       >
         <p className="text-sm break-words">
           {causa ? t(`causes.${causa}`) : notSet}
@@ -204,6 +214,7 @@ export function ReviewStep({
         errors={errors.filter(
           (e) => e.field === "subjects" && e.asignaturaId === undefined,
         )}
+        values={values}
       >
         {degraded ? (
           <p
@@ -234,6 +245,7 @@ export function ReviewStep({
                   errors={errors.filter(
                     (e) => e.asignaturaId === g.asignaturaId,
                   )}
+                  values={values}
                 />
               </li>
             ))}
@@ -247,6 +259,7 @@ export function ReviewStep({
         step={3}
         basePath={basePath}
         errors={errorsOf(errors, "documents")}
+        values={values}
       >
         {documents.length === 0 ? (
           <p className="text-sm">{notSet}</p>
@@ -324,13 +337,18 @@ export function ReviewStep({
               })}
             </Label>
           </div>
-          <FieldErrors id="review-consent" errors={consentErrors} />
+          <FieldErrors
+            id="review-consent"
+            errors={consentErrors}
+            values={values}
+          />
         </div>
       )}
 
       <FieldErrors
         id="review-form"
         errors={errors.filter((e) => !SECTION_FIELDS.includes(e.field))}
+        values={values}
       />
     </StepShell>
   );

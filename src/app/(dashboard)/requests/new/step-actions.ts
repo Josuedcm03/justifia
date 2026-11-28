@@ -15,6 +15,8 @@ import {
   validateSubjectSelections,
 } from "@/lib/intake/eligibility";
 import { getIntakeDeps } from "@/lib/intake/deps";
+import { filingRulesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 import {
   documentIdSchema,
   errorKey,
@@ -86,10 +88,14 @@ export async function saveDetails(
   input: unknown,
 ): Promise<ActionResult> {
   const now = new Date();
+  // The window in force, read once for this save (NP-13: a draft only).
+  const { values } = await getNormativeParameters();
 
-  const parsed = makeDetailsStepSchema(managuaToday(now), {
-    filingWindow: target.kind === "draft",
-  }).safeParse(input);
+  const parsed = makeDetailsStepSchema(
+    managuaToday(now),
+    filingRulesOf(values),
+    { filingWindow: target.kind === "draft" },
+  ).safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: toFieldErrors(parsed.error) };
   }

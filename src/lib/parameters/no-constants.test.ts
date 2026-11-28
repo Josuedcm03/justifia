@@ -485,3 +485,62 @@ describe("the queue, the detail and the answer pause read the loader (A11)", () 
     },
   );
 });
+
+// NP-15 for the filing window (design A12): the RN-23 rule modules take the
+// window as an argument; the actions and the data function that need it load
+// once from the loader and derive the rules with `filingRulesOf`. No module
+// holds the window or a registry default as a constant.
+
+const WINDOW_MODULES = [
+  "lib/intake/dates.ts",
+  "lib/intake/submission.ts",
+  "lib/validations/solicitud.ts",
+];
+const WINDOW_CONSUMERS = [
+  "app/(dashboard)/requests/new/step-actions.ts",
+  "app/(dashboard)/requests/new/actions.ts",
+  "lib/data/solicitud-correction.ts",
+];
+
+describe("the filing window is a parameter (NP-15, A12)", () => {
+  it("no source names the former window constant", () => {
+    const offenders = sourceTree()
+      .filter(([, source]) =>
+        /\bLATE_WINDOW_DAYS\b/.test(withoutComments(source)),
+      )
+      .map(([path]) => path);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it.each(WINDOW_MODULES)(
+    "%s imports no registry default and no loader and holds no constant",
+    (path) => {
+      const source = readFileSync(join(SRC_DIR, path), "utf8");
+
+      expect(deadlineConstantViolations(source)).toEqual([]);
+    },
+  );
+
+  it("dates.ts requires the window days as an argument", () => {
+    const code = withoutComments(
+      readFileSync(join(SRC_DIR, WINDOW_MODULES[0]), "utf8"),
+    );
+
+    expect(code).toMatch(/windowDays: number/);
+  });
+
+  it.each(WINDOW_CONSUMERS)(
+    "%s imports the loader, derives the filing rules from it and holds no constant path",
+    (path) => {
+      const source = readFileSync(join(SRC_DIR, path), "utf8");
+      const code = withoutComments(source);
+
+      expect(deadlineConstantViolations(source, { consumer: true })).toEqual(
+        [],
+      );
+      expect(valueImports(code)).toContain("@/lib/parameters/loader");
+      expect(code).toContain("filingRulesOf");
+    },
+  );
+});

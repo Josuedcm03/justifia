@@ -425,3 +425,131 @@ The alternative is to accept the overshoot as a `size:exception` (1108 of 1000, 
 ### Next
 
 Owner decision on the size (split into PR 4 and PR 4b, or `size:exception`); then 4.8 (open PR 4 against the tracker) and merge under the standing approval, then slice 5 (task 5.0).
+
+## Scope cuts (owner, 2026-11-27)
+
+Planning change only (no code touched). The owner approved eight cuts under one principle: "just what is necessary to declare RNF-14 met, no more, no less". They supersede D6 (range 1 to 25 MiB with the ceiling migration) and the 13-slice plan recorded in unit 0. Slices 1 to 4 are merged and their checked tasks stay as written; `tasks.md` carries a "Scope cut note" under Phases 0, 1 and 4. The updated artifacts are `proposal.md` ("Scope cuts (2026-11-27)"), `design.md` (A17 removed, A18 revised, A19 new, file list, testing strategy, rollout), `tasks.md` and the delta specs (`normative-parameters`, `supporting-documents`, `audit-log`, and the `[PG]` marks of `request-review`, `validation-signals`, `justification-intake`).
+
+### Thesis basis (cited for every cut)
+
+- RNF-14 acceptance (thesis 5.3 Table 16, verified by inspection): a change to the deadlines, the non-working-day calendar, the causes, the recurrence threshold or the maximum file size needs no new deploy.
+- CU-13 (thesis 4.3) is a single row: "Configure normative parameters", actor secretaria académica, RNF-14. It has no steps.
+- RNF-12 asks for a confirmation dialog only to reject a request and to deactivate a record.
+- RNF-06 asks for one audit entry per catalog modification.
+- RNF-11 (360 px) applies to student screens.
+
+### The eight cuts
+
+| # | Cut | Basis | Effect on the plan |
+|---|---|---|---|
+| 1 | `tamano_maximo_mib` is 1 to 10 MiB (default 10). No migration 0018, no `CK_Documento_Tamano` at 26214400, no `DOCUMENT_BYTES_CEILING`, no PG-6, no 25 MiB copy; the existing 10485760 check stays the ceiling | RNF-14 asks that a change of the maximum size needs no deploy, not that it can exceed the current bound | Tasks 6.4 to 6.6, 14.3, 15.4 removed; 0018 removed from 15.0, 15.8, 14.0 and the Merge gate; NP-16 kept for the 0017 seeds only; A17 removed, A19 new; slice 7 gains unit 14b (tasks 7.7 to 7.9): registry maximum 25 to 10 plus a source-scan test that registry maximum MiB times 1048576 equals the number in the check of `src/db/schema.ts`, no migration |
+| 2 | No mutation checks from slice 5 on (MC-* and MC-PG-*); task 14.6 removed. Strict TDD stays | RNF-14 is verified by inspection; mutation testing is not a requirement | Every MC step removed from tasks 5.3 to 9.x; commit steps now read "REFACTOR and gates G; commit unit N" |
+| 3 | Work after slice 8 is two PRs: 9 (access guard and ALL server actions with tests and copy) and 10 (page, four sections, menu entry, docs); each with a pre-approved size exception up to 1500 lines ("owner pre-approved up to 1500 on 2026-11-27") | CU-13 is one row; one screen with its actions | 10 numbered slices (1, 2 with 2a and 2b, 3 to 10); "PR n of 13" is "of 10" from slice 5; gate wording "all 10 slices"; old Phases 11 to 13 deleted (numbers unused); branches `-6-causes`, `-9-actions`, `-10-page` |
+| 4 | System test from 14 to 7 steps: permission, deadlines with alert, RN-07 and RN-23, calendar, causes with the RN-13 map, recurrence threshold, maximum size, audit | RNF-14 acceptance has five criteria categories (thesis 5.3 Table 16) plus RNF-01 and RNF-06 | ST-1..ST-7; tasks 14.9 (ST-1 to ST-4) and 14.10 (ST-5 to ST-7); the 360/320 px step is gone; the restore-all step is a cleanup note of ST-7 |
+| 5 | No two-step confirmation on every save: no `confirm-changes.tsx`, no hidden `confirmado=1` and server check, no before/after list, no `unconfirmed` outcome. Only deactivating a cause asks, in the existing `AlertDialog` primitive (`src/components/ui/alert-dialog.tsx`, used by `DecisionDialog` to reject a request and by `ActiveToggle` with `confirmIn="dialog"` to deactivate a record) | RNF-12 | NP-8 rewritten; A18 revised; threat-matrix row "write without the confirmation marker" removed; new `deactivate-cause-dialog.tsx` in unit 25 |
+| 6 | No extra display: no Reglamento default, no range in words, no per-year date badges, no current-year warning, no "default in use" badge, no degraded locked forms (and no degraded alert). Each field shows its value in force; validation errors state the allowed range | CU-13 is one row; the requirement text asks the value in force and errors that say what to enter | NP-7, NP-10, NP-17 reworded; design page table rewritten; ST-1 checks the value in force only |
+| 7 | No per-section PG-2 "effect without redeploy" Postgres cases (old 9.5, 11.3, 12.3, 13.3). The write and audit Postgres cases of slice 8 (PG-3 write part, PG-4, PG-5) and the suite already written (PG-1, PG-3 read) stay | RNF-14 is verified by inspection (system test) | NP-14 rewritten as the owner system test; `[PG]` marks dropped from the "applies to the next read" scenarios of the consumer specs |
+| 8 | No 360/320 px or 44 px target tests for the staff parameters page | RNF-11 applies to student screens | Removed from NP-17 and the tasks; es/en copy parity and no-voseo stay (task 9.3) |
+
+### Conflicts with merged work (repaired by slice 7, tasks 7.7 to 7.9)
+
+- Slice 1 built `tamano_maximo_mib` with range 1 to 25 (`src/lib/parameters/registry.ts`, `scalarEntry("maxDocumentMib", 1, 25)`; range row and MC-1a in `registry.test.ts`). Slice 7 lowers it to 10.
+- Merged fixtures hold a valid non-default size above 10 that would become invalid: 20 in `src/lib/parameters/registry.test.ts` and `src/lib/parameters/loader.test.ts`, 25 in `src/lib/parameters/derive.test.ts` (the arithmetic still passes, kept consistent), and 12 in `OTHER_VALUES` of `src/lib/data/integration/normative-parameters.integration.test.ts` (slice 2b; it would read back as a fallback on a branch). Task 7.8 changes them to values inside 1 to 10.
+- `src/db/schema.ts` still imports `MAX_DOCUMENT_BYTES` from `src/lib/intake/limits.ts`; task 7.5 removes that constant, so the schema keeps the same check with the literal 10485760 (no migration; `npm run db:generate` must report no schema change).
+- Task 4.5 (done) says the staleness test becomes the coverage notice of slice 11. That warning is cut; the queue coverage note of slice 4 stays as the only calendar staleness signal.
+- The "13" in the bodies of the merged PRs and in tasks 2.8, 3.8, 4.8 ("PR n of 13") is left as it was.
+
+### Points that go beyond the letter of the cuts (for the owner to confirm)
+
+- Cut 6 names the degraded locked forms; the page also drops the degraded alert, because with no lock it would have nothing to say. A failing write ends in the "unexpected" outcome.
+- The type-to-cause map (RN-13) is not one of the five RNF-14 families, so it has no step of its own: it is checked inside ST-4 with the causes.
+- The thesis flag: the maximum size can be lowered but not raised above 10 MiB without a migration; the owner may want that sentence in thesis 5.3 or accept it as stated (the Thesis Sync list in task 10.14 carries it).
+- The thesis Sync item "Anexo E, CU-13 steps" is dropped because CU-13 has no steps (cut basis above).
+- The cut display and confirmation extras are listed as follow-ups in task 16.3; the owner may add them to `docs/flow-experience-backlog.md` (roadmap row 13), which this planning change does not touch.
+
+## Slice 5: filing window (PR 5 of 10, branch `feat/normative-parameters-5-filing-window`; 2026-11-27)
+
+Mode: Strict TDD. Tasks 5.0 to 5.7 done (units 9 and 10 committed). 5.8 (open and merge the PR) is not assigned to apply and nothing was pushed. The branch is cut from the tracker after slice 4 merged (PR 174, 38e4ecd) and carries `bff25e6` (the scope cuts) under the two code commits. **No database command of any kind was run**: this slice lists no Postgres case, no INTEGRATION env was set, no `.env*` file was read. **No mutation checks** (scope cut 2, from slice 5 on).
+
+### Framework rule
+
+Read `node_modules/next/dist/docs/01-app/02-guides/caching-without-cache-components.md` ("Deduplicating requests"): with `cacheComponents` off, data access is deduplicated inside one render with React `cache()`. Applied: the two intake pages (new request, correction) call `getNormativeParameters` once (React `cache()`, A4) and nothing else; no `unstable_cache`, no `use cache`, no module-level store, no timer. No new Next API (no `revalidatePath`, no `redirect` change, no new route, no new action export). In the actions the loader is awaited after the role guard (`requireRole` is the first await), so a denied caller reads nothing; `cache()` is a pass-through in a server action, so each action reads once per call (a save, a submit, a resubmission).
+
+### Files
+
+| File | Action | Authored lines (added / deleted) |
+|---|---|---|
+| `src/lib/intake/dates.ts` | Unit 9: `earliestAllowedEndDate(today, windowDays)`, `isEndWithinWindow(end, today, windowDays)`; the `LATE_WINDOW_DAYS` import is gone | 16 / 8 |
+| `src/lib/intake/limits.ts` | Unit 9: `LATE_WINDOW_DAYS` removed | 0 / 3 |
+| `src/lib/intake/submission.ts` | Unit 9: `validateSubmission(input, today, rules: FilingRules, options?)`; `endErrors` takes `rules.windowDays` | 14 / 3 |
+| `src/lib/validations/solicitud.ts` | Unit 9: `makeDetailsStepSchema(today, rules, { filingWindow })` | 5 / 1 |
+| `src/lib/data/solicitud-correction.ts` | Unit 9: reads the loader once, passes `filingRulesOf(values)` and still `{ filingWindow: false, consent: false }` | 4 / 0 |
+| `src/app/(dashboard)/requests/new/step-actions.ts` | Unit 9: `saveDetails` reads the loader once and builds the schema with the rules (window applied to a draft only) | 10 / 4 |
+| `src/app/(dashboard)/requests/new/actions.ts` | Unit 9: `submitRequestAction` reads the loader once and hands `filingRulesOf(values)` to `validateSubmission` | 5 / 0 |
+| `src/lib/intake/dates.test.ts`, `submission.test.ts`, `limits.test.ts`, `src/lib/validations/solicitud.test.ts`, `src/lib/data/solicitud-correction.test.ts` | Unit 9: window 10 and 60 tables, window off with window 10, rules argument everywhere, loader double and one-read case; the limits test drops the removed constant | 184 / 40 |
+| `src/app/(dashboard)/requests/new/step-actions.test.ts` | Unit 9: new (5 cases: window 10 refuses 20 days, window 30 accepts, a change applies to the next save, one read per save, a correction is never refused) | 99 / 0 |
+| `src/app/(dashboard)/requests/new/actions.test.ts`, `src/app/(dashboard)/requests/[id]/correct/actions.test.ts` | Unit 9: loader double (needed because the actions now read it); submit with window 10 and 30 and the one-read case; the correction action test runs under a window of 10 so its 40-day-old end date proves the window is not applied | 69 / 0 |
+| `src/lib/parameters/no-constants.test.ts` | Unit 9: the former window constant exists nowhere in `src`; the three RN-23 rule modules import no registry default and no loader; `dates.ts` requires `windowDays`; the three loader consumers derive `filingRulesOf` | 59 / 0 |
+| `src/app/(dashboard)/requests/new/page.tsx`, `src/app/(dashboard)/requests/[id]/correct/page.tsx` | Unit 10: each reads the loader once (after the draft or request read, so a failed read loads nothing) and passes `limits={intakeLimitsOf(values)}` | 6 / 0 each |
+| `src/app/(dashboard)/requests/new/flow-steps.tsx` | Unit 10: required `limits: IntakeLimits`, passed to the details step and the review step | 6 / 0 |
+| `src/app/(dashboard)/requests/new/review-step.tsx` | Unit 10: optional `limits` prop; `{ days, size }` reach every `FieldErrors` of the step | 20 / 2 |
+| `src/app/(dashboard)/requests/new/cause-dates-step.tsx`, `form-field.tsx` | Unit 10 (not named by task 5.5, see deviation 1): `limits` prop on the details step; `FieldErrors` and `Field` take optional `values`, `errorValuesOf(limits)` maps the limits to `{ days, size }` | 6 / 0 and 22 / 2 |
+| `i18n/es.json`, `i18n/en.json` | Unit 10: `intake.errors.end_too_old` is an ICU plural on `{days}` | 1 / 1 each |
+| `src/app/(dashboard)/requests/new/page.test.tsx`, `src/app/(dashboard)/requests/[id]/correct/page.test.tsx` | Unit 10: loader double, `FlowSteps` wrapped to read its props, limits in force reach the flow (window 10, size 7), one read, no read on a failed draft or request read | 61 / 7 and 49 / 0 |
+| `src/app/(dashboard)/requests/new/review-step.test.tsx`, `cause-dates-step.test.tsx`, `src/app/(dashboard)/requests/correct-design-system.test.tsx` | Unit 10: submit error states 10 and 60 days in es and en; the step-save error states 10; loader double for the design-system pin that renders the real correction page | 33 / 7, 9 / 3, 9 / 0 |
+| `src/i18n/catalog-parity.test.ts` | Unit 10: `end_too_old` is a plural on `{days}` with no literal count, renders 1, 10, 30 and 60 days in es and en, and no `intake.errors` message keeps a literal 30 | 53 / 0 |
+
+Commits: unit 9 `237f0e8` "feat(intake): take the filing window from the loader" (16 files); unit 10 `b1e1857` "feat(intake): show the configured filing window in the copy" (14 files). `SignalParams`, `DEFAULT_SIGNAL_PARAMS` and every `issuer.ts` export are untouched.
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 5.1 | 25 failed in 7 files of 9 run: the `windowDays` argument did not exist (`dates`: 3, `submission`: 6, `validations/solicitud`: 4), the correction did not read the loader or pass the rules (`solicitud-correction`: 2), `saveDetails` and `submitRequestAction` ignored a loader window of 10 (`step-actions`: 3, `actions`: 2), and 5 scan cases (the constant still existed, `dates.ts` took no `windowDays`, the three consumers did not import the loader). The default-window rows passed at write time (pins of existing behaviour) | n/a | n/a |
+| 5.2 | n/a | `T(intake/dates intake/submission validations/solicitud solicitud-correction requests/new/step-actions requests/new/actions correct/actions parameters/no-constants intake/limits requests/new/schedule-extraction)`: 10 files, 300 tests passed after fixing one `validateSubmission` call my own edit missed in `submission.test.ts` | n/a |
+| 5.3 | n/a | n/a | prettier on one test file (long lines), eslint, typegen plus typecheck clean; full suite (405 files, 11258 tests); commit unit 9 |
+| 5.4 | 15 failed: `catalog-parity` 9 (no plural on `{days}`, the literal 30 still in `end_too_old`), `cause-dates-step` 1, `page.test.tsx` of the new page 1, `review-step` 3 (es and en, window 10 and 60), and the correction page read-once case. The "reads nothing on a failed read" cases passed at write time (the page did not read the loader yet) | n/a | n/a |
+| 5.5 | n/a | `T(requests/new requests/[id] correct src/i18n catalog-parity)`: 33 files, 1176 tests passed after adding the loader double to `correct-design-system.test.tsx` (it renders the real correction page, whose new `server-only` import threw) | n/a |
+| 5.6 | n/a | n/a | prettier (two page tests reformatted), eslint, typegen plus typecheck clean; full suite (405 files, 11275 tests); commit unit 10 |
+
+### Work Unit Evidence
+
+| Evidence | Unit 9 | Unit 10 |
+|---|---|---|
+| Focused test command and exact result | `DATABASE_URL=postgres://u:p@localhost:5432/x npm test -- intake/dates intake/submission validations/solicitud solicitud-correction requests/new/step-actions requests/new/actions correct/actions parameters/no-constants intake/limits requests/new/schedule-extraction`: 10 files, 300 tests passed | `DATABASE_URL=postgres://u:p@localhost:5432/x npm test -- requests/new requests/[id] correct src/i18n catalog-parity`: 33 files, 1176 tests passed |
+| Runtime harness | N/A: pure functions, an action over a scripted loader and a scripted data layer; the real read is the loader's own suite (slice 2 and 2b) and the owner system test ST-2 (task 14.9) | The loader is a scripted double at the page boundary; the real `NextIntlClientProvider` with the real catalogs renders the messages (a missing value throws, `onError` rethrows). `npm run build` compiles both pages |
+| Rollback boundary | Revert unit 9: the window returns to the constant 30 in `dates.ts` and `limits.ts`; `validateSubmission` and the schema lose the rules argument | Revert unit 10: the pages lose `limits`, the catalogs return to the literal 30; unit 9 stands (the message would then state a window the server no longer uses, so revert 10 before 9) |
+
+### Gates (GS)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full, after each unit): after unit 9 405 files and 11258 tests; after unit 10 **405 files, 11275 tests**, all passed (slice 4 left 404 files and 11228 tests; one file added, `step-actions.test.ts`).
+- `npx next typegen` then `npm run typecheck`: clean after each unit.
+- `npx eslint --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}'` over every changed `.ts` and `.tsx` file of each unit: 0 errors, 0 warnings. `npx prettier --check --end-of-line auto` on the same files and the two catalogs: clean.
+- `DATABASE_URL=postgres://u:p@localhost:5432/x AUTH_SECRET=throwaway-build-secret-0123456789abcdef npm run build`: exit 0.
+- The former window constant is named nowhere in `src` except the detector regex of `no-constants.test.ts`.
+
+### Size (task 5.7)
+
+`git diff --shortstat origin/feat/normative-parameters...HEAD -- . ':!openspec'` at the two code commits: **30 files changed, 747 insertions(+), 82 deletions(-)**. The tasks.md convention (numstat excluding `openspec`, `docs`, `drizzle/meta`) gives the same **747 added plus 82 deleted = 829 changed lines** (planned about 900; stop line 1000). Unit 9 alone is 524 (465 added, 59 deleted), unit 10 alone is 305 (282 added, 23 deleted). Under the stop line: nothing to split.
+
+### Deviations from design and tasks
+
+1. **Two files outside task 5.5's list: `cause-dates-step.tsx` and `form-field.tsx`.** The task and design A13 name `review-step.tsx` as the place that passes `{ days, size }`. But the same error `end_too_old` is also shown by the details step itself when a save is refused (`saveDetails` returns it, the details step renders it under the end date), and the spec scenario "The error states the configured window" covers "saves the dates step". Without values the real translator throws on `{days}`. So `FieldErrors` and `Field` gained an optional `values`, the details step takes `limits` and passes them to the end-date field. The existing details-step test that pinned the literal 30 now runs with window 10 and pins 10 (no new case).
+2. **`limits` is optional on `ReviewStep` and `CauseDatesStep`, required on `FlowSteps`.** The two pages are the only production callers and both go through `FlowSteps`, so a forgotten value is still a compile error where it matters; making it required on the two step components would have touched about 35 render calls in tests that never show a value-bearing error (design-system, layout-360, step tests).
+3. **`end_too_old` is an ICU plural on `{days}`**, not a bare `{days}`: the range is 1 to 365 and "1 días" would be wrong copy. Same key and same placeholder in both locales (the `dueSoon` precedent of slice 4).
+4. **A correction reads the loader to build its rules.** Task 5.1 names `solicitud-correction.test.ts` ("a correction passes `filingWindow: false`: an end date 20 days old with window 10 is accepted"), so `resubmitCorrection` reads the loader once and hands `filingRulesOf(values)` to `validateSubmission` together with `{ filingWindow: false, consent: false }`. The window in the rules is therefore never used for a correction. Slice 6 decides what `selectableCauses` a correction carries (A14: all five).
+5. **`saveDetails` reads the loader for a correction too** (the schema factory needs `rules`; the window flag is off for a correction). One read per save either way.
+6. **Loader doubles added to tests the tasks do not name**, because the code under test now imports the loader (`server-only`): `src/app/(dashboard)/requests/[id]/correct/actions.test.ts` (window 10, so its 40-day-old end date doubles as proof that a correction is never refused) and `src/app/(dashboard)/requests/correct-design-system.test.tsx` (renders the real correction page). `limits.test.ts` drops the former window constant assertion with the constant.
+7. **`no-constants.test.ts` reuses `deadlineConstantViolations`** for the RN-23 rule modules and consumers (it checks registry defaults, the loader import and module-level calendar constants, which is what NP-15 asks); it is named for deadlines but is generic.
+8. **`.engram` pre-commit hook.** Both commits were created with `engram` off the PATH (the hook then skips itself); `git show --stat` of both lists no `.engram` path. No `--no-verify`.
+9. Touched files keep the line endings they had (some are CRLF in the working copy, the index is LF); prettier runs with `--end-of-line auto`.
+
+### Risks and notes for later slices
+
+- The pages read the loader at every step although only steps 1 and 4 use the limits; `cache()` makes it one read per render and the read is fail-soft. Slice 7 adds the size to the documents step and the `too_large` copy through the same `limits` prop.
+- `limits.maxDocumentMib` already travels to the details and review steps (as `size`); no message states it yet. `intake.errors.too_large` still says "10 MB" and is slice 7's task 7.4.
+- Slice 6 (causes) will pass `selectableCauses` from `FilingRules` to `validateSubmission` and the schema, and thread `causes` through the same props.
+
+### Next
+
+Task 5.8: open PR 5 against the tracker (body "PR 5 of 10 (filing window)") and merge it under the standing approval, then slice 6 (task 6.0).

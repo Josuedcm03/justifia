@@ -25,6 +25,8 @@ import {
   type SubmissionError,
   type SubmissionErrorCode,
 } from "@/lib/intake/submission";
+import { filingRulesOf } from "@/lib/parameters/derive";
+import { getNormativeParameters } from "@/lib/parameters/loader";
 
 // Resubmission of a returned request (RF-08 a, RF-08 c, RN-16; SR-13). The
 // request was edited in place while `devuelta`; the snapshot of the returned
@@ -73,6 +75,7 @@ export async function resubmitCorrection(
       ? { from: fechaInicio, to: fechaFin }
       : null;
   const valid = request.documents.filter((d) => d.estado === "valido").length;
+  const { values } = await getNormativeParameters();
   const validation = validateSubmission(
     {
       causa,
@@ -83,6 +86,7 @@ export async function resubmitCorrection(
       validDocumentCount: valid,
     },
     managuaToday(now),
+    filingRulesOf(values),
     // Neither rule is re-applied: the window was met, and the consent given (or
     // not recorded for a legacy request) at the first presentation stands.
     { filingWindow: false, consent: false },

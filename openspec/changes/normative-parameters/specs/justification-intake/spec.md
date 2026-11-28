@@ -3,7 +3,9 @@
 Change `normative-parameters`. Requirements covered: RNF-14, RN-01, RN-23.
 Thesis: CU-13, Annex D Table D19. The causes offered (active flag and order) and the
 filing window come from `normative-parameters` (NP-11, NP-2). [PG] marks a scenario
-that MUST run on a real PostgreSQL.
+that MUST run on a real PostgreSQL. The effect of a saved change on the next
+request is proven by unit tests that inject the loader value and by the owner
+system test (NP-14), not by a Postgres case (scope cut, 2026-11-27).
 
 ## Notes for archive
 
@@ -108,7 +110,7 @@ submission is not rejected (D6; RN-07 signal belongs to another change).
 - WHEN the error on the end date renders in `es` and in `en`
 - THEN it states 10 days and does not state 30
 
-#### Scenario: A parameter change applies to the next attempt [PG]
+#### Scenario: A parameter change applies to the next attempt
 
 - GIVEN a draft with an end date 20 days old accepted under window 30
 - WHEN the maintainer saves window 10 and the student saves the dates step again

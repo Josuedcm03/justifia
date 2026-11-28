@@ -43,6 +43,9 @@ const FILLED = {
   fechaFin: "2026-10-03",
 };
 
+// What the server hands the flow (NP-17): the window in force and the size.
+const LIMITS = { filingWindowDays: 30, maxDocumentMib: 10 };
+
 function ui(props: Partial<Parameters<typeof ReviewStep>[0]> = {}) {
   return (
     <ReviewStep
@@ -50,6 +53,7 @@ function ui(props: Partial<Parameters<typeof ReviewStep>[0]> = {}) {
       groups={[GROUP, NO_TEACHER]}
       documents={[DOC]}
       degraded={false}
+      limits={LIMITS}
       {...props}
     />
   );
@@ -176,14 +180,16 @@ describe("ReviewStep: read only with links to edit (spec: Review is read-only)",
   });
 });
 
-async function submitWith(errors: unknown[]) {
+const SUBMIT_LABELS = {
+  es: ["Presentar solicitud", "Sí, presentar"],
+  en: ["Submit request", "Yes, submit"],
+} as const;
+
+async function submitWith(errors: unknown[], locale: "es" | "en" = "es") {
+  const [open, confirm] = SUBMIT_LABELS[locale];
   submitRequestAction.mockResolvedValue({ ok: false, errors });
-  await userEvent.click(
-    screen.getByRole("button", { name: "Presentar solicitud" }),
-  );
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Sí, presentar" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: open }));
+  await userEvent.click(await screen.findByRole("button", { name: confirm }));
   await vi.waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
 }
 
@@ -228,6 +234,26 @@ describe("ReviewStep: per-field submit errors (RF-03)", () => {
       screen.getByText(/La solicitud cambió mientras la enviabas/),
     ).toBeInTheDocument();
   });
+
+  it.each([
+    ["es", 10, "La fecha de fin no puede ser anterior a 10 días antes de hoy."],
+    ["en", 10, "The end date cannot be earlier than 10 days before today."],
+    ["es", 60, "La fecha de fin no puede ser anterior a 60 días antes de hoy."],
+  ] as const)(
+    "states the window in force in the end-date error (%s, %d days)",
+    async (locale, days, message) => {
+      renderIntl(
+        ui({ limits: { filingWindowDays: days, maxDocumentMib: 10 } }),
+        locale,
+      );
+      await submitWith(
+        [{ field: "fechaFin", key: "intake.errors.end_too_old" }],
+        locale,
+      );
+
+      expect(screen.getByText(message)).toBeInTheDocument();
+    },
+  );
 
   it("shows a subjects-level error under the subjects section", async () => {
     renderIntl(ui());
