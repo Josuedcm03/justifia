@@ -792,3 +792,91 @@ Natural split: the task names it. The Postgres cases of task 8.5 (336 lines, tes
 Owner decision on the size (move task 8.5 to PR 9, or `size:exception`); then 8.8 (open PR 8 against the tracker) and merge under the standing approval, then slice 9 (task 9.0).
 
 Owner decision (2026-11-27): slice 8 ships as one PR with size:exception (1199 changed lines without openspec; the overage is tests).
+
+## Slice 9: access guard and server actions (PR 9 of 10, branch `feat/normative-parameters-9-actions`; 2026-11-28)
+
+Mode: Strict TDD. Tasks 9.0 to 9.12 done (units 17 to 21 committed, one commit each). 9.13 (open and merge the PR) is not assigned to apply and nothing was pushed. The branch is cut from the tracker after slice 8 merged (PR 178, 1fdcb82). **No database command of any kind was run**: no INTEGRATION env, no `.env*` file read, no `drizzle-kit`, no migration (PG-2 is cut and the Postgres suite is not extended in this slice). **No mutation checks** (scope cut 2). `SignalParams`, `DEFAULT_SIGNAL_PARAMS` and every `issuer.ts` export are untouched. **The slice measures 1808 changed lines, 308 over the 1500 stop line; it is not split** (see "Size").
+
+### Framework rule (task 9.0, `AGENTS.md`)
+
+Read in `node_modules/next/dist/docs/01-app/`: `03-api-reference/04-functions/redirect.md` and `revalidatePath.md`, `01-getting-started/07-mutating-data.md`, `02-guides/forms.md`. Rule applied:
+
+- A Server Function is reachable by a direct POST, so authentication and authorization run inside every action and first: `requireParameterAccess()` is the first `await` of the four actions and nothing of `formData` is read before it resolves (tests: the `FormData` stand-in throws on any read before the guard).
+- `redirect` throws `NEXT_REDIRECT`; the actions never call it. A denial redirects inside `requireRole`, which every action awaits outside any `try`; the source test asserts the file has no `redirect(` call.
+- `revalidatePath("/parameters")` is a literal path (no `type`), called only after an `updated` result and only from a Server Function. `unchanged`, `invalid`, `busy` and unexpected revalidate nothing.
+- A `"use server"` module exports only async functions, so the shared state type lives in `src/lib/parameters/form-state.ts` and the helpers of `actions.ts` are not exported. The `useActionState` signature is `(prevState, formData)` and the outcome is returned as state, as the catalog actions do.
+- `cacheComponents` is off: no `use cache`, no `unstable_cache`; the actions keep no value between requests.
+
+### Files
+
+| File | Action | What |
+|---|---|---|
+| `src/lib/auth/permissions.ts` | Modified | `rolesQueGestionanParametros` (`["secretaria"]`) and `canManageParameters` (pattern of `canManageEnrollments`) |
+| `src/lib/auth/parameter-access.ts` (new) | Created | `requireParameterAccess()` returning `{ session, actorId }`; copy of `requireDocenteAccess`, no database read |
+| `src/lib/parameters/form-state.ts` (new) | Created | `ParameterFormState` (types only): `idle`, `invalid { fieldErrors, values }`, `saved`, `unchanged`, `busy`, `error { message }` |
+| `src/app/(dashboard)/parameters/actions.ts` (new) | Created | `saveScalarParametersAction`, `saveCalendarAction`, `saveDocumentTypeCausesAction`, `saveCausesAction` and the private helpers `text`, `jsonField`, `save`, `saveWholeValue` |
+| `src/lib/parameters/registry.ts` | Modified | one word: `CALENDAR_MAX_ENTRIES` is exported, so the "too many dates" message states the bound |
+| `src/test/access/matrix-table.ts` | Modified | actions row `(dashboard)/parameters/actions.ts` for SECRETARIA with the four exports |
+| `i18n/es.json`, `i18n/en.json` | Modified | `nav.parameters`; `parameters.state.*` (saved, unchanged, busy); `parameters.errors.*` (unexpected, invalid, required, not_integer, too_low, too_high, alert_not_below_remission, `calendar.*`, `map.invalid`, `causes.*`) |
+| Tests | Created / extended | `permissions.test.ts`, `parameter-access.test.ts` (new), `parameters/actions.test.ts` (new), `src/i18n/parameters-parity.test.ts` (new) |
+
+### Form protocol the actions define (slice 10 builds the page against it)
+
+- Scalars: six text fields named by the registry key (`plazo_remision_dias`, `alerta_dias`, `presentacion_tardia_dias`, `ventana_presentacion_dias`, `umbral_reincidencia`, `tamano_maximo_mib`). Typed digits become numbers before the registry range check; a missing field is "required". State `invalid` keys its `fieldErrors` and `values` by those names.
+- Calendar, type-to-cause map and causes: ONE field each, named by its key (`calendario`, `tipo_documento_causa`, `causas`), holding the whole value as JSON text (the page serializes its client state into a hidden input). Calendar entries are `{ fecha, descripcion }` (a blank or missing description is none); the map is `{ constancia_medica: [...], constancia_institucional: [...], otro: [] }`; causes is a list of `{ codigo, activa, posicion }`. `invalid.values` echoes the raw text under the same key.
+- Calendar errors are keyed `fecha.<row>` and `descripcion.<row>` for a row and `calendario` for the whole list; map and causes errors sit on their own key.
+- No `confirmado` field, no deactivation marker, no `unconfirmed` outcome; the server reads none of them (tested: sent in the body, never read).
+
+### TDD cycle evidence
+
+| Task | RED (written first, failed for the right reason) | GREEN | REFACTOR |
+|---|---|---|---|
+| 9.1 | `T(auth/permissions auth/parameter-access)`: 8 failed in `permissions.test.ts` (`canManageParameters is not a function`, no declaration found) and `parameter-access.test.ts` failed to load (module missing) | 2 files, 196 tests passed | typecheck caught `includes(rol)` on the one-role tuple in the new test (cast to `readonly string[]`); full suite before the commit: 408 files, 11432 tests. Commit unit 17 `e3389d6` |
+| 9.3 | `T(parameters/actions access parameters-parity)`: `access-matrix.actions` "no module loader for (dashboard)/parameters/actions.ts", `parameters-parity` ENOENT on the action source, `actions.test.ts` "Failed to resolve import" (module missing) | `T(parameters/actions access parameters-parity src/i18n)`: 18 files, 1194 tests passed after one test fix of mine (`expectNothingWritten` asserted `redirect` not called, but the guard redirect IS that mock) | prettier; one lint warning in the new test fixed. Commit unit 18 `84ba840` |
+| 9.6 | `saveCalendarAction` missing: "action is not a function" in the shared behaviour, missing export in the matrix, missing copy keys: 40 failed | 19 files, 1317 tests passed | Commit unit 19 `3828c10` |
+| 9.8 | `saveDocumentTypeCausesAction` missing: 36 failed | 18 files, 1266 tests passed | `applyAsSent` helper extracted from the calendar audit test and reused. Commit unit 20 `51cc63f` |
+| 9.10 | `saveCausesAction` missing: 41 failed | 18 files, 1305 tests passed; full suite 410 files, 11594 tests (one unrelated flaky failure, see below) | Commit unit 21 `d74d794` |
+
+### Work Unit Evidence
+
+| Evidence | Units 17 to 21 |
+|---|---|
+| Focused test command and exact result | `T(parameters/actions access parameters-parity src/i18n)`: 18 files, 1305 tests passed (unit 21); unit 17 `T(auth/permissions auth/parameter-access)`: 2 files, 196 tests passed |
+| Runtime harness | N/A as a database path. `actions.test.ts` runs the REAL guard over the real `requireRole` (doubled session source), the REAL `withCatalogWrite`, the REAL `parameterWriteEvents` and the REAL registry schemas against a recording transaction and an audit spy; only `writeParameters` (proven in slice 8), the translator, `revalidatePath`, `redirect` and the Managua date are doubles. The access matrix (`access-matrix.actions`) runs the four actions as seven identities through the real guard (28 more cases). The Postgres cases ran nowhere (none added) |
+| Rollback boundary | Revert unit 21, 20, 19, 18, 17 in reverse order (each unit adds its own export, matrix export and copy; unit 18 owns the shared harness and the parity test, unit 17 the guard). Nothing calls the actions yet, so no page or consumer depends on them; the data stays |
+
+### Gates (GS)
+
+- `DATABASE_URL=postgres://u:p@localhost:5432/x npm test` (full): **410 files, 11594 tests**. One failure in the last full run, `catalog/import/import-form.test.tsx` "shows the summary and the credentials download after the apply" (a file this slice does not touch); it passed on its own right after (39 tests), so it is a timing flake under the load of the full run. The earlier full run (before unit 17) was 408 files, 11432 tests, all green.
+- `npx next typegen` then `npm run typecheck`: clean.
+- `npx eslint --rule '{"prettier/prettier":["error",{"endOfLine":"auto"}]}' src`: 0 errors, 1 warning (the known unused `SidebarGroupLabel` in `app-sidebar.tsx`). Prettier clean on every touched file.
+- `DATABASE_URL=postgres://u:p@localhost:5432/x AUTH_SECRET=throwaway-build-secret-0123456789abcdef npm run build`: completed, route table printed.
+
+### Size (task 9.12): OVER THE STOP LINE
+
+`git diff --shortstat origin/feat/normative-parameters...HEAD -- . ':!openspec'`: **12 files changed, 1805 insertions(+), 3 deletions(-)**, 1808 changed lines (planned about 1400; pre-approved up to 1500: "owner pre-approved up to 1500 on 2026-11-27"). By commit: unit 17 `e3389d6` 245, unit 18 `84ba840` 862, unit 19 `3828c10` 335, unit 20 `51cc63f` 195, unit 21 `d74d794` 199 (the five sum to 1836; 28 lines are rewritten inside the slice). Production code is about 385 lines (`actions.ts` 315, `parameter-access.ts` 30, `permissions.ts` 17, `form-state.ts` 21, `registry.ts` 1); the copy is 66 lines (es and en) and the matrix 10; the rest, 1347, is tests: `actions.test.ts` 1002 (the behaviour shared by the four actions is one parametrised block, about 200 lines, run once per action), `parameter-access.test.ts` 164, `parameters-parity.test.ts` 147, `permissions.test.ts` 34.
+
+Natural split: the task names it. Units 20 and 21 (394 changed lines) move to PR 10: slice 9 would be about 1414 changed lines (guard, scalars, calendar), under 1500. The cost is that PR 10 (planned about 1400, also capped at 1500) would grow by those 394 lines, so it would need its own exception or a further cut. Not split here: awaiting the owner's decision (move units 20 and 21 to PR 10, or `size:exception` above the pre-approved 1500 for this PR).
+
+### Deviations from design and tasks
+
+1. **`nav.parameters` is added in unit 18, not in task 10.3.** The parity test of task 9.3 names it, so the copy lands with it; task 10.3 only adds the page and scalars copy.
+2. **The calendar, the map and the causes forms are one JSON field each** (the "calendar field" of task 9.6), not several native fields. A checkbox group cannot tell a missing type from an unchecked one, and the NP-12 table needs "type missing" and "type `recibo`" refused: the registry strict schema does exactly that on a whole value. The page of slice 10 must serialize its client state into one hidden input per form.
+3. **`src/lib/parameters/form-state.ts` is a file the tasks do not list.** A `"use server"` module cannot export a type next to its actions without breaking the export rule that the access matrix also checks.
+4. **`CALENDAR_MAX_ENTRIES` is exported from `registry.ts`** (one word) so the message "at most {max} dates" states the registry bound instead of repeating 1000.
+5. **The alert-below-remission refusal comes from the write, not from the action.** The action checks the registry range of each field (the NP-7 messages); the cross-key rule runs on the merged values under the lock (A16), so that error only shows once the six fields are individually valid. It is keyed on the field the write names.
+6. **`getTranslations()` is called without a namespace** so the keys read as `parameters.*` in the test, as the tasks write them; the unexpected and busy outcomes reuse `actionOutcomes` of `src/lib/catalog/action-helpers.ts` (read-only). The parity test scans every `"parameters.…"` string literal of the action source against both catalogs, so a key cannot be missing from one locale.
+7. **One more error key than the tasks list for the write path:** `parameters.errors.invalid` for a refusal by `writeParameters` that the action's own validation did not catch (a defence in depth, tested).
+
+### Risks and notes for slice 10
+
+- The copy `parameters.state.saved|unchanged|busy` and the error keys exist; the page and scalars copy (`parameters.page.*`, `parameters.scalars.*`) is slice 10's.
+- The per-row calendar keys are `fecha.<row index>` and `descripcion.<row index>` (the index of the submitted list, before the action sorts it).
+- All six scalars go in one save and the write drops the unchanged ones, so "unchanged" means none of the six differs from the value in force.
+- A stray `python -` was started by mistake in a background shell during this slice (no input, no effect on the repository); it cannot be stopped from this agent and ends with the session.
+
+### Next
+
+Owner decision on the size (move units 20 and 21 to PR 10, or `size:exception` above 1500); then 9.13 (open PR 9 against the tracker) and merge under the standing approval, then slice 10 (task 10.0).
+
+Owner decision (2026-11-28): slice 9 ships as one PR with size:exception (1808 changed lines without openspec, above the pre-approved 1500; about 1350 are tests).

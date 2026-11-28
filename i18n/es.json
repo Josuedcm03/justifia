@@ -28,7 +28,8 @@
     "sectionLabel": "Navegación",
     "profile": "Mi perfil",
     "trailLabel": "Ubicación de la página",
-    "reports": "Reportes"
+    "reports": "Reportes",
+    "parameters": "Parámetros normativos"
   },
   "roles": {
     "estudiante": "Estudiante",
@@ -1922,6 +1923,36 @@
       "noResults": {
         "title": "Ninguna solicitud coincide con los filtros",
         "hint": "Prueba con otro periodo, docente, estudiante o causa."
+      }
+    }
+  },
+  "parameters": {
+    "state": {
+      "saved": "Los cambios se guardaron.",
+      "unchanged": "No hay cambios que guardar.",
+      "busy": "El sistema está ocupado y no se guardó nada. Intente de nuevo."
+    },
+    "errors": {
+      "unexpected": "No se pudo guardar y no se hizo ningún cambio. Intente de nuevo.",
+      "invalid": "El valor no es válido.",
+      "required": "Este campo es obligatorio. Indique un número entero entre {min} y {max}.",
+      "not_integer": "Indique un número entero entre {min} y {max}.",
+      "too_low": "El valor debe ser como mínimo {min}. Rango permitido: de {min} a {max}.",
+      "too_high": "El valor debe ser como máximo {max}. Rango permitido: de {min} a {max}.",
+      "alert_not_below_remission": "Los días de alerta deben ser menos que los días del plazo de remisión.",
+      "calendar": {
+        "date_invalid": "Indique una fecha real con el formato AAAA-MM-DD.",
+        "date_duplicate": "Una fecha no puede aparecer dos veces en el calendario.",
+        "description_too_long": "La descripción no puede superar los 120 caracteres.",
+        "too_many": "El calendario admite como máximo {max} fechas.",
+        "invalid": "El calendario no es válido. Revise las fechas y las descripciones."
+      },
+      "causes": {
+        "no_active_cause": "Debe quedar al menos una causa activa.",
+        "invalid": "La lista de causas no es válida. Debe incluir las cinco causas, una vez cada una, con posiciones del 1 al 5."
+      },
+      "map": {
+        "invalid": "La tabla no es válida. Cada tipo de documento admite solo las cinco causas, sin repetir, y el tipo «otro» no corresponde a ninguna causa."
       }
     }
   }

@@ -169,6 +169,23 @@ export function canManageEnrollments(rol: RolUsuario | undefined): boolean {
 }
 
 /**
+ * Roles that open the parameters page and save a normative parameter
+ * (normative-parameters, NP-6, RNF-01). Parameters have no facultad scope, so
+ * any secretaria qualifies. Typed against `RolUsuario` so a renamed role is a
+ * compile error.
+ */
+export const rolesQueGestionanParametros = [
+  "secretaria",
+] as const satisfies readonly RolUsuario[];
+
+export function canManageParameters(rol: RolUsuario | undefined): boolean {
+  return (
+    rol !== undefined &&
+    (rolesQueGestionanParametros as readonly string[]).includes(rol)
+  );
+}
+
+/**
  * Roles that see the coordination reports (coordination-reports, CR-ACC-1,
  * RF-17 a). Typed against `RolUsuario` so a renamed role is a compile error.
  */
