@@ -937,7 +937,7 @@
       "end_required": "Enter the end date.",
       "end_invalid": "Enter a valid end date.",
       "end_before_start": "The end date cannot be before the start date.",
-      "end_too_old": "The end date cannot be earlier than 30 days before today.",
+      "end_too_old": "The end date cannot be earlier than {days, plural, one {# day} other {# days}} before today.",
       "subjects_required": "Tick at least one subject.",
       "subject_not_eligible": "This subject is not available for your enrollment.",
       "subject_duplicate": "This subject is repeated.",

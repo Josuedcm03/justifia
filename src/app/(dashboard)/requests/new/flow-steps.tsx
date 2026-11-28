@@ -10,6 +10,7 @@ import {
 import { SubjectsStep } from "@/app/(dashboard)/requests/new/subjects-step";
 import type { EnrollmentGroup } from "@/lib/data/enrollment";
 import type { Draft } from "@/lib/data/solicitudes";
+import type { IntakeLimits } from "@/lib/parameters/derive";
 
 /**
  * The stepper and the current step of an intake flow: a new draft, or (with a
@@ -24,6 +25,7 @@ export function FlowSteps({
   flow,
   previousDocumentIds,
   today,
+  limits,
 }: {
   step: StepNumber;
   draft: Draft;
@@ -38,6 +40,8 @@ export function FlowSteps({
   previousDocumentIds?: readonly number[] | null;
   /** The Managua calendar day, read on the server (FE-19). */
   today: string;
+  /** The limits in force, read on the server; messages state them (NP-17). */
+  limits: IntakeLimits;
 }) {
   const range = draftRange(draft);
   const validDocuments = draft.documents.filter((d) => d.estado === "valido");
@@ -56,6 +60,7 @@ export function FlowSteps({
           fromReview={fromReview}
           flow={flow}
           today={today}
+          limits={limits}
         />
       ) : null}
       {step === 2 ? (
@@ -91,6 +96,7 @@ export function FlowSteps({
           flow={flow}
           previousDocumentIds={previousDocumentIds}
           today={today}
+          limits={limits}
         />
       ) : null}
     </>

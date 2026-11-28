@@ -10,6 +10,7 @@ import {
   Field,
   FieldErrors,
   StepShell,
+  errorValuesOf,
   errorsOf,
   invalidProps,
 } from "@/app/(dashboard)/requests/new/form-field";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CAUSAS } from "@/lib/intake/causes";
+import type { IntakeLimits } from "@/lib/parameters/derive";
 import type { FieldError } from "@/lib/validations/solicitud";
 
 type Initial = {
@@ -47,12 +49,15 @@ export function CauseDatesStep({
   fromReview = false,
   flow = NEW_FLOW,
   today,
+  limits,
 }: {
   initial: Initial;
   fromReview?: boolean;
   flow?: StepFlow<"saveDetails">;
   /** The Managua calendar day from the server; absent means no notice. */
   today?: string;
+  /** The limits in force, which the end-date error states (NP-17). */
+  limits?: IntakeLimits;
 }) {
   const t = useTranslations("intake");
   const router = useRouter();
@@ -142,6 +147,7 @@ export function CauseDatesStep({
             htmlFor="fechaFin"
             label={t("details.endLabel")}
             errors={endErrors}
+            values={errorValuesOf(limits)}
           >
             <Input
               id="fechaFin"

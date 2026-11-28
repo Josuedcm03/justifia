@@ -109,20 +109,26 @@ describe("CauseDatesStep", () => {
         { field: "fechaFin", key: "intake.errors.end_too_old" },
       ],
     });
-    renderIntl(<CauseDatesStep initial={EMPTY} />);
+    // The window in force reaches the message (NP-17): 10, not a literal 30.
+    renderIntl(
+      <CauseDatesStep
+        initial={EMPTY}
+        limits={{ filingWindowDays: 10, maxDocumentMib: 10 }}
+      />,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     const alerts = await screen.findAllByRole("alert");
     expect(alerts.map((a) => a.textContent)).toEqual([
       "Elige la causa de tu ausencia.",
       "Indica la fecha de inicio.",
-      "La fecha de fin no puede ser anterior a 30 días antes de hoy.",
+      "La fecha de fin no puede ser anterior a 10 días antes de hoy.",
     ]);
     expect(push).not.toHaveBeenCalled();
     // Each message is tied to its field for assistive technology.
     expect(end()).toBeInvalid();
     expect(end()).toHaveAccessibleDescription(
-      "La fecha de fin no puede ser anterior a 30 días antes de hoy.",
+      "La fecha de fin no puede ser anterior a 10 días antes de hoy.",
     );
     expect(start()).toHaveAccessibleDescription("Indica la fecha de inicio.");
   });
