@@ -26,7 +26,7 @@ const SCALARS = [
   ["presentacion_tardia_dias", 1, 10, 2],
   ["ventana_presentacion_dias", 1, 365, 30],
   ["umbral_reincidencia", 2, 20, 3],
-  ["tamano_maximo_mib", 1, 25, 10],
+  ["tamano_maximo_mib", 1, 10, 10],
 ] as const satisfies readonly (readonly [
   ParameterKey,
   number,
@@ -380,7 +380,7 @@ describe("resolveParameters (NP-2, NP-4 pure part)", () => {
     presentacion_tardia_dias: 4,
     ventana_presentacion_dias: 60,
     umbral_reincidencia: 7,
-    tamano_maximo_mib: 20,
+    tamano_maximo_mib: 7,
     calendario: [{ fecha: "2030-01-01", descripcion: null }],
     causas: [
       { codigo: "fuerza_mayor", activa: true, posicion: 1 },
@@ -415,7 +415,7 @@ describe("resolveParameters (NP-2, NP-4 pure part)", () => {
     expect(values.lateFilingBusinessDays).toBe(4);
     expect(values.filingWindowDays).toBe(60);
     expect(values.issuerRecurrenceThreshold).toBe(7);
-    expect(values.maxDocumentMib).toBe(20);
+    expect(values.maxDocumentMib).toBe(7);
     expect(values.nonWorkingDays).toEqual(VALID.calendario);
     expect(values.causes.map((c) => c.codigo)).toEqual(
       (VALID.causas as { codigo: string }[]).map((c) => c.codigo),

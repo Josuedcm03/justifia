@@ -91,7 +91,7 @@ const OTHER_VALUES: Record<(typeof SCALARS)[number], number> = {
   presentacion_tardia_dias: 5,
   ventana_presentacion_dias: 15,
   umbral_reincidencia: 6,
-  tamano_maximo_mib: 12,
+  tamano_maximo_mib: 7,
 };
 
 type Row = { offset: number; valor: unknown };
@@ -254,8 +254,8 @@ describe.skipIf(gate.mode !== "run")(
           {
             name: "a valid row in force gives that value",
             key: "tamano_maximo_mib",
-            rows: [{ offset: -1, valor: 20 }],
-            expected: 20,
+            rows: [{ offset: -1, valor: 8 }],
+            expected: 8,
             fellBack: false,
           },
           {
