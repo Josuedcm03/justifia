@@ -122,6 +122,11 @@ export default async function CorrectRequestPage({
   // The limits in force, read once here and stated by the error messages
   // (NP-17); React `cache()` makes this one read per render (NP-5).
   const { values } = await getNormativeParameters();
+  // The active causes plus the request's own, in the stored order (A14): the
+  // cause rule binds drafts, so a deactivated cause of this request stays offered.
+  const causes = values.causes
+    .filter((c) => c.activa || c.codigo === request.causa)
+    .map((c) => c.codigo);
 
   const flow: Flow = {
     basePath: `/requests/${id}/correct`,
@@ -149,6 +154,7 @@ export default async function CorrectRequestPage({
         previousDocumentIds={previousDocumentIds}
         today={today}
         limits={intakeLimitsOf(values)}
+        causes={causes}
       />
     </div>
   );

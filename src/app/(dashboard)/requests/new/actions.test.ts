@@ -124,6 +124,21 @@ function windowRead(days: number) {
   };
 }
 
+/** The loader result when `inactive` causes are deactivated (NP-11). */
+function causesRead(...inactive: string[]) {
+  return {
+    values: {
+      ...DEFAULT_PARAMETERS,
+      causes: DEFAULT_PARAMETERS.causes.map((c) => ({
+        ...c,
+        activa: !inactive.includes(c.codigo),
+      })),
+    },
+    fallback: [],
+    degraded: false,
+  };
+}
+
 let deps: ReturnType<typeof createFakeIntakeDeps>;
 
 describe("intake actions", () => {
@@ -636,6 +651,31 @@ describe("intake actions", () => {
         );
 
         expect(h.getNormativeParameters).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("active causes from the loader (NP-11, JI-SUBMIT)", () => {
+      it("blocks a draft whose cause was deactivated, on the cause field, and submits nothing", async () => {
+        h.getNormativeParameters.mockResolvedValue(causesRead("medica"));
+
+        expect(await submitRequestAction(CONSENTED)).toEqual({
+          ok: false,
+          errors: [{ field: "causa", key: "intake.errors.causa_inactive" }],
+        });
+
+        expect(h.submitDraft).not.toHaveBeenCalled();
+      });
+
+      it("accepts the same draft once the cause is active again", async () => {
+        h.getNormativeParameters.mockResolvedValue(causesRead("medica"));
+        await submitRequestAction(CONSENTED);
+
+        h.getNormativeParameters.mockResolvedValue(causesRead());
+        h.submitDraft.mockResolvedValue({ ok: true });
+
+        await expect(submitRequestAction(CONSENTED)).rejects.toThrow(
+          "REDIRECT:/requests/new/confirmation",
+        );
       });
     });
 

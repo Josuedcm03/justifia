@@ -23,9 +23,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CAUSAS } from "@/lib/intake/causes";
+import { CAUSAS, type Causa } from "@/lib/intake/causes";
 import type { IntakeLimits } from "@/lib/parameters/derive";
-import type { FieldError } from "@/lib/validations/solicitud";
+import { errorKey, type FieldError } from "@/lib/validations/solicitud";
 
 type Initial = {
   causa: string | null;
@@ -43,6 +43,8 @@ const NEW_FLOW: StepFlow<"saveDetails"> = {
  * here: the action is the authority and answers with every invalid field at
  * once (RF-03), so the form never disagrees with the server. A start after
  * `today` only adds a note (FE-19): it blocks nothing and is no field error.
+ * It offers the `causes` it is given, in that order (NP-11); a saved cause that
+ * is not among them shows no selection and the inactive-cause alert (JI-CAUSE).
  */
 export function CauseDatesStep({
   initial,
@@ -50,6 +52,7 @@ export function CauseDatesStep({
   flow = NEW_FLOW,
   today,
   limits,
+  causes = CAUSAS,
 }: {
   initial: Initial;
   fromReview?: boolean;
@@ -58,13 +61,21 @@ export function CauseDatesStep({
   today?: string;
   /** The limits in force, which the end-date error states (NP-17). */
   limits?: IntakeLimits;
+  /** The causes to offer, in the stored order; the page reads them (NP-11). */
+  causes?: readonly Causa[];
 }) {
   const t = useTranslations("intake");
   const router = useRouter();
-  const [causa, setCausa] = useState(initial.causa ?? "");
+  const inactive =
+    initial.causa !== null &&
+    initial.causa !== "" &&
+    !(causes as readonly string[]).includes(initial.causa);
+  const [causa, setCausa] = useState(inactive ? "" : (initial.causa ?? ""));
   // Followed only to decide the notice; the field stays uncontrolled.
   const [start, setStart] = useState(initial.fechaInicio ?? "");
-  const [errors, setErrors] = useState<FieldError[]>([]);
+  const [errors, setErrors] = useState<FieldError[]>(
+    inactive ? [{ field: "causa", key: errorKey("causa_inactive") }] : [],
+  );
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -114,7 +125,7 @@ export function CauseDatesStep({
             aria-labelledby="causa-label"
             {...invalidProps("causa", causaErrors)}
           >
-            {CAUSAS.map((code) => (
+            {causes.map((code) => (
               <label
                 key={code}
                 className="flex min-h-11 items-center gap-3 text-sm"

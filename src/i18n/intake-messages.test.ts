@@ -19,6 +19,7 @@ function leafPaths(value: unknown, prefix = ""): string[] {
 const ERROR_CODES = [
   "causa_required",
   "causa_invalid",
+  "causa_inactive",
   "start_required",
   "start_invalid",
   "end_required",

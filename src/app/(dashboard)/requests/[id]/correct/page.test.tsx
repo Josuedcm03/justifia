@@ -170,6 +170,52 @@ describe("CorrectRequestPage limits (NP-17, A13)", () => {
     });
   });
 
+  describe("the causes the correction offers (NP-11, A14)", () => {
+    /** The loader result with `inactive` causes deactivated. */
+    const causesRead = (...inactive: string[]) => ({
+      values: {
+        ...DEFAULT_PARAMETERS,
+        causes: DEFAULT_PARAMETERS.causes.map((c) => ({
+          ...c,
+          activa: !inactive.includes(c.codigo),
+        })),
+      },
+      fallback: [],
+      degraded: false,
+    });
+    const offered = () => vi.mocked(FlowSteps).mock.calls[0][0].causes;
+
+    it("offers the active causes in the stored order", async () => {
+      getNormativeParameters.mockResolvedValue(
+        causesRead("intercambio_academico"),
+      );
+
+      await renderPage();
+
+      expect(offered()).toEqual([
+        "maternidad_paternidad",
+        "actividad_representativa",
+        "medica",
+        "fuerza_mayor",
+      ]);
+    });
+
+    it("adds the request's own cause when it is deactivated, in the stored order", async () => {
+      getNormativeParameters.mockResolvedValue(
+        causesRead("medica", "intercambio_academico"),
+      );
+
+      await renderPage();
+
+      expect(offered()).toEqual([
+        "maternidad_paternidad",
+        "actividad_representativa",
+        "medica",
+        "fuerza_mayor",
+      ]);
+    });
+  });
+
   it("reads nothing when the request cannot be read", async () => {
     getLiveDraft.mockRejectedValue(new Error("db down"));
 

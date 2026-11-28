@@ -10,6 +10,7 @@ import {
 import { SubjectsStep } from "@/app/(dashboard)/requests/new/subjects-step";
 import type { EnrollmentGroup } from "@/lib/data/enrollment";
 import type { Draft } from "@/lib/data/solicitudes";
+import type { Causa } from "@/lib/intake/causes";
 import type { IntakeLimits } from "@/lib/parameters/derive";
 
 /**
@@ -26,6 +27,7 @@ export function FlowSteps({
   previousDocumentIds,
   today,
   limits,
+  causes,
 }: {
   step: StepNumber;
   draft: Draft;
@@ -42,6 +44,8 @@ export function FlowSteps({
   today: string;
   /** The limits in force, read on the server; messages state them (NP-17). */
   limits: IntakeLimits;
+  /** The causes the cause step offers, in the stored order (NP-11). */
+  causes: readonly Causa[];
 }) {
   const range = draftRange(draft);
   const validDocuments = draft.documents.filter((d) => d.estado === "valido");
@@ -61,6 +65,7 @@ export function FlowSteps({
           flow={flow}
           today={today}
           limits={limits}
+          causes={causes}
         />
       ) : null}
       {step === 2 ? (

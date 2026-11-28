@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import { messages, renderIntl } from "@/app/(dashboard)/review/test-support";
 import {
   HistorySection,
+  RequestSection,
   StudentSection,
 } from "@/app/(dashboard)/review/[id]/request-sections";
+import type { RequestDetail } from "@/lib/data/solicitud-detail";
 
 // RC-9, request-review "Consent shown on the staff detail": the consent state is
 // one text fact of the student section, in the business time zone, and a request
@@ -178,5 +180,24 @@ describe("HistorySection escalation pointer (FE-5, RF-16 c)", () => {
     expect(
       screen.getByRole("link", { name: "Ir a los escalamientos" }),
     ).toHaveAttribute("href", "#escalation-title");
+  });
+});
+
+describe("RequestSection cause label (NP-11)", () => {
+  // The section reads no parameter: a request keeps its cause label whether or
+  // not the cause is still active.
+  const detail = {
+    estado: "pendiente",
+    causa: "medica",
+    fechaInicio: "2026-10-01",
+    fechaFin: "2026-10-03",
+    presentadaEn: null,
+    reenviadaEn: null,
+  } as RequestDetail;
+
+  it("shows the label of the cause of an existing request", () => {
+    renderIntl(<RequestSection detail={detail} deadline={null} />);
+
+    expect(fact(en.fields.cause)).toHaveTextContent("Medical");
   });
 });

@@ -47,6 +47,7 @@ vi.mock("@/lib/intake/submission", async (importOriginal) => {
   return { ...actual, validateSubmission: vi.fn(actual.validateSubmission) };
 });
 
+import { CAUSAS } from "@/lib/intake/causes";
 import { validateSubmission } from "@/lib/intake/submission";
 import { filingRulesOf } from "@/lib/parameters/derive";
 import { DEFAULT_PARAMETERS } from "@/lib/parameters/registry";
@@ -350,6 +351,26 @@ describe("resubmitCorrection: consent is never asked (RC-4, RN-25, C4, C12)", ()
     expect(vi.mocked(validateSubmission).mock.calls[0][2]).toEqual(
       filingRulesOf(windowRead(10).values),
     );
+  });
+
+  it("accepts a deactivated cause: a correction offers all five (NP-11, A14)", async () => {
+    getParametersMock.mockResolvedValue({
+      ...windowRead(30),
+      values: {
+        ...DEFAULT_PARAMETERS,
+        causes: DEFAULT_PARAMETERS.causes.map((c) => ({
+          ...c,
+          activa: c.codigo !== "medica",
+        })),
+      },
+    });
+    use([...loaded(), ...transaction()]);
+
+    expect(await resubmitCorrection(input)).toEqual({ ok: true });
+
+    expect(
+      vi.mocked(validateSubmission).mock.calls[0][2].selectableCauses,
+    ).toEqual([...CAUSAS]);
   });
 
   it("never sends a consent version to the validation", async () => {

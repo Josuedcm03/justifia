@@ -9,6 +9,7 @@ import {
   saveDraftSubjects,
   type EditTarget,
 } from "@/lib/data/solicitudes";
+import { CAUSAS } from "@/lib/intake/causes";
 import { managuaToday } from "@/lib/intake/dates";
 import {
   resolveGroupChoices,
@@ -88,13 +89,16 @@ export async function saveDetails(
   input: unknown,
 ): Promise<ActionResult> {
   const now = new Date();
-  // The window in force, read once for this save (NP-13: a draft only).
+  // The rules in force, read once for this save. NP-13: the window and the
+  // active-cause rule bind a draft only; a correction offers all five (A14).
   const { values } = await getNormativeParameters();
+  const isDraft = target.kind === "draft";
+  const rules = filingRulesOf(values);
 
   const parsed = makeDetailsStepSchema(
     managuaToday(now),
-    filingRulesOf(values),
-    { filingWindow: target.kind === "draft" },
+    isDraft ? rules : { ...rules, selectableCauses: CAUSAS },
+    { filingWindow: isDraft },
   ).safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: toFieldErrors(parsed.error) };

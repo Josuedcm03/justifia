@@ -51,6 +51,51 @@ describe("CauseDatesStep", () => {
     expect(end()).toHaveValue("");
   });
 
+  it("offers only the causes it is given, in that order (NP-11)", () => {
+    renderIntl(
+      <CauseDatesStep
+        initial={EMPTY}
+        causes={["fuerza_mayor", "intercambio_academico", "medica"]}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("radio").map((r) => r.closest("label")?.textContent),
+    ).toEqual([
+      "Otra causa de fuerza mayor",
+      "Intercambio académico",
+      "Causa médica",
+    ]);
+  });
+
+  it("shows no selection and the inactive-cause alert for a draft whose cause is not offered (JI-CAUSE)", async () => {
+    renderIntl(
+      <CauseDatesStep
+        initial={FILLED}
+        causes={["fuerza_mayor", "intercambio_academico"]}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("radio").map((r) => r.getAttribute("aria-checked")),
+    ).toEqual(["false", "false"]);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Esta causa ya no está disponible. Elige otra.",
+    );
+    expect(screen.getByRole("radiogroup")).toBeInvalid();
+  });
+
+  it("says the same in English", () => {
+    renderIntl(
+      <CauseDatesStep initial={FILLED} causes={["fuerza_mayor"]} />,
+      "en",
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This cause is no longer available. Choose another.",
+    );
+  });
+
   it("shows the saved values of a resumed draft (D8)", () => {
     renderIntl(<CauseDatesStep initial={FILLED} />);
     expect(screen.getByRole("radio", { name: "Causa médica" })).toHaveAttribute(

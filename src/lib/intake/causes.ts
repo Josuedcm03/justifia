@@ -21,6 +21,22 @@ export function isCausa(value: unknown): value is Causa {
   );
 }
 
+/** The errors a chosen cause can carry once it is present (RN-01, NP-11). */
+export type CauseErrorCode = "causa_invalid" | "causa_inactive";
+
+/**
+ * The error of a present cause code, or none: a code outside the five is
+ * invalid, one of the five that is not among `selectable` is inactive. A draft
+ * passes the active causes; a correction passes all five (A14).
+ */
+export function causeErrors(
+  causa: string,
+  selectable: readonly Causa[],
+): CauseErrorCode[] {
+  if (!isCausa(causa)) return ["causa_invalid"];
+  return selectable.includes(causa) ? [] : ["causa_inactive"];
+}
+
 // Causes whose document can grant a rest period (RN-09, RN-10 only apply to
 // them). Another code constant, not configuration: the configurable cause to
 // document table is RNF-14 (change normative-parameters); the type to cause map
