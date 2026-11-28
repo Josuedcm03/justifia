@@ -2,6 +2,7 @@
 
 import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
+import type { ZodError } from "zod";
 
 import { parameterWriteEvents } from "@/lib/audit/events";
 import { requireParameterAccess } from "@/lib/auth/parameter-access";
@@ -10,6 +11,7 @@ import { withCatalogWrite } from "@/lib/data/catalog-write";
 import { managuaToday } from "@/lib/intake/dates";
 import type { ParameterFormState } from "@/lib/parameters/form-state";
 import {
+  CALENDAR_MAX_ENTRIES,
   PARAMETER_KEYS,
   PARAMETER_REGISTRY,
   type ParameterChange,
@@ -32,6 +34,23 @@ const { unexpected, failure } = actionOutcomes("parameters.errors.unexpected");
 function text(formData: FormData, key: string): string {
   const raw = formData.get(key);
   return typeof raw === "string" ? raw : "";
+}
+
+/**
+ * A whole-value field (calendar, map, causes): its text, kept to echo back, and
+ * the JSON it parses to. A text that is not JSON parses to `undefined`, which
+ * the registry schema refuses like any other wrong shape.
+ */
+function jsonField(
+  formData: FormData,
+  key: string,
+): { raw: string; value: unknown } {
+  const raw = text(formData, key);
+  try {
+    return { raw, value: JSON.parse(raw) };
+  } catch {
+    return { raw, value: undefined };
+  }
 }
 
 /**
@@ -142,4 +161,79 @@ export async function saveScalarParametersAction(
   }
 
   return save(actorId, changes, values, t);
+}
+
+// ---- Calendar (NP-10) ------------------------------------------------------
+
+const CALENDAR_ERRORS = {
+  date_invalid: "parameters.errors.calendar.date_invalid",
+  date_duplicate: "parameters.errors.calendar.date_duplicate",
+  description_too_long: "parameters.errors.calendar.description_too_long",
+} as const;
+
+/** A blank or missing description is none: it is optional (NP-10). Anything
+ *  else is left as sent, so the strict entry schema refuses it. */
+function withBlankDescriptionAsNone(entry: unknown): unknown {
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+    return entry;
+  }
+  const { descripcion, ...rest } = entry as Record<string, unknown>;
+  const blank =
+    descripcion === undefined ||
+    (typeof descripcion === "string" && descripcion.trim() === "");
+  return { ...rest, descripcion: blank ? null : descripcion };
+}
+
+/** One message per place: a row's own date or description, else the list. */
+function calendarErrors(t: Translate, error: ZodError) {
+  const out: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const [index, field] = issue.path;
+    const key =
+      issue.path.length === 2
+        ? `${String(field)}.${String(index)}`
+        : "calendario";
+    if (key in out) continue;
+    if (issue.code === "too_big" && issue.path.length === 0) {
+      out[key] = t("parameters.errors.calendar.too_many", {
+        max: CALENDAR_MAX_ENTRIES,
+      });
+    } else if (Object.hasOwn(CALENDAR_ERRORS, issue.message)) {
+      out[key] = t(
+        CALENDAR_ERRORS[issue.message as keyof typeof CALENDAR_ERRORS],
+      );
+    } else {
+      out[key] = t("parameters.errors.calendar.invalid");
+    }
+  }
+  return out;
+}
+
+export async function saveCalendarAction(
+  _prev: ParameterFormState,
+  formData: FormData,
+): Promise<ParameterFormState> {
+  const { actorId } = await requireParameterAccess();
+  const t = await getTranslations();
+
+  // Only the calendar field is read: the whole list in one value.
+  const { raw, value } = jsonField(formData, "calendario");
+  const values = { calendario: raw };
+  const parsed = PARAMETER_REGISTRY.calendario.schema.safeParse(
+    Array.isArray(value) ? value.map(withBlankDescriptionAsNone) : value,
+  );
+  if (!parsed.success) {
+    return {
+      kind: "invalid",
+      fieldErrors: calendarErrors(t, parsed.error),
+      values,
+    };
+  }
+
+  return save(
+    actorId,
+    [{ clave: "calendario", valor: parsed.data }],
+    values,
+    t,
+  );
 }

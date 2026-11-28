@@ -1939,7 +1939,14 @@
       "not_integer": "Indique un número entero entre {min} y {max}.",
       "too_low": "El valor debe ser como mínimo {min}. Rango permitido: de {min} a {max}.",
       "too_high": "El valor debe ser como máximo {max}. Rango permitido: de {min} a {max}.",
-      "alert_not_below_remission": "Los días de alerta deben ser menos que los días del plazo de remisión."
+      "alert_not_below_remission": "Los días de alerta deben ser menos que los días del plazo de remisión.",
+      "calendar": {
+        "date_invalid": "Indique una fecha real con el formato AAAA-MM-DD.",
+        "date_duplicate": "Una fecha no puede aparecer dos veces en el calendario.",
+        "description_too_long": "La descripción no puede superar los 120 caracteres.",
+        "too_many": "El calendario admite como máximo {max} fechas.",
+        "invalid": "El calendario no es válido. Revise las fechas y las descripciones."
+      }
     }
   }
 }

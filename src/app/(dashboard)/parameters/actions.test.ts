@@ -37,7 +37,10 @@ vi.mock("@/lib/intake/dates", async (original) => ({
   managuaToday: m.today,
 }));
 
-import { saveScalarParametersAction } from "@/app/(dashboard)/parameters/actions";
+import {
+  saveCalendarAction,
+  saveScalarParametersAction,
+} from "@/app/(dashboard)/parameters/actions";
 import { PARAMETER_REGISTRY } from "@/lib/parameters/registry";
 
 const ACTOR = 41;
@@ -490,6 +493,216 @@ describe("saveScalarParametersAction", () => {
       });
       expect(m.audit).not.toHaveBeenCalled();
       expect(m.revalidatePath).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---- saveCalendarAction (unit 19) ------------------------------------------
+
+/** The calendar form carries its whole list in one field (a JSON text). */
+function calendarBody(entries: unknown): Record<string, string> {
+  return { calendario: JSON.stringify(entries) };
+}
+
+const CHRISTMAS = { fecha: "2026-12-25", descripcion: "Navidad" };
+
+/** One date per day from 2000-01-01, all real and all different. */
+function dates(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    fecha: new Date(Date.UTC(2000, 0, 1 + index)).toISOString().slice(0, 10),
+    descripcion: null,
+  }));
+}
+
+describe("saveCalendarAction", () => {
+  sharedBehaviour(saveCalendarAction, calendarBody([CHRISTMAS]), [
+    { clave: "calendario", valor: [CHRISTMAS] },
+  ]);
+
+  describe("NP-10: invalid entries are refused with the error shown and nothing stored (table-driven)", () => {
+    it.each([
+      [
+        "a date that is not real",
+        [{ fecha: "2026-02-30", descripcion: null }],
+        "fecha.0",
+        "date_invalid",
+      ],
+      [
+        "a month 13",
+        [CHRISTMAS, { fecha: "2026-13-01", descripcion: null }],
+        "fecha.1",
+        "date_invalid",
+      ],
+      [
+        "the same date twice",
+        [CHRISTMAS, { fecha: "2026-12-25", descripcion: null }],
+        "calendario",
+        "date_duplicate",
+      ],
+      [
+        "a description of 121 characters",
+        [{ fecha: "2026-12-25", descripcion: "x".repeat(121) }],
+        "descripcion.0",
+        "description_too_long",
+      ],
+      [
+        "an entry with a field outside the closed pair",
+        [{ ...CHRISTMAS, activo: true }],
+        "calendario",
+        "invalid",
+      ],
+      [
+        "an entry that is not an object",
+        ["2026-12-25"],
+        "calendario",
+        "invalid",
+      ],
+      ["a date that is not text", [{ fecha: 20261225 }], "fecha.0", "invalid"],
+    ])("%s", async (_case, entries, field, code) => {
+      const body = calendarBody(entries);
+
+      const state = await saveCalendarAction(IDLE, form(body));
+
+      expect(state).toEqual({
+        kind: "invalid",
+        fieldErrors: { [field]: `parameters.errors.calendar.${code}` },
+        values: body,
+      });
+      expectNothingWritten();
+    });
+
+    it.each([
+      ["text that is not JSON", "{not json"],
+      ["a JSON value that is not a list", '{"fecha":"2026-12-25"}'],
+      ["a missing field", undefined],
+    ])("refuses %s on the whole list", async (_case, raw) => {
+      const body = raw === undefined ? {} : { calendario: raw };
+
+      const state = await saveCalendarAction(IDLE, form(body));
+
+      expect(state).toEqual({
+        kind: "invalid",
+        fieldErrors: { calendario: "parameters.errors.calendar.invalid" },
+        values: { calendario: raw ?? "" },
+      });
+      expectNothingWritten();
+    });
+
+    it("refuses more than 1000 entries and accepts exactly 1000", async () => {
+      const refused = calendarBody(dates(1001));
+
+      expect(await saveCalendarAction(IDLE, form(refused))).toEqual({
+        kind: "invalid",
+        fieldErrors: {
+          calendario: 'parameters.errors.calendar.too_many:{"max":1000}',
+        },
+        values: refused,
+      });
+      expectNothingWritten();
+
+      expect(
+        await saveCalendarAction(IDLE, form(calendarBody(dates(1000)))),
+      ).toEqual({ kind: "saved" });
+    });
+  });
+
+  describe("NP-10: the description is optional and kept", () => {
+    it("keeps a description, and a blank or missing one becomes none", async () => {
+      await saveCalendarAction(
+        IDLE,
+        form(
+          calendarBody([
+            { fecha: "2026-05-01", descripcion: "Dia del Trabajo" },
+            { fecha: "2026-05-02", descripcion: "   " },
+            { fecha: "2026-05-03", descripcion: null },
+            { fecha: "2026-05-04" },
+          ]),
+        ),
+      );
+
+      expect(m.write).toHaveBeenCalledWith(
+        tx,
+        [
+          {
+            clave: "calendario",
+            valor: [
+              { fecha: "2026-05-01", descripcion: "Dia del Trabajo" },
+              { fecha: "2026-05-02", descripcion: null },
+              { fecha: "2026-05-03", descripcion: null },
+              { fecha: "2026-05-04", descripcion: null },
+            ],
+          },
+        ],
+        TODAY,
+      );
+    });
+
+    it("hands the list over ascending", async () => {
+      await saveCalendarAction(
+        IDLE,
+        form(
+          calendarBody([
+            { fecha: "2026-12-25", descripcion: null },
+            { fecha: "2026-01-01", descripcion: null },
+          ]),
+        ),
+      );
+
+      expect(m.write.mock.calls[0][1]).toEqual([
+        {
+          clave: "calendario",
+          valor: [
+            { fecha: "2026-01-01", descripcion: null },
+            { fecha: "2026-12-25", descripcion: null },
+          ],
+        },
+      ]);
+    });
+  });
+
+  describe("closed field set and audit (NP-AUD-2, NP-AUD-3)", () => {
+    it("reads only the calendar field", async () => {
+      await saveCalendarAction(
+        IDLE,
+        form({ ...calendarBody([CHRISTMAS]), plazo_remision_dias: "9" }),
+      );
+
+      expect(reads).toEqual(["calendario"]);
+    });
+
+    it("writes one audit row for the key with the ISO dates only: the description never reaches a payload or a logged line", async () => {
+      const SENTINEL = "SENTINEL-DESC-0123";
+      m.write.mockImplementation(
+        async (_tx: unknown, changes: { clave: string; valor: unknown }[]) => ({
+          kind: "updated",
+          changes: changes.map(({ clave, valor }) => ({
+            clave,
+            antes: [],
+            despues: valor,
+          })),
+        }),
+      );
+
+      await saveCalendarAction(
+        IDLE,
+        form(
+          calendarBody([
+            { fecha: "2026-12-25", descripcion: SENTINEL },
+            { fecha: "2026-12-26", descripcion: null },
+          ]),
+        ),
+      );
+
+      expect(m.audit).toHaveBeenCalledTimes(1);
+      const events = m.audit.mock.calls[0][2];
+      expect(events).toHaveLength(1);
+      expect(events[0].datos).toEqual({
+        clave: "calendario",
+        antes: [],
+        despues: ["2026-12-25", "2026-12-26"],
+      });
+      expect(JSON.stringify(m.audit.mock.calls)).not.toContain(SENTINEL);
+      expect(JSON.stringify(consoleError.mock.calls)).not.toContain(SENTINEL);
     });
   });
 });

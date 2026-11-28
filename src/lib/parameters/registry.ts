@@ -98,7 +98,7 @@ function scalar(min: number, max: number) {
   return z.number().int().min(min).max(max);
 }
 
-const CALENDAR_MAX_ENTRIES = 1000;
+export const CALENDAR_MAX_ENTRIES = 1000;
 const DESCRIPTION_MAX_LENGTH = 120;
 
 function isUnique(values: readonly unknown[]): boolean {
